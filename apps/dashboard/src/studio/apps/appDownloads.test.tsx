@@ -412,6 +412,54 @@ describe('an app that runs from the project folder', () => {
     ).toBeTruthy();
   });
 
+  it('shows what the folder dropped that holds data, keeps it on one click and removes it only on two', async () => {
+    installed = {
+      apps: [
+        {
+          ...INSTALLED,
+          source: 'folder',
+          folder: {
+            state: 'here',
+            removals: [
+              { kind: 'table', table: 'notes', tableName: 'repairs_notes', rows: 12 },
+              { kind: 'column', table: 'items', tableName: 'repairs_items', column: 'colour', rows: 1 },
+              { kind: 'narrow', table: 'items', tableName: 'repairs_items', column: 'title', rows: 3, detail: 'it now holds at most 30 characters' },
+            ],
+          },
+        },
+      ],
+      staged: [],
+    };
+    await renderPage();
+    expect(screen.getByText(`apps/${INSTALLED.key}/ no longer declares these, and they hold data. Nothing was removed.`)).toBeTruthy();
+    expect(screen.getByText('The table repairs_notes, with 12 rows')).toBeTruthy();
+    expect(screen.getByText('The column repairs_items.colour: 1 row holds a value')).toBeTruthy();
+    expect(screen.getByText('repairs_items.title holds less than it did: 3 rows do not fit, and stay as they are')).toBeTruthy();
+
+    // The first click on "Remove them" sends nothing.
+    await userEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    expect(posted(`/api/v1/project/apps/${INSTALLED.key}/removals`)).toHaveLength(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, remove them and their data' }));
+    expect(posted(`/api/v1/project/apps/${INSTALLED.key}/removals`).map((call) => call.body)).toEqual([{ accept: true }]);
+  });
+
+  it('keeps the data on one click', async () => {
+    installed = {
+      apps: [
+        {
+          ...INSTALLED,
+          source: 'folder',
+          folder: { state: 'here', removals: [{ kind: 'table', table: 'notes', tableName: 'repairs_notes', rows: 1 }] },
+        },
+      ],
+      staged: [],
+    };
+    await renderPage();
+    expect(screen.getByText('The table repairs_notes, with 1 row')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Keep the data' }));
+    expect(posted(`/api/v1/project/apps/${INSTALLED.key}/removals`).map((call) => call.body)).toEqual([{ accept: false }]);
+  });
+
   it('is not marked on a package', async () => {
     installed = { apps: [INSTALLED], staged: [] };
     await renderPage();

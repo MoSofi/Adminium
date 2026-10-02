@@ -782,7 +782,15 @@ export default {
       "folderGone": "文件夹已不存在",
       "folderGoneBody": "apps/{key}/ 已不在此项目中。应用连同其数据表和页面保持安装，直到你将其卸载。",
       "notApplied": "未应用",
-      "notAppliedBody": "apps/{key}/ 中的最新更改未应用，应用照原样运行。{message}"
+      "notAppliedBody": "apps/{key}/ 中的最新更改未应用，应用照原样运行。{message}",
+      "removalsTitle": "apps/{key}/ 不再声明这些内容，而它们存有数据。没有删除任何内容。",
+      "removalTable": "数据表 {table}，共 {rows, plural, other {# 行}}",
+      "removalColumn": "列 {column}：{rows, plural, other {# 行}}存有值",
+      "removalNarrow": "{column} 可容纳的内容比以前少：{rows, plural, other {# 行}}不符合，并保持原样",
+      "removalKeep": "保留数据",
+      "removalRemove": "删除它们",
+      "removalConfirm": "是的，连同数据一起删除",
+      "removalCancel": "取消"
     },
     "instances": {
       "add": "添加实例",

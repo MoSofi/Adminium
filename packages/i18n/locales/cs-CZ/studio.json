@@ -772,7 +772,15 @@
       "folderGone": "Složka chybí",
       "folderGoneBody": "apps/{key}/ už v tomto projektu není. Aplikace zůstane nainstalovaná se svými tabulkami a stránkami, dokud ji neodinstalujete.",
       "notApplied": "Nepoužito",
-      "notAppliedBody": "Poslední změna v apps/{key}/ nebyla použita a aplikace běží jako dosud. {message}"
+      "notAppliedBody": "Poslední změna v apps/{key}/ nebyla použita a aplikace běží jako dosud. {message}",
+      "removalsTitle": "apps/{key}/ už je nedeklaruje a obsahují data. Nic nebylo odstraněno.",
+      "removalTable": "Tabulka {table} s {rows, plural, one {# řádkem} few {# řádky} many {# řádku} other {# řádky}}",
+      "removalColumn": "Sloupec {column}: {rows, plural, one {# řádek obsahuje} few {# řádky obsahují} many {# řádku obsahuje} other {# řádků obsahuje}} hodnotu",
+      "removalNarrow": "{column} pojme méně než dříve: {rows, plural, one {# řádek nevyhovuje} few {# řádky nevyhovují} many {# řádku nevyhovuje} other {# řádků nevyhovuje}} a zůstávají beze změny",
+      "removalKeep": "Ponechat data",
+      "removalRemove": "Odstranit je",
+      "removalConfirm": "Ano, odstranit je i s daty",
+      "removalCancel": "Zrušit"
     },
     "instances": {
       "add": "Přidat instanci",

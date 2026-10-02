@@ -36,6 +36,7 @@ import {
   parseEnumCheck,
   tableWithAddedColumns,
   tableWithAlteredColumns,
+  tableWithDroppedColumns,
   validateSchemaEdit,
   withIndexes,
   withUniques,
@@ -123,6 +124,7 @@ async function planWithRelations(
     dialect: input.dialect,
     maxIdentifierLength: input.maxIdentifierLength,
     actual: input.actual.tables,
+    relations: input.actual.relations,
     metaSharesDatabase: input.metaSharesDatabase,
     isReserved: isReservedWord,
     isWidening: (from, to) => isWideningChange(from, to),
@@ -204,9 +206,21 @@ async function planWithRelations(
    * express, so one nullable column copied every row and tripped the
    * row-count gate.
    */
+  const droppedFrom = new Map<string, Set<string>>();
+  for (const entry of input.edit.dropColumns ?? []) {
+    const id = renamedIds.get(entry.table) ?? entry.table;
+    const table = renamed.tables.find((t) => t.id === id || t.name === id);
+    if (table !== undefined) droppedFrom.set(table.id, (droppedFrom.get(table.id) ?? new Set()).add(entry.column));
+  }
   for (const tableId of extended.keys()) {
     desiredRelations.push(
-      ...renamed.relations.filter((r) => r.kind === 'declared-fk' && r.from.tableId === tableId),
+      ...renamed.relations.filter(
+        (r) =>
+          r.kind === 'declared-fk' &&
+          r.from.tableId === tableId &&
+          // A link from a column that goes, goes with it.
+          !r.from.columns.some((column) => droppedFrom.get(tableId)?.has(column) === true),
+      ),
     );
   }
   /*
@@ -403,10 +417,18 @@ export function extendedTables(
     if (table === undefined) continue;
     plain.set(table.id, [...(plain.get(table.id) ?? []), { name: entry.name, columns: [...entry.columns] }]);
   }
-  const out = new Map<string, TableModel>();
-  for (const tableId of new Set([...alters.keys(), ...adds.keys(), ...sets.keys(), ...plain.keys()])) {
-    const table = actual.tables.find((t) => t.id === tableId);
+  // Columns that go: first, so everything else is laid over the table without them.
+  const drops = new Map<string, string[]>();
+  for (const entry of edit.dropColumns ?? []) {
+    const table = find(entry.table);
     if (table === undefined) continue;
+    drops.set(table.id, [...(drops.get(table.id) ?? []), entry.column]);
+  }
+  const out = new Map<string, TableModel>();
+  for (const tableId of new Set([...drops.keys(), ...alters.keys(), ...adds.keys(), ...sets.keys(), ...plain.keys()])) {
+    const found = actual.tables.find((t) => t.id === tableId);
+    if (found === undefined) continue;
+    const table = tableWithDroppedColumns(found, drops.get(tableId) ?? []);
     const uniqueAs = dialect === 'sqlite' ? 'index' : 'constraint';
     const altered = tableWithAlteredColumns(table, alters.get(tableId) ?? [], { dbTypeFor, uniqueAs });
     const added = tableWithAddedColumns(altered, adds.get(tableId) ?? [], {

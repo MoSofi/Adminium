@@ -512,6 +512,38 @@ const appliedSchema = z.object({
   reused: z.array(z.string()),
 });
 
+/** One thing a folder app's manifest dropped that holds data. */
+export const appRemovalChange = z.object({
+  /** `narrow` is a column that holds less than it did: counted, never changed in the database. */
+  kind: z.enum(['table', 'column', 'narrow']),
+  /** The table's short name in the manifest it was last applied with. */
+  table: z.string(),
+  /** The real table in the database. */
+  tableName: z.string(),
+  column: z.string().optional(),
+  /** Rows in the table, rows holding a value in the column, or rows that no longer fit. */
+  rows: z.number(),
+  detail: z.string().optional(),
+});
+
+export const appRemovalsReply = z.object({
+  key: appKey,
+  /** The question waiting, or null when there is none. */
+  removals: z.array(appRemovalChange).nullable(),
+});
+
+export const answerRemovalBody = z.object({
+  /** True drops the tables and columns asked about, with their data. False keeps them, released from the app. */
+  accept: z.boolean(),
+});
+
+export const answerRemovalReply = z.object({
+  key: appKey,
+  accepted: z.boolean(),
+  dropped: z.object({ tables: z.array(z.string()), columns: z.array(z.string()) }),
+  kept: z.array(z.string()),
+});
+
 export const installedAppReply = z.object({
   key: appKey,
   version: z.string(),
@@ -532,6 +564,11 @@ export const installedAppReply = z.object({
        * running as it was; the next change to the folder is the next attempt.
        */
       notApplied: z.object({ stage: z.string(), message: z.string() }).optional(),
+      /**
+       * What the folder's manifest no longer declares that holds data. Nothing
+       * of it was dropped: it waits for an answer (`POST /project/apps/:key/removals`).
+       */
+      removals: z.array(appRemovalChange).optional(),
     })
     .optional(),
   installedAt: z.number(),

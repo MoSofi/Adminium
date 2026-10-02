@@ -75,6 +75,7 @@ import {
   type AppCatalogClient,
 } from './catalog.js';
 import { createAppFiles, type AppFiles } from './app-files.js';
+import { createRemovals } from './removal.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
 import {
   envelopeAppKey,
@@ -489,6 +490,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const serverVersion = deps.serverVersion ?? APP_VERSION;
   const files = deps.files ?? createAppFiles({ store: deps.store });
+  /** What a folder app's manifest no longer declares: cleaned, or asked about. */
+  const removals = createRemovals({ meta: deps.meta, credentialCrypto: deps.credentialCrypto, schemaTarget: deps.schemaTarget });
 
   /** The sides a staged tree actually carries, in serve order. */
   function sidesOf(files: Record<string, string>): SurfaceSide[] {
@@ -1984,6 +1987,31 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     };
   }
 
+  /**
+   * Answer the question a folder app's removal left: drop what its manifest
+   * no longer declares, or keep it. Audited either way, with what went.
+   */
+  async function answerRemoval(actor: InstallActor, host: InstallHost, input: { key: string; accept: boolean }) {
+    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === input.key);
+    if (installed === undefined) throw new NotFoundError(`"${input.key}" is not installed.`);
+    const asked = await removals.pending(input.key);
+    const result = await removals.answer({ key: input.key, connectionId: installed.row.connectionId, accept: input.accept, actor });
+    await auditAppEvent(
+      input.accept ? 'app.removal-accepted' : 'app.removal-declined',
+      { key: input.key, changes: asked?.changes ?? [], dropped: result.dropped, kept: result.kept },
+      actor.id,
+      actor.label,
+      actor.kind,
+    );
+    // The schema moved: open dashboards and the app's own screens read it again.
+    host.invalidateSurfaceSettings?.();
+    host.publish?.('config-changed', 'config-changed', {
+      ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }),
+      configVersion: await pagesRepo(deps.meta).configVersion(),
+    });
+    return result;
+  }
+
   async function install(actor: InstallActor, host: InstallHost, input: InstallInput): Promise<InstalledAppReply> {
     const { key, version, connectionId, planChecksum: reviewed, choices, altPrefix, shares } = input;
     const answers: InstallAnswers = {
@@ -2670,6 +2698,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     install,
     update,
     applyInPlace,
+    removals,
+    answerRemoval,
     /** The versions of a key that are packages in the store, whatever the folder holds. */
     packagedVersions: (key: string): Promise<string[]> => deps.store.versions(key).catch(() => [] as string[]),
   };

@@ -782,7 +782,15 @@ export default {
       "folderGone": "Mappen er væk",
       "folderGoneBody": "apps/{key}/ er ikke længere i dette projekt. Appen forbliver installeret med sine tabeller og sider, indtil du afinstallerer den.",
       "notApplied": "Ikke anvendt",
-      "notAppliedBody": "Den seneste ændring i apps/{key}/ blev ikke anvendt, og appen kører som før. {message}"
+      "notAppliedBody": "Den seneste ændring i apps/{key}/ blev ikke anvendt, og appen kører som før. {message}",
+      "removalsTitle": "apps/{key}/ erklærer ikke længere disse, og de indeholder data. Intet blev fjernet.",
+      "removalTable": "Tabellen {table} med {rows, plural, one {# række} other {# rækker}}",
+      "removalColumn": "Kolonnen {column}: {rows, plural, one {# række har} other {# rækker har}} en værdi",
+      "removalNarrow": "{column} rummer mindre end før: {rows, plural, one {# række passer} other {# rækker passer}} ikke og forbliver uændrede",
+      "removalKeep": "Behold dataene",
+      "removalRemove": "Fjern dem",
+      "removalConfirm": "Ja, fjern dem og deres data",
+      "removalCancel": "Annuller"
     },
     "instances": {
       "add": "Tilføj en instans",

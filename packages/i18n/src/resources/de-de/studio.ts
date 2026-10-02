@@ -782,7 +782,15 @@ export default {
       "folderGone": "Ordner fehlt",
       "folderGoneBody": "apps/{key}/ ist nicht mehr in diesem Projekt. Die App bleibt mit ihren Tabellen und Seiten installiert, bis Sie sie deinstallieren.",
       "notApplied": "Nicht angewendet",
-      "notAppliedBody": "Die letzte Änderung in apps/{key}/ wurde nicht angewendet, und die App läuft wie zuvor. {message}"
+      "notAppliedBody": "Die letzte Änderung in apps/{key}/ wurde nicht angewendet, und die App läuft wie zuvor. {message}",
+      "removalsTitle": "apps/{key}/ deklariert diese nicht mehr, und sie enthalten Daten. Es wurde nichts entfernt.",
+      "removalTable": "Die Tabelle {table} mit {rows, plural, one {# Zeile} other {# Zeilen}}",
+      "removalColumn": "Die Spalte {column}: {rows, plural, one {# Zeile enthält} other {# Zeilen enthalten}} einen Wert",
+      "removalNarrow": "{column} fasst weniger als zuvor: {rows, plural, one {# Zeile passt} other {# Zeilen passen}} nicht und bleiben unverändert",
+      "removalKeep": "Daten behalten",
+      "removalRemove": "Entfernen",
+      "removalConfirm": "Ja, samt ihren Daten entfernen",
+      "removalCancel": "Abbrechen"
     },
     "instances": {
       "add": "Instanz hinzufügen",

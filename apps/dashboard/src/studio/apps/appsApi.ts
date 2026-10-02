@@ -29,6 +29,26 @@ export interface InstalledAppSide {
   state?: 'on' | 'off' | 'disabled';
 }
 
+/** One thing a folder app's manifest dropped that holds data. */
+export interface AppRemovalChange {
+  /** `narrow` is a column that holds less than it did: counted, never changed in the database. */
+  kind: 'table' | 'column' | 'narrow';
+  table: string;
+  /** The real table in the database. */
+  tableName: string;
+  column?: string;
+  rows: number;
+  detail?: string;
+}
+
+/** Answer a folder app's removal: `accept` drops the data, declining keeps it out of the app. */
+export function answerAppRemoval(key: string, accept: boolean) {
+  return api.post<{ key: string; accepted: boolean; dropped: { tables: string[]; columns: string[] }; kept: string[] }>(
+    `/api/v1/project/apps/${encodeURIComponent(key)}/removals`,
+    { accept },
+  );
+}
+
 export interface InstalledApp {
   key: string;
   version: string;
@@ -42,6 +62,8 @@ export interface InstalledApp {
     state: 'here' | 'gone';
     /** The folder's newest manifest was not applied, and why; the app runs as it was. */
     notApplied?: { stage: string; message: string };
+    /** What the folder's manifest no longer declares that holds data; nothing of it was dropped. */
+    removals?: AppRemovalChange[];
   };
   installedAt: number;
   connectionId: string | null;

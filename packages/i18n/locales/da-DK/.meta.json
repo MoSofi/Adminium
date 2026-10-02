@@ -17083,6 +17083,38 @@
     "status": "mt",
     "srcHash": "61cb6fec0895"
   },
+  "studio.hostedApps.installed.removalCancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.hostedApps.installed.removalColumn": {
+    "status": "mt",
+    "srcHash": "45a488567f8e"
+  },
+  "studio.hostedApps.installed.removalConfirm": {
+    "status": "mt",
+    "srcHash": "07e14eec24bb"
+  },
+  "studio.hostedApps.installed.removalKeep": {
+    "status": "mt",
+    "srcHash": "34f13faa7264"
+  },
+  "studio.hostedApps.installed.removalNarrow": {
+    "status": "mt",
+    "srcHash": "37fc8cffccdf"
+  },
+  "studio.hostedApps.installed.removalRemove": {
+    "status": "mt",
+    "srcHash": "06e5e1fda415"
+  },
+  "studio.hostedApps.installed.removalTable": {
+    "status": "mt",
+    "srcHash": "8410c75b887e"
+  },
+  "studio.hostedApps.installed.removalsTitle": {
+    "status": "mt",
+    "srcHash": "9871a358cbfa"
+  },
   "studio.hostedApps.installed.renameTo": {
     "status": "mt",
     "srcHash": "58d6039d6270"

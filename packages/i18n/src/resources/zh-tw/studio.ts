@@ -782,7 +782,15 @@ export default {
       "folderGone": "資料夾已不存在",
       "folderGoneBody": "apps/{key}/ 已不在此專案中。應用程式連同其資料表和頁面維持安裝，直到你將其解除安裝。",
       "notApplied": "未套用",
-      "notAppliedBody": "apps/{key}/ 中的最新變更未套用，應用程式照原樣執行。{message}"
+      "notAppliedBody": "apps/{key}/ 中的最新變更未套用，應用程式照原樣執行。{message}",
+      "removalsTitle": "apps/{key}/ 不再宣告這些內容，而它們存有資料。沒有移除任何內容。",
+      "removalTable": "資料表 {table}，共 {rows, plural, other {# 列}}",
+      "removalColumn": "欄位 {column}：{rows, plural, other {# 列}}存有值",
+      "removalNarrow": "{column} 可容納的內容比以前少：{rows, plural, other {# 列}}不符合，並維持原樣",
+      "removalKeep": "保留資料",
+      "removalRemove": "移除它們",
+      "removalConfirm": "是的，連同資料一起移除",
+      "removalCancel": "取消"
     },
     "instances": {
       "add": "新增執行個體",

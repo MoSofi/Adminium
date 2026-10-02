@@ -491,6 +491,9 @@ function planAlters(
   for (const fk of diff.fksRemoved) {
     emit(
       make('drop-fk', id, ctx, {
+        // The link's own name and column travel with the step: it is in no desired document, so the compiler finds it in the actual schema by them.
+        constraint: fk.constraintName ?? null,
+        column: fk.columns.length === 1 ? (fk.columns[0] ?? null) : null,
         summary: `Drop foreign key ${fk.constraintName ?? fk.columns.join(', ')} → ${fk.toTable}`,
       }),
     );
@@ -516,6 +519,17 @@ function planAlters(
     emit(make('drop-pk', id, ctx, { summary: `Drop primary key (${diff.pkChanged.from.join(', ')})` }));
   }
   for (const name of diff.removedColumns) {
+    /*
+     * SQLite's DROP COLUMN refuses a column that a constraint still names,
+     * and a constraint only goes in the rebuild, which runs last. So where the
+     * table is rebuilt anyway, the column goes in the rebuild (it is built
+     * from the desired table, which no longer has it) and is said here,
+     * rather than as an ALTER that would stop the change halfway.
+     */
+    if (lite && rebuildNeeded) {
+      warnings.push({ message: `${actual.name}.${name} and its data are dropped in the rebuild.`, table: id });
+      continue;
+    }
     emit(make('drop-column', id, ctx, { column: name, summary: `Drop column ${name} and its data` }));
   }
 

@@ -39,6 +39,18 @@ import type { ApplyResult, SchemaPlan } from '../schema-ddl/service.js';
 import type { DatabaseModel } from '@adminium/engine';
 import { sql } from 'kysely';
 
+/** Which rows of a table a count is about. */
+export type RowTest =
+  | { kind: 'all' }
+  /** Rows that hold a value in the column. */
+  | { kind: 'not-null'; column: string }
+  /** Rows that hold none. */
+  | { kind: 'null'; column: string }
+  /** Rows whose text in the column is longer than `length` characters. */
+  | { kind: 'longer'; column: string; length: number }
+  /** Rows whose column holds one of `values`. */
+  | { kind: 'in'; column: string; values: readonly string[] };
+
 export interface AppSchemaTarget {
   /**
    * The tables the planner diffs against, for the chosen connection, read LIVE
@@ -73,6 +85,12 @@ export interface AppSchemaTarget {
    * columns: whether the table has two rows at all. Reads, never writes.
    */
   repeats?(connectionId: string, table: string, columns: readonly string[]): Promise<boolean>;
+  /**
+   * How many rows of `table` a test matches: what a removed table or column
+   * holds, and how many rows a narrower column no longer fits. Reads, never
+   * writes; throws when the table or the column is not there.
+   */
+  count?(connectionId: string, table: string, test: RowTest): Promise<number>;
   /** The plan `edit` would run, against a fresh snapshot, for an operator to review. Changes no table. */
   planEdit(
     connectionId: string,
@@ -108,6 +126,25 @@ export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEd
         sql` and `,
       )} group by ${sql.join(refs)} having count(*) > 1 limit 1`.execute(db);
       return found.rows.length > 0;
+    },
+    count: async (connectionId, table, test) => {
+      const { db, dialect } = await deps.manager.data(connectionId);
+      const column = test.kind === 'all' ? null : sql.ref(test.column);
+      const where =
+        test.kind === 'all' || column === null
+          ? sql`1 = 1`
+          : test.kind === 'not-null'
+            ? sql`${column} is not null`
+            : test.kind === 'null'
+              ? sql`${column} is null`
+              : test.kind === 'longer'
+                ? // SQLite counts characters with `length`; the other two have the standard name.
+                  dialect === 'sqlite'
+                  ? sql`length(${column}) > ${test.length}`
+                  : sql`char_length(${column}) > ${test.length}`
+                : sql`${column} in (${sql.join(test.values)})`;
+      const found = await sql<{ n: unknown }>`select count(*) as n from ${sql.table(table)} where ${where}`.execute(db);
+      return Number(found.rows[0]?.n ?? 0);
     },
     apply: (plan, manifest, connectionId, existing, onCreated) =>
       applyPlanTo(deps, connectionId, plan, manifest, existing, onCreated),

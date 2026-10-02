@@ -782,7 +782,15 @@ export default {
       "folderGone": "Folder gone",
       "folderGoneBody": "apps/{key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it.",
       "notApplied": "Not applied",
-      "notAppliedBody": "The latest change in apps/{key}/ was not applied, and the app runs as it was. {message}"
+      "notAppliedBody": "The latest change in apps/{key}/ was not applied, and the app runs as it was. {message}",
+      "removalsTitle": "apps/{key}/ no longer declares these, and they hold data. Nothing was removed.",
+      "removalTable": "The table {table}, with {rows, plural, one {# row} other {# rows}}",
+      "removalColumn": "The column {column}: {rows, plural, one {# row holds} other {# rows hold}} a value",
+      "removalNarrow": "{column} holds less than it did: {rows, plural, one {# row does} other {# rows do}} not fit, and stay as they are",
+      "removalKeep": "Keep the data",
+      "removalRemove": "Remove them",
+      "removalConfirm": "Yes, remove them and their data",
+      "removalCancel": "Cancel"
     },
     "instances": {
       "add": "Add an instance",

@@ -83720,6 +83720,44 @@
                                   "message"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "removals": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "table",
+                                        "column",
+                                        "narrow"
+                                      ]
+                                    },
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "tableName": {
+                                      "type": "string"
+                                    },
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "rows": {
+                                      "type": "number"
+                                    },
+                                    "detail": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "table",
+                                    "tableName",
+                                    "rows"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
                             },
                             "required": [
@@ -86237,6 +86275,44 @@
                             "message"
                           ],
                           "additionalProperties": false
+                        },
+                        "removals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "table",
+                                  "column",
+                                  "narrow"
+                                ]
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "tableName": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "table",
+                              "tableName",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
@@ -86933,6 +87009,44 @@
                                 "message"
                               ],
                               "additionalProperties": false
+                            },
+                            "removals": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "table",
+                                      "column",
+                                      "narrow"
+                                    ]
+                                  },
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "tableName": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "rows": {
+                                    "type": "number"
+                                  },
+                                  "detail": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "table",
+                                  "tableName",
+                                  "rows"
+                                ],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": [
@@ -87403,6 +87517,176 @@
                     "from",
                     "to",
                     "pruned"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/project/apps/{key}/removals": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "removals": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "table",
+                                  "column",
+                                  "narrow"
+                                ]
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "tableName": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "table",
+                              "tableName",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "removals"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accept": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "accept"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "accepted": {
+                      "type": "boolean"
+                    },
+                    "dropped": {
+                      "type": "object",
+                      "properties": {
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "columns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "tables",
+                        "columns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "accepted",
+                    "dropped",
+                    "kept"
                   ],
                   "additionalProperties": false
                 }

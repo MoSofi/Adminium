@@ -37,6 +37,7 @@
 import { projectAppsRepo, type MetaDb } from '@adminium/meta';
 
 import { FOLDER_SOURCE, type AppInstallService, type InstallActor, type InstallHost, type Unattended } from '../../apps/install-service.js';
+import { removalInWords } from '../../apps/removal.js';
 import { AppError } from '../../errors.js';
 import type { ProjectConfig } from '../config.js';
 import type { AppsBuild, BuiltProjectApp } from './build-apps.js';
@@ -216,6 +217,38 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     await repo.setApplied(app.key, app.hash);
     const made = reply.schema?.created ?? [];
     opts.log(`App "${app.key}" applied from apps/${app.key}${made.length === 0 ? '' : ` (new tables: ${made.join(', ')})`}.`);
+
+    // What the manifest no longer declares: gone where nothing is lost, asked about where data is.
+    const say = (line: string): void => {
+      opts.log(`App "${app.key}": ${line}`);
+    };
+    const removed = await service.removals.afterApply({
+      key: app.key,
+      rowId: reply.rowId,
+      connectionId: reply.connectionId,
+      previous: reply.previous,
+      manifest: reply.manifest,
+      hash: app.hash,
+      // A server never drops, and never asks: what holds data is kept.
+      drops: opts.mode === 'dev' ? 'ask' : 'never',
+      actor: PROJECT_FOLDER_ACTOR,
+      log: say,
+    });
+    if (removed.pages.removed.length > 0) say(`removed the page${removed.pages.removed.length === 1 ? '' : 's'} ${removed.pages.removed.join(', ')}.`);
+    if (removed.pages.kept.length > 0) {
+      say(`kept ${removed.pages.kept.join(', ')} as ${removed.pages.kept.length === 1 ? 'an ordinary page' : 'ordinary pages'}: somebody edited ${removed.pages.kept.length === 1 ? 'it' : 'them'}.`);
+    }
+    for (const role of removed.roles) {
+      say(`removed the role ${role.slug}` + (role.members + role.apiKeys === 0 ? '.' : ` (${String(role.members)} member(s) and ${String(role.apiKeys)} API key(s) held it).`));
+    }
+    const dropped = [...removed.dropped.tables, ...removed.dropped.columns];
+    if (dropped.length > 0) say(`dropped ${dropped.join(', ')}: ${dropped.length === 1 ? 'it' : 'they'} held nothing.`);
+    if (removed.pending !== null) {
+      opts.warn(
+        `App "${app.key}": apps/${app.key} no longer declares ${removed.pending.changes.map(removalInWords).join('; ')}. ` +
+          'Nothing was dropped. Answer it in Studio → Apps: "Remove them" drops the data, "Keep the data" leaves it in the database and out of the app.',
+      );
+    }
     return { key: app.key, state: 'applied', hash: app.hash };
   }
 

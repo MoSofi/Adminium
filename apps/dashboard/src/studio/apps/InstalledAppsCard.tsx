@@ -54,6 +54,7 @@ import {
   LOCAL_PUBLISHER_ID,
   APP_CATALOG_QUERY_KEY,
   APPS_QUERY_KEY,
+  answerAppRemoval,
   appCatalogQuery,
   discardStagedApp,
   installedAppsQuery,
@@ -87,6 +88,16 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renamed, setRenamed] = useState<string | null>(null);
   const renamingApp = data.apps.find((app) => app.key === renaming);
+
+  // A removal's "yes" destroys data, so it takes a second click on the same row.
+  const [removing, setRemoving] = useState<string | null>(null);
+  const answer = useMutation({
+    mutationFn: (input: { key: string; accept: boolean }) => answerAppRemoval(input.key, input.accept),
+    onSettled: async () => {
+      setRemoving(null);
+      await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
+    },
+  });
 
   const discard = useMutation({
     mutationFn: (staged: { key: string; version: string }) =>
@@ -265,6 +276,85 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                       </span>
                     )}
                   </div>
+                  {/* What the folder's manifest dropped that holds data: nothing
+                      went, and the answer is this person's to give. */}
+                  {app.folder?.removals === undefined || app.folder.removals.length === 0 ? null : (
+                    <div
+                      data-part="folder-removals"
+                      className="mt-2 flex flex-col gap-2 rounded-[10px] border border-warn/30 bg-warn-soft px-3 py-2"
+                    >
+                      <span className="flex items-start gap-2.5 text-xs">
+                        <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
+                        <span className="min-w-0 flex-1">
+                          <span className="font-bold text-fg">
+                            {t(
+                              'studio:hostedApps.installed.removalsTitle',
+                              'apps/{key}/ no longer declares these, and they hold data. Nothing was removed.',
+                              { key: app.key },
+                            )}
+                          </span>
+                          <ul className="mt-1 flex list-disc flex-col gap-0.5 ps-4 text-fg-muted">
+                            {app.folder.removals.map((change) => (
+                              <li key={`${change.kind}:${change.tableName}.${change.column ?? ''}`}>
+                                {change.kind === 'table'
+                                  ? t(
+                                      'studio:hostedApps.installed.removalTable',
+                                      'The table {table}, with {rows, plural, one {# row} other {# rows}}',
+                                      { table: change.tableName, rows: change.rows },
+                                    )
+                                  : change.kind === 'column'
+                                    ? t(
+                                        'studio:hostedApps.installed.removalColumn',
+                                        'The column {column}: {rows, plural, one {# row holds} other {# rows hold}} a value',
+                                        { column: `${change.tableName}.${change.column ?? ''}`, rows: change.rows },
+                                      )
+                                    : t(
+                                        'studio:hostedApps.installed.removalNarrow',
+                                        '{column} holds less than it did: {rows, plural, one {# row does} other {# rows do}} not fit, and stay as they are',
+                                        { column: `${change.tableName}.${change.column ?? ''}`, rows: change.rows },
+                                      )}
+                              </li>
+                            ))}
+                          </ul>
+                        </span>
+                      </span>
+                      {answer.error === null || answer.variables?.key !== app.key ? null : (
+                        <span role="alert" className="text-xs text-danger">
+                          {answer.error.message}
+                        </span>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={busy || answer.isPending}
+                          onClick={() => answer.mutate({ key: app.key, accept: false })}
+                        >
+                          {t('studio:hostedApps.installed.removalKeep', 'Keep the data')}
+                        </Button>
+                        {removing === app.key ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={busy || answer.isPending}
+                              onClick={() => answer.mutate({ key: app.key, accept: true })}
+                            >
+                              {t('studio:hostedApps.installed.removalConfirm', 'Yes, remove them and their data')}
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={answer.isPending} onClick={() => setRemoving(null)}>
+                              {t('studio:hostedApps.installed.removalCancel', 'Cancel')}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="secondary" disabled={busy || answer.isPending} onClick={() => setRemoving(app.key)}>
+                            <Trash2 aria-hidden className="size-4" />
+                            {t('studio:hostedApps.installed.removalRemove', 'Remove them')}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {/* An install made before its app was prefixed: the offer to
                       give every table the prefix. */}
                   {app.oldTableNames === undefined ? null : (

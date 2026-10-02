@@ -782,7 +782,15 @@ export default {
       "folderGone": "المجلد غير موجود",
       "folderGoneBody": "apps/{key}/ لم يعد في هذا المشروع. يبقى التطبيق مثبتًا بجداوله وصفحاته حتى تلغي تثبيته.",
       "notApplied": "لم يُطبَّق",
-      "notAppliedBody": "لم يُطبَّق آخر تغيير في apps/{key}/، والتطبيق يعمل كما كان. {message}"
+      "notAppliedBody": "لم يُطبَّق آخر تغيير في apps/{key}/، والتطبيق يعمل كما كان. {message}",
+      "removalsTitle": "لم يعد apps/{key}/ يعلن عن هذه العناصر، وهي تحتوي على بيانات. لم يُحذف شيء.",
+      "removalTable": "الجدول {table}، وبه {rows, plural, zero {# صف} one {صف واحد} two {صفان} few {# صفوف} many {# صفًا} other {# صف}}",
+      "removalColumn": "العمود {column}: {rows, plural, zero {# صف يحتوي} one {صف واحد يحتوي} two {صفان يحتويان} few {# صفوف تحتوي} many {# صفًا يحتوي} other {# صف يحتوي}} على قيمة",
+      "removalNarrow": "{column} يتسع لأقل مما كان: {rows, plural, zero {# صف لا يناسب} one {صف واحد لا يناسب} two {صفان لا يناسبان} few {# صفوف لا تناسب} many {# صفًا لا يناسب} other {# صف لا يناسب}}، وتبقى كما هي",
+      "removalKeep": "الاحتفاظ بالبيانات",
+      "removalRemove": "حذفها",
+      "removalConfirm": "نعم، احذفها مع بياناتها",
+      "removalCancel": "إلغاء"
     },
     "instances": {
       "add": "إضافة نسخة",

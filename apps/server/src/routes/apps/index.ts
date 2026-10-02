@@ -137,6 +137,9 @@ import {
   appSettingsBody,
   appSettingsReply,
   appStatusReply,
+  answerRemovalBody,
+  answerRemovalReply,
+  appRemovalsReply,
   planAppBody,
   connectionParams,
   shapeRulesReply,
@@ -287,6 +290,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               ? {
                   folder: {
                     state: files.sourceOf(row.manifestKey) === 'folder' ? ('here' as const) : ('gone' as const),
+                    ...(folderState.get(row.manifestKey)?.removals == null
+                      ? {}
+                      : { removals: folderState.get(row.manifestKey)!.removals!.changes }),
                     ...(folderState.get(row.manifestKey)?.failure == null
                       ? {}
                       : {
@@ -1128,6 +1134,37 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         if (await runsFromFolder(request.params.key)) throw folderDecides(request.params.key);
         return service.update(actorOf(request), hostOf(request), { key: request.params.key, body: request.body });
       },
+    );
+
+    /*
+     * WHAT A FOLDER APP'S MANIFEST DROPPED THAT HOLDS DATA. Applying the
+     * folder never drops a table or a column that holds rows: it records the
+     * question and applies everything else. These two routes read it and
+     * answer it — from Studio, from a script, from whatever stands in for
+     * the person. The apply runs in this server, so the question cannot be a
+     * prompt in somebody's terminal.
+     */
+    app.get(
+      '/project/apps/:key/removals',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appKeyParams, response: { 200: appRemovalsReply } },
+      },
+      async (request) => {
+        await installedRow(request.params.key);
+        return { key: request.params.key, removals: (await service.removals.pending(request.params.key))?.changes ?? null };
+      },
+    );
+
+    app.post(
+      '/project/apps/:key/removals',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appKeyParams, body: answerRemovalBody, response: { 200: answerRemovalReply } },
+      },
+      // Saying yes destroys data, so it is Super Admin's alone, as dropping an app's tables on an uninstall is.
+      async (request) => service.answerRemoval(actorOf(request), hostOf(request), { key: request.params.key, accept: request.body.accept }),
     );
 
     /*

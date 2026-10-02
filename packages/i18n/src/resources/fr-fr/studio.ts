@@ -782,7 +782,15 @@ export default {
       "folderGone": "Dossier absent",
       "folderGoneBody": "apps/{key}/ n’est plus dans ce projet. L’application reste installée, avec ses tables et ses pages, jusqu’à ce que vous la désinstalliez.",
       "notApplied": "Non appliqué",
-      "notAppliedBody": "La dernière modification dans apps/{key}/ n’a pas été appliquée, et l’application fonctionne comme avant. {message}"
+      "notAppliedBody": "La dernière modification dans apps/{key}/ n’a pas été appliquée, et l’application fonctionne comme avant. {message}",
+      "removalsTitle": "apps/{key}/ ne déclare plus ces éléments, et ils contiennent des données. Rien n’a été supprimé.",
+      "removalTable": "La table {table}, avec {rows, plural, one {# ligne} other {# lignes}}",
+      "removalColumn": "La colonne {column} : {rows, plural, one {# ligne contient} other {# lignes contiennent}} une valeur",
+      "removalNarrow": "{column} contient moins qu’avant : {rows, plural, one {# ligne ne convient} other {# lignes ne conviennent}} plus et restent telles quelles",
+      "removalKeep": "Conserver les données",
+      "removalRemove": "Les supprimer",
+      "removalConfirm": "Oui, les supprimer avec leurs données",
+      "removalCancel": "Annuler"
     },
     "instances": {
       "add": "Ajouter une instance",

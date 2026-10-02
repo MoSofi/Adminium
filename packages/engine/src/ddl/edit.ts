@@ -302,6 +302,15 @@ export const schemaEditSchema = z.strictObject({
     .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(1).max(1), name: identifierSchema }))
     .max(20)
     .optional(),
+  /**
+   * Columns removed from tables that exist, each by its table (id or bare
+   * name) and its own name. The narrow door for one column going: everything
+   * else on the table is the snapshot's own, so nothing untouched can read as
+   * changed. A rule, an index or a link that names the column goes with it.
+   * A key column, the table's last column, and a column another table links
+   * to are refused.
+   */
+  dropColumns: z.array(z.strictObject({ table: z.string().min(1), column: identifierSchema })).max(50).optional(),
   /** Table ids. */
   dropTables: z.array(z.string().min(1)).default([]),
 });
@@ -351,6 +360,8 @@ export const EDIT_ISSUE_CODES = [
    * existing row must start unlinked, the one state no row can violate.
    */
   'FK_COLUMN_NOT_NULLABLE',
+  /** A `dropColumns` column that cannot go: part of the key, linked to by another table, or the table's last. */
+  'COLUMN_IN_USE',
 ] as const;
 export type EditIssueCode = (typeof EDIT_ISSUE_CODES)[number];
 
@@ -379,6 +390,8 @@ export interface EditValidationContext {
    * (`META_NAMESPACE`). The server passes `sameDatabase(metaDsn, dataDsn)`.
    */
   metaSharesDatabase: boolean;
+  /** The snapshot's relations: a column another table links to is not dropped. Absent, none is known. */
+  relations?: readonly { kind: string; from: { tableId: string }; to: { tableId: string; columns: readonly string[] } }[];
   /** Reserved-word predicate; injected so the check is testable in isolation. */
   isReserved: (identifier: string, dialect: Dialect) => boolean;
   /**
@@ -634,6 +647,46 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
 
   // --- drops ---------------------------------------------------------------
   for (const id of edit.dropTables) refuseProtected(id);
+
+  // --- dropped columns -----------------------------------------------------
+  const droppedKeys = new Set<string>();
+  for (const entry of edit.dropColumns ?? []) {
+    if (refuseProtected(entry.table)) continue;
+    const table = byId.get(entry.table) ?? byName.get(entry.table);
+    if (table === undefined) continue; // `refuseProtected` already reported it
+    const where = { table: entry.table, column: entry.column };
+    if (edit.upsertTables.some((t) => t.id === table.id || t.name === table.name)) {
+      push({
+        code: 'DUPLICATE_TABLE',
+        message: `${JSON.stringify(table.id)} is both restated in upsertTables and shortened by dropColumns`,
+        table: entry.table,
+      });
+      continue;
+    }
+    if (!table.columns.some((c) => c.name === entry.column)) {
+      push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(entry.column)} is not a column of ${JSON.stringify(table.id)}`, ...where });
+      continue;
+    }
+    droppedKeys.add(`${table.id}\u0000${entry.column}`);
+    if (table.primaryKey.includes(entry.column)) {
+      push({ code: 'COLUMN_IN_USE', message: `${JSON.stringify(entry.column)} is part of the key of ${JSON.stringify(table.id)}`, ...where });
+    }
+    const linked = (ctx.relations ?? []).find(
+      (r) => r.kind === 'declared-fk' && r.to.tableId === table.id && r.to.columns.includes(entry.column),
+    );
+    if (linked !== undefined) {
+      push({
+        code: 'COLUMN_IN_USE',
+        message: `${JSON.stringify(linked.from.tableId)} links to ${JSON.stringify(`${table.id}.${entry.column}`)}`,
+        ...where,
+      });
+    }
+  }
+  for (const table of ctx.actual) {
+    if (table.columns.length > 0 && table.columns.every((c) => droppedKeys.has(`${table.id}\u0000${c.name}`))) {
+      push({ code: 'COLUMN_IN_USE', message: `${JSON.stringify(table.id)} would have no column left; drop the table instead`, table: table.id });
+    }
+  }
 
   // --- upserts -------------------------------------------------------------
   const seenNames = new Set<string>();
@@ -1170,6 +1223,28 @@ export function tableWithAddedColumns(
     .filter((column) => opts.unique?.has(column.name) === true)
     .map((column) => ({ name: `uq_${actual.name}_${column.name}`, columns: [...(opts.uniqueWith?.get(column.name) ?? []), column.name] }));
   return withUniques({ ...actual, columns: [...actual.columns, ...added] }, uniques, opts.uniqueAs);
+}
+
+/**
+ * The desired model for a `dropColumns` edit: the snapshot's OWN table without
+ * the named columns, and without the rules that cannot outlive them — a
+ * unique set or an index over one, and a CHECK that names one. Everything
+ * else is untouched, so the diff sees only what was asked for.
+ */
+export function tableWithDroppedColumns(actual: TableModel, columns: readonly string[]): TableModel {
+  if (columns.length === 0) return actual;
+  const gone = new Set(columns);
+  const names = (expression: string): boolean =>
+    columns.some((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(expression));
+  return {
+    ...actual,
+    columns: actual.columns.filter((column) => !gone.has(column.name)).map((column, index) => ({ ...column, ordinal: index + 1 })),
+    uniques: actual.uniques.filter((unique) => !unique.columns.some((column) => gone.has(column))),
+    indexes: actual.indexes.filter(
+      (index) => !index.columns.some((column) => gone.has(column)) && !(index.expression !== null && names(index.expression)),
+    ),
+    checks: actual.checks.filter((check) => !names(check.expression)),
+  };
 }
 
 /** A table with more plain indexes, each on the columns it names. */
