@@ -16851,6 +16851,10 @@
     "status": "mt",
     "srcHash": "4254f3598a5e"
   },
+  "studio.hostedApps.install.madeHere": {
+    "status": "mt",
+    "srcHash": "5f73b1ca305f"
+  },
   "studio.hostedApps.install.plan.create": {
     "status": "mt",
     "srcHash": "6e157c5da441"
@@ -17034,6 +17038,10 @@
   "studio.hostedApps.installed.installedAt": {
     "status": "mt",
     "srcHash": "1000d23ea658"
+  },
+  "studio.hostedApps.installed.madeHere": {
+    "status": "mt",
+    "srcHash": "cba81f984b01"
   },
   "studio.hostedApps.installed.missing": {
     "status": "mt",

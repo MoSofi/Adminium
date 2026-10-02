@@ -752,7 +752,8 @@ export default {
         "resume": "Rien n’a été supprimé. Réessayer reprend là où cela s’est arrêté.",
         "retry": "Réessayer",
         "back": "Retour au plan de schéma"
-      }
+      },
+      "madeHere": "Créée sur cette installation. Elle ne vient pas d’adminium.dev et personne d’autre ne l’a vérifiée."
     },
     "installed": {
       "title": "Applications installées",
@@ -775,7 +776,8 @@ export default {
       "renamed": "Tables renommées en {prefix}…",
       "oldNames": "Cette installation utilise les anciens noms de tables.",
       "oldNamesWhy": "Elles ont été créées avant les préfixes.",
-      "renameTo": "Renommer en {prefix}…"
+      "renameTo": "Renommer en {prefix}…",
+      "madeHere": "Créée ici"
     },
     "instances": {
       "add": "Ajouter une instance",

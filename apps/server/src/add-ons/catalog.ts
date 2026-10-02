@@ -105,7 +105,9 @@ export type CatalogRefusal =
   | 'NOT_RELEASED'
   /** An app whose manifest names a minimum Adminium above this server's version
    * (b G8-D2). */
-  | 'REQUIRES_NEWER_ADMINIUM';
+  | 'REQUIRES_NEWER_ADMINIUM'
+  /** A download whose manifest claims the publisher `local`, which only a file put there by hand may. */
+  | 'LOCAL_FROM_CATALOG';
 
 /**
  * Response caps and a wall-clock budget.

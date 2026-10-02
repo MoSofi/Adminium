@@ -752,7 +752,8 @@ export default {
         "resume": "没有删除任何内容。重试会从停止的位置继续。",
         "retry": "重试",
         "back": "返回架构计划"
-      }
+      },
+      "madeHere": "在此安装上制作。它并非来自 adminium.dev，也没有其他人检查过它。"
     },
     "installed": {
       "title": "已安装的应用",
@@ -775,7 +776,8 @@ export default {
       "renamed": "数据表已重命名为 {prefix}…",
       "oldNames": "此安装使用的是旧的表名。",
       "oldNamesWhy": "这些表创建于前缀功能之前。",
-      "renameTo": "重命名为 {prefix}…"
+      "renameTo": "重命名为 {prefix}…",
+      "madeHere": "本机制作"
     },
     "instances": {
       "add": "添加实例",

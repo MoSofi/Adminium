@@ -20,6 +20,7 @@
  *    it reads may have been refreshed between the click and the run.
  */
 
+import { LOCAL_PUBLISHER_ID } from '@adminium/manifest';
 import { auditRepo, jobsRepo, type Job, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -169,6 +170,18 @@ export function registerAppAcquireHandlers(registry: JobRegistry, deps: AppAcqui
         throw err;
       }
 
+      /*
+       * A CATALOGUE NEVER DELIVERS A SELF-MADE APP. The publisher `local` is
+       * for an app made on the install it runs on and put there from a file;
+       * a download that claims it is passing for something it is not, and is
+       * taken back out of the store rather than left to be installed.
+       */
+      if (await claimsLocalPublisher(deps.store, key, version)) {
+        await deps.store.removeVersion(key, version);
+        await audit(deps, 'app.verify-refused', key, { version, reason: 'LOCAL_FROM_CATALOG' }, payload.userId);
+        throw new AddOnCatalogError('LOCAL_FROM_CATALOG', `${label} says it was made locally, which a catalogue download never is`);
+      }
+
       ctx.progress(100, { step: 'staged', message: `${label} is ready to install` });
       await audit(
         deps,
@@ -255,4 +268,16 @@ export async function enqueueAppCatalogRefresh(
     payload: input.userId === undefined ? {} : { userId: input.userId },
     dedupeKey: APP_CATALOG_REFRESH_KIND,
   });
+}
+
+/** Does the staged package's manifest name the publisher `local`? Unreadable counts as no: install refuses that itself. */
+async function claimsLocalPublisher(store: AppStore, key: string, version: string): Promise<boolean> {
+  try {
+    const document = JSON.parse((await store.readFile(key, version, 'manifest.json')).toString('utf8')) as {
+      publisher?: { id?: unknown };
+    };
+    return document.publisher?.id === LOCAL_PUBLISHER_ID;
+  } catch {
+    return false;
+  }
 }

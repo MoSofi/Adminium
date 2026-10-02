@@ -742,7 +742,8 @@
         "resume": "Nichts wurde entfernt. Ein erneuter Versuch macht dort weiter, wo es angehalten hat.",
         "retry": "Erneut versuchen",
         "back": "Zurück zum Schemaplan"
-      }
+      },
+      "madeHere": "Auf dieser Installation erstellt. Sie stammt nicht von adminium.dev, und niemand sonst hat sie geprüft."
     },
     "installed": {
       "title": "Installierte Apps",
@@ -765,7 +766,8 @@
       "renamed": "Tabellen in {prefix}… umbenannt",
       "oldNames": "Diese Installation verwendet die alten Tabellennamen.",
       "oldNamesWhy": "Sie wurden vor den Präfixen angelegt.",
-      "renameTo": "In {prefix}… umbenennen"
+      "renameTo": "In {prefix}… umbenennen",
+      "madeHere": "Hier erstellt"
     },
     "instances": {
       "add": "Instanz hinzufügen",

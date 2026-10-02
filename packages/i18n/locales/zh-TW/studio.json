@@ -742,7 +742,8 @@
         "resume": "沒有移除任何內容。重試會從停止的地方繼續。",
         "retry": "重試",
         "back": "返回結構計畫"
-      }
+      },
+      "madeHere": "在此安裝上製作。它並非來自 adminium.dev，也沒有其他人檢查過它。"
     },
     "installed": {
       "title": "已安裝的應用程式",
@@ -765,7 +766,8 @@
       "renamed": "資料表已重新命名為 {prefix}…",
       "oldNames": "此安裝使用的是舊的資料表名稱。",
       "oldNamesWhy": "這些資料表建立於前綴功能之前。",
-      "renameTo": "重新命名為 {prefix}…"
+      "renameTo": "重新命名為 {prefix}…",
+      "madeHere": "本機製作"
     },
     "instances": {
       "add": "新增執行個體",

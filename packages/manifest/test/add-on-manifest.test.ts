@@ -335,4 +335,13 @@ describe('add-on pages (51a)', () => {
     });
     expect(result.ok, JSON.stringify(result)).toBe(true);
   });
+
+  it('never carries the publisher "local", whatever the caller allows', () => {
+    const addOn = { ...DHL, publisher: { id: 'local', name: 'Local' } };
+    for (const opts of [{ allowLocalPublisher: true }, { allowThirdPartyPublishers: true }, {}]) {
+      const r = validateManifest(addOn, opts);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.issues).toContainEqual(expect.objectContaining({ path: 'publisher.id', message: expect.stringContaining('add-on') }));
+    }
+  });
 });

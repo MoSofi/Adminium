@@ -21,6 +21,7 @@ export {
   COLUMN_ROLES,
   FRONTEND_KINDS,
   FIRST_PARTY_PUBLISHER_ID,
+  LOCAL_PUBLISHER_ID,
   manifestSchema,
   appManifestSchema,
   addOnManifestSchema,
@@ -78,6 +79,7 @@ export { roleLimitSchema, roleLimitsSchema, type RoleLimit } from './roles.js';
 
 export {
   validateManifest,
+  isManifestOnly,
   parseManifest,
   manifestWarnings,
   type ValidateManifestResult,

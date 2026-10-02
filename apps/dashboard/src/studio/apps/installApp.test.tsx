@@ -254,6 +254,19 @@ describe('the install wizard', () => {
     expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('says an app was made on this install, on the step an upload lands on', async () => {
+    uploadReply = {
+      status: 200,
+      body: { key: 'clinic', version: '0.1.1', name: 'Clinic Desk', files: 3, integrity: 'sha512-x', sides: [], publisher: { id: 'local', name: 'Local' } },
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await user.upload(await screen.findByLabelText(/Bundle file/i), new File(['x'], 'repairs.tgz', { type: 'application/gzip' }));
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+    await screen.findByText(/Install into which database/i);
+    expect(screen.getByText(/Made on this install\. It does not come from adminium\.dev/)).toBeTruthy();
+  });
+
   it('asks only for the file, and installs the app the bundle says it is', async () => {
     /*
      * The form used to ask for the key and version too. The server staged the

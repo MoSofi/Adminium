@@ -83746,6 +83746,22 @@
                               "additionalProperties": false
                             }
                           },
+                          "publisher": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
                           "missing": {
                             "type": "boolean"
                           },
@@ -84223,6 +84239,22 @@
                           "customer"
                         ]
                       }
+                    },
+                    "publisher": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -86199,6 +86231,22 @@
                         "additionalProperties": false
                       }
                     },
+                    "publisher": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
                     "missing": {
                       "type": "boolean"
                     },
@@ -86846,6 +86894,22 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "publisher": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
                         },
                         "missing": {
                           "type": "boolean"

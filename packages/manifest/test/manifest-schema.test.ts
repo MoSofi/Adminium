@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { compareSemver, validateManifest, parseManifest } from '../src/index.js';
+import { compareSemver, isManifestOnly, validateManifest, parseManifest } from '../src/index.js';
 
 /** A minimal-but-complete valid manifest, shaped after the ecommerce-shop
  * example. */
@@ -98,6 +98,33 @@ describe('validateManifest — identity & policy', () => {
   it('accepts a third-party publisher when the flag is on', () => {
     const m = { ...validManifest(), publisher: { id: 'acme', name: 'Acme' } };
     expect(validateManifest(m, { allowThirdPartyPublishers: true }).ok).toBe(true);
+  });
+
+  describe('the publisher "local": an app made on the install it runs on', () => {
+    const local = () => ({ ...validManifest(), publisher: { id: 'local', name: 'Local' } });
+
+    it('is accepted where the caller allows it', () => {
+      expect(validateManifest(local(), { allowLocalPublisher: true }).ok).toBe(true);
+    });
+
+    it('is refused where the caller does not, in words about a file to upload', () => {
+      const r = validateManifest(local());
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.issues).toEqual([expect.objectContaining({ path: 'publisher.id', message: expect.stringContaining('installs from a file') })]);
+    });
+
+    it('lets no other id through', () => {
+      const r = validateManifest({ ...validManifest(), publisher: { id: 'acme', name: 'Acme' } }, { allowLocalPublisher: true });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.issues.some((i) => i.path === 'publisher.id')).toBe(true);
+    });
+  });
+
+  it('knows an app with no screen of its own', () => {
+    const none = validateManifest({ ...validManifest(), frontends: [{ side: 'staff', kind: 'none' }] });
+    expect(none.ok && isManifestOnly(none.manifest)).toBe(true);
+    const some = validateManifest(validManifest());
+    expect(some.ok && isManifestOnly(some.manifest)).toBe(false);
   });
 
   it('rejects an unknown category and a non-semver version', () => {

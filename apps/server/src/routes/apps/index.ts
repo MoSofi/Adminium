@@ -38,6 +38,8 @@
 import {
   compareSemver,
   isAddOnManifest,
+  isManifestOnly,
+  LOCAL_PUBLISHER_ID,
   planInstall,
   validateManifest,
   type InstallPlan,
@@ -502,6 +504,52 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   }
 
   /**
+   * An app that is its tables and pages and nothing else: made on this
+   * install, declaring no screen of its own. The one package with no side
+   * that is not a broken one.
+   */
+  function servesNothingByDesign(manifest: Manifest | null): boolean {
+    return manifest !== null && manifest.publisher.id === LOCAL_PUBLISHER_ID && isManifestOnly(manifest);
+  }
+
+  /** The publisher a stored manifest document names, for the installed list. */
+  function publisherOf(document: unknown): { id: string; name: string } | null {
+    const publisher = (document as { publisher?: { id?: unknown; name?: unknown } } | null)?.publisher;
+    return typeof publisher?.id === 'string' && typeof publisher.name === 'string' ? { id: publisher.id, name: publisher.name } : null;
+  }
+
+  /** {@link servesNothingByDesign}, asked of a stored document rather than a parsed manifest. */
+  function manifestOnlyDocument(document: unknown): boolean {
+    const frontends = (document as { frontends?: unknown } | null)?.frontends;
+    return (
+      publisherIdOf(document) === LOCAL_PUBLISHER_ID &&
+      Array.isArray(frontends) &&
+      frontends.length > 0 &&
+      frontends.every((frontend) => (frontend as { kind?: unknown } | null)?.kind === 'none')
+    );
+  }
+
+  /** The publisher id a stored manifest document names, or null. */
+  function publisherIdOf(document: unknown): string | null {
+    const id = (document as { publisher?: { id?: unknown } } | null)?.publisher?.id;
+    return typeof id === 'string' ? id : null;
+  }
+
+  /**
+   * A package may not take over an installed app from another publisher: a
+   * self-made "pos" would otherwise install as the update of the real one,
+   * and the reverse.
+   */
+  function publisherChangeRefusal(manifest: Manifest, installedPublisher: string | null): ValidationFailedError | null {
+    if (installedPublisher === null || installedPublisher === manifest.publisher.id) return null;
+    return new ValidationFailedError(
+      `"${manifest.key}" is installed from the publisher "${installedPublisher}", and this package says ` +
+        `"${manifest.publisher.id}". Uninstall it first, or give this app another key.`,
+      { reason: 'PUBLISHER_CHANGED', installed: installedPublisher, offered: manifest.publisher.id },
+    );
+  }
+
+  /**
    * The manifest of a staged package, verified and checked, or a refusal.
    *
    * Shared by plan and install so the two cannot disagree about what is in the
@@ -571,7 +619,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
-    const validated = validateManifest(document);
+    // An app made on this install reads like any other here; where it could
+    // pass for one from a catalogue it is refused at that door instead.
+    const validated = validateManifest(document, { allowLocalPublisher: true });
     if (!validated.ok) {
       /*
        * A NEWER APP, NOT A BROKEN ONE. Every block of the
@@ -1757,8 +1807,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                       : ('on' as const),
               };
             }),
-            // Same rule as `InstalledApps.missing()`, off the same read.
-            missing: surfaces.length === 0,
+            ...(publisherOf(installed.document) === null ? {} : { publisher: publisherOf(installed.document)! }),
+            // No side served, unless the app declares none: that one is whole.
+            missing: surfaces.length === 0 && !manifestOnlyDocument(installed.document),
             status: statusOf(row.status),
           };
         });
@@ -1829,9 +1880,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const read: { manifest?: Manifest } = {};
         // What is installed, read BEFORE the stage: `identify` runs inside it
         // and cannot wait on the meta store.
-        const installedVersions = new Map(
-          (await manifests.list('app')).map((installed) => [installed.row.manifestKey, installed.row.version]),
-        );
+        const installedRows = await manifests.list('app');
+        const installedVersions = new Map(installedRows.map((installed) => [installed.row.manifestKey, installed.row.version]));
+        const installedPublishers = new Map(installedRows.map((installed) => [installed.row.manifestKey, publisherIdOf(installed.document)]));
+        // The keys the cached catalogue lists, when there is one: a self-made
+        // app may not take the key of an app the catalogue offers.
+        const cachedCatalog = await deps.store.readCatalogCache();
+        const parsedCatalog =
+          cachedCatalog === null || !isCurrentAppCatalogFormat(cachedCatalog.document)
+            ? null
+            : appCatalogSchema.safeParse(cachedCatalog.document);
+        const catalogKeys = new Set(parsedCatalog?.success === true ? parsedCatalog.data.apps.map((entry) => entry.key) : []);
         let staged;
         try {
           staged = await deps.store.stage({
@@ -1879,6 +1938,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               // A release that cannot update what is installed is refused
               // here too, before it sits in the store offering an update the
               // update route would refuse.
+              const changed = publisherChangeRefusal(manifest, installedPublishers.get(manifest.key) ?? null);
+              if (changed !== null) throw changed;
+              if (manifest.publisher.id === LOCAL_PUBLISHER_ID && catalogKeys.has(manifest.key) && !installedVersions.has(manifest.key)) {
+                throw new ValidationFailedError(
+                  `"${manifest.key}" is the key of an app in the online catalogue. Give your app another key.`,
+                  { reason: 'KEY_IN_CATALOG' },
+                );
+              }
               const installedVersion = installedVersions.get(manifest.key);
               if (installedVersion !== undefined && installedVersion !== manifest.version) {
                 const refused = updateRefusal(manifest, installedVersion);
@@ -1910,7 +1977,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
         const { key, version } = staged;
         const sides = sidesOf(staged.tree.files);
-        if (sides.length === 0) {
+        if (sides.length === 0 && !servesNothingByDesign(read.manifest ?? null)) {
           // Staged and then discarded: a bundle with no servable side is not a
           // surface, and leaving it on disk would put a package in the staged
           // list that can never finish installing.
@@ -1947,6 +2014,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           version,
           // Always set here: `identify` ran, or the stage above threw.
           name: read.manifest?.name ?? key,
+          ...(read.manifest === undefined ? {} : { publisher: { id: read.manifest.publisher.id, name: read.manifest.publisher.name } }),
           files: Object.keys(staged.tree.files).length,
           integrity: staged.tree.integrity,
           sides,
@@ -2053,7 +2121,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             const doc: unknown = JSON.parse(
               (await deps.store.readFile(key, version, MANIFEST_FILE)).toString('utf8'),
             );
-            const validated = validateManifest(doc);
+            const validated = validateManifest(doc, { allowLocalPublisher: true });
             if (validated.ok && !isAddOnManifest(validated.manifest)) {
               name = validated.manifest.name;
               description = validated.manifest.description.fallback;
@@ -2474,7 +2542,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const surfaces = surfacesOfInstalled(deps.store, { key, version });
-        if (surfaces.length === 0) {
+        if (surfaces.length === 0 && !servesNothingByDesign(manifest)) {
           throw new ValidationFailedError(
             `"${key}@${version}" carries no surface to serve.`,
             { reason: 'NO_SURFACE' },
@@ -2829,8 +2897,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           throw refused;
         }
 
+        const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
+        if (changed !== null) {
+          await auditAppEvent('app.verify-refused', { key, version: to, from, reason: 'PUBLISHER_CHANGED' }, userId, userLabel);
+          throw changed;
+        }
+
         const surfaces = surfacesOfInstalled(deps.store, { key, version: to });
-        if (surfaces.length === 0) {
+        if (surfaces.length === 0 && !servesNothingByDesign(manifest)) {
           throw new ValidationFailedError(`"${key}@${to}" carries no surface to serve.`, {
             reason: 'NO_SURFACE',
           });

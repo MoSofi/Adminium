@@ -110,6 +110,7 @@ import {
   type InstallStoppedDetails,
   type InstalledAppResult,
   type PlannedAppTable,
+  LOCAL_PUBLISHER_ID,
   type StagedApp,
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
@@ -445,6 +446,17 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
           {error}
         </Alert>
       )}
+
+      {/* Said on every step before the install, the database step included:
+          an upload goes straight there. */}
+      {staged?.publisher?.id === LOCAL_PUBLISHER_ID && step !== 'done' ? (
+        <p data-part="made-here" className="rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-xs text-fg-subtle">
+          {t(
+            'studio:hostedApps.install.madeHere',
+            'Made on this install. It does not come from adminium.dev, and nobody else has checked it.',
+          )}
+        </p>
+      ) : null}
 
       {/*
         * The app this install is for, once it is known: picked off the shelf,

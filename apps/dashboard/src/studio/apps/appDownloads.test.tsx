@@ -356,6 +356,20 @@ describe('installing an app only the catalogue offers', () => {
   });
 });
 
+describe('an app made on this install', () => {
+  it('carries a badge saying so, and one from adminium does not', async () => {
+    installed = { apps: [{ ...INSTALLED, publisher: { id: 'local', name: 'Local' } }], staged: [] };
+    await renderPage();
+    expect(screen.getByText('Made here')).toBeTruthy();
+  });
+
+  it('is not marked on an app from adminium', async () => {
+    installed = { apps: [{ ...INSTALLED, publisher: { id: 'adminium', name: 'Adminium' } }], staged: [] };
+    await renderPage();
+    expect(screen.queryByText('Made here')).toBeNull();
+  });
+});
+
 describe('an installed app whose files are gone', () => {
   it('is marked missing and says what to do, instead of reading as healthy', async () => {
     installed = { apps: [{ ...INSTALLED, sides: [], missing: true }], staged: [] };

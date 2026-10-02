@@ -752,7 +752,8 @@ export default {
         "resume": "Nothing was removed. Trying again finishes from where it stopped.",
         "retry": "Try again",
         "back": "Back to Schema plan"
-      }
+      },
+      "madeHere": "Made on this install. It does not come from adminium.dev, and nobody else has checked it."
     },
     "installed": {
       "title": "Installed apps",
@@ -775,7 +776,8 @@ export default {
       "renamed": "Tables renamed to {prefix}…",
       "oldNames": "This install uses the old table names.",
       "oldNamesWhy": "They were made before prefixes.",
-      "renameTo": "Rename to {prefix}…"
+      "renameTo": "Rename to {prefix}…",
+      "madeHere": "Made here"
     },
     "instances": {
       "add": "Add an instance",

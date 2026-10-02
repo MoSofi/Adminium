@@ -51,6 +51,7 @@ import { getFormatters } from '@adminium/i18n';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import {
+  LOCAL_PUBLISHER_ID,
   APP_CATALOG_QUERY_KEY,
   APPS_QUERY_KEY,
   appCatalogQuery,
@@ -163,6 +164,9 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                     <Badge>
                       <MonoText>{app.version}</MonoText>
                     </Badge>
+                    {app.publisher?.id === LOCAL_PUBLISHER_ID ? (
+                      <Badge>{t('studio:hostedApps.installed.madeHere', 'Made here')}</Badge>
+                    ) : null}
                     {updateTo === null ? null : (
                       <Badge tone="warn">
                         <ArrowUp aria-hidden className="size-3" />

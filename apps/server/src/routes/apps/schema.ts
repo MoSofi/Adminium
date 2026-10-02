@@ -48,6 +48,9 @@ export const uploadAppQuery = z.object({
   expectedSha512: z.string().regex(/^sha512-[A-Za-z0-9+/]+={0,2}$/),
 });
 
+/** The manifest's publisher, as the pages that name it read it. */
+const appPublisher = z.object({ id: z.string(), name: z.string() });
+
 export const stagedAppReply = z.object({
   key: appKey,
   version: z.string(),
@@ -58,6 +61,8 @@ export const stagedAppReply = z.object({
   integrity: z.string(),
   /** Which sides the package actually carries, in serve order. */
   sides: z.array(z.enum(['staff', 'customer'])),
+  /** Who the manifest says made it. `local` is an app made on this install. */
+  publisher: appPublisher.optional(),
 });
 
 /**
@@ -517,6 +522,8 @@ export const installedAppReply = z.object({
   installedAt: z.number(),
   connectionId: z.string().nullable(),
   sides: z.array(installedSide),
+  /** Who the manifest says made it; `local` is an app made on this install. Absent when unreadable. */
+  publisher: appPublisher.optional(),
   /**
    * The row is installed but nothing of it is on this server, so none of it is
    * served. A redeploy on a host with no disk is how this happens:

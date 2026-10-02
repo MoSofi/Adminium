@@ -504,6 +504,126 @@ describe('uploading a surface bundle', () => {
   });
 });
 
+describe('an app made on this install (publisher "local")', () => {
+  const LOCAL = { id: 'local', name: 'Local' };
+  const localBundle = (key: string, change: Record<string, unknown> = {}, files: Record<string, string> = {}) => ({
+    ...bundleFor(key),
+    'manifest.json': JSON.stringify({ ...manifestFor(key), publisher: LOCAL, ...change }),
+    ...files,
+  });
+  const install = (app: Awaited<ReturnType<typeof buildApp>>, key: string, version = '1.0.0') =>
+    app.inject({ method: 'POST', url: '/apps/install', payload: { key, version, connectionId: CONNECTION } });
+
+  it('uploads, installs and says who made it', async () => {
+    const app = await buildApp();
+    const staged = await upload(app, 'repairs', localBundle('repairs'));
+    expect(staged.statusCode, staged.body).toBe(200);
+    expect(staged.json().publisher).toEqual(LOCAL);
+    expect((await install(app, 'repairs')).statusCode).toBe(200);
+    const list = (await app.inject({ method: 'GET', url: '/apps' })).json();
+    expect(list.apps[0]).toMatchObject({ key: 'repairs', publisher: LOCAL, missing: false });
+    await app.close();
+  });
+
+  it('still refuses any other publisher, naming the field', async () => {
+    const app = await buildApp();
+    const res = await upload(app, 'repairs', localBundle('repairs', { publisher: { id: 'acme', name: 'Acme' } }));
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.details.issues).toContainEqual(expect.objectContaining({ path: 'publisher.id' }));
+    expect(await store.keys()).toEqual([]);
+    await app.close();
+  });
+
+  it('cannot become the update of an app from another publisher', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk');
+    expect((await install(app, 'sample-desk')).statusCode).toBe(200);
+    const takeover = await upload(app, 'sample-desk', localBundle('sample-desk', { version: '1.0.1' }));
+    expect(takeover.statusCode).toBe(422);
+    expect(takeover.json().error.details).toMatchObject({ reason: 'PUBLISHER_CHANGED', installed: 'adminium', offered: 'local' });
+    expect(await store.versions('sample-desk')).toEqual(['1.0.0']);
+    await app.close();
+  });
+
+  it('cannot be replaced by a package from another publisher either', async () => {
+    const app = await buildApp();
+    await upload(app, 'repairs', localBundle('repairs'));
+    expect((await install(app, 'repairs')).statusCode).toBe(200);
+    const reverse = await upload(app, 'repairs', { ...bundleFor('repairs'), 'manifest.json': JSON.stringify({ ...manifestFor('repairs'), version: '1.0.1' }) });
+    expect(reverse.json().error.details).toMatchObject({ reason: 'PUBLISHER_CHANGED', installed: 'local', offered: 'adminium' });
+    await app.close();
+  });
+
+  it('may not take a key the cached catalogue lists', async () => {
+    const app = await buildApp();
+    await store.writeCatalogCache(
+      {
+        format: 'adminium-marketplace/1',
+        generatedAt: '2026-09-16T00:00:00Z',
+        unavailable: [],
+        skipped: [],
+        apps: [
+          {
+            key: 'clinic',
+            version: '0.1.2',
+            integrity: `sha512-${'A'.repeat(86)}==`,
+            name: { en: 'Clinic Desk' },
+            tagline: { en: 'Appointments.' },
+            categories: ['health'],
+            capabilities: [],
+            publisher: 'Adminium',
+            sides: ['staff'],
+            minAdminiumVersion: '0.2.8',
+          },
+        ],
+      },
+      1_700_000_000_000,
+    );
+    const res = await upload(app, 'clinic', localBundle('clinic'));
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.details.reason).toBe('KEY_IN_CATALOG');
+    expect(await store.keys()).toEqual([]);
+    await app.close();
+  });
+
+  describe('with no screen of its own', () => {
+    const NONE = { frontends: [{ side: 'staff', kind: 'none' }] };
+    const manifestOnly = (key: string, change: Record<string, unknown> = {}) => ({
+      'manifest.json': JSON.stringify({ ...manifestFor(key), publisher: LOCAL, ...NONE, ...change }),
+    });
+
+    it('uploads and installs as tables and pages alone, and is not reported missing', async () => {
+      const app = await buildApp();
+      const staged = await upload(app, 'ledger', manifestOnly('ledger'));
+      expect(staged.statusCode, staged.body).toBe(200);
+      expect(staged.json().sides).toEqual([]);
+      const done = await install(app, 'ledger');
+      expect(done.statusCode, done.body).toBe(200);
+      expect(done.json().sides).toEqual([]);
+      const list = (await app.inject({ method: 'GET', url: '/apps' })).json();
+      expect(list.apps[0]).toMatchObject({ key: 'ledger', sides: [], missing: false });
+      expect(installed.current()).toEqual([]);
+      await app.close();
+    });
+
+    it('is still refused from any other publisher', async () => {
+      const app = await buildApp();
+      const res = await upload(app, 'ledger', manifestOnly('ledger', { publisher: manifestFor('ledger')['publisher'] }));
+      expect(res.statusCode).toBe(422);
+      expect(res.json().error.details.reason).toBe('NO_SURFACE');
+      expect(await store.keys()).toEqual([]);
+      await app.close();
+    });
+
+    it('is refused when it declares a screen and ships none', async () => {
+      const app = await buildApp();
+      const res = await upload(app, 'ledger', manifestOnly('ledger', { frontends: [{ side: 'staff', kind: 'spa' }] }));
+      expect(res.json().error.details.reason).toBe('NO_SURFACE');
+      await app.close();
+    });
+  });
+});
+
 describe('installing a staged bundle', () => {
   it('records the app and makes its surfaces live', async () => {
     const app = await buildApp();

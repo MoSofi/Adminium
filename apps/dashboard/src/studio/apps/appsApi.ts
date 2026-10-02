@@ -36,6 +36,8 @@ export interface InstalledApp {
   installedAt: number;
   connectionId: string | null;
   sides: InstalledAppSide[];
+  /** Who the manifest says made it; `local` is an app made on this install. Absent from an older server. */
+  publisher?: { id: string; name: string };
   /**
    * Installed, but nothing of it is on this server, so none of it is served: a
    * redeploy on a host with no disk keeps the row and loses the files. `sides`
@@ -455,7 +457,12 @@ export interface StagedApp {
   files: number;
   integrity: string;
   sides: SurfaceSide[];
+  /** Who the manifest says made it; `local` is an app made on this install. Absent from an older server. */
+  publisher?: { id: string; name: string };
 }
+
+/** The publisher id of an app made on the install it runs on. */
+export const LOCAL_PUBLISHER_ID = 'local';
 
 /**
  * The sha512 of a file, in Subresource-Integrity spelling (`sha512-<base64>`).
