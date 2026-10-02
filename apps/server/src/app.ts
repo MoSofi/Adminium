@@ -38,7 +38,7 @@ import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
-import { DEV_BUILD_FILE, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
+import { DEV_BUILD_ADDRESS, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
 import {
   compileProxyTrust,
   DEFAULT_TRUSTED_PROXIES,
@@ -335,7 +335,8 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       ? {}
       : {
           logController: new LogController({
-            disableRequestLogging: (request: { url?: string }) => (request.url ?? '').split('?')[0]?.endsWith(`/${DEV_BUILD_FILE}`) === true,
+            disableRequestLogging: (request: { url?: string; method?: string }) =>
+              request.method === 'GET' && DEV_BUILD_ADDRESS.test((request.url ?? '').split('?')[0] ?? ''),
           }),
         }),
     /**

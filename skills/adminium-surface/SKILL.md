@@ -98,5 +98,5 @@ customer screen works there with nothing to set. That is where a screen is looke
 **build**, then **try**. Try serves each side and every file it names, reads a table as staff, and
 probes the public API (a read of each granted table, an empty create to each table that takes
 one). Neither runs a screen in a browser or type-checks it: have the person open each screen once
-under **run**, and say that `?demo` on a staff screen's address shows it on the sample rows
-without saving anything.
+under **run**, and say that `?demo` on a staff screen's address (signed in) shows it on the sample
+rows without saving anything.

@@ -125,6 +125,13 @@ export const startCommand: Command = {
 
     // Inside a project: `.env` and adminium.config.ts fill in whatever the
     // environment leaves unset, and the config's databases are connected below.
+    /*
+     * Read BEFORE the project's `.env` is copied in: the mode is what the
+     * process was started as (`adminium dev` sets it), never a line in a file
+     * that is deployed with the folder. A server started with `adminium
+     * start` is a server, whatever its `.env` says.
+     */
+    const projectMode: 'dev' | 'server' = deps.env.ADMINIUM_PROJECT_MODE === 'dev' ? 'dev' : 'server';
     const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION });
     if (project !== null) {
       io.out(`Project: ${project.project.root}${project.from === 'new-build' ? ' (built it first)' : ''}`);
@@ -137,7 +144,7 @@ export const startCommand: Command = {
      * somebody found the variable; `self` is the narrowest value there is,
      * and the API still answers nothing until it is switched on.
      */
-    const developing = project !== null && deps.env.ADMINIUM_PROJECT_MODE === 'dev';
+    const developing = project !== null && projectMode === 'dev';
     const projectEnv =
       project !== null && developing ? withDefaults(project.env, { ADMINIUM_PUBLIC_API_ORIGINS: 'self' }) : project?.env;
 
@@ -255,7 +262,7 @@ export const startCommand: Command = {
       // master copy; everywhere else the folder changes only with a deploy.
       projectServer = {
         root: project.project.root,
-        mode: deps.env.ADMINIUM_PROJECT_MODE === 'dev' ? 'dev' : 'server',
+        mode: projectMode,
         log: (message) => {
           io.out(message);
         },

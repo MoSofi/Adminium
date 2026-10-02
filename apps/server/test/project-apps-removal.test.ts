@@ -10,7 +10,14 @@
  * statement on each, and SQLite rebuilds the table to do it.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { appTablesRepo, pagesRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import type { Manifest, RequiredColumn } from '@adminium/manifest';
+import { appTablesRepo, manifestsRepo, pagesRepo, projectAppsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+
+import { diffRemovals } from '../src/apps/removal.js';
+import { appBuildDir } from '../src/project/apps/build-apps.js';
 
 import { ENGINES } from './app-install-harness.js';
 import { folderHarness, type FolderHarness } from './folder-app-harness.js';
@@ -70,6 +77,19 @@ interface Listed {
   apps: { folder?: { removals?: { kind: string; table: string; tableName: string; column?: string; rows: number; detail?: string }[] } }[];
 }
 const listed = async (): Promise<Listed> => JSON.parse((await h.harness.inject({ method: 'GET', url: '/apps' })).body) as Listed;
+
+/**
+ * Build the folder and make its manifest the installed document WITHOUT
+ * applying it: what an apply leaves behind when it stops after the document
+ * moved and before anything the manifest dropped was looked at.
+ */
+async function documentMovedTo(): Promise<void> {
+  await h.build();
+  const document = JSON.parse(readFileSync(join(appBuildDir(h.root, 'repairs'), 'app.json'), 'utf8')) as Manifest;
+  const manifests = manifestsRepo(h.harness.meta, { encrypt: (v) => v, decrypt: (v) => v });
+  const row = (await manifests.list('app')).find((m) => m.row.manifestKey === 'repairs')!;
+  await manifests.setVersion(row.row.id, { version: document.version, document });
+}
 
 const answer = (accept: boolean) => h.harness.inject({ method: 'POST', url: '/project/apps/repairs/removals', payload: { accept } });
 
@@ -281,6 +301,124 @@ for (const [dialect, available] of ENGINES) {
       expect((await answer(false)).statusCode).toBe(200);
     });
 
+    it('never answers a question against a manifest that declares the column again', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await installedWithColour();
+      dropColumns('colour');
+      await h.sync();
+      expect((await h.state('repairs'))?.removals?.changes).toHaveLength(1);
+
+      // The folder declares it again, and that apply stopped before the question was looked at.
+      addColour();
+      await documentMovedTo();
+      const reply = await answer(true);
+      expect(reply.statusCode, reply.body).toBe(404);
+      expect(await coloured()).toBe(2);
+      expect((await h.state('repairs'))?.removals).toBeNull();
+    });
+
+    it('never drops a column of a table another app also uses', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await installedWithColour();
+      await appTablesRepo(h.harness.meta).record({
+        appKey: 'other',
+        manifestId: null,
+        connectionId: h.harness.connectionId,
+        ref: 'things',
+        tableName: 'repairs_items',
+        owned: false,
+        state: 'adopted',
+      });
+      dropColumns('colour');
+      expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+      expect((await h.state('repairs'))?.removals).toBeNull();
+      expect(h.lines.log.join('\n')).toContain('kept "repairs_items.colour": the app did not make that table, or does not use it alone.');
+      expect(await coloured()).toBe(2);
+    });
+
+    it('lets a column it keeps be left empty, so the app can still add rows', async () => {
+      for (const mode of ['server', 'dev'] as const) {
+        h = await folderHarness(dialect, { mode, apps: { repairs: { sampleData: false } } });
+        await h.newApp('repairs');
+        // Required, with no default: every row must say it.
+        h.edit('apps/repairs/manifest/tables/items.json', (table) => ({
+          ...table,
+          columns: [...(table['columns'] as unknown[]), { ref: 'colour', type: 'text', maxLength: 40 }],
+        }));
+        await h.sync();
+        await h.harness.run(`INSERT INTO repairs_items (title, status, colour, created_at) VALUES ('a', 'open', 'red', CURRENT_TIMESTAMP)`);
+        await expect(h.harness.run(`INSERT INTO repairs_items (title, status, created_at) VALUES ('b', 'open', CURRENT_TIMESTAMP)`)).rejects.toBeTruthy();
+
+        dropColumns('colour');
+        expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+        // Kept on a server, asked about under dev: either way it is still there, and no longer in the way.
+        expect(await coloured()).toBe(1);
+        expect(h.lines.log.join('\n')).toContain('may be left empty from now on: the app no longer fills it.');
+        await h.harness.run(`INSERT INTO repairs_items (title, status, created_at) VALUES ('b', 'open', CURRENT_TIMESTAMP)`);
+        expect(await count('repairs_items')).toBe(2);
+        if (mode === 'server') await h.close();
+      }
+    });
+
+    it('still deals with a table and a column when the apply that dropped them stopped part way', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await h.newApp('repairs');
+      h.put('apps/repairs/manifest/tables/notes.json', NOTES_TABLE);
+      addColour();
+      await h.sync();
+      await h.harness.run(`UPDATE repairs_items SET colour = 'red' WHERE status = 'done'`);
+      await h.harness.run(`INSERT INTO repairs_notes (id, body) VALUES (1, 'keep me')`);
+
+      // The installed document is already the new manifest: there is no "before" left to compare with.
+      h.remove('apps/repairs/manifest/tables/notes.json');
+      dropColumns('colour');
+      await documentMovedTo();
+      await projectAppsRepo(h.harness.meta).setFailure(
+        'repairs',
+        { stage: 'pages', message: 'stopped', hash: 'sha256:stopped', owed: [{ table: 'items', column: 'colour' }] },
+        Date.now(),
+        { nothingApplied: true },
+      );
+      expect((await h.state('repairs'))?.appliedHash).toBeNull();
+
+      expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+      expect((await listed()).apps[0]?.folder?.removals).toEqual([
+        { kind: 'table', table: 'notes', tableName: 'repairs_notes', rows: 1 },
+        { kind: 'column', table: 'items', tableName: 'repairs_items', column: 'colour', rows: 2 },
+      ]);
+      expect((await h.state('repairs'))?.failure).toBeNull();
+    });
+
+    it('keeps the columns a refused manifest drops with the refusal', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await installedWithColour();
+      dropColumns('colour');
+      // Six sample rows share two statuses: a status that must be one of a kind cannot be, and the apply stops.
+      h.edit('apps/repairs/manifest/tables/items.json', (table) => ({
+        ...table,
+        columns: (table['columns'] as { ref: string }[]).map((column) => (column.ref === 'status' ? { ...column, unique: true } : column)),
+      }));
+      expect((await h.sync())[0]).toMatchObject({ state: 'not-applied', stage: 'tables' });
+      expect((await h.state('repairs'))?.failure?.owed).toEqual([{ table: 'items', column: 'colour' }]);
+      // It stopped before the installed document moved: what was applied is still applied.
+      expect((await h.state('repairs'))?.appliedHash).not.toBeNull();
+      expect(await coloured()).toBe(2);
+    });
+
+    it('says what a narrower column no longer fits on a server, and stores no question', async () => {
+      h = await folderHarness(dialect, { mode: 'server' });
+      await h.newApp('repairs');
+      await h.sync();
+      await h.harness.run(`INSERT INTO repairs_items (title, status, created_at) VALUES ('${'x'.repeat(40)}', 'open', CURRENT_TIMESTAMP)`);
+      h.edit('apps/repairs/manifest/tables/items.json', (table) => ({
+        ...table,
+        columns: (table['columns'] as { ref: string }[]).map((column) => (column.ref === 'title' ? { ...column, maxLength: 30 } : column)),
+      }));
+      expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+      expect((await h.state('repairs'))?.removals).toBeNull();
+      expect(h.lines.log.join('\n')).toContain('"repairs_items.title": it now holds at most 30 characters (it held 120); 1 row(s) do not fit and stay as they are.');
+    });
+
     it('never drops and never asks on a server: what holds data is kept, and said', async () => {
       h = await folderHarness(dialect, { mode: 'server' });
       await h.newApp('repairs');
@@ -303,3 +441,20 @@ for (const [dialect, available] of ENGINES) {
     });
   });
 }
+
+describe('what counts as a column that holds less', () => {
+  const column = (over: Partial<RequiredColumn>): RequiredColumn => ({ ref: 'note', type: 'text', maxLength: 40, ...over }) as RequiredColumn;
+  const app = (note: RequiredColumn): Manifest =>
+    ({ kind: 'app', key: 'a', requiredSchema: { tables: [{ ref: 't', columns: [{ ref: 'id', type: 'int', role: 'pk' }, note] }] } }) as unknown as Manifest;
+  const narrowed = (before: Partial<RequiredColumn>, after: Partial<RequiredColumn>) =>
+    diffRemovals(app(column(before)), app(column(after))).narrowings.map((entry) => entry.detail);
+
+  it('is one that starts requiring a value: a column requires one unless it says it may be empty', () => {
+    expect(narrowed({ nullable: true }, {})).toEqual(['it must now have a value']);
+    expect(narrowed({ nullable: true }, { nullable: false })).toEqual(['it must now have a value']);
+    // It required a value all along, however that was written.
+    expect(narrowed({}, { nullable: false })).toEqual([]);
+    // A default fills the rows that have none.
+    expect(narrowed({ nullable: true }, { default: '' })).toEqual([]);
+  });
+});

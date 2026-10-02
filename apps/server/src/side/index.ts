@@ -142,29 +142,54 @@ export function onAppChanged(
   const base = options.base ?? mountBase();
   let seen: string | null = null;
   let stopped = false;
+  /**
+   * Answers that carried no stamp, before any did. A bundle `adminium dev`
+   * built may be left on disk and served by a plain server, which has no
+   * stamp to give: after a few such answers this stops asking. Once a stamp
+   * was seen the server is a dev one, and it is asked for good.
+   */
+  let unanswered = 0;
+  const timer: { id?: ReturnType<typeof setInterval> } = {};
+  const stop = (): void => {
+    stopped = true;
+    if (timer.id !== undefined) clearInterval(timer.id);
+  };
+  const noStamp = (): void => {
+    if (seen === null && ++unanswered >= NO_STAMP_LOOKS) stop();
+  };
   const look = async (): Promise<void> => {
     if (stopped) return;
+    let response: Awaited<ReturnType<Fetch>>;
     try {
-      const response = await doFetch(`${base}dev-build.json`, { cache: 'no-store', credentials: 'same-origin' });
-      if (!response.ok) return;
-      const build = ((await response.json()) as { build?: unknown } | null)?.build;
-      if (typeof build !== 'string' || stopped) return;
-      if (seen === null) seen = build;
-      else if (build !== seen) {
-        seen = build;
-        listener();
-      }
+      response = await doFetch(`${base}dev-build.json`, { cache: 'no-store', credentials: 'same-origin' });
     } catch {
-      // The server is restarting, or this address is not served by `adminium dev`: ask again later.
+      // The server is restarting: ask again later.
+      return;
+    }
+    let build: unknown;
+    try {
+      build = response.ok ? ((await response.json()) as { build?: unknown } | null)?.build : undefined;
+    } catch {
+      build = undefined; // a page, not a stamp
+    }
+    if (stopped) return;
+    if (typeof build !== 'string') {
+      noStamp();
+      return;
+    }
+    if (seen === null) seen = build;
+    else if (build !== seen) {
+      seen = build;
+      listener();
     }
   };
-  const timer = setInterval(() => void look(), options.intervalMs ?? 1000);
+  timer.id = setInterval(() => void look(), options.intervalMs ?? 1000);
   void look();
-  return () => {
-    stopped = true;
-    clearInterval(timer);
-  };
+  return stop;
 }
+
+/** How many answers without a stamp, before any stamp, say this server gives none. */
+const NO_STAMP_LOOKS = 5;
 
 /** The one a dev bundle starts for itself; stopped by {@link stopReloading}. */
 let reloading: (() => void) | null = DEV && typeof (globalThis as { document?: unknown }).document !== 'undefined' ? onAppChanged() : null;

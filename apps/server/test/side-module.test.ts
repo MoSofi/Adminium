@@ -284,6 +284,16 @@ describe('reloading when the app was applied or rebuilt', () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it('stops asking a server that never gives a stamp: a dev bundle served by a plain server', async () => {
+    vi.useFakeTimers();
+    const stamp = { value: null as string | null };
+    const { asked, fetch } = server(stamp);
+    const stop = onAppChanged(vi.fn(), { fetch, intervalMs: 1000, base: '/apps/repairs/staff/', dev: true });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(asked).toHaveLength(5);
+    stop();
+  });
+
   it('waits through a server that is down or answers a page, and still sees the next build', async () => {
     vi.useFakeTimers();
     const stamp: { value: string | null; down?: boolean } = { value: 'a:1' };

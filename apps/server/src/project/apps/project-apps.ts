@@ -34,10 +34,11 @@
  * next change to the folder is the next attempt.
  */
 
-import { projectAppsRepo, type MetaDb } from '@adminium/meta';
+import type { Manifest } from '@adminium/manifest';
+import { projectAppsRepo, publicKeysRepo, type MetaDb } from '@adminium/meta';
 
 import { FOLDER_SOURCE, type AppInstallService, type InstallActor, type InstallHost, type Unattended } from '../../apps/install-service.js';
-import { removalInWords } from '../../apps/removal.js';
+import { diffRemovals, removalInWords } from '../../apps/removal.js';
 import { AppError } from '../../errors.js';
 import type { ProjectConfig } from '../config.js';
 import type { AppsBuild, BuiltProjectApp } from './build-apps.js';
@@ -97,7 +98,16 @@ export interface ProjectAppsOptions {
    * whether it is switched on, and how to switch it on. An app's customer
    * side reaches nothing without it. Absent in a composition with no public API.
    */
-  publicApi?: { registered: boolean; isEnabled(): Promise<boolean>; enable(): Promise<void> } | undefined;
+  publicApi?:
+    | {
+        registered: boolean;
+        isEnabled(): Promise<boolean>;
+        /** Switch it on for this app, and record that the folder did. */
+        enable(key: string): Promise<void>;
+        /** Whether this server listens beyond this machine. */
+        reachable?: boolean;
+      }
+    | undefined;
   /** Re-read which apps are served; called when only an app's screens changed. */
   refreshServed?: (() => Promise<unknown>) | undefined;
 }
@@ -148,6 +158,13 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
   const warnedShadowed = new Set<string>();
   const stamps = new Map<string, string>();
 
+  /**
+   * What is recorded as applied: the manifest, and whether the config let it
+   * have its public access. The switch is part of what was applied, so
+   * turning it on (or off) is a change even when `app.json` is the same.
+   */
+  const markOf = (key: string, hash: string): string => (opts.apps?.[key]?.publicAccess === true ? `${hash}+public` : hash);
+
   const unattended: Unattended =
     opts.mode === 'dev' ? { installAddOns: true, adaptForeignTables: true } : { installAddOns: false, adaptForeignTables: false };
 
@@ -192,17 +209,66 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     }
     if (await opts.publicApi.isEnabled()) return;
     if (opts.mode === 'dev') {
-      await opts.publicApi.enable();
-      opts.log(`App "${key}": switched the public API on (Settings → API), so its customer side can reach what its manifest grants.`);
+      await opts.publicApi.enable(key);
+      opts.log(
+        `App "${key}": switched the public API on (Settings → API), so its customer side can reach what its manifest grants.` +
+          (opts.publicApi.reachable === true
+            ? ' This server listens beyond this machine: whoever can reach it can use that too. Start it with --host 127.0.0.1 to keep it here.'
+            : ''),
+      );
     } else if (!saidApiOff.has(key)) {
       saidApiOff.add(key);
       opts.log(`App "${key}": its public access is made, and the public API is off. Switch it on in Settings → API.`);
     }
   }
 
-  async function failed(app: BuiltProjectApp & { hash: string }, error: unknown): Promise<AppliedApp> {
+  /** The add-ons that were installed, updated or connected with an app, in one line each. */
+  function sayAddOns(
+    key: string,
+    done: { installed: { name: string; version: string }[]; updated: { name: string; from: string; to: string }[]; attached: { name: string; version: string }[] } | undefined,
+  ): void {
+    for (const addOn of done?.installed ?? []) opts.log(`App "${key}": installed the add-on ${addOn.name} ${addOn.version} with it.`);
+    for (const addOn of done?.updated ?? []) opts.log(`App "${key}": updated the add-on ${addOn.name} from ${addOn.from} to ${addOn.to} with it.`);
+    for (const addOn of done?.attached ?? []) opts.log(`App "${key}": connected the add-on ${addOn.name} ${addOn.version} to it.`);
+  }
+
+  /** Public access the committed config does not allow is said, once: it is never taken back unasked. */
+  const saidAccessStays = new Set<string>();
+  async function sayAccessThatStays(key: string): Promise<void> {
+    if (publicAccessFor(key).allowed || saidAccessStays.has(key)) return;
+    const live = await publicKeysRepo(opts.meta).newestLiveByApp(key, 'customer');
+    if (live === null || live.managedBy !== key) return;
+    saidAccessStays.add(key);
+    opts.warn(
+      `App "${key}" HAS public access that adminium.config.ts does not allow (it was given under \`adminium dev\`, or the switch was taken out). ` +
+        `It stays as it is: revoke its key under Settings → API, or set apps.${key}.publicAccess to true.`,
+    );
+  }
+
+  async function failed(
+    app: BuiltProjectApp & { hash: string; version?: string },
+    error: unknown,
+    before?: { document: Manifest | null },
+  ): Promise<AppliedApp> {
     const { stage, message } = describeFailure(error);
-    await repo.setFailure(app.key, { stage, message, hash: app.hash });
+    /*
+     * The columns this manifest drops are kept with the failure: an apply
+     * that stopped after the installed document moved has nothing left to
+     * compare the next one with.
+     */
+    const owed = [...((await repo.find(app.key))?.failure?.owed ?? [])];
+    if (before !== undefined && app.version !== undefined) {
+      try {
+        for (const entry of diffRemovals(before.document, await service.verifiedManifest(app.key, app.version)).columns) {
+          if (!owed.some((other) => other.table === entry.table && other.column === entry.column)) owed.push(entry);
+        }
+      } catch {
+        // A manifest that cannot be read drops nothing yet.
+      }
+    }
+    // Past these steps the installed document is the new one: nothing is applied in full any more.
+    const moved = stage === 'pages' || stage === 'removals';
+    await repo.setFailure(app.key, { stage, message, hash: app.hash, ...(owed.length === 0 ? {} : { owed }) }, Date.now(), { nothingApplied: moved });
     opts.warn(`App "${app.key}" (apps/${app.key}) was not applied — it stopped at "${stage}": ${message} It keeps running as it was; change the folder to try again.`);
     return { key: app.key, state: 'not-applied', hash: app.hash, stage, message };
   }
@@ -230,9 +296,10 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       source: FOLDER_SOURCE,
       unattended,
     });
-    await repo.setApplied(app.key, app.hash);
+    await repo.setApplied(app.key, markOf(app.key, app.hash));
     const made = reply.schema === undefined ? '' : ` Tables made: ${reply.schema.created.join(', ') || 'none'}.`;
     opts.log(`App "${app.key}" installed from apps/${app.key}.${made}`);
+    sayAddOns(app.key, reply.addOns);
     if (declaresAccess && !access.allowed) {
       opts.log(`App "${app.key}" is installed WITHOUT public access: ${access.refusal} to give it what its manifest declares.`);
     }
@@ -248,7 +315,10 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     return { key: app.key, state: 'installed', hash: app.hash };
   }
 
-  async function applyChanged(app: BuiltProjectApp & { hash: string; version: string }): Promise<AppliedApp> {
+  async function applyChanged(
+    app: BuiltProjectApp & { hash: string; version: string },
+    owed: readonly { table: string; column: string }[],
+  ): Promise<AppliedApp> {
     const access = publicAccessFor(app.key);
     const reply = await service.applyInPlace(PROJECT_FOLDER_ACTOR, opts.host, {
       key: app.key,
@@ -257,27 +327,36 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       publicAccessRefusal: access.refusal,
       unattended,
     });
-    await repo.setApplied(app.key, app.hash);
-    await publicApiFor(app.key, reply.manifest.kind === 'app' && (reply.manifest.publicAccess ?? []).length > 0, access.allowed);
     const made = reply.schema?.created ?? [];
     opts.log(`App "${app.key}" applied from apps/${app.key}${made.length === 0 ? '' : ` (new tables: ${made.join(', ')})`}.`);
+    sayAddOns(app.key, reply.addOns);
 
     // What the manifest no longer declares: gone where nothing is lost, asked about where data is.
     const say = (line: string): void => {
       opts.log(`App "${app.key}": ${line}`);
     };
-    const removed = await service.removals.afterApply({
-      key: app.key,
-      rowId: reply.rowId,
-      connectionId: reply.connectionId,
-      previous: reply.previous,
-      manifest: reply.manifest,
-      hash: app.hash,
-      // A server never drops, and never asks: what holds data is kept.
-      drops: opts.mode === 'dev' ? 'ask' : 'never',
-      actor: PROJECT_FOLDER_ACTOR,
-      log: say,
-    });
+    let removed: Awaited<ReturnType<typeof service.removals.afterApply>>;
+    try {
+      removed = await service.removals.afterApply({
+        key: app.key,
+        rowId: reply.rowId,
+        connectionId: reply.connectionId,
+        previous: reply.previous,
+        manifest: reply.manifest,
+        hash: app.hash,
+        // A server never drops, and never asks: what holds data is kept.
+        drops: opts.mode === 'dev' ? 'ask' : 'never',
+        actor: PROJECT_FOLDER_ACTOR,
+        log: say,
+        owed,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AppError(409, 'APP_APPLY_INCOMPLETE', `What it no longer declares could not be dealt with: ${message}`, { stage: 'removals', cause: message });
+    }
+    // Only now is it applied in full: a stop above is tried again, and loses nothing.
+    await repo.setApplied(app.key, markOf(app.key, app.hash));
+    await publicApiFor(app.key, reply.manifest.kind === 'app' && (reply.manifest.publicAccess ?? []).length > 0, access.allowed);
     if (removed.pages.removed.length > 0) say(`removed the page${removed.pages.removed.length === 1 ? '' : 's'} ${removed.pages.removed.join(', ')}.`);
     if (removed.pages.kept.length > 0) {
       say(`kept ${removed.pages.kept.join(', ')} as ${removed.pages.kept.length === 1 ? 'an ordinary page' : 'ordinary pages'}: somebody edited ${removed.pages.kept.length === 1 ? 'it' : 'them'}.`);
@@ -309,7 +388,8 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     // The same manifest that already failed here: shown, not tried again.
     const tried = attempted.has(`${app.key}:${app.hash}`);
     attempted.add(`${app.key}:${app.hash}`);
-    if (tried && state?.failure != null && state.failure.hash === app.hash && state.appliedHash !== app.hash) {
+    const mark = markOf(app.key, app.hash);
+    if (tried && state?.failure != null && state.failure.hash === app.hash && state.appliedHash !== mark) {
       return { key: app.key, state: 'not-applied', hash: app.hash, stage: state.failure.stage, message: state.failure.message };
     }
     try {
@@ -323,17 +403,18 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       }
       // Not installed, or an install from the folder that stopped part way: installing again finishes it.
       if (row === undefined || row.row.status === 'installing') return await installNew(built);
-      if (state?.appliedHash === app.hash) {
+      await sayAccessThatStays(app.key);
+      if (state?.appliedHash === mark) {
         // A manifest that failed and was put back as it was: the failure is over.
-        if (state.failure !== null) await repo.setApplied(app.key, app.hash, state.appliedAt ?? Date.now());
+        if (state.failure !== null) await repo.setApplied(app.key, mark, state.appliedAt ?? Date.now());
         // Nothing to apply, and its customer side still needs the public API: a server started without it says so again.
         const declared = (row.document as { publicAccess?: unknown } | null)?.publicAccess;
         await publicApiFor(app.key, Array.isArray(declared) && declared.length > 0, publicAccessFor(app.key).allowed);
         return { key: app.key, state: 'unchanged', hash: app.hash };
       }
-      return await applyChanged(built);
+      return await applyChanged(built, state?.failure?.owed ?? []);
     } catch (error) {
-      return failed(built, error);
+      return failed(built, error, row === undefined ? undefined : { document: (row.document as Manifest | null) ?? null });
     }
   }
 
@@ -357,13 +438,18 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
         result = { key: app.key, state: 'not-applied', hash: app.hash, stage: 'read', message };
       }
       results.push(result);
-      stamps.set(app.key, `${app.hash ?? 'not-built'}:${app.sidesHash}`);
+      // A build that broke serves what it served: open screens are not reloaded for it.
+      if (app.hash !== null || !stamps.has(app.key)) stamps.set(app.key, `${app.hash ?? 'not-built'}:${app.sidesHash}`);
+      const before = last.find((other) => other.key === app.key);
+      const stoodStill = before !== undefined && before.state === result.state && before.message === result.message;
       const seen = sidesSeen.get(app.key);
       sidesSeen.set(app.key, app.sidesHash);
       const sidesMoved = seen !== undefined && seen !== app.sidesHash;
       if (sidesMoved) screensChanged = true;
-      if (app.hash !== null && (result.state === 'installed' || result.state === 'applied' || sidesMoved)) {
-        opts.changed?.(app.key, app.hash);
+      const failing = result.state === 'not-applied' || result.state === 'not-built';
+      // A failure, and a failure that ended, are told too: the installed list says "Not applied" from them.
+      if (result.state === 'installed' || result.state === 'applied' || sidesMoved || ((failing || before?.state === 'not-applied' || before?.state === 'not-built') && !stoodStill)) {
+        opts.changed?.(app.key, app.hash ?? NOT_BUILT);
       }
     }
     // New screens are files in the build folder: the registry reads them again.

@@ -260,13 +260,35 @@ for (const [dialect, available] of ENGINES) {
       await h.harness.run(`INSERT INTO repairs_items (title, status, colour, created_at) VALUES ('a', 'open', 'red', CURRENT_TIMESTAMP)`);
 
       // The committed switch: the next start gives what the manifest declares.
+      // Nothing else changes: the switch alone is what is applied.
       h.restart({ apps: { repairs: { publicAccess: true } } });
-      h.edit('apps/repairs/manifest/tables/items.json', (table) => ({
-        ...table,
-        columns: [...(table['columns'] as unknown[]), { ref: 'size', type: 'text', maxLength: 10 }],
-      }));
       expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
       expect(await endpoints()).toHaveLength(2);
+      expect((await h.sync())[0]).toMatchObject({ state: 'unchanged' });
+
+      // Taken out again: the access is not taken back unasked, and the server says it is there.
+      h.lines.warn.length = 0;
+      h.restart({ apps: {} });
+      await h.sync();
+      expect(await endpoints()).toHaveLength(2);
+      expect(h.lines.warn.join('\n')).toContain('App "repairs" HAS public access that adminium.config.ts does not allow');
+    });
+
+    it('says so when a server finds public access that was given under dev', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await h.newApp('repairs');
+      h.put('apps/repairs/manifest/access.json', ACCESS);
+      await h.sync();
+      expect(await endpoints()).toHaveLength(2);
+      expect(h.lines.warn).toEqual([]);
+
+      h.restart({ mode: 'server' });
+      expect((await h.sync())[0]).toMatchObject({ state: 'unchanged' });
+      expect(h.lines.warn.join('\n')).toContain('App "repairs" HAS public access that adminium.config.ts does not allow');
+      expect(h.lines.warn.join('\n')).toContain('set apps.repairs.publicAccess to true');
+      // Said once a start, not on every look.
+      await h.sync();
+      expect(h.lines.warn).toHaveLength(1);
     });
 
     it('installs with public access on a server whose config allows it', async () => {

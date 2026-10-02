@@ -128,7 +128,7 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     await createFirstSuperAdmin(meta, { email, name: 'Try', passwordHash: await hashPassword(password) });
     await settingsRepo(meta).set('publicApi.enabled', true, { updatedBy: null, at: Date.now() });
 
-    app = (
+    const composed = (
       await composeServer({
         env,
         metaStore: runtime.metaStore,
@@ -140,8 +140,11 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
         logger: false,
         telemetry: false,
       })
-    ).app;
+    );
+    app = composed.app;
     await app.ready();
+    // A project may carry add-on packages (`add-ons-bundle/`): they are in the store before anything is installed.
+    await composed.packagesSeeded;
     const server = app;
 
     let cookie: string | null = null;

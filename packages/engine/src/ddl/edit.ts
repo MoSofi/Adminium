@@ -250,6 +250,11 @@ export const alterColumnSchema = z.strictObject({
     })
     .optional(),
   identity: z.literal(true).optional(),
+  /**
+   * The column may be left empty from now on. Only ever this way round: a
+   * column that starts requiring a value can refuse rows that are there.
+   */
+  nullable: z.literal(true).optional(),
   enumValues: z.array(z.string().min(1)).min(1).max(256).optional(),
   /**
    * The column must hold no value twice (with `uniqueWith`: no two rows the
@@ -939,6 +944,12 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
         });
       }
     }
+    if (entry.nullable === true && table.primaryKey.includes(column.name)) {
+      push({ code: 'COLUMN_IN_USE', message: `${JSON.stringify(column.name)} is part of the key of ${JSON.stringify(table.id)} and cannot be left empty`, ...where });
+    }
+    if (droppedKeys.has(`${table.id}\u0000${column.name}`)) {
+      push({ code: 'DUPLICATE_COLUMN', message: `${JSON.stringify(column.name)} is both dropped and altered in this edit`, ...where });
+    }
     if (entry.uniqueWith !== undefined && entry.unique !== true) {
       push({ code: 'UNKNOWN_COLUMN', message: 'uniqueWith names the columns a unique rule covers, and no unique rule is asked for', ...where });
     }
@@ -1234,8 +1245,19 @@ export function tableWithAddedColumns(
 export function tableWithDroppedColumns(actual: TableModel, columns: readonly string[]): TableModel {
   if (columns.length === 0) return actual;
   const gone = new Set(columns);
-  const names = (expression: string): boolean =>
-    columns.some((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(expression));
+  const all = actual.columns.map((column) => column.name);
+  /**
+   * Whether an expression is about a column that goes. A value list is read
+   * as what it is, so a column named like one of another column's VALUES
+   * (`open`, beside `status in ('open', …)`) does not take that rule with it;
+   * anything else is searched with its quoted values taken out first.
+   */
+  const names = (expression: string): boolean => {
+    const listed = parseEnumCheck(expression, all) === null ? null : enumCheckColumn(expression, all);
+    if (listed !== null) return gone.has(listed);
+    const bare = expression.replace(/'(?:[^']|'')*'/g, "''");
+    return columns.some((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(bare));
+  };
   return {
     ...actual,
     columns: actual.columns.filter((column) => !gone.has(column.name)).map((column, index) => ({ ...column, ordinal: index + 1 })),
@@ -1305,6 +1327,7 @@ export function tableWithAlteredColumns(
       };
     }
     if (alter.identity === true) next = { ...next, default: { kind: 'autoincrement' } };
+    if (alter.nullable === true) next = { ...next, nullable: true };
     return next;
   });
   const names = actual.columns.map((c) => c.name);

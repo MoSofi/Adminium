@@ -112,6 +112,11 @@ and a Super Admin. The same question can be read and answered without Studio:
 `GET /api/v1/project/apps/<key>/removals`, and `POST` the same address with `{ "accept": true }` or
 `{ "accept": false }`.
 
+A column that stays — kept, or still waiting for its answer — would refuse every new row if it
+required a value, because the app no longer gives it one. Such a column is made optional in the
+database, which loses nothing, and the log says so. This is only ever done to a table the app made
+itself and uses alone; a column of a table another app or an add-on also uses is always kept.
+
 ### On a server
 
 A deployed project runs its apps the same way, from what [`adminium build`](/reference/cli/#build)
@@ -127,6 +132,11 @@ careful where `adminium dev` is generous:
 | A table the app did not make itself | Gains the columns the app needs | Never changed: the app is not applied, and the message names the table |
 | Sample data | Added once, on the first install | Never |
 | A table or column that holds data, taken out | Asked about | Kept, released from the app, and said in the log |
+| A table or column that holds nothing, taken out | Dropped | Kept: a server drops nothing |
+
+Which of the two a server is depends on how the process was started, never on a file: a
+`ADMINIUM_PROJECT_MODE` line in the project's `.env` is ignored, so a deployed folder cannot turn a
+server into a developer's machine.
 
 An add-on an app requires has to be on the server for either of them to use it: uploaded in
 **Studio → Add-ons**, downloaded from the catalogue, or bundled — each `<key>-<version>.tgz` beside
@@ -151,13 +161,18 @@ export default defineConfig({
 | Setting | |
 |---|---|
 | `database` | The key under `databases` the app's tables live in. Default: the first |
-| `publicAccess` | `true` gives the app, on a server, the public access its manifest declares. It is the one deliberate switch: committed, reviewed, and read nowhere else |
+| `publicAccess` | `true` gives the app, on a server, the public access its manifest declares. It is the one deliberate switch: committed, reviewed, and read nowhere else. Setting it is applied on the next start, with no change to the app. Taking it out again does **not** take the access back: the server warns at each start that the app has access the config does not allow, and it is revoked under **Settings → API** |
 | `sampleData` | `false` stops `adminium dev` adding the sample data on the first install |
 
 On a server the public API also has to be there for a customer side to reach anything: set
 [`ADMINIUM_PUBLIC_API_ORIGINS`](/self-hosting/env-vars/) and switch it on in **Settings → API**.
 [`adminium check`](/reference/cli/#check) warns about an app that declares public access the config
-has not allowed.
+has not allowed. A database that `adminium dev` once ran against keeps the access dev gave: a server
+started on it warns the same way.
+
+`adminium dev` switches the public API on by itself for an app that declares public access, and
+records it in the audit log. It listens on every address of the machine unless told otherwise, so on
+a shared network start it with `--host 127.0.0.1`; the terminal says so when it applies.
 
 ## The manifest, as parts
 

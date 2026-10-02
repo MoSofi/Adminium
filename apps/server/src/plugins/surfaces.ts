@@ -174,6 +174,8 @@ declare module 'fastify' {
 
 /** Under a side's mount, in `adminium dev`: `{ build }`, a stamp that moves when the app was applied or rebuilt. */
 export const DEV_BUILD_FILE = 'dev-build.json';
+/** The one address that file is asked for at: a side of an app at its usual place. */
+export const DEV_BUILD_ADDRESS = /^\/apps\/[^/]+\/(staff|customer)\/dev-build\.json$/;
 
 export interface SurfacesPluginOptions {
   surfaces?: readonly HostedSurface[] | undefined;

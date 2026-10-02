@@ -215,6 +215,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
   /** Whether this key's installed row is an app of the project folder. */
   async function runsFromFolder(key: string): Promise<boolean> {
+    // A package of a key the folder also carries is shadowed: what an update would read is the folder's manifest.
+    if (files.sourceOf(key) === 'folder') return true;
     return (await manifests.list('app')).some((m) => m.row.manifestKey === key && m.row.source === FOLDER_SOURCE);
   }
 

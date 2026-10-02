@@ -19,6 +19,7 @@ import {
   isReservedWord,
   parseDatabaseModel,
   planDdl,
+  tableWithAlteredColumns,
   tableWithDroppedColumns,
   validateSchemaEdit,
   type ColumnModel,
@@ -205,6 +206,51 @@ describe('the table without its dropped columns', () => {
     expect(after.checks).toHaveLength(1);
     expect(after.uniques).toHaveLength(1);
   });
+
+  it('keeps a value list that only names the dropped column as one of its values', () => {
+    // A column called `open` beside a status whose values include "open", as each engine words the rule.
+    for (const expression of ["status in ('open', 'done')", "((status)::text = ANY ((ARRAY['open'::character varying, 'done'::character varying])::text[]))", "(`status` in (_utf8mb4'open',_utf8mb4'done'))"]) {
+      const table = tbl({
+        name: 't',
+        columns: [col({ name: 'id', isPrimaryKey: true, nullable: false }), col({ name: 'status', ordinal: 2 }), col({ name: 'open', ordinal: 3 })],
+        checks: [{ name: 'c', expression }],
+      });
+      expect(tableWithDroppedColumns(table, ['open']).checks).toHaveLength(1);
+      expect(tableWithDroppedColumns(table, ['status']).checks).toHaveLength(0);
+    }
+  });
+
+  it('still takes a free-form rule that names the column outside a quoted value', () => {
+    const table = tbl({
+      name: 't',
+      columns: [col({ name: 'id', isPrimaryKey: true, nullable: false }), col({ name: 'a', ordinal: 2 }), col({ name: 'b', ordinal: 3 })],
+      checks: [{ name: 'c', expression: "a > 0 or b = 'a'" }],
+    });
+    expect(tableWithDroppedColumns(table, ['a']).checks).toHaveLength(0);
+    expect(tableWithDroppedColumns(tbl({ ...table, checks: [{ name: 'c', expression: "b <> 'a'" }] }), ['a']).checks).toHaveLength(1);
+  });
+});
+
+describe('a column that may be left empty from now on', () => {
+  const relax = (column: string): SchemaEdit => edit({ alterColumns: [{ table: 'things', column, nullable: true }] });
+
+  it('is taken for a plain column and refused for the key', () => {
+    expect(validateSchemaEdit(relax('title'), ctx())).toEqual([]);
+    expect(codes(validateSchemaEdit(relax('id'), ctx()))).toEqual(['COLUMN_IN_USE']);
+  });
+
+  it('is refused for a column the same edit drops', () => {
+    const both = edit({ dropColumns: [{ table: 'things', column: 'title' }], alterColumns: [{ table: 'things', column: 'title', nullable: true }] });
+    expect(codes(validateSchemaEdit(both, ctx()))).toEqual(['DUPLICATE_COLUMN']);
+  });
+
+  it('plans one step that loses nothing', () => {
+    const desired = tableWithAlteredColumns(THINGS, [{ table: 'things', column: 'title', nullable: true }], { dbTypeFor: () => 'text' });
+    expect(desired.columns.find((c) => c.name === 'title')?.nullable).toBe(true);
+    const plan = planDdl({ dialect: 'postgres', serverVersion: '16.0', actual: model([THINGS, PARENTS], [link]), desired: [desired], desiredRelations: [link] });
+    expect(plan.steps.map((s) => [s.kind, s.column])).toEqual([['drop-not-null', 'title']]);
+    expect(plan.requiresSuperAdmin).toBe(false);
+  });
 });
 
 const model = (tables: TableModel[], relations: Relation[] = [], dialect = 'postgres'): DatabaseModel =>
@@ -235,6 +281,11 @@ describe('planning a dropped column', () => {
     });
     const kinds = plan.steps.map((s) => s.kind);
     expect(kinds).toContain('rebuild-table');
+    // The rebuild destroys the columns' data, so it is as guarded as a drop is: lossy, and Super Admin's alone.
+    const rebuild = plan.steps.find((s) => s.kind === 'rebuild-table');
+    expect(rebuild).toMatchObject({ hazard: 'lossy', requiresSuperAdmin: true });
+    expect(rebuild?.summary).toContain('dropping code, colour, parent_id and their data');
+    expect(plan.requiresSuperAdmin).toBe(true);
     // No ALTER that SQLite would refuse while the constraint still names the column.
     expect(kinds).not.toContain('drop-column');
     const said = plan.warnings.map((w) => w.message).join('\n');
@@ -251,5 +302,22 @@ describe('planning a dropped column', () => {
       desiredRelations: [],
     });
     expect(plan.steps.map((s) => [s.kind, s.column])).toEqual([['drop-column', 'note']]);
+    expect(plan.requiresSuperAdmin).toBe(true);
+  });
+
+  it('keeps a rebuild that drops nothing a plain rewrite', () => {
+    const before = tbl({
+      name: 't',
+      columns: [col({ name: 'id', isPrimaryKey: true, nullable: false }), col({ name: 'code', ordinal: 2 })],
+      uniques: [{ name: 'uq_t_code', columns: ['code'] }],
+    });
+    const plan = planDdl({
+      dialect: 'sqlite',
+      serverVersion: '3.45.0',
+      actual: model([before], [], 'sqlite'),
+      desired: [{ ...before, uniques: [] }],
+      desiredRelations: [],
+    });
+    expect(plan.steps.map((s) => [s.kind, s.hazard, s.requiresSuperAdmin])).toEqual([['rebuild-table', 'rewrite', false]]);
   });
 });

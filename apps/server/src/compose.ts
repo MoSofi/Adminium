@@ -120,7 +120,7 @@ import { FILES_DIR } from './files/drivers/local.js';
 import { storageCryptoFromSecret } from './files/crypto.js';
 import { createSpool } from './files/spool.js';
 import { createFileStore } from './files/store.js';
-import { createAppInstallService, type AppRoutesDeps } from './apps/install-service.js';
+import { FOLDER_SOURCE, createAppInstallService, type AppRoutesDeps } from './apps/install-service.js';
 import { createSampleDataService, findSampleApp, registerSampleDataHandler, type SampleDataDeps } from './apps/sample-data.js';
 import {
   enqueueCatalogRefresh,
@@ -402,6 +402,12 @@ export interface ComposeServerOptions {
 
 export interface ComposedServer {
   app: AdminiumServer;
+  /**
+   * Settles once the apps and add-ons that came with this server are in their
+   * stores. A caller that installs something straight after composing waits
+   * for it, so "is this add-on here" has its final answer.
+   */
+  packagesSeeded: Promise<void>;
   /** The jobs/realtime handle — hub, worker, scheduler (see `jobs/register.ts`). */
   jobs: JobsAndRealtime;
   /** True when the `/llm` resource was registered (i.e. `allowed` was present). */
@@ -1814,10 +1820,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           publicApi: {
             registered: env.ADMINIUM_PUBLIC_API_ORIGINS !== undefined,
             isEnabled: async () => (await settingsRepo(meta).get('publicApi.enabled')) === true,
-            enable: async () => {
+            enable: async (key) => {
               await settingsRepo(meta).set('publicApi.enabled', true, { updatedBy: null });
               publicGate.invalidate();
+              // The same entry a person's flip in Settings leaves, said to be the folder's.
+              await auditRepo(meta).append({
+                actorKind: 'system',
+                actorId: null,
+                actorLabel: 'project folder',
+                category: 'system',
+                action: 'public-api.toggle',
+                changes: { before: { enabled: false }, after: { enabled: true, app: key } },
+              });
             },
+            reachable: !['127.0.0.1', '::1', 'localhost'].includes(env.HOST),
           },
         });
       }
@@ -2117,7 +2133,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           const store = storeFor(kind);
           if (store === null) continue;
           // An app the project folder carries has no package to keep or put back.
-          if (kind === 'app' && appFiles.sourceOf(installed.row.manifestKey) === 'folder') continue;
+          if (kind === 'app' && (installed.row.source === FOLDER_SOURCE || appFiles.sourceOf(installed.row.manifestKey) === 'folder')) continue;
           const here = await packageIsInStore(store, {
             key: installed.row.manifestKey,
             version: installed.row.version,
@@ -2181,7 +2197,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             'it loads — upload the same package again, or uninstall it',
         );
       }
-      const packaged = (await repo.list('app')).filter(({ row }) => appFiles.sourceOf(row.manifestKey) !== 'folder');
+      // An app that came from the project folder never had a package, whether its folder is still there or not.
+      const packaged = (await repo.list('app')).filter(({ row }) => row.source !== FOLDER_SOURCE && appFiles.sourceOf(row.manifestKey) !== 'folder');
       for (const { key, version } of await installedNotInStore(appStore, refs(packaged))) {
         app.log.error(
           { key, version, dataDir },
@@ -2413,6 +2430,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // to what the committed files say.
   if (projectApps !== null) {
     try {
+      // An app may require an add-on that came with this server: the bundled set is in the store first.
+      await Promise.all([appSeed, addOnSeed]);
       await (projectApps as ProjectApps).reconcile();
     } catch (error) {
       opts.project?.warn(`Could not apply the project's apps: ${error instanceof Error ? error.message : String(error)}`);
@@ -2444,5 +2463,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     desktopBackupEnabled: desktopBackup,
     desktopCapabilitiesEnabled: desktopCapabilities,
     bridgePairingCode: bridge?.pairingCode ?? null,
+    packagesSeeded: Promise.all([appSeed, addOnSeed]).then(() => undefined),
   };
 }

@@ -184,7 +184,7 @@ function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides'>): strin
     '| `manifest/pages/*.json` | One file per dashboard page |',
     '| `manifest/roles.json` | The roles the app adds, and what each may do |',
     ...(sides.includes('customer') ? ['| `manifest/access.json` | What the customer side may read and write. Nothing else is in its reach |'] : []),
-    '| `manifest/sample.json`, `seeds/sample.json` | Sample data, added only when the person installing asks for it |',
+    '| `manifest/sample.json`, `seeds/sample.json` | Sample data: `adminium dev` adds it once; an install from a file adds it only when asked |',
     ...(sides.includes('staff') ? ['| `staff/src/` | The staff screens: a React app that reads and writes as the signed-in person |'] : []),
     ...(sides.includes('customer') ? ['| `customer/src/` | The customer screens: a public React app that uses the public API |'] : []),
     '| `tests/app.test.mjs` | Checks that need only Node: `node --test ' + `${APPS_DIR}/${key}/tests/app.test.mjs` + '` |',

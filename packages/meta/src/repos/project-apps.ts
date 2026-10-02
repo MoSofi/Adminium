@@ -20,6 +20,12 @@ export interface ProjectAppFailure {
   message: string;
   /** The manifest it was about; the same one is not tried again. */
   hash: string;
+  /**
+   * Columns an earlier manifest declared and this one does not, which no
+   * apply has dealt with yet. The installed document may already be the new
+   * one, so the next apply could not work them out again.
+   */
+  owed?: { table: string; column: string }[];
 }
 
 /** One thing a manifest no longer declares that holds data. */
@@ -115,9 +121,19 @@ export function projectAppsRepo(meta: MetaDb) {
       await write(appKey, { appliedHash: hash, appliedAt: at, failure: null }, at);
     },
 
-    /** This manifest was not applied, and why; what was applied before stays recorded. */
-    async setFailure(appKey: string, failure: ProjectAppFailure, at: number = Date.now()): Promise<void> {
-      await write(appKey, { failure }, at);
+    /**
+     * This manifest was not applied, and why. What was applied before stays
+     * recorded, unless the apply stopped after the installed document moved:
+     * then nothing is applied in full, and the manifest that was is applied
+     * again when the folder goes back to it.
+     */
+    async setFailure(
+      appKey: string,
+      failure: ProjectAppFailure,
+      at: number = Date.now(),
+      opts: { nothingApplied?: boolean } = {},
+    ): Promise<void> {
+      await write(appKey, { failure, ...(opts.nothingApplied === true ? { appliedHash: null, appliedAt: null } : {}) }, at);
     },
 
     /** A removal that waits for an answer, or none. */

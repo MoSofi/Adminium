@@ -1995,7 +1995,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === input.key);
     if (installed === undefined) throw new NotFoundError(`"${input.key}" is not installed.`);
     const asked = await removals.pending(input.key);
-    const result = await removals.answer({ key: input.key, connectionId: installed.row.connectionId, accept: input.accept, actor });
+    const result = await removals.answer({
+      key: input.key,
+      connectionId: installed.row.connectionId,
+      accept: input.accept,
+      actor,
+      manifest: (installed.document as Manifest | null) ?? null,
+    });
     await auditAppEvent(
       input.accept ? 'app.removal-accepted' : 'app.removal-declined',
       { key: input.key, changes: asked?.changes ?? [], dropped: result.dropped, kept: result.kept },

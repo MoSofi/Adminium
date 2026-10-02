@@ -479,6 +479,8 @@ function planAlters(
    * changed columns would copy the table four times.
    */
   let rebuildNeeded = false;
+  /** Columns that go inside the rebuild rather than by a step of their own. */
+  const droppedInRebuild: string[] = [];
   const emit = (made: { step: DdlStep; needsRebuild: boolean }): void => {
     if (lite && made.needsRebuild) {
       rebuildNeeded = true;
@@ -527,6 +529,7 @@ function planAlters(
      * rather than as an ALTER that would stop the change halfway.
      */
     if (lite && rebuildNeeded) {
+      droppedInRebuild.push(name);
       warnings.push({ message: `${actual.name}.${name} and its data are dropped in the rebuild.`, table: id });
       continue;
     }
@@ -725,11 +728,24 @@ function planAlters(
   }
 
   if (rebuildNeeded) {
-    push(
-      make('rebuild-table', id, ctx, {
-        summary: `Rebuild ${actual.name}: SQLite cannot express these changes as ALTER statements`,
-      }),
-    );
+    const rebuild = make('rebuild-table', id, ctx, {
+      summary: `Rebuild ${actual.name}: SQLite cannot express these changes as ALTER statements`,
+    });
+    /*
+     * A rebuild that takes columns with it destroys their data, so it is held
+     * to exactly what a `drop-column` is: lossy, and Super Admin's alone. The
+     * step that would have said so was folded in above; without this the
+     * rebuild would read as a plain rewrite and anyone who may edit the
+     * schema could drop a column that sits under a rule.
+     */
+    if (droppedInRebuild.length > 0) {
+      const lossy = classifyStep('drop-column', ctx);
+      rebuild.step.hazard = lossy.hazard;
+      rebuild.step.requiresSuperAdmin = requiresSuperAdmin(lossy.hazard);
+      rebuild.step.summary = `Rebuild ${actual.name}, dropping ${droppedInRebuild.join(', ')} and ${droppedInRebuild.length === 1 ? 'its' : 'their'} data`;
+      rebuild.step.rationale = `${rebuild.step.rationale} ${lossy.rationale}`;
+    }
+    push(rebuild);
     warnings.push({
       message:
         `${actual.name} is rebuilt rather than altered. Every row is copied, and indexes and triggers ` +
