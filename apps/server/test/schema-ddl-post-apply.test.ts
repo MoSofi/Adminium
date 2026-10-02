@@ -43,6 +43,7 @@ import { parseDatabaseModel, templateFit } from '@adminium/engine';
 
 import { applyCompositionOverrides } from '../src/connections/effective-schema.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
+import { runGeneration } from '../src/generate/run.js';
 import { schemaDdlRoutes } from '../src/routes/schema-ddl/index.js';
 import {
   asUser,
@@ -614,5 +615,21 @@ describe('a yes/no column made here is one, on an engine with no yes/no type', (
     await planAndApply({ addColumns: [{ table: 'main.visits', column: { name: 'note', logicalType: 'text' } }] });
     const rules = (await overridesRepo(t.meta).listForConnection(connectionId)).filter((rule) => (rule.op as string) === 'column.yesNo');
     expect(rules.map((rule) => `${rule.tableName}.${String(rule.columnName)}`).sort()).toEqual(['main.clients.newsletter', 'main.visits.arrived']);
+  });
+
+  /*
+   * Generation parses the snapshot, where the column is still `integer`: the
+   * page made right after the designer stored a number, and the form lets the
+   * stored spec win — a number box for "Arrived".
+   */
+  it('is a yes/no in the page generated from it', async () => {
+    const run = await runGeneration({ manager: t.manager, meta: t.meta, connectionId });
+    const typeIn = (table: string, column: string) => {
+      const page = run.pages.find((candidate) => candidate.template === 'page-crud' && candidate.source.table === table);
+      const columns = (page?.config as { columns?: { name: string; logicalType: string }[] } | undefined)?.columns ?? [];
+      return columns.find((candidate) => candidate.name === column)?.logicalType;
+    };
+    expect([typeIn('main.visits', 'arrived'), typeIn('main.clients', 'newsletter')]).toEqual(['boolean', 'boolean']);
+    expect(typeIn('main.visits', 'party')).toBe('integer');
   });
 });

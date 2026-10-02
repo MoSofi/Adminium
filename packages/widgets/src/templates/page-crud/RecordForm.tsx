@@ -146,6 +146,9 @@ const SPAN_CLASS: Readonly<Record<1 | 2 | 3, string>> = {
  * `PageCrud` needs the rest to read the rows that already exist. Two shapes for
  * one fact is how a table's key column comes to be spelled twice.
  */
+/** The controls a whole number may be given, and a yes/no may not. */
+const NUMBER_CONTROLS: ReadonlySet<string> = new Set(['number', 'currency', 'stepper', 'slider']);
+
 export interface ChildFacts {
   label: string;
   /** The child table's snapshot id, for the read. */
@@ -776,7 +779,14 @@ export function RecordForm({
     const resolved = relationId === null ? controlForColumn(column, fact, listOptions) : 'reference-chips';
     if (resolved === 'hidden') return null;
     const field = overrides.field;
-    const control = field?.control ?? resolved;
+    /*
+     * A designed form froze a control the day it was designed. A column that
+     * has since become a yes/no (SQLite keeps one as a whole number until it
+     * is marked) would keep its number box for ever: a number control on a
+     * yes/no column gives way to the column's own.
+     */
+    const stale = column.logicalType === 'boolean' && field?.control !== undefined && NUMBER_CONTROLS.has(field.control);
+    const control = stale ? resolved : (field?.control ?? resolved);
 
     /*
      * A LINE-ITEMS field is the one relation field that is not a picker: it

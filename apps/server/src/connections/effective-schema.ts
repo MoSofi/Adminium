@@ -853,7 +853,8 @@ export function applyColumnOptionValues(
  * rules — none of which composition may look at, and all of which turn the
  * model into a shape the strict engine schema rejects. This answers "what can
  * this table back", and its members are exactly the ops a candidate rule reads:
- * the column's semantic, and the values an enum column may hold.
+ * the column's semantic, the values an enum column may hold, and whether a
+ * whole number is a yes/no.
  *
  * Both call sites (`composeForTable` and `generate/run.ts`) take this one, so a
  * new op that changes composition is added in one place and cannot reach one
@@ -864,7 +865,42 @@ export function applyCompositionOverrides(
   model: DatabaseModel,
   overrides: readonly SchemaOverride[],
 ): DatabaseModel {
-  return applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides);
+  return applyYesNoColumns(applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides), overrides);
+}
+
+/**
+ * A SQLite column marked a yes/no (`column.yesNo`), as the type a page is
+ * composed from — the composition path's half of the `column.yesNo` case in
+ * {@link applyOverrides}, under the same conditions.
+ *
+ * A reader's model called the column a yes/no and a page generated a moment
+ * later stored `integer` for it, because generation parses the snapshot: the
+ * form drew a number box for a column the table designer had just made as
+ * "Yes / No".
+ */
+export function applyYesNoColumns(model: DatabaseModel, overrides: readonly SchemaOverride[]): DatabaseModel {
+  if (model.dialect !== 'sqlite') return model;
+  const marked = new Set<string>();
+  for (const row of overrides) {
+    if (row.status !== 'active' || (row.op as string) !== 'column.yesNo' || row.columnName === null) continue;
+    if (row.value.yesNo === true) marked.add(`${row.tableName}\u0000${row.columnName}`);
+  }
+  if (marked.size === 0) return model;
+
+  let changed = false;
+  const tables = model.tables.map((table) => {
+    let touched = false;
+    const columns = table.columns.map((column) => {
+      if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') return column;
+      if (!marked.has(`${table.id}\u0000${column.name}`)) return column;
+      touched = true;
+      return { ...column, logicalType: 'boolean' as const };
+    });
+    if (!touched) return table;
+    changed = true;
+    return { ...table, columns };
+  });
+  return changed ? { ...model, tables } : model;
 }
 
 /**

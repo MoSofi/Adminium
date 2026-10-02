@@ -409,3 +409,49 @@ export function withoutColumns(config: unknown, hidden: readonly string[]): unkn
   const inner = envelope['config'];
   return typeof inner === 'object' && inner !== null ? { ...envelope, config: strip(inner as Record<string, unknown>) } : envelope;
 }
+
+const WHOLE_NUMBERS = new Set(['integer', 'bigint']);
+/** What a spec says of a column because of its TYPE: taken whole from the live one. */
+const TYPE_KEYS = ['logicalType', 'semantic', 'format', 'align'] as const;
+
+/**
+ * A page's stored envelope with the columns that have since become a yes/no
+ * read as one.
+ *
+ * A stored column keeps the type of the day the page was made, and the form
+ * lets the stored spec win. A column marked a yes/no afterwards (`column.yesNo`
+ * — an app's update writes it long after its pages exist) stayed a number box
+ * on that page for ever. Only that one move is followed: a whole number the
+ * table now reads as a yes/no. Everything else an admin set on the column — its
+ * label, its width, whether it is hidden — is the page's own and stays.
+ */
+export function withYesNoColumns(config: unknown, facts: ColumnFactsBlock | null): unknown {
+  if (facts === null || typeof config !== 'object' || config === null) return config;
+  const live = new Map<string, Record<string, unknown>>();
+  for (const fact of facts.columns) {
+    if (fact.spec['logicalType'] === 'boolean') live.set(String(fact.spec['name']), fact.spec);
+  }
+  if (live.size === 0) return config;
+  let changed = false;
+  const refresh = (block: Record<string, unknown>): Record<string, unknown> => {
+    if (!Array.isArray(block['columns'])) return block;
+    const columns = (block['columns'] as unknown[]).map((column) => {
+      if (typeof column !== 'object' || column === null) return column;
+      const stored = column as Record<string, unknown>;
+      const now = live.get(String(stored['name']));
+      if (now === undefined || !WHOLE_NUMBERS.has(String(stored['logicalType']))) return column;
+      changed = true;
+      const out: Record<string, unknown> = { ...stored };
+      for (const key of TYPE_KEYS) {
+        if (now[key] === undefined) delete out[key];
+        else out[key] = now[key];
+      }
+      return out;
+    });
+    return { ...block, columns };
+  };
+  const envelope = refresh(config as Record<string, unknown>);
+  const inner = envelope['config'];
+  const out = typeof inner === 'object' && inner !== null ? { ...envelope, config: refresh(inner as Record<string, unknown>) } : envelope;
+  return changed ? out : config;
+}

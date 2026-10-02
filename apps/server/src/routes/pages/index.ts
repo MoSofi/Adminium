@@ -73,7 +73,7 @@ import {
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
-import { columnFactsFor, hiddenColumnsOf, withoutColumns } from './column-facts.js';
+import { columnFactsFor, hiddenColumnsOf, withoutColumns, withYesNoColumns } from './column-facts.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
 import { pageLayoutSchema } from './layout-schema.js';
@@ -665,7 +665,9 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader, rights, permissions);
         const facts = columnFacts === null ? {} : { columnFacts };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
-        const config = hiddenColumns.length === 0 ? page.config : withoutColumns(page.config, hiddenColumns);
+        // A column marked a yes/no since the page was stored reads as one here too.
+        const typed = withYesNoColumns(page.config, columnFacts);
+        const config = hiddenColumns.length === 0 ? typed : withoutColumns(typed, hiddenColumns);
 
         // Layout resolution: a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
