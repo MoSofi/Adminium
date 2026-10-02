@@ -227,6 +227,13 @@ export const RATE_BUCKETS = {
   'widget-data': { max: 120, timeWindowMs: 60_000, keyBy: 'principal' },
   'data-io': { max: 10, timeWindowMs: 3_600_000, keyBy: 'principal' },
   llm: { max: 20, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  /*
+   * Adminium Designer: a building session is many small calls (turns, stops,
+   * answers, the catch-up read after every reconnect). Its own bucket,
+   * declared on every Designer route, so no address pattern can take it away
+   * and the shared `api` budget is left to the rest of the dashboard.
+   */
+  designer: { max: 600, timeWindowMs: 60_000, keyBy: 'principal' },
   'file-bytes': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
   /*
    * `POST /files` only.

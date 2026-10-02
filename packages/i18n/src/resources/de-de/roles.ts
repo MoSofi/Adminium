@@ -86,7 +86,8 @@ export default {
     "settingsManage": "Workspace-Einstellungen verwalten",
     "usersManage": "Benutzer verwalten",
     "filesManage": "Dateien aller Benutzer verwalten",
-    "storageManage": "Speicherziele verwalten"
+    "storageManage": "Speicherziele verwalten",
+    "designerUse": "Apps mit Adminium Designer erstellen"
   },
   "rename": {
     "failed": "Die Rolle konnte nicht umbenannt werden",

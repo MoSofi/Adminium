@@ -86,7 +86,8 @@ export default {
     "settingsManage": "管理工作區設定",
     "usersManage": "管理使用者",
     "filesManage": "管理所有人的檔案",
-    "storageManage": "管理儲存目的地"
+    "storageManage": "管理儲存目的地",
+    "designerUse": "使用 Adminium Designer 建立應用程式"
   },
   "rename": {
     "failed": "無法重新命名角色",

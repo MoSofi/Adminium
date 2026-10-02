@@ -101,6 +101,9 @@ import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
+import { createDesigner, type Designer } from './designer/service.js';
+import { designerRoutes } from './routes/designer/index.js';
+import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
 import { createProjectService, isConfigWrite, type ProjectServerOptions } from './project/service.js';
@@ -397,6 +400,11 @@ export interface ComposeServerOptions {
    * folder's page and schema files in step with this server.
    */
   project?: ProjectServerOptions | undefined;
+  /**
+   * Adminium Designer, when this server runs it (`adminium design`). Needs a
+   * project folder; registers `/api/v1/designer` and nothing else changes.
+   */
+  designer?: { mode: 'local' } | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -526,6 +534,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   let outboxesChanged = (): void => {};
   /** The project folder's apps, kept in step with this server; set where the app routes are built. */
   let projectApps: ProjectApps | null = null;
+  let designer: Designer | null = null;
   const installedApps = createInstalledApps({
     store: appStore,
     files: appFiles,
@@ -1861,6 +1870,73 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
         });
       }
+      /*
+       * Adminium Designer: a model that writes the folder's apps, and this
+       * server's own check, build and apply after every turn. Only in a
+       * server started to run it, and only over a project folder.
+       */
+      if (opts.designer !== undefined && projectRoot !== null) {
+        const root = projectRoot;
+        const settings = settingsRepo(meta);
+        const limits = async () => ({
+          maxSteps: await settings.get('designer.maxSteps'),
+          turnTokens: await settings.get('designer.turnTokens'),
+          sessionTokens: await settings.get('designer.sessionTokens'),
+        });
+        const permissionsOf = (userId: string) => resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId });
+        designer = createDesigner({
+          root,
+          version: APP_VERSION,
+          meta,
+          connections: aiConnections,
+          projectApps: () => projectApps,
+          service: createAppInstallService(appDeps),
+          installHost: {
+            log: {
+              info: (obj, msg) => {
+                app.log.info(obj, msg);
+              },
+              warn: (obj, msg) => {
+                app.log.warn(obj, msg);
+              },
+            },
+            ...(app.hasDecorator('realtime')
+              ? {
+                  publish: (channel, event, payload) => {
+                    app.realtime.publish(channel, event, payload);
+                  },
+                }
+              : {}),
+            invalidateSurfaceSettings: () => {
+              app.surfaceSettings?.invalidate();
+            },
+          },
+          actorFor: (by) => ({
+            id: by.id,
+            label: by.label,
+            superAdmin: async () => (by.id === null ? false : (await permissionsOf(by.id)).superAdmin),
+            can: async (permission) => (by.id === null ? false : permissionSetAllows(await permissionsOf(by.id), permission)),
+          }),
+          publish: (event) => {
+            if (app.hasDecorator('realtime')) app.realtime.publish(designerChannel(event.sessionId), 'designer', event);
+          },
+          limits,
+          audit: async (action, actor, detail) => {
+            await auditRepo(meta).append({
+              actorKind: actor === null ? 'system' : 'user',
+              actorId: actor?.id ?? null,
+              actorLabel: actor?.label ?? 'Adminium Designer',
+              category: 'app',
+              action,
+              changes: { after: detail },
+            });
+          },
+          log: (message, error) => {
+            app.log.warn({ err: error }, message);
+          },
+        });
+        await api.register(designerRoutes({ designer, connections: aiConnections, mode: opts.designer.mode, root, limits }));
+      }
       // The add-on runtime. Registered unconditionally: an instance with no
       // add-ons serves an empty list, which is what a host in connected
       // mode expects to read — a conditionally-registered route would 404 there
@@ -2358,6 +2434,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // The last minute's counts, before the meta store closes.
   app.addHook('onClose', async () => {
     await publicStats.flush();
+  });
+  // A Designer turn that runs is stopped, and its end written, before the store closes.
+  app.addHook('onClose', async () => {
+    await designer?.shutdown();
   });
 
   jobs.scheduler.registerSchedule(RETENTION_GC_SCHEDULE_NAME, RETENTION_GC_CRON, async () => {

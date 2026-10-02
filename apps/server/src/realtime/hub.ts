@@ -46,7 +46,16 @@ export type ChannelDescriptor =
   | { kind: 'notifications'; userId: string }
   | { kind: 'jobs'; jobId: string }
   | { kind: 'config-changed' }
-  | { kind: 'widget-data'; connectionId: string; table: string };
+  | { kind: 'widget-data'; connectionId: string; table: string }
+  | { kind: 'designer'; sessionId: string };
+
+/** `designer:<sessionId>` — what one Adminium Designer session says while it works. */
+export function designerChannel(sessionId: string): string {
+  return `designer:${sessionId}`;
+}
+
+/** Who may follow a Designer session: whoever may use the Designer. */
+export const DESIGNER_USE_PERMISSION = 'system:designer:use';
 
 /** Prefix of the widget-data stream channels. */
 export const WIDGET_DATA_CHANNEL_PREFIX = 'widget-data';
@@ -72,6 +81,7 @@ export function parseChannel(channel: string): ChannelDescriptor | null {
   if (rest.length === 0) return null;
   if (prefix === 'notifications') return { kind: 'notifications', userId: rest };
   if (prefix === 'jobs') return { kind: 'jobs', jobId: rest };
+  if (prefix === 'designer') return /^ds_[0-9a-z]{24}$/.test(rest) ? { kind: 'designer', sessionId: rest } : null;
   if (prefix === WIDGET_DATA_CHANNEL_PREFIX) {
     // `widget-data:<connectionId>:<table>` — split off the connection id; the
     // rest is the qualified table id (`schema.name`, no colons).
@@ -129,6 +139,8 @@ export async function authorizeChannel(
       // Same gate as a widget-data query: read permission on the resolved
       // table. PII/secret columns are stripped at publish time.
       return deps.can(user, widgetDataReadPermission(parsed.connectionId, parsed.table));
+    case 'designer':
+      return deps.can(user, DESIGNER_USE_PERMISSION);
   }
 }
 

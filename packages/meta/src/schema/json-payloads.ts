@@ -242,6 +242,11 @@ export const SYSTEM_ACTION_KEYS = [
   // rule). Saving what the assistant drafts is NOT this key: that rides
   // `settings.manage`, the same grant the three host pages' own saves ride.
   'assistant.use',
+  // Adminium Designer: describing an app to a model that writes it into the
+  // project folder. The model writes hooks and actions too, which this server
+  // then runs, so this is code execution as the server's user (plan 65, B5):
+  // a key of its own, held by Super Admin only unless granted on purpose.
+  'designer.use',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);

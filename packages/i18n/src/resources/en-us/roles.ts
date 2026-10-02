@@ -86,7 +86,8 @@ export default {
     "settingsManage": "Manage workspace settings",
     "usersManage": "Manage users",
     "filesManage": "Manage everyone’s files",
-    "storageManage": "Manage storage destinations"
+    "storageManage": "Manage storage destinations",
+    "designerUse": "Build apps with Adminium Designer"
   },
   "rename": {
     "failed": "Could not rename the role",

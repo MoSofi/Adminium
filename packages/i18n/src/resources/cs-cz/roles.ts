@@ -86,7 +86,8 @@ export default {
     "settingsManage": "Spravovat nastavení pracovního prostoru",
     "usersManage": "Spravovat uživatele",
     "filesManage": "Spravovat soubory všech uživatelů",
-    "storageManage": "Spravovat cíle úložiště"
+    "storageManage": "Spravovat cíle úložiště",
+    "designerUse": "Vytvářet aplikace v Adminium Designer"
   },
   "rename": {
     "failed": "Roli se nepodařilo přejmenovat",

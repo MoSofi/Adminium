@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * Zod schemas for `/api/v1/designer/*`.
+ *
+ * SYNC NOTE: the dashboard's mirror is `apps/dashboard/src/designer/api.ts`, a
+ * type-only copy (the dashboard may not import server code). The replies are
+ * un-enveloped, like the assistant's.
+ */
+import { z } from 'zod';
+
+const target = z.enum(['auto', 'dashboard', 'web']);
+
+export const designerSession = z.object({
+  id: z.string(),
+  appKey: z.string(),
+  title: z.string(),
+  target,
+  connectionId: z.string(),
+  model: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  turns: z.number().int(),
+  version: z.number().int().nullable(),
+  createdApp: z.boolean(),
+  tokens: z.object({ in: z.number().int(), out: z.number().int() }),
+});
+
+/** A card as the page draws it. Its fields depend on its type. */
+export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'removal']) }).passthrough();
+
+/** An event as the page reads it. Its fields depend on its kind. */
+export const designerEvent = z.object({ seq: z.number().int(), turn: z.number().int(), at: z.number(), kind: z.string() }).passthrough();
+
+export const designerSessionParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/) });
+
+export const designerStateReply = z.object({
+  mode: z.enum(['local', 'live']),
+  /** The folder's name, for the page's title. */
+  project: z.string(),
+  limits: z.object({ maxSteps: z.number().int(), turnTokens: z.number().int(), sessionTokens: z.number().int() }),
+  active: z.object({ sessionId: z.string(), turn: z.number().int() }).nullable(),
+});
+
+export const designerAppsReply = z.object({
+  apps: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      /** The newest version of its newest session, or null. */
+      version: z.number().int().nullable(),
+      editedAt: z.number().nullable(),
+      sessionId: z.string().nullable(),
+    }),
+  ),
+});
+
+export const designerSessionCreateBody = z.object({
+  appKey: z.string().max(80).optional(),
+  name: z.string().max(80).optional(),
+  target: target.default('auto'),
+  connectionId: z.string().max(64),
+  model: z.string().min(1).max(200),
+  text: z.string().min(1).max(20_000),
+});
+
+export const designerSessionReply = z.object({
+  session: designerSession,
+  waiting: z.array(designerCard),
+  active: z.boolean(),
+});
+
+export const designerSessionCreateReply = z.object({ session: designerSession, turn: z.number().int() });
+
+export const designerSessionPatchBody = z.object({
+  title: z.string().min(1).max(80).optional(),
+  connectionId: z.string().max(64).optional(),
+  model: z.string().min(1).max(200).optional(),
+});
+
+export const designerTurnBody = z.object({ text: z.string().min(1).max(20_000) });
+export const designerTurnReply = z.object({ turn: z.number().int() });
+export const designerStopReply = z.object({ stopped: z.boolean() });
+export const designerAnswerBody = z.object({ cardId: z.string().max(64), value: z.unknown() });
+export const designerAnswerReply = z.object({ answered: z.literal(true) });
+
+export const designerEventsQuery = z.object({ after: z.coerce.number().int().min(0).default(0) });
+export const designerEventsReply = z.object({ events: z.array(designerEvent), last: z.number().int(), more: z.boolean() });
+
+const provider = z.enum(['anthropic', 'openai', 'openai-compatible', 'ollama']);
+export const designerConnectionDraft = z.object({
+  provider,
+  apiKey: z.string().max(500).optional(),
+  baseUrl: z.string().url().max(500).optional(),
+  model: z.string().min(1).max(200).optional(),
+});
+export const designerConnectionTestReply = z.object({
+  ok: z.boolean(),
+  models: z.array(z.object({ id: z.string(), label: z.string() })),
+  canBuild: z
+    .union([
+      z.object({ canBuild: z.literal(true), reportsUsage: z.boolean() }),
+      z.object({ canBuild: z.literal(false), reason: z.enum(['no-tool-call', 'refused-result', 'error']), message: z.string() }),
+    ])
+    .nullable(),
+  error: z.object({ code: z.string(), message: z.string() }).nullable(),
+});
+export const designerConnectionSaveBody = designerConnectionDraft.extend({ model: z.string().min(1).max(200) });
+export const designerConnectionReply = z.object({
+  id: z.string(),
+  provider: z.string(),
+  source: z.enum(['database', 'environment']),
+  baseUrl: z.string().nullable(),
+  hasKey: z.boolean(),
+  model: z.string().nullable(),
+});

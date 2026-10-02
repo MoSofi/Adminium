@@ -107,6 +107,8 @@ export interface AiConnections {
   save(draft: ConnectionDraft & { model: string }): Promise<AiConnection>;
   /** The last `canBuild` verdict for a model, or null when it was never tested in this process. */
   verdict(id: ConnectionId, model: string): CanBuild | null;
+  /** Whether a model can be built with: the verdict this process already has, else a round trip, kept. */
+  canBuildWith(id: ConnectionId, model: string): Promise<CanBuild>;
   readonly envWritable: boolean;
 }
 
@@ -371,6 +373,15 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       return envConnection(now, draft.provider);
     },
     verdict: (id, model) => verdicts.get(`${id}\u0000${model}`) ?? null,
+    async canBuildWith(id, model) {
+      const known = verdicts.get(`${id}\u0000${model}`);
+      if (known !== undefined) return known;
+      const { config } = await configFor(id, model);
+      const verdict = await canBuild(makeRunner(config), model);
+      // An error is not kept: the next try may reach the server.
+      if (verdict.canBuild || verdict.reason !== 'error') verdicts.set(`${id}\u0000${model}`, verdict);
+      return verdict;
+    },
     envWritable: aiEnv.writable,
   };
 }

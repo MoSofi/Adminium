@@ -86,7 +86,8 @@ export default {
     "settingsManage": "Administrér arbejdsområdeindstillinger",
     "usersManage": "Administrér brugere",
     "filesManage": "Administrér alles filer",
-    "storageManage": "Administrér lagringsdestinationer"
+    "storageManage": "Administrér lagringsdestinationer",
+    "designerUse": "Byg apps med Adminium Designer"
   },
   "rename": {
     "failed": "Rollen kunne ikke omdøbes",

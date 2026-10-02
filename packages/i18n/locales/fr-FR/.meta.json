@@ -13119,6 +13119,10 @@
     "status": "mt",
     "srcHash": "65cd18d3a599"
   },
+  "roles.permission.designerUse": {
+    "status": "mt",
+    "srcHash": "c5c33ac78c5c"
+  },
   "roles.permission.exportsManage": {
     "status": "mt",
     "srcHash": "4da5e826ccf4"

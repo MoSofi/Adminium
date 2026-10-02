@@ -337,7 +337,8 @@ export type SystemAction =
   | 'schema.ddl'
   | 'schema.remap'
   | 'llm.run'
-  | 'project.read';
+  | 'project.read'
+  | 'designer.use';
 
 /**
  * Does this session hold `system:<action>`? What the dashboard asks before it

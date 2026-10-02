@@ -97,6 +97,7 @@ const SYSTEM_PERMISSION_META: Record<
   // documents and readable rows to a third-party model, which an operator may
   // want to withhold from a role that still administers the provider.
   'assistant.use': { label: 'Use the page assistant', category: 'operations' },
+  'designer.use': { label: 'Build apps with Adminium Designer', category: 'operations' },
 };
 
 /** `users.manage` → `system:users:manage` (spells the dot as a colon). */

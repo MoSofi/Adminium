@@ -76,7 +76,8 @@
     "settingsManage": "Gérer les paramètres de l’espace de travail",
     "usersManage": "Gérer les utilisateurs",
     "filesManage": "Gérer les fichiers de tout le monde",
-    "storageManage": "Gérer les destinations de stockage"
+    "storageManage": "Gérer les destinations de stockage",
+    "designerUse": "Créer des apps avec Adminium Designer"
   },
   "rename": {
     "failed": "Impossible de renommer le rôle",

@@ -78,6 +78,8 @@ export interface RunnerDeps {
 /** What the pipeline and the tools see of a running turn. */
 export interface TurnHandle {
   turn: number;
+  /** Who started the turn: a card's answer acts as them. */
+  by: Actor;
   events: EventLog;
   signal: AbortSignal;
   ask(card: CardRequest): Promise<CardAnswer>;
@@ -142,12 +144,13 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     return log;
   }
 
-  async function loop(session: DesignerSession, turn: number, run: Running): Promise<void> {
+  async function loop(session: DesignerSession, turn: number, run: Running, by: Actor): Promise<void> {
     const log = events(session.id);
     const { signal } = run.controller;
     const limits = await deps.limits();
     const handle: TurnHandle = {
       turn,
+      by,
       events: log,
       signal,
       ask: (card) => {
@@ -361,7 +364,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         deps.store.appendMessage(sessionId, turn, { role: 'user', content: [{ type: 'text', text }] });
         events(sessionId).emit(turn, { kind: 'turn-started', text });
         await deps.audit?.('designer.turn.started', updated, { turn, by: input.by.label });
-        claim.done = loop(updated, turn, claim).finally(() => {
+        claim.done = loop(updated, turn, claim, input.by).finally(() => {
           if (running === claim) running = null;
         });
       } catch (error) {

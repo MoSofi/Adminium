@@ -147,6 +147,8 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles:permission.filesManage', 'Manage everyone’s files');
     case 'system:storage:manage':
       return t('roles:permission.storageManage', 'Manage storage destinations');
+    case 'system:designer:use':
+      return t('roles:permission.designerUse', 'Build apps with Adminium Designer');
     default:
       return entry.label;
   }

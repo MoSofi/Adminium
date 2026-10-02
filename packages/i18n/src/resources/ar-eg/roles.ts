@@ -86,7 +86,8 @@ export default {
     "settingsManage": "إدارة إعدادات مساحة العمل",
     "usersManage": "إدارة المستخدمين",
     "filesManage": "إدارة ملفات الجميع",
-    "storageManage": "إدارة وجهات التخزين"
+    "storageManage": "إدارة وجهات التخزين",
+    "designerUse": "إنشاء تطبيقات باستخدام Adminium Designer"
   },
   "rename": {
     "failed": "تعذّرت إعادة تسمية الدور",

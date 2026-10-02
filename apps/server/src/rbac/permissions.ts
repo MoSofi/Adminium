@@ -99,6 +99,10 @@ export const PERMISSIONS = {
   // pages' own saves ride, so a role can be given the assistant without being
   // given the authority to change what the workspace sends out.
   assistantUse: 'system:assistant:use',
+  // Adminium Designer: starting and stopping turns, answering its cards,
+  // adding a model to the project's .env. Its model writes code this server
+  // runs, so only Super Admin holds it unless it is granted on purpose.
+  designerUse: 'system:designer:use',
 } as const;
 
 /**

@@ -86,7 +86,8 @@ export default {
     "settingsManage": "管理工作区设置",
     "usersManage": "管理用户",
     "filesManage": "管理所有人的文件",
-    "storageManage": "管理存储目标"
+    "storageManage": "管理存储目标",
+    "designerUse": "使用 Adminium Designer 构建应用"
   },
   "rename": {
     "failed": "无法重命名该角色",
