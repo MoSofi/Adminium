@@ -47,11 +47,13 @@ export default {
     { area: 'public-api', generator: 'public-routes' },
     { area: 'errors', page: 'reference/errors.md', flat: true },
     { area: 'projects', page: 'projects/apps.md' },
+    { area: 'cli', page: 'reference/cli.md', flat: true },
   ],
   'adminium-add-ons': [
     { area: 'guides', page: 'guides/building-on-an-add-on.md' },
     { area: 'install', page: 'self-hosting/installing-add-ons.md', flat: true },
     { area: 'catalogue', generator: 'add-on-catalogue' },
+    { area: 'cli', page: 'reference/cli.md', flat: true },
   ],
   'adminium-project': [
     ...PROJECT_PAGES.map((name) => ({ area: 'projects', page: `projects/${name}.md` })),

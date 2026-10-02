@@ -20,7 +20,7 @@ Every Adminium skill names verbs. With a shell, they are these commands, run in 
 
 `app try` is not `try`: plain `adminium try` is the setup wizard for running Adminium with no
 project, and it waits for a person at a terminal. The app commands are documented in
-`references/cli/app.md` where a skill has it.
+`references/cli/app.md`.
 
 Always write the package name in full, `@adminiumjs/adminium`. The bare name `adminium` on npm is
 somebody else's package.
