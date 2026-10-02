@@ -1,5 +1,31 @@
 # @adminium/dashboard
 
+## 0.3.13
+
+### Patch Changes
+
+- dbf1453: A folder app's customer side now works under `adminium dev` with nothing to set. The public API answers the server's own pages unless `ADMINIUM_PUBLIC_API_ORIGINS` says otherwise, and it is switched on (and said in the terminal) when an app's public access is given. A server (`adminium start`) never switches it on: it says what is missing. Studio no longer offers Uninstall for an app whose folder is still in the project, and `adminium app new` points at `npm run dev`.
+- 0f34a65: `adminium dev` now watches the apps in your project. Save a file anywhere under `apps/` and the apps are checked and rebuilt, the running server installs a new app or applies the changed manifest in place, and an open screen of the app reloads. Nothing restarts. A screen built by `adminium dev` asks the server once a second whether its app was rebuilt (`@adminiumjs/adminium/side` does it for you; `onAppChanged` takes your own listener), which works on the customer side too, where nobody is signed in. A packed app makes no such request.
+  
+  Fixed: in a project, an installed app's own column rules were written into `schema/<database>.json`, which then refused to load ("origin: must be user or llm"), and applying a project's schema file deleted every installed app's rules on that database. An app's rules now stay out of the file and are left alone when it is applied.
+- 60e321d: An app that runs from its project folder now loses what you take out of its manifest. A page you delete is removed (one somebody edited is kept as an ordinary page), a role is removed with its grants, and the terminal says who held it. A table or a column that holds data is never dropped on the way: everything else is applied, and the question waits in Studio → Apps, where "Keep the data" leaves it in the database and out of the app, and "Remove them" (Super Admin, two clicks) drops it. The same question can be read and answered with `GET` and `POST /api/v1/project/apps/:key/removals`. A table or column that holds nothing is dropped without a question. A column that holds less than it did (a shorter text, a removed option, a value now required) is never changed in the database: the rows that no longer fit are counted and stay. A server (`adminium start`) never drops and never asks: it keeps the data, releases the table from the app and says so.
+  
+  The schema editor's edit document gains `dropColumns`, a narrow way to drop a column from a table that stays. Two fixes came with it: dropping a foreign key from an existing table now compiles on Postgres and MySQL, and on SQLite a column under a unique rule or a link is dropped in the table's rebuild instead of failing halfway.
+- 2a13a4e: An app in your project now runs from its folder. `adminium dev` and `adminium start` install each `apps/<key>/` that `adminium build` built, and apply it again in place when its manifest changes: new tables are made, the app's own tables gain their new columns, pages, roles, rules and emails are rewritten, and the rows stay. Nothing is uploaded and no version has to change. A change that cannot be applied leaves the app running as it was and says why, in the terminal and in Studio ("Not applied").
+  
+  What happens with nobody to ask depends on where it runs. Under `adminium dev` the add-ons the app requires are installed, public access is given as the manifest declares it, and the sample data is added once. Under `adminium start` nothing is installed for it, no table it did not make is changed, and it gets no public access until `adminium.config.ts` says `apps: { <key>: { publicAccess: true } }`. The new `apps` block also takes `database` (which of the project's databases the app lives in; the first by default) and `sampleData: false`. `adminium check` validates the block and warns when an app declares public access the config has not allowed.
+  
+  An app that runs from the folder is changed and removed from the folder: Studio refuses to install, update or uninstall it while `apps/<key>/` is there. Delete the folder and it stays installed, marked "Folder gone", until you uninstall it.
+- Updated dependencies [60e321d]
+- Updated dependencies [df91e11]
+  - @adminium/engine@0.3.13
+  - @adminium/add-on-contracts@0.3.13
+  - @adminium/charts@0.3.13
+  - @adminium/i18n@0.3.13
+  - @adminium/tokens@0.3.13
+  - @adminium/ui@0.3.13
+  - @adminium/widgets@0.3.13
+
 ## 0.3.12
 
 ### Patch Changes

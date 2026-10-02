@@ -1,5 +1,27 @@
 # @adminium/meta
 
+## 0.3.13
+
+### Patch Changes
+
+- 0f34a65: `adminium dev` now watches the apps in your project. Save a file anywhere under `apps/` and the apps are checked and rebuilt, the running server installs a new app or applies the changed manifest in place, and an open screen of the app reloads. Nothing restarts. A screen built by `adminium dev` asks the server once a second whether its app was rebuilt (`@adminiumjs/adminium/side` does it for you; `onAppChanged` takes your own listener), which works on the customer side too, where nobody is signed in. A packed app makes no such request.
+  
+  Fixed: in a project, an installed app's own column rules were written into `schema/<database>.json`, which then refused to load ("origin: must be user or llm"), and applying a project's schema file deleted every installed app's rules on that database. An app's rules now stay out of the file and are left alone when it is applied.
+- df91e11: Close what the review of running an app from its project folder found. A
+  SQLite table rebuild that drops a column now needs Super Admin, as a plain
+  column drop always did. A removal question is answered against the manifest
+  the app runs on now, never an older one; a column of a table another app or an
+  add-on uses is never dropped; a failed read is never taken for an empty table.
+  A column the app stops declaring and keeps is made optional, so it cannot
+  refuse new rows. A project's `.env` cannot switch a server into dev mode.
+  Setting `apps.<key>.publicAccess` is applied on the next start by itself, and a
+  server says when an app has public access its config does not allow.
+- 2a13a4e: An app in your project now runs from its folder. `adminium dev` and `adminium start` install each `apps/<key>/` that `adminium build` built, and apply it again in place when its manifest changes: new tables are made, the app's own tables gain their new columns, pages, roles, rules and emails are rewritten, and the rows stay. Nothing is uploaded and no version has to change. A change that cannot be applied leaves the app running as it was and says why, in the terminal and in Studio ("Not applied").
+  
+  What happens with nobody to ask depends on where it runs. Under `adminium dev` the add-ons the app requires are installed, public access is given as the manifest declares it, and the sample data is added once. Under `adminium start` nothing is installed for it, no table it did not make is changed, and it gets no public access until `adminium.config.ts` says `apps: { <key>: { publicAccess: true } }`. The new `apps` block also takes `database` (which of the project's databases the app lives in; the first by default) and `sampleData: false`. `adminium check` validates the block and warns when an app declares public access the config has not allowed.
+  
+  An app that runs from the folder is changed and removed from the folder: Studio refuses to install, update or uninstall it while `apps/<key>/` is there. Delete the folder and it stays installed, marked "Folder gone", until you uninstall it.
+
 ## 0.3.12
 
 ## 0.3.11
