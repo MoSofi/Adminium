@@ -101,6 +101,9 @@ import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
+import { addOnLines } from './designer/add-on-lines.js';
+import { createSkills } from './designer/skills.js';
+import { createDesignerTools } from './designer/tools.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { designerRoutes } from './routes/designer/index.js';
 import { designerChannel } from './realtime/hub.js';
@@ -1884,6 +1887,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           sessionTokens: await settings.get('designer.sessionTokens'),
         });
         const permissionsOf = (userId: string) => resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId });
+        // The skills, read once: the same files a coding agent reads.
+        const designerSkills = createSkills();
         designer = createDesigner({
           root,
           version: APP_VERSION,
@@ -1934,6 +1939,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           log: (message, error) => {
             app.log.warn({ err: error }, message);
           },
+          tools: (session) =>
+            createDesignerTools(
+              {
+                root,
+                version: APP_VERSION,
+                designer: () => {
+                  if (designer === null) throw new Error('The Designer is not running.');
+                  return designer;
+                },
+                skills: designerSkills,
+                listAddOns: () =>
+                  addOnLines({
+                    meta,
+                    credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+                    store: addOnStore,
+                    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+                  }),
+              },
+              session.appKey,
+            ),
         });
         await api.register(designerRoutes({ designer, connections: aiConnections, mode: opts.designer.mode, root, limits }));
       }

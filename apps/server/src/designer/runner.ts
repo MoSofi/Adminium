@@ -35,11 +35,11 @@ import {
 } from '@adminium/llm';
 
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { answerFor, type CardAnswer, type CardRequest, type DesignerCard } from './cards.js';
+import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
 import type { DesignerEvent, EventLog, LimitKind, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
-import type { DesignerTool, ToolContext } from './tool-types.js';
+import type { Actor, DesignerTool, ToolContext, TurnHandle } from './tool-types.js';
 import { TurnStoppedError } from './tool-types.js';
 import { closeDangling, joinUserMessages } from './transcript.js';
 
@@ -75,20 +75,7 @@ export interface RunnerDeps {
   now?: () => number;
 }
 
-/** What the pipeline and the tools see of a running turn. */
-export interface TurnHandle {
-  turn: number;
-  /** Who started the turn: a card's answer acts as them. */
-  by: Actor;
-  events: EventLog;
-  signal: AbortSignal;
-  ask(card: CardRequest): Promise<CardAnswer>;
-}
-
-export interface Actor {
-  id: string | null;
-  label: string;
-}
+export type { Actor, TurnHandle } from './tool-types.js';
 
 export interface DesignerRunner {
   /** Start a turn. 409 (reason `TURN_RUNNING`) while another turn runs in this folder. */
@@ -176,7 +163,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         });
       },
     };
-    const context: ToolContext = { session, turn, signal, ask: handle.ask };
+    const context: ToolContext = { session, turn, signal, ask: handle.ask, handle };
 
     let outcome: TurnOutcome = 'done';
     let steps = 0;

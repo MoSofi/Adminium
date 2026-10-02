@@ -965,6 +965,9 @@ async function main() {
   execFileSync('node', [join(ROOT, 'apps/server/scripts/bundle-samples.mjs')], {
     stdio: 'inherit',
   });
+  execFileSync('node', [join(ROOT, 'apps/server/scripts/bundle-skills.mjs')], {
+    stdio: 'inherit',
+  });
 
   mkdirSync(OUT_DIR, { recursive: true });
   for (const dir of SCRATCH_DIRS) rmSync(dir, { recursive: true, force: true });

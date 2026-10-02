@@ -6,7 +6,24 @@
  * else. No shell, no network, no web.
  */
 import type { CardAnswer, CardRequest } from './cards.js';
+import type { EventLog } from './events.js';
 import type { DesignerSession } from './session-store.js';
+
+/** The person behind a turn. */
+export interface Actor {
+  id: string | null;
+  label: string;
+}
+
+/** What the pipeline and the tools see of a running turn. */
+export interface TurnHandle {
+  turn: number;
+  /** Who started the turn: a card's answer acts as them. */
+  by: Actor;
+  events: EventLog;
+  signal: AbortSignal;
+  ask(card: CardRequest): Promise<CardAnswer>;
+}
 
 export interface ToolOutcome {
   /** What the model is told. */
@@ -25,6 +42,8 @@ export interface ToolContext {
   signal: AbortSignal;
   /** Show a card and wait for its answer. Rejects when the turn is stopped. */
   ask(card: CardRequest): Promise<CardAnswer>;
+  /** The turn itself, for a tool that runs the engine's steps mid-turn. */
+  handle: TurnHandle;
 }
 
 export interface DesignerTool {

@@ -7,6 +7,9 @@
  * one the project gets.
  */
 
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 export const PACKAGE_MANAGERS = ['npm', 'pnpm', 'yarn', 'bun'] as const;
 export type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 
@@ -32,4 +35,13 @@ export function installCommand(pm: PackageManager): { command: string; args: str
 export function runScript(pm: PackageManager, script: string): string {
   if (pm === 'npm' && script === 'start') return 'npm start';
   return `${pm} run ${script}`;
+}
+
+/** The package manager this project already uses, by its lockfile; else the one running the command. */
+export function projectPackageManager(root: string, env: Readonly<Record<string, string | undefined>>): PackageManager {
+  if (existsSync(join(root, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (existsSync(join(root, 'yarn.lock'))) return 'yarn';
+  if (existsSync(join(root, 'bun.lock')) || existsSync(join(root, 'bun.lockb'))) return 'bun';
+  if (existsSync(join(root, 'package-lock.json'))) return 'npm';
+  return detectPackageManager(env);
 }

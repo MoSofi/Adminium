@@ -50,6 +50,7 @@
     "templates",
     "samples",
     "schemas",
+    "skills",
     "README.md",
     "LICENSE"
   ],
@@ -66,8 +67,9 @@
     "openapi:check": "node scripts/openapi.mjs --check",
     "project-schemas": "node scripts/project-schemas.mjs",
     "project-schemas:check": "node scripts/project-schemas.mjs --check",
-    "prepack": "node scripts/bundle-dashboard.mjs && node scripts/bundle-allowlists.mjs && node scripts/bundle-samples.mjs",
-    "demo:m2": "node scripts/demo-m2.mjs"
+    "prepack": "node scripts/bundle-dashboard.mjs && node scripts/bundle-allowlists.mjs && node scripts/bundle-samples.mjs && node scripts/bundle-skills.mjs",
+    "demo:m2": "node scripts/demo-m2.mjs",
+    "bundle:skills": "node scripts/bundle-skills.mjs"
   },
   "//dependencies": [
     "`pino-pretty` is a RUNTIME dependency, not a dev one (app.ts buildLogger).",

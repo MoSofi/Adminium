@@ -3,13 +3,10 @@
  * `adminium app new` — write a starter app into this project.
  */
 
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { checkApp } from '../../../project/apps/check-app.js';
 import { appPath, type AppSide } from '../../../project/apps/read-app.js';
 import { addSideDependencies, appKeyProblem, nameFromKey, scaffoldApp } from '../../../project/apps/scaffold-app.js';
-import { detectPackageManager, installCommand, type PackageManager } from '../../../project/package-manager.js';
+import { installCommand, projectPackageManager } from '../../../project/package-manager.js';
 import { APP_VERSION } from '../../../version.js';
 import { parseFlags, type FlagSpecs } from '../../args.js';
 import type { Command } from '../../command.js';
@@ -23,15 +20,6 @@ const flags: FlagSpecs = {
   customer: { type: 'boolean', describe: 'Add public screens for customers (apps/<key>/customer/)' },
   'no-install': { type: 'boolean', describe: 'Do not install the packages the screens need' },
 };
-
-/** The package manager this project already uses, by its lockfile; else the one running the command. */
-function projectPackageManager(root: string, env: Readonly<Record<string, string | undefined>>): PackageManager {
-  if (existsSync(join(root, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (existsSync(join(root, 'yarn.lock'))) return 'yarn';
-  if (existsSync(join(root, 'bun.lock')) || existsSync(join(root, 'bun.lockb'))) return 'bun';
-  if (existsSync(join(root, 'package-lock.json'))) return 'npm';
-  return detectPackageManager(env);
-}
 
 export const appNewCommand: Command = {
   name: 'new',
