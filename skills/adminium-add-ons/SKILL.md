@@ -91,6 +91,10 @@ Try uploads them first, then installs the app, which installs the add-on it requ
 folder the table check fails, saying the app needs the add-on and it is not available; say what is
 missing rather than removing the requirement.
 
+To **run** the app, the project's server needs the package as well: put the same two files in an
+`add-ons-bundle/` folder in the project and start **run** again. It installs the add-on with the
+app; without it the app is `not applied`, and the terminal names the add-on.
+
 Try proves the app installs on the add-on and that its sample data loads. It does not send an
 email or draw a document: tell the person to send one invoice to themselves after installing.
 

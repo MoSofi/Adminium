@@ -128,6 +128,12 @@ careful where `adminium dev` is generous:
 | Sample data | Added once, on the first install | Never |
 | A table or column that holds data, taken out | Asked about | Kept, released from the app, and said in the log |
 
+An add-on an app requires has to be on the server for either of them to use it: uploaded in
+**Studio → Add-ons**, downloaded from the catalogue, or bundled — each `<key>-<version>.tgz` beside
+its `.tgz.integrity` in an `add-ons-bundle/` folder in the project
+([Installing add-ons](/self-hosting/installing-add-ons/#adminium_bundled_add_ons)). Without it the app
+is not applied, and the message names the add-on.
+
 An app needs no settings. When one does, `adminium.config.ts` takes them by the app's key:
 
 ```ts
