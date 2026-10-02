@@ -22,6 +22,7 @@ import {
 } from '@adminium/manifest';
 
 import { meetsMinimum } from '../../apps/catalog.js';
+import { roleIssues } from '../../apps/manifest-roles.js';
 import { serverCodeSources } from '../build.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
 
@@ -172,6 +173,13 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
       );
     }
   });
+
+  // What an install refuses of the app's roles: a console grant, a wildcard, a table or page it does not have.
+  for (const issue of roleIssues(manifest)) {
+    const index = (manifest.roles ?? []).findIndex((role) => role.key === issue.role);
+    const where = at(`roles.${String(Math.max(index, 0))}`);
+    findings.push(error(where.file, where.path, issue.message));
+  }
 
   // An app package carries no server code; a project's hooks and actions stay in the project.
   const serverCode = serverCodeSources(root);

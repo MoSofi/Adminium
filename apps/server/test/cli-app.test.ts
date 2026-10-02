@@ -130,6 +130,14 @@ describe('adminium app check', () => {
 
   });
 
+  it('refuses a role an install would refuse', async () => {
+    parts({ 'apps/repairs/manifest/roles.json': [{ key: 'staff', name: 'Staff', permissions: ['system:users:manage', 'table:@ghosts:read', 'table:@jobs:read'] }] });
+    const { code, err } = await run('check');
+    expect(code).toBe(2);
+    expect(err).toContain('apps/repairs/manifest/roles.json: 0 — The role "staff": "system:users:manage" gives a console permission, which an app cannot.');
+    expect(err).toContain('"table:@ghosts:read" names a table the app does not declare');
+  });
+
   it('names the part file a problem is in, and exits 2', async () => {
     parts({
       'apps/repairs/manifest/tables/jobs.json': { ...JOBS, columns: [{ ref: 'id', type: 'nonsense' }] },

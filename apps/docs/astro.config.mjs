@@ -192,8 +192,10 @@ export default defineConfig({
               label: 'Apps',
               items: [
                 { label: 'An app’s settings page', link: '/guides/apps/settings/' },
+                { label: 'A manifest, task by task', link: '/guides/apps/manifest-by-task/' },
                 { label: 'Sample data', link: '/guides/apps/sample-data/' },
                 { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
+                { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
                 { label: 'An order with its lines', link: '/guides/apps/orders-with-lines/' },
                 {

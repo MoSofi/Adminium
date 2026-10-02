@@ -129,16 +129,6 @@ describe.skipIf(!canBuildSides)('adminium app try', { timeout: 120_000 }, () => 
     expect(result.steps.map((step) => step.text)).toContain('it is listed as installed, with no screens of its own');
   });
 
-  it('says in the server’s own words why an install is refused, and exits 2', async () => {
-    await run('new', 'repairs', '--customer');
-    // A grant the manifest's shape allows and the install does not: anyone may add AND read.
-    // `app check` refuses it first, so it is tried on a manifest check cannot see through.
-    edit('apps/repairs/manifest/roles.json', () => [{ key: 'repairs-staff', name: 'Repairs staff', permissions: ['system:users:manage'] }]);
-    const { code, err } = await run('try');
-    expect(code).toBe(2);
-    expect(err).toMatch(/✗ (the table check passes|it installs)/);
-  });
-
   it('stops at the check, before anything is started, when the manifest is wrong', async () => {
     await run('new', 'repairs', '--customer');
     edit('apps/repairs/manifest/access.json', () => ({ publicAccess: [{ table: 'items', methods: ['GET', 'POST'], select: ['id'], writable: ['title'] }] }));

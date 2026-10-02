@@ -56,7 +56,6 @@ export function nameFromKey(key: string): string {
 /** The manifest's parts, as the files' contents. */
 export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'version'>): Record<string, unknown> {
   const { key, name, sides } = opts;
-  const staffRole = `${key}-staff`;
   const parts: Record<string, unknown> = {
     'manifest/app.json': {
       manifestVersion: 1,
@@ -119,7 +118,8 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
     },
     'manifest/roles.json': [
       {
-        key: staffRole,
+        // Installed as `<app key>-staff`: the app's key is put in front of a role's own.
+        key: 'staff',
         name: `${name} staff`,
         permissions: [
           ...(sides.includes('staff') ? ['app:@:staff'] : []),

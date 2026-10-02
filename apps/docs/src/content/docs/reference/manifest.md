@@ -9,6 +9,10 @@ them: pages in the sidebar, roles, settings, frontends, the add-ons it needs, do
 public endpoints and sample data. Adminium validates it before anything is installed, and builds
 the install plan from it.
 
+In a [project folder](/projects/apps/) the same manifest may be written as a `manifest/` folder of
+part files, one per table, per page and per block. Adminium composes them into this one document,
+so everything below applies unchanged; only where each field is written differs.
+
 This page describes version 1 of the format, which is what Adminium 0.3 reads. For what an operator
 sees when they install a package, see [Installing apps](/self-hosting/installing-apps/) and
 [Installing add-ons](/self-hosting/installing-add-ons/).
@@ -95,9 +99,11 @@ something Adminium ignores. See [Validation](#validation).
 | `categories` | yes | At least one. For an app: `commerce`, `hospitality`, `operations`, `crm`, `internal-tools`. Add-ons have their own list; see [Add-on manifests](#add-on-manifests). |
 | `capabilities` | no | What the package uses; see [Capabilities](#capabilities). |
 
-:::caution[First-party publishers only]
-In this release Adminium accepts only `"publisher": { "id": "adminium", … }`. A manifest from any
-other publisher is refused at validation, for apps and add-ons alike.
+:::caution[Two publishers only]
+Adminium accepts `"publisher": { "id": "adminium", … }`, and for an app, `"id": "local"`: an app
+made on the install it runs on, which installs from a file and never from a catalogue. See
+[An app in your project](/projects/apps/#an-app-you-made-yourself). A manifest from any other
+publisher is refused at validation, and an add-on can never be `local`.
 :::
 
 ## Compatibility
@@ -3261,7 +3267,7 @@ checks are:
   add-on a shape or a document needs, a page's feature, an option list, a foreign key's target. A `PATCH` without a claim, a writable column that Adminium decides, and an
   `availability` entry on a table with neither `capacity` nor `booking` are refused, along with
   every rule stated in the sections above.
-- **Policy.** The publisher must be `adminium`, and the key must not be reserved.
+- **Policy.** The publisher must be `adminium`, or `local` for an app installed from a file, and the key must not be reserved.
 - **The version floor.** An app or add-on whose `minAdminiumVersion` is newer than the server is
   refused with a message naming both versions, including when an older server cannot parse a
   newer manifest.
