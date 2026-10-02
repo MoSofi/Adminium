@@ -1,0 +1,11 @@
+# synthetic: written from the provider's published stream format, not recorded. Replace with a recording (see README.md).
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"This is a long answer that"},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{},"finish_reason":"length"}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","choices":[],"usage":{"prompt_tokens":90,"completion_tokens":64,"total_tokens":154}}
+
+data: [DONE]
+

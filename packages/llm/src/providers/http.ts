@@ -46,7 +46,7 @@ export function scrubCause(err: unknown, secret: string | undefined): unknown {
   return scrubbed;
 }
 
-function codeForStatus(status: number): ProviderErrorCode {
+export function codeForStatus(status: number): ProviderErrorCode {
   if (status === 401 || status === 403) return 'auth';
   if (status === 404) return 'not_found';
   if (status === 429) return 'rate_limit';

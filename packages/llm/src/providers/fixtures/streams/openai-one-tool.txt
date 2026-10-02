@@ -1,0 +1,15 @@
+# synthetic: written from the provider's published stream format, not recorded. Replace with a recording (see README.md).
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{"role":"assistant","content":null},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_000000000000000000000001","type":"function","function":{"name":"write_file","arguments":""}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\":\"apps/repairs/manifest/tables/jobs.json\","}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"content\":\"{\\\"ref\\\": \\\"jobs\\\"}\"}"}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","system_fingerprint":"","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":null}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1790000000,"model":"gpt-5","choices":[],"usage":{"prompt_tokens":412,"completion_tokens":58,"total_tokens":470}}
+
+data: [DONE]
+
