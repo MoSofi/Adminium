@@ -10,17 +10,17 @@ import { findProject } from '../../project/locate.js';
 import { APP_VERSION } from '../../version.js';
 import { parseFlags } from '../args.js';
 import type { Command } from '../command.js';
-import { CliError, EXIT_OK } from '../exit.js';
+import { CliError, EXIT_OK, EXIT_VALIDATION_FAILED } from '../exit.js';
 
 export const buildCommand: Command = {
   name: 'build',
   summary: "Compile the project's config and code into .adminium/build",
   usage: 'adminium build',
   describe:
-    'Compiles adminium.config.ts, the hooks and actions, and the pages and\n' +
-    'widgets into .adminium/build/, which `adminium start` loads. Needs the\n' +
-    'esbuild dev dependency. Run it before deploying; a project image runs it in\n' +
-    'its build stage.',
+    'Compiles adminium.config.ts, the hooks and actions, the pages and widgets,\n' +
+    'and the apps under apps/ into .adminium/build/, which `adminium start`\n' +
+    'loads. Needs the esbuild dev dependency. Run it before deploying; a project\n' +
+    'image runs it in its build stage. Exits 2 when an app does not build.',
   flags: {},
 
   async run({ io, deps, argv }) {
@@ -44,6 +44,19 @@ export const buildCommand: Command = {
         `Built ${String(server)} hook and action file(s), ${String(pages)} page(s) and ${String(widgets)} widget(s).`,
       );
     }
-    return EXIT_OK;
+    // An app with a problem does not stop the rest from building; it does fail the command.
+    const apps = manifest.apps?.apps ?? [];
+    for (const app of apps) {
+      if (app.problems !== undefined) {
+        io.err(`✗ The app "${app.key}" was not built:`);
+        for (const problem of app.problems) io.err(`    ${problem}`);
+      } else {
+        io.out(
+          `Built the app "${app.key}" ${app.version ?? ''}` +
+            (app.sides.length === 0 ? ' (no screens of its own).' : ` with its ${app.sides.join(' and ')} side.`),
+        );
+      }
+    }
+    return apps.some((app) => app.problems !== undefined) ? EXIT_VALIDATION_FAILED : EXIT_OK;
   },
 };

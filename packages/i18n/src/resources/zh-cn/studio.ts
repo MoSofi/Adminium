@@ -777,7 +777,10 @@ export default {
       "oldNames": "此安装使用的是旧的表名。",
       "oldNamesWhy": "这些表创建于前缀功能之前。",
       "renameTo": "重命名为 {prefix}…",
-      "madeHere": "本机制作"
+      "madeHere": "本机制作",
+      "fromFolder": "来自此项目的文件夹",
+      "folderGone": "文件夹已不存在",
+      "folderGoneBody": "apps/{key}/ 已不在此项目中。应用连同其数据表和页面保持安装，直到你将其卸载。"
     },
     "instances": {
       "add": "添加实例",

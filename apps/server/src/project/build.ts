@@ -19,12 +19,13 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { CliError } from '../cli/exit.js';
+import { BUILD_DIR, HELPERS_PACKAGE, serverCodeSources, type ServerCodeSource } from './build-shared.js';
 import {
   buildClientCode,
   clientCodeSources,
@@ -32,21 +33,16 @@ import {
   type ClientBuild,
   type ClientBundler,
 } from './client-build.js';
+import { appsStaleReason, buildProjectApps, type AppsBuild } from './apps/build-apps.js';
 import { parseProjectConfig, type ProjectConfig } from './config.js';
+import { listAppKeys } from './apps/read-app.js';
 import { configFileName, type ProjectLocation } from './locate.js';
 import { toProjectPath } from './paths.js';
 
-export const BUILD_DIR = join('.adminium', 'build');
 const BUILT_CONFIG = 'config.mjs';
 const MANIFEST = 'manifest.json';
 /** Bundled hooks and actions, under the build folder. */
 export const SERVER_DIR = 'server';
-/** The folders server code lives in, which are also its kinds. */
-export const SERVER_CODE_FOLDERS = ['hooks', 'actions'] as const;
-const SOURCE_EXTENSIONS = ['.ts', '.mts', '.js', '.mjs'];
-
-/** The package name project code imports its helpers from. */
-export const HELPERS_PACKAGE = '@adminiumjs/adminium';
 
 /**
  * What the inlined helpers module exports: the same small functions
@@ -69,14 +65,6 @@ export const HELPERS_SOURCE = [
  */
 const REQUIRE_BANNER =
   "import { createRequire as __adminiumCreateRequire } from 'node:module'; const require = __adminiumCreateRequire(import.meta.url);";
-
-export interface ServerCodeSource {
-  kind: (typeof SERVER_CODE_FOLDERS)[number];
-  /** The file name without its extension. */
-  name: string;
-  /** Relative to the project, with `/`: `hooks/orders.ts`. */
-  source: string;
-}
 
 export interface BuiltServerFile extends ServerCodeSource {
   /** Relative to the build folder: `server/hooks/orders.mjs`. */
@@ -104,7 +92,11 @@ export interface BuildManifest {
   };
   /** Pages and widgets (`client-build.ts`). Absent in a build made before they existed. */
   client?: ClientBuild;
+  /** The apps under `apps/` (`apps/build-apps.ts`). Absent in a build made before a project could carry one. */
+  apps?: AppsBuild;
 }
+
+export { BUILD_DIR, HELPERS_PACKAGE, SERVER_CODE_FOLDERS, serverCodeSources, type ServerCodeSource } from './build-shared.js';
 
 /** The slice of esbuild's API this module uses. */
 export type Bundler = ClientBundler;
@@ -140,34 +132,6 @@ export const loadProjectBundler: LoadBundler = async (root) => {
 };
 
 const sha256 = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex');
-
-/**
- * The hook and action files: the top level of `hooks/` and `actions/`, in
- * TypeScript or JavaScript. Names starting with `.` or `_` are left out, so a
- * shared helper can sit beside them as `_shared.ts`.
- */
-export function serverCodeSources(root: string): ServerCodeSource[] {
-  const out: ServerCodeSource[] = [];
-  for (const kind of SERVER_CODE_FOLDERS) {
-    const dir = join(root, kind);
-    if (!existsSync(dir)) continue;
-    const seen = new Map<string, string>();
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (!entry.isFile() || entry.name.startsWith('.') || entry.name.startsWith('_')) continue;
-      if (entry.name.endsWith('.d.ts') || /\.test\.[cm]?[jt]s$/.test(entry.name)) continue;
-      const extension = extname(entry.name);
-      if (!SOURCE_EXTENSIONS.includes(extension)) continue;
-      const name = entry.name.slice(0, -extension.length);
-      const other = seen.get(name);
-      if (other !== undefined) {
-        throw new CliError(`${kind}/${other} and ${kind}/${entry.name} have the same name. Keep one of them.`);
-      }
-      seen.set(name, entry.name);
-      out.push({ kind, name, source: `${kind}/${entry.name}` });
-    }
-  }
-  return out.sort((a, b) => (a.source < b.source ? -1 : a.source > b.source ? 1 : 0));
-}
 
 /** Write a file so a reader never sees half of it. */
 function writeAtomically(file: string, text: string): void {
@@ -231,13 +195,16 @@ export function staleReason(project: ProjectLocation, version: string): string |
   return (
     changedInput(project.root, manifest.config.inputs) ??
     serverCodeStaleReason(project, manifest) ??
-    clientCodeStaleReason(project.root, buildDir(project), manifest.client)
+    clientCodeStaleReason(project.root, buildDir(project), manifest.client) ??
+    appsStaleReason(project.root, manifest.apps)
   );
 }
 
 /** Does the project have code that only a build can turn into something to run? */
 export function hasProjectCode(project: ProjectLocation): boolean {
-  return serverCodeSources(project.root).length > 0 || clientCodeSources(project.root).length > 0;
+  return (
+    serverCodeSources(project.root).length > 0 || clientCodeSources(project.root).length > 0 || listAppKeys(project.root).length > 0
+  );
 }
 
 export interface BuildResult {
@@ -418,7 +385,25 @@ export async function rebuildClientCode(
   return client;
 }
 
-/** Compile the config, the server code and the browser code into the build folder, and write the manifest. */
+/**
+ * Rebuild only the apps under `apps/`, and record them in the manifest. `dev`
+ * calls this when a file of one changes; the running server notices the new
+ * manifest and applies what changed.
+ */
+export async function rebuildApps(
+  project: ProjectLocation,
+  opts: { version: string; loadBundler?: LoadBundler; dev?: boolean },
+): Promise<AppsBuild> {
+  const manifest = readBuildManifest(project);
+  if (manifest === null) throw new CliError('The project has not been built yet.');
+  // No esbuild is not an error here: an app with no screens builds without it.
+  const bundler = await (opts.loadBundler ?? loadProjectBundler)(project.root);
+  const apps = await buildProjectApps(project.root, { version: opts.version, bundler, dev: opts.dev === true });
+  writeAtomically(join(buildDir(project), MANIFEST), `${JSON.stringify({ ...manifest, apps }, null, 2)}\n`);
+  return apps;
+}
+
+/** Compile the config, the server code, the browser code and the apps into the build folder, and write the manifest. */
 export async function buildProject(
   project: ProjectLocation,
   opts: { version: string; loadBundler?: LoadBundler; dev?: boolean },
@@ -450,12 +435,15 @@ export async function buildProject(
 
   const server = await buildServerCode(project, bundler);
   const client = await buildClientCode(project.root, out, { bundler, dev: opts.dev === true });
+  // An app with a problem is listed with it, never thrown: the rest of the project still builds.
+  const apps = await buildProjectApps(project.root, { version: opts.version, bundler, dev: opts.dev === true });
   const manifest: BuildManifest = {
     adminiumVersion: opts.version,
     builtAt: new Date().toISOString(),
     config: { entry: relative(project.root, project.configFile), inputs: inputsOf(project.root, result) },
     server,
     client,
+    apps,
   };
   writeAtomically(join(out, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
   return { manifest, configOutput };

@@ -38,14 +38,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { packageIsInStore } from '../add-ons/store.js';
-
 import {
   SURFACES_URL_ROOT,
   SURFACE_SIDES,
   parseSurfaceManifest,
   type HostedSurface,
 } from '../cli/surfaces-root.js';
+import { createAppFiles, type AppFiles } from './app-files.js';
 import type { AppStore } from './store.js';
 
 /** One installed app, as the meta row names it. */
@@ -63,10 +62,10 @@ export interface InstalledAppRef {
  * means this package contributes nothing — a row that cannot name a safe path
  * must not be able to take the server down at boot or on a refresh.
  */
-export function surfacesOfInstalled(store: AppStore, ref: InstalledAppRef): HostedSurface[] {
+export function surfacesOfInstalled(files: Pick<AppFiles, 'dirFor'>, ref: InstalledAppRef): HostedSurface[] {
   let dir: string;
   try {
-    dir = store.dirFor(ref.key, ref.version);
+    dir = files.dirFor(ref.key, ref.version);
   } catch {
     return [];
   }
@@ -111,7 +110,7 @@ export function surfacesOfInstalled(store: AppStore, ref: InstalledAppRef): Host
 export interface InstalledApps {
   current(): readonly HostedSurface[];
   /**
-   * Installed rows whose FILES are not on this server — `packageIsInStore` is
+   * Installed rows whose FILES are not on this server — `AppFiles.has` is
    * the shared definition, so this agrees with the boot log and with every list
    * route rather than being a fourth opinion. Synchronous and read per request,
    * like {@link current}; the store read happens in {@link refresh}.
@@ -130,9 +129,12 @@ export interface InstalledApps {
 
 export function createInstalledApps(deps: {
   store: AppStore;
+  /** Where each app's files are: the store, or a project folder. The store alone when absent. */
+  files?: AppFiles | undefined;
   /** Installed app rows, newest first — `manifestsRepo(...).list('app')`. */
   list: () => Promise<readonly InstalledAppRef[]>;
 }): InstalledApps {
+  const files = deps.files ?? createAppFiles({ store: deps.store });
   let surfaces: readonly HostedSurface[] = [];
   let absent: readonly InstalledAppRef[] = [];
 
@@ -157,14 +159,14 @@ export function createInstalledApps(deps: {
          * then would hand out a surface for a half-installed app.
          */
         if (row.status === 'installing') continue;
-        const own = surfacesOfInstalled(deps.store, row);
+        const own = surfacesOfInstalled(files, row);
         /*
          * Asked of the STORE, not of `own`, and of the row's own identity
          * rather than of what survived `seen`: an older row whose sides are all
          * shadowed by the newer one during an upgrade contributes no surface
          * either, and calling that a loss would report every upgrade as one.
          */
-        if (!(await packageIsInStore(deps.store, row))) {
+        if (!(await files.has(row.key, row.version))) {
           gone.push({ key: row.key, version: row.version });
         }
         for (const surface of own) {

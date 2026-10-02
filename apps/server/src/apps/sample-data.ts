@@ -75,6 +75,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
+import { createAppFiles, type AppFiles } from './app-files.js';
 import type { AppStore } from './store.js';
 import { applyOverrides, type EffectiveModel } from '../connections/effective-schema.js';
 import { runIntrospection } from '../connections/introspect.js';
@@ -101,6 +102,8 @@ export interface SampleDataDeps {
   meta: MetaDb;
   manager: ConnectionManager;
   store: AppStore;
+  /** Where each app's own files are read from: the store, or a project folder. The store alone when absent. */
+  appFiles?: AppFiles | undefined;
   files: FileStore;
   /** Tell open dashboards their data moved; absent in a bare composition. */
   publish?: ((connectionId: string) => Promise<void>) | undefined;
@@ -766,6 +769,7 @@ export async function rehashSampleRow(
 
 export function createSampleDataService(deps: SampleDataDeps) {
   const records = appTablesRepo(deps.meta);
+  const appFiles = deps.appFiles ?? createAppFiles({ store: deps.store });
 
   async function connectionOf(app: SampleApp): Promise<string> {
     if (app.connectionId === null) {
@@ -785,7 +789,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     if (file === undefined) {
       throw new NotFoundError(`"${app.key}" ships no sample data.`, { reason: 'NO_SAMPLE_DATA' });
     }
-    const { bytes } = await deps.store.readVerifiedFile(app.key, app.version, file);
+    const { bytes } = await appFiles.readVerifiedFile(app.key, app.version, file);
     let parsed: unknown;
     try {
       parsed = JSON.parse(bytes.toString('utf8'));
@@ -983,7 +987,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const files = filesRepo(deps.meta);
       try {
         for (const [label, asset] of Object.entries(bundle.assets)) {
-          const { bytes, sha256: actual } = await deps.store.readVerifiedFile(app.key, app.version, asset.file);
+          const { bytes, sha256: actual } = await appFiles.readVerifiedFile(app.key, app.version, asset.file);
           if (actual !== asset.sha256) {
             throw new ValidationFailedError(`The sample image "${asset.file}" is not the file the bundle names.`, {
               reason: 'SAMPLE_INVALID',

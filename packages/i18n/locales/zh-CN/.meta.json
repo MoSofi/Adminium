@@ -17031,6 +17031,18 @@
     "status": "mt",
     "srcHash": "7210188bc048"
   },
+  "studio.hostedApps.installed.folderGone": {
+    "status": "mt",
+    "srcHash": "ff7bd1534b20"
+  },
+  "studio.hostedApps.installed.folderGoneBody": {
+    "status": "mt",
+    "srcHash": "f5db795ba339"
+  },
+  "studio.hostedApps.installed.fromFolder": {
+    "status": "mt",
+    "srcHash": "06acfd0e9527"
+  },
   "studio.hostedApps.installed.install": {
     "status": "mt",
     "srcHash": "da9df017f05f"

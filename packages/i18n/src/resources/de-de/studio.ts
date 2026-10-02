@@ -777,7 +777,10 @@ export default {
       "oldNames": "Diese Installation verwendet die alten Tabellennamen.",
       "oldNamesWhy": "Sie wurden vor den Präfixen angelegt.",
       "renameTo": "In {prefix}… umbenennen",
-      "madeHere": "Hier erstellt"
+      "madeHere": "Hier erstellt",
+      "fromFolder": "Aus dem Ordner dieses Projekts",
+      "folderGone": "Ordner fehlt",
+      "folderGoneBody": "apps/{key}/ ist nicht mehr in diesem Projekt. Die App bleibt mit ihren Tabellen und Seiten installiert, bis Sie sie deinstallieren."
     },
     "instances": {
       "add": "Instanz hinzufügen",

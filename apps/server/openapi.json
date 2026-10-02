@@ -83695,6 +83695,22 @@
                           "source": {
                             "type": "string"
                           },
+                          "folder": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "here",
+                                  "gone"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          },
                           "installedAt": {
                             "type": "number"
                           },
@@ -86180,6 +86196,22 @@
                     "source": {
                       "type": "string"
                     },
+                    "folder": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "here",
+                            "gone"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state"
+                      ],
+                      "additionalProperties": false
+                    },
                     "installedAt": {
                       "type": "number"
                     },
@@ -86843,6 +86875,22 @@
                         },
                         "source": {
                           "type": "string"
+                        },
+                        "folder": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "here",
+                                "gone"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "state"
+                          ],
+                          "additionalProperties": false
                         },
                         "installedAt": {
                           "type": "number"

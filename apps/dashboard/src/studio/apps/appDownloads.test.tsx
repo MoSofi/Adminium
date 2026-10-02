@@ -370,6 +370,35 @@ describe('an app made on this install', () => {
   });
 });
 
+describe('an app that runs from the project folder', () => {
+  it('says where it comes from', async () => {
+    installed = { apps: [{ ...INSTALLED, source: 'folder', folder: { state: 'here' }, publisher: { id: 'local', name: 'Local' } }], staged: [] };
+    await renderPage();
+    expect(screen.getByText('From this project’s folder')).toBeTruthy();
+    expect(screen.queryByText('Folder gone')).toBeNull();
+  });
+
+  it('says its folder is gone and that it stays installed, not that its files are missing', async () => {
+    installed = { apps: [{ ...INSTALLED, source: 'folder', folder: { state: 'gone' }, sides: [], missing: true }], staged: [] };
+    await renderPage();
+    expect(screen.getByText('Folder gone')).toBeTruthy();
+    expect(
+      screen.getByText(
+        `apps/${INSTALLED.key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it.`,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Missing')).toBeNull();
+    // It can still be removed: that is the only thing left to do with it.
+    expect(screen.getByRole('button', { name: 'Uninstall' })).toBeTruthy();
+  });
+
+  it('is not marked on a package', async () => {
+    installed = { apps: [INSTALLED], staged: [] };
+    await renderPage();
+    expect(screen.queryByText('From this project’s folder')).toBeNull();
+  });
+});
+
 describe('an installed app whose files are gone', () => {
   it('is marked missing and says what to do, instead of reading as healthy', async () => {
     installed = { apps: [{ ...INSTALLED, sides: [], missing: true }], staged: [] };

@@ -33,6 +33,12 @@ export interface InstalledApp {
   key: string;
   version: string;
   source: string;
+  /**
+   * Set for an app that runs from the project folder: `here` while
+   * `apps/<key>/` is in the project, `gone` once it was removed (the app stays
+   * installed until it is uninstalled). Absent for a package, and from an older server.
+   */
+  folder?: { state: 'here' | 'gone' };
   installedAt: number;
   connectionId: string | null;
   sides: InstalledAppSide[];

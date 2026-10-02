@@ -767,7 +767,10 @@
       "oldNames": "Tato instalace používá staré názvy tabulek.",
       "oldNamesWhy": "Vznikly před zavedením předpon.",
       "renameTo": "Přejmenovat na {prefix}…",
-      "madeHere": "Vytvořeno zde"
+      "madeHere": "Vytvořeno zde",
+      "fromFolder": "Ze složky tohoto projektu",
+      "folderGone": "Složka chybí",
+      "folderGoneBody": "apps/{key}/ už v tomto projektu není. Aplikace zůstane nainstalovaná se svými tabulkami a stránkami, dokud ji neodinstalujete."
     },
     "instances": {
       "add": "Přidat instanci",

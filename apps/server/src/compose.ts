@@ -95,10 +95,12 @@ import {
   type AddOnStore,
 } from './add-ons/store.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
+import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
 import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
+import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
 import { createProjectService, isConfigWrite, type ProjectServerOptions } from './project/service.js';
 import { createActionRunner } from './project/code/actions.js';
@@ -489,6 +491,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const appStore = createAppStore({ dataDir: env.ADMINIUM_DATA_DIR });
   /*
+   * A project folder can carry apps of its own. Their files are the folder's
+   * and its build's, never a package in the store, so every reader of an
+   * app's files asks this one object which of the two holds a key.
+   */
+  const projectRoot = opts.project === undefined || env.ADMINIUM_RUNTIME === 'desktop' ? null : opts.project.root;
+  const appsBuild = projectRoot === null ? null : createAppsBuildReader(projectRoot);
+  const appFiles = createAppFiles({
+    store: appStore,
+    ...(projectRoot === null || appsBuild === null ? {} : { folder: () => folderAppsOf(projectRoot, appsBuild()) }),
+  });
+  /*
    * ONE app catalog client for the routes and the acquisition jobs, so the gate
    * the page is told about and the gate a job obeys cannot disagree (48 G8-D3).
    * Constructing it makes no call: every method checks
@@ -504,6 +517,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   let outboxesChanged = (): void => {};
   const installedApps = createInstalledApps({
     store: appStore,
+    files: appFiles,
     // Every install, update, switch and uninstall refreshes this list, so the
     // app emails' producers look again at which apps are live.
     list: async () => {
@@ -680,6 +694,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     meta,
     manager,
     store: appStore,
+    appFiles,
     get files() {
       return storage;
     },
@@ -1708,6 +1723,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         appRoutes({
           meta,
           store: appStore,
+          files: appFiles,
           installed: installedApps,
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           // An install may not shadow a surface the operator deployed by hand:
@@ -2034,6 +2050,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         for (const installed of await repo.list(kind)) {
           const store = storeFor(kind);
           if (store === null) continue;
+          // An app the project folder carries has no package to keep or put back.
+          if (kind === 'app' && appFiles.sourceOf(installed.row.manifestKey) === 'folder') continue;
           const here = await packageIsInStore(store, {
             key: installed.row.manifestKey,
             version: installed.row.version,
@@ -2097,7 +2115,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             'it loads — upload the same package again, or uninstall it',
         );
       }
-      for (const { key, version } of await installedNotInStore(appStore, refs(await repo.list('app')))) {
+      const packaged = (await repo.list('app')).filter(({ row }) => appFiles.sourceOf(row.manifestKey) !== 'folder');
+      for (const { key, version } of await installedNotInStore(appStore, refs(packaged))) {
         app.log.error(
           { key, version, dataDir },
           'installed app is not on this server (its files in the data directory are gone), so it is not ' +

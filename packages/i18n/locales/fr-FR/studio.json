@@ -767,7 +767,10 @@
       "oldNames": "Cette installation utilise les anciens noms de tables.",
       "oldNamesWhy": "Elles ont été créées avant les préfixes.",
       "renameTo": "Renommer en {prefix}…",
-      "madeHere": "Créée ici"
+      "madeHere": "Créée ici",
+      "fromFolder": "Depuis le dossier de ce projet",
+      "folderGone": "Dossier absent",
+      "folderGoneBody": "apps/{key}/ n’est plus dans ce projet. L’application reste installée, avec ses tables et ses pages, jusqu’à ce que vous la désinstalliez."
     },
     "instances": {
       "add": "Ajouter une instance",

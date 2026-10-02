@@ -74,6 +74,7 @@ import {
   meetsMinimum,
   type AppCatalogClient,
 } from './catalog.js';
+import { createAppFiles, type AppFiles } from './app-files.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
 import {
   envelopeAppKey,
@@ -129,12 +130,20 @@ import {
   type AppInstallPlanDto,
 } from '../routes/apps/schema.js';
 
+/** A manifest row's `source` for an app a project folder carries; every package is `file`. */
+export const FOLDER_SOURCE = 'folder';
+
 /** The manifest a bundle must carry at its root, after `package/` is stripped. */
 export const MANIFEST_FILE = 'manifest.json';
 
 export interface AppRoutesDeps {
   meta: MetaDb;
   store: AppStore;
+  /**
+   * Where each app's files are read from: the store, or the project folder
+   * for an app the project carries. Absent, every app is the store's.
+   */
+  files?: AppFiles | undefined;
   /** The live installed set; refreshed after every install and uninstall. */
   installed: InstalledApps;
   /** Encrypt/decrypt closures over `ADMINIUM_SECRET`; routes never see the key. */
@@ -434,6 +443,7 @@ export type AppInstallService = ReturnType<typeof createAppInstallService>;
 export function createAppInstallService(deps: AppRoutesDeps) {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const serverVersion = deps.serverVersion ?? APP_VERSION;
+  const files = deps.files ?? createAppFiles({ store: deps.store });
 
   /** The sides a staged tree actually carries, in serve order. */
   function sidesOf(files: Record<string, string>): SurfaceSide[] {
@@ -502,7 +512,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    */
   async function verifiedManifest(key: string, version: string): Promise<Manifest> {
     try {
-      await deps.store.verifyTree(key, version);
+      await files.verify(key, version);
     } catch (error) {
       const reason = error instanceof AddOnStoreError ? error.reason : 'UNKNOWN';
       throw new ValidationFailedError(
@@ -513,7 +523,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
     let bytes: Buffer;
     try {
-      bytes = await deps.store.readFile(key, version, MANIFEST_FILE);
+      bytes = await files.readFile(key, version, MANIFEST_FILE);
     } catch {
       throw new ValidationFailedError(
         `"${key}@${version}" carries no readable \`${MANIFEST_FILE}\` at its root.`,
@@ -1719,7 +1729,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       throw error;
     }
 
-    const surfaces = surfacesOfInstalled(deps.store, { key, version });
+    const surfaces = surfacesOfInstalled(files, { key, version });
     if (surfaces.length === 0 && !servesNothingByDesign(manifest)) {
       throw new ValidationFailedError(
         `"${key}@${version}" carries no surface to serve.`,
@@ -2076,7 +2086,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       throw changed;
     }
 
-    const surfaces = surfacesOfInstalled(deps.store, { key, version: to });
+    const surfaces = surfacesOfInstalled(files, { key, version: to });
     if (surfaces.length === 0 && !servesNothingByDesign(manifest)) {
       throw new ValidationFailedError(`"${key}@${to}" carries no surface to serve.`, {
         reason: 'NO_SURFACE',
@@ -2335,6 +2345,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   return {
     manifests,
     serverVersion,
+    files,
     sidesOf,
     servesNothingByDesign,
     publisherOf,

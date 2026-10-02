@@ -158,7 +158,8 @@ export const checkCommand: Command = {
   describe:
     'Validates adminium.config.ts, the settings the server would start with, the\n' +
     'database URLs, the page, schema and list files, the hooks and actions, the\n' +
-    "pages and widgets, and that the Dockerfile's image matches package.json.\n" +
+    "pages and widgets, the apps under apps/, and that the Dockerfile's image\n" +
+    'matches package.json.\n' +
     'Needs no database. Exits 2 when something is wrong.',
   flags: {},
 
@@ -294,6 +295,18 @@ export const checkCommand: Command = {
           }
         } catch (error) {
           findings.push({ level: 'error', text: `the hooks and actions could not be loaded: ${describe(error)}` });
+        }
+      }
+    }
+
+    // The apps under apps/: each as the build left it, a problem said against its own file.
+    if (config !== null) {
+      for (const app of readBuildManifest(project)?.apps?.apps ?? []) {
+        if (app.problems !== undefined) {
+          findings.push({ level: 'error', text: `the app "${app.key}" does not build:\n    ${app.problems.join('\n    ')}` });
+        } else {
+          const sides = app.sides.length === 0 ? 'no screens of its own' : `${app.sides.join(' and ')} side`;
+          findings.push({ level: 'ok', text: `the app "${app.key}" ${app.version ?? ''} builds (${sides})` });
         }
       }
     }

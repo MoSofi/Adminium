@@ -167,6 +167,11 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                     {app.publisher?.id === LOCAL_PUBLISHER_ID ? (
                       <Badge>{t('studio:hostedApps.installed.madeHere', 'Made here')}</Badge>
                     ) : null}
+                    {app.folder === undefined ? null : app.folder.state === 'here' ? (
+                      <Badge>{t('studio:hostedApps.installed.fromFolder', 'From this project’s folder')}</Badge>
+                    ) : (
+                      <Badge tone="danger">{t('studio:hostedApps.installed.folderGone', 'Folder gone')}</Badge>
+                    )}
                     {updateTo === null ? null : (
                       <Badge tone="warn">
                         <ArrowUp aria-hidden className="size-3" />
@@ -178,7 +183,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                     {/* The row used to read exactly like a healthy
                         install, because a lost app's only tell is an empty
                         `sides` — which also means "no frontends". */}
-                    {app.missing && (
+                    {app.missing && app.folder?.state !== 'gone' && (
                       <Badge tone="danger">
                         {t('studio:hostedApps.installed.missing', 'Missing')}
                       </Badge>
@@ -230,7 +235,16 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                         )}
                       </span>
                     )}
-                    {app.missing && (
+                    {app.folder?.state === 'gone' ? (
+                      <span className="text-danger">
+                        {t(
+                          'studio:hostedApps.installed.folderGoneBody',
+                          'apps/{key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it.',
+                          { key: app.key },
+                        )}
+                      </span>
+                    ) : null}
+                    {app.missing && app.folder?.state !== 'gone' && (
                       <span className="text-danger">
                         {t(
                           'studio:hostedApps.installed.missingBody',

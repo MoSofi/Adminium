@@ -517,8 +517,14 @@ export const installedAppReply = z.object({
   version: z.string(),
   /** Absent when the app declares no tables and none were touched. */
   schema: appliedSchema.optional(),
-  /** `file` (uploaded) — `marketplace` joins it when the feed ships. */
+  /** `file` (a package: uploaded, downloaded or bundled) or `folder` (an app this project's folder carries). */
   source: z.string(),
+  /**
+   * Set for an app that runs from the project folder. `here`: `apps/<key>/` is
+   * in the project and decides what the app is. `gone`: the folder was removed;
+   * the app stays installed, serving nothing of its own, until it is uninstalled.
+   */
+  folder: z.object({ state: z.enum(['here', 'gone']) }).optional(),
   installedAt: z.number(),
   connectionId: z.string().nullable(),
   sides: z.array(installedSide),

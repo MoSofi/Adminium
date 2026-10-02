@@ -79,7 +79,6 @@ import {
 } from '../../apps/catalog.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
 import type { EditBody } from '../../schema-ddl/programmatic.js';
-import { packageIsInStore } from '../../add-ons/store.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -109,6 +108,7 @@ import { uninstallAppDocuments } from '../../documents/app-documents.js';
 import { liveRowCounts } from '../../apps/table-counts.js';
 import {
   createAppInstallService,
+  FOLDER_SOURCE,
   MANIFEST_FILE,
   statusOf,
   updateRefusal,
@@ -182,6 +182,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   const {
     manifests,
     serverVersion,
+    files,
     sidesOf,
     servesNothingByDesign,
     publisherOf,
@@ -256,7 +257,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const placements = (await request.server.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
         const apps: z.infer<typeof installedAppReply>[] = await Promise.all(rows.map(async (installed) => {
           const { row } = installed;
-          const surfaces = surfacesOfInstalled(deps.store, {
+          const surfaces = surfacesOfInstalled(files, {
             key: row.manifestKey,
             version: row.version,
           });
@@ -264,6 +265,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             key: row.manifestKey,
             version: row.version,
             source: row.source,
+            ...(row.source === FOLDER_SOURCE
+              ? { folder: { state: files.sourceOf(row.manifestKey) === 'folder' ? ('here' as const) : ('gone' as const) } }
+              : {}),
             installedAt: row.installedAt,
             connectionId: row.connectionId,
             sides: surfaces.map((surface) => {
@@ -290,7 +294,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             // …while its package is still here: one whose files are gone is missing like any other.
             missing:
               surfaces.length === 0 &&
-              !(manifestOnlyDocument(installed.document) && (await packageIsInStore(deps.store, { key: row.manifestKey, version: row.version }))),
+              !(manifestOnlyDocument(installed.document) && (await files.has(row.manifestKey, row.version))),
             status: statusOf(row.status),
           };
         }));
@@ -434,6 +438,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               // A release that cannot update what is installed is refused
               // here too, before it sits in the store offering an update the
               // update route would refuse.
+              // A key the project folder carries is the folder's: a package of it would be shadowed, never served.
+              if (files.sourceOf(manifest.key) === 'folder') {
+                throw new ValidationFailedError(
+                  `"${manifest.key}" is an app of this project (apps/${manifest.key}/). Change it there, or give this package another key.`,
+                  { reason: 'KEY_IN_PROJECT' },
+                );
+              }
               // Only against a row that is there: with none, there is nobody to take over from.
               const changed = installedPublishers.has(manifest.key)
                 ? publisherChangeRefusal(manifest, installedPublishers.get(manifest.key) ?? null)
@@ -791,6 +802,38 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * at all while the meta store still said installed.
          */
         const listed = new Set(apps.map((row) => row.key));
+        /*
+         * AN APP THE PROJECT FOLDER CARRIES has no package and is in no feed,
+         * and its files are right here: listed as the installed app it is,
+         * described by the manifest it was applied with.
+         */
+        for (const installed of rows) {
+          const key = installed.row.manifestKey;
+          if (listed.has(key) || files.sourceOf(key) !== 'folder') continue;
+          const document = installed.document as Partial<Manifest> | null;
+          listed.add(key);
+          apps.push({
+            key,
+            version: installed.row.version,
+            name: typeof document?.name === 'string' ? document.name : key,
+            description: document?.description?.fallback ?? '',
+            categories: [...(document?.categories ?? [])],
+            publisher: document?.publisher?.name ?? '',
+            capabilities: [...(document?.capabilities ?? [])],
+            sides: surfacesOfInstalled(files, { key, version: installed.row.version }).map((s) => s.side),
+            installed: true,
+            installedVersion: null,
+            readable: true,
+            source: 'disk' as const,
+            state: 'installed' as const,
+            updateTo: null,
+            updateStaged: false,
+            needsNewerAdminium: null,
+            cannotUpdate: null,
+            availability: 'installable' as const,
+            ...displayOf(undefined),
+          });
+        }
         for (const [key, version] of installedByKey) {
           if (listed.has(key)) continue;
           apps.push({
@@ -894,6 +937,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { key, version } = request.body;
+        if (files.sourceOf(key) === 'folder') {
+          throw new ValidationFailedError(
+            `"${key}" is an app of this project (apps/${key}/). A package of it would never be served.`,
+            { reason: 'KEY_IN_PROJECT' },
+          );
+        }
         if (deps.catalog === undefined || !(await deps.catalog.isEnabled())) {
           throw new ValidationFailedError(
             'The online app catalog is off, so nothing can be downloaded. Upload the app’s ' +
@@ -1594,7 +1643,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           Object.fromEntries(Object.entries(request.body.domains).map(([host, target]) => [host, { ...target, appKey: key }])),
           {
             requestHost: normalizeHost(request.host),
-            surfaces: surfacesOfInstalled(deps.store, { key, version: row.row.version }),
+            surfaces: surfacesOfInstalled(files, { key, version: row.row.version }),
             settings: { apps, domains, statuses: {} },
           },
         );
@@ -1643,7 +1692,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const key = row.row.manifestKey;
         const settings = settingsRepo(deps.meta);
         const { rows, issues } = await validateInstanceEntries(key, request.body.instances, {
-          surfaces: surfacesOfInstalled(deps.store, { key, version: row.row.version }),
+          surfaces: surfacesOfInstalled(files, { key, version: row.row.version }),
           meta: deps.meta,
         });
         // An instance a host still opens cannot go: the host would serve nothing.

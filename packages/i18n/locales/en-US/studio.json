@@ -767,7 +767,10 @@
       "oldNames": "This install uses the old table names.",
       "oldNamesWhy": "They were made before prefixes.",
       "renameTo": "Rename to {prefix}…",
-      "madeHere": "Made here"
+      "madeHere": "Made here",
+      "fromFolder": "From this project’s folder",
+      "folderGone": "Folder gone",
+      "folderGoneBody": "apps/{key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it."
     },
     "instances": {
       "add": "Add an instance",

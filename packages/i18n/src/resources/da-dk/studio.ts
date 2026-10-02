@@ -777,7 +777,10 @@ export default {
       "oldNames": "Denne installation bruger de gamle tabelnavne.",
       "oldNamesWhy": "De blev lavet før præfikser.",
       "renameTo": "Omdøb til {prefix}…",
-      "madeHere": "Lavet her"
+      "madeHere": "Lavet her",
+      "fromFolder": "Fra dette projekts mappe",
+      "folderGone": "Mappen er væk",
+      "folderGoneBody": "apps/{key}/ er ikke længere i dette projekt. Appen forbliver installeret med sine tabeller og sider, indtil du afinstallerer den."
     },
     "instances": {
       "add": "Tilføj en instans",

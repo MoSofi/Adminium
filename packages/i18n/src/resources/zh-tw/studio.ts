@@ -777,7 +777,10 @@ export default {
       "oldNames": "此安裝使用的是舊的資料表名稱。",
       "oldNamesWhy": "這些資料表建立於前綴功能之前。",
       "renameTo": "重新命名為 {prefix}…",
-      "madeHere": "本機製作"
+      "madeHere": "本機製作",
+      "fromFolder": "來自此專案的資料夾",
+      "folderGone": "資料夾已不存在",
+      "folderGoneBody": "apps/{key}/ 已不在此專案中。應用程式連同其資料表和頁面維持安裝，直到你將其解除安裝。"
     },
     "instances": {
       "add": "新增執行個體",

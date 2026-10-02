@@ -28,7 +28,8 @@ import { fileURLToPath } from 'node:url';
 
 import { CliError } from '../../cli/exit.js';
 import { SURFACE_JSON_VERSION } from '../../cli/surfaces-root.js';
-import { BUILD_DIR, HELPERS_PACKAGE, type Bundler } from '../build.js';
+import { BUILD_DIR, HELPERS_PACKAGE } from '../build-shared.js';
+import type { ClientBundler as Bundler } from '../client-build.js';
 import { toProjectPath } from '../paths.js';
 import { APPS_DIR, SIDES, appDir, appPath, sideEntry, type AppSide } from './read-app.js';
 

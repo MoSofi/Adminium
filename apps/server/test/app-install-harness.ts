@@ -18,6 +18,7 @@ import { expect } from 'vitest';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import { connectionTenantConfig, createSqliteMetaDb, firstRun, manifestsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
+import { createAppFiles, type FolderApp } from '../src/apps/app-files.js';
 import { createInstalledApps } from '../src/apps/installed.js';
 import { createAppSchemaTarget } from '../src/apps/schema-target.js';
 import { createAppStore } from '../src/apps/store.js';
@@ -78,6 +79,8 @@ export interface HarnessOptions {
   superAdmin?: boolean;
   /** The sample-data routes and the public API installer, as the server wires them. */
   full?: boolean;
+  /** The apps a project folder carries: their files are read from there, not from the store. */
+  folder?: () => readonly FolderApp[];
 }
 
 const memoryFiles = {
@@ -150,14 +153,17 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
     (request as { user?: unknown }).user = { id: user.id, email: 'owner@test' };
   });
   const store = createAppStore({ dataDir });
-  const sampleDeps: SampleDataDeps = { meta, manager, store, files: memoryFiles };
+  const appFiles = createAppFiles({ store, ...(options.folder === undefined ? {} : { folder: options.folder }) });
+  const sampleDeps: SampleDataDeps = { meta, manager, store, appFiles, files: memoryFiles };
   const manifests = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
   await app.register(
     appRoutes({
       meta,
       store,
+      files: appFiles,
       installed: createInstalledApps({
         store,
+        files: appFiles,
         list: async () => (await manifests.list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version, status: m.row.status })),
       }),
       credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
