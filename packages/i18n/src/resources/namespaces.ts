@@ -30,6 +30,7 @@ export const NAMESPACES = [
   'addOns',
   'apiDocs',
   'roles',
+  'designer',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -167,6 +168,13 @@ export const DEFERRED_NAMESPACES = [
    * reader is `team/RolesPage.tsx`; the route body awaits the namespace.
    */
   'roles',
+  /*
+   * Adminium Designer (`/design`): its home, the model picker, the build page,
+   * the preview and the Architecture tab. Every string is drawn by those lazy
+   * routes and by nothing else — they sit outside the app shell and await
+   * this namespace before they render.
+   */
+  'designer',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

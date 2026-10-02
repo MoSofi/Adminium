@@ -118,6 +118,10 @@ afterEach(async () => {
   script = [];
 });
 
+/** The port design mode is told it listens on, and the Designer's own name on it. */
+const DESIGN_PORT = 4799;
+const HOST = `127.0.0.1:${String(DESIGN_PORT)}`;
+
 function memoryStore(meta: MetaDb): MetaStoreHandle {
   return { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() };
 }
@@ -146,13 +150,14 @@ async function server(opts: { designer: boolean; environment?: Record<string, st
     telemetry: false,
     onMetaRelocated: () => undefined,
     project: { root, mode: 'dev', log: () => undefined, warn: () => undefined, databases: ['main'] },
-    ...(opts.designer ? { designer: { mode: 'local' as const } } : {}),
+    ...(opts.designer ? { designer: { mode: 'local' as const, token: 'a'.repeat(64), port: DESIGN_PORT } } : {}),
   });
   const { app } = composed;
   await app.ready();
   const setup = await app.inject({
     method: 'POST',
     url: '/api/v1/setup/super-admin',
+    headers: { host: HOST },
     payload: { email: 'owner@example.test', password: 'a-long-enough-test-password-1!', name: 'Owner' },
   });
   expect(setup.statusCode, setup.body).toBe(201);
@@ -161,7 +166,7 @@ async function server(opts: { designer: boolean; environment?: Record<string, st
     meta,
     owner,
     call: async (method, url, payload, cookie = owner) => {
-      const res = await app.inject({ method, url, headers: cookie === '' ? {} : { cookie }, ...(payload === undefined ? {} : { payload: payload as Record<string, unknown> }) });
+      const res = await app.inject({ method, url, headers: { host: HOST, ...(cookie === '' ? {} : { cookie }) }, ...(payload === undefined ? {} : { payload: payload as Record<string, unknown> }) });
       return { status: res.statusCode, body: (res.body === '' ? {} : res.json()) as Record<string, unknown> };
     },
   };
@@ -197,7 +202,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     const admin = await usersRepo(client.meta).create({ email: 'admin@example.test', name: 'Admin', passwordHash: await hashPassword('another-long-test-password-2!') });
     const adminRole = await rolesRepo(client.meta).findBySlug('admin');
     await rolesRepo(client.meta).assignToUser(admin.id, adminRole!.id);
-    const login = await composed!.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'admin@example.test', password: 'another-long-test-password-2!' } });
+    const login = await composed!.app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: { host: HOST }, payload: { email: 'admin@example.test', password: 'another-long-test-password-2!' } });
     expect(login.statusCode, login.body).toBe(200);
     const adminCookie = String(login.headers['set-cookie']).split(';')[0] ?? '';
     expect((await client.call('GET', '/api/v1/designer/state', undefined, adminCookie)).status).toBe(403);

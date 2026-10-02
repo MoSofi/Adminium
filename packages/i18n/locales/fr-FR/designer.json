@@ -1,0 +1,9 @@
+{
+  "brand": "Adminium Designer",
+  "spent": {
+    "title": "Ce lien a déjà été utilisé",
+    "body": "Relancez la commande design pour ouvrir Adminium Designer.",
+    "copy": "Copier la commande",
+    "copied": "Copié"
+  }
+}

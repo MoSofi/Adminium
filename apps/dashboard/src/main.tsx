@@ -27,6 +27,9 @@ async function start(): Promise<void> {
   // before the app route's bootstrap query decides login-vs-dashboard. A no-op
   // on every non-desktop boot — see `desktop/bootToken.ts`.
   await exchangeBootToken();
+  // Adminium Designer's one-use link, for the same two reasons. Only a page
+  // opened with the link downloads the code that takes it (`designer/designToken.ts`).
+  if (window.location.hash.startsWith('#designToken=')) await (await import('./designer/designToken.js')).exchangeDesignToken();
 
   // Same placement, same two reasons (see `studio/connect/bridgeSeed.ts`): the
   // ticket has to leave `window.location` before the router can copy it or a

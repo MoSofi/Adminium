@@ -38,6 +38,7 @@ import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
+import { designSessionCookie, registerDesignMode, type DesignModeOptions } from './designer/design-mode.js';
 import { DEV_BUILD_ADDRESS, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
 import {
   compileProxyTrust,
@@ -79,6 +80,7 @@ export const REDACT_PATHS: readonly string[] = [
   // product (the exchange body). The QUERY-STRING half of the same secret is
   // `log-scrub.ts`'s job; paths cannot reach into a string.
   '*.bootToken',
+  '*.designToken',
   'ADMINIUM_BOOT_TOKEN',
   '*.ADMINIUM_BOOT_TOKEN',
 ];
@@ -239,6 +241,11 @@ export interface BuildServerOptions {
   installedApps?: InstalledApps | undefined;
   /** `adminium dev` only: the build stamp of an app the project folder carries (see the surfaces plugin). */
   appDevBuild?: ((appKey: string) => string | null) | undefined;
+  /**
+   * `adminium design`: answer to this machine's names only, keep the preview
+   * on its own name, and name the session cookie for the port.
+   */
+  design?: DesignModeOptions | undefined;
   /**
    * Include real messages in 500 envelopes. Default: `NODE_ENV !== 'production'`.
    * In production the message is generic; the stack goes to the log under the
@@ -513,6 +520,11 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     void reply.status(500).send(errorEnvelope('INTERNAL', message, requestId));
   });
 
+  // Design mode's rules come first: a request to a name it does not answer to never reaches anything else.
+  if (opts.design !== undefined) {
+    app.decorate('sessionCookieName', designSessionCookie(opts.design.port));
+    registerDesignMode(app, opts.design);
+  }
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });

@@ -1,0 +1,9 @@
+{
+  "brand": "Adminium Designer",
+  "spent": {
+    "title": "此連結已使用過",
+    "body": "再次執行 design 指令以開啟 Adminium Designer。",
+    "copy": "複製指令",
+    "copied": "已複製"
+  }
+}

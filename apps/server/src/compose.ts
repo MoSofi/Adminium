@@ -108,6 +108,8 @@ import { createVersions } from './designer/versions.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { designerRoutes } from './routes/designer/index.js';
+import { designSessionRoutes } from './routes/auth/design-session.js';
+import { registerPreview } from './designer/preview.js';
 import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
@@ -409,7 +411,7 @@ export interface ComposeServerOptions {
    * Adminium Designer, when this server runs it (`adminium design`). Needs a
    * project folder; registers `/api/v1/designer` and nothing else changes.
    */
-  designer?: { mode: 'local' } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -565,7 +567,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
+    ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
   });
+  if (!app.hasDecorator('designerMode')) app.decorate('designerMode', opts.designer === undefined ? 'off' : opts.designer.mode);
+  if (!app.hasDecorator('designerLink')) app.decorate('designerLink', opts.designer?.token != null);
+  // The preview's own low session, spent on the preview's name (designer/preview.ts).
+  const previewTickets = opts.designer === undefined ? null : registerPreview(app, { meta, port: opts.designer.port });
 
   await app.register(rbacPlugin, { meta });
 
@@ -1970,7 +1977,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               session.appKey,
             ),
         });
-        await api.register(designerRoutes({ designer, versions: designerVersions, connections: aiConnections, mode: opts.designer.mode, root, limits }));
+        await api.register(
+          designerRoutes({
+            designer,
+            versions: designerVersions,
+            connections: aiConnections,
+            mode: opts.designer.mode,
+            root,
+            limits,
+            preview: previewTickets === null ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
+          }),
+        );
+        // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.
+        if (opts.designer.token !== null) {
+          await api.register(designSessionRoutes({ meta, token: opts.designer.token, port: opts.designer.port }));
+        }
       }
       // The add-on runtime. Registered unconditionally: an instance with no
       // add-ons serves an empty list, which is what a host in connected

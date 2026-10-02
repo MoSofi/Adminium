@@ -69,6 +69,12 @@ export type SystemReadyzReply = z.infer<typeof systemReadyzReply>;
  */
 export const systemInfoReply = z.object({
   version: z.string(),
+  /** Whether this server runs Adminium Designer: `local` under `adminium design`. */
+  designer: z.object({
+    mode: z.enum(['local', 'live', 'off']),
+    /** `adminium design` opened a one-use sign-in link: a page with no session says the link was used, not "sign in". */
+    link: z.boolean(),
+  }),
   node: z.string(),
   dialect: metaDialect.nullable(),
   /** Which wrapper booted this process (detection contract). */

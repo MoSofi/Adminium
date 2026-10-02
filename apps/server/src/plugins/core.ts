@@ -104,6 +104,7 @@
  * scheme sources would allow a socket to ANY origin, which defeats the
  * exfiltration boundary `'self'` sets.
  */
+import { scrubUrlForLog } from '../log-scrub.js';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
@@ -606,7 +607,7 @@ export const corePlugin = fp<CorePluginOptions>(
       // The reason is logged, never returned: telling a caller WHICH leg it
       // failed is a free oracle for probing the check.
       request.log.warn(
-        { csrf: failure, method: request.method, url: request.url },
+        { csrf: failure, method: request.method, url: scrubUrlForLog(request.url) },
         'csrf check refused a mutation',
       );
       throw new ForbiddenError(

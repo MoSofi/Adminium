@@ -279,8 +279,13 @@ export interface CreateFirstSuperAdminInput {
   email: string;
   /** Defaults to the email local part. */
   name?: string;
-  /** argon2id — hashing happens in the server. */
-  passwordHash: string;
+  /**
+   * argon2id — hashing happens in the server. Null only for the owner
+   * `adminium design` makes on this machine ({@link createLocalOwner}): no
+   * password can sign that owner in, and a plain `start` stays locked until
+   * `adminium owner set` gives them one.
+   */
+  passwordHash: string | null;
 }
 
 /**
@@ -353,6 +358,25 @@ export async function createFirstSuperAdmin(
     await roles.assignToUser(user.id, superAdmin.id, null, at);
     return user;
   });
+}
+
+/** The address of the owner `adminium design` makes. `.localhost` is a name no one can own (RFC 6761). */
+export const LOCAL_OWNER_EMAIL = 'owner@adminium.localhost';
+
+/**
+ * The first owner of a project made by `adminium design`, with no password.
+ *
+ * It takes the first-owner claim like any first owner, so `/setup` is closed
+ * from the start and no visitor can make an owner of their own. It is signed
+ * in only by the one-use link `design` prints, on this machine; nothing signs
+ * it in with a password, because it has none. Its id is kept in
+ * `designer.localOwnerId`, which is what lets `design` sign it in again on the
+ * next start — and nobody else.
+ */
+export async function createLocalOwner(meta: MetaDb, at: number = Date.now()): Promise<User> {
+  const user = await createFirstSuperAdmin(meta, { email: LOCAL_OWNER_EMAIL, name: 'Owner', passwordHash: null }, at);
+  await settingsRepo(meta).set('designer.localOwnerId', user.id, { updatedBy: null, at });
+  return user;
 }
 
 /**

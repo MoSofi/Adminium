@@ -57,6 +57,8 @@ export interface CreateRelocationHostOptions {
   log: (message: string) => void;
   /** The project folder the server runs, passed to every boot. */
   project?: ProjectServerOptions | undefined;
+  /** Adminium Designer, when this server runs it (`adminium design`). */
+  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
   /** Test seam: defaults to `process.exit`. */
   exit?: (code: number) => void;
   /** Test seam: defaults to running the task on the next tick. */
@@ -86,6 +88,7 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
     server = await deps.startServer(runtime, {
       onMetaRelocated,
       ...(opts.project === undefined ? {} : { project: opts.project }),
+      ...(opts.designer === undefined ? {} : { designer: opts.designer }),
     });
     setShutdownTarget(server.app);
     return server;

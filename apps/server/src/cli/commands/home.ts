@@ -15,6 +15,7 @@ import { findProject } from '../../project/locate.js';
 import { detectPackageManager, runScript } from '../../project/package-manager.js';
 import type { Command } from '../command.js';
 import { CliError, EXIT_OK } from '../exit.js';
+import { designCommand } from './design.js';
 import { newCommand, projectNameProblem } from './new.js';
 
 /** The package.json scripts that run Adminium commands, by command. */
@@ -91,6 +92,22 @@ export const homeCommand: Command = {
         },
       })
     ).trim();
-    return newCommand.run({ ...ctx, argv: [name === '' ? 'my-admin' : name, ...argv] });
+    const folder = name === '' ? 'my-admin' : name;
+    /*
+     * What the folder is for. Describing an app opens Adminium Designer on it;
+     * the other two are `new` as it always was. A command line that already
+     * said what it wants (a database, the sample) is not asked.
+     */
+    const decided = argv.some((arg) => arg === '--database' || arg.startsWith('--database=') || arg === '--sample');
+    if (!decided) {
+      const choice = await io.select('What do you want to start with?', [
+        { label: 'Describe an app', hint: 'Adminium Designer builds it with a model you choose' },
+        { label: 'Connect a database', hint: 'an admin panel for a database you have' },
+        { label: 'Sample data', hint: 'a small shop database to look around in' },
+      ]);
+      if (choice === 0) return designCommand.run({ ...ctx, argv: folder === '.' ? [] : [folder] });
+      if (choice === 2) return newCommand.run({ ...ctx, argv: [folder, '--sample', ...argv] });
+    }
+    return newCommand.run({ ...ctx, argv: [folder, ...argv] });
   },
 };

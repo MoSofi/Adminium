@@ -243,10 +243,20 @@ export function sessionCookieOptions(secure: boolean, persistent = true) {
   return persistent ? { ...base, maxAge: Math.floor(SESSION_ABSOLUTE_TTL_MS / 1000) } : base;
 }
 
+/**
+ * The session cookie's name on this server: `adminium_session`, or one named
+ * for the port while the server runs `adminium design` (browsers send a
+ * cookie to every port of a host, so two projects would read each other's).
+ */
+export function sessionCookieNameOf(request: FastifyRequest): string {
+  const server = request.server as { sessionCookieName?: unknown };
+  return typeof server.sessionCookieName === 'string' ? server.sessionCookieName : SESSION_COOKIE;
+}
+
 /** Sets the cookie for a freshly minted session; its row decides persistence. */
 export function setSessionCookie(reply: FastifyReply, minted: MintedSession, request: FastifyRequest): void {
   void reply.setCookie(
-    SESSION_COOKIE,
+    sessionCookieNameOf(request),
     minted.token,
     sessionCookieOptions(isSecureRequest(request), isPersistentSession(minted.session)),
   );
@@ -254,12 +264,12 @@ export function setSessionCookie(reply: FastifyReply, minted: MintedSession, req
 
 export function clearSessionCookie(reply: FastifyReply, request: FastifyRequest): void {
   const { path, httpOnly, sameSite, signed, secure } = sessionCookieOptions(isSecureRequest(request));
-  void reply.clearCookie(SESSION_COOKIE, { path, httpOnly, sameSite, signed, secure });
+  void reply.clearCookie(sessionCookieNameOf(request), { path, httpOnly, sameSite, signed, secure });
 }
 
 /** Reads and unsigns the session cookie; `null` on absent/tampered values. */
 export function readSessionCookie(request: FastifyRequest): string | null {
-  const raw = request.cookies[SESSION_COOKIE];
+  const raw = request.cookies[sessionCookieNameOf(request)];
   if (raw === undefined) return null;
   const unsigned = request.unsignCookie(raw);
   return unsigned.valid && unsigned.value !== null ? unsigned.value : null;

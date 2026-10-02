@@ -164,6 +164,27 @@
                     "version": {
                       "type": "string"
                     },
+                    "designer": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "live",
+                            "off"
+                          ]
+                        },
+                        "link": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "link"
+                      ],
+                      "additionalProperties": false
+                    },
                     "node": {
                       "type": "string"
                     },
@@ -204,6 +225,7 @@
                   },
                   "required": [
                     "version",
+                    "designer",
                     "node",
                     "dialect",
                     "runtime",
@@ -77771,7 +77793,8 @@
                 "assistant",
                 "addOns",
                 "apiDocs",
-                "roles"
+                "roles",
+                "designer"
               ]
             },
             "in": "path",
@@ -77906,7 +77929,8 @@
                 "assistant",
                 "addOns",
                 "apiDocs",
-                "roles"
+                "roles",
+                "designer"
               ]
             },
             "in": "query",
@@ -78112,7 +78136,8 @@
                       "assistant",
                       "addOns",
                       "apiDocs",
-                      "roles"
+                      "roles",
+                      "designer"
                     ]
                   },
                   "key": {
@@ -78266,7 +78291,8 @@
                 "assistant",
                 "addOns",
                 "apiDocs",
-                "roles"
+                "roles",
+                "designer"
               ]
             },
             "in": "query",
@@ -78424,7 +78450,8 @@
                             "assistant",
                             "addOns",
                             "apiDocs",
-                            "roles"
+                            "roles",
+                            "designer"
                           ]
                         },
                         "key": {

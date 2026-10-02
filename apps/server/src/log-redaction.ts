@@ -81,6 +81,7 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'currentPassword',
   'token',
   'bootToken',
+  'designToken',
   'challengeToken',
   'csrfToken',
   'secret',

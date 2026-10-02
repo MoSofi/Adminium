@@ -46,6 +46,12 @@ export type Runtime = 'self-host' | 'desktop';
 
 export interface SystemInfo {
   version: string;
+  /**
+   * Whether this server runs Adminium Designer (`local` under `adminium
+   * design`), and whether it signs its owner in with the one-use link that
+   * command opens. Absent from a server older than the Designer.
+   */
+  designer?: { mode: 'local' | 'live' | 'off'; link: boolean };
   node: string;
   dialect: 'postgres' | 'mysql' | 'sqlite' | null;
   /** Which wrapper booted the server (detection contract). */

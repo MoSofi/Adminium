@@ -267,6 +267,8 @@ export interface StartServerOptions {
   onMetaRelocated?: OnMetaRelocated | undefined;
   /** The project folder this server runs, when there is one. */
   project?: ProjectServerOptions | undefined;
+  /** Adminium Designer, when this server runs it (`adminium design`). */
+  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
@@ -314,6 +316,7 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     ...(surfaces.length === 0 ? {} : { surfaces }),
     ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
     ...(opts.project === undefined ? {} : { project: opts.project }),
+    ...(opts.designer === undefined ? {} : { designer: opts.designer }),
   });
   // Falling through on a missed override is the resolver's contract (the
   // implicit candidates degrade the same way), but a path the operator WROTE

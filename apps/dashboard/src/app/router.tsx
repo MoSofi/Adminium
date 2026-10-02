@@ -359,6 +359,45 @@ const apiDocsRoute = createRoute({
   component: ApiDocsPageLazy,
 });
 
+/**
+ * `/design` and `/design/$sessionId` — Adminium Designer. Children of ROOT,
+ * outside the app shell like `/setup`: the Designer is a page of its own.
+ *
+ * Absent (not found) on a server that does not run the Designer. With no
+ * session it is not a redirect to the login form: the server signs its owner
+ * in with the one-use link `adminium design` opened, so a page with no session
+ * here was reached by a spent link, and says so. A server whose owner has a
+ * password sends the person to sign in.
+ */
+const DesignerRouteLazy = lazy(async () => ({ default: (await import('../designer/DesignerRoute.js')).DesignerRoute }));
+
+const designRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/design',
+  // The check lives in the Designer's own chunk: a dashboard that never opens /design never downloads it.
+  beforeLoad: async (match) => (await import('../designer/gate.js')).designerGate(match),
+  component: () => (
+    <Suspense fallback={null}>
+      <DesignerRouteLazy />
+    </Suspense>
+  ),
+});
+
+const designSessionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/design/$sessionId',
+  // The check lives in the Designer's own chunk: a dashboard that never opens /design never downloads it.
+  beforeLoad: async (match) => (await import('../designer/gate.js')).designerGate(match),
+  component: function DesignSession() {
+    const { sessionId } = designSessionRoute.useParams();
+    return (
+      <Suspense fallback={null}>
+        <DesignerRouteLazy sessionId={sessionId} />
+      </Suspense>
+    );
+  },
+});
+
 const forgotRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/forgot',
@@ -1029,6 +1068,8 @@ const routeTree = rootRoute.addChildren([
   stateRoute,
   setupRoute,
   apiDocsRoute,
+  designRoute,
+  designSessionRoute,
   // The wizard. A CHILD OF ROOT, not of `appRoute`: `appRoute`'s beforeLoad
   // demands a bootstrap, and at first run there is no user to bootstrap as — it
   // would redirect the wizard to `/login`, which is the screen nobody can

@@ -153,10 +153,12 @@ describe('command registry', () => {
     expect(COMMANDS.map((command) => command.name)).toEqual([
       'new',
       'dev',
+      'design',
       'build',
       'start',
       'check',
       'app',
+      'owner',
       'pull',
       'eject',
       'try',

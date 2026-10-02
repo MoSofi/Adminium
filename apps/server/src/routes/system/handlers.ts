@@ -57,6 +57,10 @@ export interface SystemInfoDeps {
   env: Env;
   /** `null` when the server booted without a meta store; every field stays answerable. */
   meta: MetaDb | null;
+  /** Whether this server runs Adminium Designer. */
+  designer?: 'local' | 'live' | 'off' | undefined;
+  /** Whether `adminium design` signs its owner in with a one-use link. */
+  designerLink?: boolean | undefined;
 }
 
 /**
@@ -88,6 +92,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
   const { env, meta } = deps;
   return {
     version: APP_VERSION,
+    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true },
     node: process.version,
     dialect: meta?.dialect ?? null,
     runtime: env.ADMINIUM_RUNTIME,

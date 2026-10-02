@@ -204,9 +204,10 @@ describe('adminium new, in the current folder', () => {
 
 describe('bare `adminium`', () => {
   it('asks for a folder name and creates the project', async () => {
-    const io = fakeIo({ interactive: true, answers: ['from-home'], selections: ['Decide later'] });
+    const io = fakeIo({ interactive: true, answers: ['from-home'], selections: ['Connect a database', 'Decide later'] });
     await expect(runCli(['--no-install', '--no-git'], { io, deps: depsIn(dir) })).resolves.toBe(0);
     expect(io.questions()[0]).toBe('Project folder');
+    expect(io.menus()[0]?.title).toBe('What do you want to start with?');
     expect(existsSync(join(dir, 'from-home', 'adminium.config.ts'))).toBe(true);
   });
 

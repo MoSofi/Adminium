@@ -434,6 +434,9 @@ export const SETTINGS_REGISTRY = {
   'designer.maxSteps': def(z.number().int().min(5).max(500), 60, 'Model calls one Designer turn may make', P),
   'designer.turnTokens': def(z.number().int().min(10_000).max(5_000_000), 400_000, 'Tokens one Designer turn may use', P),
   'designer.sessionTokens': def(z.number().int().min(100_000).max(50_000_000), 4_000_000, 'Tokens one Designer session may use in all', P),
+  // The owner `adminium design` made with no password; null once `adminium owner set` gave them one.
+  // Not portable: it is this instance's own user id, and it is what lets the design link sign them in.
+  'designer.localOwnerId': def<string | null>(z.string().nullable(), null, 'The owner adminium design made, until they have a password'),
   // ── files & storage ───────────────────────────────────────────────────────
   //
   // `files.maxBytes` default is 200 MiB figure, which is also the number the

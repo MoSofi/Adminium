@@ -41,6 +41,11 @@ export const REDACTED = '[REDACTED]';
 export const SENSITIVE_QUERY_PARAMS: readonly string[] = [
   // The desktop boot token.
   'bootToken',
+  // Adminium Designer's sign-in link (it travels in the URL's fragment, which
+  // no request carries — this is for the day a person pastes it into a query)
+  // and the preview's one-use ticket, which does travel in a query.
+  'designToken',
+  'ticket',
   // Password-reset and 2FA-challenge tokens. They ride in bodies today; the
   // day one lands in a link's query, this is already here.
   'token',

@@ -95,6 +95,9 @@ export const designerRestoreReply = z.object({
   applied: z.boolean(),
 });
 
+export const designerPreviewBody = z.object({ to: z.string().min(1).max(500) });
+export const designerPreviewReply = z.object({ url: z.string(), origin: z.string() });
+
 export const designerEventsQuery = z.object({ after: z.coerce.number().int().min(0).default(0) });
 export const designerEventsReply = z.object({ events: z.array(designerEvent), last: z.number().int(), more: z.boolean() });
 

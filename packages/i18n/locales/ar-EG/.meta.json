@@ -8243,6 +8243,26 @@
     "status": "mt",
     "srcHash": "1d32ac6df79b"
   },
+  "designer.brand": {
+    "status": "src",
+    "srcHash": "c7b22145f13e"
+  },
+  "designer.spent.body": {
+    "status": "mt",
+    "srcHash": "fc802a034284"
+  },
+  "designer.spent.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "designer.spent.copy": {
+    "status": "mt",
+    "srcHash": "9673ccf3ccdd"
+  },
+  "designer.spent.title": {
+    "status": "mt",
+    "srcHash": "dbba8005eba0"
+  },
   "email.actions.archived": {
     "status": "mt",
     "srcHash": "eddc813f35b1"

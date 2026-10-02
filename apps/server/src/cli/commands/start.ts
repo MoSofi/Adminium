@@ -32,7 +32,7 @@
  * no way to boot the old image at all (not even to export before restoring).
  */
 
-import { firstRun } from '@adminium/meta';
+import { firstRun, settingsRepo, usersRepo } from '@adminium/meta';
 
 import {
   describePreMigration,
@@ -52,8 +52,8 @@ import { databasesWithPageFiles } from '../../project/project-files.js';
 import { createProjectService, type ProjectServerOptions } from '../../project/service.js';
 import { APP_VERSION } from '../../version.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
-import type { Command } from '../command.js';
-import { CliError, EXIT_CONFIG, EXIT_OK } from '../exit.js';
+import type { Command, CommandContext } from '../command.js';
+import { CliError, EXIT_CONFIG, EXIT_OK, type ExitCode } from '../exit.js';
 import { createRelocationHost } from '../relocation-host.js';
 import { loadCliEnv } from '../runtime.js';
 
@@ -114,10 +114,33 @@ export const startCommand: Command = {
     },
   },
 
-  async run({ io, deps, argv }) {
+  async run(ctx) {
+    return runStart(ctx);
+  },
+};
+
+/** What `adminium design` adds to a start. */
+export interface DesignStart {
+  /** Called once the meta store is migrated, before the server starts: the owner, and the token when there is one. */
+  prepare(meta: import('@adminium/meta').MetaDb): Promise<{ token: string | null }>;
+  /** Called when the server listens: print the link, open the browser. */
+  started(url: string, port: number, token: string | null): Promise<void>;
+}
+
+/**
+ * Boot a server: `adminium start`, and `adminium design` with its additions.
+ * Design mode listens on this machine only, runs the folder as its master
+ * copy (as `adminium dev` does), and serves Adminium Designer.
+ */
+export async function runStart({ io, deps, argv }: CommandContext, design?: DesignStart): Promise<ExitCode> {
+  {
     const { values } = parseFlags(argv, startCommand.flags, startCommand.name);
     const port = numberFlag(values.port, 'port', startCommand.name);
-    const host = stringFlag(values.host);
+    // Design mode is on this machine only, whatever the environment or .env says.
+    const host = design !== undefined ? '127.0.0.1' : stringFlag(values.host);
+    if (design !== undefined && (stringFlag(values.host) ?? deps.env.HOST ?? '') !== '' && (stringFlag(values.host) ?? deps.env.HOST) !== '127.0.0.1') {
+      io.err('Adminium Designer listens on this machine only (127.0.0.1): the HOST you set is not used.');
+    }
     const dataDir = stringFlag(values['data-dir']);
     const metaUrl = stringFlag(values['meta-url']);
     const logLevel = stringFlag(values['log-level']);
@@ -131,7 +154,7 @@ export const startCommand: Command = {
      * that is deployed with the folder. A server started with `adminium
      * start` is a server, whatever its `.env` says.
      */
-    const projectMode: 'dev' | 'server' = deps.env.ADMINIUM_PROJECT_MODE === 'dev' ? 'dev' : 'server';
+    const projectMode: 'dev' | 'server' = design !== undefined || deps.env.ADMINIUM_PROJECT_MODE === 'dev' ? 'dev' : 'server';
     const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION });
     if (project !== null) {
       io.out(`Project: ${project.project.root}${project.from === 'new-build' ? ' (built it first)' : ''}`);
@@ -310,15 +333,30 @@ export const startCommand: Command = {
     // `start`, so this is the process that serves the Studio for a container
     // install — and its meta step must be able to move the store too, not only
     // the wizard's `npx` boot.
+    // A project `adminium design` made, started as a server, has an owner nobody can sign in as yet.
+    if (design === undefined && project !== null) {
+      const ownerId = await settingsRepo(runtime.metaStore.meta).get('designer.localOwnerId').catch(() => null);
+      const owner = ownerId === null ? null : await usersRepo(runtime.metaStore.meta).findById(ownerId).catch(() => null);
+      if (owner !== null && owner.passwordHash === null) {
+        io.err('This project has no owner password yet (it was made with `adminium design`). Set one first:  npx @adminiumjs/adminium owner set');
+      }
+    }
+    // The owner and the one-use link, for design mode: after the store is migrated, before the server answers anyone.
+    const prepared = design === undefined ? null : await design.prepare(runtime.metaStore.meta);
     const relocationHost = createRelocationHost({
       env,
       deps,
       ...(projectServer === undefined ? {} : { project: projectServer }),
+      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT } }),
       log: (message) => {
         io.out(message);
       },
     });
     const server = await relocationHost.start(runtime);
+    if (design !== undefined && prepared !== null) {
+      await design.started(server.url, env.PORT, prepared.token);
+      return EXIT_OK;
+    }
     io.out(`Adminium is running at ${server.url}`);
 
     // The local bridge's consent token (`routes/bridge`). Printed HERE as well
@@ -334,5 +372,5 @@ export const startCommand: Command = {
     // The process now lives until a signal; `start` never "finishes". The exit
     // code is only reached in tests, where startServer is a fake.
     return EXIT_OK;
-  },
-};
+  }
+}

@@ -18,6 +18,7 @@ import type { Designer } from '../../designer/service.js';
 import type { Actor } from '../../designer/runner.js';
 import { NotFoundError } from '../../errors.js';
 import type { Versions } from '../../designer/versions.js';
+import { safeTarget, type PreviewTickets } from '../../designer/preview.js';
 import type { AiConnections } from '../../llm/connections.js';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
@@ -32,6 +33,8 @@ import {
   designerConnectionSaveBody,
   designerConnectionTestReply,
   designerEventsQuery,
+  designerPreviewBody,
+  designerPreviewReply,
   designerEventsReply,
   designerSessionCreateBody,
   designerSessionCreateReply,
@@ -55,6 +58,8 @@ export interface DesignerRoutesDeps {
   mode: 'local' | 'live';
   root: string;
   limits: () => Promise<{ maxSteps: number; turnTokens: number; sessionTokens: number }>;
+  /** The preview's tickets and its address; null where the server has no preview name. */
+  preview: { tickets: PreviewTickets; origin: string } | null;
 }
 
 /** How many events one catch-up read gives. */
@@ -230,6 +235,25 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         schema: { params: designerVersionParams, body: designerRestoreBody, response: { 200: designerRestoreReply } },
       },
       async (request) => designer.restore(request.params.id, request.params.n, { record: request.body.record, by: actorOf(request) }),
+    );
+
+    // The preview's way in: a one-use ticket, spent on the preview's own name for a session that holds only the app's roles.
+    app.post(
+      '/designer/sessions/:id/preview-ticket',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('a preview ticket signs in a user that holds only the app’s own roles, for a minute') },
+        schema: { params: designerSessionParams, body: designerPreviewBody, response: { 200: designerPreviewReply } },
+      },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (deps.preview === null) throw new NotFoundError('This server has no preview.', { reason: 'NO_PREVIEW' });
+        const to = safeTarget(request.body.to, session.appKey);
+        if (to === null) throw new NotFoundError('That is not a page of this app.', { to: request.body.to });
+        const ticket = deps.preview.tickets.issue(session.appKey);
+        const url = `${deps.preview.origin}/designer-preview/enter?ticket=${ticket}&to=${encodeURIComponent(to)}`;
+        return { url, origin: deps.preview.origin };
+      },
     );
 
     // Models: try one without saving it, and keep one in the project's .env.

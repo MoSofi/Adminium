@@ -57,6 +57,12 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
     // The meta handle rides on `authContext`, which is null when the server
     // boots without a meta store — then `dialect` is honestly null and
     // `smtpConfigured` honestly false (the setting cannot exist without a store).
-    async () => systemInfo({ env, meta: app.authContext?.meta ?? null }),
+    async () =>
+      systemInfo({
+        env,
+        meta: app.authContext?.meta ?? null,
+        designer: app.hasDecorator('designerMode') ? (app as unknown as { designerMode: 'local' | 'live' | 'off' }).designerMode : 'off',
+        designerLink: app.hasDecorator('designerLink') && (app as unknown as { designerLink: boolean }).designerLink,
+      }),
   );
 };

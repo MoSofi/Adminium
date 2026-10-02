@@ -7,6 +7,8 @@
  * asserted against this function's return value.
  */
 
+import { designCommand } from './commands/design.js';
+import { ownerCommand } from './commands/owner.js';
 import { APP_VERSION } from '../version.js';
 import { renderCommandHelp, renderRootHelp, type Command } from './command.js';
 import { appCommand } from './commands/app.js';
@@ -33,10 +35,12 @@ import { defaultCliDeps, type CliDeps } from './runtime.js';
 export const COMMANDS: readonly Command[] = [
   newCommand,
   devCommand,
+  designCommand,
   buildCommand,
   startCommand,
   checkCommand,
   appCommand,
+  ownerCommand,
   pullCommand,
   ejectCommand,
   initCommand,
