@@ -10,6 +10,7 @@ import { MiniTable } from '../../families/tables/MiniTable.js';
 import type { CellContext } from '../../families/tables/cells.js';
 import { displayValueOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
+import { plainTableName } from '../../lib/names.js';
 
 /**
  * RecordDetail — the `/p/$slug/r/$recordId` panel body: key-field headline,
@@ -17,6 +18,17 @@ import type { GridColumnSpec } from '../../families/tables/column-spec.js';
  * count pills; each tab lists related records through `CrudApi.listRelated`
  * when the host provides it (counts only otherwise).
  */
+
+/** `order_items` → `Order items`: a name nobody chose, in plain words. */
+function plainWords(name: string): string {
+  const words = plainTableName(name);
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** What a related tab is called: the table's own name for itself, else its plain words. */
+function referenceLabel(reference: CrudReferenceCount): string {
+  return reference.label ?? plainWords(reference.table);
+}
 
 export interface RecordDetailProps {
   api: CrudApi;
@@ -40,26 +52,36 @@ function RelatedTab({
 }) {
   const t = useMaybeT();
   const [rows, setRows] = useState<CrudRow[] | null>(null);
-  const listRelated = api.listRelated?.bind(api);
+  const canList = api.listRelated !== undefined;
+  /*
+   * Keyed on the api, never on a function bound from it: `bind` answers a new
+   * function on every render, so the read's own answer started the next read —
+   * a loop at the speed of the network that spent the person's request budget
+   * (429 on the page they opened next).
+   */
   useEffect(() => {
-    if (listRelated === undefined) return;
+    if (api.listRelated === undefined) return;
     let alive = true;
-    void listRelated({ table: reference.table, column: reference.column, value: pkValue, limit: 6 }).then((loaded) => {
-      if (alive) setRows(loaded);
-    });
+    api
+      .listRelated({ table: reference.table, column: reference.column, value: pkValue, limit: 6 })
+      .then((loaded) => {
+        if (alive) setRows(loaded);
+      })
+      // A table this person cannot read (or a refused read) leaves the count, not an unhandled rejection.
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, [listRelated, reference.table, reference.column, pkValue]);
+  }, [api, reference.table, reference.column, pkValue]);
 
-  if (listRelated === undefined || rows === null) {
+  if (!canList || rows === null) {
     return (
       <p className="px-1 py-3 text-body-sm text-fg-muted">
         {/* `count` drives the ICU plural; `n` keeps the digits byte-identical. */}
         {t(
           'ui:templates.crud.detail.relatedCount',
           '{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}',
-          { count: reference.count, n: String(reference.count), table: reference.table },
+          { count: reference.count, n: String(reference.count), table: referenceLabel(reference) },
         )}
       </p>
     );
@@ -69,7 +91,7 @@ function RelatedTab({
     .slice(0, 3)
     .map((key, index) => ({
       name: key,
-      label: key,
+      label: plainWords(key),
       logicalType: 'text',
       semantic: null,
       format: null,
@@ -168,7 +190,7 @@ export function RecordDetail({
             <TabsTrigger value="__fields">{labels?.fields ?? t('ui:templates.crud.detail.fields', 'Fields')}</TabsTrigger>
             {references.map((reference) => (
               <TabsTrigger key={reference.relationId} value={reference.relationId} count={reference.count}>
-                {reference.table.split('.').pop()}
+                {referenceLabel(reference)}
               </TabsTrigger>
             ))}
           </TabsList>

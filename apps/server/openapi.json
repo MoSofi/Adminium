@@ -10278,6 +10278,9 @@
                           "table": {
                             "type": "string"
                           },
+                          "label": {
+                            "type": "string"
+                          },
                           "column": {
                             "type": "string"
                           },
@@ -10870,6 +10873,9 @@
                           "table": {
                             "type": "string"
                           },
+                          "label": {
+                            "type": "string"
+                          },
                           "column": {
                             "type": "string"
                           },
@@ -11256,6 +11262,9 @@
                                 "type": "string"
                               },
                               "table": {
+                                "type": "string"
+                              },
+                              "label": {
                                 "type": "string"
                               },
                               "column": {

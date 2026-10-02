@@ -37,7 +37,7 @@ import {
 import { FilterBar, ReferenceFilterPicker, type FilterSpec } from './filters/FilterBar.js';
 import { LinkFilterChips, type PageCrudLinkFilter } from './filters/LinkFilterChips.js';
 import type { ControlOption } from './controls/index.js';
-import { optionsForColumn } from './field-mapping.js';
+import { optionsForColumn, withFactChoices } from './field-mapping.js';
 import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import { fieldMessagesOf } from './field-issues.js';
 import { isDeletePreview } from './crud-api.js';
@@ -54,7 +54,7 @@ import { BulkActionToolbar } from '../../families/tables/BulkActionToolbar.js';
 import { DataGrid } from '../../families/tables/DataGrid.js';
 import { PaginationFooter } from '../../families/tables/PaginationFooter.js';
 import type { CellContext, ResolvedFile } from '../../families/tables/cells.js';
-import { displayValueOf, rowIdOf } from '../../families/tables/column-spec.js';
+import { displayValueOf, gridColumnSpecSchema, rowIdOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import { describeDataError } from '../../lib/data-error.js';
@@ -1103,6 +1103,22 @@ export function PageCrud({
       return stored.get(specced.name) ?? specced;
     });
   }, [columns, formColumns]);
+  /**
+   * The columns the record PANEL shows: the grid's, as the page set them, then
+   * the rest of the table's. A grid keeps to a handful of columns and the panel
+   * showed only those — an order with no number or status, an enquiry with no
+   * note. Without the server's facts it is the stored columns, as before.
+   */
+  const panelColumns = useMemo(() => {
+    if (formColumns === undefined || formColumns.length === 0) return columns;
+    const held = new Set(columns.map((column) => column.name));
+    const rest = formColumns.flatMap((fact) => {
+      if (held.has(String((fact.spec as { name?: unknown }).name ?? ''))) return [];
+      const parsed = gridColumnSpecSchema.safeParse(fact.spec);
+      return parsed.success ? [parsed.data] : [];
+    });
+    return rest.length === 0 ? columns : [...columns, ...withFactChoices(rest, columnFacts)];
+  }, [columns, formColumns, columnFacts]);
   const selectedIds = useMemo(() => [...selected], [selected]);
   const rangeStart = list.rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
   const rangeEnd = cursorStack.length * pageSize + list.rows.length;
@@ -1430,7 +1446,7 @@ export function PageCrud({
           {peekId !== null && (
             <RecordDetail
               api={api}
-              columns={columns}
+              columns={panelColumns}
               recordId={peekId}
               cellContext={cellContext}
               {...(canUpdate ? { onEdit: (record: CrudRow) => setEditRecord(record) } : {})}

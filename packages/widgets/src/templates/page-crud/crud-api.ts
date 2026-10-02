@@ -108,6 +108,8 @@ export interface CrudReferenceCount {
   relationId: string;
   /** Referencing qualified table ("public.orders"). */
   table: string;
+  /** What that table is called ("Order items"), where it has a name; absent ⇒ its plain words. */
+  label?: string | undefined;
   /** Referencing FK column. */
   column: string;
   count: number;

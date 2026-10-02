@@ -104,6 +104,8 @@ export async function fetchManyByPk(db: Db, table: ResolvedTable, pks: Row[]): P
 export interface ReferenceCount {
   relationId: string;
   table: string;
+  /** What the referencing table is called (its plural, where it has one); absent when nobody named it. */
+  label?: string;
   column: string;
   count: number;
 }
@@ -132,9 +134,13 @@ export async function referenceCounts(
       .select((eb) => eb.fn.countAll().as('count'))
       .where((eb) => eb(db.dynamic.ref(fromColumn), '=', value))
       .executeTakeFirst();
+    // Named as the app or the operator named the table: a panel's tab read "ordering_order_items".
+    const from = view.model.tables.find((candidate) => candidate.id === relation.fromTable);
+    const label = from?.labelPlural ?? from?.label;
     out.push({
       relationId: relation.relationId,
       table: relation.fromTable,
+      ...(label === undefined ? {} : { label }),
       column: fromColumn,
       count: Number((row as { count?: unknown } | undefined)?.count ?? 0),
     });

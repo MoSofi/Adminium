@@ -25,6 +25,8 @@ import {
   type DatabaseModel,
 } from '@adminium/engine/adapter';
 
+import { overridesRepo } from '@adminium/meta';
+
 import { MAX_WHERE_BYTES } from '../src/crud/filters.js';
 
 import {
@@ -355,6 +357,25 @@ describe('CRUD API end-to-end (fake adapter)', () => {
       headers: asUser(t.users.viewer),
     });
     expect((refs.json() as { references: { count: number }[] }).references[0]?.count).toBe(2);
+
+    // A table somebody named is called that: a record panel's tab read "orders" for "Purchases".
+    const named = await overridesRepo(t.meta).create({
+      connectionId: connId,
+      op: 'table.label',
+      tableName: 'main.orders',
+      columnName: null,
+      value: { label: 'Purchase', labelPlural: 'Purchases' },
+      origin: 'user',
+    });
+    const labelled = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/data/${connId}/main.customers/ALFKI?include=inboundCounts`,
+      headers: asUser(t.users.viewer),
+    });
+    expect((labelled.json() as { inboundCounts: unknown[] }).inboundCounts).toEqual([
+      { relationId: 'fk_orders_customers', table: 'main.orders', label: 'Purchases', column: 'customer_id', count: 2 },
+    ]);
+    await overridesRepo(t.meta).delete(named.id);
 
     const missing = await t.app.inject({
       method: 'GET',

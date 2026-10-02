@@ -102,6 +102,7 @@ export const recordGetQuery = z.object({
 export const referenceCountSchema = z.object({
   relationId: z.string(),
   table: z.string(),
+  label: z.string().optional(),
   column: z.string(),
   count: z.number(),
 });
