@@ -303,3 +303,15 @@ export {
   type AppReleaseWire,
   type ParsedShelf,
 } from './marketplace-wire.js';
+
+export {
+  composeManifest,
+  locateIssue,
+  splitManifest,
+  MANIFEST_PARTS,
+  MANIFEST_PART_FIELDS,
+  type ManifestPartFile,
+  type ComposeProblem,
+  type ComposeResult,
+  type PartOrigin,
+} from './compose.js';

@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * A manifest written as parts composes into the document the validator reads,
+ * and a problem is said against the part's own file.
+ */
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { composeManifest, locateIssue, splitManifest, validateManifest, type ManifestPartFile } from '../src/index.js';
+
+const json = (value: unknown): string => JSON.stringify(value);
+
+const APP = {
+  manifestVersion: 1,
+  key: 'repairs',
+  name: 'Repairs',
+  version: '0.1.0',
+  publisher: { id: 'local', name: 'Local' },
+  license: 'UNLICENSED',
+  description: { key: 'repairs.description', fallback: 'A repair desk.' },
+  categories: ['operations'],
+  compatibility: { minAdminiumVersion: '0.3.0' },
+  frontends: [{ side: 'staff', kind: 'none' }],
+  prefixed: true,
+};
+const JOBS = {
+  ref: 'jobs',
+  columns: [
+    { ref: 'id', type: 'id', role: 'pk' },
+    { ref: 'title', type: 'text', nullable: true },
+  ],
+};
+const PARTS = {
+  ref: 'parts',
+  columns: [
+    { ref: 'id', type: 'id', role: 'pk' },
+    { ref: 'job_id', type: 'fk', references: 'jobs' },
+  ],
+};
+const PAGE = {
+  ref: 'jobs',
+  template: 'page-crud',
+  title: { key: 'repairs.jobs', fallback: 'Jobs' },
+  nav: { group: 'manifest:repairs', icon: 'wrench', order: 1 },
+  bindings: { main: 'jobs' },
+};
+
+function parts(change: Record<string, string | null> = {}): ManifestPartFile[] {
+  const files: Record<string, string | null> = {
+    'app.json': json(APP),
+    'tables/jobs.json': json(JOBS),
+    'tables/parts.json': json(PARTS),
+    'pages/jobs.json': json(PAGE),
+    ...change,
+  };
+  return Object.entries(files).flatMap(([path, text]) => (text === null ? [] : [{ path, text }]));
+}
+
+describe('composing a manifest from its parts', () => {
+  it('puts the parts where the manifest has them, and the result validates', () => {
+    const composed = composeManifest(
+      parts({
+        'roles.json': json([{ key: 'repairs-staff', name: 'Repairs staff' }]),
+        'settings.json': json([{ key: 'shop_name', type: 'string' }]),
+        'sample.json': json({ sampleData: { file: 'seeds/sample.json' } }),
+      }),
+    );
+    expect(composed.ok).toBe(true);
+    if (!composed.ok) return;
+    expect(composed.document).toMatchObject({
+      key: 'repairs',
+      requiredSchema: { prefixed: true, tables: [{ ref: 'jobs' }, { ref: 'parts' }] },
+      pages: [{ ref: 'jobs' }],
+      roles: [{ key: 'repairs-staff' }],
+      settings: [{ key: 'shop_name' }],
+      sampleData: { file: 'seeds/sample.json' },
+    });
+    // `prefixed` is written in app.json and lives under requiredSchema.
+    expect(composed.document).not.toHaveProperty('prefixed');
+    expect(composed.origin).toEqual({ tables: ['tables/jobs.json', 'tables/parts.json'], pages: ['pages/jobs.json'] });
+    const validated = validateManifest(composed.document, { allowLocalPublisher: true });
+    expect(validated.ok, JSON.stringify(validated)).toBe(true);
+  });
+
+  it('leaves an absent part out rather than writing an empty one', () => {
+    const composed = composeManifest(parts());
+    expect(composed.ok && Object.keys(composed.document).sort()).toEqual(
+      ['categories', 'compatibility', 'description', 'frontends', 'key', 'license', 'manifestVersion', 'name', 'pages', 'publisher', 'requiredSchema', 'version'].sort(),
+    );
+  });
+
+  it('gives the same document whatever order the files arrive in', () => {
+    const forward = composeManifest(parts());
+    const backward = composeManifest([...parts()].reverse());
+    expect(backward).toEqual(forward);
+  });
+
+  it('drops an editor’s $schema pointer from a part', () => {
+    const composed = composeManifest(parts({ 'tables/jobs.json': json({ $schema: 'https://example.test/table.json', ...JOBS }) }));
+    expect(composed.ok && (composed.document['requiredSchema'] as { tables: unknown[] }).tables[0]).toEqual(JOBS);
+  });
+
+  it.each([
+    ['a file that is no part', { 'acess.json': '{}' }, 'acess.json', /not a manifest part/],
+    ['a part that is not JSON', { 'roles.json': '[{' }, 'roles.json', /not valid JSON/],
+    ['a table named differently from its ref', { 'tables/Jobs.json': json(JOBS) }, 'tables/Jobs.json', /Name the file jobs\.json/],
+    ['a page with no ref', { 'pages/jobs.json': json({ ...PAGE, ref: undefined }) }, 'pages/jobs.json', /has no "ref"/],
+    ['a field written in the wrong part', { 'app.json': json({ ...APP, roles: [] }) }, 'app.json', /"roles" is written in roles\.json/],
+    ['tables written in app.json', { 'app.json': json({ ...APP, requiredSchema: {} }) }, 'app.json', /one file per table/],
+    ['a field a block does not hold', { 'access.json': json({ roles: [] }) }, 'access.json', /"roles" is not written here/],
+    ['a block that is not an object', { 'sample.json': '[]' }, 'sample.json', /must be an object/],
+    ['no app.json', { 'app.json': null }, 'app.json', /is missing/],
+  ])('refuses %s, naming the file', (_name, change, file, message) => {
+    const composed = composeManifest(parts(change));
+    expect(composed.ok).toBe(false);
+    if (composed.ok) return;
+    expect(composed.problems).toContainEqual({ file, message: expect.stringMatching(message) });
+  });
+
+  it('reports every problem at once', () => {
+    const composed = composeManifest(parts({ 'acess.json': '{}', 'roles.json': '[{' }));
+    expect(!composed.ok && composed.problems).toHaveLength(2);
+  });
+});
+
+describe('saying which part a validator issue is in', () => {
+  const origin = { tables: ['tables/jobs.json', 'tables/parts.json'], pages: ['pages/jobs.json'] };
+  it.each([
+    ['requiredSchema.tables.1.columns.1.references', 'tables/parts.json', 'columns.1.references'],
+    ['requiredSchema.tables', 'tables/', 'tables'],
+    ['requiredSchema.prefixed', 'app.json', 'prefixed'],
+    ['pages.0.template', 'pages/jobs.json', 'template'],
+    ['pages', 'pages/', ''],
+    ['publisher.id', 'app.json', 'publisher.id'],
+    ['roles.0.permissions.2', 'roles.json', '0.permissions.2'],
+    ['publicAccess.0.table', 'access.json', 'publicAccess.0.table'],
+    ['publicKeys.handover', 'access.json', 'publicKeys.handover'],
+    ['sampleData.file', 'sample.json', 'sampleData.file'],
+    ['addOns.requires.0.key', 'add-ons.json', 'requires.0.key'],
+    ['something.new', 'app.json', 'something.new'],
+  ])('%s → %s', (path, file, inner) => {
+    expect(locateIssue(origin, path)).toEqual({ file, path: inner });
+  });
+
+  it('points a real validator issue at the table file it is in', () => {
+    const composed = composeManifest(parts({ 'tables/parts.json': json({ ...PARTS, columns: [{ ref: 'id', type: 'nonsense' }] }) }));
+    expect(composed.ok).toBe(true);
+    if (!composed.ok) return;
+    const validated = validateManifest(composed.document, { allowLocalPublisher: true });
+    expect(validated.ok).toBe(false);
+    if (validated.ok) return;
+    expect(validated.issues.map((issue) => locateIssue(composed.origin, issue.path).file)).toContain('tables/parts.json');
+  });
+});
+
+describe('splitting one manifest into parts', () => {
+  /** Tables and pages in ref order, which is the order composing gives them. */
+  const inRefOrder = (document: Record<string, unknown>): Record<string, unknown> => {
+    const byRef = (list: unknown): unknown[] => [...(list as { ref: string }[])].sort((a, b) => (a.ref < b.ref ? -1 : 1));
+    const schema = document['requiredSchema'] as Record<string, unknown>;
+    return { ...document, requiredSchema: { ...schema, tables: byRef(schema['tables']) }, pages: byRef(document['pages']) };
+  };
+
+  const released = join(import.meta.dirname, 'fixtures', 'released');
+  const fixtures = readdirSync(released).filter((name) => name.endsWith('.manifest.json'));
+
+  it('has released manifests to try', () => {
+    expect(fixtures.length).toBeGreaterThan(0);
+  });
+
+  it.each(fixtures)('%s composes back to itself', (name) => {
+    const document = JSON.parse(readFileSync(join(released, name), 'utf8')) as Record<string, unknown>;
+    if (document['kind'] === 'add-on') return;
+    const composed = composeManifest(splitManifest(document));
+    expect(composed.ok, JSON.stringify(composed)).toBe(true);
+    if (composed.ok) expect(composed.document).toEqual(inRefOrder(document));
+  });
+
+  it('writes each block to its own file and nothing for a block the manifest lacks', () => {
+    const composed = composeManifest(parts({ 'roles.json': json([{ key: 'r', name: 'R' }]) }));
+    if (!composed.ok) throw new Error('fixture');
+    expect(splitManifest(composed.document).map((file) => file.path).sort()).toEqual(
+      ['app.json', 'pages/jobs.json', 'roles.json', 'tables/jobs.json', 'tables/parts.json'].sort(),
+    );
+  });
+});
