@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 import { createFirstSuperAdmin, pagesRepo, publicEndpointsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import BetterSqlite3 from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runCli } from '../src/cli/run.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -166,3 +166,93 @@ describe('a project’s apps in a running server', { timeout: 120_000 }, () => {
     expect((await server.get('/api/v1/apps')).json<Listed>().apps[0]).toMatchObject({ key: 'repairs', source: 'folder' });
   });
 });
+
+/** Change one JSON file of the project. */
+function editJson(dir: string, file: string, change: (value: Record<string, unknown>) => unknown): void {
+  const path = join(dir, file);
+  writeFileSync(path, `${JSON.stringify(change(JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>), null, 2)}\n`);
+}
+
+const addColumn = (dir: string, ref: string): void => {
+  editJson(dir, 'apps/repairs/manifest/tables/items.json', (table) => ({
+    ...table,
+    columns: [...(table['columns'] as unknown[]), { ref, type: 'text', maxLength: 40, nullable: true }],
+  }));
+};
+
+describe.skipIf(!canBuildSides)('a project’s app under `adminium dev`, while the server runs', { timeout: 120_000 }, () => {
+  it('applies a rebuilt manifest and serves a rebuilt screen without a restart, and tells open pages', async () => {
+    install = await makeInstall();
+    asProject(install.dir);
+    await newApp(install.dir, 'repairs', '--staff');
+    await buildApps(install.dir);
+    const server = await boot({ mode: 'dev' });
+
+    // What the server says on its live channel.
+    const events: [string, string, unknown][] = [];
+    const realtime = server.app.realtime;
+    const publish = realtime.publish.bind(realtime);
+    realtime.publish = ((channel: string, type: string, data: unknown, at?: number) => {
+      events.push([channel, type, data]);
+      return publish(channel, type, data, at);
+    }) as typeof realtime.publish;
+
+    // The screen is served from the build folder, to the person signed in.
+    const scriptOf = async (): Promise<string> => /src="([^"]+)"/.exec((await server.get('/apps/repairs/staff/')).body)?.[1] ?? '';
+    const firstScript = await scriptOf();
+    expect(firstScript).toMatch(/^\/apps\/repairs\/staff\/assets\/main-[A-Z0-9]+\.js$/);
+    expect((await server.get(firstScript)).status).toBe(200);
+    const stampOf = async (): Promise<string | null> => (await server.get('/apps/repairs/staff/dev-build.json')).json<{ build: string | null }>().build;
+    const firstStamp = await stampOf();
+    expect(firstStamp).toEqual(expect.any(String));
+
+    // A table part is edited and the apps are rebuilt, as the supervisor does on a save.
+    addColumn(install.dir, 'colour');
+    await buildApps(install.dir);
+    await vi.waitFor(
+      () => {
+        expect(Object.keys(itemRows(install!.dir)[0] ?? {})).toContain('colour');
+      },
+      { timeout: 15_000, interval: 100 },
+    );
+    await vi.waitFor(async () => expect(await stampOf()).not.toBe(firstStamp), { timeout: 15_000, interval: 100 });
+    expect(events).toContainEqual(['config-changed', 'app-changed', { key: 'repairs', hash: expect.any(String) }]);
+    expect(server.logs.join('\n')).toContain('App "repairs" applied from apps/repairs.');
+    // The screen did not change: the same script is still the one served.
+    expect(await scriptOf()).toBe(firstScript);
+    const secondStamp = await stampOf();
+
+    // The screen is edited: nothing is applied, the new files are served, and the stamp moves again.
+    events.length = 0;
+    const main = join(install.dir, 'apps/repairs/staff/src/main.tsx');
+    writeFileSync(main, `${readFileSync(main, 'utf8')}\nconsole.log('a change to the screen');\n`);
+    await buildApps(install.dir);
+    await vi.waitFor(async () => expect(await stampOf()).not.toBe(secondStamp), { timeout: 15_000, interval: 100 });
+    const nextScript = await scriptOf();
+    expect(nextScript).not.toBe(firstScript);
+    const served = await server.get(nextScript);
+    expect(served.status).toBe(200);
+    expect(served.body).toContain('a change to the screen');
+    expect(events).toContainEqual(['config-changed', 'app-changed', { key: 'repairs', hash: expect.any(String) }]);
+    expect(server.logs.filter((line) => line.includes('applied from apps/repairs'))).toHaveLength(1);
+    expect(server.logs.filter((line) => line.startsWith('!'))).toEqual([]);
+  });
+
+  it('answers no stamp and watches nothing under a server: a rebuild waits for the next start', async () => {
+    install = await makeInstall();
+    asProject(install.dir);
+    await newApp(install.dir, 'repairs', '--staff');
+    await buildApps(install.dir);
+    const server = await boot({ mode: 'server' });
+    // The address is any other path of the app there: its page, not a stamp.
+    const reply = await server.get('/apps/repairs/staff/dev-build.json');
+    expect(reply.body).toContain('<div id="root">');
+
+    addColumn(install.dir, 'colour');
+    await buildApps(install.dir);
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(Object.keys(itemRows(install.dir)[0] ?? { id: 1 })).not.toContain('colour');
+    expect(server.logs.join('\n')).not.toContain('applied from apps/repairs');
+  });
+});
+

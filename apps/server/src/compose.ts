@@ -538,6 +538,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     env,
     metaDb: meta,
     installedApps,
+    // Under `adminium dev` an open screen of a folder app asks whether it was rebuilt.
+    ...(opts.project?.mode === 'dev' && projectRoot !== null ? { appDevBuild: (key: string) => projectApps?.buildOf(key) ?? null } : {}),
     ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
@@ -800,6 +802,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             await applyClientBuild(client);
             if (!app.hasDecorator('realtime')) return;
             app.realtime.publish('config-changed', 'project-changed', { digest: client.digest });
+          },
+          // The apps were rebuilt: install what is new, apply what changed, tell open pages.
+          onAppsChanged: async () => {
+            await projectApps?.reconcile();
           },
         });
   const projectKeys = new Map<string, { key: string | null; at: number }>();

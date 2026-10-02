@@ -237,6 +237,8 @@ export interface BuildServerOptions {
    * served.
    */
   installedApps?: InstalledApps | undefined;
+  /** `adminium dev` only: the build stamp of an app the project folder carries (see the surfaces plugin). */
+  appDevBuild?: ((appKey: string) => string | null) | undefined;
   /**
    * Include real messages in 500 envelopes. Default: `NODE_ENV !== 'production'`.
    * In production the message is generic; the stack goes to the log under the
@@ -515,6 +517,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   await app.register(surfacesPlugin, {
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.installedApps === undefined ? {} : { installed: opts.installedApps }),
+    ...(opts.appDevBuild === undefined ? {} : { devBuild: opts.appDevBuild }),
     ...(opts.metaDb === undefined ? {} : { metaDb: opts.metaDb }),
     // For the `surface-config.json` route — the same envelope connection DSNs
     // use, so the publishable key is re-readable here exactly as it is on the

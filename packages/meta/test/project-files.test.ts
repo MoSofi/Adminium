@@ -184,9 +184,10 @@ for (const dialect of TEST_DIALECTS) {
       expect(documents[1]?.config).toEqual({ v: 1, title: { fallback: 'Customers' } });
     });
 
-    it('replaces the user and llm rows, and keeps the auto rows', async () => {
+    it('replaces the user and llm rows, and keeps the auto rows and an installed app’s', async () => {
       const overrides = overridesRepo(meta());
       await overrides.create({ connectionId, op: 'column.pii', origin: 'auto', tableName: 'main.customers', columnName: 'email', value: { masked: true } }, 10);
+      await overrides.create({ connectionId, op: 'column.hidden', origin: 'app', tableName: 'main.repairs_items', columnName: 'notes', value: { hidden: true } }, 15);
       await overrides.create({ connectionId, op: 'table.label', tableName: 'main.customers', value: { label: 'Old' } }, 20);
 
       await overrides.replaceProjectRows(
@@ -202,6 +203,7 @@ for (const dialect of TEST_DIALECTS) {
       const rows = await overrides.listForConnection(connectionId);
       expect(rows.map((row) => [row.op, row.origin, row.status, row.value, row.confidence, row.llmRunId])).toEqual([
         ['column.pii', 'auto', 'active', { masked: true }, null, null],
+        ['column.hidden', 'app', 'active', { hidden: true }, null, null],
         ['table.label', 'user', 'active', { label: 'Clients' }, null, null],
         ['llm.label', 'llm', 'disabled', { en_US: 'Sales' }, 0.75, null],
         ['llm.pii', 'llm', 'active', null, null, null],

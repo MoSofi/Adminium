@@ -222,6 +222,8 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
         'process.env.NODE_ENV': JSON.stringify(opts.dev === true ? 'development' : 'production'),
         __ADMINIUM_APP_KEY__: JSON.stringify(key),
         __ADMINIUM_SIDE__: JSON.stringify(side),
+        // A bundle `adminium dev` built asks the server whether it was rebuilt, and reloads.
+        __ADMINIUM_DEV__: JSON.stringify(opts.dev === true),
       },
       metafile: true,
       logLevel: 'silent',

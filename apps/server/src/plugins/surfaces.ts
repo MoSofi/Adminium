@@ -172,6 +172,9 @@ declare module 'fastify' {
   }
 }
 
+/** Under a side's mount, in `adminium dev`: `{ build }`, a stamp that moves when the app was applied or rebuilt. */
+export const DEV_BUILD_FILE = 'dev-build.json';
+
 export interface SurfacesPluginOptions {
   surfaces?: readonly HostedSurface[] | undefined;
   /**
@@ -179,6 +182,13 @@ export interface SurfacesPluginOptions {
    * composition serves only what boot discovered.
    */
   installed?: InstalledApps | undefined;
+  /**
+   * `adminium dev` only: a stamp that changes whenever an app from the
+   * project folder was applied or its screens were rebuilt, by app key. An
+   * open screen asks for it and reloads when it moves. Absent everywhere
+   * else, where the address answers like any other path of the app.
+   */
+  devBuild?: ((appKey: string) => string | null) | undefined;
   /** Absent ⇒ no placement settings; every surface stays where it is mounted. */
   metaDb?: MetaDb | undefined;
   /**
@@ -1101,6 +1111,12 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
 
         void reply.header('referrer-policy', 'no-referrer');
         if (await app.surfaceGate(surface, request, reply)) return reply;
+
+        // Under `adminium dev`: what an open screen polls to know it was rebuilt.
+        if (parsed.rest === DEV_BUILD_FILE && opts.devBuild !== undefined) {
+          void reply.header('cache-control', 'no-store');
+          return reply.send({ build: opts.devBuild(parsed.appKey) });
+        }
 
         if (parsed.rest === 'surface-config.json') {
           void reply.header('cache-control', 'no-store');

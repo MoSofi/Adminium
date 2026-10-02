@@ -49,7 +49,8 @@ export function toSchemaFile(rows: readonly SchemaOverride[]): Record<string, un
   // Later rows win, and an active row outranks a disabled one for the same target.
   const kept = new Map<string, SchemaOverride>();
   for (const row of rows) {
-    if (row.origin === 'auto') continue;
+    // What every install derives again, and what an installed app's manifest wrote: neither is the folder's to carry.
+    if (row.origin === 'auto' || row.origin === 'app') continue;
     const key = sortKey(row);
     const current = kept.get(key);
     if (current === undefined || row.status === 'active' || current.status !== 'active') kept.set(key, row);

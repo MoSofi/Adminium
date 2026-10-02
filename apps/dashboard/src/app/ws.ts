@@ -131,8 +131,9 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     sse.onmessage = (event) => dispatch(event.data);
     const types = options.sseEventTypes ?? [
       'config-changed',
-      // A project server's rebuilt code.
+      // A project server's rebuilt code, and an app applied from its folder.
       'project-changed',
+      'app-changed',
       'changed',
       'created',
       'updated',

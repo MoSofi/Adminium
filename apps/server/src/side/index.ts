@@ -31,6 +31,7 @@ import { useEffect, useState } from 'react';
 
 declare const __ADMINIUM_APP_KEY__: string | undefined;
 declare const __ADMINIUM_SIDE__: string | undefined;
+declare const __ADMINIUM_DEV__: boolean | undefined;
 
 export type Side = 'staff' | 'customer';
 export type Row = Record<string, unknown>;
@@ -39,6 +40,9 @@ export type Row = Record<string, unknown>;
 export const APP_KEY: string = typeof __ADMINIUM_APP_KEY__ === 'string' ? __ADMINIUM_APP_KEY__ : '';
 /** Which side this bundle is. */
 export const SIDE: Side = typeof __ADMINIUM_SIDE__ === 'string' && __ADMINIUM_SIDE__ === 'customer' ? 'customer' : 'staff';
+
+/** True in a bundle `adminium dev` built; false in one `adminium build` or `adminium app pack` made. */
+export const DEV: boolean = typeof __ADMINIUM_DEV__ === 'boolean' ? __ADMINIUM_DEV__ : false;
 
 /**
  * Text that is not translated yet. It returns the text as it is; the call is
@@ -109,6 +113,69 @@ async function readConfig(base: string, doFetch: Fetch): Promise<{ status: numbe
     // An older server answers this address with a page, not a document.
     return { status: response.status, doc: null };
   }
+}
+
+// ── running from the project folder ──────────────────────────────────────────
+
+/**
+ * Under `adminium dev`: call `listener` when the app was applied again or its
+ * screens were rebuilt. With no listener the page reloads, which is what a
+ * screen wants while its code is being written.
+ *
+ * It asks the server for a small stamp once a second and compares it with the
+ * first one it saw. That works for a customer screen too, where nobody is
+ * signed in and the dashboard's live channel is closed. A bundle that was not
+ * built by `adminium dev` never asks (`DEV` is false), so a packed app makes
+ * no such request. Returns a function that stops it.
+ *
+ * The module starts one for you in a dev bundle, so a screen reloads without
+ * a line of its own; call this only to do something other than reload.
+ */
+export function onAppChanged(
+  listener: () => void = () => {
+    globalThis.location?.reload();
+  },
+  options: { fetch?: Fetch; intervalMs?: number; base?: string; dev?: boolean } = {},
+): () => void {
+  if (!(options.dev ?? DEV)) return () => undefined;
+  const doFetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
+  const base = options.base ?? mountBase();
+  let seen: string | null = null;
+  let stopped = false;
+  const look = async (): Promise<void> => {
+    if (stopped) return;
+    // A tab nobody is looking at asks nothing; it catches up when it is shown again.
+    const visibility = (globalThis as { document?: { visibilityState?: string } }).document?.visibilityState;
+    if (visibility === 'hidden') return;
+    try {
+      const response = await doFetch(`${base}dev-build.json`, { cache: 'no-store', credentials: 'same-origin' });
+      if (!response.ok) return;
+      const build = ((await response.json()) as { build?: unknown } | null)?.build;
+      if (typeof build !== 'string' || stopped) return;
+      if (seen === null) seen = build;
+      else if (build !== seen) {
+        seen = build;
+        listener();
+      }
+    } catch {
+      // The server is restarting, or this address is not served by `adminium dev`: ask again later.
+    }
+  };
+  const timer = setInterval(() => void look(), options.intervalMs ?? 1000);
+  void look();
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+}
+
+/** The one a dev bundle starts for itself; stopped by {@link stopReloading}. */
+let reloading: (() => void) | null = DEV && typeof (globalThis as { document?: unknown }).document !== 'undefined' ? onAppChanged() : null;
+
+/** Stop the reload a dev bundle does on its own, for a screen that handles `onAppChanged` itself. */
+export function stopReloading(): void {
+  reloading?.();
+  reloading = null;
 }
 
 // ── staff ────────────────────────────────────────────────────────────────────

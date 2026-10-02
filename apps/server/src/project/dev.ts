@@ -14,7 +14,9 @@
  * imports, changes, the supervisor rebuilds only them; the running server
  * sees the new build and swaps them in (`project/code/runtime.ts`). Pages and
  * widgets work the same way: the supervisor rebuilds them, and the server
- * tells open dashboards to load the new files.
+ * tells open dashboards to load the new files. So do the apps under `apps/`:
+ * the supervisor checks and rebuilds them, and the server applies what
+ * changed and tells their open screens.
  */
 
 import { createHash } from 'node:crypto';
@@ -58,6 +60,12 @@ export interface DevSupervisorOptions {
   code?: DevCodeGroup | undefined;
   /** The same, for the pages and widgets. */
   client?: DevCodeGroup | undefined;
+  /**
+   * The same, for the apps under `apps/`: every folder and file of every
+   * app, however deep. A change rebuilds the apps, and the running server
+   * applies what changed and tells open screens.
+   */
+  apps?: DevCodeGroup | undefined;
   spawnServer: SpawnServer;
   watchDir?: WatchDir;
   log: (message: string) => void;
@@ -128,7 +136,7 @@ export function createDevSupervisor(opts: DevSupervisorOptions): DevSupervisor {
   let pending = false;
   let timer: NodeJS.Timeout | null = null;
   let fingerprints = new Map<string, string>();
-  const groups = [opts.code, opts.client].filter((group): group is DevCodeGroup => group !== undefined);
+  const groups = [opts.code, opts.client, opts.apps].filter((group): group is DevCodeGroup => group !== undefined);
   let groupFingerprints: Map<string, string>[] = groups.map(() => new Map());
   let watchers: { close(): void }[] = [];
   let finish: () => void = () => undefined;

@@ -255,6 +255,9 @@ export function overridesRepo(meta: MetaDb) {
      * Replace the connection's `user` and `llm` rows with the ones a project's
      * `schema/<database>.json` lists, in one transaction. `auto` rows are the
      * engine's own guesses, which every install derives again, so they stay.
+     * So do `app` rows: an installed app's rules come from its manifest, are
+     * not in the file, and deleting them here took an app's column rules away
+     * whenever a project's schema file was applied.
      * The rows land in the given order, which is the order they are applied
      * in. Every row is checked before anything is written.
      */
@@ -297,7 +300,7 @@ export function overridesRepo(meta: MetaDb) {
         await trx
           .deleteFrom('adminium_schema_overrides')
           .where('connectionId', '=', connectionId)
-          .where('origin', '!=', 'auto')
+          .where('origin', 'in', ['user', 'llm'])
           .execute();
         for (const row of rows) {
           await trx.insertInto('adminium_schema_overrides').values(row).execute();

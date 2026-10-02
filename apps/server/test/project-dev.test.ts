@@ -10,6 +10,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { appWatchedPaths } from '../src/project/apps/build-apps.js';
 import { createDevSupervisor, fingerprint, type DevChild, type DevCodeGroup } from '../src/project/dev.js';
 
 let dir: string;
@@ -45,6 +46,7 @@ function harness(
   build: () => Promise<void> = async () => undefined,
   code?: DevCodeGroup,
   client?: DevCodeGroup,
+  apps?: DevCodeGroup,
 ) {
   const children: FakeChild[] = [];
   const log: string[] = [];
@@ -55,6 +57,7 @@ function harness(
     build: vi.fn(build),
     ...(code === undefined ? {} : { code }),
     ...(client === undefined ? {} : { client }),
+    ...(apps === undefined ? {} : { apps }),
     spawnServer: () => {
       const child = new FakeChild();
       children.push(child);
@@ -218,6 +221,92 @@ describe('the dev supervisor', () => {
     await supervisor.checkForChanges();
     expect(rebuildClient).toHaveBeenCalledTimes(2);
     expect(rebuildCode).toHaveBeenCalledTimes(1);
+    expect(children).toHaveLength(1);
+    await supervisor.stop();
+  });
+
+  it('rebuilds the apps when a file anywhere under apps/ changes, appears or goes, and never restarts', async () => {
+    const part = join(dir, 'apps', 'repairs', 'manifest', 'tables', 'items.json');
+    mkdirSync(join(dir, 'apps', 'repairs', 'manifest', 'tables'), { recursive: true });
+    mkdirSync(join(dir, 'apps', 'repairs', 'staff', 'src'), { recursive: true });
+    writeFileSync(part, 'v1');
+    writeFileSync(join(dir, 'apps', 'repairs', 'staff', 'src', 'main.tsx'), 'v1');
+    const rebuildApps = vi.fn(async () => undefined);
+    const rebuildCode = vi.fn(async () => undefined);
+    const { supervisor, children, log, watchedDirs } = harness(async () => undefined, { watched: () => [], rebuild: rebuildCode }, undefined, {
+      label: 'apps',
+      // As `adminium dev` gives it: every folder and file, read again after each build.
+      watched: () => appWatchedPaths(dir),
+      rebuild: rebuildApps,
+    });
+    void supervisor.run();
+    await vi.waitFor(() => expect(children).toHaveLength(1));
+    // Every folder is watched, however deep: a save anywhere is an event.
+    expect(watchedDirs).toContain(join(dir, 'apps', 'repairs', 'manifest', 'tables'));
+    expect(watchedDirs).toContain(join(dir, 'apps', 'repairs', 'staff', 'src'));
+
+    await supervisor.checkForChanges();
+    expect(rebuildApps).not.toHaveBeenCalled();
+
+    // A part edited.
+    writeFileSync(part, 'v2');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(1);
+    expect(log.join('\n')).toContain('items.json changed, rebuilding apps');
+
+    // A part added in a folder that was there, then one in a folder that was not.
+    writeFileSync(join(dir, 'apps', 'repairs', 'manifest', 'tables', 'notes.json'), '{}');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(2);
+    mkdirSync(join(dir, 'apps', 'repairs', 'manifest', 'pages'));
+    writeFileSync(join(dir, 'apps', 'repairs', 'manifest', 'pages', 'repairs-notes.json'), '{}');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(3);
+    // The new folder's own file is watched from then on.
+    writeFileSync(join(dir, 'apps', 'repairs', 'manifest', 'pages', 'repairs-notes.json'), '{"a":1}');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(4);
+
+    // A screen edited, a file removed, a whole new app.
+    writeFileSync(join(dir, 'apps', 'repairs', 'staff', 'src', 'main.tsx'), 'v2');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(5);
+    rmSync(join(dir, 'apps', 'repairs', 'manifest', 'tables', 'notes.json'));
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(6);
+    mkdirSync(join(dir, 'apps', 'bakery', 'manifest'), { recursive: true });
+    writeFileSync(join(dir, 'apps', 'bakery', 'manifest', 'app.json'), '{}');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(7);
+
+    // Nothing else moved: no restart, no other group.
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(7);
+    expect(rebuildCode).not.toHaveBeenCalled();
+    expect(children).toHaveLength(1);
+    await supervisor.stop();
+  });
+
+  it('keeps the server running when the apps fail to build, and tries again on the next change', async () => {
+    const part = join(dir, 'apps', 'repairs', 'manifest', 'app.json');
+    mkdirSync(join(dir, 'apps', 'repairs', 'manifest'), { recursive: true });
+    writeFileSync(part, 'v1');
+    const rebuildApps = vi.fn(async () => {
+      if (rebuildApps.mock.calls.length === 1) throw new Error('The project has not been built yet.');
+    });
+    const { supervisor, children, warn } = harness(async () => undefined, undefined, undefined, {
+      label: 'apps',
+      watched: () => appWatchedPaths(dir),
+      rebuild: rebuildApps,
+    });
+    void supervisor.run();
+    await vi.waitFor(() => expect(children).toHaveLength(1));
+    writeFileSync(part, 'v2');
+    await supervisor.checkForChanges();
+    expect(warn.join('\n')).toContain('Until then the server keeps the apps it has.');
+    writeFileSync(part, 'v3');
+    await supervisor.checkForChanges();
+    expect(rebuildApps).toHaveBeenCalledTimes(2);
     expect(children).toHaveLength(1);
     await supervisor.stop();
   });

@@ -54,6 +54,8 @@ function invalidateBesidesBootstrap(queryClient: QueryClient): void {
   // lists them under new URLs, and open pages load those.
   void queryClient.invalidateQueries({ queryKey: ['project'] });
   void queryClient.invalidateQueries({ queryKey: ['studio', 'project'] });
+  // `app-changed`: an app applied from the project folder. Studio's list says how it stands.
+  void queryClient.invalidateQueries({ queryKey: ['installed-apps'] });
 }
 
 /**

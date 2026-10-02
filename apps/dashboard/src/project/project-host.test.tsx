@@ -381,6 +381,8 @@ describe('a rebuild', () => {
       ['onboarding'],
       ['project'],
       ['studio', 'project'],
+      // How an app applied from the project folder stands, in Studio's list.
+      ['installed-apps'],
     ]);
   });
 });

@@ -14,6 +14,7 @@
 
 import { join } from 'node:path';
 
+import { readAppsBuild } from '../apps/build-apps.js';
 import { BUILD_DIR } from '../build.js';
 import { EMPTY_CLIENT_BUILD, readClientBuild, type ClientBuild } from '../client-build.js';
 import { createHookFailureLog, type HookFailureLog } from './hooks.js';
@@ -52,6 +53,8 @@ export interface ProjectCodeRuntimeOptions {
   now?: () => number;
   /** Dev: the pages and widgets were rebuilt. */
   onClientChanged?: ((client: ClientBuild) => Promise<void>) | undefined;
+  /** Dev: the apps under `apps/` were rebuilt, and something of them differs from the last build seen. */
+  onAppsChanged?: (() => Promise<void>) | undefined;
 }
 
 const plural = (count: number, one: string, many: string): string => `${String(count)} ${count === 1 ? one : many}`;
@@ -114,8 +117,37 @@ export function createProjectCodeRuntime(opts: ProjectCodeRuntimeOptions): Proje
     }
   }
 
+  /** The apps digest last handed on; null until the first look, which only remembers it. */
+  let appsDigest: string | null = null;
+  let appsBusy = false;
+
+  /**
+   * The boot applied the apps as the build then stood, so the first look only
+   * remembers the digest: what is handed on is a build made since.
+   */
+  async function pollApps(): Promise<void> {
+    if (appsBusy || opts.onAppsChanged === undefined) return;
+    const built = readAppsBuild(buildDir);
+    if (built === null) return;
+    if (appsDigest === null) {
+      appsDigest = built.digest;
+      return;
+    }
+    if (built.digest === appsDigest) return;
+    appsBusy = true;
+    appsDigest = built.digest;
+    try {
+      await opts.onAppsChanged();
+    } catch (error) {
+      opts.warn(`Could not apply the rebuilt apps: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      appsBusy = false;
+    }
+  }
+
   async function poll(): Promise<void> {
     await pollClient();
+    await pollApps();
     if (loading !== null) return;
     const listed = readServerCodeFiles(buildDir);
     if (listed === null || listed.digest === code.digest) return;
@@ -142,6 +174,8 @@ export function createProjectCodeRuntime(opts: ProjectCodeRuntimeOptions): Proje
     },
     start() {
       if (opts.mode !== 'dev' || timer !== null) return;
+      // The apps as the boot applied them: only a later build is news.
+      appsDigest = readAppsBuild(buildDir)?.digest ?? null;
       timer = setInterval(() => void poll(), opts.pollMs ?? 1000);
       timer.unref();
     },

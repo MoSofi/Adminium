@@ -32,7 +32,19 @@ describe('invalidateForRealtimeEvent', () => {
       // A project server's actions and Studio overview.
       ['project'],
       ['studio', 'project'],
+      // How an app applied from the project folder stands.
+      ['installed-apps'],
     ]);
+  });
+
+  it('app-changed → the same set: an app applied from the folder moves pages, nav and Studio’s list', () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    invalidateForRealtimeEvent(queryClient, makeEvent('config-changed', 'app-changed'));
+    const keys = invalidate.mock.calls.map((call) => call[0]?.queryKey);
+    expect(keys).toContainEqual(['bootstrap']);
+    expect(keys).toContainEqual(['page']);
+    expect(keys).toContainEqual(['installed-apps']);
   });
 
   it('table:{conn}:{table} → matching data lists + widget-data prefix', () => {
@@ -118,6 +130,7 @@ describe('resyncConfigOnConnect', () => {
       ['onboarding'],
       ['project'],
       ['studio', 'project'],
+      ['installed-apps'],
     ]);
   });
 });

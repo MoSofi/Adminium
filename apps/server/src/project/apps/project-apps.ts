@@ -63,6 +63,12 @@ export interface ProjectApps {
   reconcile(): Promise<AppliedApp[]>;
   /** How each app stood after the last reconcile. */
   status(): readonly AppliedApp[];
+  /**
+   * A stamp that moves whenever this app was looked at with another manifest
+   * or other screens; null for an app the folder does not carry. An open
+   * screen polls it under `adminium dev` and reloads when it moves.
+   */
+  buildOf(key: string): string | null;
 }
 
 export interface ProjectAppsOptions {
@@ -133,6 +139,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
   /** The sides' hash each app was last seen with, so a changed screen is told without an apply. */
   const sidesSeen = new Map<string, string>();
   const warnedShadowed = new Set<string>();
+  const stamps = new Map<string, string>();
 
   const unattended: Unattended =
     opts.mode === 'dev' ? { installAddOns: true, adaptForeignTables: true } : { installAddOns: false, adaptForeignTables: false };
@@ -310,6 +317,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
         result = { key: app.key, state: 'not-applied', hash: app.hash, stage: 'read', message };
       }
       results.push(result);
+      stamps.set(app.key, `${app.hash ?? 'not-built'}:${app.sidesHash}`);
       const seen = sidesSeen.get(app.key);
       sidesSeen.set(app.key, app.sidesHash);
       const sidesMoved = seen !== undefined && seen !== app.sidesHash;
@@ -330,5 +338,6 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       return running;
     },
     status: () => last,
+    buildOf: (key) => stamps.get(key) ?? null,
   };
 }

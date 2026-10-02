@@ -36,6 +36,8 @@ describe('writing a database\'s overrides as a file', () => {
   it('sorts rows, leaves out the defaults and what every install derives', () => {
     const file = toSchemaFile([
       row({ op: 'column.pii', tableName: 'main.customers', columnName: 'email', value: { masked: true }, origin: 'auto' }),
+      // An installed app's rule: its manifest is where it comes from, and the file's reader takes only `user` and `llm`.
+      row({ op: 'column.hidden', tableName: 'main.repairs_items', columnName: 'notes', value: { hidden: true }, origin: 'app' }),
       row({ op: 'table.label', tableName: 'main.orders', value: { label: 'Sales' } }),
       row({ op: 'column.hidden', tableName: 'main.customers', columnName: 'notes', value: { hidden: true }, status: 'disabled' }),
       row({ op: 'llm.label', tableName: 'main.customers', value: { en_US: 'Clients' }, origin: 'llm', confidence: 0.8, llmRunId: 'run_1' }),
@@ -131,7 +133,7 @@ describe('reading a schema file', () => {
 });
 
 describe('a schema file through the database', () => {
-  it('comes back as the same file, and leaves the auto rows alone', async () => {
+  it('comes back as the same file, and leaves the auto rows and an installed app’s rows alone', async () => {
     const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     const at = Date.now();
@@ -144,6 +146,7 @@ describe('a schema file through the database', () => {
     const connectionId = connection.id;
     const overrides = overridesRepo(meta);
     await overrides.create({ connectionId, op: 'column.pii', origin: 'auto', tableName: 'main.customers', columnName: 'email', value: { masked: true } });
+    await overrides.create({ connectionId, op: 'column.hidden', origin: 'app', tableName: 'main.repairs_items', columnName: 'notes', value: { hidden: true } });
 
     const file = {
       $schema: SCHEMA_FILE_SCHEMA_REF,
@@ -158,6 +161,8 @@ describe('a schema file through the database', () => {
 
     const stored = await overrides.listForConnection(connectionId);
     expect(stored.filter((item) => item.origin === 'auto')).toHaveLength(1);
+    // Applying the folder's file did not take the app's rule away, and writing the file back does not put it in.
+    expect(stored.filter((item) => item.origin === 'app')).toHaveLength(1);
     expect(toSchemaFile(stored)).toEqual(file);
     expect(fileHash('schema/main.json', toSchemaFile(stored))).toBe(fileHash('schema/main.json', file));
   });

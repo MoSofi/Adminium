@@ -15,9 +15,11 @@ import {
   hasProjectCode,
   loadProjectBundler,
   readBuildManifest,
+  rebuildApps,
   rebuildClientCode,
   rebuildServerCode,
 } from '../../project/build.js';
+import { appWatchedPaths } from '../../project/apps/build-apps.js';
 import { CLIENT_CODE_FOLDERS } from '../../project/client-build.js';
 import { createDevSupervisor, fingerprint, type DevChild } from '../../project/dev.js';
 import { DOTENV_FILE } from '../../project/dotenv.js';
@@ -84,6 +86,16 @@ function clientFingerprint(path: string): string {
   return `folder:${names.join('/')}`;
 }
 
+/**
+ * Every folder and file under `apps/`, and every file a side's build read
+ * from elsewhere in the project. The folders are watched so a file added or
+ * removed anywhere under an app is noticed, not only an edit.
+ */
+function appsWatched(project: ProjectLocation): string[] {
+  const inputs = Object.keys(readBuildManifest(project)?.apps?.inputs ?? {}).map((path) => resolve(project.root, path));
+  return [...new Set([...appWatchedPaths(project.root), ...inputs])];
+}
+
 function watchedFiles(project: ProjectLocation): string[] {
   const inputs = Object.keys(readBuildManifest(project)?.config.inputs ?? {}).map((path) =>
     resolve(project.root, path),
@@ -100,7 +112,9 @@ export const devCommand: Command = {
     'a file it imports, or .env changes, it builds again and restarts the server.\n' +
     'A change to hooks/ or actions/ rebuilds them and swaps them in without a\n' +
     'restart; a change to a page or widget rebuilds it, and open dashboards\n' +
-    'load the new version. Stop it with Ctrl-C.',
+    'load the new version. A change under apps/ rebuilds the apps: the server\n' +
+    'installs a new one, applies a changed manifest in place, and an open\n' +
+    'screen of the app reloads. Stop it with Ctrl-C.',
   flags: {
     port: { type: 'string', short: 'p', placeholder: '<n>', describe: 'Port to listen on', defaultDescription: 'PORT or 4600' },
     host: { type: 'string', placeholder: '<addr>', describe: 'Address to bind', defaultDescription: 'HOST or 0.0.0.0' },
@@ -153,6 +167,20 @@ export const devCommand: Command = {
           io.out(
             `Rebuilt ${String(client.pages.length)} page(s) and ${String(client.widgets.length)} widget(s); open dashboards reload them.`,
           );
+        },
+      },
+      apps: {
+        label: 'apps',
+        watched: () => appsWatched(project),
+        rebuild: async () => {
+          const built = await rebuildApps(project, { version: APP_VERSION, dev: true });
+          const broken = built.apps.filter((app) => app.problems !== undefined);
+          for (const app of broken) {
+            io.err(`✗ apps/${app.key} was not built; the server keeps what it has of it:`);
+            for (const problem of app.problems ?? []) io.err(`    ${problem}`);
+          }
+          const ok = built.apps.length - broken.length;
+          if (ok > 0) io.out(`Rebuilt ${String(ok)} app(s); the server applies what changed.`);
         },
       },
       spawnServer: (): DevChild => {

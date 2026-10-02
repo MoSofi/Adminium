@@ -3,9 +3,9 @@
  * The module an app's screens share: where a side is mounted, the config
  * Adminium serves beside it, and a staff side's reads and writes.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { connectCustomer, connectStaff, demoStaff, mountBase, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
+import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
 
 interface Call {
   url: string;
@@ -225,3 +225,85 @@ describe('sample rows held in memory', () => {
     ]);
   });
 });
+
+describe('reloading when the app was applied or rebuilt', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A server whose stamp is whatever `stamp.value` says; null answers like a server that is not `adminium dev`. */
+  const server = (stamp: { value: string | null; down?: boolean }) => {
+    const asked: string[] = [];
+    const fetch = (async (input: unknown) => {
+      asked.push(String(input));
+      if (stamp.down === true) throw new Error('connection refused');
+      if (stamp.value === null) return new Response('<!doctype html>', { status: 200, headers: { 'content-type': 'text/html' } });
+      return new Response(JSON.stringify({ build: stamp.value }), { status: 200 });
+    }) as typeof globalThis.fetch;
+    return { asked, fetch };
+  };
+
+  it('is off in a bundle that `adminium dev` did not build: it asks nothing', async () => {
+    expect(DEV).toBe(false);
+    const stamp = { value: 'a' };
+    const { asked, fetch } = server(stamp);
+    const listener = vi.fn();
+    const stop = onAppChanged(listener, { fetch, intervalMs: 5, base: '/apps/repairs/staff/' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    stop();
+    expect(asked).toEqual([]);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('calls the listener when the stamp moves, once per move, and never for the first stamp', async () => {
+    vi.useFakeTimers();
+    const stamp = { value: 'a:1' as string | null };
+    const { asked, fetch } = server(stamp);
+    const listener = vi.fn();
+    const stop = onAppChanged(listener, { fetch, intervalMs: 1000, base: '/apps/repairs/customer/', dev: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(asked).toEqual(['/apps/repairs/customer/dev-build.json']);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(listener).not.toHaveBeenCalled();
+
+    stamp.value = 'a:2';
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(listener).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    stamp.value = 'b:2';
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    stop();
+    stamp.value = 'c:3';
+    const before = asked.length;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(asked).toHaveLength(before);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits through a server that is down or answers a page, and still sees the next build', async () => {
+    vi.useFakeTimers();
+    const stamp: { value: string | null; down?: boolean } = { value: 'a:1' };
+    const { fetch } = server(stamp);
+    const listener = vi.fn();
+    const stop = onAppChanged(listener, { fetch, intervalMs: 1000, base: '/', dev: true });
+    await vi.advanceTimersByTimeAsync(0);
+
+    // The server restarts (a config change), then answers its page for a moment.
+    stamp.down = true;
+    await vi.advanceTimersByTimeAsync(2000);
+    stamp.down = false;
+    stamp.value = null;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(listener).not.toHaveBeenCalled();
+
+    stamp.value = 'a:2';
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop();
+  });
+});
+
