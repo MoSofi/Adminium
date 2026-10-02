@@ -17,6 +17,7 @@
  * no dependency on the widgets package — the integrator (app wiring) supplies
  * them, exactly as it supplies the key crypto.
  */
+import type { AiConnections } from './connections.js';
 import type { DatabaseModel } from '@adminium/engine';
 import {
   createProviderClient,
@@ -59,6 +60,13 @@ export interface ProviderResolverDeps {
   allowedIcons?: ReadonlySet<string> | readonly string[];
   /** Test seam — construct a client from a config (default: `createProviderClient`). */
   createClient?: (config: ProviderConfig) => ProviderClient;
+  /**
+   * The instance's model connections. When given, a run's client comes from
+   * the connection of the provider it recorded — the database's, else the
+   * environment's — with the address checked before it is dialled. Absent in
+   * harnesses that read the settings directly.
+   */
+  connections?: AiConnections | undefined;
 }
 
 /** Build the production run resolver. */
@@ -77,6 +85,39 @@ export function createProviderResolver(deps: ProviderResolverDeps): ResolveRun {
     }
     const provider = run.provider as ProviderId;
 
+    const snapshotOf = async (): Promise<DatabaseModel> => {
+      const snapshot = await snapshots.findById(run.snapshotId);
+      if (snapshot === null) {
+        throw new ProviderError({
+          provider,
+          code: 'config',
+          message: `run ${run.id} references a missing snapshot ${run.snapshotId}`,
+        });
+      }
+      return snapshot.schema as DatabaseModel;
+    };
+    const validatorFor = (schemaIr: DatabaseModel) => (rawText: string): ValidationResult =>
+      validateResponse(rawText, {
+        snapshot: schemaIr,
+        locales: (run.locales ?? ['en_US']) as LocaleCode[],
+        allowedTemplates: deps.allowedTemplates,
+        allowedWidgets: deps.allowedWidgets,
+        ...(deps.allowedIcons !== undefined ? { allowedIcons: deps.allowedIcons } : {}),
+        runId: run.id,
+      });
+
+    if (deps.connections !== undefined) {
+      const resolved = await deps.connections.clientForProvider(provider, run.model);
+      return {
+        client: resolved.client,
+        provider,
+        model: resolved.model,
+        maxTokens: resolved.maxOutputTokens,
+        maxTokensCeiling: Math.max(resolved.maxOutputTokens, PROVIDER_OUTPUT_CEILING[provider]),
+        validate: validatorFor(await snapshotOf()),
+      };
+    }
+
     const [storedKey, baseUrl, settingModel, maxOut] = await Promise.all([
       settings.get('llm.apiKey'),
       settings.get('llm.baseUrl'),
@@ -93,26 +134,7 @@ export function createProviderResolver(deps: ProviderResolverDeps): ResolveRun {
     if (baseUrl !== null) config.baseUrl = baseUrl;
     const client = makeClient(config);
 
-    const snapshot = await snapshots.findById(run.snapshotId);
-    if (snapshot === null) {
-      throw new ProviderError({
-        provider,
-        code: 'config',
-        message: `run ${run.id} references a missing snapshot ${run.snapshotId}`,
-      });
-    }
-    const schemaIr = snapshot.schema as DatabaseModel;
-    const locales = (run.locales ?? ['en_US']) as LocaleCode[];
-
-    const validate = (rawText: string): ValidationResult =>
-      validateResponse(rawText, {
-        snapshot: schemaIr,
-        locales,
-        allowedTemplates: deps.allowedTemplates,
-        allowedWidgets: deps.allowedWidgets,
-        ...(deps.allowedIcons !== undefined ? { allowedIcons: deps.allowedIcons } : {}),
-        runId: run.id,
-      });
+    const validate = validatorFor(await snapshotOf());
 
     return {
       client,

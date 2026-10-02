@@ -332,6 +332,26 @@ export const envSchema = z.object({
       .optional()
       .transform((value) => (value === undefined ? true : TRUTHY.has(value))),
   ),
+  /*
+   * Model connections named by the environment: one per provider, and the
+   * model in use as `<provider>/<model>`. A project keeps the same names in
+   * its `.env`, where the Designer writes them; those are read from the file
+   * and never copied in here, so what arrives through these six is only what
+   * the operator set themselves.
+   */
+  ADMINIUM_AI_ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  ADMINIUM_AI_OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  ADMINIUM_AI_COMPATIBLE_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
+  ADMINIUM_AI_COMPATIBLE_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  ADMINIUM_AI_OLLAMA_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
+  ADMINIUM_AI_MODEL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(300)
+      .regex(/^(anthropic|openai|openai-compatible|ollama)\/.+$/, 'must be <provider>/<model>, e.g. anthropic/claude-sonnet-5-5')
+      .optional(),
+  ),
   ADMINIUM_TRUST_PROXY: z.preprocess(
     emptyToUndefined,
     z
@@ -611,6 +631,12 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_SECRET: 'set a random string of at least 16 characters, e.g. `openssl rand -hex 32`',
   PORT: 'integer between 1 and 65535 (default 4600)',
   HOST: 'bind address, e.g. 0.0.0.0 or 127.0.0.1',
+  ADMINIUM_AI_ANTHROPIC_API_KEY: 'an Anthropic API key',
+  ADMINIUM_AI_OPENAI_API_KEY: 'an OpenAI API key',
+  ADMINIUM_AI_COMPATIBLE_BASE_URL: 'the address of an OpenAI-compatible server, e.g. http://localhost:8000/v1',
+  ADMINIUM_AI_COMPATIBLE_API_KEY: 'the key for that server, when it wants one',
+  ADMINIUM_AI_OLLAMA_BASE_URL: 'the address of Ollama, e.g. http://localhost:11434',
+  ADMINIUM_AI_MODEL: '<provider>/<model>, e.g. anthropic/claude-sonnet-5-5',
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
   ADMINIUM_DATA_DIR:
     'writable directory for files, exports, backups, and add-on packages (default ./data beside a project, otherwise ~/.adminium)',

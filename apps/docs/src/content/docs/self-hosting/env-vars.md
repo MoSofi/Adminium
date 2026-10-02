@@ -35,6 +35,12 @@ half-configured and fail later.
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
+| `ADMINIUM_AI_ANTHROPIC_API_KEY` | No | — | An Anthropic key: a model connection the server has without anything saved in Settings → AI. See [the `ADMINIUM_AI_*` block](#the-adminium_ai_-block). |
+| `ADMINIUM_AI_OPENAI_API_KEY` | No | — | An OpenAI key, the same way. |
+| `ADMINIUM_AI_COMPATIBLE_BASE_URL` | No | — | The address of an OpenAI-compatible server (`http://localhost:8000/v1`). |
+| `ADMINIUM_AI_COMPATIBLE_API_KEY` | No | — | The key for that server, when it wants one. |
+| `ADMINIUM_AI_OLLAMA_BASE_URL` | No | — | The address of Ollama (`http://localhost:11434`). |
+| `ADMINIUM_AI_MODEL` | No | — | The model in use, as `<provider>/<model>`: `anthropic/claude-sonnet-5-5`, `ollama/qwen3`. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_TRUSTED_PROXIES` | No | `loopback,uniquelocal` | Which connections count as your proxy while `ADMINIUM_TRUST_PROXY` is on. See below. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
@@ -541,6 +547,40 @@ ADMINIUM_TELEMETRY=off
 
 Together with `ADMINIUM_TELEMETRY=off` and `updates.checkEnabled` left at its
 default, that is a complete no-phone-home configuration.
+
+## The `ADMINIUM_AI_*` block
+
+A model can be given to the server without saving anything in **Settings → AI**. Each provider has
+its own variable, so several can be set at once, and `ADMINIUM_AI_MODEL` says which model is in use:
+
+```bash
+ADMINIUM_AI_ANTHROPIC_API_KEY=sk-ant-…
+ADMINIUM_AI_OLLAMA_BASE_URL=http://localhost:11434
+ADMINIUM_AI_MODEL=anthropic/claude-sonnet-5-5
+```
+
+| Provider in `ADMINIUM_AI_MODEL` | Needs |
+|---|---|
+| `anthropic` | `ADMINIUM_AI_ANTHROPIC_API_KEY` |
+| `openai` | `ADMINIUM_AI_OPENAI_API_KEY` |
+| `openai-compatible` | `ADMINIUM_AI_COMPATIBLE_BASE_URL`, and `ADMINIUM_AI_COMPATIBLE_API_KEY` when the server wants a key |
+| `ollama` | `ADMINIUM_AI_OLLAMA_BASE_URL` |
+
+**What saved settings do to it.** A provider saved in Settings → AI wins: the page assistant and the
+AI assist use that one. With nothing saved there they use the model the environment selects, and the
+settings page says a model from the environment is in use. No key set this way is ever shown, not
+even its last characters.
+
+**In a project folder** the same six names go in the project's `.env`, and that is where
+Adminium Designer writes a model you add there. They are the one part of `.env`
+that is NOT copied into the server's environment: the server reads them from the file where it
+calls the model, so a project's hooks and the commands it starts never see a key. A variable set in
+the server's real environment (a container, a shell) wins over the file; the settings page lists
+any name that is set in both with different values.
+
+`ADMINIUM_NETWORK_FEATURES=off` still applies: only an Ollama model is called then, whatever is set.
+The address of an OpenAI-compatible server or of Ollama is checked before it is called: a cloud
+metadata address is always refused.
 
 ## The desktop block
 

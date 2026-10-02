@@ -123,7 +123,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/imports/*` | 6 | CSV/spreadsheet imports — upload, dry run, run, error report |
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
-| `/api/v1/llm/*` | 13 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
+| `/api/v1/llm/*` | 15 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
 | `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
@@ -523,6 +523,8 @@ POST /api/v1/jobs/{id}/cancel
 ```http
 GET /api/v1/llm/config
 PUT /api/v1/llm/config
+GET /api/v1/llm/connections
+GET /api/v1/llm/connections/{id}/models
 POST /api/v1/llm/config/test
 GET /api/v1/llm/models
 GET /api/v1/llm/runs

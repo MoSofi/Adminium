@@ -29,6 +29,7 @@
  * prefix is deliberately not one the project sync watches.
  */
 
+import type { AiConnections } from '../../llm/connections.js';
 import { estimateTokens } from '@adminium/llm';
 import {
   assistantSessionsRepo,
@@ -69,6 +70,8 @@ export interface AssistantRoutesDeps {
   manager: ConnectionManager;
   /** Whether this instance may make outbound calls at all (desktop air-gap, env veto). */
   networkFeatures: boolean;
+  /** The instance's model connections; absent in a harness, which reads the saved setting. */
+  connections?: AiConnections | undefined;
   /** The master secret, for the mail transport a test send uses. */
   secret?: string | null | undefined;
   /**
@@ -162,6 +165,12 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       enabled: boolean;
       reason: 'no-provider' | 'network-disabled' | null;
     }> {
+      if (deps.connections !== undefined) {
+        // The saved connection, else the one the environment selects.
+        const chosen = await deps.connections.default();
+        const reason = deps.connections.refusal(chosen?.connection ?? null);
+        return { provider: chosen?.connection.provider ?? null, model: chosen?.model ?? null, enabled: reason === null, reason };
+      }
       const provider = await settings.get('llm.provider');
       const model = await settings.get('llm.model');
       if (provider === null) return { provider, model, enabled: false, reason: 'no-provider' };

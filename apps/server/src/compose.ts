@@ -161,8 +161,9 @@ import {
 import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
 import { sweepAssistantSessions } from './assistant/retention.js';
+import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
+import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
-import { resolveProviderClient } from './routes/llm/config-service.js';
 import { assistantRoutes } from './routes/assistant/index.js';
 import type { RunService } from './llm/run-service.js';
 import { rbacPlugin } from './plugins/rbac.js';
@@ -610,20 +611,38 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   // LLM assist (M6). Only the vocabulary is optional;
   // the key crypto and the resolver are cheap and pure.
+  /*
+   * The models this instance can call: the one saved in Settings → AI and the
+   * ones the environment names. Built whether or not the widget vocabulary is
+   * there, because the Designer needs a model and no vocabulary. A project's
+   * `.env` is read by this and by nothing else; the operator's own variables
+   * arrive through `env`.
+   */
+  const llmKeyCrypto = llmKeyCryptoFromSecret(env.ADMINIUM_SECRET, { deriveKey, encryptSecret, decryptSecret });
+  const aiEnv = createAiEnv({
+    root: projectRoot,
+    fromEnvironment: Object.fromEntries(AI_ENV_NAMES.map((name) => [name, env[name]])),
+  });
+  const aiConnections = createAiConnections({
+    settings: settingsRepo(meta),
+    keyCrypto: llmKeyCrypto,
+    aiEnv,
+    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+    production: process.env.NODE_ENV === 'production',
+  });
+  if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
+
   const llm =
     allowed === null
       ? null
       : (() => {
-          const keyCrypto = llmKeyCryptoFromSecret(env.ADMINIUM_SECRET, {
-            deriveKey,
-            encryptSecret,
-            decryptSecret,
-          });
+          const keyCrypto = llmKeyCrypto;
           return {
             keyCrypto,
             resolve: createProviderResolver({
               meta,
               keyCrypto,
+              connections: aiConnections,
               allowedTemplates: allowed.templates,
               allowedWidgets: allowed.widgets,
               // The unknown-icon check. Documented since M6 as fed by
@@ -1147,7 +1166,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       : {
           assistant: {
             manager,
-            resolveClient: () => resolveProviderClient(settingsRepo(meta), llm.keyCrypto),
+            // The saved connection, else the model the environment selects; the address is checked at the dial.
+            resolveClient: async () => {
+              const chosen = await aiConnections.default();
+              if (chosen === null) throw new ProviderNotConfiguredError();
+              return aiConnections.client(chosen.connection.id, chosen.model);
+            },
             // The same resolver + decision function the route guards use, for
             // a user rather than a request — a turn runs long after its
             // request is gone.
@@ -1883,6 +1907,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             meta,
             manager,
             networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+            connections: aiConnections,
             secret: env.ADMINIUM_SECRET,
             cancelJob: (jobId) => {
               jobs.worker.requestCancel(jobId);
@@ -1898,6 +1923,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             applyService,
             keyCrypto: llm.keyCrypto,
             allowed,
+            connections: aiConnections,
             ...(opts.collectStats === undefined ? {} : { collectStats: opts.collectStats }),
           }),
         );

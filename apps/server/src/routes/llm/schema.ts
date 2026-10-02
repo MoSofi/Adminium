@@ -70,8 +70,42 @@ export const llmConfigReply = z.object({
   assistantName: z.string(),
   /** Whether its tools may read masked rows from a connection at all. */
   assistantRowData: z.boolean(),
+  /**
+   * What the server's environment names (`ADMINIUM_AI_*`), so the page can
+   * say a model is in use that was never saved here. Never a key, nor any
+   * part of one.
+   */
+  environment: z
+    .object({
+      connections: z.array(z.lazy(() => llmConnection)),
+      /** `<provider>/<model>` as the environment selects it, or null. */
+      selected: z.string().nullable(),
+      /** Variables set both in the project's `.env` and in the server's own environment, where the latter wins. */
+      shadowed: z.array(z.string()),
+      /** True when nothing is saved here and the environment's model is the one the assistant uses. */
+      inUse: z.boolean(),
+    })
+    .optional(),
 });
 export type LlmConfigReply = z.infer<typeof llmConfigReply>;
+
+/** One way to reach a model: the saved setting, or one the environment names. */
+export const llmConnection = z.object({
+  id: z.string(),
+  provider: llmProviderSchema,
+  source: z.enum(['database', 'environment']),
+  baseUrl: z.string().nullable(),
+  hasKey: z.boolean(),
+  model: z.string().nullable(),
+});
+
+export const llmConnectionsReply = z.object({
+  connections: z.array(llmConnection),
+  selected: z.string().nullable(),
+  shadowed: z.array(z.string()),
+});
+
+export const llmConnectionParams = z.object({ id: z.string().regex(/^(database|env:[a-z-]+)$/) });
 
 /**
  * `PUT /config` body. `apiKey` is write-only; the empty string clears it,

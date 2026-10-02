@@ -97573,6 +97573,97 @@
                     },
                     "assistantRowData": {
                       "type": "boolean"
+                    },
+                    "environment": {
+                      "type": "object",
+                      "properties": {
+                        "connections": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "provider": {
+                                "type": "string",
+                                "enum": [
+                                  "anthropic",
+                                  "openai",
+                                  "openai-compatible",
+                                  "ollama",
+                                  "adminium-managed"
+                                ]
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "database",
+                                  "environment"
+                                ]
+                              },
+                              "baseUrl": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "hasKey": {
+                                "type": "boolean"
+                              },
+                              "model": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "provider",
+                              "source",
+                              "baseUrl",
+                              "hasKey",
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "selected": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shadowed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "inUse": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "connections",
+                        "selected",
+                        "shadowed",
+                        "inUse"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -97748,6 +97839,97 @@
                     },
                     "assistantRowData": {
                       "type": "boolean"
+                    },
+                    "environment": {
+                      "type": "object",
+                      "properties": {
+                        "connections": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "provider": {
+                                "type": "string",
+                                "enum": [
+                                  "anthropic",
+                                  "openai",
+                                  "openai-compatible",
+                                  "ollama",
+                                  "adminium-managed"
+                                ]
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "database",
+                                  "environment"
+                                ]
+                              },
+                              "baseUrl": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "hasKey": {
+                                "type": "boolean"
+                              },
+                              "model": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "provider",
+                              "source",
+                              "baseUrl",
+                              "hasKey",
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "selected": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shadowed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "inUse": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "connections",
+                        "selected",
+                        "shadowed",
+                        "inUse"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -97759,6 +97941,166 @@
                     "apiKeyLast4",
                     "assistantName",
                     "assistantRowData"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/connections": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "connections": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "enum": [
+                              "anthropic",
+                              "openai",
+                              "openai-compatible",
+                              "ollama",
+                              "adminium-managed"
+                            ]
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "database",
+                              "environment"
+                            ]
+                          },
+                          "baseUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "hasKey": {
+                            "type": "boolean"
+                          },
+                          "model": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "provider",
+                          "source",
+                          "baseUrl",
+                          "hasKey",
+                          "model"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "selected": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "shadowed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "connections",
+                    "selected",
+                    "shadowed"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/connections/{id}/models": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(database|env:[a-z-]+)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "live",
+                        "static"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "models",
+                    "source"
                   ],
                   "additionalProperties": false
                 }

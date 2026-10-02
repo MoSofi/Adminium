@@ -41,6 +41,7 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import type { AiConnections, ConnectionId } from '../../llm/connections.js';
 import { LLM_RUN_KIND } from '../../jobs/llm-run.js';
 import type { ApplyService } from '../../llm/apply-service.js';
 import { RunNotApplicableError, SnapshotNotFoundError } from '../../llm/apply-service.js';
@@ -91,6 +92,9 @@ import {
   llmRunErrorSchema,
   type LlmRunErrorDto,
   type LlmValidationErrorDto,
+  llmConnectionParams,
+  llmConnectionsReply,
+  type LlmConfigReply,
 } from './schema.js';
 
 /** Every `/api/v1/llm/*` route requires this grant — Admin + Super-Admin only.
@@ -123,6 +127,8 @@ export interface LlmRoutesDeps {
   collectStats?: CollectRunStats;
   /** Test seam — construct a provider client (default: the real client). */
   createClient?: CreateClient;
+  /** The instance's model connections: the saved one and the environment's. Absent in a harness. */
+  connections?: AiConnections | undefined;
   /** In-process apply-undo token store (default: a fresh instance per plugin). */
   undoStore?: LlmApplyUndoStore;
 }
@@ -210,7 +216,33 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
     runService,
     allowed,
     ...(deps.collectStats === undefined ? {} : { collectStats: deps.collectStats }),
+    ...(deps.connections === undefined
+      ? {}
+      : {
+          defaultModel: async () => {
+            const chosen = await connections?.default();
+            return chosen == null ? null : { provider: chosen.connection.provider, model: chosen.model };
+          },
+        }),
   });
+  const connections = deps.connections;
+
+  /** The safe view of the saved setting, with what the environment adds beside it. */
+  async function configView(): Promise<LlmConfigReply> {
+    const saved = await readLlmConfig(settings, keyCrypto);
+    if (connections === undefined) return saved;
+    const environment = (await connections.list()).filter((connection) => connection.source === 'environment');
+    const chosen = await connections.default();
+    return {
+      ...saved,
+      environment: {
+        connections: environment,
+        selected: connections.selected(),
+        shadowed: connections.shadowed(),
+        inUse: saved.provider === null && chosen !== null,
+      },
+    };
+  }
 
   const allowedTemplates = allowed.templates;
   const allowedWidgets = allowed.widgets;
@@ -238,7 +270,36 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
     app.get(
       '/llm/config',
       { preHandler: guard, schema: { response: { 200: llmConfigReply } } },
-      async () => readLlmConfig(settings, keyCrypto),
+      async () => configView(),
+    );
+
+    app.get(
+      '/llm/connections',
+      { preHandler: guard, schema: { response: { 200: llmConnectionsReply } } },
+      async () => ({
+        connections: (await connections?.list()) ?? [],
+        selected: connections?.selected() ?? null,
+        shadowed: connections?.shadowed() ?? [],
+      }),
+    );
+
+    app.get(
+      '/llm/connections/:id/models',
+      { preHandler: guard, schema: { params: llmConnectionParams, response: { 200: llmModelsReply } } },
+      async (request) => {
+        if (connections === undefined || (await connections.find(request.params.id)) === null) {
+          throw new NotFoundError('There is no such model connection.', { id: request.params.id });
+        }
+        try {
+          return await connections.models(request.params.id as ConnectionId);
+        } catch (error) {
+          // A connection that cannot be reached lists nothing; the page says so beside it.
+          if (error instanceof ProviderError || error instanceof ValidationFailedError || error instanceof ProviderNotConfiguredError) {
+            return { models: [], source: 'static' as const };
+          }
+          throw error;
+        }
+      },
     );
 
     app.put(
@@ -251,7 +312,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
           updatedBy: actorIdOf(request),
           at,
         });
-        const after = await readLlmConfig(settings, keyCrypto);
+        const after = await configView();
         // Audit carries provider/model/baseUrl/key-presence only — never the key.
         await app.rbac.audit(request, {
           category: 'llm',

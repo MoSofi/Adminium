@@ -615,6 +615,8 @@ export async function bootstrapHandler(
    * of the session — and `hasDecorator` because minimal test harnesses mount
    * this route without the surfaces plugin, where the answer is simply "none".
    */
+  // A model named only in the environment counts too: it is what the assistant then uses.
+  const environmentModel = request.server.hasDecorator('aiConnections') ? (await request.server.aiConnections.default()) !== null : false;
   const hasSurfaces = request.server.hasDecorator('surfaces');
   const surfaceSettings = hasSurfaces ? request.server.surfaceSettings : null;
 
@@ -746,7 +748,7 @@ export async function bootstrapHandler(
       nav,
       version: APP_VERSION,
       configVersion,
-      llm: { enabled: typeof llmProvider === 'string' && llmProvider.length > 0 },
+      llm: { enabled: (typeof llmProvider === 'string' && llmProvider.length > 0) || environmentModel },
       // The same `typeof` guard the page filter above uses: a minimal harness
       // mounts this route without the rbac plugin, and "no assistant" is the
       // honest answer there rather than a crash.

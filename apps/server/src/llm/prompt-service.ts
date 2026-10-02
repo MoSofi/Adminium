@@ -97,6 +97,12 @@ export interface PromptServiceDeps {
   allowed: AllowedVocabularies;
   /** Stats collector (default {@link NO_STATS}). */
   collectStats?: CollectRunStats | undefined;
+  /**
+   * The provider and model a direct run is made for. Default: the saved
+   * setting. The server passes the instance's connections, so a model named
+   * only in the environment is used when nothing is saved.
+   */
+  defaultModel?: (() => Promise<{ provider: ProviderId; model: string | null } | null>) | undefined;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -163,9 +169,16 @@ export function createPromptService(deps: PromptServiceDeps) {
       let provider: ProviderId | null = null;
       let providerModel: string | null = null;
       if (input.path === 'provider') {
-        provider = await settings.get('llm.provider');
-        if (provider === null) throw new ProviderNotSelectedError();
-        providerModel = await settings.get('llm.model');
+        if (deps.defaultModel !== undefined) {
+          const chosen = await deps.defaultModel();
+          if (chosen === null) throw new ProviderNotSelectedError();
+          provider = chosen.provider;
+          providerModel = chosen.model;
+        } else {
+          provider = await settings.get('llm.provider');
+          if (provider === null) throw new ProviderNotSelectedError();
+          providerModel = await settings.get('llm.model');
+        }
       }
 
       const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model: await codesAsSecrets(input.connectionId, model), sampling });

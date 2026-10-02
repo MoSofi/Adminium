@@ -15,6 +15,8 @@
  */
 
 import BetterSqlite3 from 'better-sqlite3';
+import { createAiEnv } from '../src/llm/ai-env.js';
+import { createAiConnections } from '../src/llm/connections.js';
 import { parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import { llmKeyCryptoFromSecret, type LlmKeyCrypto, type ProviderClient } from '@adminium/llm';
 import {
@@ -125,7 +127,7 @@ function asUser(user: User): Record<string, string> {
   return { 'x-test-user-id': user.id };
 }
 
-async function buildHarness(opts: { client?: ProviderClient } = {}): Promise<Harness> {
+async function buildHarness(opts: { client?: ProviderClient; environment?: Record<string, string>; networkFeatures?: boolean } = {}): Promise<Harness> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
 
@@ -194,6 +196,20 @@ async function buildHarness(opts: { client?: ProviderClient } = {}): Promise<Har
           keyCrypto,
           allowed: ALLOWED,
           createClient: () => opts.client ?? fakeClient(),
+          // The instance's connections, when the test gives the server an environment.
+          ...(opts.environment === undefined
+            ? {}
+            : {
+                connections: createAiConnections({
+                  settings: settingsRepo(meta),
+                  keyCrypto,
+                  aiEnv: createAiEnv({ root: null, fromEnvironment: opts.environment }),
+                  networkFeatures: opts.networkFeatures !== false,
+                  production: false,
+                  createClient: () => opts.client ?? fakeClient(),
+                  resolve: async () => ['93.184.216.34'],
+                }),
+              }),
         }),
       );
     },
@@ -886,5 +902,69 @@ describe('llm routes — the run lifecycle leaves a trail (audit coverage)', () 
       (e) => e.action === 'llm.run.response',
     ).length;
     expect(after, 'a rejected paste must not read as one that landed').toBe(before);
+  });
+});
+
+describe('llm routes — a model named by the environment', () => {
+  let t: Harness;
+  const ENVIRONMENT = { ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-env-0001', ADMINIUM_AI_OLLAMA_BASE_URL: 'http://localhost:11434', ADMINIUM_AI_MODEL: 'anthropic/claude-env' };
+  beforeEach(async () => {
+    t = await buildHarness({ environment: ENVIRONMENT });
+  });
+  afterEach(async () => {
+    await t.app.close();
+  });
+
+  const get = (url: string) => t.app.inject({ method: 'GET', url, headers: asUser(t.users.admin) });
+
+  it('GET /connections lists them with the selected model, and no key nor any part of one', async () => {
+    const res = await get('/api/v1/llm/connections');
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json()).toEqual({
+      connections: [
+        { id: 'env:anthropic', provider: 'anthropic', source: 'environment', baseUrl: null, hasKey: true, model: 'claude-env' },
+        { id: 'env:ollama', provider: 'ollama', source: 'environment', baseUrl: 'http://localhost:11434', hasKey: false, model: null },
+      ],
+      selected: 'anthropic/claude-env',
+      shadowed: [],
+    });
+    expect(res.body).not.toContain('0001');
+  });
+
+  it('GET /config says the environment’s model is the one in use while nothing is saved, and stops saying so once something is', async () => {
+    const fresh = (await get('/api/v1/llm/config')).json() as { provider: string | null; environment: { inUse: boolean; selected: string; connections: unknown[] } };
+    expect(fresh.provider).toBeNull();
+    expect(fresh.environment).toMatchObject({ inUse: true, selected: 'anthropic/claude-env' });
+    expect(fresh.environment.connections).toHaveLength(2);
+
+    await t.app.inject({ method: 'PUT', url: '/api/v1/llm/config', headers: asUser(t.users.admin), payload: { provider: 'openai', model: 'gpt-x', apiKey: 'sk-saved' } });
+    const saved = (await get('/api/v1/llm/config')).json() as { provider: string; environment: { inUse: boolean } };
+    expect(saved.provider).toBe('openai');
+    expect(saved.environment.inUse).toBe(false);
+    expect((await get('/api/v1/llm/connections')).json().connections.map((c: { id: string }) => c.id)).toEqual(['database', 'env:anthropic', 'env:ollama']);
+  });
+
+  it('GET /connections/:id/models lists one connection’s models, and 404s for one that is not there', async () => {
+    const res = await get('/api/v1/llm/connections/env:anthropic/models');
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json()).toEqual({ models: [{ id: 'claude-x', label: 'Claude X' }], source: 'live' });
+    expect((await get('/api/v1/llm/connections/env:openai/models')).statusCode).toBe(404);
+    expect((await get('/api/v1/llm/connections/..%2Fetc/models')).statusCode).toBe(422);
+  });
+
+  it('POST /runs (provider) is made for the environment’s model when nothing is saved', async () => {
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/llm/runs',
+      headers: asUser(t.users.admin),
+      payload: { connectionId: t.connectionId, path: 'provider' },
+    });
+    expect(res.statusCode, res.body).toBe(201);
+    expect(res.json().run).toMatchObject({ mode: 'provider', provider: 'anthropic', model: 'claude-env' });
+  });
+
+  it('the connection routes are for whoever may run the AI assist, like the rest', async () => {
+    expect((await t.app.inject({ method: 'GET', url: '/api/v1/llm/connections', headers: asUser(t.users.viewer) })).statusCode).toBe(403);
+    expect((await t.app.inject({ method: 'GET', url: '/api/v1/llm/connections' })).statusCode).toBe(401);
   });
 });

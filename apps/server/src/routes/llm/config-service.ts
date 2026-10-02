@@ -10,6 +10,7 @@
  * module except inside the provider request header; nothing here logs it.
  */
 
+import { ProviderNotConfiguredError } from '../../llm/connections.js';
 import {
   createProviderClient,
   DEFAULT_MAX_OUTPUT_TOKENS,
@@ -60,13 +61,7 @@ export interface ResolvedProviderClient {
   baseUrl: string | null;
 }
 
-/** No provider is configured yet — `POST /config/test` / `GET /models` can't run. */
-export class ProviderNotConfiguredError extends Error {
-  override readonly name = 'ProviderNotConfiguredError';
-  constructor(message = 'No LLM provider is configured.') {
-    super(message);
-  }
-}
+export { ProviderNotConfiguredError };
 
 /**
  * Decrypt a stored key. Tolerates a plaintext value (only decrypts recognizably
