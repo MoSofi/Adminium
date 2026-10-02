@@ -38,7 +38,11 @@ export interface InstalledApp {
    * `apps/<key>/` is in the project, `gone` once it was removed (the app stays
    * installed until it is uninstalled). Absent for a package, and from an older server.
    */
-  folder?: { state: 'here' | 'gone' };
+  folder?: {
+    state: 'here' | 'gone';
+    /** The folder's newest manifest was not applied, and why; the app runs as it was. */
+    notApplied?: { stage: string; message: string };
+  };
   installedAt: number;
   connectionId: string | null;
   sides: InstalledAppSide[];

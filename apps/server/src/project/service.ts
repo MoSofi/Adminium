@@ -25,6 +25,7 @@ import { projectFilesRepo, type MetaDb, type ProjectOverrideInput } from '@admin
 
 import { applyListFile, applyPageFile, applySchemaFile, deleteListByKey, deletePage } from './apply-files.js';
 import { hasCodePage } from './client-build.js';
+import type { ProjectConfig } from './config.js';
 import { diskFileStore, type ProjectFileStore } from './file-store.js';
 import { contentHash } from './json.js';
 import { LISTS_DIR, PAGES_DIR, SCHEMA_DIR, fromProjectPath, parseProjectPath, type PathApi } from './paths.js';
@@ -45,6 +46,10 @@ export interface ProjectServerOptions {
   mode: SyncMode;
   log: (message: string) => void;
   warn: (message: string) => void;
+  /** The config's `apps` block: what each app under `apps/` is allowed. */
+  apps?: ProjectConfig['apps'];
+  /** The configured databases that have a URL, in the config's order: an app goes on the first unless it names one. */
+  databases?: readonly string[];
 }
 
 /**

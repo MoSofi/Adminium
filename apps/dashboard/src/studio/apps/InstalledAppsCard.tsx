@@ -183,6 +183,9 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                     {/* The row used to read exactly like a healthy
                         install, because a lost app's only tell is an empty
                         `sides` — which also means "no frontends". */}
+                    {app.folder?.notApplied === undefined ? null : (
+                      <Badge tone="warn">{t('studio:hostedApps.installed.notApplied', 'Not applied')}</Badge>
+                    )}
                     {app.missing && app.folder?.state !== 'gone' && (
                       <Badge tone="danger">
                         {t('studio:hostedApps.installed.missing', 'Missing')}
@@ -244,6 +247,15 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                         )}
                       </span>
                     ) : null}
+                    {app.folder?.notApplied === undefined ? null : (
+                      <span className="text-warn">
+                        {t(
+                          'studio:hostedApps.installed.notAppliedBody',
+                          'The latest change in apps/{key}/ was not applied, and the app runs as it was. {message}',
+                          { key: app.key, message: app.folder.notApplied.message },
+                        )}
+                      </span>
+                    )}
                     {app.missing && app.folder?.state !== 'gone' && (
                       <span className="text-danger">
                         {t(

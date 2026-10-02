@@ -16,6 +16,9 @@ import { z } from 'zod';
 /** A database key, as files will refer to it: `main`, `billing-archive`. */
 export const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
 
+/** An app's key, as its folder under `apps/` is named. */
+const APP_CONFIG_KEY_PATTERN = /^[a-z][a-z0-9-]{1,79}$/;
+
 const databaseSchema = z
   .object({
     /**
@@ -53,6 +56,31 @@ export const projectConfigSchema = z
     dataDir: z.string().min(1).optional(),
     /** Where uploads and exports go. Unset means the data directory. */
     storage: z.object({ url: z.string().min(1).optional() }).strict().optional(),
+    /**
+     * What each app under `apps/` is allowed, by its key. An app needs no
+     * entry: `adminium dev` runs it on the first database with what its
+     * manifest declares, and a server (`adminium start`) runs it without
+     * public access until this file says otherwise.
+     */
+    apps: z
+      .record(
+        z.string().regex(APP_CONFIG_KEY_PATTERN, 'must be an app key: a lowercase letter, then a-z, 0-9 and "-"'),
+        z
+          .object({
+            /** The key under `databases` this app's tables live in. Default: the first database. */
+            database: z.string().regex(PROJECT_KEY_PATTERN).optional(),
+            /**
+             * Let anyone reach what the app's manifest grants to the public.
+             * On a server this is the switch: without it the app is installed
+             * with no public access at all.
+             */
+            publicAccess: z.boolean().optional(),
+            /** Add the app's sample data when `adminium dev` first installs it. Default true. */
+            sampleData: z.boolean().optional(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

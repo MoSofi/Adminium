@@ -780,7 +780,9 @@ export default {
       "madeHere": "Made here",
       "fromFolder": "From this project’s folder",
       "folderGone": "Folder gone",
-      "folderGoneBody": "apps/{key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it."
+      "folderGoneBody": "apps/{key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it.",
+      "notApplied": "Not applied",
+      "notAppliedBody": "The latest change in apps/{key}/ was not applied, and the app runs as it was. {message}"
     },
     "instances": {
       "add": "Add an instance",

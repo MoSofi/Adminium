@@ -770,7 +770,9 @@
       "madeHere": "本機製作",
       "fromFolder": "來自此專案的資料夾",
       "folderGone": "資料夾已不存在",
-      "folderGoneBody": "apps/{key}/ 已不在此專案中。應用程式連同其資料表和頁面維持安裝，直到你將其解除安裝。"
+      "folderGoneBody": "apps/{key}/ 已不在此專案中。應用程式連同其資料表和頁面維持安裝，直到你將其解除安裝。",
+      "notApplied": "未套用",
+      "notAppliedBody": "apps/{key}/ 中的最新變更未套用，應用程式照原樣執行。{message}"
     },
     "instances": {
       "add": "新增執行個體",

@@ -770,7 +770,9 @@
       "madeHere": "Vytvořeno zde",
       "fromFolder": "Ze složky tohoto projektu",
       "folderGone": "Složka chybí",
-      "folderGoneBody": "apps/{key}/ už v tomto projektu není. Aplikace zůstane nainstalovaná se svými tabulkami a stránkami, dokud ji neodinstalujete."
+      "folderGoneBody": "apps/{key}/ už v tomto projektu není. Aplikace zůstane nainstalovaná se svými tabulkami a stránkami, dokud ji neodinstalujete.",
+      "notApplied": "Nepoužito",
+      "notAppliedBody": "Poslední změna v apps/{key}/ nebyla použita a aplikace běží jako dosud. {message}"
     },
     "instances": {
       "add": "Přidat instanci",

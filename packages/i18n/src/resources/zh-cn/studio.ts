@@ -780,7 +780,9 @@ export default {
       "madeHere": "本机制作",
       "fromFolder": "来自此项目的文件夹",
       "folderGone": "文件夹已不存在",
-      "folderGoneBody": "apps/{key}/ 已不在此项目中。应用连同其数据表和页面保持安装，直到你将其卸载。"
+      "folderGoneBody": "apps/{key}/ 已不在此项目中。应用连同其数据表和页面保持安装，直到你将其卸载。",
+      "notApplied": "未应用",
+      "notAppliedBody": "apps/{key}/ 中的最新更改未应用，应用照原样运行。{message}"
     },
     "instances": {
       "add": "添加实例",

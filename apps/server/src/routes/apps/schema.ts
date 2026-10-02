@@ -524,7 +524,16 @@ export const installedAppReply = z.object({
    * in the project and decides what the app is. `gone`: the folder was removed;
    * the app stays installed, serving nothing of its own, until it is uninstalled.
    */
-  folder: z.object({ state: z.enum(['here', 'gone']) }).optional(),
+  folder: z
+    .object({
+      state: z.enum(['here', 'gone']),
+      /**
+       * The folder's newest manifest was not applied, and why. The app keeps
+       * running as it was; the next change to the folder is the next attempt.
+       */
+      notApplied: z.object({ stage: z.string(), message: z.string() }).optional(),
+    })
+    .optional(),
   installedAt: z.number(),
   connectionId: z.string().nullable(),
   sides: z.array(installedSide),

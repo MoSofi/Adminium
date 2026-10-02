@@ -415,6 +415,8 @@ export interface InstallActor {
   id: string | null;
   /** How the audit log names them. */
   label: string;
+  /** `system` when no person stands behind it (an app applied from the project folder). A user when absent. */
+  kind?: 'user' | 'system' | undefined;
   /** Whether they may open the row-ceiling door a schema edit can need. */
   superAdmin: () => Promise<boolean>;
   /** Whether they hold a permission; a server with no permission layer answers yes. */
@@ -430,7 +432,50 @@ export interface InstallHost {
   invalidateSurfaceSettings?: (() => void) | undefined;
 }
 
-export type InstallInput = z.infer<typeof installAppBody>;
+export type InstallInput = z.infer<typeof installAppBody> & {
+  /** `folder` for an app the project folder carries: no package stands behind its row. A package when absent. */
+  source?: typeof FOLDER_SOURCE | undefined;
+  /**
+   * What an install with nobody to ask may do. Absent, it is a person's
+   * install and everything their check step showed is done.
+   */
+  unattended?: Unattended | undefined;
+};
+
+/** The limits of an install or an apply that no person reviewed. */
+export interface Unattended {
+  /** Install or update the add-ons the app requires. False: they must be here already. */
+  installAddOns: boolean;
+  /** Add columns to, or otherwise adapt, a table the app did not make itself. */
+  adaptForeignTables: boolean;
+}
+
+export interface ApplyInPlaceInput {
+  key: string;
+  /** The version the folder's manifest declares; only for the wording of a refusal. */
+  version: string;
+  /** Give the app the public access its manifest declares. */
+  publicAccess: boolean;
+  /** Why not, for the reply and the log, when it is withheld. */
+  publicAccessRefusal?: string | undefined;
+  unattended: Unattended;
+}
+
+export interface ApplyInPlaceReply {
+  key: string;
+  from: string;
+  to: string;
+  /** The manifest that was applied, and the one it replaced as the row recorded it. */
+  manifest: Manifest;
+  previous: Manifest | null;
+  rowId: string;
+  connectionId: string | null;
+  schema?: { created: string[]; reused: string[] } | undefined;
+  names: Record<string, string>;
+  pages?: MaterialiseResult | undefined;
+  publicAccess?: { endpoints: string[]; keyId: string | null; skipped: { ref: string; reason: string }[] } | undefined;
+  addOns?: AddOnsDone | undefined;
+}
 export type InstalledAppReply = z.infer<typeof installedAppReply>;
 export interface UpdateInput {
   key: string;
@@ -1196,7 +1241,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * fails (and an update swallows) cannot leave a grant nobody was told of.
    */
   function publicAccessRecorder(actor: InstallActor, app: string, connectionId: string, userId: string | null) {
-    const by = { actorKind: 'user' as const, actorId: userId, actorLabel: actor.label, category: 'system' as const };
+    const by = { actorKind: actor.kind ?? ('user' as const), actorId: userId, actorLabel: actor.label, category: 'system' as const };
     const audit = async (action: string, changes: Record<string, unknown>) => {
       await auditRepo(deps.meta).append({ ...by, action, changes });
     };
@@ -1683,15 +1728,260 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     after: Record<string, unknown>,
     userId: string | null,
     userLabel: string,
+    kind: 'user' | 'system' = 'user',
   ): Promise<void> {
     await auditRepo(deps.meta).append({
-      actorKind: 'user',
+      actorKind: kind,
       actorId: userId,
       actorLabel: userLabel,
       category: 'app',
       action,
       changes: { after },
     });
+  }
+
+  /**
+   * With nobody to ask, an add-on is never installed or updated for an app:
+   * what it requires must be here already. Connecting one that is installed
+   * moves nothing and is allowed.
+   */
+  function refuseAddOnMoves(manifest: Manifest, steps: readonly AddOnStep[]): void {
+    const moving = steps.filter((step) => step.action !== 'attach');
+    if (moving.length === 0) return;
+    throw new AppError(
+      422,
+      'ADD_ON_REQUIRED',
+      `${manifest.name} needs ${moving.map((step) => `${step.name} ${step.version}`).join(' and ')}, which ${moving.length === 1 ? 'is' : 'are'} not installed here. ` +
+        'A server installs no add-on for an app in its project folder: install it in Studio → Add-ons first.',
+      { addOns: moving.map((step) => ({ key: step.key, action: step.action, version: step.version })) },
+    );
+  }
+
+  /**
+   * With nobody to ask, a table the app did not make itself is used as it is
+   * or not at all: a column added to somebody else's table is a change to
+   * their table, and that is a person's to allow. The app's own tables grow
+   * with it.
+   */
+  function refuseForeignEdits(key: string, plan: InstallPlan): void {
+    const foreign = (plan.tables ?? []).filter(
+      (table) => table.edits.length > 0 && !(table.class === 'own-leftover' && table.adopted !== true),
+    );
+    if (foreign.length === 0) return;
+    throw new ValidationFailedError(
+      `"${key}" needs changes to ${foreign.map((table) => `"${table.table}"`).join(', ')}, which it did not make: ` +
+        `${foreign.flatMap((table) => table.edits.map((edit) => `${table.table}.${edit.column} (${edit.kind})`)).join(', ')}. ` +
+        'A server changes no table of somebody else’s for an app in its project folder: run `adminium dev` against this database, or make the change in Studio.',
+      { reason: 'FOREIGN_TABLE_EDIT', tables: foreign.map((table) => ({ ref: table.ref, table: table.table, edits: table.edits })) },
+    );
+  }
+
+  /**
+   * APPLY AN APP FROM THE PROJECT FOLDER OVER ITSELF.
+   *
+   * Not an update: the version may be the same one (a person is editing the
+   * manifest, not releasing it), and there is no staged package to take it
+   * from. Not a reinstall: the row stays, so the app keeps serving, keeps its
+   * connection, its keys and what an operator edited. The steps are the
+   * update's own, in the update's order, with the same helpers: add-ons it
+   * names, new tables and the columns its own tables gained, public access
+   * it no longer declares taken back, the row's document moved, then pages,
+   * rules, roles, emails and documents rewritten.
+   *
+   * Stopped anywhere, what ran stays and the app goes on serving what it
+   * served: applying the folder again finishes it.
+   */
+  async function applyInPlace(actor: InstallActor, host: InstallHost, input: ApplyInPlaceInput): Promise<ApplyInPlaceReply> {
+    const { key } = input;
+    const userId = actor.id;
+    const userLabel = actor.label;
+    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+    if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+    const from = installed.row.version;
+
+    let stage: 'check' | 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'finish' | 'pages' = 'check';
+    const stopped = (error: unknown): AppError => {
+      const message = error instanceof Error ? error.message : String(error);
+      const details = error instanceof AppError ? (error.details as Record<string, unknown> | undefined) : undefined;
+      return new AppError(409, 'APP_APPLY_INCOMPLETE', message, { ...(details ?? {}), stage, cause: message });
+    };
+
+    let manifest: Manifest;
+    let surfaces: ReturnType<typeof surfacesOfInstalled>;
+    let addOnRows: AppAddOnRow[];
+    let addOnSteps: AddOnStep[];
+    const connectionId = installed.row.connectionId;
+    try {
+      manifest = await verifiedManifest(key, input.version);
+      const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
+      if (changed !== null) throw changed;
+      surfaces = surfacesOfInstalled(files, { key, version: manifest.version });
+      if (surfaces.length === 0 && !servesNothingByDesign(manifest)) {
+        throw new ValidationFailedError(`"${key}" declares screens of its own and none is built.`, { reason: 'NO_SURFACE' });
+      }
+      // An add-on mounted on this app must still work with the version the folder says.
+      const outOfRange = await attachedRangeRefusal({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key, manifest.version);
+      if (outOfRange !== null) throw outOfRange;
+      addOnRows = await addOnRowsFor(manifest, connectionId, true);
+      // Nobody ticks a box here: an add-on out of range is updated with the app where that is allowed at all.
+      const choices: AddOnChoice[] = addOnRows
+        .filter((row) => row.need === 'requires' && row.action !== null)
+        .map((row) => ({ key: row.key, version: (row.action === 'attach' ? row.installedVersion : row.offeredVersion) ?? '', update: true }));
+      addOnSteps = decideAddOnSteps(manifest.name, addOnRows, input.unattended.installAddOns ? choices : []);
+      if (!input.unattended.installAddOns) refuseAddOnMoves(manifest, addOnSteps);
+      if ((manifest.requiredSchema?.tables ?? []).length > 0 && connectionId === null) {
+        throw new ValidationFailedError(`"${key}" needs tables, and it was installed without a database.`, { reason: 'NO_CONNECTION' });
+      }
+    } catch (error) {
+      throw stopped(error);
+    }
+    const to = manifest.version;
+    const wanted = manifest.requiredSchema?.tables ?? [];
+
+    const addOnInstaller = addOnDeps();
+    let addOnsDone: AddOnsDone | undefined = namesAddOns(manifest) ? { installed: [], updated: [], attached: [] } : undefined;
+    const runSteps = async (steps: readonly AddOnStep[]): Promise<void> => {
+      if (steps.length === 0 || addOnInstaller === undefined) return;
+      const done = await runAddOnSteps(addOnInstaller, {
+        steps,
+        host: appHost(manifest, connectionId),
+        connectionId,
+        actor: { id: userId, label: userLabel },
+        manifestRowId: installed.row.id,
+      });
+      addOnsDone = {
+        installed: [...(addOnsDone?.installed ?? []), ...done.installed],
+        updated: [...(addOnsDone?.updated ?? []), ...done.updated],
+        attached: [...(addOnsDone?.attached ?? []), ...done.attached],
+      };
+    };
+
+    let names: Record<string, string> | undefined;
+    let applied: { created: string[]; reused: string[] } | undefined;
+    try {
+      // The plan first, with nothing written: a refusal leaves the app exactly as it was.
+      if (wanted.length > 0 && connectionId !== null && (addOnSteps.length > 0 || !input.unattended.adaptForeignTables)) {
+        const checked = await checkedPlan(key, manifest, connectionId, 'updated', undefined, {}, addOnRows);
+        if (!input.unattended.adaptForeignTables) refuseForeignEdits(key, checked.plan);
+      }
+      stage = 'add-ons';
+      await runSteps(addOnSteps.filter((step) => step.action !== 'update'));
+      stage = 'tables';
+      if (wanted.length > 0 && connectionId !== null) {
+        const made = await createTables(
+          key,
+          manifest,
+          connectionId,
+          'updated',
+          { superAdmin: await actor.superAdmin(), createdBy: userId },
+          undefined,
+          {},
+          // Planned against the add-ons' tables as they now are.
+          addOnSteps.length > 0 ? undefined : addOnRows,
+        );
+        applied = { created: made.created, reused: made.reused };
+        names = made.names;
+      }
+      stage = 'add-on-updates';
+      await runSteps(addOnSteps.filter((step) => step.action === 'update'));
+      // What the manifest no longer declares comes out of the app's keys, whatever is allowed below.
+      stage = 'public-access';
+      if (connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
+        const access = deps.publicAccess;
+        try {
+          await takeBackPublicAccess({
+            service: access.service,
+            meta: deps.meta,
+            manifest,
+            connectionId,
+            names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)),
+            view: await access.viewFor(connectionId),
+            onCommitted: publicAccessRecorder(actor, key, connectionId, userId),
+          });
+        } finally {
+          access.onChange?.();
+        }
+      }
+      stage = 'finish';
+      await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+    } catch (error) {
+      const failure = stopped(error);
+      await auditAppEvent('app.apply-failed', { key, from, to, stage, message: failure.message }, userId, userLabel, actor.kind);
+      throw failure;
+    }
+    await deps.installed.refresh();
+
+    /*
+     * Pages, rules, roles, emails, documents and public access, as an update
+     * writes them: new ones added, untouched ones rebuilt, an edited page
+     * left alone, a key the operator took back never made again. Unlike an
+     * update, a failure here is said: the person is watching the folder, and
+     * a page that silently did not change is the thing they would not find.
+     */
+    stage = 'pages';
+    const liveKey = await publicKeysRepo(deps.meta).newestLiveByApp(key, 'customer');
+    const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key;
+    const caught: { error?: unknown } = {};
+    const watching: InstallHost = {
+      ...host,
+      log: {
+        info: (obj, msg) => host.log.info(obj, msg),
+        warn: (obj, msg) => {
+          if ('err' in obj) caught.error = (obj as { err: unknown }).err;
+          host.log.warn(obj, msg);
+        },
+      },
+    };
+    const written = await writePages(
+      actor,
+      watching,
+      manifest,
+      installed.row.id,
+      connectionId,
+      userId,
+      false,
+      names,
+      keepsPublicAccess || input.publicAccess,
+      input.publicAccess ? true : { refusal: input.publicAccessRefusal ?? 'not allowed for this app' },
+    );
+    if (written === undefined) {
+      const failure = stopped(caught.error ?? new Error('its pages could not be written'));
+      await auditAppEvent('app.apply-failed', { key, from, to, stage, message: failure.message }, userId, userLabel, actor.kind);
+      throw failure;
+    }
+    host.invalidateSurfaceSettings?.();
+
+    await auditAppEvent(
+      'app.applied',
+      {
+        key,
+        from,
+        to,
+        source: FOLDER_SOURCE,
+        sides: surfaces.map((s) => s.side),
+        ...(connectionId === null ? {} : { connectionId }),
+        ...(applied === undefined ? {} : { created: applied.created, reused: applied.reused }),
+      },
+      userId,
+      userLabel,
+      actor.kind,
+    );
+    return {
+      key,
+      from,
+      to,
+      manifest,
+      previous: (installed.document as Manifest | null) ?? null,
+      rowId: installed.row.id,
+      connectionId,
+      ...(applied === undefined ? {} : { schema: applied }),
+      names: names ?? (connectionId === null ? {} : await appTablesRepo(deps.meta).realNames(connectionId, key)),
+      pages: written.pages,
+      ...(written.publicAccess === undefined
+        ? {}
+        : { publicAccess: { endpoints: written.publicAccess.endpoints, keyId: written.publicAccess.keyId, skipped: written.publicAccess.skipped } }),
+      ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
+    };
   }
 
   async function install(actor: InstallActor, host: InstallHost, input: InstallInput): Promise<InstalledAppReply> {
@@ -1703,6 +1993,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     };
     const userId = actor.id;
     const userLabel = actor.label;
+    const source = input.source ?? 'file';
 
     if (deps.directoryKeys().includes(key)) {
       throw new ConflictError(
@@ -1725,7 +2016,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        * a tree that drifted.
        */
       const reason = refusalReason(error);
-      await auditAppEvent('app.verify-refused', { key, version, reason }, userId, userLabel);
+      await auditAppEvent('app.verify-refused', { key, version, reason }, userId, userLabel, actor.kind);
       throw error;
     }
 
@@ -1786,7 +2077,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (prior !== undefined) {
       const changed = publisherChangeRefusal(manifest, publisherIdOf(prior.document));
       if (changed !== null) {
-        await auditAppEvent('app.verify-refused', { key, version, reason: 'PUBLISHER_CHANGED' }, userId, userLabel);
+        await auditAppEvent('app.verify-refused', { key, version, reason: 'PUBLISHER_CHANGED' }, userId, userLabel, actor.kind);
         throw changed;
       }
     }
@@ -1825,6 +2116,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      */
     const addOnRows = await addOnRowsFor(manifest, connectionId ?? null, true);
     const addOnSteps: AddOnStep[] = decideAddOnSteps(manifest.name, addOnRows, (input.addOns ?? []) as AddOnChoice[]);
+    if (input.unattended?.installAddOns === false) refuseAddOnMoves(manifest, addOnSteps);
 
     // A resume re-plans against tables it made itself, so the reviewed
     // checksum no longer describes the database — by design.
@@ -1832,6 +2124,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       wanted.length > 0 && connectionId !== undefined
         ? await checkedPlan(key, manifest, connectionId, 'installed', resuming ? undefined : reviewed, answers, addOnRows)
         : undefined;
+    if (checked !== undefined && input.unattended?.adaptForeignTables === false) refuseForeignEdits(key, checked.plan);
 
     // Re-installing the same key replaces the row rather than adding a
     // second one: `list('app')` is what the registry reads, and two rows
@@ -1845,7 +2138,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         manifestKey: key,
         version,
         kind: 'app',
-        source: 'file',
+        source,
         document: manifest,
         // Remembered, not just used: this is also the connection the staff
         // surface reads at runtime.
@@ -1985,6 +2278,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { key, version, stage: where, table, created, pending: pendingRefs, message, ...addOnsKept },
         userId,
         userLabel,
+        actor.kind,
       );
       throw new ConflictError(
         `Installing "${key}" stopped at the ${where} step: ${message} ` +
@@ -2000,7 +2294,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       {
         key,
         version,
-        source: 'file',
+        source,
         sides: surfaces.map((s) => s.side),
         ...(connectionId === undefined ? {} : { connectionId }),
         ...(applied === undefined ? {} : { created: applied.created, reused: applied.reused }),
@@ -2008,6 +2302,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       },
       userId,
       userLabel,
+      actor.kind,
     );
 
     return {
@@ -2065,6 +2360,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { key, version: to, from, reason: refusalReason(error) },
         userId,
         userLabel,
+        actor.kind,
       );
       throw error;
     }
@@ -2076,13 +2372,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { key, version: to, from, reason: 'UPDATE_NOT_SUPPORTED' },
         userId,
         userLabel,
+        actor.kind,
       );
       throw refused;
     }
 
     const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
     if (changed !== null) {
-      await auditAppEvent('app.verify-refused', { key, version: to, from, reason: 'PUBLISHER_CHANGED' }, userId, userLabel);
+      await auditAppEvent('app.verify-refused', { key, version: to, from, reason: 'PUBLISHER_CHANGED' }, userId, userLabel, actor.kind);
       throw changed;
     }
 
@@ -2245,6 +2542,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { key, from, to, stage, message, ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }) },
         userId,
         userLabel,
+        actor.kind,
       );
       throw new AppError(
         409,
@@ -2313,6 +2611,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       },
       userId,
       userLabel,
+      actor.kind,
     );
 
     return {
@@ -2370,5 +2669,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     auditAppEvent,
     install,
     update,
+    applyInPlace,
+    /** The versions of a key that are packages in the store, whatever the folder holds. */
+    packagedVersions: (key: string): Promise<string[]> => deps.store.versions(key).catch(() => [] as string[]),
   };
 }

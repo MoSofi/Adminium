@@ -474,6 +474,7 @@ The tables you will care about most:
 | `adminium_schema_overrides` | every correction you make to the generated app |
 | `adminium_pages` | every page of the generated app, dashboards included |
 | `adminium_project_files` | one row per [project file](/projects/page-files/) applied: its hash, when it was applied, and what changed on this server since |
+| `adminium_project_apps` | one row per [app the project folder carries](/projects/apps/): the manifest last applied, why the newest one was not, and a removal waiting for an answer |
 | `adminium_views` | saved filters and per-user dashboard layouts |
 | `adminium_jobs` | the job queue — table-backed, no Redis |
 | `adminium_audit_log` | the append-only audit trail |

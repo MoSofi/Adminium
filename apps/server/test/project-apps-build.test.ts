@@ -217,6 +217,49 @@ describe.skipIf(!canBuildSides)('building an app with screens', () => {
   });
 });
 
+describe.skipIf(!canBuildSides)('what `adminium check` says of the config’s apps block', () => {
+  const ACCESS = JSON.stringify({ publicAccess: [{ table: 'items', methods: ['GET'], select: ['id', 'title'] }] });
+
+  it('warns that a server gives the app no public access until the config allows it', async () => {
+    await cli('app', 'new', 'repairs');
+    put('apps/repairs/manifest/access.json', ACCESS);
+    const checked = await cli('check');
+    expect(checked.err).toContain('the app "repairs" declares public access');
+    expect(checked.err).toContain('apps: { "repairs": { publicAccess: true } }');
+    // Advice, not a failure.
+    expect(checked.out).toContain('✓ the app "repairs" 0.1.0 builds');
+  });
+
+  it('says nothing of it once the config allows it', async () => {
+    await cli('app', 'new', 'repairs');
+    put('apps/repairs/manifest/access.json', ACCESS);
+    put('adminium.config.ts', 'export default { apps: { repairs: { publicAccess: true } } };\n');
+    const checked = await cli('check');
+    expect(checked.err).not.toContain('declares public access');
+    expect(checked.out).toContain('✓ the app "repairs" 0.1.0 builds');
+  });
+
+  it('names settings for an app that is not there, and a database the config does not list', async () => {
+    await cli('app', 'new', 'repairs');
+    put(
+      'adminium.config.ts',
+      "export default { databases: { main: { url: 'sqlite:./shop.db' } }, apps: { repairs: { database: 'archive' }, ghost: { sampleData: false } } };\n",
+    );
+    const checked = await cli('check');
+    expect(checked.code).toBe(2);
+    expect(checked.err).toContain('has settings for the app "ghost", and there is no apps/ghost/.');
+    expect(checked.err).toContain('apps.repairs.database is "archive", which adminium.config.ts does not list under databases.');
+  });
+
+  it('refuses a config that says something of an app the schema does not know', async () => {
+    await cli('app', 'new', 'repairs');
+    put('adminium.config.ts', 'export default { apps: { repairs: { publicAcces: true } } };\n');
+    const checked = await cli('check');
+    expect(checked.code).toBe(2);
+    expect(checked.err).toContain('apps.repairs');
+  });
+});
+
 describe('where an app’s files are', () => {
   it('answers a folder app from the folder and its build, and every other key from the store', async () => {
     await cli('app', 'new', 'repairs');

@@ -83704,6 +83704,22 @@
                                   "here",
                                   "gone"
                                 ]
+                              },
+                              "notApplied": {
+                                "type": "object",
+                                "properties": {
+                                  "stage": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "stage",
+                                  "message"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -86205,6 +86221,22 @@
                             "here",
                             "gone"
                           ]
+                        },
+                        "notApplied": {
+                          "type": "object",
+                          "properties": {
+                            "stage": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "stage",
+                            "message"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -86885,6 +86917,22 @@
                                 "here",
                                 "gone"
                               ]
+                            },
+                            "notApplied": {
+                              "type": "object",
+                              "properties": {
+                                "stage": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "stage",
+                                "message"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [

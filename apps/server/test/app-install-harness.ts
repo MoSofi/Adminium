@@ -32,6 +32,7 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { AppError, errorEnvelope } from '../src/errors.js';
+import type { AppRoutesDeps } from '../src/apps/install-service.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { TEST_SECRET } from './helpers.js';
@@ -59,6 +60,8 @@ export interface Harness {
   manager: ConnectionManager;
   dsn: string;
   connectionId: string;
+  /** What the app routes were built with: the same deps make an install service of one's own. */
+  deps: AppRoutesDeps;
   /** Stage `manifest` and install it on the connection, with the check step's answers when given. */
   install: (manifest: Record<string, unknown>, answers?: Record<string, unknown>, files?: Record<string, string>) => Promise<InstallReply>;
   /** Stage `manifest` only (an upload), for a test that then plans, installs or updates by hand; `files` join the package. */
@@ -156,38 +159,37 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
   const appFiles = createAppFiles({ store, ...(options.folder === undefined ? {} : { folder: options.folder }) });
   const sampleDeps: SampleDataDeps = { meta, manager, store, appFiles, files: memoryFiles };
   const manifests = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
-  await app.register(
-    appRoutes({
-      meta,
+  const appDeps: AppRoutesDeps = {
+    meta,
+    store,
+    files: appFiles,
+    installed: createInstalledApps({
       store,
       files: appFiles,
-      installed: createInstalledApps({
-        store,
-        files: appFiles,
-        list: async () => (await manifests.list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version, status: m.row.status })),
-      }),
-      credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
-      directoryKeys: () => [],
-      serverVersion: '0.4.0',
-      schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(TEST_SECRET) }),
-      ...(options.full === true
-        ? {
-            sampleData: sampleDeps,
-            publicAccess: {
-              service: createEndpointService({
-                meta,
-                viewFor: createPublicViews(meta).viewFor,
-                tenantConfigOf: async (cid: string) => (await connectionTenantConfig(meta, cid)) ?? undefined,
-              }),
-              viewFor: createPublicViews(meta).viewFor,
-              crypto: dsnCryptoFromSecret(TEST_SECRET),
-              origins: ['self'],
-              invalidateKey: () => {},
-            },
-          }
-        : {}),
+      list: async () => (await manifests.list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version, status: m.row.status })),
     }),
-  );
+    credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
+    directoryKeys: () => [],
+    serverVersion: '0.4.0',
+    schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(TEST_SECRET) }),
+    ...(options.full === true
+      ? {
+          sampleData: sampleDeps,
+          publicAccess: {
+            service: createEndpointService({
+              meta,
+              viewFor: createPublicViews(meta).viewFor,
+              tenantConfigOf: async (cid: string) => (await connectionTenantConfig(meta, cid)) ?? undefined,
+            }),
+            viewFor: createPublicViews(meta).viewFor,
+            crypto: dsnCryptoFromSecret(TEST_SECRET),
+            origins: ['self'],
+            invalidateKey: () => {},
+          },
+        }
+      : {}),
+  };
+  await app.register(appRoutes(appDeps));
   await app.ready();
   const handle = await manager.data(connection.id);
   const stage = async (manifest: Record<string, unknown>, files: Record<string, string> = {}) => {
@@ -205,6 +207,7 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
     manager,
     dsn,
     connectionId: connection.id,
+    deps: appDeps,
     ...(options.full === true ? { samples: createSampleDataService(sampleDeps) } : {}),
     install: async (manifest, answers = {}, files = {}) => {
       await stage(manifest, files);

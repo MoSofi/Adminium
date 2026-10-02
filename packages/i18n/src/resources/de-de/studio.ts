@@ -780,7 +780,9 @@ export default {
       "madeHere": "Hier erstellt",
       "fromFolder": "Aus dem Ordner dieses Projekts",
       "folderGone": "Ordner fehlt",
-      "folderGoneBody": "apps/{key}/ ist nicht mehr in diesem Projekt. Die App bleibt mit ihren Tabellen und Seiten installiert, bis Sie sie deinstallieren."
+      "folderGoneBody": "apps/{key}/ ist nicht mehr in diesem Projekt. Die App bleibt mit ihren Tabellen und Seiten installiert, bis Sie sie deinstallieren.",
+      "notApplied": "Nicht angewendet",
+      "notAppliedBody": "Die letzte Änderung in apps/{key}/ wurde nicht angewendet, und die App läuft wie zuvor. {message}"
     },
     "instances": {
       "add": "Instanz hinzufügen",

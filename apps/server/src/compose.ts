@@ -101,6 +101,7 @@ import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
+import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
 import { createProjectService, isConfigWrite, type ProjectServerOptions } from './project/service.js';
 import { createActionRunner } from './project/code/actions.js';
@@ -119,7 +120,8 @@ import { FILES_DIR } from './files/drivers/local.js';
 import { storageCryptoFromSecret } from './files/crypto.js';
 import { createSpool } from './files/spool.js';
 import { createFileStore } from './files/store.js';
-import { registerSampleDataHandler, type SampleDataDeps } from './apps/sample-data.js';
+import { createAppInstallService, type AppRoutesDeps } from './apps/install-service.js';
+import { createSampleDataService, findSampleApp, registerSampleDataHandler, type SampleDataDeps } from './apps/sample-data.js';
 import {
   enqueueCatalogRefresh,
   registerAddOnAcquireHandlers,
@@ -515,6 +517,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const appManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
   /** Forget which apps have an outbox; set once the producers exist below. */
   let outboxesChanged = (): void => {};
+  /** The project folder's apps, kept in step with this server; set where the app routes are built. */
+  let projectApps: ProjectApps | null = null;
   const installedApps = createInstalledApps({
     store: appStore,
     files: appFiles,
@@ -1719,42 +1723,90 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         meta,
         networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       });
-      await api.register(
-        appRoutes({
+      const appDeps: AppRoutesDeps = {
+        meta,
+        store: appStore,
+        files: appFiles,
+        installed: installedApps,
+        credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+        // An install may not shadow a surface the operator deployed by hand:
+        // those own registered routes the installed-app hook yields to, so it
+        // would appear to succeed and then serve nothing.
+        directoryKeys: () => (opts.surfaces ?? []).map((surface) => surface.appKey),
+        // Where an installed app's tables are planned and created.
+        // The same shared core the add-on target runs, given the connection
+        // the operator picked instead of one inferred from a host.
+        schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
+        catalog: appCatalog,
+        addOns: { installer: addOnInstaller, catalog: addOnCatalog, bundledDir: resolve(BUNDLED_ADD_ONS_DIR) },
+        // Which add-ons are loaded now: an app's documents are on only while theirs is.
+        addOnRuntime: () => addOnRuntime,
+        sampleData: sampleDataDeps,
+        // What an app's guests may call: endpoints and a browser key made
+        // through the same service the API keys page saves with.
+        publicAccess: {
+          service: endpointService,
+          viewFor: publicViews.viewFor,
+          crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
+          origins: env.ADMINIUM_PUBLIC_API_ORIGINS ?? [],
+          onChange: () => {
+            apiCatalogue.invalidate();
+          },
+          invalidateKey: (keyId) => {
+            publicResolver.invalidate(keyId);
+          },
+        },
+      };
+      await api.register(appRoutes(appDeps));
+      /*
+       * The apps the project folder carries are installed and re-applied by
+       * the same service the routes above install with, as a caller with no
+       * request: what it may do on its own depends on whether this is
+       * `adminium dev` or a server.
+       */
+      if (opts.project !== undefined && appsBuild !== null) {
+        const project = opts.project;
+        projectApps = createProjectApps({
+          mode: project.mode,
+          built: appsBuild,
+          service: createAppInstallService(appDeps),
           meta,
-          store: appStore,
-          files: appFiles,
-          installed: installedApps,
-          credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
-          // An install may not shadow a surface the operator deployed by hand:
-          // those own registered routes the installed-app hook yields to, so it
-          // would appear to succeed and then serve nothing.
-          directoryKeys: () => (opts.surfaces ?? []).map((surface) => surface.appKey),
-          // Where an installed app's tables are planned and created.
-          // The same shared core the add-on target runs, given the connection
-          // the operator picked instead of one inferred from a host.
-          schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
-          catalog: appCatalog,
-          addOns: { installer: addOnInstaller, catalog: addOnCatalog, bundledDir: resolve(BUNDLED_ADD_ONS_DIR) },
-          // Which add-ons are loaded now: an app's documents are on only while theirs is.
-          addOnRuntime: () => addOnRuntime,
-          sampleData: sampleDataDeps,
-          // What an app's guests may call: endpoints and a browser key made
-          // through the same service the API keys page saves with.
-          publicAccess: {
-            service: endpointService,
-            viewFor: publicViews.viewFor,
-            crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
-            origins: env.ADMINIUM_PUBLIC_API_ORIGINS ?? [],
-            onChange: () => {
-              apiCatalogue.invalidate();
+          apps: project.apps,
+          databases: project.databases ?? [],
+          connectionFor: async (key) => (await manager.connections.findByProjectKey(key))?.id ?? null,
+          log: project.log,
+          warn: project.warn,
+          host: {
+            log: {
+              info: (obj, msg) => {
+                app.log.info(obj, msg);
+              },
+              warn: (obj, msg) => {
+                app.log.warn(obj, msg);
+              },
             },
-            invalidateKey: (keyId) => {
-              publicResolver.invalidate(keyId);
+            ...(app.hasDecorator('realtime')
+              ? {
+                  publish: (channel, event, payload) => {
+                    app.realtime.publish(channel, event, payload);
+                  },
+                }
+              : {}),
+            invalidateSurfaceSettings: () => {
+              app.surfaceSettings?.invalidate();
             },
           },
-        }),
-      );
+          changed: (key, hash) => {
+            if (app.hasDecorator('realtime')) app.realtime.publish('config-changed', 'app-changed', { key, hash });
+          },
+          addSampleData: async (key) => {
+            const target = await findSampleApp(meta, key);
+            if (target === null) return;
+            await createSampleDataService(sampleDataDeps).add(target, { locale: 'en-US', userId: null, userLabel: 'project folder' });
+          },
+          refreshServed: () => installedApps.refresh(),
+        });
+      }
       // The add-on runtime. Registered unconditionally: an instance with no
       // add-ons serves an empty list, which is what a host in connected
       // mode expects to read — a conditionally-registered route would 404 there
@@ -2342,6 +2394,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // write reaches a table ahead of its hooks. A file that fails to load is
   // reported and skipped (`project/code/load.ts`). The pages the build has get
   // their rows now too, and pages whose file is gone lose theirs.
+  // The apps the folder carries are installed, or applied again, before the
+  // first request too: a server must not answer for an app it has yet to bring
+  // to what the committed files say.
+  if (projectApps !== null) {
+    try {
+      await (projectApps as ProjectApps).reconcile();
+    } catch (error) {
+      opts.project?.warn(`Could not apply the project's apps: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
   if (projectCode !== null) {
     await projectCode.load();
     try {

@@ -770,7 +770,9 @@
       "madeHere": "Lavet her",
       "fromFolder": "Fra dette projekts mappe",
       "folderGone": "Mappen er væk",
-      "folderGoneBody": "apps/{key}/ er ikke længere i dette projekt. Appen forbliver installeret med sine tabeller og sider, indtil du afinstallerer den."
+      "folderGoneBody": "apps/{key}/ er ikke længere i dette projekt. Appen forbliver installeret med sine tabeller og sider, indtil du afinstallerer den.",
+      "notApplied": "Ikke anvendt",
+      "notAppliedBody": "Den seneste ændring i apps/{key}/ blev ikke anvendt, og appen kører som før. {message}"
     },
     "instances": {
       "add": "Tilføj en instans",

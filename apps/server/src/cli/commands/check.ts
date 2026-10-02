@@ -21,6 +21,8 @@ import { join } from 'node:path';
 import { isBuiltinOptionList } from '@adminium/engine/config';
 
 import { parseDsn } from '../../connections/dsn.js';
+import { APP_BUILD_FILE, appBuildDir } from '../../project/apps/build-apps.js';
+import { listAppKeys } from '../../project/apps/read-app.js';
 import { variableSources } from '../../project/boot.js';
 import { buildDir, loadProjectConfig, readBuildManifest } from '../../project/build.js';
 import { EMPTY_CLIENT_BUILD, WIDGET_ID_PREFIX, type ClientBuild } from '../../project/client-build.js';
@@ -149,6 +151,16 @@ export function dockerfileFinding(root: string): Finding | null {
   return spec === tag
     ? { level: 'ok', text: `the Dockerfile builds on ${ADMINIUM_PACKAGE} ${tag}, the version package.json installs` }
     : { level: 'error', text: `the Dockerfile builds on ${IMAGE}:${tag}, but package.json installs ${spec}. Make them equal.` };
+}
+
+/** Whether a built app's manifest grants anything to the public. */
+function declaresPublicAccess(root: string, key: string): boolean {
+  try {
+    const manifest = JSON.parse(readFileSync(join(appBuildDir(root, key), APP_BUILD_FILE), 'utf8')) as { publicAccess?: unknown };
+    return Array.isArray(manifest.publicAccess) && manifest.publicAccess.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 export const checkCommand: Command = {
@@ -307,6 +319,27 @@ export const checkCommand: Command = {
         } else {
           const sides = app.sides.length === 0 ? 'no screens of its own' : `${app.sides.join(' and ')} side`;
           findings.push({ level: 'ok', text: `the app "${app.key}" ${app.version ?? ''} builds (${sides})` });
+          // What a deploy would otherwise find out in production: a server opens nothing the config has not allowed.
+          if (declaresPublicAccess(project.root, app.key) && config.apps?.[app.key]?.publicAccess !== true) {
+            findings.push({
+              level: 'warn',
+              text:
+                `the app "${app.key}" declares public access. \`adminium dev\` gives it; a server (\`adminium start\`) gives none ` +
+                `until ${configFileName(project)} says  apps: { ${JSON.stringify(app.key)}: { publicAccess: true } }.`,
+            });
+          }
+        }
+      }
+      const folders = listAppKeys(project.root);
+      for (const [key, entry] of Object.entries(config.apps ?? {})) {
+        if (!folders.includes(key)) {
+          findings.push({ level: 'warn', text: `${configFileName(project)} has settings for the app "${key}", and there is no apps/${key}/.` });
+        }
+        if (entry.database !== undefined && !Object.hasOwn(config.databases ?? {}, entry.database)) {
+          findings.push({
+            level: 'error',
+            text: `apps.${key}.database is "${entry.database}", which ${configFileName(project)} does not list under databases.`,
+          });
         }
       }
     }

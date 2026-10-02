@@ -392,6 +392,26 @@ describe('an app that runs from the project folder', () => {
     expect(screen.getByRole('button', { name: 'Uninstall' })).toBeTruthy();
   });
 
+  it('says when the folder’s latest change was not applied, and why', async () => {
+    installed = {
+      apps: [
+        {
+          ...INSTALLED,
+          source: 'folder',
+          folder: { state: 'here', notApplied: { stage: 'tables', message: '"repairs_items.status" may hold no value twice, and rows already there do.' } },
+        },
+      ],
+      staged: [],
+    };
+    await renderPage();
+    expect(screen.getByText('Not applied')).toBeTruthy();
+    expect(
+      screen.getByText(
+        `The latest change in apps/${INSTALLED.key}/ was not applied, and the app runs as it was. "repairs_items.status" may hold no value twice, and rows already there do.`,
+      ),
+    ).toBeTruthy();
+  });
+
   it('is not marked on a package', async () => {
     installed = { apps: [INSTALLED], staged: [] };
     await renderPage();

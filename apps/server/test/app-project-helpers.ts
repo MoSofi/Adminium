@@ -48,9 +48,8 @@ const LINKED: Record<string, string | null> = {
 /** False when this checkout cannot build a side: the suites that need one skip. */
 export const canBuildSides = Object.values(LINKED).every((folder) => folder !== null);
 
-/** A project folder with a config, a package.json and the packages linked. */
-export function tempProject(prefix: string): string {
-  const root = mkdtempSync(join(tmpdir(), prefix));
+/** Make `root` a project folder: a config, a package.json and the packages linked. */
+export function asProject(root: string): string {
   writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
   writeFileSync(join(root, 'package.json'), `${JSON.stringify({ name: 'my-admin', private: true, type: 'module' }, null, 2)}\n`);
   for (const [name, folder] of Object.entries(LINKED)) {
@@ -59,4 +58,9 @@ export function tempProject(prefix: string): string {
     symlinkSync(folder, join(root, 'node_modules', name), 'dir');
   }
   return root;
+}
+
+/** A project folder with a config, a package.json and the packages linked. */
+export function tempProject(prefix: string): string {
+  return asProject(mkdtempSync(join(tmpdir(), prefix)));
 }

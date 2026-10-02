@@ -49,12 +49,13 @@ import {
   appTablesRepo,
   auditRepo,
   connectionTenantConfig,
+  pagesRepo,
   permissionsRepo,
+  projectAppsRepo,
   publicEndpointsRepo,
   publicKeysRepo,
   rolesRepo,
   SecretSettingRefused,
-  pagesRepo,
   settingsRepo,
   snapshotsRepo,
   userPrefsRepo,
@@ -209,6 +210,19 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     return (await server.rbac.resolve(request)).superAdmin;
   }
 
+  /** Whether this key's installed row is an app of the project folder. */
+  async function runsFromFolder(key: string): Promise<boolean> {
+    return (await manifests.list('app')).some((m) => m.row.manifestKey === key && m.row.source === FOLDER_SOURCE);
+  }
+
+  /** The refusal for a change Studio cannot make to an app the folder decides. */
+  function folderDecides(key: string): ValidationFailedError {
+    return new ValidationFailedError(
+      `"${key}" runs from this project's folder (apps/${key}/). It is installed and changed from there: edit the folder, and \`adminium dev\` or the next start applies it.`,
+      { reason: 'KEY_IN_PROJECT' },
+    );
+  }
+
   /** The signed-in caller, as the install service knows one. */
   function actorOf(request: FastifyRequest): InstallActor {
     return {
@@ -255,6 +269,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const rows = await manifests.list('app');
         const placements = (await request.server.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
+        // How each app from the project folder stands: what was applied, and what was not.
+        const folderState = rows.some((installed) => installed.row.source === FOLDER_SOURCE)
+          ? new Map((await projectAppsRepo(deps.meta).list()).map((state) => [state.appKey, state]))
+          : new Map<string, never>();
         const apps: z.infer<typeof installedAppReply>[] = await Promise.all(rows.map(async (installed) => {
           const { row } = installed;
           const surfaces = surfacesOfInstalled(files, {
@@ -266,7 +284,19 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             version: row.version,
             source: row.source,
             ...(row.source === FOLDER_SOURCE
-              ? { folder: { state: files.sourceOf(row.manifestKey) === 'folder' ? ('here' as const) : ('gone' as const) } }
+              ? {
+                  folder: {
+                    state: files.sourceOf(row.manifestKey) === 'folder' ? ('here' as const) : ('gone' as const),
+                    ...(folderState.get(row.manifestKey)?.failure == null
+                      ? {}
+                      : {
+                          notApplied: {
+                            stage: folderState.get(row.manifestKey)!.failure!.stage,
+                            message: folderState.get(row.manifestKey)!.failure!.message,
+                          },
+                        }),
+                  },
+                }
               : {}),
             installedAt: row.installedAt,
             connectionId: row.connectionId,
@@ -1068,7 +1098,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         config: { audit: audited('rbac') },
         schema: { body: installAppBody, response: { 200: installedAppReply } },
       },
-      async (request) => service.install(actorOf(request), hostOf(request), request.body),
+      async (request) => {
+        // An app the project folder carries is installed from there, with the folder's own rules.
+        if (files.sourceOf(request.body.key) === 'folder') throw folderDecides(request.body.key);
+        return service.install(actorOf(request), hostOf(request), request.body);
+      },
     );
 
     app.post(
@@ -1090,7 +1124,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * onto disk is the download's job (or an upload's); this route never
        * reaches the network.
        */
-      async (request) => service.update(actorOf(request), hostOf(request), { key: request.params.key, body: request.body }),
+      async (request) => {
+        if (await runsFromFolder(request.params.key)) throw folderDecides(request.params.key);
+        return service.update(actorOf(request), hostOf(request), { key: request.params.key, body: request.body });
+      },
     );
 
     /*
@@ -1863,6 +1900,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const { key } = request.params;
         const row = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
         if (row === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+        /*
+         * AN APP THE FOLDER STILL CARRIES would be installed again at the next
+         * build or start. Removing it starts in the project: delete the
+         * folder, and then uninstall what is left here.
+         */
+        if (row.row.source === FOLDER_SOURCE && files.sourceOf(key) === 'folder') {
+          throw new ValidationFailedError(
+            `"${key}" runs from this project's folder. Delete apps/${key}/ from the project first; uninstalling it here would only have it installed again.`,
+            { reason: 'KEY_IN_PROJECT' },
+          );
+        }
         const userId = request.user?.id ?? null;
         const dropTables = request.body?.dropTables === true;
         if (dropTables && request.body?.confirmKey !== key) {
@@ -1977,6 +2025,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * link rows belong to the ADD-ONS' manifest rows, so the app row's
          * cascade below would not take them.
          */
+        // What the folder had applied, failed or asked: forgotten with the app.
+        await projectAppsRepo(deps.meta).remove(key);
         const detached = await manifests.detachHost(key);
         if (detached > 0) await deps.addOns?.installer.rebuildRuntime?.();
 

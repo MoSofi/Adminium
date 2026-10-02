@@ -1332,6 +1332,28 @@ export interface AdminiumProjectFilesTable {
 }
 
 // ---------------------------------------------------------------------------
+// wave 0049 — apps a project folder carries
+// ---------------------------------------------------------------------------
+
+/**
+ * What this instance last applied of an app under a project's `apps/<key>/`.
+ * See migration 0049.
+ */
+export interface AdminiumProjectAppsTable {
+  appKey: string;
+  /** Hash of the manifest last applied in full; NULL before the first. */
+  appliedHash: string | null;
+  appliedAt: Ts | null;
+  /** `{ stage, message, hash }` when the newest manifest was not applied. */
+  failure: JsonColumn | null;
+  /** `{ hash, changes }`: a removal that would lose data, waiting for an answer. */
+  removals: JsonColumn | null;
+  /** The manifest whose removal was answered "keep the data". */
+  declinedHash: string | null;
+  updatedAt: Ts;
+}
+
+// ---------------------------------------------------------------------------
 // wave 0035 — option lists
 // ---------------------------------------------------------------------------
 
@@ -1466,6 +1488,7 @@ export interface MetaDB {
   adminium_public_request_stats: AdminiumPublicRequestStatsTable;
   adminium_public_api_state: AdminiumPublicApiStateTable;
   adminium_project_files: AdminiumProjectFilesTable;
+  adminium_project_apps: AdminiumProjectAppsTable;
   adminium_option_lists: AdminiumOptionListsTable;
   adminium_assistant_sessions: AdminiumAssistantSessionsTable;
   adminium_assistant_turns: AdminiumAssistantTurnsTable;
@@ -1530,6 +1553,7 @@ export const META_TABLE_NAMES = [
   'adminium_public_request_stats',
   'adminium_public_api_state',
   'adminium_project_files',
+  'adminium_project_apps',
   'adminium_option_lists',
   'adminium_assistant_sessions',
   'adminium_assistant_turns',

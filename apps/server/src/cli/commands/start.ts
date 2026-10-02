@@ -250,6 +250,8 @@ export const startCommand: Command = {
         warn: (message) => {
           io.err(message);
         },
+        ...(project.config.apps === undefined ? {} : { apps: project.config.apps }),
+        databases: [...project.databases.ready.keys()],
       };
       const boot = createProjectService({ meta: runtime.metaStore.meta, ...projectServer, pollMs: 0, watchFiles: false });
       try {

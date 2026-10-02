@@ -56,6 +56,29 @@
         }
       },
       "additionalProperties": false
+    },
+    "apps": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{1,79}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,47}$"
+          },
+          "publicAccess": {
+            "type": "boolean"
+          },
+          "sampleData": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

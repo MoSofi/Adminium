@@ -17067,6 +17067,14 @@
     "status": "mt",
     "srcHash": "c103be102327"
   },
+  "studio.hostedApps.installed.notApplied": {
+    "status": "mt",
+    "srcHash": "68d1e1222698"
+  },
+  "studio.hostedApps.installed.notAppliedBody": {
+    "status": "mt",
+    "srcHash": "26ba501221c2"
+  },
   "studio.hostedApps.installed.oldNames": {
     "status": "mt",
     "srcHash": "2e58da6d38da"
