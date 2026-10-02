@@ -39,7 +39,7 @@ import { useCustomer } from '@adminiumjs/adminium/side';
 const loaded = useCustomer();
 const client = createPublicClient(loaded.value);
 const items = loaded.value.tables['items'] ?? 'items';   // the endpoint's name on this install
-await client.list(items, { limit: 20 });                  // { data }
+await client.list(items, { limit: 50 });                  // { data }, in key order
 ```
 
 `createPublicClient` returns `null` when it has no address or key: check for it. The venue's
@@ -58,6 +58,8 @@ Rules of the public side:
 
 - A table anyone may add to may not also be readable by anyone. Read from one table, add to
   another (the starter's `items` and `requests`).
+- A public list comes in key order. `order`, `where` and `q` from the screen are refused
+  (`PUBLIC_QUERY_REFUSED`): sort in the screen, and hide rows with `filters` in `access.json`.
 - A create returns only the columns the entry's `select` lists. Do not expect the whole row.
 - `PATCH` needs a guest who has signed in to reach their own row. Read
   `references/guides/identity-and-own-links--*.md` before building any "my booking" screen.
@@ -70,8 +72,8 @@ Rules of the public side:
 
 ## Things every screen must get right
 
-- **The venue's clock, never the browser's.** Use the session's `timezone`. When
-  `timezoneIsFallback` is true, show a line saying times are in UTC. Never call
+- **The venue's clock, never the browser's.** Staff: the session's `timezone`; when its
+  `timezoneIsFallback` is true, show a line saying times are in UTC. Customer: `client.config()`. Never call
   `Intl.DateTimeFormat().resolvedOptions().timeZone`. Format with `toTenantDay`,
   `toTenantMinutes` and `formatTenantMoney` from `@adminiumjs/public-client`.
 - **Three states.** Every load has loading, error and ready. On a staff screen show the error's

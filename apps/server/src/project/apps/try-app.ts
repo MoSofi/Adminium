@@ -317,10 +317,12 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
           // A create with no values: one that is not granted is refused for access, one that is
           // granted is refused for its values (or asks for the human check). Nothing is written.
           const write = await call('POST', `/api/v1/public/records/${encodeURIComponent(name)}`, { ...withKey, payload: { values: {} } });
-          const refusedForAccess = [401, 403, 404, 405].includes(write.status);
           const code = String(record(record(write.json)['error'])['code'] ?? write.status);
+          // An entry that asks for the human check answers "prove you are a person": the grant is there.
+          const refusedForAccess = code !== 'PUBLIC_PROOF_REQUIRED' && [401, 403, 404, 405].includes(write.status);
           if (entry.methods.includes('POST')) {
-            step(!refusedForAccess, `the customer side may add to "${table}", as access grants (an empty one is refused for its values: ${code})`, refusal(write));
+            const why = code === 'PUBLIC_PROOF_REQUIRED' ? 'it asks for the human check first' : `an empty one is refused for its values: ${code}`;
+            step(!refusedForAccess, `the customer side may add to "${table}", as access grants (${why})`, refusal(write));
           } else {
             step(refusedForAccess, `the customer side cannot add to "${table}", which access does not grant`, `it answered ${code}`);
           }

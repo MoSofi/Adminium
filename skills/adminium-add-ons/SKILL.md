@@ -59,8 +59,9 @@ The essentials:
 - **A shape that sends email makes the app send it.** If the shape has `outbox.producers`, the app
   needs an outbox table, and `manifest/emails.json` with a kind, a producer and a template for
   every kind the shape sends. Copy the producers from `addOn.shapes[].outbox.producers`; write the
-  templates in the app's own words with the variables the app guide documents
-  (`references/guides/building-on-an-add-on--5-send-the-shape-s-emails.md`).
+  templates in the app's own words, with the variables in `references/guides/emails--variables.md`
+  (the add-on's own templates use other names; do not copy them). Read
+  `references/guides/building-on-an-add-on--5-send-the-shape-s-emails.md` first.
 - The guides show a single `manifest.json`. In an app folder the same fields go in part files:
   tables in `manifest/tables/`, `addOns` in `add-ons.json`, `outbox` and `emailTemplates` in
   `emails.json`, `documents` in `documents.json`.

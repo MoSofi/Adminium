@@ -66,6 +66,9 @@ Rules that catch people:
   with the app's key.
 - A page's `nav.group` names a `key` in `app.json`'s `navGroups`; one that names none is listed
   with no heading.
+- A `page-board` needs a status column with at least two of Adminium's workflow words as values
+  (`new`, `in_progress`, `done`, …; the list is in the page task guide). Otherwise the page is
+  created empty and **try** fails on it: use those words with your own labels, or `page-crud`.
 - An `fk` column's `references` must be the `ref` of a table of the app. **check** does not catch a
   wrong one; the install does, so **try** does.
 - A role may grant only things inside the app: `table:@<table>:read|create|update|delete`,

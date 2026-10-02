@@ -19,6 +19,18 @@ file. Every file is 8 KB or less.
 | `references/guides/building-on-an-add-on--7-open-a-portal-for-clients.md` | 7. Open a portal for clients | 1780 |
 | `references/guides/building-on-an-add-on--8-ship-sample-data.md` | 8. Ship sample data | 758 |
 | `references/guides/building-on-an-add-on--9-check-it-before-you-release.md` | 9. Check it before you release | 659 |
+| `references/guides/emails--overview.md` | An app's emails | 915 |
+| `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
+| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6600 |
+| `references/guides/emails--messages-about-changes.md` | Messages about changes | 3591 |
+| `references/guides/emails--sending.md` | Sending | 4071 |
+| `references/guides/emails--held-messages.md` | Held messages | 1454 |
+| `references/guides/emails--attachments.md` | Attachments | 1702 |
+| `references/guides/emails--the-templates.md` | The templates | 1273 |
+| `references/guides/emails--variables.md` | Variables | 6248 |
+| `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
+| `references/guides/emails--links.md` | Links | 850 |
+| `references/guides/emails--upgrading.md` | Upgrading | 1762 |
 
 ## install
 

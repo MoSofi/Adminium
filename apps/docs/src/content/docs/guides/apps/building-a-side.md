@@ -140,7 +140,7 @@ export function App() {
 function Menu({ config }: { config: CustomerConfig }) {
   const client = useMemo(() => createPublicClient(config), [config]);
   const items = config.tables['items'] ?? 'items';
-  // client.list(items, { order: 'id.desc', limit: 20 })   → { data: rows }
+  // client.list(items, { limit: 50 })                     → { data: rows }, in key order
   // client.create(requests, { message })                  → the new row, as far as `select` shows it
   return null;
 }
@@ -154,7 +154,13 @@ more; see [An app's public access](/guides/apps/public-access/) and
 Until someone allows the app's public access, no key is served and `useCustomer()` answers `error`
 with a sentence saying so.
 
-Four things a customer screen needs that the example above leaves out:
+Five things a customer screen needs that the example above leaves out:
+
+- **A list comes in key order, and the caller cannot change it.** An app's public endpoint takes
+  `limit`, `offset` and `cursor`, and refuses a sort, a filter or a search of the caller's
+  (`order`, `where`, `q`) with `400 PUBLIC_QUERY_REFUSED`. Sort the rows in the screen. To keep
+  rows out of the public list, write `filters` on the entry in `access.json`: that is decided by
+  the app, not by whoever calls.
 
 - **`createPublicClient` may return `null`**, when it is given no address or no key. Check for it
   and show a "not connected" line.

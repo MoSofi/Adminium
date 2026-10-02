@@ -49,7 +49,10 @@ function Requests({ client, config }: { client: PublicClient; config: CustomerCo
 
   const load = useCallback(async () => {
     try {
-      setRows((await client.list(items, { order: 'id.desc', limit: 20 })).data);
+      // The public API returns rows in key order and takes no sort or filter of the
+      // caller's: sort here, and narrow what is public with "filters" in access.json.
+      const listed = (await client.list(items, { limit: 50 })).data;
+      setRows([...listed].sort((a, b) => Number(b['id']) - Number(a['id'])));
       setProblem(null);
     } catch (error) {
       setProblem(sorry(error));

@@ -8,7 +8,7 @@
 | `references/guides/manifest-by-task--add-a-table.md` | Add a table | 2907 |
 | `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 2004 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
-| `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 2538 |
+| `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3042 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2531 |
 | `references/guides/manifest-by-task--sample-data.md` | Sample data | 1495 |

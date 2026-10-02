@@ -170,11 +170,17 @@ list with a form), `page-board` (cards in columns, by a status), `page-calendar`
   check the spelling of both.
 - `title` is `{ "key", "fallback" }`, not a plain string. `icon` is a
   [Lucide](https://lucide.dev/icons/) name.
-- **A board or a calendar needs no settings.** `page-board` makes its columns from the table's
-  status: a column with `enum` values, or its `states`. `page-calendar` plots by the table's date
-  columns, or by the ones `config.calendar` names. A table that cannot back its template (a board
-  over a table with no choice column) gives a page that is created empty; the install reports it,
-  and `adminium app try` fails on it, naming the page.
+- **A board needs a status Adminium can read as a workflow.** `page-board` makes its columns from
+  a choice column (`enum`) of two to six values, and at least two of the values must be words
+  Adminium knows as steps of a workflow: `todo`, `backlog`, `open`, `new`, `draft`, `in_progress`,
+  `doing`, `review`, `blocked`, `on_hold`, `done`, `completed`, `closed`, `cancelled`, `archived`,
+  `active`, `paused`, `shipped`. A status of `received`, `baking`, `ready` gives no board. Use
+  those words as the values and say your own in `rules.enumLabels`
+  (`"in_progress": { "en-US": "Baking" }`), or use `page-crud`.
+- **A calendar needs a date.** `page-calendar` plots by the table's `date` or `timestamptz`
+  columns, or by the ones `config.calendar` names.
+- **A page whose table cannot back its template is created empty.** The check does not see it. The
+  install reports it, and `adminium app try` fails on it, naming the page and the reason.
 - **A role sees a page only with its grant.** Give each role `page:@<page ref>:view` for the pages
   its people should find in the sidebar ([Add a role](#add-a-role)).
 

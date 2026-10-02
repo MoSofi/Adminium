@@ -140,6 +140,17 @@ describe.skipIf(!canBuildSides)('adminium app try', { timeout: 120_000 }, () => 
     expect(err).toMatch(/✗ the page "repairs-requests" shows its table\n\s+.*\(PAGE_UNFIT\)/);
   });
 
+  it('reads an entry that asks for the human check as granted', async () => {
+    await run('new', 'repairs', '--customer');
+    edit('apps/repairs/manifest/access.json', (access) => ({
+      publicAccess: (access['publicAccess'] as Record<string, unknown>[]).map((entry) => (entry['table'] === 'requests' ? { ...entry, humanCheck: true } : entry)),
+    }));
+    const { code, out, err } = await run('try');
+    expect(err).toBe('');
+    expect(code).toBe(0);
+    expect(out).toContain('✓ the customer side may add to "requests", as access grants (it asks for the human check first)');
+  });
+
   it('stops at the check, before anything is started, when the manifest is wrong', async () => {
     await run('new', 'repairs', '--customer');
     edit('apps/repairs/manifest/access.json', () => ({ publicAccess: [{ table: 'items', methods: ['GET', 'POST'], select: ['id'], writable: ['title'] }] }));
