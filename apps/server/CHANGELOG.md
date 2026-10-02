@@ -1,5 +1,32 @@
 # @adminium/server
 
+## 0.3.11
+
+### Patch Changes
+
+- b07eb0c: The assistant finishes more of the turns it starts, on a local model above all.
+  
+  - **Ollama.** Every request states its context window (`num_ctx` 32,768) instead of inheriting Ollama's few thousand tokens, which dropped the start of a long prompt, the instructions, without an error; a chat request may take four minutes rather than one.
+  - **Long turns.** A running job keeps its lock fresh while its handler is in flight, so a turn longer than the stale window is no longer claimed a second time mid-run. A turn whose process died is ended as failed instead of reading "running" for ever.
+  - **Rounds.** A turn has enough rounds to spend every lookup it is allowed and still answer, and is told when its last round has come, so it writes with what it has.
+  - **Tools.** The row and aggregate tools show worked filters and descriptors beside their grammar, take `where` as an object, and name a table by its connection's name in the steps and sources a person reads. The invoice contexts show one real starter in the real format.
+  - **Replies.** A reply that ran to its end with unbalanced JSON is repaired as a parse error rather than retried as if it had run out of tokens.
+  - **Saving.** A draft saves once: a second save of the same turn answers with the document the first one made, and the button reads "Saved". A result's sheet is drawn flush inside the assistant's card, and the header keeps its chips beside the title.
+- a63590a: A record's panel (Peek) shows the whole record and names its tabs in words. It showed only the columns the list shows, so an order opened from a list of names and totals had no number and no status, and an enquiry had no note; the panel now lists the list's columns first, as the page set them, then the rest of the table's. Its related tabs read "ordering_order_items"; they now carry the table's own name where it has one (an app's, or the operator's rename: "Order items") and plain words where it has none. `GET /data/:connection/:table/:id?include=inboundCounts` and the references preflight answer that name as `label` on each entry.
+- 259d295: A change that sends a link as it already is no longer copies through it again. A person's own write through the public API carries the link that makes the row theirs (an invoice's client); the copy rule read that as the link changing and copied the client's value onto the row once more. Where the two differed — a new client with no tax rate, an invoice holding 0 — the write was refused as a change to a locked row ("That write was refused"), for a column it never named: a Client Portal client could not tell the studio they had paid. A copy now runs again on an update only when the link's value differs from the stored one.
+- 3e9fc5b: A yes/no column on SQLite is a switch in a generated page's form, not a number box. SQLite keeps a yes/no as a whole number, and the mark that says what it is (`column.yesNo`, written by the table designer and by an app's install or update) reached every reader except page generation, which stored the column as `integer`; the form lets a page's stored column win, so "Active" asked for `1`. Generation now reads the mark, and a page stored before the mark was written follows it when it is read: the column draws as a switch in the form and as a yes/no in the list, with everything else the page set on it (its label, its width, whether it is hidden) kept. A form somebody designed while the column still read as a number gives up its number box for the switch too.
+- Updated dependencies [b07eb0c]
+  - @adminium/llm@0.3.11
+  - @adminium/meta@0.3.11
+  - @adminium/engine@0.3.11
+  - @adminium/adapter-mysql@0.3.11
+  - @adminium/adapter-postgres@0.3.11
+  - @adminium/adapter-sqlite@0.3.11
+  - @adminium/schema-import@0.3.11
+  - @adminium/add-on-contracts@0.3.11
+  - @adminium/i18n@0.3.11
+  - @adminium/manifest@0.3.11
+
 ## 0.3.10
 
 ### Patch Changes

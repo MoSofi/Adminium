@@ -1,5 +1,18 @@
 # @adminium/widgets
 
+## 0.3.11
+
+### Patch Changes
+
+- a63590a: Opening a related tab in a record's panel no longer ends in "Rate limit reached". The tab read its rows again every time it drew, and its own answer made it draw: one open tab sent the same read over and over, as fast as the server answered, until the signed-in budget (300 requests a minute) was spent and the next page the person opened was a full-page 429. The tab now reads once per record. A read that is refused leaves the tab's count on screen instead of an unhandled error.
+- a63590a: A record's panel (Peek) shows the whole record and names its tabs in words. It showed only the columns the list shows, so an order opened from a list of names and totals had no number and no status, and an enquiry had no note; the panel now lists the list's columns first, as the page set them, then the rest of the table's. Its related tabs read "ordering_order_items"; they now carry the table's own name where it has one (an app's, or the operator's rename: "Order items") and plain words where it has none. `GET /data/:connection/:table/:id?include=inboundCounts` and the references preflight answer that name as `label` on each entry.
+- 3e9fc5b: A yes/no column on SQLite is a switch in a generated page's form, not a number box. SQLite keeps a yes/no as a whole number, and the mark that says what it is (`column.yesNo`, written by the table designer and by an app's install or update) reached every reader except page generation, which stored the column as `integer`; the form lets a page's stored column win, so "Active" asked for `1`. Generation now reads the mark, and a page stored before the mark was written follows it when it is read: the column draws as a switch in the form and as a yes/no in the list, with everything else the page set on it (its label, its width, whether it is hidden) kept. A form somebody designed while the column still read as a number gives up its number box for the switch too.
+- Updated dependencies [b07eb0c]
+  - @adminium/ui@0.3.11
+  - @adminium/charts@0.3.11
+  - @adminium/i18n@0.3.11
+  - @adminium/tokens@0.3.11
+
 ## 0.3.10
 
 ### Patch Changes
