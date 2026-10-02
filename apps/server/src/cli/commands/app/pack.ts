@@ -27,7 +27,7 @@ export async function checkBuildAndPack(
   io: CommandContext['io'],
   project: ProjectLocation,
   key: string,
-  opts: { quiet?: boolean } = {},
+  opts: { quiet?: boolean; brief?: boolean } = {},
 ): Promise<{ built: BuiltApp; packed: PackedApp } | null> {
   const built = await checkAndBuild(io, project, key, opts);
   if (built === null) return null;
@@ -50,7 +50,7 @@ export const appPackCommand: Command = {
     const { values, positionals } = parseFlags(argv, flags, 'app pack');
     const project = requireProject({ deps }, 'pack');
     const key = resolveAppKey(project.root, positionals[0], 'pack');
-    const done = await checkBuildAndPack(io, project, key);
+    const done = await checkBuildAndPack(io, project, key, { brief: true });
     if (done === null) return EXIT_VALIDATION_FAILED;
     const { packed } = done;
 
@@ -67,7 +67,8 @@ export const appPackCommand: Command = {
     io.out(`  fingerprint: ${packed.integrity}`);
     io.out('');
     io.out('Install it: Studio → Hosted apps → Install an app. Upload the file and paste the fingerprint.');
-    io.out(`Or prove it installs first:  npx @adminiumjs/adminium app try ${packed.key}`);
+    const addOns = (done.built.check.manifest?.addOns?.requires ?? []).length > 0 ? ' --add-ons <folder>' : '';
+    io.out(`Or prove it installs first:  npx @adminiumjs/adminium app try ${packed.key}${addOns}`);
     return EXIT_OK;
   },
 };

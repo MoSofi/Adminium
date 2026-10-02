@@ -58,7 +58,7 @@ file. Every file is 8 KB or less.
 | `references/projects/deploy--before-a-deploy-pull-what-changed.md` | Before a deploy, pull what changed | 661 |
 | `references/projects/deploy--upgrading-adminium.md` | Upgrading Adminium | 1117 |
 | `references/projects/apps--overview.md` | An app in your project | 1271 |
-| `references/projects/apps--start-one.md` | Start one | 579 |
+| `references/projects/apps--start-one.md` | Start one | 647 |
 | `references/projects/apps--the-manifest-as-parts.md` | The manifest, as parts | 1782 |
 | `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 825 |
 | `references/projects/apps--check-it.md` | Check it | 999 |
@@ -78,7 +78,7 @@ file. Every file is 8 KB or less.
 | `references/cli/dev.md` | `dev` | 1915 |
 | `references/cli/build.md` | `build` | 904 |
 | `references/cli/check.md` | `check` | 1274 |
-| `references/cli/app.md` | `app` | 4899 |
+| `references/cli/app.md` | `app` | 5391 |
 | `references/cli/pull.md` | `pull` | 1333 |
 | `references/cli/eject.md` | `eject` | 1119 |
 | `references/cli/try.md` | `try` | 1463 |

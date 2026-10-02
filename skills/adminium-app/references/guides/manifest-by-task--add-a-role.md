@@ -24,6 +24,12 @@ writes the short ref after `@` and the install fills in the rest.
 | `page:@<page ref>:<action>` | `view`, `edit` |
 | `app:@:staff` | Open the app's staff screens. |
 
+- **Pages are granted one by one.** A role without `page:@<page ref>:view` does not see that page
+  in the sidebar, whatever it may do with the table.
+- **Personal data is masked without `read_pii`.** A column that holds a person's name, phone,
+  email or address reads as empty to a role that lacks `table:@<table ref>:read_pii` on the table
+  the value lives in. A front desk that rings customers needs it. See
+  [Personal data](https://docs.adminium.dev/guides/apps/roles-and-staff-access/#personal-data).
 - A role may never grant a `system:` permission, a wildcard (`*`), or a table or page the app
   does not declare. `cloneFrom` names another role of the same app.
 - These are refused when the app is installed, not by the manifest check, so run

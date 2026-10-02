@@ -22,7 +22,9 @@ has passed.
 2. The skills are written for the Adminium version in `../VERSION`. Run the **version** command; if
    the installed Adminium is older, say so and stop.
 3. If there is no project yet (no `adminium.config.ts` in this folder or above it), make one with
-   **new project**. It needs Node 22.14 or later.
+   **new project**. It needs Node 22.14 or later. It ends by suggesting a database URL and
+   `npm run dev`: that is for running the dashboard, and an app needs neither to be checked, tried
+   or packed. Do not open `.env`.
 
 ## How much to build: pick the lowest rung that answers the request, and say which
 
@@ -66,7 +68,10 @@ app file.
 2. Edit the files. One table per file, one page per file.
 3. **check** — after every change. Fix every `✗`; read every `!`.
 4. **build** — when the app has screens.
-5. **try** — installs the packed app on a throwaway Adminium and probes it. This is the proof.
+5. **try** — installs the packed app on a throwaway Adminium and probes it. This is the proof that
+   it installs, that its pages have their tables, that its screens are served and that customers
+   reach only what is granted. It does not open a screen in a browser, move a row through its
+   states, send an email or draw a document: say so, and tell the person to open each screen once.
 6. **pack** — the file the person installs from Studio → Hosted apps → Install an app.
 
 ## What does not exist yet

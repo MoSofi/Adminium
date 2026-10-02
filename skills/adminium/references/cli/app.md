@@ -17,9 +17,9 @@ options.
 adminium app new <key> [--name <text>] [--staff] [--customer] [--no-install]
 ```
 
-Writes a small working app into `apps/<key>/`: one table, one dashboard page,
-one role and sample data, with its manifest as part files, a README and a test
-file. The app carries the publisher `local`. It then runs the same check as
+Writes a small working app into `apps/<key>/`: two tables, a dashboard page for
+each, one role and sample data, with its manifest as part files, a README and a
+test file (`node --test apps/<key>/tests/app.test.mjs`). The app carries the publisher `local`. It then runs the same check as
 `app check`.
 
 | Flag | Description |
@@ -78,17 +78,24 @@ listening on a port, and does what a person does in Studio through the same
 routes: uploads the package with its fingerprint, checks the tables, installs,
 and adds the sample data. It then:
 
+- reports any page the install had to create empty, because its table cannot
+  back its template;
 - opens each side and every file its page names;
 - reads the app's first table as the signed-in person, and checks the staff
   side is refused to someone who is not signed in;
 - asks the public API, with the browser key the customer side is served, for
-  each table `access.json` grants, and for the tables it does not grant, for a
-  table outside the app, and without the key — each of which must be refused.
+  each table `access.json` grants to read, and sends an empty row to each it
+  grants to add to (which must be refused for its values, not for access);
+  then for the tables it does not grant, for a table outside the app, and
+  without the key — each of which must be refused.
 
 It prints one line per step and exits `2` when a step fails, with the server's
 own words for a refusal. Nothing in your project or its database is changed.
-It does not run the screens in a browser: an error inside a screen only shows
-when a person opens it.
+It does not run the screens in a browser, send an email, draw a document or
+move a row through its states: open each screen once after installing.
+
+This is `adminium app try`. Plain [`adminium try`](https://docs.adminium.dev/reference/cli/#try) is another command:
+the setup wizard for running Adminium without a project.
 
 | Flag | Description |
 |---|---|

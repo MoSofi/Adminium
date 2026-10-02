@@ -104,6 +104,7 @@ describe.skipIf(!canBuildSides)('adminium app try', { timeout: 120_000 }, () => 
       '✓ the package uploads (repairs-0.1.0.tgz',
       '✓ the table check passes (2 table(s) to create)',
       '✓ it installs: tables, pages, roles',
+      '✓ every page shows its table (2 page(s) made)',
       '✓ the sample data loads',
       '✓ the staff side is served at /apps/repairs/staff/',
       '✓ the staff side can read "items" as the signed-in person',
@@ -113,6 +114,7 @@ describe.skipIf(!canBuildSides)('adminium app try', { timeout: 120_000 }, () => 
       '✓ "items" is refused without the key',
       '✓ the customer side cannot add to "items", which access does not grant',
       '✓ the customer side cannot read "requests", which access does not grant',
+      '✓ the customer side may add to "requests", as access grants',
       '✓ the customer side cannot read a table outside the app',
       'Repairs 0.1.0 installs and is served.',
     ]) {
@@ -127,6 +129,15 @@ describe.skipIf(!canBuildSides)('adminium app try', { timeout: 120_000 }, () => 
     const result = JSON.parse(out) as { ok: boolean; steps: { ok: boolean; text: string }[] };
     expect(result.ok).toBe(true);
     expect(result.steps.map((step) => step.text)).toContain('it is listed as installed, with no screens of its own');
+  });
+
+  it('fails on a page the install had to create empty, naming it', async () => {
+    await run('new', 'repairs');
+    // A board needs a status to make its columns from; `requests` has none.
+    edit('apps/repairs/manifest/pages/repairs-requests.json', (page) => ({ ...page, template: 'page-board' }));
+    const { code, err } = await run('try');
+    expect(code).toBe(2);
+    expect(err).toMatch(/✗ the page "repairs-requests" shows its table\n\s+.*\(PAGE_UNFIT\)/);
   });
 
   it('stops at the check, before anything is started, when the manifest is wrong', async () => {

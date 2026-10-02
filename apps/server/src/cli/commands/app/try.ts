@@ -39,7 +39,7 @@ export const appTryCommand: Command = {
     const project = requireProject({ deps }, 'try');
     const key = resolveAppKey(project.root, positionals[0], 'try');
     const json = values['json'] === true;
-    const done = await checkBuildAndPack(io, project, key, { quiet: json });
+    const done = await checkBuildAndPack(io, project, key, { quiet: json, brief: true });
     if (done === null) return EXIT_VALIDATION_FAILED;
     const manifest = done.built.check.manifest;
     if (manifest === null) return EXIT_VALIDATION_FAILED;
@@ -55,7 +55,7 @@ export const appTryCommand: Command = {
         ? {}
         : {
             onStep: (step) => {
-              if (step.ok) io.out(`✓ ${step.text}`);
+              if (step.ok) io.out(`${step.warn === true ? '!' : '✓'} ${step.text}`);
               else io.err(`✗ ${step.text}${step.detail === undefined ? '' : `\n    ${step.detail.split('\n').join('\n    ')}`}`);
             },
           }),

@@ -323,25 +323,67 @@ export function demoStaff(tables: Record<string, readonly Row[]>): StaffSession 
   };
 }
 
+/** An ISO-8601 duration (`PT19M`, `P2D`, `P1W`) in milliseconds, or null. */
+function durationMs(value: unknown): number | null {
+  const match = typeof value === 'string' ? /^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(value) : null;
+  if (match === null) return null;
+  const [, weeks, days, hours, minutes, seconds] = match.map((part) => Number(part ?? 0));
+  return (((((weeks ?? 0) * 7 + (days ?? 0)) * 24 + (hours ?? 0)) * 60 + (minutes ?? 0)) * 60 + (seconds ?? 0)) * 1000;
+}
+
 /**
- * The plain rows of a sample data file (`seeds/sample.json`), by table, for
- * {@link demoStaff}. A value written as a directive (`{"@ago": "PT1H"}`) has
- * no meaning without an install and is left out.
+ * The rows of a sample data file (`seeds/sample.json`), by table, for
+ * {@link demoStaff}.
+ *
+ * A sample file writes some values as directives, which an install works out.
+ * The common ones are worked out here too, near enough for looking at a
+ * screen: `@ref` becomes the id of the row with that `@label`, `@ago` and
+ * `@in` a time that far from now, `@day` (with `@time`) a date that many days
+ * from today, and `@t` its English text. Any other directive is left out.
  */
-export function sampleRows(bundle: unknown): Record<string, Row[]> {
+export function sampleRows(bundle: unknown, now: Date = new Date()): Record<string, Row[]> {
   const out: Record<string, Row[]> = {};
-  const tables = record(bundle)['tables'];
-  for (const table of Array.isArray(tables) ? tables : []) {
-    const ref = text(record(table)['ref']);
-    const rows = record(table)['rows'];
-    if (ref === null || !Array.isArray(rows)) continue;
-    out[ref] = rows.map((row) =>
-      Object.fromEntries(
-        Object.entries(record(row)).filter(
-          ([column, value]) => !column.startsWith('@') && (value === null || typeof value !== 'object' || Array.isArray(value)),
-        ),
-      ),
-    );
+  const ids = new Map<string, number>();
+  const tables = (Array.isArray(record(bundle)['tables']) ? (record(bundle)['tables'] as unknown[]) : []).map(record);
+  // Ids first: a row may point at one in a table written later in the file.
+  for (const table of tables) {
+    (Array.isArray(table['rows']) ? table['rows'] : []).forEach((row, index) => {
+      const label = text(record(row)['@label']);
+      if (label !== null) ids.set(label, index + 1);
+    });
+  }
+  const day = (offset: number): string => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offset));
+    return date.toISOString().slice(0, 10);
+  };
+  const resolve = (value: unknown): { keep: boolean; value?: unknown } => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return { keep: true, value };
+    const directive = record(value);
+    if (typeof directive['@ref'] === 'string') return ids.has(directive['@ref']) ? { keep: true, value: ids.get(directive['@ref']) } : { keep: false };
+    const ago = durationMs(directive['@ago']);
+    if (ago !== null) return { keep: true, value: new Date(now.getTime() - ago).toISOString() };
+    const ahead = durationMs(directive['@in']);
+    if (ahead !== null) return { keep: true, value: new Date(now.getTime() + ahead).toISOString() };
+    if (typeof directive['@day'] === 'number') {
+      const date = day(directive['@day']);
+      return { keep: true, value: typeof directive['@time'] === 'string' ? `${date}T${directive['@time']}:00.000Z` : date };
+    }
+    const translated = record(directive['@t']);
+    if (typeof translated['en-US'] === 'string') return { keep: true, value: translated['en-US'] };
+    return { keep: false };
+  };
+  for (const table of tables) {
+    const ref = text(table['ref']);
+    if (ref === null || !Array.isArray(table['rows'])) continue;
+    out[ref] = table['rows'].map((row) => {
+      const made: Row = {};
+      for (const [column, value] of Object.entries(record(row))) {
+        if (column.startsWith('@')) continue;
+        const resolved = resolve(value);
+        if (resolved.keep) made[column] = resolved.value;
+      }
+      return made;
+    });
   }
   return out;
 }

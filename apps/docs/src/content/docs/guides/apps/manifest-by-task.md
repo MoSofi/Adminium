@@ -61,6 +61,11 @@ One file per table, in `manifest/tables/`.
   neither `nullable` nor a `default` makes the check warn that it "has no default and is not
   nullable": every new row must then give it a value, and a form that does not show the column
   cannot save. Give it one of the two, unless a [rule](#values-adminium-fills-in) fills it.
+  When you mean the column to be required (a customer's name, a job's bike), leave it as it is:
+  the warning is advice and the check still passes.
+- **Money.** A price is `{ "ref": "price", "type": "money", "nullable": true }`. It is kept in the
+  database's currency with that currency's decimals; a screen formats it with the venue's
+  `currency`, never a symbol written into the code.
 - **Defaults.** A `text` default needs `maxLength`. A `timestamptz` default is `"now"` and nothing
   else. An `enum` default is one of its values. `date`, `json`, `blob`, `id`, `uuid` and `fk` take
   none.
@@ -165,6 +170,13 @@ list with a form), `page-board` (cards in columns, by a status), `page-calendar`
   check the spelling of both.
 - `title` is `{ "key", "fallback" }`, not a plain string. `icon` is a
   [Lucide](https://lucide.dev/icons/) name.
+- **A board or a calendar needs no settings.** `page-board` makes its columns from the table's
+  status: a column with `enum` values, or its `states`. `page-calendar` plots by the table's date
+  columns, or by the ones `config.calendar` names. A table that cannot back its template (a board
+  over a table with no choice column) gives a page that is created empty; the install reports it,
+  and `adminium app try` fails on it, naming the page.
+- **A role sees a page only with its grant.** Give each role `page:@<page ref>:view` for the pages
+  its people should find in the sidebar ([Add a role](#add-a-role)).
 
 Reference: [Pages](/reference/manifest/#pages), [navGroups](/reference/manifest/#navgroups).
 
@@ -192,6 +204,12 @@ writes the short ref after `@` and the install fills in the rest.
 | `page:@<page ref>:<action>` | `view`, `edit` |
 | `app:@:staff` | Open the app's staff screens. |
 
+- **Pages are granted one by one.** A role without `page:@<page ref>:view` does not see that page
+  in the sidebar, whatever it may do with the table.
+- **Personal data is masked without `read_pii`.** A column that holds a person's name, phone,
+  email or address reads as empty to a role that lacks `table:@<table ref>:read_pii` on the table
+  the value lives in. A front desk that rings customers needs it. See
+  [Personal data](/guides/apps/roles-and-staff-access/#personal-data).
 - A role may never grant a `system:` permission, a wildcard (`*`), or a table or page the app
   does not declare. `cloneFrom` names another role of the same app.
 - These are refused when the app is installed, not by the manifest check, so run

@@ -29,14 +29,14 @@ export async function checkAndBuild(
   io: CommandContext['io'],
   project: ProjectLocation,
   key: string,
-  opts: { loadBundler?: LoadBundler; quiet?: boolean } = {},
+  opts: { loadBundler?: LoadBundler; quiet?: boolean; brief?: boolean } = {},
 ): Promise<BuiltApp | null> {
   const check = checkApp(project.root, key, { version: APP_VERSION });
   if (hasErrors(check) || check.manifest === null) {
     printCheck(io, check);
     return null;
   }
-  if (opts.quiet !== true) printCheck(io, check);
+  if (opts.quiet !== true) printCheck(io, check, { brief: opts.brief === true });
   if (check.sides.length === 0) return { check, sides: [] };
 
   const bundler = await (opts.loadBundler ?? loadProjectBundler)(project.root);

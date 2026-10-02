@@ -25,6 +25,11 @@ One file per table, in `manifest/tables/`.
   neither `nullable` nor a `default` makes the check warn that it "has no default and is not
   nullable": every new row must then give it a value, and a form that does not show the column
   cannot save. Give it one of the two, unless a [rule](https://docs.adminium.dev/guides/apps/manifest-by-task/#values-adminium-fills-in) fills it.
+  When you mean the column to be required (a customer's name, a job's bike), leave it as it is:
+  the warning is advice and the check still passes.
+- **Money.** A price is `{ "ref": "price", "type": "money", "nullable": true }`. It is kept in the
+  database's currency with that currency's decimals; a screen formats it with the venue's
+  `currency`, never a symbol written into the code.
 - **Defaults.** A `text` default needs `maxLength`. A `timestamptz` default is `"now"` and nothing
   else. An `enum` default is one of its values. `date`, `json`, `blob`, `id`, `uuid` and `fk` take
   none.

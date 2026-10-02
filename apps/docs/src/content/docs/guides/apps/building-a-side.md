@@ -92,7 +92,14 @@ The session `useStaff()` gives:
 `<key>_<ref>` when the app is `prefixed`, and the session maps one to the other.
 
 A refused write throws an error whose `message` is the server's own sentence and whose `code` is
-its error code. Show the message: it names the column and says what is wrong.
+its error code. On a staff screen, show the message: it names the column and says what is wrong.
+
+A column that holds personal data (a name, a phone, an email) reads as empty to a person whose
+role lacks `read_pii` on that table. A screen that shows customers' details needs a role that
+grants it; see [Add a role](/guides/apps/manifest-by-task/#add-a-role).
+
+`adminium app build` bundles the code and does not type-check it. To type-check a side, add
+`typescript` to the project and a `tsconfig.json` that includes `apps/`.
 
 The person must hold a role that may open the app's staff screens (`app:@:staff` in the app's
 `roles.json`), and their grants on the app's tables decide what the reads and writes above may do.
@@ -147,6 +154,26 @@ more; see [An app's public access](/guides/apps/public-access/) and
 Until someone allows the app's public access, no key is served and `useCustomer()` answers `error`
 with a sentence saying so.
 
+Four things a customer screen needs that the example above leaves out:
+
+- **`createPublicClient` may return `null`**, when it is given no address or no key. Check for it
+  and show a "not connected" line.
+- **The venue's clock and money come from the client**, not from `useCustomer()`:
+  `await client.config()` gives `timezone` and `currency`, and `await client.now()` gives the
+  server's time, so "today" is right on a device whose clock is wrong.
+- **A public error's `message` is for developers, not for visitors.** Catch `PublicApiError`, read
+  its `code`, and say your own sentence. This is the opposite of the staff side, where the
+  server's message is written to be shown.
+- **The human check is automatic.** When an entry asks for it (`"humanCheck": true` in
+  `access.json`), the client solves it in the background and sends again. Pass
+  `humanCheck: { refs: [requests] }` to `createPublicClient` to solve it up front for the endpoints
+  you know ask for it, and save the refused first try.
+
+What a public create can and cannot hold a stranger to is in
+[Limits on a stranger's create](/guides/apps/public-access/#limits-on-a-strangers-create). A rule
+you need that is not there, such as "the pickup date is not in the past", can only be checked in
+the screen: say so to whoever asked for it.
+
 The public API does not take payments, run a query you write, or run code of yours on the server.
 What a customer may do is exactly the list the manifest grants.
 
@@ -163,8 +190,9 @@ whole number of hours without anyone noticing. `@adminiumjs/public-client` expor
 
 ## Looking at a side without Adminium
 
-Give `useStaff` sample rows and open the built page with `?demo` in its address, or straight from
-the file. It then holds those rows in memory and saves nothing:
+Give `useStaff` sample rows and open the staff screen with `?demo` in its address. It then holds
+those rows in memory and saves nothing. `sampleRows` works out the common sample directives (`@ref`,
+`@ago`, `@in`, `@day`) near enough to look at a screen:
 
 ```tsx
 import { sampleRows, useStaff } from '@adminiumjs/adminium/side';

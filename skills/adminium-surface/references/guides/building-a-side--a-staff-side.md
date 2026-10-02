@@ -41,7 +41,14 @@ The session `useStaff()` gives:
 `<key>_<ref>` when the app is `prefixed`, and the session maps one to the other.
 
 A refused write throws an error whose `message` is the server's own sentence and whose `code` is
-its error code. Show the message: it names the column and says what is wrong.
+its error code. On a staff screen, show the message: it names the column and says what is wrong.
+
+A column that holds personal data (a name, a phone, an email) reads as empty to a person whose
+role lacks `read_pii` on that table. A screen that shows customers' details needs a role that
+grants it; see [Add a role](https://docs.adminium.dev/guides/apps/manifest-by-task/#add-a-role).
+
+`adminium app build` bundles the code and does not type-check it. To type-check a side, add
+`typescript` to the project and a `tsconfig.json` that includes `apps/`.
 
 The person must hold a role that may open the app's staff screens (`app:@:staff` in the app's
 `roles.json`), and their grants on the app's tables decide what the reads and writes above may do.

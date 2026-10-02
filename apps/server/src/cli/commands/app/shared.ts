@@ -28,12 +28,20 @@ export function findingLine(finding: AppFinding): string {
 
 export const hasErrors = (check: AppCheck): boolean => check.findings.some((finding) => finding.level === 'error');
 
-/** Print a check: problems to stderr, the rest to stdout, then what the customer side may reach. */
-export function printCheck(io: CommandContext['io'], check: AppCheck): void {
+/**
+ * Print a check: problems to stderr, the rest to stdout, then what the
+ * customer side may reach. `brief` is for a command that checks on its way to
+ * something else (`pack`, `try`): the advice is counted, not repeated.
+ */
+export function printCheck(io: CommandContext['io'], check: AppCheck, opts: { brief?: boolean } = {}): void {
+  const brief = opts.brief === true && !hasErrors(check);
   for (const finding of check.findings) {
+    if (brief && finding.level !== 'error') continue;
     if (finding.level === 'note') io.out(findingLine(finding));
     else io.err(findingLine(finding));
   }
+  const advice = check.findings.filter((finding) => finding.level === 'warn').length;
+  if (brief && advice > 0) io.out(`! ${String(advice)} piece(s) of advice: adminium app check ${check.key}  lists them`);
   if (hasErrors(check) || check.manifest === null) return;
   const manifest = check.manifest;
   const tables = manifest.requiredSchema.tables.length;

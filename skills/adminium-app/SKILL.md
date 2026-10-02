@@ -32,6 +32,7 @@ apps/<key>/
   manifest/sample.json              names seeds/sample.json
   seeds/sample.json                 sample rows
   staff/  customer/                 screens (only when asked for)
+  tests/app.test.mjs  README.md     run the test with  node --test apps/<key>/tests/app.test.mjs
 ```
 
 Then shape it into what was asked: rename and rewrite the tables, pages, role and sample rows.
@@ -57,8 +58,10 @@ Open `references/INDEX.md`, find the task, read that one file.
 
 Rules that catch people:
 
-- A column with no `default` that is not `nullable` is required on every new row. **check** warns.
-  Give it a default, make it nullable, or mean it.
+- A column with no `default` that is not `nullable` is required on every new row, and **check**
+  prints a `!` for it (unless a rule fills it). Give it a default or make it nullable. When you
+  mean it to be required, leave it: a `!` is advice, the check still passes, and you say which
+  ones are meant.
 - A page's `ref` is its address in the dashboard and is shared by every installed app. Start it
   with the app's key.
 - A page's `nav.group` names a `key` in `app.json`'s `navGroups`; one that names none is listed
@@ -66,10 +69,11 @@ Rules that catch people:
 - An `fk` column's `references` must be the `ref` of a table of the app. **check** does not catch a
   wrong one; the install does, so **try** does.
 - A role may grant only things inside the app: `table:@<table>:read|create|update|delete`,
-  `app:@:staff` (open the staff screens). `@` stands for this app.
+  `page:@<page ref>:view`, `app:@:staff` (open the staff screens). `@` stands for this app. A role
+  sees a page in the sidebar only with that page's grant, and reads a person's name, phone or
+  email as empty without `table:@<table>:read_pii`.
 - `access.json` is the only thing customers can reach. A table anyone may add a row to (`POST`)
   may not also be one anyone may read (`GET`): put reading and adding on different tables.
-- Keep text columns' `maxLength` at 1000 or less; use a second table for long content.
 
 ## 4. Check after every change
 

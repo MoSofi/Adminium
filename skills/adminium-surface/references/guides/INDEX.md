@@ -7,10 +7,10 @@
 | `references/guides/building-a-side--overview.md` | Building an app's screens | 616 |
 | `references/guides/building-a-side--the-folder.md` | The folder | 1120 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
-| `references/guides/building-a-side--a-staff-side.md` | A staff side | 2845 |
-| `references/guides/building-a-side--a-customer-side.md` | A customer side | 1814 |
+| `references/guides/building-a-side--a-staff-side.md` | A staff side | 3317 |
+| `references/guides/building-a-side--a-customer-side.md` | A customer side | 3147 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |
-| `references/guides/building-a-side--looking-at-a-side-without-adminium.md` | Looking at a side without Adminium | 765 |
+| `references/guides/building-a-side--looking-at-a-side-without-adminium.md` | Looking at a side without Adminium | 857 |
 | `references/guides/building-a-side--what-a-served-screen-may-not-load.md` | What a served screen may not load | 783 |
 | `references/guides/building-a-side--text-in-other-languages.md` | Text in other languages | 481 |
 | `references/guides/public-access--overview.md` | An app's public access | 539 |

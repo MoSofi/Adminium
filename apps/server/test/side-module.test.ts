@@ -194,7 +194,7 @@ describe('a customer side', () => {
 
 describe('sample rows held in memory', () => {
   it('lists, adds, changes and removes, saving nothing', async () => {
-    const staff = demoStaff(sampleRows({ tables: [{ ref: 'items', rows: [{ title: 'A', status: 'open' }, { title: 'B', '@label': 'b', made: { '@ago': 'PT1H' } }] }] }));
+    const staff = demoStaff(sampleRows({ tables: [{ ref: 'items', rows: [{ title: 'A', status: 'open' }, { title: 'B', '@label': 'b', odd: { '@slot': 'x' } }] }] }));
     expect(staff.mode).toBe('demo');
     expect(await staff.list('items')).toEqual({ rows: [{ id: 1, title: 'A', status: 'open' }, { id: 2, title: 'B' }], total: 2 });
     const made = await staff.create('items', { title: 'C' });
@@ -203,5 +203,25 @@ describe('sample rows held in memory', () => {
     await staff.remove('items', 1);
     expect((await staff.list('items')).rows.map((row) => row['id'])).toEqual([2, 3]);
     await expect(staff.get('items', 99)).rejects.toThrow(/not there/);
+  });
+
+  it('works out the common directives of a sample file, near enough to look at a screen', () => {
+    const now = new Date('2026-03-10T12:00:00.000Z');
+    const rows = sampleRows(
+      {
+        tables: [
+          { ref: 'cakes', rows: [{ '@label': 'lemon', name: 'Lemon' }, { '@label': 'plum', name: { '@t': { 'en-US': 'Plum', 'de-DE': 'Pflaume' } } }] },
+          {
+            ref: 'orders',
+            rows: [{ cake_id: { '@ref': 'plum' }, pickup_date: { '@day': 2 }, made: { '@ago': 'PT90M' }, due: { '@in': 'P1D' }, at: { '@day': -1, '@time': '09:30' }, gone: { '@ref': 'nobody' } }],
+          },
+        ],
+      },
+      now,
+    );
+    expect(rows['cakes']).toEqual([{ name: 'Lemon' }, { name: 'Plum' }]);
+    expect(rows['orders']).toEqual([
+      { cake_id: 2, pickup_date: '2026-03-12', made: '2026-03-10T10:30:00.000Z', due: '2026-03-11T12:00:00.000Z', at: '2026-03-09T09:30:00.000Z' },
+    ]);
   });
 });

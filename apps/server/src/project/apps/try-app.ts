@@ -35,6 +35,8 @@ export interface TryStep {
   text: string;
   /** Why it failed: the server's own words where it gave any. */
   detail?: string;
+  /** Passed, with something the author should read: printed as advice, never a failure. */
+  warn?: boolean;
 }
 
 export interface TryResult {
@@ -206,18 +208,40 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     const plan = record(record(planned.json)['plan']);
     const installable = planned.status === 200 && plan['installable'] === true;
     const tables = Array.isArray(plan['create']) ? plan['create'].length : 0;
-    if (!step(installable, `the table check passes (${String(tables)} table(s) to create)`, planned.status === 200 ? refusal({ ...planned, json: { error: { message: 'The plan is not installable.', details: plan } } }) : refusal(planned))) {
+    if (!installable) {
+      const why = planned.status === 200 ? refusal({ ...planned, json: { error: { message: 'The plan is not installable.', details: plan } } }) : refusal(planned);
+      // An add-on the app requires is not on a fresh Adminium unless its package is handed over.
+      const needsAddOn = (manifest.addOns?.requires ?? []).length > 0 && opts.addOnsDir === undefined;
+      step(false, `the table check passes (${String(tables)} table(s) to create)`, needsAddOn ? `${why}\nThis app requires an add-on. Pass its package:  adminium app try ${key} --add-ons <folder>` : why);
       return done(null);
     }
+    step(true, `the table check passes (${String(tables)} table(s) to create)`);
 
     const installed = await call('POST', '/api/v1/apps/install', {
       payload: { key, version, connectionId, publicAccess: true, ...(typeof plan['checksum'] === 'string' ? { planChecksum: plan['checksum'] } : {}) },
     });
     if (!step(installed.status === 200, 'it installs: tables, pages, roles', refusal(installed))) return done(null);
 
-    const pages = Array.isArray(record(installed.json)['pages']) ? (record(installed.json)['pages'] as unknown[]).length : null;
+    // What the install itself reported: a page it could not fill, a rule it could not write.
+    const receipt = record(installed.json);
+    const pageReport = record(receipt['pages']);
+    const pageWarnings = (Array.isArray(pageReport['warnings']) ? pageReport['warnings'] : []).map(record);
+    const made = Array.isArray(pageReport['created']) ? pageReport['created'].length : 0;
+    if (pageWarnings.length === 0) step(true, `every page shows its table (${String(made)} page(s) made)`);
+    for (const warning of pageWarnings) {
+      step(false, `the page "${String(warning['page'])}" shows its table`, `${String(warning['message'])} (${String(warning['reason'])})`);
+    }
+    for (const skipped of (Array.isArray(record(receipt['rules'])['skipped']) ? (record(receipt['rules'])['skipped'] as unknown[]) : []).map(record)) {
+      const entry: TryStep = {
+        ok: true,
+        warn: true,
+        text: `the rule ${String(skipped['op'])} on "${String(skipped['table'])}.${String(skipped['column'])}" was not written: ${String(skipped['reason'])}`,
+      };
+      steps.push(entry);
+      opts.onStep?.(entry);
+    }
     const bootstrap = await call('GET', '/api/v1/bootstrap');
-    step(bootstrap.status === 200, `the dashboard still starts${pages === null ? '' : ` (${String(pages)} page(s) from the app)`}`, refusal(bootstrap));
+    step(bootstrap.status === 200, 'the dashboard still starts', refusal(bootstrap));
 
     // ── sample data ──
     if (manifest.sampleData !== undefined) {
@@ -290,9 +314,15 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
             const read = await call('GET', `/api/v1/public/records/${encodeURIComponent(name)}?limit=1`, withKey);
             step(read.status >= 400, `the customer side cannot read "${table}", which access does not grant`, `it answered ${String(read.status)}`);
           }
-          if (!entry.methods.includes('POST')) {
-            const write = await call('POST', `/api/v1/public/records/${encodeURIComponent(name)}`, { ...withKey, payload: { values: {} } });
-            step(write.status >= 400 && write.status !== 422, `the customer side cannot add to "${table}", which access does not grant`, `it answered ${String(write.status)}`);
+          // A create with no values: one that is not granted is refused for access, one that is
+          // granted is refused for its values (or asks for the human check). Nothing is written.
+          const write = await call('POST', `/api/v1/public/records/${encodeURIComponent(name)}`, { ...withKey, payload: { values: {} } });
+          const refusedForAccess = [401, 403, 404, 405].includes(write.status);
+          const code = String(record(record(write.json)['error'])['code'] ?? write.status);
+          if (entry.methods.includes('POST')) {
+            step(!refusedForAccess, `the customer side may add to "${table}", as access grants (an empty one is refused for its values: ${code})`, refusal(write));
+          } else {
+            step(refusedForAccess, `the customer side cannot add to "${table}", which access does not grant`, `it answered ${code}`);
           }
         }
         // Every table of the app the manifest does not grant must be out of reach.

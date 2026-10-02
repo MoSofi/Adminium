@@ -128,6 +128,9 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
           'table:@items:update',
           'table:@requests:read',
           'table:@requests:update',
+          // A page is in a person's sidebar only with its own grant.
+          `page:@${key}-items:view`,
+          `page:@${key}-requests:view`,
         ],
       },
     ],
@@ -184,7 +187,7 @@ function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides'>): strin
     '| `manifest/sample.json`, `seeds/sample.json` | Sample data, added only when the person installing asks for it |',
     ...(sides.includes('staff') ? ['| `staff/src/` | The staff screens: a React app that reads and writes as the signed-in person |'] : []),
     ...(sides.includes('customer') ? ['| `customer/src/` | The customer screens: a public React app that uses the public API |'] : []),
-    '| `tests/app.test.mjs` | Checks that need only Node: `node --test ' + `${APPS_DIR}/${key}/tests` + '` |',
+    '| `tests/app.test.mjs` | Checks that need only Node: `node --test ' + `${APPS_DIR}/${key}/tests/app.test.mjs` + '` |',
     '',
     '## Commands',
     '',

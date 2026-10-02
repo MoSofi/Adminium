@@ -3145,7 +3145,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               prefix: surface.prefix,
               navAvailable: surface.manifest !== null,
             })),
-            missing: surfaces.length === 0,
+            missing: surfaces.length === 0 && !servesNothingByDesign(manifest),
             ...(writtenPages === undefined ? {} : { pages: writtenPages.pages }),
             ...(writtenPages?.rules === undefined ? {} : { rules: writtenPages.rules }),
             ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
