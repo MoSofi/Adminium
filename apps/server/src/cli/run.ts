@@ -9,6 +9,7 @@
 
 import { APP_VERSION } from '../version.js';
 import { renderCommandHelp, renderRootHelp, type Command } from './command.js';
+import { appCommand } from './commands/app.js';
 import { applyLlmResponseCommand } from './commands/apply-llm-response.js';
 import { buildCommand } from './commands/build.js';
 import { checkCommand } from './commands/check.js';
@@ -35,6 +36,7 @@ export const COMMANDS: readonly Command[] = [
   buildCommand,
   startCommand,
   checkCommand,
+  appCommand,
   pullCommand,
   ejectCommand,
   initCommand,
@@ -144,8 +146,11 @@ export async function runCli(argv: readonly string[], opts: RunCliOptions = {}):
   // "help") and `adminium import-zip --in help` (a bundle file named `help`)
   // both printed help and returned EXIT_OK, so a script branching on exit 0
   // concluded the command had run.
-  if (wantsHelp(commandArgv, command)) {
-    io.out(renderCommandHelp(command));
+  // A command with commands of its own answers `--help` after one of them
+  // with that one's help.
+  const sub = command.subcommands?.find((candidate) => candidate.name === commandArgv[0]);
+  if (sub !== undefined ? wantsHelp(commandArgv.slice(1), sub) : wantsHelp(commandArgv, command)) {
+    io.out(renderCommandHelp(sub ?? command));
     return EXIT_OK;
   }
 
@@ -155,7 +160,7 @@ export async function runCli(argv: readonly string[], opts: RunCliOptions = {}):
     if (error instanceof CliUsageError) {
       io.err(error.message);
       io.err('');
-      io.err(renderCommandHelp(command));
+      io.err(renderCommandHelp(error.command === `${command.name} ${sub?.name ?? ''}` && sub !== undefined ? sub : command));
       return error.code;
     }
     if (error instanceof CliError) {

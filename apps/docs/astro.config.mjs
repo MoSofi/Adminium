@@ -228,6 +228,7 @@ export default defineConfig({
             { label: 'Pull and check', link: '/projects/pull-and-check/' },
             { label: 'Hooks and actions', link: '/projects/hooks-and-actions/' },
             { label: 'Pages and widgets', link: '/projects/pages-and-widgets/' },
+            { label: 'An app in your project', link: '/projects/apps/' },
             { label: 'Deploy a project', link: '/projects/deploy/' },
           ],
         },

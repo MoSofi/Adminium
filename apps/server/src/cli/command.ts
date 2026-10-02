@@ -31,6 +31,12 @@ export interface Command {
   aliases?: readonly string[];
   /** Left out of the root help list. */
   hidden?: boolean;
+  /**
+   * Commands of its own (`adminium app check`). The dispatcher shows a
+   * sub-command's help for `--help` after its name, and beside a usage error
+   * it raised.
+   */
+  subcommands?: readonly Command[];
   /** Returns the process exit code. Throwing `CliError` is equivalent. */
   run(ctx: CommandContext): Promise<ExitCode>;
 }

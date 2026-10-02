@@ -256,6 +256,36 @@ workflow
 
 ---
 
+## `app`
+
+```
+adminium app <command> [key] [options]
+```
+
+Works on an app in this project's `apps/<key>/` folder — see
+[An app in your project](/projects/apps/). `[key]` may be left out when the
+project holds one app. `adminium app <command> --help` prints a command's own
+options.
+
+### `app check`
+
+```
+adminium app check [key] [--json] [--split]
+```
+
+Puts the app's manifest together — one `manifest.json`, or the part files in
+`manifest/` — and validates it exactly as an install does, naming the file and
+field of each problem. It also checks that the app runs on this Adminium, that
+every side the manifest declares has its code in `apps/<key>/<side>/src/`, and
+that the sample data fits the app's tables. It ends by listing, table by table,
+what the customer side may reach. It needs no database and exits `2` when
+something is wrong.
+
+| Flag | Description |
+|---|---|
+| `--json` | Print the result as JSON: `ok`, the problems with their file and field, and the public access |
+| `--split` | Rewrite a single `manifest.json` as a `manifest/` folder of parts. Nothing is written unless the parts compose back to the same manifest |
+
 ## `pull`
 
 ```

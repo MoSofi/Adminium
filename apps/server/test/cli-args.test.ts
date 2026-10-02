@@ -156,6 +156,7 @@ describe('command registry', () => {
       'build',
       'start',
       'check',
+      'app',
       'pull',
       'eject',
       'try',
