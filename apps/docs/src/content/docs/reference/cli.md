@@ -286,6 +286,19 @@ something is wrong.
 | `--json` | Print the result as JSON: `ok`, the problems with their file and field, and the public access |
 | `--split` | Rewrite a single `manifest.json` as a `manifest/` folder of parts. Nothing is written unless the parts compose back to the same manifest |
 
+### `app build`
+
+```
+adminium app build [key]
+```
+
+Checks the app, then bundles each side in `apps/<key>/<side>/src/`, entered at
+`main.tsx`, into `.adminium/build/apps/<key>/<side>/`: an `index.html`, the
+script and stylesheet under `assets/` with a hash in their names, files from
+the side's `public/` folder as they are, and `surface.json` when the side has a
+`nav.json`. It needs the `esbuild` dev dependency and the project's packages
+installed. An app with no screens of its own builds nothing.
+
 ## `pull`
 
 ```

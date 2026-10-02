@@ -91,3 +91,40 @@ exactly as an install does. A problem names the file and the field it is in:
 
 It then lists what the customer side may reach. That list comes from `access.json` alone: a table
 the app has but does not grant there is out of the customers' reach, whatever the screens try.
+
+## Screens of its own
+
+A side is a small browser app in `apps/<key>/staff/` or `apps/<key>/customer/`:
+
+```
+apps/repairs/staff/
+├── src/main.tsx        where it starts
+├── src/…               everything it imports, CSS and images included
+├── nav.json            its screens, for the dashboard's sidebar (optional)
+└── public/             files served as they are (optional)
+```
+
+The manifest declares each side in `frontends`, with `"kind": "spa"`; `app check` refuses a side
+that is declared and has no code, and code that is not declared.
+
+```bash
+npx @adminiumjs/adminium app build
+```
+
+[`adminium app build`](/reference/cli/#app-build) bundles each side with the project's `esbuild`
+into `.adminium/build/apps/<key>/<side>/`, which is exactly the folder Adminium serves at
+`/apps/<key>/<side>/`. The page it writes carries no inline script, and every asset is addressed
+under that mount, so a screen opened at a deep address still finds its files. React comes from the
+project's own dependencies.
+
+`nav.json` lists the screens a staff side offers the dashboard's sidebar:
+
+```json
+[
+  { "id": "jobs", "path": "", "label": "Jobs", "icon": "wrench" },
+  { "id": "done", "path": "done", "label": "Done" }
+]
+```
+
+A `path` never starts with `/`: it is added to wherever the side is opened. `icon` is a
+[Lucide](https://lucide.dev) icon name.
