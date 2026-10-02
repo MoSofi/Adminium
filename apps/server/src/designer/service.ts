@@ -26,6 +26,8 @@ import type { DesignerEvent } from './events.js';
 import { createDesignerRunner, type Actor, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
 import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type DesignerTarget, type SessionStore } from './session-store.js';
 import type { DesignerTool } from './tool-types.js';
+import type { Versions } from './versions.js';
+import { DESIGNER_MAX_OUTPUT_TOKENS } from './prompt.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -47,8 +49,8 @@ export interface DesignerHost {
   /** The tools and what the model is told; given by the parts that build them. */
   tools?: (session: DesignerSession) => DesignerTool[];
   prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[]) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
-  /** Saves a version after a turn; null where versions are off. */
-  versions?: { commit(session: DesignerSession, name: string): Promise<{ n: number; name: string } | null> } | null;
+  /** Versions after each turn; absent in a harness that keeps none. */
+  versions?: Versions | null;
 }
 
 export interface CreateSessionInput {
@@ -66,7 +68,13 @@ export interface Designer {
   runner: DesignerRunner;
   createSession(input: CreateSessionInput, by: Actor): Promise<DesignerSession>;
   /** The engine's last word on a turn. Exposed for the tools that apply mid-turn. */
-  pipeline(session: DesignerSession, handle: TurnHandle, opts?: { version: boolean }): Promise<PipelineResult>;
+  pipeline(session: DesignerSession, handle: TurnHandle, opts?: { version?: boolean; askRemovals?: boolean }): Promise<PipelineResult>;
+  /**
+   * Put the folder back as version `n` was (0: before the session), and apply
+   * it. With `record` that is a new version on top (O1); without, it is "put
+   * the files back" after a stopped turn (O3).
+   */
+  restore(sessionId: string, n: number, opts: { record: boolean; by: Actor }): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
   shutdown(): Promise<void>;
 }
 
@@ -97,7 +105,7 @@ export function createDesigner(host: DesignerHost): Designer {
     return found;
   };
 
-  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version: boolean } = { version: true }): Promise<PipelineResult> {
+  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
     const key = session.appKey;
 
@@ -134,7 +142,7 @@ export function createDesigner(host: DesignerHost): Designer {
     if (!applied) return { ok: false, version: null };
 
     // What the manifest no longer declares, and holds data, waits for the person here.
-    const waiting = await host.service.removals.pending(key);
+    const waiting = opts.askRemovals === false ? null : await host.service.removals.pending(key);
     if (waiting !== null) {
       const answer = await handle.ask({ type: 'removal', appKey: key, changes: waiting.changes });
       if (answer.type === 'removal') {
@@ -142,8 +150,8 @@ export function createDesigner(host: DesignerHost): Designer {
       }
     }
 
-    if (!opts.version || host.versions == null) return { ok: true, version: null };
-    const version = await host.versions.commit(session, `v${String((session.version ?? 0) + 1)}`);
+    if (opts.version === false || host.versions == null) return { ok: true, version: null };
+    const version = await host.versions.commit(session);
     if (version !== null) {
       store.update(session.id, { version: version.n });
       events.emit(turn, { kind: 'version', n: version.n, name: version.name });
@@ -155,7 +163,7 @@ export function createDesigner(host: DesignerHost): Designer {
     store,
     runnerFor: async (session) => {
       const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model);
-      return { runner: resolved.runner };
+      return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS };
     },
     tools: (session) => host.tools?.(session) ?? [],
     prompt: async (session, messages) => host.prompt?.(session, messages) ?? { system: 'You are Adminium Designer.', messages },
@@ -207,8 +215,39 @@ export function createDesigner(host: DesignerHost): Designer {
         model: input.model,
         createdApp,
       });
+      // What the folder held before the session: "put the files back" in its first turn returns to it.
+      await host.versions?.snapshot(session).catch((error: unknown) => {
+        host.log('could not record the folder before a Designer session', error);
+      });
       await host.audit('designer.session.created', by, { sessionId: session.id, appKey, createdApp });
       return session;
+    },
+    async restore(sessionId, n, opts) {
+      const session = store.read(sessionId);
+      if (runner.active() !== null) {
+        throw new ConflictError('The Designer is working. Stop it, or wait for it to finish, before going back.', 'CONFLICT', { reason: 'TURN_RUNNING' });
+      }
+      if (host.versions == null || !(await host.versions.available())) {
+        throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
+      }
+      const version = await host.versions.restore(session, n, { record: opts.record });
+      if (version !== null) store.update(session.id, { version: version.n });
+      const events = runner.events(session.id);
+      if (version !== null) events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
+      // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
+      const applied = await pipeline(
+        store.read(session.id),
+        {
+          turn: session.turns,
+          by: opts.by,
+          events,
+          signal: new AbortController().signal,
+          ask: () => Promise.reject(new Error('nothing is asked outside a turn')),
+        },
+        { version: false, askRemovals: false },
+      );
+      await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
+      return { version, applied: applied.ok };
     },
     shutdown: () => runner.shutdown(),
   };

@@ -37,6 +37,9 @@ let model: Server;
 let modelUrl: string;
 /** What the next turn's model says when it is not being checked. */
 let reply: { text: string; wait?: boolean } = { text: 'I looked, and the app is fine as it is.' };
+/** A model's steps in order, each made when it is reached: text, or tool calls. Used before `reply`. */
+type ScriptStep = () => { text: string } | { calls: { name: string; arguments: Record<string, unknown> }[] };
+let script: ScriptStep[] = [];
 const held: (() => void)[] = [];
 
 beforeAll(async () => {
@@ -61,6 +64,18 @@ beforeAll(async () => {
           line({ model: 'fake', done: false, message: { role: 'assistant', content: 'done' } });
         } else {
           line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'echo', arguments: { word: 'adminium' } } }] } });
+        }
+        line(done);
+        response.end();
+        return;
+      }
+      const step = script.shift();
+      if (step !== undefined) {
+        const made = step();
+        if ('calls' in made) {
+          line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: made.calls.map((call) => ({ function: call })) } });
+        } else {
+          line({ model: 'fake', done: false, message: { role: 'assistant', content: made.text } });
         }
         line(done);
         response.end();
@@ -100,6 +115,7 @@ afterEach(async () => {
   install = null;
   root = undefined;
   reply = { text: 'I looked, and the app is fine as it is.' };
+  script = [];
 });
 
 function memoryStore(meta: MetaDb): MetaStoreHandle {
@@ -209,7 +225,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
 
     const events = await finishedTurn(client, session.id, 1);
     expect(events.map((event) => event.seq)).toEqual(events.map((_event, index) => index + 1));
-    expect(events.map((event) => event.kind)).toEqual(['turn-started', 'text', 'usage', 'check', 'build', 'apply', 'turn-finished']);
+    expect(events.map((event) => event.kind)).toEqual(['turn-started', 'text', 'usage', 'check', 'build', 'apply', 'version', 'turn-finished']);
     expect(events.find((event) => event.kind === 'apply'), JSON.stringify(events.find((event) => event.kind === 'apply'))).toMatchObject({ ok: true, state: 'installed' });
     expect(events.at(-1)).toMatchObject({ outcome: 'done' });
 
@@ -274,5 +290,58 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(audit).toHaveLength(1);
     expect(JSON.stringify(audit)).not.toContain('0001');
     expect(JSON.stringify(audit)).toContain('claude-x');
+  });
+
+  it('run a turn in which the model writes a table, checks and applies it, and keep it as a version; then go back', async () => {
+    const client = await server({ designer: true });
+    const table = (ref: string): string => {
+      const items = JSON.parse(readFileSync(join(root!, 'apps/repair-desk/manifest/tables/items.json'), 'utf8')) as Record<string, unknown>;
+      return JSON.stringify({ ...items, ref, label: { 'en-US': 'Job' }, labelPlural: { 'en-US': 'Jobs' } }, null, 2);
+    };
+    script = [
+      () => ({ calls: [{ name: 'write_file', arguments: { path: 'apps/repair-desk/manifest/tables/jobs.json', content: table('jobs') } }] }),
+      () => ({ calls: [{ name: 'check_app', arguments: {} }] }),
+      () => ({ calls: [{ name: 'apply_app', arguments: {} }] }),
+      () => ({ text: 'I added a jobs table.' }),
+    ];
+    const created = await client.call('POST', '/api/v1/designer/sessions', createBody());
+    const session = created.body['session'] as { id: string };
+    const events = await finishedTurn(client, session.id, 1);
+    expect(events.at(-1)).toMatchObject({ outcome: 'done' });
+    const steps = events.filter((event) => event.kind === 'step') as unknown as { state: string; label: string }[];
+    expect(steps.filter((step) => step.state !== 'running').map((step) => step.label)).toEqual([
+      'Wrote manifest/tables/jobs.json',
+      'Checked: no errors',
+      'Applied the app',
+    ]);
+    expect(events.find((event) => event.kind === 'version')).toMatchObject({ n: 1, name: 'v1' });
+    const shop = new BetterSqlite3(join(root!, 'shop.db'), { readonly: true });
+    const tables = (shop.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((row) => row.name);
+    shop.close();
+    expect(tables).toContain('repair_desk_jobs');
+
+    // A second turn adds another table: v2.
+    script = [() => ({ calls: [{ name: 'write_file', arguments: { path: 'apps/repair-desk/manifest/tables/parts.json', content: table('parts') } }] }), () => ({ text: 'Added parts.' })];
+    await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Add parts too.' });
+    await finishedTurn(client, session.id, 2);
+    const listed = (await client.call('GET', `/api/v1/designer/sessions/${session.id}/versions`)).body;
+    expect(listed).toMatchObject({ available: true, versions: [{ n: 2, name: 'v2', current: true }, { n: 1, name: 'v1' }] });
+
+    // Back to v1: a new version on top, the parts file gone, the app applied as v1 had it.
+    const back = await client.call('POST', `/api/v1/designer/sessions/${session.id}/versions/1/restore`, { record: true });
+    expect(back.status, JSON.stringify(back.body)).toBe(200);
+    expect(back.body).toEqual({ version: { n: 3, name: 'v3 · Back to v1' }, applied: true });
+    expect(existsSync(join(root!, 'apps/repair-desk/manifest/tables/parts.json'))).toBe(false);
+    expect(existsSync(join(root!, 'apps/repair-desk/manifest/tables/jobs.json'))).toBe(true);
+    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}/versions`)).body['versions']).toHaveLength(3);
+  });
+
+  it('refuse to go back while a turn runs', async () => {
+    const client = await server({ designer: true });
+    reply = { text: 'x', wait: true };
+    const created = await client.call('POST', '/api/v1/designer/sessions', createBody());
+    const session = created.body['session'] as { id: string };
+    await vi.waitFor(async () => expect((await client.call('GET', '/api/v1/designer/state')).body['active']).not.toBeNull());
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/versions/0/restore`, { record: false })).status).toBe(409);
   });
 });

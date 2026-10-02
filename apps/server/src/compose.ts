@@ -103,6 +103,8 @@ import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
 import { addOnLines } from './designer/add-on-lines.js';
 import { createSkills } from './designer/skills.js';
+import { createPrompt } from './designer/prompt.js';
+import { createVersions } from './designer/versions.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { designerRoutes } from './routes/designer/index.js';
@@ -1889,6 +1891,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const permissionsOf = (userId: string) => resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId });
         // The skills, read once: the same files a coding agent reads.
         const designerSkills = createSkills();
+        const designerVersions = createVersions(root);
         designer = createDesigner({
           root,
           version: APP_VERSION,
@@ -1939,6 +1942,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           log: (message, error) => {
             app.log.warn({ err: error }, message);
           },
+          versions: designerVersions,
+          prompt: createPrompt({
+            root,
+            version: APP_VERSION,
+            skills: designerSkills,
+            providerOf: async (session) => (await aiConnections.find(session.connectionId))?.provider ?? 'openai-compatible',
+          }),
           tools: (session) =>
             createDesignerTools(
               {
@@ -1960,7 +1970,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               session.appKey,
             ),
         });
-        await api.register(designerRoutes({ designer, connections: aiConnections, mode: opts.designer.mode, root, limits }));
+        await api.register(designerRoutes({ designer, versions: designerVersions, connections: aiConnections, mode: opts.designer.mode, root, limits }));
       }
       // The add-on runtime. Registered unconditionally: an instance with no
       // add-ons serves an empty list, which is what a host in connected

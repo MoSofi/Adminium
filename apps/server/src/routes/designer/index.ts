@@ -17,6 +17,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Designer } from '../../designer/service.js';
 import type { Actor } from '../../designer/runner.js';
 import { NotFoundError } from '../../errors.js';
+import type { Versions } from '../../designer/versions.js';
 import type { AiConnections } from '../../llm/connections.js';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
@@ -38,13 +39,18 @@ import {
   designerSessionPatchBody,
   designerSessionReply,
   designerStateReply,
+  designerRestoreBody,
+  designerRestoreReply,
   designerStopReply,
+  designerVersionParams,
+  designerVersionsReply,
   designerTurnBody,
   designerTurnReply,
 } from './schema.js';
 
 export interface DesignerRoutesDeps {
   designer: Designer;
+  versions: Versions | null;
   connections: AiConnections;
   mode: 'local' | 'live';
   root: string;
@@ -203,6 +209,27 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const { events, more } = store.eventsSince(request.params.id, request.query.after, EVENTS_PAGE);
         return { events, more, last: store.lastSeq(request.params.id) };
       },
+    );
+
+    app.get(
+      '/designer/sessions/:id/versions',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerVersionsReply } } },
+      async (request) => {
+        store.read(request.params.id);
+        const available = deps.versions !== null && (await deps.versions.available());
+        return { available, versions: available && deps.versions !== null ? await deps.versions.list(request.params.id) : [] };
+      },
+    );
+
+    // Going back to a version (O1: as a new version on top), or putting the files back after a stop (O3).
+    app.post(
+      '/designer/sessions/:id/versions/:n/restore',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits a restore itself, with the version it went back to') },
+        schema: { params: designerVersionParams, body: designerRestoreBody, response: { 200: designerRestoreReply } },
+      },
+      async (request) => designer.restore(request.params.id, request.params.n, { record: request.body.record, by: actorOf(request) }),
     );
 
     // Models: try one without saving it, and keep one in the project's .env.

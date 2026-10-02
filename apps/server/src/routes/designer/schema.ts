@@ -83,6 +83,18 @@ export const designerStopReply = z.object({ stopped: z.boolean() });
 export const designerAnswerBody = z.object({ cardId: z.string().max(64), value: z.unknown() });
 export const designerAnswerReply = z.object({ answered: z.literal(true) });
 
+export const designerVersionsReply = z.object({
+  /** False when git is not on this machine: the page says versions are off. */
+  available: z.boolean(),
+  versions: z.array(z.object({ n: z.number().int(), name: z.string(), at: z.number(), current: z.boolean() })),
+});
+export const designerVersionParams = designerSessionParams.extend({ n: z.coerce.number().int().min(0).max(100_000) });
+export const designerRestoreBody = z.object({ record: z.boolean().default(true) });
+export const designerRestoreReply = z.object({
+  version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
+  applied: z.boolean(),
+});
+
 export const designerEventsQuery = z.object({ after: z.coerce.number().int().min(0).default(0) });
 export const designerEventsReply = z.object({ events: z.array(designerEvent), last: z.number().int(), more: z.boolean() });
 
