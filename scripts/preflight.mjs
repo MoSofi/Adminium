@@ -168,6 +168,8 @@ const STEPS = [
   { id: 'check-offline-assets', cmd: 'pnpm run check-offline-assets', why: 'no remote URL in the shipped bundles outside the reviewed allowlist', tier: 'full' },
   { id: 'check-email-block-vocab', cmd: 'pnpm run check-email-block-vocab', why: 'the email block vocabulary matches canvas and renderer', tier: 'full' },
   { id: 'check-invoice-money-fixture', cmd: 'pnpm run check-invoice-money-fixture', why: 'the invoice money fixture is current', tier: 'full' },
+  { id: 'skills-references-check', cmd: 'pnpm run skills-references-check', why: "the skills' references match the docs they are produced from", tier: 'full' },
+  { id: 'skills-claims-check', cmd: 'pnpm run skills-claims-check', why: 'the skills name no command, flag, route or export that is gone (reads the manifest dist)', tier: 'full' },
   { id: 'openapi-check', cmd: 'pnpm run openapi-check', why: 'openapi.json matches the route tree (it reads dist, so it needs the build above)', tier: 'full' },
   { id: 'server-runtime-deps-check', cmd: 'pnpm run server-runtime-deps-check', why: "the published CLI's traced dependency list is current (reads dist)", tier: 'full' },
   { id: 'ir-schema-check', cmd: 'pnpm run ir-schema-check', why: 'the published IR JSON Schema is current', tier: 'full' },

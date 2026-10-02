@@ -374,6 +374,17 @@ jobs:
       - name: Check the REST reference covers the route tree
         run: pnpm run rest-api-docs-check
 
+      # The agent skills (skills/) are released with the engine. Their
+      # references are produced from the docs, so a docs page that changed
+      # without them is caught here; their hand-written files are held to the
+      # code, so a renamed command, flag, route or export fails here instead
+      # of in somebody's agent. Both prove first that they can fail
+      # (--self-test). The second reads packages/manifest/dist: after the build.
+      - name: Check the skills' references are current
+        run: pnpm run skills-references-check
+      - name: Check the skills name nothing that is not there
+        run: pnpm run skills-claims-check
+
       # This gate has existed as a package script since M8 and was never wired
       # into CI, so translation drift — a bundle whose en-US source moved under
       # it — could land unnoticed. It matters more now: once an admin can
