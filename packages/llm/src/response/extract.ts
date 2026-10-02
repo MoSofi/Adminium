@@ -14,6 +14,15 @@
  * a distinct `LLM_TRUNCATED` failure (the direct-path runner retries it with a
  * raised token ceiling before counting a repair attempt).
  *
+ * Unbalanced is not always cut off, though. One stray or missing quote flips
+ * every string after it, so a reply the model FINISHED can fail the same walk.
+ * What tells the two apart is how the text ends: a reply that ran out of tokens
+ * stops mid-object, and one that ends on a closing brace was written to its
+ * end. That one is `LLM_JSON_PARSE` — telling the model to ask for more tokens
+ * would send it after a limit it never reached. (A cut that happens to land
+ * just after a nested `}` reads as the second kind and is repaired rather
+ * than retried with a higher ceiling; the walk has no better signal.)
+ *
  * Pure string scanning: no `JSON.parse` here (that is stage 2), so a
  * brace-balanced but otherwise malformed object (trailing comma, single quotes)
  * is returned for stage 2 to reject as `LLM_JSON_PARSE`.
@@ -36,8 +45,8 @@ export type ExtractResult = ExtractSuccess | ExtractFailure;
 /**
  * Recover the single top-level JSON object from a raw model reply. Strips a
  * wrapping code fence and any leading/trailing prose; reports `LLM_JSON_PARSE`
- * when there is no object at all and `LLM_TRUNCATED` when one starts but never
- * closes.
+ * when there is no object at all or one that never balances although the reply
+ * ran to its end, and `LLM_TRUNCATED` when one starts and the reply stops inside it.
  */
 export function extractJsonObject(raw: string): ExtractResult {
   const trimmed = raw.trim();
@@ -86,6 +95,12 @@ export function extractJsonObject(raw: string): ExtractResult {
   }
 
   if (end === -1) {
+    if (endsOnClosingBrace(trimmed)) {
+      return fail(
+        'LLM_JSON_PARSE',
+        'The JSON object does not parse: its braces or quotes do not balance, although the response ends with a closing brace. Look for a stray or missing quote, bracket or comma.',
+      );
+    }
     return fail(
       'LLM_TRUNCATED',
       'The JSON object is unbalanced — an opening brace is never closed, so the response was likely truncated. Regenerate with a higher output-token limit.',
@@ -93,6 +108,11 @@ export function extractJsonObject(raw: string): ExtractResult {
   }
 
   return { ok: true, json: trimmed.slice(start, end + 1) };
+}
+
+/** Whether the reply ends on `}` — a closing code fence after it does not count against that. */
+function endsOnClosingBrace(text: string): boolean {
+  return text.replace(/`+$/, '').trimEnd().endsWith('}');
 }
 
 function fail(code: 'LLM_JSON_PARSE' | 'LLM_TRUNCATED', message: string): ExtractFailure {

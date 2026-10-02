@@ -487,6 +487,34 @@ describe('saving a draft', () => {
     expect(await screen.findByText('Saved as a draft template.')).toBeTruthy();
   });
 
+  it('saves a draft once: the button then says so, and open goes to what exists', async () => {
+    const onCreated = vi.fn();
+    await openModal({ host: { onCreated } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
+    routes[key('POST', `${BASE}/sessions/ast_1/turns/atn_1/actions`)] = () => ({
+      echo: { kind: 'saved', open: false, name: 'Welcome' },
+      created: { id: 'tpl_9', kind: 'template', name: 'Welcome' },
+      sample: null,
+    });
+    await user.click(screen.getByRole('button', { name: 'Save template' }));
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }));
+    await waitFor(() => {
+      expect(onCreated).toHaveBeenCalledTimes(1);
+    });
+
+    // A second save would be a second document: the button is spent.
+    const savedButton = await screen.findByRole('button', { name: 'Saved' });
+    expect((savedButton as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Save template' })).toBeNull();
+
+    // And *open* opens the row that exists — no confirm, no second write.
+    await user.click(screen.getByRole('button', { name: 'Open in editor' }));
+    expect(onCreated).toHaveBeenLastCalledWith({ id: 'tpl_9', kind: 'template', name: 'Welcome' }, true);
+    expect(calls.filter((call) => call.url.includes('/actions'))).toHaveLength(1);
+  });
+
   it('writes nothing when the confirm is cancelled', async () => {
     await openModal();
     const user = userEvent.setup();

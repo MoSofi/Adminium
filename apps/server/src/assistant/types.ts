@@ -56,7 +56,7 @@ export interface AssistantToolOutcome {
   result?: unknown;
   /** Present when it did not. Exactly one of the two. */
   error?: AssistantToolFailure;
-  /** `connection.table` this call read — appended to the turn's sources. */
+  /** `<connection name>.<table>` this call read — appended to the turn's sources, which a person reads. */
   tables?: string[];
 }
 

@@ -27,6 +27,7 @@
  */
 
 import {
+  assistantSessionsRepo,
   auditRepo,
   emailTemplatesRepo,
   invoiceLangSchema,
@@ -181,6 +182,44 @@ export async function runAssistantAction(input: AssistantActionInput): Promise<A
 // ── save ─────────────────────────────────────────────────────────────────────
 
 /**
+ * Save a turn's draft ONCE.
+ *
+ * The turn remembers what it was saved as (`result.saved`), and a second save
+ * of the same turn answers with that document instead of making another —
+ * whoever sends it: a double submit, a retried request, a second tab. The
+ * dashboard already stops offering the button, but a rule the server keeps is
+ * one a client cannot forget. A document the person has since DELETED is not
+ * remembered against them: the draft saves again.
+ */
+async function saveDraft(input: AssistantActionInput, at: number): Promise<AssistantActionResult> {
+  await requireSettingsManage(input, 'save documents');
+  const sessions = assistantSessionsRepo(input.meta);
+  const earlier = savedOf((await sessions.findTurn(input.turnId))?.result ?? null);
+  if (earlier !== null && (await documentExists(input, earlier.id))) {
+    return { echo: { kind: 'saved', open: input.open ?? false, name: earlier.name }, created: earlier };
+  }
+  const outcome = await createDraft(input, at);
+  if (outcome.created !== undefined) await sessions.recordTurnSaved(input.turnId, { ...outcome.created, at });
+  return outcome;
+}
+
+/** `result.saved`, when a turn carries one that reads. */
+function savedOf(result: Record<string, unknown> | null): { id: string; kind: string; name: string } | null {
+  const saved = result === null ? null : result.saved;
+  if (typeof saved !== 'object' || saved === null || Array.isArray(saved)) return null;
+  const { id, kind, name } = saved as Record<string, unknown>;
+  if (typeof id !== 'string' || id === '' || typeof kind !== 'string' || typeof name !== 'string') return null;
+  return { id, kind, name };
+}
+
+/** Whether the document a turn was saved as is still there, on the page it was saved to. */
+async function documentExists(input: AssistantActionInput, id: string): Promise<boolean> {
+  if (input.context === 'email') return (await emailTemplatesRepo(input.meta).findById(id)) !== null;
+  if (input.context === 'report') return (await reportDocumentsRepo(input.meta).findById(id)) !== null;
+  return (await invoiceDocumentsRepo(input.meta).findById(id)) !== null;
+}
+
+/**
  * Create the row the draft describes.
  *
  * It lands as a DRAFT on every page — an email document disabled, an invoice
@@ -189,8 +228,7 @@ export async function runAssistantAction(input: AssistantActionInput): Promise<A
  * where that happens. Undoing it is the page's own delete; there is no second
  * mechanism.
  */
-async function saveDraft(input: AssistantActionInput, at: number): Promise<AssistantActionResult> {
-  await requireSettingsManage(input, 'save documents');
+async function createDraft(input: AssistantActionInput, at: number): Promise<AssistantActionResult> {
   const artefact = input.artefact;
   const open = input.open ?? false;
 

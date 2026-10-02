@@ -392,6 +392,22 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * Note what a turn's draft was saved as, inside its stored result
+     * (`result.saved`), so a second save of the same draft can find the first.
+     * `false` when the turn is gone or produced no result to carry it.
+     */
+    async recordTurnSaved(id: string, saved: AssistantTurnSaved): Promise<boolean> {
+      const turn = await findTurn(id);
+      if (turn === null || turn.result === null) return false;
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ result: packChecked('result', assistantResultSchema, { ...turn.result, saved: { ...saved } }) })
+        .where('id', '=', id)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
     /** Write everything a turn ended with, in one statement. */
     async finishTurn(id: string, input: FinishAssistantTurnInput): Promise<boolean> {
       const status = assistantTurnStatusSchema.safeParse(input.status);
@@ -426,3 +442,11 @@ export function assistantSessionsRepo(meta: MetaDb) {
 }
 
 export type AssistantSessionsRepo = ReturnType<typeof assistantSessionsRepo>;
+
+/** The document a turn's draft became, and when. */
+export interface AssistantTurnSaved {
+  id: string;
+  kind: string;
+  name: string;
+  at: number;
+}

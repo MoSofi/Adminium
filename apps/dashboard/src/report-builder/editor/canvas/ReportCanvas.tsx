@@ -17,7 +17,9 @@
  * exists so a preview elsewhere in the product is this sheet rather than a
  * second one that would disagree with it the first time either changed. The
  * flag reaches the blocks through a context (`ReadOnlySheet`), not through
- * every block's props, and `edits` and `selection` become optional.
+ * every block's props, and `edits` and `selection` become optional. The paper
+ * is drawn FLUSH there: a read-only sheet is always shown inside something
+ * that frames it already.
  */
 import { useState } from 'react';
 
@@ -44,7 +46,7 @@ export interface ReportCanvasProps {
 export function ReportCanvas({ body, readOnly, edits = NO_EDITS, selection = 'header', locale }: ReportCanvasProps) {
   const [drag, setDrag] = useState<{ dragging: number | null; over: number | null }>({ dragging: null, over: null });
   const sheet = (
-    <PaperShell body={body}>
+    <PaperShell body={body} flush={readOnly}>
       <HeaderRegion body={body} edits={edits} selection={selection} />
       <div data-testid="report-stack" className="flex flex-wrap items-start gap-4">
         {body.blocks.map((block, index) => (

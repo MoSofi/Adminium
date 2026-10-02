@@ -10,6 +10,12 @@
  * never kills the process; `stop()` drains in-flight jobs before resolving
  * (graceful shutdown).
  *
+ * A stale lock means a crashed worker, so a live one has to keep saying it is
+ * alive: while a handler is in flight its lock is refreshed every
+ * `lockRefreshMs`. Without that a run longer than the stale window was
+ * reclaimed mid-flight — by this worker's own free slot, as readily as by
+ * another process.
+ *
  * Progress is kept in-memory (`getProgress`) and published on `jobs:<jobId>`
  * — the meta schema has no progress column in wave 0001, and the worker runs
  * in-process with the API, so route reads stay consistent.
@@ -17,7 +23,7 @@
 
 import { hostname } from 'node:os';
 
-import { jobsRepo, JOB_BACKOFF_BASE_MS, type Job, type JobsRepo, type MetaDb } from '@adminium/meta';
+import { jobsRepo, JOB_BACKOFF_BASE_MS, JOB_LOCK_REFRESH_MS, type Job, type JobsRepo, type MetaDb } from '@adminium/meta';
 
 import type { RealtimeHub } from '../realtime/hub.js';
 import type { JobHandlerContext, JobProgress, JobRegistry } from './registry.js';
@@ -55,6 +61,8 @@ export interface JobWorkerOptions {
   backoffBaseMs?: number | undefined;
   /** Retry-delay ceiling; default 1 h. */
   backoffMaxMs?: number | undefined;
+  /** How often a running job's lock is refreshed; default {@link JOB_LOCK_REFRESH_MS}. */
+  lockRefreshMs?: number | undefined;
   /** Clock, injectable for deterministic backoff tests. */
   now?: (() => number) | undefined;
   logger?: WorkerLogger | undefined;
@@ -81,6 +89,7 @@ export class JobWorker {
   private readonly pollIntervalMs: number;
   private readonly backoffBaseMs: number;
   private readonly backoffMaxMs: number;
+  private readonly lockRefreshMs: number;
   private readonly now: () => number;
   private readonly logger: WorkerLogger;
   readonly workerId: string;
@@ -99,6 +108,7 @@ export class JobWorker {
     this.pollIntervalMs = opts.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
     this.backoffBaseMs = opts.backoffBaseMs ?? JOB_BACKOFF_BASE_MS;
     this.backoffMaxMs = opts.backoffMaxMs ?? JOB_BACKOFF_MAX_MS;
+    this.lockRefreshMs = opts.lockRefreshMs ?? JOB_LOCK_REFRESH_MS;
     this.now = opts.now ?? Date.now;
     this.logger = opts.logger ?? noopLogger;
     this.workerId = opts.workerId ?? `${hostname()}:${process.pid}`;
@@ -166,6 +176,7 @@ export class JobWorker {
     while (this.running.size < this.concurrency) {
       const job = await this.jobs.claim(this.workerId, this.now());
       if (job === null) break;
+      if (this.alreadyRunning(job)) continue;
       batch.push(this.launch(job));
     }
     await Promise.all(batch);
@@ -188,6 +199,7 @@ export class JobWorker {
       while (!this.stopped && this.running.size < this.concurrency) {
         const job = await this.jobs.claim(this.workerId, this.now());
         if (job === null) break;
+        if (this.alreadyRunning(job)) continue;
         void this.launch(job);
       }
     } catch (err) {
@@ -197,9 +209,44 @@ export class JobWorker {
     this.schedulePoll(this.pollIntervalMs);
   }
 
+  /**
+   * A claim that handed back a job this worker is still running: its lock went
+   * stale because the refreshes did not land (the meta store was unreachable
+   * for the whole window). The claim itself has just renewed the lock, which
+   * is all that was missing — a second run beside the first would end the row
+   * under it and take its cancel handle.
+   */
+  private alreadyRunning(job: Job): boolean {
+    if (!this.running.has(job.id)) return false;
+    this.logger.warn({ jobId: job.id, kind: job.kind }, 'job lock went stale while its handler was running');
+    return true;
+  }
+
+  /** Keeps the lock of a job in flight fresh; the returned function stops it. */
+  private keepLock(job: Job): () => void {
+    const timer = setInterval(() => {
+      this.jobs.refreshLock(job.id, this.workerId, this.now()).then(
+        (held) => {
+          if (!held && this.running.has(job.id)) {
+            this.logger.warn({ jobId: job.id, kind: job.kind }, 'job lock is no longer held by this worker');
+          }
+        },
+        (err: unknown) => {
+          // The next tick tries again; the window is several ticks wide.
+          this.logger.warn({ jobId: job.id, kind: job.kind, err }, 'job lock refresh failed');
+        },
+      );
+    }, this.lockRefreshMs);
+    timer.unref?.();
+    return () => {
+      clearInterval(timer);
+    };
+  }
+
   /** Registers the job as running and executes it; never rejects. */
   private launch(job: Job): Promise<void> {
     const controller = new AbortController();
+    const releaseLock = this.keepLock(job);
     const promise = this.execute(job, controller)
       .catch((err: unknown) => {
         // `execute` handles handler errors itself; this only catches bugs in
@@ -207,6 +254,7 @@ export class JobWorker {
         this.logger.error({ jobId: job.id, kind: job.kind, err }, 'job bookkeeping failed');
       })
       .finally(() => {
+        releaseLock();
         this.running.delete(job.id);
       });
     this.running.set(job.id, { controller, promise });

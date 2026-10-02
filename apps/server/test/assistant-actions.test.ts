@@ -13,6 +13,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  assistantSessionsRepo,
   auditRepo,
   createSqliteMetaDb,
   emailTemplatesRepo,
@@ -179,6 +180,60 @@ describe('save', () => {
     expect(outcome.echo).toMatchObject({ kind: 'saved', open: true });
     // Opening is the dashboard's move; what the server owes it is the id.
     expect(outcome.created?.id).toBeTruthy();
+  });
+});
+
+/**
+ * A draft is saved once.
+ *
+ * Each confirm used to make another document — the same report three times in
+ * the list, from one turn. The dashboard stops offering the button, but the
+ * rule is kept here, where a double submit and a second tab also arrive.
+ */
+describe('saving the same turn again', () => {
+  const reportArtefact = { name: 'Quarterly', body: { reportTitle: 'Quarterly', blocks: [] } };
+
+  /** A real turn that ended with a draft — the row a save is remembered on. */
+  async function turnWithDraft(): Promise<{ sessionId: string; turnId: string }> {
+    const sessions = assistantSessionsRepo(meta);
+    const session = await sessions.create({ context: 'report', host: { connectionIds: [] } }, AT);
+    const turn = await sessions.createTurn({ sessionId: session.id, askText: 'A report' }, AT);
+    await sessions.finishTurn(turn.id, { status: 'done', result: { title: 'Quarterly', artefact: reportArtefact } });
+    return { sessionId: session.id, turnId: turn.id };
+  }
+
+  it('answers with the document that exists, and writes nothing more', async () => {
+    const ids = await turnWithDraft();
+    const first = await act({ action: 'save', context: 'report', artefact: reportArtefact, ...ids });
+    const second = await act({ action: 'save', context: 'report', artefact: reportArtefact, open: true, ...ids });
+
+    expect(second.created).toEqual(first.created);
+    // The second ask is still answered as asked: open what is there.
+    expect(second.echo).toEqual({ kind: 'saved', open: true, name: 'Quarterly' });
+    expect((await reportDocumentsRepo(meta).list({})).filter((row) => row.name === 'Quarterly')).toHaveLength(1);
+    expect(await auditRows()).toHaveLength(1);
+    // And the turn says what it became, for whoever reads it next.
+    const result = (await assistantSessionsRepo(meta).findTurn(ids.turnId))?.result;
+    expect(result?.saved).toMatchObject({ ...first.created, at: AT });
+  });
+
+  it('saves again once the person has deleted what it made', async () => {
+    const ids = await turnWithDraft();
+    const first = await act({ action: 'save', context: 'report', artefact: reportArtefact, ...ids });
+    await reportDocumentsRepo(meta).removeById(first.created?.id ?? '');
+
+    const second = await act({ action: 'save', context: 'report', artefact: reportArtefact, ...ids });
+    expect(second.created?.id).toBeTruthy();
+    expect(second.created?.id).not.toBe(first.created?.id);
+    expect(await reportDocumentsRepo(meta).findById(second.created?.id ?? '')).not.toBeNull();
+  });
+
+  it('still asks the grant first: a role that cannot save learns nothing about an earlier save', async () => {
+    const ids = await turnWithDraft();
+    await act({ action: 'save', context: 'report', artefact: reportArtefact, ...ids });
+    await expect(
+      act({ action: 'save', context: 'report', artefact: reportArtefact, can: () => Promise.resolve(false), ...ids }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

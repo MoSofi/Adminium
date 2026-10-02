@@ -9,6 +9,9 @@
  * scripts/gen-resources.mjs.
  */
 export default {
+  "actions": {
+    "saved": "已儲存"
+  },
   "ask": {
     "continue": "繼續",
     "pick": "請在每組中各選一項",

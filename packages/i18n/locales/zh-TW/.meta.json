@@ -255,6 +255,10 @@
     "status": "src",
     "srcHash": "c9e6a29d14f3"
   },
+  "assistant.actions.saved": {
+    "status": "mt",
+    "srcHash": "c0ae8f6ea841"
+  },
   "assistant.ask.continue": {
     "status": "mt",
     "srcHash": "2e02623966f9"

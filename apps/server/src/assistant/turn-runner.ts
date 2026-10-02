@@ -15,6 +15,9 @@
  *                  go round again; valid, compute the diff and stop
  *     · nothing  → a plain answer; stop
  *
+ * Before the last round the model is TOLD it is the last, so it answers with
+ * what it has rather than spending it on one more lookup.
+ *
  * WHY IT IS A PURE FUNCTION. Everything that touches the world arrives as an
  * argument: the provider client, the tool executor, the clock, the progress
  * sink. So a whole conversation can be scripted in a test with no network, no
@@ -172,6 +175,14 @@ export interface TurnResult {
 /** A cap the model went past is reported to it, not enforced by silence. */
 const CALL_CAP_MESSAGE = `You have used the ${String(ASSISTANT_MAX_CALLS_PER_TURN)} tool calls this request allows. Answer with what you have, or ask the person a question.`;
 
+/**
+ * Said before the LAST round. A model that is never told its rounds are
+ * numbered spends the last one the way it spent the others — on one more
+ * lookup — and the turn ends with the reading done and nothing written.
+ */
+const LAST_ROUND_MESSAGE =
+  'This is your last reply for this request. Do not call a tool: answer with what you have, or ask the person a question.';
+
 const ROUND_CAP_ERROR: LlmValidationError = {
   code: 'LLM_SCHEMA_INVALID',
   severity: 'fatal',
@@ -229,6 +240,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
 
   for (let round = 0; round < ASSISTANT_MAX_ROUNDS; round += 1) {
     if (input.signal?.aborted ?? false) return stopped();
+    if (round > 0 && round === ASSISTANT_MAX_ROUNDS - 1) messages.push({ role: 'user', content: LAST_ROUND_MESSAGE });
 
     let reply: { text: string; usage?: { inputTokens: number; outputTokens: number } };
     try {

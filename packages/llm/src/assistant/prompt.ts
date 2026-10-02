@@ -132,15 +132,17 @@ export function buildAssistantPrompt(input: AssistantPromptInput): string {
 
 /**
  * The input size past which a turn is refused rather than sent. Conservative on
- * purpose: for the two self-hosted providers the real window is unknown, and a
+ * purpose: an openai-compatible endpoint's real window is unknown, and a
  * request that silently loses its oldest messages gives a confident answer built
  * on half the conversation — worse than asking the person to start a new one.
+ * Ollama's window is the one its client asks for (`OLLAMA_NUM_CTX`); the limit
+ * leaves the rest of it for the reply.
  */
 export const ASSISTANT_INPUT_TOKEN_LIMIT = {
   anthropic: 160_000,
   openai: 100_000,
   'openai-compatible': 24_000,
-  ollama: 6_000,
+  ollama: 20_000,
   'adminium-managed': 160_000,
 } as const satisfies Record<ProviderId, number>;
 

@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
+import { OLLAMA_NUM_CTX } from '../providers/types.js';
+
 import {
   ASSISTANT_INPUT_TOKEN_LIMIT,
   ASSISTANT_PROMPT_V1,
@@ -114,11 +116,21 @@ describe('input size', () => {
     expect(estimateAssistantInputTokens(system, [])).toBe(10);
   });
 
+  it('tells the model a follow-up is the person`s instruction, not a question to them', () => {
+    // A click sends the text back as the person's message. Unsaid, the model
+    // writes "Would you like…?" and the person ends up asking it its own question.
+    const schema = JSON.stringify(assistantTurnJsonSchema());
+    expect(schema).toContain('THEIR instruction to you');
+    expect(schema).toContain('never as a question to them');
+    expect(buildAssistantPrompt(input)).toContain('never as a question to them');
+  });
+
   it('has a limit for every provider, and the unknown windows are the small ones', () => {
     expect(Object.keys(ASSISTANT_INPUT_TOKEN_LIMIT).sort()).toEqual(
       ['adminium-managed', 'anthropic', 'ollama', 'openai', 'openai-compatible'].sort(),
     );
     expect(ASSISTANT_INPUT_TOKEN_LIMIT.ollama).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT['openai-compatible']);
+    expect(ASSISTANT_INPUT_TOKEN_LIMIT.ollama).toBeLessThan(OLLAMA_NUM_CTX);
     expect(ASSISTANT_INPUT_TOKEN_LIMIT['openai-compatible']).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.openai);
   });
 });

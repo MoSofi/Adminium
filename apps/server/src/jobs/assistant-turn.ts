@@ -56,6 +56,12 @@ export interface AssistantTurnDeps {
 /** The output budget a turn asks for. A drafted document is a few thousand tokens. */
 export const ASSISTANT_MAX_OUTPUT_TOKENS = 8000;
 
+/** What a turn is told it ended as when the process running it went away. */
+export const INTERRUPTED_ERROR = {
+  kind: 'interrupted',
+  message: 'The server restarted while this was running — ask again.',
+} as const;
+
 export function registerAssistantTurnHandler(registry: JobRegistry, deps: AssistantTurnDeps): void {
   registry.registerJobHandler(
     ASSISTANT_TURN_KIND,
@@ -94,6 +100,19 @@ export async function executeAssistantTurn(
   // The claim: a turn runs once. A second worker that raced this one finds the
   // row already `running` and leaves it alone.
   if (!(await repo.setTurnStatus(turn.id, 'running', { expected: 'queued', jobId: ctx.jobId }))) {
+    // Unless nobody has it. This job, claimed again, with its own turn still
+    // `running`: a live run keeps its lock fresh, so the run that started this
+    // turn died with its process. It is ended here rather than run again — the
+    // provider was already paid once, and the person who asked stopped waiting
+    // a stale-lock window ago. Without this the row said `running` for ever.
+    if (ctx.attempt > 1 && turn.status === 'running' && turn.jobId === ctx.jobId) {
+      // Guarded, so a run that did finish in the meantime keeps what it wrote.
+      if (await repo.setTurnStatus(turn.id, 'failed', { expected: 'running' })) {
+        await repo.finishTurn(turn.id, { status: 'failed', error: { ...INTERRUPTED_ERROR }, finishedAt: now() });
+        ctx.log('assistant.turn: the run that held this turn is gone; turn failed', { turnId: turn.id });
+        return;
+      }
+    }
     ctx.log('assistant.turn: turn is not queued; another worker has it', { turnId: turn.id });
     return;
   }

@@ -14,6 +14,7 @@ import { renderHook, act, cleanup, render, screen } from '@testing-library/react
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { RealtimeEvent } from '../app/ws.js';
+import { readResult } from './api.js';
 import { contextCopy, confirmCopy, echoText } from './contexts.js';
 import { ASSISTANT_ICONS, ASSISTANT_STEP_ICONS, assistantIcon, stepIcon } from './icons.js';
 import { DiffView } from './parts/DiffView.js';
@@ -184,6 +185,20 @@ describe('the working card', () => {
     );
     expect(screen.getByText('ready')).toBeTruthy();
     expect(screen.getByText('2 warnings')).toBeTruthy();
+  });
+});
+
+describe('what a turn was saved as', () => {
+  it('reads the server`s note, and treats anything unreadable as not saved', () => {
+    const draft = { title: 'Quarterly', artefact: { name: 'Quarterly' } };
+    expect(readResult(draft)?.saved).toBeNull();
+    expect(readResult({ ...draft, saved: 'yes' })?.saved).toBeNull();
+    expect(readResult({ ...draft, saved: { kind: 'template' } })?.saved).toBeNull();
+    expect(readResult({ ...draft, saved: { id: 'rpt_1', kind: 'template', name: 'Quarterly', at: 5 } })?.saved).toEqual({
+      id: 'rpt_1',
+      kind: 'template',
+      name: 'Quarterly',
+    });
   });
 });
 

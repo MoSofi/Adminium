@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
 
-import { JOB_BACKOFF_BASE_MS, JOB_STALE_LOCK_MS, jobsRepo } from '../src/index.js';
+import { JOB_BACKOFF_BASE_MS, JOB_LOCK_REFRESH_MS, JOB_STALE_LOCK_MS, jobsRepo } from '../src/index.js';
 import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
@@ -86,6 +86,31 @@ for (const dialect of TEST_DIALECTS) {
       expect(reclaimed?.id).toBe(job.id);
       expect(reclaimed?.lockedBy).toBe('worker-b');
       expect(reclaimed?.attempts).toBe(2);
+    });
+
+    it('a refreshed lock is not stale; only the holder refreshes, and only while running', async () => {
+      const jobs = jobsRepo(meta());
+      const job = await jobs.enqueue({ kind: 'x', payload: {} }, T0);
+      expect(await jobs.refreshLock(job.id, 'worker-a', T0)).toBe(false); // pending: no lock to push
+      await jobs.claim('worker-a', T0);
+
+      const later = T0 + JOB_STALE_LOCK_MS - JOB_LOCK_REFRESH_MS;
+      expect(await jobs.refreshLock(job.id, 'worker-b', later)).toBe(false);
+      expect((await jobs.findById(job.id))?.lockedAt).toBe(T0);
+      expect(await jobs.refreshLock(job.id, 'worker-a', later)).toBe(true);
+      expect((await jobs.findById(job.id))?.lockedAt).toBe(later);
+
+      // Past the window measured from the claim, inside it measured from the refresh.
+      expect(await jobs.claim('worker-b', T0 + JOB_STALE_LOCK_MS + 1)).toBeNull();
+      expect((await jobs.findById(job.id))).toMatchObject({ lockedBy: 'worker-a', attempts: 1 });
+
+      // A holder that stops refreshing loses it, and cannot take it back by refreshing.
+      const reclaimed = await jobs.claim('worker-b', later + JOB_STALE_LOCK_MS + 1);
+      expect(reclaimed?.lockedBy).toBe('worker-b');
+      expect(await jobs.refreshLock(job.id, 'worker-a', later + JOB_STALE_LOCK_MS + 2)).toBe(false);
+
+      await jobs.complete(job.id, later + JOB_STALE_LOCK_MS + 3);
+      expect(await jobs.refreshLock(job.id, 'worker-b', later + JOB_STALE_LOCK_MS + 4)).toBe(false);
     });
 
     it('fail retries with exponential backoff, then lands in failed', async () => {

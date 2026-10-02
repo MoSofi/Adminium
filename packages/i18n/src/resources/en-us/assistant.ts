@@ -9,6 +9,9 @@
  * scripts/gen-resources.mjs.
  */
 export default {
+  "actions": {
+    "saved": "Saved"
+  },
   "ask": {
     "continue": "Continue",
     "pick": "Pick one option in each group",

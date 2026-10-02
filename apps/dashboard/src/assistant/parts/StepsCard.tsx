@@ -73,7 +73,13 @@ function StepRow({ step, context }: { step: LiveStep; context: AssistantContext 
   const label = worded?.label ?? step.label;
   const detail = worded?.detail ?? step.detail;
   return (
-    <li className={cn('flex items-start gap-2.5 border-b border-border py-[9px]', active && 'opacity-[.38]')}>
+    <li
+      className={cn(
+        // A rule BETWEEN steps: the last one has nothing under it to be ruled off from.
+        'flex items-start gap-2.5 border-b border-border py-[9px] last:border-b-0 last:pb-0',
+        active && 'opacity-[.38]',
+      )}
+    >
       <span
         className={cn(
           'mt-px flex size-[22px] shrink-0 items-center justify-center rounded-[7px]',

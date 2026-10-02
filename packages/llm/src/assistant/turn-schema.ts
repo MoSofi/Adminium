@@ -38,10 +38,19 @@ export const assistantContextSchema = z.enum(ASSISTANT_CONTEXTS);
 
 // ─── Caps ────────────────────────────────────────────────────────────────────
 
-/** Provider round-trips one turn may spend before it is stopped. */
-export const ASSISTANT_MAX_ROUNDS = 6;
 /** Tool calls one turn may make in total, across every round. */
 export const ASSISTANT_MAX_CALLS_PER_TURN = 12;
+/**
+ * Provider round-trips one turn may spend before it is stopped.
+ *
+ * Sized FROM the call budget, not beside it: a model that makes one call a
+ * round has to be able to spend every call it is allowed and still have a
+ * round to answer in, with one to spare for a reply that needed repairing. At
+ * six, such a model gathered everything it needed and then had no round left
+ * to write the draft. What bounds the cost is the call cap and the context
+ * window; this only stops a turn that is going nowhere.
+ */
+export const ASSISTANT_MAX_ROUNDS = ASSISTANT_MAX_CALLS_PER_TURN + 2;
 /** Tool calls one reply may request. */
 export const ASSISTANT_MAX_CALLS_PER_REPLY = 8;
 /** Rows one `read_rows` / `aggregate` call may return. */
@@ -139,7 +148,19 @@ export const assistantResultSchema = z.object({
   details: z.array(assistantDetailSchema).max(6).optional(),
   /** Checks the model says it made. Shown labelled as the model's own. */
   checks: z.array(z.string().max(120)).max(4).optional(),
-  followups: z.array(z.string().min(1).max(80)).max(3).optional(),
+  /**
+   * Shown as buttons; a click sends the text back AS THE PERSON'S NEXT
+   * MESSAGE. So each one is written the way they would ask for it — the
+   * description says so, because a model left to itself writes "Would you
+   * like…?", and a person who clicks that has asked the model its own question.
+   */
+  followups: z
+    .array(z.string().min(1).max(80))
+    .max(3)
+    .optional()
+    .describe(
+      'Up to 3 next steps, shown as buttons. A click sends the text to you as the person\'s next message, so write each as THEIR instruction to you ("Add the total order value per customer") — never as a question to them ("Would you like to see…?").',
+    ),
 });
 export type AssistantResult = z.infer<typeof assistantResultSchema>;
 

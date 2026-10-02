@@ -241,7 +241,16 @@ export interface AssistantResult {
   followups: string[];
   /** `connection.table` names the turn read. */
   sources: string[];
+  /** The document this draft was already saved as, when the server recorded one. */
+  saved: { id: string; kind: string; name: string } | null;
   diff: { against: string | null; adds: number; dels: number; lines: AssistantDiffLine[]; truncated: boolean };
+}
+
+/** `result.saved`, when it reads; anything else means "not saved yet". */
+function savedOf(raw: unknown): { id: string; kind: string; name: string } | null {
+  const saved = record(raw);
+  if (saved === null || typeof saved.id !== 'string' || saved.id === '') return null;
+  return { id: saved.id, kind: str(saved.kind), name: str(saved.name) };
 }
 
 /** Narrow a stored `result`; anything unreadable means "no draft to show". */
@@ -271,6 +280,7 @@ export function readResult(raw: Record<string, unknown> | null): AssistantResult
       (entry): entry is string => typeof entry === 'string',
     ),
     sources: (Array.isArray(raw.sources) ? raw.sources : []).filter((entry): entry is string => typeof entry === 'string'),
+    saved: savedOf(raw.saved),
     diff: {
       against: typeof diff?.against === 'string' ? diff.against : null,
       adds: num(diff?.adds),

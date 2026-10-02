@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "saved": "Gemt"
+  },
   "ask": {
     "continue": "Fortsæt",
     "pick": "Vælg én mulighed i hver gruppe",

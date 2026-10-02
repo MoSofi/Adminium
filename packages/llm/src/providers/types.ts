@@ -69,6 +69,21 @@ export interface ModelInfo {
 
 export const DEFAULT_MAX_OUTPUT_TOKENS = 16_000 as const;
 export const DEFAULT_TIMEOUT_MS = 60_000 as const;
+/**
+ * The context window every Ollama request asks for (`options.num_ctx`). Ollama's
+ * own default is a few thousand tokens and it drops the START of an oversized
+ * prompt without an error — the system prompt — so the window is stated rather
+ * than inherited. The assistant's input limit for `ollama` must stay below it.
+ */
+export const OLLAMA_NUM_CTX = 32_768 as const;
+/**
+ * How long one Ollama chat request may take. A local model reads a long prompt
+ * and writes its whole reply before the first byte comes back (`stream: false`),
+ * which on laptop hardware outlasts `DEFAULT_TIMEOUT_MS`. Kept under the five
+ * minutes Node's fetch waits for response headers, so the failure is still our
+ * own `timeout` and not a bare `network` error.
+ */
+export const OLLAMA_TIMEOUT_MS = 240_000 as const;
 
 // ─── Typed provider error (acceptance) ───────────────────────────────────────
 

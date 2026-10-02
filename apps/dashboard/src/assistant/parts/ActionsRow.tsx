@@ -18,7 +18,7 @@
  * because neither reason applies to it.
  */
 import { Button, cn } from '@adminium/ui';
-import { Lock, ScrollText } from 'lucide-react';
+import { Check, Lock, ScrollText } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
 import type { AssistantActionSpec } from '../contexts.js';
@@ -30,12 +30,14 @@ export interface ActionsRowProps {
   enabled: boolean;
   /** Whether this session may save on this page at all. */
   canWrite: boolean;
+  /** This draft is already saved in this open: the save is done, and *open* opens what it made. */
+  saved: boolean;
   name: string;
   busy: boolean;
   onRun: (action: AssistantActionSpec) => void;
 }
 
-export function ActionsRow({ actions, enabled, canWrite, name, busy, onRun }: ActionsRowProps) {
+export function ActionsRow({ actions, enabled, canWrite, saved, name, busy, onRun }: ActionsRowProps) {
   return (
     <div className="flex flex-wrap items-center gap-[9px] border-t border-border bg-surface-2 px-4 py-[13px]">
       <span className="me-auto flex items-center gap-[7px] text-[11px] text-fg-muted">
@@ -46,12 +48,16 @@ export function ActionsRow({ actions, enabled, canWrite, name, busy, onRun }: Ac
         const needsGrant = action.writes && !canWrite;
         const needsEnable = action.writes && !enabled;
         const locked = needsGrant || needsEnable;
-        const Icon = locked ? Lock : assistantIcon(action.icon);
+        // Saving twice makes two documents. Once it is saved the button says
+        // so and stops; *open* stays, and opens the one that exists.
+        const done = saved && action.id === 'save';
+        const label = done ? t('assistant:actions.saved', 'Saved') : action.label;
+        const Icon = locked ? Lock : done ? Check : assistantIcon(action.icon);
         const title = needsGrant
           ? t('assistant:readOnly.noWriteTitle', 'Your role cannot do this here')
           : needsEnable
             ? t('assistant:readOnly.lockedTitle', 'Enable actions to let {name} do this', { name })
-            : action.label;
+            : label;
         return (
           <Button
             data-testid="assistant-action"
@@ -59,16 +65,17 @@ export function ActionsRow({ actions, enabled, canWrite, name, busy, onRun }: Ac
             key={action.id}
             type="button"
             size="sm"
-            variant={action.primary && !locked ? 'primary' : 'secondary'}
+            data-saved={done ? '' : undefined}
+            variant={action.primary && !locked && !done ? 'primary' : 'secondary'}
             title={title}
-            disabled={locked || busy}
+            disabled={locked || busy || done}
             onClick={() => {
               onRun(action);
             }}
             className={cn(locked && 'grayscale opacity-45')}
             {...(Icon === null ? {} : { iconLeft: <Icon aria-hidden="true" /> })}
           >
-            {action.label}
+            {label}
           </Button>
         );
       })}

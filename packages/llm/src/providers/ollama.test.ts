@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createOllamaClient } from './ollama.js';
+import { DEFAULT_TIMEOUT_MS, OLLAMA_TIMEOUT_MS } from './types.js';
 
 interface Captured {
   url: string;
@@ -30,6 +31,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -62,7 +64,7 @@ describe('createOllamaClient.complete', () => {
         { role: 'system', content: 'sys' },
         { role: 'user', content: 'hello' },
       ],
-      options: { temperature: 0, num_predict: 16000 },
+      options: { temperature: 0, num_predict: 16000, num_ctx: 32768 },
     });
     expect(result).toEqual({ text: 'local answer', usage: { inputTokens: 8, outputTokens: 4 } });
   });
@@ -73,6 +75,33 @@ describe('createOllamaClient.complete', () => {
     await expect(
       client.complete({ system: '', messages: [], model: 'llama3.2', maxTokens: 1, temperature: 0.5 }),
     ).rejects.toMatchObject({ code: 'config' });
+  });
+
+  it('waits past the shared default for a slow local model, and times out at its own limit', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: unknown, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new Error('aborted'));
+            });
+          }),
+      ),
+    );
+    const client = createOllamaClient({ provider: 'ollama', model: 'llama3.2' });
+    let settled: unknown = null;
+    const pending = client
+      .complete({ system: '', messages: [], model: 'llama3.2', maxTokens: 1, temperature: 0 })
+      .catch((err: unknown) => (settled = err));
+
+    await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
+    expect(settled).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(OLLAMA_TIMEOUT_MS - DEFAULT_TIMEOUT_MS);
+    await pending;
+    expect(settled).toMatchObject({ code: 'timeout', provider: 'ollama' });
   });
 });
 

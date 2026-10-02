@@ -5,11 +5,12 @@
  * UPDATE-guard claim race, cooperative cancel, and graceful drain.
  */
 import { describe, expect, it } from 'vitest';
+import { JOB_STALE_LOCK_MS } from '@adminium/meta';
 import { z } from 'zod';
 
 import { createJobRegistry, NOOP_PROGRESS_KIND } from '../src/jobs/registry.js';
 import { JobWorker, JOB_BACKOFF_MAX_MS, jobChannel } from '../src/jobs/worker.js';
-import { collectChannel, makeJobsContext, sleep, until } from './jobs-helpers.js';
+import { collectChannel, makeJobsContext, sleep, until, untilAsync } from './jobs-helpers.js';
 
 describe('JobWorker — happy path', () => {
   it('runs noop-progress to completion with progress events on jobs:<id>', async () => {
@@ -267,5 +268,88 @@ describe('JobWorker — cancellation and drain', () => {
     expect(ctx.worker.activeCount).toBe(0);
     const row = await ctx.jobs.findById(job.id);
     expect(row?.status).toBe('cancelled');
+  });
+});
+
+describe('JobWorker — a handler that outlives the stale-lock window', () => {
+  function gatedRegistry() {
+    const registry = createJobRegistry();
+    const state = { runs: 0, release: () => {} };
+    const gate = new Promise<void>((resolve) => {
+      state.release = resolve;
+    });
+    registry.registerJobHandler('long', z.object({}).loose(), async () => {
+      state.runs += 1;
+      await gate;
+    });
+    return { registry, state };
+  }
+
+  it('refreshes the lock while the handler runs, so no worker reclaims it', async () => {
+    const { registry, state } = gatedRegistry();
+    const ctx = await makeJobsContext({ registry, concurrency: 2, lockRefreshMs: 5 });
+    const workerB = new JobWorker({
+      meta: ctx.meta,
+      registry,
+      hub: ctx.hub,
+      now: ctx.clock.now,
+      workerId: 'host-b:2',
+    });
+    const job = await ctx.jobs.enqueue({ kind: 'long', payload: {} }, ctx.clock.now());
+    const { events } = collectChannel(ctx.hub, jobChannel(job.id));
+
+    const pass = ctx.worker.runOnce();
+    await until(() => state.runs === 1);
+
+    // Well past the window, on the clock the claim reads.
+    ctx.clock.advance(JOB_STALE_LOCK_MS + 60_000);
+    const refreshed = ctx.clock.now();
+    await untilAsync(async () => (await ctx.jobs.findById(job.id))?.lockedAt === refreshed);
+
+    // Neither this worker's free slot nor another process takes it.
+    expect(await ctx.worker.runOnce()).toBe(0);
+    expect(await workerB.runOnce()).toBe(0);
+    expect(state.runs).toBe(1);
+    expect(events.some((e) => e.type === 'completed')).toBe(false);
+    // Still cancellable: the run is still the one this worker knows.
+    expect(ctx.worker.activeCount).toBe(1);
+
+    state.release();
+    expect(await pass).toBe(1);
+    const row = await ctx.jobs.findById(job.id);
+    expect(row?.status).toBe('succeeded');
+    expect(row?.attempts).toBe(1);
+    expect(events.filter((e) => e.type === 'completed')).toHaveLength(1);
+  });
+
+  it('never starts a second run of a job it is already running, refresh or no refresh', async () => {
+    const { registry, state } = gatedRegistry();
+    // A refresh that never fires in the test: the meta store was unreachable for the whole window.
+    const ctx = await makeJobsContext({ registry, concurrency: 2, lockRefreshMs: 3_600_000 });
+    const job = await ctx.jobs.enqueue({ kind: 'long', payload: {} }, ctx.clock.now());
+    const { events } = collectChannel(ctx.hub, jobChannel(job.id));
+
+    const pass = ctx.worker.runOnce();
+    await until(() => state.runs === 1);
+    ctx.clock.advance(JOB_STALE_LOCK_MS + 1);
+
+    expect(await ctx.worker.runOnce()).toBe(0);
+    expect(state.runs).toBe(1);
+    expect(ctx.worker.activeCount).toBe(1);
+    expect(events.some((e) => e.type === 'completed')).toBe(false);
+    expect(ctx.worker.requestCancel(job.id)).toBe(true);
+
+    state.release();
+    await pass;
+  });
+
+  it('stops refreshing once the handler has finished', async () => {
+    const ctx = await makeJobsContext({ lockRefreshMs: 5 });
+    const job = await ctx.jobs.enqueue({ kind: NOOP_PROGRESS_KIND, payload: { steps: 1 } }, ctx.clock.now());
+    await ctx.worker.runOnce();
+    await sleep(30);
+    const row = await ctx.jobs.findById(job.id);
+    expect(row?.status).toBe('succeeded');
+    expect(row?.lockedAt).toBeNull();
   });
 });

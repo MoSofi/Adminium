@@ -70,6 +70,7 @@ export interface MakeJobsContextOptions {
   workerId?: string;
   backoffBaseMs?: number;
   backoffMaxMs?: number;
+  lockRefreshMs?: number;
 }
 
 /** In-memory meta + registry + hub + one worker, sharing a fake clock. */
@@ -94,6 +95,7 @@ export async function makeJobsContext(opts: MakeJobsContextOptions = {}): Promis
     concurrency: opts.concurrency,
     backoffBaseMs: opts.backoffBaseMs,
     backoffMaxMs: opts.backoffMaxMs,
+    lockRefreshMs: opts.lockRefreshMs,
   });
 
   return { meta, jobs: jobsRepo(meta), registry, hub, worker, clock };
@@ -114,6 +116,15 @@ export async function until(condition: () => boolean, timeoutMs = 2_000): Promis
   const deadline = Date.now() + timeoutMs;
   while (!condition()) {
     if (Date.now() > deadline) throw new Error('until(): condition not met in time');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+/** {@link until}, for a condition that has to read the store. */
+export async function untilAsync(condition: () => Promise<boolean>, timeoutMs = 2_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await condition())) {
+    if (Date.now() > deadline) throw new Error('untilAsync(): condition not met in time');
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }

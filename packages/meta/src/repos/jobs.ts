@@ -19,6 +19,13 @@ import { DAY_MS, packJson, readJson } from './util.js';
 /** A running job whose lock is older than this is reclaimable. */
 export const JOB_STALE_LOCK_MS = 5 * 60_000;
 
+/**
+ * How often a worker refreshes the lock of a job it is running. A fifth of
+ * the stale window: four refreshes in a row have to fail before a live run
+ * looks abandoned.
+ */
+export const JOB_LOCK_REFRESH_MS = JOB_STALE_LOCK_MS / 5;
+
 /** First-retry delay; retry n waits `backoffBaseMs * 2^(n-1)` (server backoff spec). */
 export const JOB_BACKOFF_BASE_MS = 30_000;
 
@@ -168,6 +175,23 @@ export function jobsRepo(meta: MetaDb) {
         // Affected-rows 0: another worker won this candidate — try the next.
       }
       return null;
+    },
+
+    /**
+     * Push a running job's lock forward: what a worker does while its handler
+     * is still in flight, so a long run is never mistaken for a crashed one.
+     * Guarded on the holder — `false` means the lock is no longer `workerId`'s
+     * (reclaimed, or the job ended).
+     */
+    async refreshLock(id: string, workerId: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_jobs')
+        .set({ lockedAt: at })
+        .where('id', '=', id)
+        .where('status', '=', 'running')
+        .where('lockedBy', '=', workerId)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
     },
 
     /** Success: terminal state; dedupe key released for reuse. */

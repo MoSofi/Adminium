@@ -28,7 +28,8 @@ import { emailTemplatesRepo, invoiceDocumentsRepo, reportDocumentsRepo, settings
 import { acceptInvoiceBody } from '../src/invoices/document.js';
 import { acceptReportBody } from '../src/report-documents/document.js';
 import { setUpTurn } from '../src/assistant/turn-setup.js';
-import { ROW_LIMIT_MAX } from '../src/assistant/tools/rows.js';
+import { AGGREGATE_EXAMPLES } from '../src/assistant/tools/aggregate.js';
+import { ROW_LIMIT_MAX, WHERE_EXAMPLES } from '../src/assistant/tools/rows.js';
 import { ROWS_UNAVAILABLE_NOTE } from '../src/assistant/tools/catalogue.js';
 import {
   buildDataTestApp,
@@ -169,6 +170,7 @@ function ordersByStatus(): Record<string, unknown> {
 
 let t: DataTestContext;
 let connId: string;
+let connName: string;
 
 /** A turn's setup for one page, as one of the test's people. */
 async function setup(options: {
@@ -235,6 +237,10 @@ beforeAll(async () => {
   t = await buildDataTestApp({ registry: makeFakeRegistry(seedSqlite()) });
   connId = await createConnectionViaApi(t, 'postgres://fake@fake-host:5432/fakedb');
   await introspectViaApi(t, connId);
+  // What a person calls it — the steps and sources name a table by this, never by the id.
+  connName = (await t.manager.connections.findById(connId))?.name ?? '';
+  expect(connName).not.toBe('');
+  expect(connName).not.toBe(connId);
   // The admin reads both tables; the viewer reads only orders, which is what
   // makes "you cannot read that" observable rather than theoretical.
   await t.grantTable(t.roles.admin, connId, 'main.customers', { read: true });
@@ -322,7 +328,7 @@ describe('reading rows', () => {
     expect(rows[0]?.phone).toBeNull();
     expect(rows[0]?._masked).toEqual(['phone']);
     expect(rows[0]?.company_name).toBe('Company 1');
-    expect(outcome.tables).toEqual([`${connId}.main.customers`]);
+    expect(outcome.tables).toEqual([`${connName}.main.customers`]);
   });
 
   it('never returns more than the per-call cap, whatever was asked for', async () => {
@@ -338,6 +344,41 @@ describe('reading rows', () => {
     // The total is still the truth about the table, so the model knows there
     // is more than it was given.
     expect(result.total).toBe(60);
+  });
+
+  it('shows the model filters that run as written, as an object or as text', async () => {
+    const admin = await setup({ user: 'admin' });
+    const shown = JSON.stringify(admin.specs.find((tool) => tool.name === 'read_rows')?.args);
+    expect(WHERE_EXAMPLES.length).toBeGreaterThan(0);
+    for (const where of WHERE_EXAMPLES) {
+      // What the prompt carries is the example itself, not a paraphrase of it.
+      expect(shown).toContain(JSON.stringify(JSON.stringify(where)).slice(1, -1));
+      for (const sent of [where, JSON.stringify(where)]) {
+        const outcome = await admin.execute({
+          id: 'c1',
+          tool: 'read_rows',
+          args: { connectionId: connId, table: 'main.orders', where: sent },
+        });
+        expect(outcome.error).toBeUndefined();
+      }
+    }
+
+    // And a filter filters: one order by its key, through both row tools.
+    const one = { column: 'order_id', op: 'eq', value: 1 };
+    const listed = await admin.execute({
+      id: 'c2',
+      tool: 'read_rows',
+      args: { connectionId: connId, table: 'main.orders', where: one },
+    });
+    expect((listed.result as { total: number | null }).total).toBe(1);
+    const builder = await setup({ context: 'invoice-template', user: 'admin' });
+    const sampled = await builder.execute({
+      id: 'c3',
+      tool: 'sample_record',
+      args: { connectionId: connId, table: 'main.orders', where: { column: 'order_id', op: 'eq', value: 2 } },
+    });
+    expect(sampled.error).toBeUndefined();
+    expect((sampled.result as { record: Record<string, unknown> | null }).record?.order_id).toBe(2);
   });
 
   it('answers an unknown table with the advice to look first', async () => {
@@ -359,7 +400,20 @@ describe('reading rows', () => {
       args: { connectionId: connId, descriptor: ordersByStatus() },
     });
     expect(outcome.error).toBeUndefined();
-    expect(outcome.tables).toEqual([`${connId}.main.orders`]);
+    expect(outcome.tables).toEqual([`${connName}.main.orders`]);
+  });
+
+  it('shows the model descriptors that run as written', async () => {
+    const admin = await setup({ context: 'report', user: 'admin' });
+    const spec = admin.specs.find((tool) => tool.name === 'aggregate');
+    const shown = JSON.stringify(spec?.args);
+    expect(AGGREGATE_EXAMPLES.length).toBeGreaterThan(0);
+    for (const descriptor of AGGREGATE_EXAMPLES) {
+      // What the prompt carries is the example itself, not a paraphrase of it.
+      expect(shown).toContain(JSON.stringify(JSON.stringify(descriptor)).slice(1, -1));
+      const outcome = await admin.execute({ id: 'c1', tool: 'aggregate', args: { connectionId: connId, descriptor } });
+      expect(outcome.error).toBeUndefined();
+    }
   });
 
   it('tells the model which field of a descriptor it got wrong', async () => {
@@ -675,6 +729,46 @@ describe('the report format spec', () => {
     const blocks = (outcome.artefact.body as { blocks: Record<string, unknown>[] }).blocks;
     expect(blocks[0]?.kind).toBe('bar');
     expect(blocks[0]?.series).toHaveLength(1);
+  });
+});
+
+/**
+ * The invoice format spec has to say what the body sits inside.
+ *
+ * It did not: it showed the body's schema and nothing else, and its "worked
+ * examples" were a starter's key, name and title. A model that follows that
+ * prompt writes the body's fields at the top of the artefact, and the acceptor
+ * — which reads `{ name, body }` — refuses every attempt. The first real turn
+ * on a local provider did exactly that, three times.
+ */
+describe('the invoice format spec', () => {
+  it('names the wrapper, and its worked example is a draft the template page accepts', async () => {
+    const builder = await setup({ context: 'invoice-template', user: 'admin' });
+    expect(builder.adapter.formatSpec()).toContain('`{ name, body }`');
+
+    const examples = builder.adapter.examples(builder.deps);
+    expect(examples).toHaveLength(1);
+    const example = JSON.parse(examples[0] ?? '') as Record<string, unknown>;
+    expect(Object.keys(example)).toEqual(['name', 'body']);
+    const outcome = await builder.adapter.acceptArtefact(example, builder.deps);
+    expect(outcome.ok).toBe(true);
+  });
+
+  it('shows an invoice built on a template, with its number left for the row to mint', async () => {
+    const manager = await setup({ context: 'invoices', user: 'admin' });
+    expect(manager.adapter.formatSpec()).toContain('`{ basedOn, name, body }`');
+
+    const example = JSON.parse(manager.adapter.examples(manager.deps)[0] ?? '') as {
+      basedOn: string;
+      body: { number: string };
+    };
+    expect(Object.keys(example)).toEqual(['basedOn', 'name', 'body']);
+    expect(example.body.number).toBe('');
+    // The id is the model's to look up — the example must not look like one.
+    const outcome = await manager.adapter.acceptArtefact(example, manager.deps);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.errors[0]?.code).toBe('TEMPLATE_NOT_FOUND');
   });
 });
 

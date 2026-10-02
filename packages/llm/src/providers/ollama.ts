@@ -3,12 +3,15 @@
  * Local Ollama client: no auth, `baseUrl` defaults to `http://localhost:11434`.
  * POST `/api/chat` (non-streaming); `GET /api/tags` for the model list. The only
  * direct provider promoted in Electron offline mode. temperature (fixed 0) goes
- * in `options` per the Ollama chat API.
+ * in `options` per the Ollama chat API, as does the context window (`num_ctx`).
+ * A chat request gets `OLLAMA_TIMEOUT_MS`, not the shared default.
  */
 import { pingComplete, requestJson, toCompleteResult } from './http.js';
 import { listOllamaModels } from './model-catalog.js';
 import {
   assertEnrichmentTemperature,
+  OLLAMA_NUM_CTX,
+  OLLAMA_TIMEOUT_MS,
   ProviderError,
   requireModel,
   stripTrailingSlash,
@@ -46,12 +49,12 @@ export function createOllamaClient(config: ProviderConfig): ProviderClient {
         method: 'POST',
         url: `${baseUrl}/api/chat`,
         headers: { 'content-type': 'application/json' },
-        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        timeoutMs: timeoutMs ?? OLLAMA_TIMEOUT_MS,
         body: {
           model: req.model,
           messages,
           stream: false,
-          options: { temperature: req.temperature, num_predict: req.maxTokens },
+          options: { temperature: req.temperature, num_predict: req.maxTokens, num_ctx: OLLAMA_NUM_CTX },
         },
       });
 

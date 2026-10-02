@@ -83,18 +83,21 @@ export interface ModalHeaderProps extends Omit<ComponentPropsWithRef<'div'>, 'ti
   title: ReactNode;
   /** Optional subtitle (wired to `aria-describedby` via `Dialog.Description`). */
   subtitle?: ReactNode;
+  /** Content at the header's end edge, level with the title and before the close button (chips, a status). */
+  actions?: ReactNode;
   /** Accessible label for the close icon-button (required — i18n). */
   closeLabel: string;
   /** Hide the close icon-button (e.g. forced-choice flows). */
   hideClose?: boolean | undefined;
 }
 
-/** Modal header: tinted icon tile + title/subtitle + close icon-button. */
+/** Modal header: tinted icon tile + title/subtitle + optional end-edge actions + close icon-button. */
 export function ModalHeader({
   icon,
   tone = 'accent',
   title,
   subtitle,
+  actions,
   closeLabel,
   hideClose,
   className,
@@ -119,6 +122,9 @@ export function ModalHeader({
         )}
         {children}
       </div>
+      {actions === undefined || actions === null ? null : (
+        <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
+      )}
       {hideClose ? null : (
         <DialogPrimitive.Close
           aria-label={closeLabel}

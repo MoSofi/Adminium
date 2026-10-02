@@ -38,7 +38,7 @@ import {
   settingsRepo,
 } from '@adminium/meta';
 
-import { executeAssistantTurn } from '../src/jobs/assistant-turn.js';
+import { executeAssistantTurn, INTERRUPTED_ERROR } from '../src/jobs/assistant-turn.js';
 import { sweepAssistantSessions } from '../src/assistant/retention.js';
 import { assistantRoutes } from '../src/routes/assistant/index.js';
 import { readLlmConfig, writeLlmConfig } from '../src/routes/llm/config-service.js';
@@ -133,9 +133,14 @@ function jobContext(overrides: Partial<JobHandlerContext> = {}): JobHandlerConte
 }
 
 /** Run one turn against a scripted provider, as the worker would. */
-async function runTurn(turnId: string, script: readonly ScriptStep[], userId: string) {
+async function runTurn(
+  turnId: string,
+  script: readonly ScriptStep[],
+  userId: string,
+  overrides: Partial<JobHandlerContext> = {},
+) {
   const scripted = makeScriptedClient(script);
-  await executeAssistantTurn({ turnId, userId }, jobContext(), {
+  await executeAssistantTurn({ turnId, userId }, jobContext(overrides), {
     meta: t.meta,
     manager: t.manager,
     resolveClient: () =>
@@ -406,6 +411,58 @@ describe('a session and its turns', () => {
     const second = await runTurn(turnId, [{ text: reply({}, 'Two.') }], t.users.admin.id);
     // The second run found the turn already terminal and dialled nobody.
     expect(second.calls).toHaveLength(0);
+  });
+
+  it('fails a turn whose run died with its process, when the job is claimed again', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'Draft something' },
+    });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const repo = assistantSessionsRepo(t.meta);
+    // The first attempt claimed the turn and never came back.
+    await repo.setTurnStatus(turnId, 'running', { expected: 'queued', jobId: 'job_test' });
+
+    // Another job finding it running is the race it always was: left alone.
+    const other = await runTurn(turnId, [{ text: reply({}, 'No.') }], t.users.admin.id, { jobId: 'job_other', attempt: 2 });
+    expect(other.calls).toHaveLength(0);
+    expect((await repo.findTurn(turnId))?.status).toBe('running');
+
+    const again = await runTurn(turnId, [{ text: reply({}, 'Again.') }], t.users.admin.id, { attempt: 2 });
+    // Ended, not re-run: nobody was dialled a second time.
+    expect(again.calls).toHaveLength(0);
+
+    const read = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`,
+      headers: asUser(t.users.admin),
+    });
+    const view = read.json() as { status: string; finishedAt: number | null; error: { kind: string; message: string } | null };
+    expect(view.status).toBe('failed');
+    expect(view.finishedAt).toBe(AT);
+    expect(view.error).toEqual({ ...INTERRUPTED_ERROR });
+  });
+
+  it('leaves a finished turn alone when its job is claimed again', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'Draft something' },
+    });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+
+    await runTurn(turnId, [{ text: reply({}, 'One.') }], t.users.admin.id);
+    await runTurn(turnId, [{ text: reply({}, 'Two.') }], t.users.admin.id, { attempt: 2 });
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('done');
+    expect(turn?.say).toBe('One.');
   });
 
   it('fails without dialling when the stored base URL is one the guard refuses', async () => {

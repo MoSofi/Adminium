@@ -18,11 +18,20 @@ import type { AssistantTool, AssistantToolDeps, CanReadTable } from '../types.js
 /** Tables one `describe_schema` answer may carry. */
 export const SCHEMA_TABLE_MAX = 200;
 
-/** A connection whose snapshot cannot be loaded is reported, not thrown. */
+/**
+ * How a table a tool read is named in the turn's steps and sources: by the
+ * connection's NAME. Those lists are read by a person, and a connection id
+ * tells them nothing about which database was opened.
+ */
+export function tableLabel(connectionName: string, tableId: string): string {
+  return `${connectionName}.${tableId}`;
+}
+
+/** A connection whose snapshot cannot be loaded is reported, not thrown. `name` is the connection's, for {@link tableLabel}. */
 export async function viewOrError(
   deps: AssistantToolDeps,
   connectionId: string,
-): Promise<{ view: SnapshotView } | { error: { code: string; message: string } }> {
+): Promise<{ view: SnapshotView; name: string } | { error: { code: string; message: string } }> {
   const connection = await deps.manager.connections.findById(connectionId);
   if (connection === null) {
     return { error: { code: 'CONNECTION_NOT_FOUND', message: `No connection has the id ${JSON.stringify(connectionId)}.` } };
@@ -31,7 +40,10 @@ export async function viewOrError(
     // No code Adminium makes (a shared link's) is ever read into an answer: it would leave the instance.
     const view = codesMaskedView(await loadSnapshotView(deps.meta, connectionId));
     // Nor a column the person's role does not read: the assistant reads as they do.
-    return { view: deps.userId === null ? view : await readViewForUser(deps.meta, deps.userId, view) };
+    return {
+      view: deps.userId === null ? view : await readViewForUser(deps.meta, deps.userId, view),
+      name: connection.name,
+    };
   } catch {
     return {
       error: {
@@ -146,7 +158,7 @@ export const describeSchemaTool: AssistantTool = {
 
     return {
       result: { connectionId, tables, omitted: Math.max(wanted.length - tables.length, 0) },
-      tables: tables.map((table) => `${connectionId}.${table.id}`),
+      tables: tables.map((table) => tableLabel(resolved.name, table.id)),
     };
   },
 };

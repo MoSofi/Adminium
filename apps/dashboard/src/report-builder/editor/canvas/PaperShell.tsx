@@ -33,10 +33,16 @@ export const SHEET_MIN = 560;
 
 export interface PaperShellProps {
   body: ReportBody;
+  /**
+   * Draw the paper without its own card — no border, radius, shadow, fixed
+   * width or minimum height. For a sheet shown INSIDE another card (the
+   * assistant's result), where the paper's frame is a box in a box in a box.
+   */
+  flush?: boolean | undefined;
   children: ReactNode;
 }
 
-export function PaperShell({ body, children }: PaperShellProps) {
+export function PaperShell({ body, flush, children }: PaperShellProps) {
   const hasBackground = body.bgImage !== '';
   return (
     <div
@@ -49,7 +55,10 @@ export function PaperShell({ body, children }: PaperShellProps) {
         '--adm-report-tint': String(body.bgTint),
       }}
       className={cn(
-        'adm-always-light relative mx-auto min-h-[600px] w-[760px] min-w-[560px] max-w-full overflow-hidden rounded-2xl border border-[#ececef] bg-white px-[38px] py-[34px] text-[#191920] shadow-card',
+        'adm-always-light relative overflow-hidden bg-white text-[#191920]',
+        flush === true
+          ? 'w-full px-[22px] py-5'
+          : 'mx-auto min-h-[600px] w-[760px] min-w-[560px] max-w-full rounded-2xl border border-[#ececef] px-[38px] py-[34px] shadow-card',
         hasBackground && 'bg-[image:var(--adm-report-bg)] bg-cover bg-center',
       )}
     >

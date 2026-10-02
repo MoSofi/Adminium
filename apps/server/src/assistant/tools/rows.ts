@@ -34,7 +34,7 @@ import { runList } from '../../crud/list.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import type { AssistantTool, AssistantToolDeps, AssistantToolOutcome } from '../types.js';
-import { viewOrError } from './schema.js';
+import { tableLabel, viewOrError } from './schema.js';
 
 /** Rows one call may return. The contract's cap, not a second opinion about it. */
 export const ROW_LIMIT_MAX = ASSISTANT_MAX_ROWS_PER_CALL;
@@ -56,6 +56,8 @@ function truncateCells(rows: Row[]): Row[] {
 interface ReadableTarget {
   view: SnapshotView;
   tableId: string;
+  /** The table as the turn's steps and sources name it. */
+  label: string;
 }
 
 /**
@@ -89,7 +91,42 @@ async function resolveReadable(
       },
     };
   }
-  return { target: { view: found.view, tableId } };
+  return { target: { view: found.view, tableId, label: tableLabel(found.name, tableId) } };
+}
+
+/**
+ * Worked filters, shown to the model beside the grammar.
+ *
+ * "The same one the data API takes" described nothing to a model that has
+ * never seen the data API: it wrote SQL, then a shape of its own, and then
+ * gave up filtering and read the table whole. The tests RUN these, so they
+ * cannot drift from what the parser accepts.
+ */
+export const WHERE_EXAMPLES: readonly Record<string, unknown>[] = [
+  { column: 'status', op: 'eq', value: 'open' },
+  { column: 'customer_id', op: 'in', value: ['c1', 'c2'] },
+  { and: [{ column: 'amount', op: 'gte', value: 100 }, { column: 'status', op: 'neq', value: 'cancelled' }] },
+];
+
+const WHERE_GRAMMAR = [
+  'A filter, as an OBJECT — never SQL. One condition is `{ "column", "op", "value" }`; several are grouped as `{ "and": [ … ] }` or `{ "or": [ … ] }`.',
+  '`op` is one of eq, neq, gt, gte, lt, lte, in, like, ilike, is_null, not_null, between. `in` takes an array, `between` a `[low, high]` pair, `like` a pattern with `%`; is_null and not_null take no `value`.',
+  'Examples:',
+  ...WHERE_EXAMPLES.map((example) => JSON.stringify(example)),
+].join('\n');
+
+/** The `where` argument, shared by the two row tools. */
+const WHERE_ARG = { type: 'object', description: WHERE_GRAMMAR } as const;
+
+/**
+ * `where` as the list pipeline takes it: JSON text. The model is asked for an
+ * object, since a JSON document quoted inside a JSON reply is one escaping
+ * slip from unparseable; text is still taken, for a model that sends it.
+ */
+function whereParam(value: unknown): { where: string } | Record<string, never> {
+  if (typeof value === 'string') return value === '' ? {} : { where: value };
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) return { where: JSON.stringify(value) };
+  return {};
 }
 
 export const readRowsTool: AssistantTool = {
@@ -100,8 +137,8 @@ export const readRowsTool: AssistantTool = {
     properties: {
       connectionId: { type: 'string' },
       table: { type: 'string' },
-      where: { type: 'string', description: 'Filter expression, the same one the data API takes.' },
-      sort: { type: 'string', description: 'e.g. `created_at.desc`.' },
+      where: WHERE_ARG,
+      sort: { type: 'string', description: '`column.asc` or `column.desc`; several are comma-separated, e.g. `created_at.desc,id.asc`.' },
       columns: { type: 'array', items: { type: 'string' } },
       limit: { type: 'integer', minimum: 1, maximum: ROW_LIMIT_MAX },
     },
@@ -116,7 +153,7 @@ export const readRowsTool: AssistantTool = {
     }
     const gate = await resolveReadable(deps, connectionId, tableName);
     if ('error' in gate) return { error: gate.error };
-    const { view, tableId } = gate.target;
+    const { view, tableId, label } = gate.target;
 
     const asked = typeof args.limit === 'number' && Number.isFinite(args.limit) ? Math.floor(args.limit) : ROW_LIMIT_MAX;
     const limit = Math.min(Math.max(asked, 1), ROW_LIMIT_MAX);
@@ -135,7 +172,7 @@ export const readRowsTool: AssistantTool = {
           limit,
           count: 'exact',
           ...(columns.length > 0 ? { select: columns.join(',') } : {}),
-          ...(typeof args.where === 'string' && args.where !== '' ? { where: args.where } : {}),
+          ...whereParam(args.where),
           ...(typeof args.sort === 'string' && args.sort !== '' ? { order: args.sort } : {}),
         },
         // Always false. See this file's header.
@@ -149,7 +186,7 @@ export const readRowsTool: AssistantTool = {
           returned: listed.data.length,
           total: listed.page?.total ?? null,
         },
-        tables: [`${connectionId}.${tableId}`],
+        tables: [label],
       };
     } catch (error) {
       return { error: queryFailure(error) };
@@ -166,7 +203,7 @@ export const sampleRecordTool: AssistantTool = {
     properties: {
       connectionId: { type: 'string' },
       table: { type: 'string' },
-      where: { type: 'string', description: 'Pick a particular row; omit for the first one.' },
+      where: { ...WHERE_ARG, description: `Pick a particular row; omit for the first one. ${WHERE_GRAMMAR}` },
     },
     required: ['connectionId', 'table'],
     additionalProperties: false,
@@ -179,7 +216,7 @@ export const sampleRecordTool: AssistantTool = {
     }
     const gate = await resolveReadable(deps, connectionId, tableName);
     if ('error' in gate) return { error: gate.error };
-    const { view, tableId } = gate.target;
+    const { view, tableId, label } = gate.target;
     const table = view.table(tableId);
     const { db, dialect } = await deps.manager.data(connectionId);
     try {
@@ -190,7 +227,7 @@ export const sampleRecordTool: AssistantTool = {
         params: {
           limit: 1,
           count: 'none',
-          ...(typeof args.where === 'string' && args.where !== '' ? { where: args.where } : {}),
+          ...whereParam(args.where),
         },
         canReadPii: false,
         dialect,
@@ -198,7 +235,7 @@ export const sampleRecordTool: AssistantTool = {
       const row = truncateCells(listed.data)[0] ?? null;
       return {
         result: { table: tableId, record: row },
-        tables: [`${connectionId}.${tableId}`],
+        tables: [label],
       };
     } catch (error) {
       return { error: queryFailure(error) };

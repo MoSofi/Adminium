@@ -182,6 +182,26 @@ for (const dialect of TEST_DIALECTS) {
       expect(read?.finishedAt).toBe(T0 + 4200);
     });
 
+    it('notes what a turn was saved as beside its result, and has nowhere to note it without one', async () => {
+      const repo = assistantSessionsRepo(t.meta);
+      const session = await repo.create({ context: 'report', host: { connectionIds: [] } }, T0);
+      const turn = await repo.createTurn({ sessionId: session.id, askText: 'A report' }, T0);
+      const saved = { id: 'rpt_1', kind: 'template', name: 'Quarterly', at: T0 + 5 };
+
+      // No result yet: there is no draft, so there is nothing a save could be of.
+      expect(await repo.recordTurnSaved(turn.id, saved)).toBe(false);
+      expect(await repo.recordTurnSaved('atn_missing', saved)).toBe(false);
+
+      await repo.finishTurn(turn.id, { status: 'done', result: { title: 'Quarterly', artefact: { name: 'Quarterly' } } });
+      expect(await repo.recordTurnSaved(turn.id, saved)).toBe(true);
+      // The draft is untouched; the note rides beside it.
+      expect((await repo.findTurn(turn.id))?.result).toEqual({
+        title: 'Quarterly',
+        artefact: { name: 'Quarterly' },
+        saved,
+      });
+    });
+
     it('keeps a failed turn`s error whatever shape it has', async () => {
       const repo = assistantSessionsRepo(t.meta);
       const session = await repo.create({ context: 'email', host: { connectionIds: [] } }, T0);

@@ -24,7 +24,44 @@ import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js
 import { shapeRows, toNumber } from '../../widget-data/shapers.js';
 import type { AssistantTool, AssistantToolOutcome } from '../types.js';
 import { ROW_LIMIT_MAX } from './rows.js';
-import { viewOrError } from './schema.js';
+import { tableLabel, viewOrError } from './schema.js';
+
+/**
+ * Worked descriptors, shown to the model beside the field list.
+ *
+ * The descriptor is the widgets' own, and nothing about it can be guessed:
+ * `source` is an object and not the table's id, the function is `fn`, an alias
+ * is an identifier and not a label. A model told only "a query descriptor"
+ * found those one refusal at a time and spent a whole turn's rounds doing it.
+ * The tests RUN these, so they cannot drift from what the compiler accepts.
+ */
+export const AGGREGATE_EXAMPLES: readonly Record<string, unknown>[] = [
+  {
+    shape: 'single-metric',
+    source: { schema: 'main', name: 'orders' },
+    aggregations: [{ fn: 'sum', column: 'amount', alias: 'total_amount' }],
+  },
+  {
+    shape: 'categorical',
+    source: { schema: 'main', name: 'orders' },
+    groupBy: ['status'],
+    aggregations: [{ fn: 'count', alias: 'order_count' }],
+    orderBy: [{ column: 'order_count', dir: 'desc' }],
+    limit: 10,
+  },
+];
+
+const DESCRIPTOR_FIELDS = [
+  'A query descriptor. Its fields:',
+  '- `shape`: "single-metric" for one total, "categorical" for a breakdown by `groupBy`, "timeseries" for a series over `bucket`.',
+  '- `source`: an OBJECT `{ "schema": …, "name": … }` — a table id `main.orders` from describe_schema is `{ "schema": "main", "name": "orders" }`. Never a string.',
+  '- `aggregations`: up to 8 of `{ "fn", "column", "alias" }`. `fn` is one of count, sum, avg, min, max, count_distinct; `column` is omitted for a plain count; `alias` is required and is an identifier like `order_count` (letters, digits, underscores — no spaces).',
+  '- `groupBy`: up to 2 column names. `bucket`: `{ "column", "unit" }` with unit hour, day, week, month, quarter or year.',
+  '- `filters`: `{ "column", "op", "value" }` with op eq, neq, gt, gte, lt, lte, in, like, is_null, not_null or between.',
+  '- `orderBy`: `{ "column", "dir" }` with dir asc or desc; `column` may be an alias. `limit`: how many groups.',
+  'Examples:',
+  ...AGGREGATE_EXAMPLES.map((example) => JSON.stringify(example)),
+].join('\n');
 
 export const aggregateTool: AssistantTool = {
   name: 'aggregate',
@@ -35,8 +72,7 @@ export const aggregateTool: AssistantTool = {
       connectionId: { type: 'string' },
       descriptor: {
         type: 'object',
-        description:
-          'A query descriptor: `shape`, `source` (the table), `aggregations`, optional `groupBy`, `bucket`, `window`, `filters`, `limit`.',
+        description: DESCRIPTOR_FIELDS,
       },
     },
     required: ['connectionId', 'descriptor'],
@@ -112,7 +148,7 @@ export const aggregateTool: AssistantTool = {
       const shaped = shapeRows({ compiled, rows, priorRows, total, canReadPii: false, connectionId });
       return {
         result: { table: tableId, shape: compiled.shape, data: shaped },
-        tables: [`${connectionId}.${tableId}`],
+        tables: [tableLabel(found.name, tableId)],
       };
     } catch (error) {
       return { error: refusal(error, 'The database refused that query.') };

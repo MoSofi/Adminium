@@ -9,6 +9,9 @@
  * scripts/gen-resources.mjs.
  */
 export default {
+  "actions": {
+    "saved": "Uloženo"
+  },
   "ask": {
     "continue": "Pokračovat",
     "pick": "Vyber jednu možnost v každé skupině",

@@ -8,11 +8,11 @@
  * session may — and the token chip says what it has spent. Both are titled,
  * because a number with no unit beside it is a number nobody can check.
  *
- * DEP: the comp puts the chips on the header's right edge, level with the
- * name. `ModalHeader` has no slot between its title column and the close
- * button, and the dashboard may not reach Radix to compose its own dialog
- * title — so they sit at the end of the title column instead, right-aligned.
- * Everything else in this row is the comp's.
+ * The chips sit on the header's end edge, level with the name, as the comp
+ * draws them — in `ModalHeader`'s `actions` slot, between the title column
+ * and the close button. Below `sm` there is no room for both beside the name,
+ * so the scope chip yields: the blurb under the name already says what the
+ * session reads, and nothing else says what it has spent.
  */
 import { ModalHeader, Tag, cn } from '@adminium/ui';
 import { Database, Gauge, Sparkles } from 'lucide-react';
@@ -44,38 +44,41 @@ export function Header({ name, page, pageIcon, blurb, scope, tokens }: HeaderPro
       icon={<Sparkles aria-hidden="true" />}
       closeLabel={t('assistant:close', 'Close')}
       title={
-        <span className="flex items-center gap-2">
-          <span className="text-[15px] font-extrabold tracking-[-0.015em]">{name}</span>
-          <Tag className="gap-[5px] rounded-[20px] px-2 py-[2px] text-[10.5px]">
-            {PageIcon === null ? null : <PageIcon className="size-[11px]" aria-hidden="true" />}
-            {page}
+        // The name never shrinks; the page pill gives way first, cut with an
+        // ellipsis, so it cannot run under the chips on a narrow screen.
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-[15px] font-extrabold tracking-[-0.015em]">{name}</span>
+          <Tag className="min-w-0 gap-[5px] rounded-[20px] px-2 py-[2px] text-[10.5px]">
+            {PageIcon === null ? null : <PageIcon className="size-[11px] shrink-0" aria-hidden="true" />}
+            <span className="truncate">{page}</span>
           </Tag>
         </span>
       }
       subtitle={<span className="block truncate text-caption text-fg-muted">{blurb}</span>}
-    >
-      <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5">
-        <span
-          title={t('assistant:scope.title', 'Data this session can read')}
-          className={cn(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-[20px] border border-border bg-surface-2',
-            'px-2.5 py-1.5 text-[11px] font-bold text-fg-muted',
-          )}
-        >
-          <Database className="size-3" aria-hidden="true" />
-          {scope}
-        </span>
-        <span
-          title={t('assistant:tokens.title', 'Tokens used this session')}
-          className={cn(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-[20px] bg-accent-soft px-2.5 py-1.5',
-            'font-mono text-[11px] font-bold text-accent',
-          )}
-        >
-          <Gauge className="size-3" aria-hidden="true" />
-          {t('assistant:tokens.value', '{n} tokens', { n: tokens })}
-        </span>
-      </div>
-    </ModalHeader>
+      actions={
+        <>
+          <span
+            title={t('assistant:scope.title', 'Data this session can read')}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 rounded-[20px] border border-border bg-surface-2',
+              'px-2.5 py-1.5 text-[11px] font-bold text-fg-muted max-sm:hidden',
+            )}
+          >
+            <Database className="size-3" aria-hidden="true" />
+            {scope}
+          </span>
+          <span
+            title={t('assistant:tokens.title', 'Tokens used this session')}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 rounded-[20px] bg-accent-soft px-2.5 py-1.5',
+              'font-mono text-[11px] font-bold text-accent',
+            )}
+          >
+            <Gauge className="size-3" aria-hidden="true" />
+            {t('assistant:tokens.value', '{n} tokens', { n: tokens })}
+          </span>
+        </>
+      }
+    />
   );
 }

@@ -26,7 +26,7 @@ import {
 } from '../../invoices/document.js';
 import { formatMoney, totalsOf } from '../../invoices/money.js';
 import { TEMPLATE_NUMBER } from '../../invoices/numbering.js';
-import { starterCards, STARTER_KEYS } from '../../invoices/starters.js';
+import { renderStarter } from '../../invoices/starters.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import type {
@@ -169,10 +169,16 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
 }
 
-/** The format section both invoice contexts share. */
-function invoiceFormatSpec(extra: string): string {
+/**
+ * The format section both invoice contexts share. `wrapper` goes first: the
+ * body's schema cannot show what the body sits inside, and a model shown only
+ * the schema writes the body's fields where the artefact's belong.
+ */
+function invoiceFormatSpec(wrapper: string, extra: string): string {
   return [
-    'The document body, as JSON Schema:',
+    wrapper,
+    'Everything the sheet shows goes inside `body`, never beside it.',
+    'The `body`, as JSON Schema:',
     jsonSchemaOf(invoiceBodyInputSchema),
     '',
     'Money and quantities are DECIMAL TEXT ("1250.00", "19.5"), never numbers. Subtotal, tax, discount and total are computed from the lines — do not write them.',
@@ -184,10 +190,29 @@ function invoiceFormatSpec(extra: string): string {
   ].join('\n');
 }
 
-/** Two of the page's own starters, as worked examples of the real format. */
+/** What `basedOn` reads in the invoice example: a real id is the model's to look up, not ours to invent. */
+const EXAMPLE_BASED_ON = '<the id of a template, from list_documents>';
+
+/**
+ * The page's own standard starter, rendered by the page's own code and wrapped
+ * the way an artefact is — a worked example of the real format rather than an
+ * approximation of it that can drift. One, not two: a whole body is long.
+ */
+function templateExamples(): string[] {
+  const starter = renderStarter('standard', { now: Date.now(), lang: 'en', number: TEMPLATE_NUMBER });
+  return [JSON.stringify({ name: starter.card.name, body: starter.body })];
+}
+
+/** The same starter as ONE INVOICE: built on a template, and its number left for the row to mint. */
 function invoiceExamples(): string[] {
-  const cards = starterCards().filter((card) => STARTER_KEYS.includes(card.key));
-  return cards.slice(0, 2).map((card) => JSON.stringify({ starter: card.key, name: card.name, title: card.title }));
+  const starter = renderStarter('standard', { now: Date.now(), lang: 'en', number: '' });
+  return [
+    JSON.stringify({
+      basedOn: EXAMPLE_BASED_ON,
+      name: `${starter.card.name} — ${starter.body.customerName}`,
+      body: starter.body,
+    }),
+  ];
 }
 
 async function invoicePageFacts(deps: AssistantToolDeps, primary: string, canWrite: boolean) {
@@ -246,10 +271,11 @@ export const invoiceTemplateContext: AssistantContextAdapter = {
 
   formatSpec() {
     return invoiceFormatSpec(
+      'A document is `{ name, body }`, plus an optional `topic` and `lang`. `name` is what the template is called in the list.',
       'You are writing a TEMPLATE: a reusable layout. Leave `customerName`, `customer` and `items` as the example content the template should carry, leave `number` as the template placeholder, and decide which optional sections belong on it.',
     );
   },
-  examples: invoiceExamples,
+  examples: templateExamples,
 
   acceptArtefact(artefact): Promise<AssistantArtefactCheck> {
     const parsed = templateArtefactSchema.safeParse(artefact);
@@ -344,6 +370,7 @@ export const invoicesContext: AssistantContextAdapter = {
 
   formatSpec() {
     return invoiceFormatSpec(
+      'A document is `{ basedOn, name, body }`. `name` is what the invoice is called in the list.',
       [
         'You are drafting ONE INVOICE from an existing template. Name that template as `basedOn` (an id from list_documents), fill `customerName`, `customer`, `items`, `issued` and `due` from what you read, and leave `number` as an empty string — a number is minted when the row is created.',
         'You never change a customer row. Reading them is all that happens here.',

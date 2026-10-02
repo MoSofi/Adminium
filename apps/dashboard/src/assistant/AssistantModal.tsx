@@ -78,6 +78,10 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
   const [echo, setEcho] = useState<string | null>(null);
   const [samples, setSamples] = useState<Record<string, { artefact: Record<string, unknown>; label: string }>>({});
   const [pending, setPending] = useState<PendingWrite | null>(null);
+  // What each turn's draft was saved as, in this open — beside what the server
+  // recorded on the turn (`result.saved`), which a turn loaded already-saved
+  // carries. A second save of the same draft would be a second document.
+  const [saved, setSaved] = useState<Record<string, { id: string; kind: string; name: string }>>({});
   const [busy, setBusy] = useState(false);
 
   const values: AssistantFactValues = useMemo(
@@ -148,9 +152,19 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
         })();
         return;
       }
+      const already = saved[turn.id] ?? result.saved;
+      if (already !== null) {
+        // Already saved: *open* goes to the document that exists. Nothing is
+        // written, so nothing is confirmed.
+        if (action.id === 'editor') {
+          host.onCreated(already, true);
+          closeModal();
+        }
+        return;
+      }
       setPending({ turnId: turn.id, action, open: action.id === 'editor', title: result.title });
     },
-    [closeModal, host, session],
+    [closeModal, host, saved, session],
   );
 
   const confirmWrite = useCallback(() => {
@@ -165,7 +179,11 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
       setPending(null);
       if (outcome === null) return;
       setEcho(echoText(host.context, { ...outcome.echo, open: pending.open }, pending.title));
-      if (outcome.created !== null) host.onCreated(outcome.created, pending.open);
+      if (outcome.created !== null) {
+        const created = outcome.created;
+        setSaved((previous) => ({ ...previous, [pending.turnId]: created }));
+        host.onCreated(created, pending.open);
+      }
       if (pending.open) closeModal();
     })();
   }, [closeModal, host, pending, session]);
@@ -283,6 +301,7 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
                         actions={copy.actions}
                         enabled={enabled}
                         canWrite={canWrite}
+                        saved={(saved[turn.id] ?? result.saved) !== null}
                         name={session.name}
                         busy={busy}
                         onRun={(action) => {

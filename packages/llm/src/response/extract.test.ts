@@ -81,6 +81,18 @@ describe('extractJsonObject', () => {
     if (!result.ok) expect(result.error.code).toBe('LLM_TRUNCATED');
   });
 
+  it('calls a finished reply with a stray quote unparseable, not truncated', () => {
+    // A model's own slip: `"conPhone("+1 555-0123")` flips every string after it.
+    const slip = '{"result":{"artefact":{"conName":"Alex","conPhone("+1 555-0123")},"details":[{"label":"Style"}]}}';
+    for (const raw of [slip, `\`\`\`json\n${slip}\n\`\`\``]) {
+      const result = extractJsonObject(raw);
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe('LLM_JSON_PARSE');
+      expect(result.error.message).not.toMatch(/truncat|token/i);
+    }
+  });
+
   it('returns a brace-balanced but malformed object for stage 2 to reject', () => {
     // Trailing comma is invalid JSON but the braces balance — extraction succeeds,
     // JSON.parse (stage 2) is what rejects it.

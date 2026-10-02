@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   ASSISTANT_MAX_CALLS_PER_TURN,
+  ASSISTANT_MAX_ROUNDS,
   ASSISTANT_SCHEMA_VERSION,
   type AssistantStepEvent,
 } from '@adminium/llm';
@@ -340,13 +341,36 @@ describe('the caps', () => {
     expect(told).toBe(true);
   });
 
-  it('gives up after six rounds of tool calls without an answer', async () => {
+  it('gives up when the rounds run out without an answer', async () => {
     const { scripted, promise } = run([{ text: reply({ calls: [call('c', 'list_documents')] }) }]);
     const outcome = await promise;
     expect(outcome.status).toBe('failed');
     if (outcome.status !== 'failed') return;
-    expect(scripted.calls).toHaveLength(6);
+    expect(scripted.calls).toHaveLength(ASSISTANT_MAX_ROUNDS);
     expect(outcome.errors[0]?.message).toContain('rounds');
+  });
+
+  it('leaves a round to answer in after every call the turn allows, one call at a time', async () => {
+    // The shape a careful model takes: one lookup, read it, the next. At six
+    // rounds this turn read everything it needed and never got to write.
+    const lookups = Array.from({ length: ASSISTANT_MAX_CALLS_PER_TURN }, (_, n) => ({
+      text: reply({ calls: [call(`c${String(n)}`, 'list_documents')] }),
+    }));
+    const { promise } = run([...lookups, { text: reply({}, 'Here is what I found.') }]);
+    const outcome = await promise;
+    expect(outcome.status).toBe('done');
+    if (outcome.status !== 'done') return;
+    expect(outcome.steps).toHaveLength(ASSISTANT_MAX_CALLS_PER_TURN);
+  });
+
+  it('tells the model before its last round, and not before', async () => {
+    const { scripted, promise } = run([{ text: reply({ calls: [call('c', 'list_documents')] }) }]);
+    await promise;
+    const told = scripted.calls.map((sent) => sent.messages.some((message) => message.content.includes('your last reply')));
+    expect(told.at(-1)).toBe(true);
+    expect(told.slice(0, -1).every((value) => !value)).toBe(true);
+    // It is the last thing the model reads, after the tool results it follows.
+    expect(scripted.calls.at(-1)?.messages.at(-1)?.content).toContain('Do not call a tool');
   });
 
   it('asks for temperature 0 on every round', async () => {
