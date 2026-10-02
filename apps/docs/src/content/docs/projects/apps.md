@@ -103,6 +103,46 @@ exactly as an install does. A problem names the file and the field it is in:
 It then lists what the customer side may reach. That list comes from `access.json` alone: a table
 the app has but does not grant there is out of the customers' reach, whatever the screens try.
 
+`app check` also refuses one thing the manifest's shape allows and an install does not: a table
+that anyone may add a row to may not also be one anyone may read, because every row could then be
+read by guessing ids. Grant reading and adding on different tables, as the starter does with
+`items` and `requests`.
+
+## Try it, then pack it
+
+```bash
+npx @adminiumjs/adminium app try
+```
+
+[`adminium app try`](/reference/cli/#app-try) proves the app installs. It packs it, starts a fresh
+Adminium in a temp folder with an empty SQLite database, and installs the package through the same
+routes Studio uses. Then it opens each side, reads a table as the signed-in person, and asks the
+public API for what `access.json` grants and for what it does not:
+
+```
+✓ the package uploads (repairs-0.1.0.tgz, 9 files)
+✓ the table check passes (2 table(s) to create)
+✓ it installs: tables, pages, roles
+✓ the sample data loads
+✓ the staff side is served at /apps/repairs/staff/ (2 file(s) it names)
+✓ the customer side can read "items", as access grants
+✓ the customer side cannot read "requests", which access does not grant
+✓ the customer side cannot read a table outside the app
+```
+
+A refusal is printed in the server's own words. Nothing listens on a port, and nothing in your
+project or its database is touched.
+
+```bash
+npx @adminiumjs/adminium app pack
+```
+
+[`adminium app pack`](/reference/cli/#app-pack) writes `.adminium/packs/<key>-<version>.tgz` and
+its fingerprint beside it. Install it on any Adminium from **Studio → Hosted apps → Install an
+app**: upload the file and paste the fingerprint
+([Installing apps](/self-hosting/installing-apps/)). The project's hooks and actions are not part of
+the package: they stay in the project.
+
 ## Screens of its own
 
 A side is a small browser app in `apps/<key>/staff/` or `apps/<key>/customer/`:

@@ -322,6 +322,53 @@ the side's `public/` folder as they are, and `surface.json` when the side has a
 `nav.json`. It needs the `esbuild` dev dependency and the project's packages
 installed. An app with no screens of its own builds nothing.
 
+### `app try`
+
+```
+adminium app try [key] [--add-ons <dir>] [--keep] [--json]
+```
+
+Packs the app, then proves the package installs and is served. It starts a
+fresh Adminium in a temp folder, with an empty SQLite database and nothing
+listening on a port, and does what a person does in Studio through the same
+routes: uploads the package with its fingerprint, checks the tables, installs,
+and adds the sample data. It then:
+
+- opens each side and every file its page names;
+- reads the app's first table as the signed-in person, and checks the staff
+  side is refused to someone who is not signed in;
+- asks the public API, with the browser key the customer side is served, for
+  each table `access.json` grants, and for the tables it does not grant, for a
+  table outside the app, and without the key — each of which must be refused.
+
+It prints one line per step and exits `2` when a step fails, with the server's
+own words for a refusal. Nothing in your project or its database is changed.
+It does not run the screens in a browser: an error inside a screen only shows
+when a person opens it.
+
+| Flag | Description |
+|---|---|
+| `--add-ons <dir>` | A folder of add-on packages (`<key>-<version>.tgz`, each with its `.tgz.integrity`) for an app that requires one |
+| `--keep` | Keep the throwaway Adminium's folder, and print where it is |
+| `--json` | Print the steps as JSON |
+
+### `app pack`
+
+```
+adminium app pack [key] [--out <dir>]
+```
+
+Checks the app, builds its sides, and writes `<key>-<version>.tgz` with its
+fingerprint in `<key>-<version>.tgz.integrity`, in `.adminium/packs/` unless
+`--out` says otherwise. The package holds the manifest as one `manifest.json`,
+each built side, and `seeds/`. Packing the same files twice gives the same
+bytes. A link or a hidden file in `seeds/` is refused, and so is a package
+larger than an upload takes (32 MB). The project's hooks and actions are not
+part of an app package.
+
+Install the file from **Studio → Hosted apps → Install an app**: upload it and
+paste the fingerprint. See [Installing apps](/self-hosting/installing-apps/).
+
 ## `pull`
 
 ```

@@ -2,8 +2,8 @@
 /**
  * Writing a new app into a project: `apps/<key>/`.
  *
- * The starter is small on purpose. One table, one dashboard page, one role,
- * six sample rows — and, when asked for, a staff side and a customer side that
+ * The starter is small on purpose. Two tables, a dashboard page for each, one
+ * role, six sample rows — and, when asked for, a staff side and a customer side that
  * each do one real thing with that table. Every file is something a person or
  * a coding agent then edits; nothing here is generated again later.
  *
@@ -96,6 +96,27 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
       nav: { group: 'main', icon: 'list-checks', order: 1 },
       bindings: { rows: 'items' },
     },
+    // What customers send in. Kept apart from `items` on purpose: a table anyone may add to
+    // is never also one anyone may read, or every request would be readable by guessing ids.
+    'manifest/tables/requests.json': {
+      ref: 'requests',
+      label: { 'en-US': 'Request' },
+      labelPlural: { 'en-US': 'Requests' },
+      keyField: 'message',
+      columns: [
+        { ref: 'id', type: 'int', role: 'pk' },
+        { ref: 'message', type: 'text', maxLength: 500, default: '', label: { 'en-US': 'Message' } },
+        { ref: 'handled', type: 'bool', default: false, label: { 'en-US': 'Handled' } },
+        { ref: 'created_at', type: 'timestamptz', role: 'created_at', default: 'now' },
+      ],
+    },
+    [`manifest/pages/${key}-requests.json`]: {
+      ref: `${key}-requests`,
+      template: 'page-crud',
+      title: { key: `${key}.requests`, fallback: 'Requests' },
+      nav: { group: 'main', icon: 'inbox', order: 2 },
+      bindings: { rows: 'requests' },
+    },
     'manifest/roles.json': [
       {
         key: staffRole,
@@ -105,6 +126,8 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
           'table:@items:read',
           'table:@items:create',
           'table:@items:update',
+          'table:@requests:read',
+          'table:@requests:update',
         ],
       },
     ],
@@ -131,13 +154,10 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
     // The ONLY thing the customer side can reach. A table not listed here is out of its reach.
     parts['manifest/access.json'] = {
       publicAccess: [
-        {
-          table: 'items',
-          methods: ['GET', 'POST'],
-          select: ['id', 'title', 'status'],
-          writable: ['title'],
-          defaults: { status: 'open' },
-        },
+        // Anyone may read the list: three columns of it, and nothing else.
+        { table: 'items', methods: ['GET'], select: ['id', 'title', 'status'] },
+        // Anyone may send a request, and gets back only the row they just made.
+        { table: 'requests', methods: ['POST'], select: ['id'], writable: ['message'] },
       ],
     };
   }
@@ -213,7 +233,8 @@ export function scaffoldApp(opts: ScaffoldAppOptions): string[] {
   for (const file of templateFiles(templates)) {
     const [top] = file.split('/');
     if ((top === 'staff' || top === 'customer') && !opts.sides.includes(top)) continue;
-    write(file, fill(readFileSync(join(templates, file), 'utf8')));
+    // Source templates end in `.tmpl`: they are the person's code once written, not this package's.
+    write(file.replace(/\.tmpl$/, ''), fill(readFileSync(join(templates, file), 'utf8')));
   }
   write('README.md', readme(opts));
   return created.sort();

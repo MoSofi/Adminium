@@ -151,6 +151,28 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
     }
   }
 
+  /*
+   * What the install refuses of an app's own browser key, said here rather
+   * than part way through an install. The validator does not know this one:
+   * it is a rule about the key the install makes, not about the manifest's shape.
+   */
+  (manifest.publicAccess ?? []).forEach((entry, index) => {
+    if (entry.kind === 'availability') return;
+    // Anyone at all: no claim, no sign-in, no person found or made by the write.
+    const anyone = entry.claim === undefined && entry.claimedBy === undefined && entry.identity === undefined;
+    if (anyone && entry.methods.includes('POST') && entry.methods.includes('GET')) {
+      const where = at(`publicAccess.${String(index)}.methods`);
+      findings.push(
+        error(
+          where.file,
+          where.path,
+          `"${entry.table}" lets anyone add a row, so it may not also let anyone read one: every row could be read by guessing ids. ` +
+            'Grant GET and POST on different tables, or make the readers sign in (claimedBy).',
+        ),
+      );
+    }
+  });
+
   // An app package carries no server code; a project's hooks and actions stay in the project.
   const serverCode = serverCodeSources(root);
   if (serverCode.length > 0) {

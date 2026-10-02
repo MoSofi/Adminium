@@ -6,9 +6,7 @@
  * is this package's dev dependency: both are linked into a temp project the
  * way a real project has them installed.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -17,44 +15,10 @@ import { parseSurfaceManifest } from '../src/cli/surfaces-root.js';
 import { runCli } from '../src/cli/run.js';
 import { loadProjectBundler, type Bundler } from '../src/project/build.js';
 import { buildAppSides, buildSide, sideBuildDir } from '../src/project/apps/side-build.js';
+import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
-const fromHere = createRequire(import.meta.url);
-
-/** The folder of an installed package, or null when this checkout has none. */
-function packageFolder(name: string, from: NodeJS.Require = fromHere): string | null {
-  try {
-    return dirname(from.resolve(`${name}/package.json`));
-  } catch {
-    // A package whose `exports` hide its package.json: walk up from its entry.
-    try {
-      for (let dir = dirname(from.resolve(name)); dir !== dirname(dir); dir = dirname(dir)) {
-        if (existsSync(join(dir, 'package.json'))) return dir;
-      }
-    } catch {
-      return null;
-    }
-    return null;
-  }
-}
-
-function esbuildFolder(): string | null {
-  try {
-    const vite = createRequire(fromHere.resolve('vitest/package.json')).resolve('vite');
-    return packageFolder('esbuild', createRequire(vite));
-  } catch {
-    return null;
-  }
-}
-
-const LINKED = {
-  esbuild: esbuildFolder(),
-  react: packageFolder('react'),
-  'react-dom': packageFolder('react-dom'),
-  // Published as `@adminiumjs/public-client`, which is what a side imports.
-  '@adminiumjs/public-client': packageFolder('@adminium/public-client'),
-};
-const ready = Object.values(LINKED).every((folder) => folder !== null);
+const ready = canBuildSides;
 
 let root: string;
 let bundler: Bundler;
@@ -78,14 +42,7 @@ const MAIN = [
 ].join('\n');
 
 beforeEach(async () => {
-  root = mkdtempSync(join(tmpdir(), 'adminium-side-build-'));
-  writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
-  mkdirSync(join(root, 'node_modules'));
-  for (const [name, folder] of Object.entries(LINKED)) {
-    if (folder === null) continue;
-    mkdirSync(dirname(join(root, 'node_modules', name)), { recursive: true });
-    symlinkSync(folder, join(root, 'node_modules', name), 'dir');
-  }
+  root = tempProject('adminium-side-build-');
   put('side-module.ts', "import { version } from 'react';\nexport const greeting: string = `Hello from React ${version}`;\n");
   put('apps/repairs/staff/src/main.tsx', MAIN);
   put('apps/repairs/staff/src/app.css', 'h1 { color: rebeccapurple; }\n');
@@ -249,7 +206,6 @@ describe.skipIf(!ready)('adminium app build', () => {
 
 describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
   it('builds both sides with the engine’s own side module, and each page names files that exist', async () => {
-    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'my-admin', private: true }));
     rmSync(join(root, 'apps'), { recursive: true });
     const io = fakeIo({ interactive: false });
     const deps = fakeDeps({ cwd: root, env: {} });

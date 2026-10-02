@@ -13,9 +13,11 @@ import { CliUsageError, EXIT_OK } from '../exit.js';
 import { appBuildCommand } from './app/build.js';
 import { appCheckCommand } from './app/check.js';
 import { appNewCommand } from './app/new.js';
+import { appPackCommand } from './app/pack.js';
+import { appTryCommand } from './app/try.js';
 
 /** In the order a person meets them. */
-export const APP_COMMANDS: readonly Command[] = [appNewCommand, appCheckCommand, appBuildCommand];
+export const APP_COMMANDS: readonly Command[] = [appNewCommand, appCheckCommand, appBuildCommand, appTryCommand, appPackCommand];
 
 function listing(): string {
   const width = Math.max(...APP_COMMANDS.map((command) => command.name.length));

@@ -11,8 +11,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { createPublicClient, type Row } from '@adminiumjs/public-client';
 import { en, useCustomer, type CustomerConfig } from '@adminiumjs/adminium/side';
 
-/** The table's short name: the `ref` of manifest/tables/items.json. */
+/** The tables' short names: the `ref` of each file in manifest/tables/. */
 const ITEMS = 'items';
+const REQUESTS = 'requests';
 
 export function App() {
   const loaded = useCustomer();
@@ -23,10 +24,11 @@ export function App() {
 
 function Items({ config }: { config: CustomerConfig }) {
   const client = useMemo(() => createPublicClient({ baseUrl: config.baseUrl, publishableKey: config.publishableKey }), [config]);
-  // The name the table's public endpoint goes by on this install.
+  // The name each table's public endpoint goes by on this install.
   const items = config.tables[ITEMS] ?? ITEMS;
+  const requests = config.tables[REQUESTS] ?? REQUESTS;
   const [rows, setRows] = useState<Row[]>([]);
-  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -45,12 +47,12 @@ function Items({ config }: { config: CustomerConfig }) {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (title.trim() === '') return;
+    if (message.trim() === '') return;
     try {
-      await client.create(items, { title: title.trim() });
-      setTitle('');
+      // access.json lets anyone ADD a request and read none: the reply is only the new row's id.
+      await client.create(requests, { message: message.trim() });
+      setMessage('');
       setSent(true);
-      await load();
     } catch (error) {
       setProblem(error instanceof Error ? error.message : String(error));
     }
@@ -62,8 +64,8 @@ function Items({ config }: { config: CustomerConfig }) {
       {problem === null ? null : <p className="note error">{problem}</p>}
 
       <form onSubmit={send}>
-        <label htmlFor="title">{en('What do you need?')}</label>
-        <input id="title" value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} />
+        <label htmlFor="message">{en('What do you need?')}</label>
+        <input id="message" value={message} maxLength={500} onChange={(event) => setMessage(event.target.value)} />
         <button type="submit">{en('Send')}</button>
       </form>
       {sent ? <p className="note">{en('Sent. Thank you.')}</p> : null}

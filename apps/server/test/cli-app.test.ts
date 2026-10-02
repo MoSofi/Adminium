@@ -112,13 +112,22 @@ describe('adminium app check', () => {
   it('says in words what the customer side may reach', async () => {
     parts({
       'apps/repairs/manifest/access.json': {
-        publicAccess: [{ table: 'jobs', methods: ['GET', 'POST'], select: ['id', 'title'], writable: ['title', 'notes'] }],
+        publicAccess: [{ table: 'jobs', methods: ['POST'], select: ['id'], writable: ['title', 'notes'] }],
       },
     });
     const { code, out } = await run('check', 'repairs');
     expect(code, out).toBe(0);
     expect(out).toContain('the customer side may reach only this:');
-    expect(out).toContain('jobs: read (id, title) and add a row (title, notes)');
+    expect(out).toContain('jobs: add a row (title, notes)');
+  });
+
+  it('refuses what an install would refuse of the app’s own key', async () => {
+    // The manifest's shape allows it; the key an install makes for the app may not hold both.
+    parts({ 'apps/repairs/manifest/access.json': { publicAccess: [{ table: 'jobs', methods: ['GET', 'POST'], select: ['id'], writable: ['title'] }] } });
+    const both = await run('check');
+    expect(both.code).toBe(2);
+    expect(both.err).toContain('apps/repairs/manifest/access.json: publicAccess.0.methods — "jobs" lets anyone add a row, so it may not also let anyone read one');
+
   });
 
   it('names the part file a problem is in, and exits 2', async () => {
@@ -244,7 +253,7 @@ describe('adminium app new', () => {
     expect(err).toBe('');
     expect(code).toBe(0);
     expect(out).toContain('Created apps/repairs/');
-    expect(out).toContain('✓ Repairs 0.1.0 (repairs): 1 table(s), 1 page(s), no screens of its own');
+    expect(out).toContain('✓ Repairs 0.1.0 (repairs): 2 table(s), 2 page(s), no screens of its own');
     expect(out).toContain('the customer side reaches nothing');
     const app = JSON.parse(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')) as Record<string, unknown>;
     expect(app).toMatchObject({ key: 'repairs', publisher: { id: 'local' }, frontends: [{ side: 'staff', kind: 'none' }], compatibility: { minAdminiumVersion: APP_VERSION } });
@@ -260,8 +269,9 @@ describe('adminium app new', () => {
     project();
     const { code, out, calls } = await runNew('repair-desk', '--staff', '--customer', '--name', 'Repair Desk');
     expect(code, out).toBe(0);
-    expect(out).toContain('Repair Desk 0.1.0 (repair-desk): 1 table(s), 1 page(s), staff and customer side');
-    expect(out).toContain('items: read (id, title, status) and add a row (title)');
+    expect(out).toContain('Repair Desk 0.1.0 (repair-desk): 2 table(s), 2 page(s), staff and customer side');
+    expect(out).toContain('items: read (id, title, status)');
+    expect(out).toContain('requests: add a row (message)');
     for (const file of ['staff/src/main.tsx', 'staff/src/App.tsx', 'staff/nav.json', 'customer/src/App.tsx', 'tests/app.test.mjs', 'README.md', 'seeds/sample.json']) {
       expect(existsSync(join(root, 'apps/repair-desk', file)), file).toBe(true);
     }
