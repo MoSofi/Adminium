@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
-import { composeManifest, splitManifest } from '@adminium/manifest';
+import { composeManifest, splitManifest, validateManifest } from '@adminium/manifest';
 
 import { checkApp } from '../../../project/apps/check-app.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, appDir, appPath, readAppFolder, resolveAppKey } from '../../../project/apps/read-app.js';
@@ -43,6 +43,13 @@ function split(root: string, key: string): string[] {
         ? `${appPath(key)} is already written as ${MANIFEST_PARTS_DIR}/ parts.`
         : `${folder.problems[0].file} ${folder.problems[0].message}`,
     );
+  }
+  // Only a manifest that validates is split: its refs become file names.
+  const validated = validateManifest(folder.document, { allowLocalPublisher: true });
+  if (!validated.ok) {
+    throw new CliError(`${appPath(key, MANIFEST_FILE)} is not valid, so it was not split. Fix it first:`, {
+      hint: validated.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n'),
+    });
   }
   const parts = splitManifest(folder.document);
   const composed = composeManifest(parts);
@@ -83,7 +90,7 @@ export const appCheckCommand: Command = {
         throw new CliError(`${appPath(key, MANIFEST_PARTS_DIR)}/ already exists.`);
       }
       const written = split(project.root, key);
-      io.out(`Wrote ${String(written.length)} part file(s) to ${appPath(key, MANIFEST_PARTS_DIR)}/ and removed ${MANIFEST_FILE}.`);
+      if (values['json'] !== true) io.out(`Wrote ${String(written.length)} part file(s) to ${appPath(key, MANIFEST_PARTS_DIR)}/ and removed ${MANIFEST_FILE}.`);
     }
 
     const check = checkApp(project.root, key, { version: APP_VERSION });

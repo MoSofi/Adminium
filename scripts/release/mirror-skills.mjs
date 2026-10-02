@@ -41,7 +41,9 @@ const value = (flag) => {
   return at === -1 ? undefined : args[at + 1];
 };
 const known = new Set(['--version', '--push', '--repo', '--dir']);
-const unknown = args.filter((arg, i) => arg.startsWith('--') ? !known.has(arg) : !known.has(args[i - 1] ?? ''));
+/** The flags that take the next argument as their value. */
+const valued = new Set(['--version', '--repo', '--dir']);
+const unknown = args.filter((arg, i) => (arg.startsWith('--') ? !known.has(arg) : !valued.has(args[i - 1] ?? '')));
 if (unknown.length > 0) {
   console.error(`unknown argument(s): ${unknown.join(' ')}`);
   process.exit(1);

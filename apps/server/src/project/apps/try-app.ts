@@ -115,10 +115,12 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     },
     { host: '127.0.0.1', dataDir: join(dir, 'data') },
   );
-  const runtime = await (opts.openRuntime ?? defaultOpenRuntime)(env, { blockLoopback: false });
+  let runtime: Awaited<ReturnType<typeof defaultOpenRuntime>> | null = null;
   let app: Awaited<ReturnType<typeof composeServer>>['app'] | null = null;
+  const kept = opts.keep === true ? dir : null;
 
   try {
+    runtime = await (opts.openRuntime ?? defaultOpenRuntime)(env, { blockLoopback: false });
     const meta = runtime.metaStore.meta;
     await firstRun(meta);
     const password = randomBytes(24).toString('base64url');
@@ -172,19 +174,19 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     cookie = String(Array.isArray(setCookie) ? setCookie[0] : (setCookie ?? '')).split(';')[0] ?? null;
     if (login.status !== 200 || cookie === null || cookie === '') {
       step(false, 'start a fresh Adminium', refusal(login));
-      return done(null);
+      return done(kept);
     }
 
     const created = await call('POST', '/api/v1/connections', { payload: { name: 'Try', engine: 'sqlite', dsn: `sqlite:${sourceFile}` } });
     const connectionId = record(created.json)['id'];
     if (created.status !== 201 || typeof connectionId !== 'string') {
       step(false, 'start a fresh Adminium', refusal(created));
-      return done(null);
+      return done(kept);
     }
     const introspect = await call('POST', `/api/v1/connections/${connectionId}/introspect`);
     if (introspect.status !== 200 && introspect.status !== 202) {
       step(false, 'start a fresh Adminium', refusal(introspect));
-      return done(null);
+      return done(kept);
     }
     step(true, 'a fresh Adminium, with an empty SQLite database');
 
@@ -202,7 +204,7 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
 
     // ── upload → check the tables → install ──
     const upload = await call('POST', `/api/v1/apps/upload?expectedSha512=${encodeURIComponent(packed.integrity)}`, { body: Buffer.from(packed.tarball) });
-    if (!step(upload.status === 200, `the package uploads (${packed.fileName}, ${String(packed.fileCount)} files)`, refusal(upload))) return done(null);
+    if (!step(upload.status === 200, `the package uploads (${packed.fileName}, ${String(packed.fileCount)} files)`, refusal(upload))) return done(kept);
 
     const planned = await call('POST', '/api/v1/apps/plan', { payload: { key, version, connectionId } });
     const plan = record(record(planned.json)['plan']);
@@ -213,14 +215,14 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
       // An add-on the app requires is not on a fresh Adminium unless its package is handed over.
       const needsAddOn = (manifest.addOns?.requires ?? []).length > 0 && opts.addOnsDir === undefined;
       step(false, `the table check passes (${String(tables)} table(s) to create)`, needsAddOn ? `${why}\nThis app requires an add-on. Pass its package:  adminium app try ${key} --add-ons <folder>` : why);
-      return done(null);
+      return done(kept);
     }
     step(true, `the table check passes (${String(tables)} table(s) to create)`);
 
     const installed = await call('POST', '/api/v1/apps/install', {
       payload: { key, version, connectionId, publicAccess: true, ...(typeof plan['checksum'] === 'string' ? { planChecksum: plan['checksum'] } : {}) },
     });
-    if (!step(installed.status === 200, 'it installs: tables, pages, roles', refusal(installed))) return done(null);
+    if (!step(installed.status === 200, 'it installs: tables, pages, roles', refusal(installed))) return done(kept);
 
     // What the install itself reported: a page it could not fill, a rule it could not write.
     const receipt = record(installed.json);
@@ -346,13 +348,13 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
       step(row !== undefined && row['missing'] === false && isManifestOnly(manifest), 'it is listed as installed, with no screens of its own');
     }
 
-    return done(opts.keep === true ? dir : null);
+    return done(kept);
   } catch (error) {
     step(false, 'the try ran to its end', error instanceof Error ? (error.stack ?? error.message) : String(error));
-    return done(opts.keep === true ? dir : null);
+    return done(kept);
   } finally {
     if (app !== null) await app.close().catch(() => undefined);
-    await runtime.close().catch(() => undefined);
+    if (runtime !== null) await runtime.close().catch(() => undefined);
     if (opts.keep !== true) rmSync(dir, { recursive: true, force: true });
   }
 }

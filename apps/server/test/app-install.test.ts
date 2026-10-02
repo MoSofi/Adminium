@@ -554,6 +554,41 @@ describe('an app made on this install (publisher "local")', () => {
     await app.close();
   });
 
+  it('cannot be installed over a first-party app it was staged beside', async () => {
+    /*
+     * The upload's check sees what is installed or staged AT upload. A local
+     * package uploaded first, with the real app installed afterwards, sits in
+     * the store beside it; installing it would replace the real app's row.
+     */
+    const app = await buildApp();
+    await upload(app, 'sample-desk', localBundle('sample-desk', { version: '9.0.0' }));
+    // The real app arrives the way the catalogue or the bundled set brings one: straight into the store.
+    const real = packageTarball(bundleFor('sample-desk'));
+    await store.stage({ key: 'sample-desk', version: '1.0.0', tarball: real, expectedIntegrity: sha512Integrity(real) });
+    expect((await install(app, 'sample-desk', '1.0.0')).statusCode).toBe(200);
+
+    const plan = await app.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'sample-desk', version: '9.0.0', connectionId: CONNECTION } });
+    expect(plan.json().error.details.reason).toBe('PUBLISHER_CHANGED');
+    const takeover = await install(app, 'sample-desk', '9.0.0');
+    expect(takeover.statusCode).toBe(422);
+    expect(takeover.json().error.details).toMatchObject({ reason: 'PUBLISHER_CHANGED', installed: 'adminium', offered: 'local' });
+    const list = (await app.inject({ method: 'GET', url: '/apps' })).json();
+    expect(list.apps[0]).toMatchObject({ key: 'sample-desk', version: '1.0.0', publisher: { id: 'adminium' } });
+    await app.close();
+  });
+
+  it('may not take a key another publisher’s package already holds in the store', async () => {
+    // No catalogue is cached and nothing is installed: the package on disk still says whose key it is.
+    const app = await buildApp();
+    const real = packageTarball(bundleFor('sample-desk'));
+    await store.stage({ key: 'sample-desk', version: '1.0.0', tarball: real, expectedIntegrity: sha512Integrity(real) });
+    const res = await upload(app, 'sample-desk', localBundle('sample-desk', { version: '9.0.0' }));
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.details).toMatchObject({ reason: 'PUBLISHER_CHANGED', installed: 'adminium', offered: 'local' });
+    expect(await store.versions('sample-desk')).toEqual(['1.0.0']);
+    await app.close();
+  });
+
   it('may not take a key the cached catalogue lists', async () => {
     const app = await buildApp();
     await store.writeCatalogCache(
@@ -604,6 +639,11 @@ describe('an app made on this install (publisher "local")', () => {
       const list = (await app.inject({ method: 'GET', url: '/apps' })).json();
       expect(list.apps[0]).toMatchObject({ key: 'ledger', sides: [], missing: false });
       expect(installed.current()).toEqual([]);
+
+      // Its package gone from the disk, it is missing like any other app.
+      await store.removeVersion('ledger', '1.0.0');
+      const gone = (await app.inject({ method: 'GET', url: '/apps' })).json();
+      expect(gone.apps[0]).toMatchObject({ key: 'ledger', missing: true });
       await app.close();
     });
 

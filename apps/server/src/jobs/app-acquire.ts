@@ -136,6 +136,20 @@ export function registerAppAcquireHandlers(registry: JobRegistry, deps: AppAcqui
       }
       if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
+      /*
+       * A KEY A SELF-MADE APP HOLDS IS NOT THE CATALOGUE'S TO FILL. Staging
+       * writes `<key>/<version>` in place, so a download of the same version
+       * would overwrite the files of an installed local app, and any version
+       * of it would then be installable over that app. Refused before a byte
+       * is fetched.
+       */
+      for (const staged of await deps.store.versions(key)) {
+        if (await claimsLocalPublisher(deps.store, key, staged)) {
+          await audit(deps, 'app.download-failed', key, { version, reason: 'PUBLISHER_CHANGED' }, payload.userId);
+          throw new AddOnCatalogError('PUBLISHER_CHANGED', `"${key}" is an app made on this install; the catalogue's app of that name cannot be downloaded over it`);
+        }
+      }
+
       ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
       let tarball;
       try {

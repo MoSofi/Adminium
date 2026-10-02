@@ -31,5 +31,5 @@ test('the customer side is granted only tables the app has', () => {
 });
 
 test('adminium app check passes', { skip: process.env.ADMINIUM_SKIP_CLI === '1' }, () => {
-  execFileSync('npx', ['--no-install', '@adminiumjs/adminium', 'app', 'check', '__KEY__'], { cwd: join(app, '..', '..'), stdio: 'pipe' });
+  execFileSync('npx', ['--no-install', '@adminiumjs/adminium', 'app', 'check', '__KEY__'], { cwd: join(app, '..', '..'), stdio: 'pipe', shell: process.platform === 'win32' });
 });

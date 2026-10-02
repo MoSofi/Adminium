@@ -26,6 +26,7 @@ import { z } from 'zod';
 import { RULE_EMAIL_VARS, templatePlaceholders } from '../../automations/actions/email.js';
 import { firstIncompleteNode, flattenNodes, resolveRule } from '../../automations/validate.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { PERMISSIONS } from '../../rbac/permissions.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
 import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantToolDeps } from '../types.js';
 import { clip, jsonSchemaOf } from './format.js';
@@ -147,7 +148,8 @@ export const automationContext: AssistantContextAdapter = {
   toolNames: ['workspace_settings', 'list_connections', 'describe_schema', 'read_rows', 'sample_record'],
 
   async pageFacts(deps) {
-    const rules = await automationsRepo(deps.meta).list();
+    // The rules' names are the page's own: only someone who may open that page is told them.
+    const rules = (await deps.can(PERMISSIONS.automationsManage)) ? await automationsRepo(deps.meta).list() : [];
     const templates = await liveTemplateKeys(deps);
     const connections = await readableConnections(deps);
     const summary = tablesSummary(connections);

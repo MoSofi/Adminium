@@ -5,13 +5,15 @@
 
 import { resolve } from 'node:path';
 
+import { checkApp } from '../../../project/apps/check-app.js';
 import { resolveAppKey } from '../../../project/apps/read-app.js';
 import { tryApp } from '../../../project/apps/try-app.js';
+import { APP_VERSION } from '../../../version.js';
 import { parseFlags, type FlagSpecs } from '../../args.js';
 import type { Command } from '../../command.js';
 import { EXIT_OK, EXIT_VALIDATION_FAILED } from '../../exit.js';
 import { checkBuildAndPack } from './pack.js';
-import { requireProject } from './shared.js';
+import { hasErrors, requireProject } from './shared.js';
 
 const flags: FlagSpecs = {
   'add-ons': { type: 'string', placeholder: '<dir>', describe: 'A folder of add-on packages (<key>-<version>.tgz with .tgz.integrity) the app needs' },
@@ -39,6 +41,14 @@ export const appTryCommand: Command = {
     const project = requireProject({ deps }, 'try');
     const key = resolveAppKey(project.root, positionals[0], 'try');
     const json = values['json'] === true;
+    if (json) {
+      // A check that fails is this command's answer too, as the same kind of data.
+      const check = checkApp(project.root, key, { version: APP_VERSION });
+      if (hasErrors(check)) {
+        io.out(JSON.stringify({ ok: false, key, version: check.manifest?.version ?? null, steps: [], problems: check.findings }, null, 2));
+        return EXIT_VALIDATION_FAILED;
+      }
+    }
     const done = await checkBuildAndPack(io, project, key, { quiet: json, brief: true });
     if (done === null) return EXIT_VALIDATION_FAILED;
     const manifest = done.built.check.manifest;

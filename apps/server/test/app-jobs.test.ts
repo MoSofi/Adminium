@@ -318,6 +318,21 @@ describe('app-download', () => {
     expect(rows[0]?.changes).toMatchObject({ after: { reason: 'LOCAL_FROM_CATALOG' } });
   });
 
+  it('never downloads over a key an app made on this install holds', async () => {
+    // Staging writes `<key>/<version>` in place: the same version would overwrite the local app's files.
+    const local = packageTarball({
+      'manifest.json': JSON.stringify({ kind: 'app', key: 'clinic', version: '0.1.2', publisher: { id: 'local', name: 'Local' } }),
+      'staff/index.html': '<!doctype html><body data-mine></body>',
+    });
+    await store.stage({ key: 'clinic', version: '0.1.2', tarball: local, expectedIntegrity: sha512Integrity(local) });
+    let fetched = 0;
+    const registry = registryWith(stubCatalog({ fetchTarball: async () => ((fetched += 1), TARBALL) }));
+
+    await expect(download(registry)).rejects.toMatchObject({ reason: 'PUBLISHER_CHANGED' });
+    expect(fetched).toBe(0);
+    expect((await store.readFile('clinic', '0.1.2', 'staff/index.html')).toString('utf8')).toContain('data-mine');
+  });
+
   it('audits an unpack refusal when matching bytes are a hostile archive', async () => {
     const hostile = packageTarball({ '../escape.txt': 'x', 'manifest.json': '{}' });
     await store.writeCatalogCache(

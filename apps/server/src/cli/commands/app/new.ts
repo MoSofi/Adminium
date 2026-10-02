@@ -36,10 +36,10 @@ function projectPackageManager(root: string, env: Readonly<Record<string, string
 export const appNewCommand: Command = {
   name: 'new',
   summary: 'Write a starter app into apps/<key>/',
-  usage: 'adminium app new <key> [--name <text>] [--staff] [--customer]',
+  usage: 'adminium app new <key> [--name <text>] [--staff] [--customer] [--no-install]',
   describe:
-    'Writes a small working app: one table, one dashboard page, one role and\n' +
-    'sample data, with its manifest as part files. --staff and --customer add a\n' +
+    'Writes a small working app: two tables, a dashboard page for each, one role\n' +
+    'and sample data, with its manifest as part files. --staff and --customer add a\n' +
     'side each, with one screen over that table; with neither, the app is its\n' +
     'tables and pages alone. The app carries the publisher "local": it is yours,\n' +
     'and installs from a file. Then edit the files and run  adminium app check.',

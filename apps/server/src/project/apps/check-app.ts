@@ -143,7 +143,8 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
         } else {
           for (const issue of sampleBundleIssues(parsed.data, manifest)) findings.push(error(where, issue.path, issue.message));
           for (const [label, asset] of Object.entries(parsed.data.assets)) {
-            if (!existsSync(join(folder.dir, asset.file))) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which does not exist.`));
+            if (asset.file.split('/').includes('..')) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which leaves seeds/.`));
+            else if (!existsSync(join(folder.dir, asset.file))) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which does not exist.`));
           }
         }
       } catch (cause) {

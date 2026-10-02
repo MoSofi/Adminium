@@ -23,14 +23,14 @@
 
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CliError } from '../../cli/exit.js';
 import { SURFACE_JSON_VERSION } from '../../cli/surfaces-root.js';
 import { BUILD_DIR, HELPERS_PACKAGE, type Bundler } from '../build.js';
 import { toProjectPath } from '../paths.js';
-import { APPS_DIR, appDir, appPath, sideEntry, type AppSide } from './read-app.js';
+import { APPS_DIR, SIDES, appDir, appPath, sideEntry, type AppSide } from './read-app.js';
 
 /** What a side imports the shared plumbing from. */
 export const SIDE_MODULE = `${HELPERS_PACKAGE}/side`;
@@ -243,7 +243,12 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
     // Files the side wants served as they are (a favicon, a robots.txt).
     const publicDir = join(source, 'public');
     if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
-      cpSync(publicDir, staging, { recursive: true, dereference: false, filter: (from) => !lstatSync(from).isSymbolicLink() });
+      // Plain files only: no link, and no hidden file (a package carries none).
+      cpSync(publicDir, staging, {
+        recursive: true,
+        dereference: false,
+        filter: (from) => !lstatSync(from).isSymbolicLink() && (from === publicDir || !basename(from).startsWith('.')),
+      });
     }
 
     writeFileSync(
@@ -311,7 +316,10 @@ export async function buildAppSides(
   const dir = join(opts.root, BUILD_DIR, APPS_DIR, opts.key);
   if (existsSync(dir)) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !opts.sides.includes(entry.name as AppSide)) rmSync(join(dir, entry.name), { recursive: true, force: true });
+      // Only a side's own folder: another build's staging folder beside it is left alone.
+      if (entry.isDirectory() && (SIDES as readonly string[]).includes(entry.name) && !opts.sides.includes(entry.name as AppSide)) {
+        rmSync(join(dir, entry.name), { recursive: true, force: true });
+      }
     }
   }
   return built;

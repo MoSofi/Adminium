@@ -120,7 +120,7 @@ import type { AppSchemaTarget } from '../../apps/schema-target.js';
 import { AddOnInstallError, type ExistingTable } from '../../add-ons/install-ddl.js';
 import type { EditBody } from '../../schema-ddl/programmatic.js';
 import type { AppStore } from '../../apps/store.js';
-import { AddOnStoreError } from '../../add-ons/store.js';
+import { AddOnStoreError, packageIsInStore } from '../../add-ons/store.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { SURFACE_SIDES, type SurfaceSide } from '../../cli/surfaces-root.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
@@ -541,9 +541,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
    * and the reverse.
    */
   function publisherChangeRefusal(manifest: Manifest, installedPublisher: string | null): ValidationFailedError | null {
-    if (installedPublisher === null || installedPublisher === manifest.publisher.id) return null;
+    // An installed row whose publisher cannot be read is nobody's to take over with a self-made app.
+    if (installedPublisher === null && manifest.publisher.id !== LOCAL_PUBLISHER_ID) return null;
+    if (installedPublisher === manifest.publisher.id) return null;
     return new ValidationFailedError(
-      `"${manifest.key}" is installed from the publisher "${installedPublisher}", and this package says ` +
+      `"${manifest.key}" is installed from the publisher "${installedPublisher ?? 'unknown'}", and this package says ` +
         `"${manifest.publisher.id}". Uninstall it first, or give this app another key.`,
       { reason: 'PUBLISHER_CHANGED', installed: installedPublisher, offered: manifest.publisher.id },
     );
@@ -1776,7 +1778,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const rows = await manifests.list('app');
         const placements = (await request.server.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
-        const apps: z.infer<typeof installedAppReply>[] = rows.map((installed) => {
+        const apps: z.infer<typeof installedAppReply>[] = await Promise.all(rows.map(async (installed) => {
           const { row } = installed;
           const surfaces = surfacesOfInstalled(deps.store, {
             key: row.manifestKey,
@@ -1809,10 +1811,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             }),
             ...(publisherOf(installed.document) === null ? {} : { publisher: publisherOf(installed.document)! }),
             // No side served, unless the app declares none: that one is whole.
-            missing: surfaces.length === 0 && !manifestOnlyDocument(installed.document),
+            // …while its package is still here: one whose files are gone is missing like any other.
+            missing:
+              surfaces.length === 0 &&
+              !(manifestOnlyDocument(installed.document) && (await packageIsInStore(deps.store, { key: row.manifestKey, version: row.version }))),
             status: statusOf(row.status),
           };
-        });
+        }));
         // The rename offer, for installs made before their app was prefixed.
         for (const [index, installed] of rows.entries()) {
           const old = await oldNamesOf(installed);
@@ -1891,6 +1896,21 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ? null
             : appCatalogSchema.safeParse(cachedCatalog.document);
         const catalogKeys = new Set(parsedCatalog?.success === true ? parsedCatalog.data.apps.map((entry) => entry.key) : []);
+        // Who each key already in the store belongs to, by its newest readable package.
+        const stagedPublishers = new Map<string, string>();
+        for (const stagedKey of await deps.store.keys()) {
+          for (const stagedVersion of await deps.store.versions(stagedKey)) {
+            try {
+              const id = publisherIdOf(JSON.parse((await deps.store.readFile(stagedKey, stagedVersion, MANIFEST_FILE)).toString('utf8')));
+              if (id !== null) {
+                stagedPublishers.set(stagedKey, id);
+                break;
+              }
+            } catch {
+              // Unreadable: it decides nothing here, and install refuses it on its own.
+            }
+          }
+        }
         let staged;
         try {
           staged = await deps.store.stage({
@@ -1938,8 +1958,20 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               // A release that cannot update what is installed is refused
               // here too, before it sits in the store offering an update the
               // update route would refuse.
-              const changed = publisherChangeRefusal(manifest, installedPublishers.get(manifest.key) ?? null);
+              // Only against a row that is there: with none, there is nobody to take over from.
+              const changed = installedPublishers.has(manifest.key)
+                ? publisherChangeRefusal(manifest, installedPublishers.get(manifest.key) ?? null)
+                : null;
               if (changed !== null) throw changed;
+              // Another version of this key already in the store (bundled, downloaded, uploaded) decides whose key it is.
+              const stagedPublisher = stagedPublishers.get(manifest.key);
+              if (stagedPublisher !== undefined && stagedPublisher !== manifest.publisher.id) {
+                throw new ValidationFailedError(
+                  `A package of "${manifest.key}" from the publisher "${stagedPublisher}" is already on this server, and this one says ` +
+                    `"${manifest.publisher.id}". Discard that package first, or give this app another key.`,
+                  { reason: 'PUBLISHER_CHANGED', installed: stagedPublisher, offered: manifest.publisher.id },
+                );
+              }
               if (manifest.publisher.id === LOCAL_PUBLISHER_ID && catalogKeys.has(manifest.key) && !installedVersions.has(manifest.key)) {
                 throw new ValidationFailedError(
                   `"${manifest.key}" is the key of an app in the online catalogue. Give your app another key.`,
@@ -2462,6 +2494,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // The preview an update is checked with: the same refusal the update
         // route gives, before the operator is shown tables to consent to.
         const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+        if (installed !== undefined) {
+          // Never the plan of a takeover: the same refusal install and update give.
+          const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
+          if (changed !== null) throw changed;
+        }
         if (installed !== undefined && installed.row.version !== version) {
           const refused = updateRefusal(manifest, installed.row.version);
           if (refused !== null) throw refused;
@@ -2589,6 +2626,19 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const prior = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+        /*
+         * AN INSTALL OVER AN INSTALLED KEY REPLACES ITS ROW, so it is held to
+         * the publisher that row came from. A self-made package staged beside
+         * the real app (uploaded before the real one was installed) would
+         * otherwise take its place here, where the upload's check never ran.
+         */
+        if (prior !== undefined) {
+          const changed = publisherChangeRefusal(manifest, publisherIdOf(prior.document));
+          if (changed !== null) {
+            await auditAppEvent('app.verify-refused', { key, version, reason: 'PUBLISHER_CHANGED' }, userId, userLabel);
+            throw changed;
+          }
+        }
         // The same install, stopped part way: same version, same database.
         const resuming =
           prior !== undefined &&
