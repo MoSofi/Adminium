@@ -13,7 +13,7 @@
   "license": "AGPL-3.0-only",
   "description": { "key": "mft.visits.desc", "fallback": "Book and track client visits." },
   "categories": ["operations"],
-  "compatibility": { "minAdminiumVersion": "0.3.11" },
+  "compatibility": { "minAdminiumVersion": "0.3.12" },
   "requiredSchema": {
     "prefixed": true,
     "tables": [
