@@ -1,5 +1,29 @@
 # @adminium/server
 
+## 0.3.12
+
+### Patch Changes
+
+- 684eb38: Adminium now has agent skills: five skills that teach a coding agent such as Claude Code or Codex to build an app on Adminium from an empty folder, published at github.com/Adminiumjs/skills and installed with `npx skills add Adminiumjs/skills`. They are released with each version, their reference files are produced from this documentation, and a check in CI holds every command, flag, route and import they name to the code.
+- d77c7d3: `adminium app build` builds the screens of an app in your project. Each side in `apps/<key>/staff/` or `apps/<key>/customer/` is bundled with the project's esbuild, starting at `src/main.tsx`, into `.adminium/build/apps/<key>/<side>/`: a page with no inline script, its script and stylesheet with a hash in their names and addressed under the side's own mount, and `surface.json` for the dashboard's sidebar when the side has a `nav.json`.
+- 0c8657e: A project can now hold an app of your own in `apps/<key>/`, and `adminium app check` checks it without starting anything. The app's manifest may be written as one `manifest.json` or as a `manifest/` folder of small files — one per table, one per page, and one per block such as roles or public access — which Adminium puts together into the same document. The check validates it exactly as an install does and names the file and field of each problem, checks that every side the manifest declares has its code and that the sample data fits the tables, and lists what the customer side may reach. `--split` rewrites a single `manifest.json` as parts.
+- 26e0029: `adminium app new <key>` writes a starter app into a project: one table, one dashboard page, one role and sample data, with its manifest as part files, and with `--staff` and `--customer` a side each. An app's screens import their plumbing from `@adminiumjs/adminium/side`: `useStaff()` gives a staff side a session that reads and writes the app's tables as the signed-in person, with the venue's time zone and currency, and `useCustomer()` gives a customer side the browser key and address to make its public client with.
+- c2c2f30: `adminium app pack` checks an app in your project, builds its sides and writes the `.tgz` and its fingerprint that Studio → Hosted apps → Install an app takes, with the sample data inside. `adminium app try` goes one step further and proves the package installs: it starts a throwaway Adminium on an empty SQLite database, installs the package through the same routes Studio uses, opens each side, and asks the public API both for what the app's `access.json` grants and for what it does not. `adminium app check` now also refuses a table that anyone may add to and anyone may read, which an install would refuse part way through.
+- 684eb38: The automation rules page has an Ask assistant button. Describe what should happen and when, and the assistant drafts the rule, shows its steps, and saves it switched off for you to review and turn on. It checks the draft the way the page's own save does, and it is told the page's rules only for someone who may manage automations. This is an early version of the assistant on this page.
+- a3e763c: An automation's email step now shows what its template needs. A template is written once and a rule can send it about any table, so `{{first_name}}` went out as written from a table whose column is `name`, with a green run and nothing to say why. Picking a template now lists every placeholder it reads and what fills each one — this record, the rule, or nothing — and one the record does not fill can be filled from a column or a text typed for it, kept on the step. Saving or switching on a rule that would still send one as written warns and opens that step, the Test button says so before anything is sent, and the run's log line names every placeholder that went out unfilled. A template that belongs to an app is marked, since that app's own sender is what fills it. A record's dates and money now read in the mail as a person writes them, in the template's language and the connection's time zone and currency, where the stored value used to be printed.
+- e882814: An app you made yourself can now be installed from a file. A manifest whose publisher is `local` uploads and installs like any other app, and the install wizard and the installed list say it was made on this install and does not come from adminium.dev. Such an app may also be only tables and pages, with no screen of its own: declare its one frontend as `kind: "none"`. Everything else stays as it was: any other publisher is still refused, an add-on can never be `local`, a catalogue download that claims `local` is taken back out, a package cannot replace an installed app from another publisher, and a self-made app cannot take the key of an app the online catalogue lists.
+- b81ae61: The automation editor and the export builder work again once a table is hidden. Both list the tables of a connection, and both resolved every table by name before deciding to skip it; a hidden table is not resolvable, so one hidden table answered the whole list with "Unknown table" — and every app installed with its sample data leaves one behind. In the automation editor that showed as an email step with no template and no column to choose, and a trigger with no table to pick; in the export builder as no sources at all. Both lists now leave a hidden table out, as the data screens always have.
+- @adminium/adapter-mysql@0.3.12
+  - @adminium/adapter-postgres@0.3.12
+  - @adminium/adapter-sqlite@0.3.12
+  - @adminium/add-on-contracts@0.3.12
+  - @adminium/engine@0.3.12
+  - @adminium/i18n@0.3.12
+  - @adminium/llm@0.3.12
+  - @adminium/manifest@0.3.12
+  - @adminium/meta@0.3.12
+  - @adminium/schema-import@0.3.12
+
 ## 0.3.11
 
 ### Patch Changes
