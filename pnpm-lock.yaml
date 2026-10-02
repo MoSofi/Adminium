@@ -426,6 +426,9 @@ importers:
       '@adminium/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@adminium/public-client':
+        specifier: workspace:*
+        version: link:../../packages/public-client
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0

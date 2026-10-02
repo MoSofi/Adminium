@@ -1,0 +1,82 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+
+form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: end;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+label {
+  flex-basis: 100%;
+  font-size: 0.875rem;
+}
+
+input,
+textarea {
+  flex: 1;
+  min-width: 12rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid #8884;
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+button {
+  padding: 0.5rem 0.875rem;
+  border: 1px solid #8886;
+  border-radius: 0.5rem;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid #8883;
+}
+
+.done {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.note {
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
+.error {
+  color: #c0392b;
+  opacity: 1;
+}

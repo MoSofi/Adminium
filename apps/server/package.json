@@ -21,6 +21,10 @@
     "./ui": {
       "types": "./dist/ui/index.d.ts",
       "default": "./dist/ui/index.js"
+    },
+    "./side": {
+      "types": "./dist/side/index.d.ts",
+      "default": "./dist/side/index.js"
     }
   },
   "bin": {
@@ -133,6 +137,7 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@adminium/public-client": "workspace:*",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "22.15.3",
     "@types/nodemailer": "^8.0.1",

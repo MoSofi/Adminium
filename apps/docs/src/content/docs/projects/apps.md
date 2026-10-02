@@ -30,6 +30,17 @@ my-admin/
         └── seeds/sample.json       sample data (optional)
 ```
 
+## Start one
+
+```bash
+npx @adminiumjs/adminium app new repairs --staff --customer
+```
+
+[`adminium app new`](/reference/cli/#app-new) writes a small working app: one table, one dashboard
+page, one role and six sample rows. `--staff` and `--customer` each add a side with one screen over
+that table; leave both out for an app that is its tables and pages alone. Everything it writes is
+yours to edit, and nothing is generated again later.
+
 ## The manifest, as parts
 
 The [manifest](/reference/manifest/) is the one document that says what the app is. In an app
@@ -128,3 +139,44 @@ project's own dependencies.
 
 A `path` never starts with `/`: it is added to wherever the side is opened. `icon` is a
 [Lucide](https://lucide.dev) icon name.
+
+### What a side is given
+
+A side imports its plumbing from `@adminiumjs/adminium/side`. The build supplies that module from
+the Adminium doing the building, so it always matches the server that serves the side.
+
+A **staff side** runs inside Adminium, as the person who is signed in. It has no key:
+
+```tsx
+import { useStaff } from '@adminiumjs/adminium/side';
+
+const loaded = useStaff();
+if (loaded.state === 'ready') {
+  const { rows } = await loaded.value.list('jobs', { order: 'id.desc' });
+  await loaded.value.create('jobs', { title: 'Fix the door' });
+}
+```
+
+`list`, `get`, `create`, `update` and `remove` take a table's short name — the `ref` in its part
+file — and act with the signed-in person's own permissions; `can(table, action)` says whether a
+button is worth showing. The session also carries `user`, the app's `settings`, the venue's
+`timezone` and `currency`. When the database has no time zone set, `timezone` is `UTC` and
+`timezoneIsFallback` is true: a screen should say so, and must never use the browser's zone
+instead.
+
+A **customer side** is public. `useCustomer()` gives it the browser key Adminium serves and the
+address of the [public API](/guides/public-api/endpoints-and-keys/), and the side makes its client
+with `@adminiumjs/public-client`:
+
+```tsx
+import { createPublicClient } from '@adminiumjs/public-client';
+import { useCustomer } from '@adminiumjs/adminium/side';
+
+const loaded = useCustomer();
+if (loaded.state === 'ready') {
+  const client = createPublicClient(loaded.value);
+  const jobs = await client.list(loaded.value.tables['jobs'] ?? 'jobs');
+}
+```
+
+That client reaches only what `access.json` grants.

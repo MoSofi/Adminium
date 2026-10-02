@@ -26,6 +26,14 @@ function packageFolder(name: string, from: NodeJS.Require = fromHere): string | 
   try {
     return dirname(from.resolve(`${name}/package.json`));
   } catch {
+    // A package whose `exports` hide its package.json: walk up from its entry.
+    try {
+      for (let dir = dirname(from.resolve(name)); dir !== dirname(dir); dir = dirname(dir)) {
+        if (existsSync(join(dir, 'package.json'))) return dir;
+      }
+    } catch {
+      return null;
+    }
     return null;
   }
 }
@@ -39,7 +47,13 @@ function esbuildFolder(): string | null {
   }
 }
 
-const LINKED = { esbuild: esbuildFolder(), react: packageFolder('react'), 'react-dom': packageFolder('react-dom') };
+const LINKED = {
+  esbuild: esbuildFolder(),
+  react: packageFolder('react'),
+  'react-dom': packageFolder('react-dom'),
+  // Published as `@adminiumjs/public-client`, which is what a side imports.
+  '@adminiumjs/public-client': packageFolder('@adminium/public-client'),
+};
 const ready = Object.values(LINKED).every((folder) => folder !== null);
 
 let root: string;
@@ -68,7 +82,9 @@ beforeEach(async () => {
   writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
   mkdirSync(join(root, 'node_modules'));
   for (const [name, folder] of Object.entries(LINKED)) {
-    if (folder !== null) symlinkSync(folder, join(root, 'node_modules', name), 'dir');
+    if (folder === null) continue;
+    mkdirSync(dirname(join(root, 'node_modules', name)), { recursive: true });
+    symlinkSync(folder, join(root, 'node_modules', name), 'dir');
   }
   put('side-module.ts', "import { version } from 'react';\nexport const greeting: string = `Hello from React ${version}`;\n");
   put('apps/repairs/staff/src/main.tsx', MAIN);
@@ -228,5 +244,37 @@ describe.skipIf(!ready)('adminium app build', () => {
     const { code, err } = await run('build');
     expect(code).toBe(1);
     expect(err).toContain('needs esbuild');
+  });
+});
+
+describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
+  it('builds both sides with the engine’s own side module, and each page names files that exist', async () => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'my-admin', private: true }));
+    rmSync(join(root, 'apps'), { recursive: true });
+    const io = fakeIo({ interactive: false });
+    const deps = fakeDeps({ cwd: root, env: {} });
+    deps.runProcess = () => ({ status: 0, stdout: '' });
+    expect(await runCli(['app', 'new', 'repairs', '--staff', '--customer'], { io, deps })).toBe(0);
+
+    const built = fakeIo({ interactive: false });
+    const code = await runCli(['app', 'build'], { io: built, deps: fakeDeps({ cwd: root, env: {} }) });
+    expect(built.stderr()).toBe('');
+    expect(code).toBe(0);
+    for (const side of ['staff', 'customer'] as const) {
+      const dir = sideBuildDir(root, 'repairs', side);
+      const html = readFileSync(join(dir, 'index.html'), 'utf8');
+      for (const [, address] of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
+        expect(address?.startsWith(`/apps/repairs/${side}/assets/`), address).toBe(true);
+        expect(existsSync(join(dir, (address ?? '').replace(`/apps/repairs/${side}/`, ''))), address).toBe(true);
+      }
+    }
+    // The staff side lists its screen for the sidebar; the customer side has none to list.
+    expect(parseSurfaceManifest(readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'surface.json'), 'utf8'))?.nav).toHaveLength(1);
+    expect(existsSync(join(sideBuildDir(root, 'repairs', 'customer'), 'surface.json'))).toBe(false);
+    // The key and side were baked in, and the plumbing came from the engine.
+    const staff = readdirSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets')).find((file) => file.endsWith('.js')) ?? '';
+    const script = readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets', staff), 'utf8');
+    expect(script).toContain('surface-config.json');
+    expect(script).toContain('x-adminium-csrf');
   });
 });

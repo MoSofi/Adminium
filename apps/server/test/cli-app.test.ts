@@ -219,3 +219,87 @@ describe('adminium app check', () => {
     expect(again.err).toContain('already exists');
   });
 });
+
+describe('adminium app new', () => {
+  /** A project as `adminium new` leaves it, as far as `app new` reads it. */
+  function project(): void {
+    write({ 'package.json': { name: 'my-admin', private: true, dependencies: { '@adminiumjs/adminium': APP_VERSION }, devDependencies: { esbuild: '^0.28.0' } } });
+  }
+  async function runNew(...argv: string[]) {
+    const calls: string[] = [];
+    const io = fakeIo({ interactive: false });
+    const deps = fakeDeps({ cwd: root, env: {} });
+    deps.runProcess = (command, args) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return { status: 0, stdout: '' };
+    };
+    const code = await runCli(['app', 'new', ...argv], { io, deps });
+    return { code, out: io.stdout(), err: io.stderr(), calls };
+  }
+  const pkg = () => JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
+
+  it('writes an app that is its tables and pages alone, and that passes its own check', async () => {
+    project();
+    const { code, out, err, calls } = await runNew('repairs');
+    expect(err).toBe('');
+    expect(code).toBe(0);
+    expect(out).toContain('Created apps/repairs/');
+    expect(out).toContain('✓ Repairs 0.1.0 (repairs): 1 table(s), 1 page(s), no screens of its own');
+    expect(out).toContain('the customer side reaches nothing');
+    const app = JSON.parse(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')) as Record<string, unknown>;
+    expect(app).toMatchObject({ key: 'repairs', publisher: { id: 'local' }, frontends: [{ side: 'staff', kind: 'none' }], compatibility: { minAdminiumVersion: APP_VERSION } });
+    expect(existsSync(join(root, 'apps/repairs/staff'))).toBe(false);
+    expect(existsSync(join(root, 'apps/repairs/manifest/access.json'))).toBe(false);
+    // No screens: nothing to install, and package.json is left alone.
+    expect(calls).toEqual([]);
+    expect(pkg().dependencies).toEqual({ '@adminiumjs/adminium': APP_VERSION });
+    expect((await run('check')).code).toBe(0);
+  });
+
+  it('adds the sides asked for, what they need, and grants the customer side one table', async () => {
+    project();
+    const { code, out, calls } = await runNew('repair-desk', '--staff', '--customer', '--name', 'Repair Desk');
+    expect(code, out).toBe(0);
+    expect(out).toContain('Repair Desk 0.1.0 (repair-desk): 1 table(s), 1 page(s), staff and customer side');
+    expect(out).toContain('items: read (id, title, status) and add a row (title)');
+    for (const file of ['staff/src/main.tsx', 'staff/src/App.tsx', 'staff/nav.json', 'customer/src/App.tsx', 'tests/app.test.mjs', 'README.md', 'seeds/sample.json']) {
+      expect(existsSync(join(root, 'apps/repair-desk', file)), file).toBe(true);
+    }
+    const staff = readFileSync(join(root, 'apps/repair-desk/staff/src/App.tsx'), 'utf8');
+    expect(staff).toContain("en('Repair Desk')");
+    expect(staff).not.toContain('__NAME__');
+    expect(readFileSync(join(root, 'apps/repair-desk/tests/app.test.mjs'), 'utf8')).toContain("'check', 'repair-desk'");
+    expect(pkg().dependencies).toMatchObject({ react: '^19.2.0', 'react-dom': '^19.2.0', '@adminiumjs/public-client': APP_VERSION });
+    expect(pkg().devDependencies).toHaveProperty('@types/react-dom');
+    expect(calls).toEqual(['npm install']);
+    expect(out).toContain('Added to package.json: react, react-dom, @adminiumjs/public-client, @types/react-dom.');
+  });
+
+  it('uses the project’s own package manager, keeps versions already chosen, and can skip the install', async () => {
+    project();
+    write({ 'pnpm-lock.yaml': '', 'package.json': { name: 'x', dependencies: { react: '18.3.1' } } });
+    const first = await runNew('desk', '--staff');
+    expect(first.calls).toEqual(['pnpm install']);
+    expect(pkg().dependencies.react).toBe('18.3.1');
+    expect(pkg().dependencies).not.toHaveProperty('@adminiumjs/public-client');
+
+    const second = await runNew('other', '--customer', '--no-install');
+    expect(second.calls).toEqual([]);
+    expect(second.out).toContain('Install them before building:  pnpm install');
+  });
+
+  it('refuses a bad key, a reserved one, and a folder that has things in it', async () => {
+    project();
+    for (const key of ['Repairs', 'x', 'dashboard']) {
+      const refused = await runNew(key);
+      expect(refused.code, key).toBe(1);
+      expect(refused.err, key).toMatch(/cannot be an app key/);
+    }
+    expect((await runNew()).err).toContain('Give the app one key');
+
+    write({ 'apps/taken/notes.txt': 'mine' });
+    const taken = await runNew('taken');
+    expect(taken.code).toBe(1);
+    expect(taken.err).toContain('apps/taken already exists and is not empty');
+  });
+});

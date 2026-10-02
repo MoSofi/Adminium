@@ -267,6 +267,29 @@ Works on an app in this project's `apps/<key>/` folder — see
 project holds one app. `adminium app <command> --help` prints a command's own
 options.
 
+### `app new`
+
+```
+adminium app new <key> [--name <text>] [--staff] [--customer] [--no-install]
+```
+
+Writes a small working app into `apps/<key>/`: one table, one dashboard page,
+one role and sample data, with its manifest as part files, a README and a test
+file. The app carries the publisher `local`. It then runs the same check as
+`app check`.
+
+| Flag | Description |
+|---|---|
+| `--name <text>` | The app's name as people read it. Default: made from the key |
+| `--staff` | Add screens for staff in `apps/<key>/staff/` |
+| `--customer` | Add public screens for customers in `apps/<key>/customer/`, and an `access.json` that grants them one table |
+| `--no-install` | Do not install the packages the screens need |
+
+With a side, `react` and `react-dom` (and `@adminiumjs/public-client` for a
+customer side) are added to the project's `package.json` when they are not
+there, and the project's package manager installs them. With neither flag the
+app is its tables and pages alone, and nothing is installed.
+
 ### `app check`
 
 ```
