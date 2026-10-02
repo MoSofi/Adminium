@@ -13,6 +13,9 @@ import sample from '../../seeds/sample.json';
 const loaded = useStaff({ demo: sampleRows(sample) });
 ```
 
-To see a side with real data, install the app: [`adminium app try`](https://docs.adminium.dev/reference/cli/#app-try)
-proves it installs and is served, and `adminium app pack` makes the file to install on your own
-Adminium.
+To see a side with real data, run the project: under [`adminium dev`](https://docs.adminium.dev/projects/apps/#run-it-from-the-folder)
+the app is installed from its folder, the side is built on every save and served at
+`/apps/<key>/<side>/`, and an open screen reloads by itself when you save. A screen that wants to
+keep its state instead calls `stopReloading()` and handles `onAppChanged(listener)` itself.
+[`adminium app try`](https://docs.adminium.dev/reference/cli/#app-try) proves the app installs on a fresh Adminium, and
+`adminium app pack` makes the file to install on another one.

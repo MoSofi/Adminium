@@ -27,7 +27,12 @@ Inside a project, `start` also:
   use the project's. A file with a mistake is not applied, and the log says why;
 - loads the project's [hooks and actions](https://docs.adminium.dev/projects/hooks-and-actions/)
   from the build before it accepts requests. A file that does not load is
-  skipped and listed in Studio → Settings → Project.
+  skipped and listed in Studio → Settings → Project;
+- installs each [app the build carries](https://docs.adminium.dev/projects/apps/#on-a-server), or
+  applies it again when its manifest changed since the last start, before it
+  accepts requests. On a server it gives an app no public access unless
+  `adminium.config.ts` allows it, installs no add-on for it, changes no table
+  the app did not make, and drops nothing.
 
 The project is the nearest folder, from the current one upwards, that holds
 `adminium.config.ts`, or the folder `ADMINIUM_PROJECT_DIR` names.

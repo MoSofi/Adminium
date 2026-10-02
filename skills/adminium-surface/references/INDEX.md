@@ -10,5 +10,5 @@ file. Every file is 8 KB or less.
 | guides | 89 | `references/guides/INDEX.md` |
 | public-api | 7 | `references/public-api/INDEX.md` |
 | errors | 21 | `references/errors/INDEX.md` |
-| projects | 7 | `references/projects/INDEX.md` |
+| projects | 8 | `references/projects/INDEX.md` |
 | cli | 20 | `references/cli/INDEX.md` |

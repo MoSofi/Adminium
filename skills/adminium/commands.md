@@ -11,6 +11,8 @@ Every Adminium skill names verbs. With a shell, they are these commands, run in 
 | check | `npx @adminiumjs/adminium app check <key>` |
 | check, as data | `npx @adminiumjs/adminium app check <key> --json` |
 | build | `npx @adminiumjs/adminium app build <key>` |
+| run | `npx @adminiumjs/adminium dev --port <n>` (or `npm run dev`). It does not end: run it in the background. It prints `Adminium is running at <address>`; the app's screens are at `<address>/apps/<key>/<side>/` |
+| build the project | `npx @adminiumjs/adminium build` (what a deploy runs; it builds every app too) |
 | try | `npx @adminiumjs/adminium app try <key>` (`--json` for data, `--keep` to keep its folder) |
 | try, with add-ons | `npx @adminiumjs/adminium app try <key> --add-ons <folder>` |
 | pack | `npx @adminiumjs/adminium app pack <key>` |

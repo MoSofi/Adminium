@@ -19,6 +19,18 @@ A change to a page or widget written in React (`pages/*.tsx`, `widgets/*.tsx`,
 or a file they import) rebuilds the browser code, and open dashboards load the
 new files and draw them again. A page's state starts over.
 
+A change to a file anywhere under `apps/` checks and rebuilds the
+[apps in the project](https://docs.adminium.dev/projects/apps/#run-it-from-the-folder). The running
+server installs a new app, applies a changed manifest in place (the app keeps
+serving, and its rows stay), and an open screen of the app reloads. An app that
+does not build is named with its file and field, and keeps what it had. What
+holds data and was taken out of a manifest is never dropped on the way: Studio
+asks.
+
+Under `dev` the public API answers the server's own pages
+(`ADMINIUM_PUBLIC_API_ORIGINS` defaults to `self`), and it is switched on when
+an app's public access is given, so a customer side works with nothing to set.
+
 The [project files](https://docs.adminium.dev/reference/cli/#project-files) are the master copy while it runs:
 
 - a saved page or schema file is applied at once, and open dashboards reload;

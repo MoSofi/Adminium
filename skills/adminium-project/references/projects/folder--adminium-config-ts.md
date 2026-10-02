@@ -28,6 +28,7 @@ already set wins**, so a host's settings always override the file:
 | `metaStore.url` | Adminium's own database. Unset means a SQLite file in the data folder. | `ADMINIUM_META_URL` |
 | `dataDir` | Where Adminium keeps its own files, relative to the project. Default `data`. | `ADMINIUM_DATA_DIR` |
 | `storage.url` | Where uploads and exports go. Unset means the data folder. | `ADMINIUM_STORAGE_URL` |
+| `apps.<key>` | What an [app in the project](https://docs.adminium.dev/projects/apps/#on-a-server) is allowed: its `database`, `publicAccess` on a server, `sampleData` under `dev` | — |
 
 Nothing else belongs in it: `ADMINIUM_SECRET` and every other variable stay in
 the environment. The full list is

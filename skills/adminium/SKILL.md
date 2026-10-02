@@ -22,9 +22,9 @@ has passed.
 2. The skills are written for the Adminium version in `../VERSION`. Run the **version** command; if
    the installed Adminium is older, say so and stop.
 3. If there is no project yet (no `adminium.config.ts` in this folder or above it), make one with
-   **new project**. It needs Node 22.14 or later. It ends by suggesting a database URL and
-   `npm run dev`: that is for running the dashboard, and an app needs neither to be checked, tried
-   or packed. Do not open `.env`.
+   **new project**. It needs Node 22.14 or later. An app needs no database of the person's to be
+   checked, tried or packed; to **run** it, the project needs one (`--sample` gives it one). Do not
+   open `.env`.
 
 ## How much to build: pick the lowest rung that answers the request, and say which
 
@@ -67,17 +67,18 @@ app file.
 1. **new** — write the starter into `apps/<key>/`.
 2. Edit the files. One table per file, one page per file.
 3. **check** — after every change. Fix every `✗`; read every `!`.
-4. **build** — when the app has screens.
+4. **run** — the project's server runs the app from its folder: it installs it, applies every
+   saved file while it runs, and open screens reload. This is how the person looks at the app. It
+   never ends: start it in the background, read what it prints, stop it when you are done.
 5. **try** — installs the packed app on a throwaway Adminium and probes it. This is the proof that
-   it installs, that its pages have their tables, that its screens are served and that customers
-   reach only what is granted. It does not open a screen in a browser, move a row through its
-   states, send an email or draw a document: say so, and tell the person to open each screen once.
-6. **pack** — the file the person installs from Studio → Hosted apps → Install an app.
+   it installs anywhere, that its pages have their tables, that its screens are served and that
+   customers reach only what is granted. It opens no screen in a browser, moves no row through
+   its states, sends no email: say so, and have the person open each screen once under **run**.
+6. **pack** — the file to install on another Adminium (Studio → Hosted apps → Install an app).
+   An app that only runs in its own project needs no pack.
 
 ## What does not exist yet
 
-- Running an app straight from its folder with `adminium dev` (a later release). Today the loop
-  ends at **try** and **pack**, and the person installs the pack.
 - Taking payments in a customer screen. The public API has none.
 - Publishing an app to the adminium.dev marketplace. A self-made app carries the publisher `local`
   and installs from a file.

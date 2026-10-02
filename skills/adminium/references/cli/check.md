@@ -20,6 +20,10 @@ Checks a project without starting it, for CI:
 - the pages and widgets written in React build, and every page file that names
   a project widget names one that exists, of the right kind: a `cell` widget
   on a table column, a `card` widget on a dashboard;
+- each app under `apps/` builds, with each problem named by its file and field;
+  an `apps` setting for an app that is not there, and a `database` the config
+  does not list, are named too, and an app that declares public access the
+  config has not allowed on a server is a warning;
 - the Dockerfile's image tag equals the Adminium version `package.json` installs.
 
 Exits `2` when something is wrong, naming the file and field of a broken

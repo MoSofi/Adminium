@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/booking-rules--limits--slot-limits.md` | Limits — Slot limits | 3137 |
 | `references/guides/booking-rules--limits--parent-limits.md` | Limits — Parent limits | 3009 |
 | `references/guides/booking-rules--limits--night-limits.md` | Limits — Night limits | 4311 |
 | `references/guides/booking-rules--several-limits-on-one-table.md` | Several limits on one table | 1089 |

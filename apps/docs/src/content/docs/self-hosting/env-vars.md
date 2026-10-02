@@ -39,7 +39,7 @@ half-configured and fail later.
 | `ADMINIUM_TRUSTED_PROXIES` | No | `loopback,uniquelocal` | Which connections count as your proxy while `ADMINIUM_TRUST_PROXY` is on. See below. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
 | `ADMINIUM_BRIDGE_ORIGINS` | No | *(off)* | CSV of exact origins allowed to hand this instance a connection string. **No wildcard.** |
-| `ADMINIUM_PUBLIC_API_ORIGINS` | No | *(off)* | CSV of exact origins allowed to reach the scoped public API — plus the sentinel `self` for pages Adminium hosts itself. Unset means those routes are not registered at all. **No wildcard.** Must not overlap `ADMINIUM_CORS_ORIGINS`. |
+| `ADMINIUM_PUBLIC_API_ORIGINS` | No | *(off)* | CSV of exact origins allowed to reach the scoped public API — plus the sentinel `self` for pages Adminium hosts itself. Unset means those routes are not registered at all, except under `adminium dev`, where it defaults to `self`. **No wildcard.** Must not overlap `ADMINIUM_CORS_ORIGINS`. |
 | `ADMINIUM_RUNTIME` | No | `self-host` | `self-host` · `desktop`. **Set by the Electron shell only** — see below. |
 | `ADMINIUM_BOOT_TOKEN` | No | *(unset)* | 64 hex characters. **Desktop shell only** — see below. |
 | `ADMINIUM_DESKTOP_SINGLE_USER` | No | *(unset)* | **Desktop shell only.** Mirrors the app's "skip login on this computer" answer. |

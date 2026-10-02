@@ -180,6 +180,18 @@ A change to a page or widget written in React (`pages/*.tsx`, `widgets/*.tsx`,
 or a file they import) rebuilds the browser code, and open dashboards load the
 new files and draw them again. A page's state starts over.
 
+A change to a file anywhere under `apps/` checks and rebuilds the
+[apps in the project](/projects/apps/#run-it-from-the-folder). The running
+server installs a new app, applies a changed manifest in place (the app keeps
+serving, and its rows stay), and an open screen of the app reloads. An app that
+does not build is named with its file and field, and keeps what it had. What
+holds data and was taken out of a manifest is never dropped on the way: Studio
+asks.
+
+Under `dev` the public API answers the server's own pages
+(`ADMINIUM_PUBLIC_API_ORIGINS` defaults to `self`), and it is switched on when
+an app's public access is given, so a customer side works with nothing to set.
+
 The [project files](#project-files) are the master copy while it runs:
 
 - a saved page or schema file is applied at once, and open dashboards reload;
@@ -214,9 +226,14 @@ records which Adminium version built it. It also bundles each file in `hooks/`
 and `actions/`, with the npm packages it imports, into
 `.adminium/build/server/`; packages with native code stay imports. Pages and
 widgets written in React are bundled for the browser into
-`.adminium/build/client/`. It needs the `esbuild` dev dependency that `new`
-adds. Run it before deploying; the project's Dockerfile runs it in its build
-stage.
+`.adminium/build/client/`. Each app under `apps/` is checked, its manifest put
+together into `.adminium/build/apps/<key>/app.json`, and its screens built
+beside it; a server runs the apps from there and builds nothing. It needs the
+`esbuild` dev dependency that `new` adds. Run it before deploying; the
+project's Dockerfile runs it in its build stage.
+
+An app that does not build is printed with its problems, and the command exits
+`2`; the rest of the project is still built.
 
 It fails, naming the file, when a page file and a React page share an
 address (`pages/orders.json` beside `pages/orders.tsx`), when a page or widget
@@ -245,6 +262,10 @@ Checks a project without starting it, for CI:
 - the pages and widgets written in React build, and every page file that names
   a project widget names one that exists, of the right kind: a `cell` widget
   on a table column, a `card` widget on a dashboard;
+- each app under `apps/` builds, with each problem named by its file and field;
+  an `apps` setting for an app that is not there, and a `database` the config
+  does not list, are named too, and an app that declares public access the
+  config has not allowed on a server is a warning;
 - the Dockerfile's image tag equals the Adminium version `package.json` installs.
 
 Exits `2` when something is wrong, naming the file and field of a broken
@@ -495,7 +516,12 @@ Inside a project, `start` also:
   use the project's. A file with a mistake is not applied, and the log says why;
 - loads the project's [hooks and actions](/projects/hooks-and-actions/)
   from the build before it accepts requests. A file that does not load is
-  skipped and listed in Studio → Settings → Project.
+  skipped and listed in Studio → Settings → Project;
+- installs each [app the build carries](/projects/apps/#on-a-server), or
+  applies it again when its manifest changed since the last start, before it
+  accepts requests. On a server it gives an app no public access unless
+  `adminium.config.ts` allows it, installs no add-on for it, changes no table
+  the app did not make, and drops nothing.
 
 The project is the nearest folder, from the current one upwards, that holds
 `adminium.config.ts`, or the folder `ADMINIUM_PROJECT_DIR` names.

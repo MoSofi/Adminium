@@ -19,7 +19,7 @@ that is declared and has no code, and code that is not declared.
 npx @adminiumjs/adminium app build
 ```
 
-[`adminium app build`](https://docs.adminium.dev/reference/cli/#app-build) bundles each side with the project's `esbuild`
+Under `adminium dev` the sides are built for you on every save. [`adminium app build`](https://docs.adminium.dev/reference/cli/#app-build) bundles each side with the project's `esbuild`
 into `.adminium/build/apps/<key>/<side>/`, which is exactly the folder Adminium serves at
 `/apps/<key>/<side>/`. The page it writes carries no inline script, and every asset is addressed
 under that mount, so a screen opened at a deep address still finds its files. React comes from the

@@ -19,13 +19,14 @@ file. Every file is 8 KB or less.
 | `references/projects/index--next.md` | Next | 916 |
 | `references/projects/apps--overview.md` | An app in your project | 1271 |
 | `references/projects/apps--start-one.md` | Start one | 647 |
+| `references/projects/apps--run-it-from-the-folder.md` | Run it from the folder | 6458 |
 | `references/projects/apps--the-manifest-as-parts.md` | The manifest, as parts | 1782 |
-| `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 825 |
+| `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 905 |
 | `references/projects/apps--check-it.md` | Check it | 999 |
 | `references/projects/apps--try-it-then-pack-it.md` | Try it, then pack it | 1640 |
-| `references/projects/apps--screens-of-its-own.md` | Screens of its own | 3196 |
+| `references/projects/apps--screens-of-its-own.md` | Screens of its own | 3260 |
 | `references/projects/folder--overview.md` | The project folder | 1500 |
-| `references/projects/folder--adminium-config-ts.md` | `adminium.config.ts` | 1863 |
+| `references/projects/folder--adminium-config-ts.md` | `adminium.config.ts` | 2052 |
 | `references/projects/folder--several-databases.md` | Several databases | 1476 |
 | `references/projects/folder--env.md` | `.env` | 741 |
 | `references/projects/folder--data.md` | `data/` | 421 |
@@ -44,14 +45,14 @@ file. Every file is 8 KB or less.
 | `references/cli/exit-codes.md` | Exit codes | 1102 |
 | `references/cli/project-files.md` | Project files | 1899 |
 | `references/cli/new.md` | `new` | 3070 |
-| `references/cli/dev.md` | `dev` | 1915 |
-| `references/cli/build.md` | `build` | 904 |
-| `references/cli/check.md` | `check` | 1274 |
+| `references/cli/dev.md` | `dev` | 2619 |
+| `references/cli/build.md` | `build` | 1221 |
+| `references/cli/check.md` | `check` | 1558 |
 | `references/cli/app.md` | `app` | 5391 |
 | `references/cli/pull.md` | `pull` | 1333 |
 | `references/cli/eject.md` | `eject` | 1119 |
 | `references/cli/try.md` | `try` | 1463 |
-| `references/cli/start.md` | `start` | 2501 |
+| `references/cli/start.md` | `start` | 2869 |
 | `references/cli/migrate.md` | `migrate` | 1052 |
 | `references/cli/introspect.md` | `introspect` | 1072 |
 | `references/cli/generate-prompt.md` | `generate-prompt` | 1432 |

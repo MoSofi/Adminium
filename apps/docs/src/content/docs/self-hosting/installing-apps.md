@@ -238,7 +238,12 @@ does not match the fingerprint you pasted is refused, and nothing is staged.
 
 ## An app you made yourself
 
-An app made in [a project of your own](/projects/apps/) installs the same way as a sideloaded one.
+An app made in [a project of your own](/projects/apps/) runs from the project's folder under
+`adminium dev` and `adminium start`, with nothing to upload: the installed list marks it **From this
+project's folder**, and the folder, not Studio, installs, changes and removes it
+([Run it from the folder](/projects/apps/#run-it-from-the-folder)).
+
+To install it on another Adminium, it installs the same way as a sideloaded one.
 `adminium app pack` writes the file and its fingerprint:
 
 ```

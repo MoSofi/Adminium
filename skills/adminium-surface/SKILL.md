@@ -92,8 +92,11 @@ Rules of the public side:
 
 ## Before you say it works
 
+Under **run** each side is rebuilt on every save and an open screen reloads by itself; a
+customer screen works there with nothing to set. That is where a screen is looked at.
+
 **build**, then **try**. Try serves each side and every file it names, reads a table as staff, and
 probes the public API (a read of each granted table, an empty create to each table that takes
-one). It does not run the screens in a browser or type-check them (**build** bundles; it does not
-check types): tell the person to open each screen once after installing, and that `?demo` on a
-staff screen's address shows it on the sample rows without saving anything.
+one). Neither runs a screen in a browser or type-checks it: have the person open each screen once
+under **run**, and say that `?demo` on a staff screen's address shows it on the sample rows
+without saving anything.
