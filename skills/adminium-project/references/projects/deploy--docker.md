@@ -12,7 +12,7 @@ RUN npm ci
 COPY . .
 RUN npx --no-install adminium build && rm -rf node_modules
 
-FROM ghcr.io/mosofi/adminium:0.3.12
+FROM ghcr.io/mosofi/adminium:0.3.13
 COPY --from=build --chown=node:node /project/ /project/
 ENV ADMINIUM_PROJECT_DIR=/project
 ```
