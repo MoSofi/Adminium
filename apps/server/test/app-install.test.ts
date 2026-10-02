@@ -600,6 +600,7 @@ describe('an app made on this install (publisher "local")', () => {
       const done = await install(app, 'ledger');
       expect(done.statusCode, done.body).toBe(200);
       expect(done.json().sides).toEqual([]);
+      expect(done.json().missing).toBe(false);
       const list = (await app.inject({ method: 'GET', url: '/apps' })).json();
       expect(list.apps[0]).toMatchObject({ key: 'ledger', sides: [], missing: false });
       expect(installed.current()).toEqual([]);

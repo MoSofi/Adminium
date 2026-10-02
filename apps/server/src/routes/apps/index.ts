@@ -2823,7 +2823,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           // Freshly installed and serving nothing is odd but not impossible (a
           // package with no `index.html` under either side). Say so here too,
           // rather than letting the receipt read better than the install went.
-          missing: surfaces.length === 0,
+          // An app that declares no screen of its own is whole with none.
+          missing: surfaces.length === 0 && !servesNothingByDesign(manifest),
           ...(writtenPages === undefined ? {} : { pages: writtenPages.pages }),
           ...(writtenPages?.rules === undefined ? {} : { rules: writtenPages.rules }),
           ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
