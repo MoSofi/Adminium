@@ -85,6 +85,7 @@ export const appNewCommand: Command = {
     io.out('');
     io.out('Next:');
     io.out(`  edit ${appPath(key, 'manifest')}/ — tables, pages, roles${sides.includes('customer') ? ', access' : ''}`);
+    io.out('  npm run dev                               runs it from this folder: save a file and it is applied');
     io.out(`  npx @adminiumjs/adminium app check ${key}`);
     io.out(`  npx @adminiumjs/adminium app try ${key}     packs it and installs it on a throwaway Adminium`);
     return installFailed ? EXIT_ERROR : EXIT_OK;

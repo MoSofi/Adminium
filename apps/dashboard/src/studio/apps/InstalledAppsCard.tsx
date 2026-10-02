@@ -386,15 +386,19 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                     {t('studio:hostedApps.installed.update', 'Update')}
                   </Button>
                 )}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setConfirming(app.key)}
-                  disabled={busy}
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                  {t('studio:hostedApps.installed.uninstall', 'Uninstall')}
-                </Button>
+                {/* While its folder is in the project the app would only be
+                    installed again: removing it starts there. */}
+                {app.folder?.state === 'here' ? null : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setConfirming(app.key)}
+                    disabled={busy}
+                  >
+                    <Trash2 aria-hidden className="size-4" />
+                    {t('studio:hostedApps.installed.uninstall', 'Uninstall')}
+                  </Button>
+                )}
               </li>
               );
             })}

@@ -30,6 +30,8 @@ export interface FolderHarness {
   lines: { log: string[]; warn: string[] };
   /** The `app-changed` events it sent: `[key, hash]`. */
   changed: [string, string][];
+  /** This server's public API, as the reconciler finds it and may change it. */
+  publicApi: { registered: boolean; enabled: boolean };
   /** `adminium app new`, with its flags. */
   newApp: (...argv: string[]) => Promise<void>;
   /** Change one JSON file of the project. */
@@ -58,6 +60,7 @@ export async function folderHarness(
   const harness = await installHarness(dialect, { full: true, superAdmin: opts.superAdmin !== false, folder: () => folderAppsOf(root, built) });
   const lines = { log: [] as string[], warn: [] as string[] };
   const changed: [string, string][] = [];
+  const publicApi = { registered: true, enabled: false };
   const service = createAppInstallService(harness.deps);
   const manifests = manifestsRepo(harness.meta, { encrypt: (v) => v, decrypt: (v) => v });
 
@@ -79,6 +82,15 @@ export async function folderHarness(
         if (target !== null) await harness.samples?.add(target, { locale: 'en-US', userId: null, userLabel: 'project folder' });
       },
       refreshServed: () => harness.deps.installed.refresh(),
+      publicApi: {
+        get registered() {
+          return publicApi.registered;
+        },
+        isEnabled: async () => publicApi.enabled,
+        enable: async () => {
+          publicApi.enabled = true;
+        },
+      },
     });
   let apps = make(opts.mode, opts.apps, ['main']);
 
@@ -92,6 +104,7 @@ export async function folderHarness(
     harness,
     lines,
     changed,
+    publicApi,
     newApp: async (...argv) => {
       const io = fakeIo({ interactive: false });
       const deps = fakeDeps({ cwd: root, env: {} });

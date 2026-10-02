@@ -11,7 +11,7 @@ import { randomBytes } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { createRequire } from 'node:module';
 
-import { fastify, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
+import { fastify, LogController, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
 import { pino, type DestinationStream, type Logger, type LoggerOptions } from 'pino';
 import {
   jsonSchemaTransform,
@@ -38,7 +38,7 @@ import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
-import { isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
+import { DEV_BUILD_FILE, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
 import {
   compileProxyTrust,
   DEFAULT_TRUSTED_PROXIES,
@@ -325,6 +325,19 @@ export async function buildServer(opts: BuildServerOptions = {}) {
 
   const app = fastify({
     loggerInstance,
+    /*
+     * Under `adminium dev` every open screen of a folder app asks once a
+     * second whether it was rebuilt. Two log lines a second per open tab
+     * would bury everything else the terminal says, so that one address is
+     * served without a request line. Nothing else is, anywhere.
+     */
+    ...(opts.appDevBuild === undefined
+      ? {}
+      : {
+          logController: new LogController({
+            disableRequestLogging: (request: { url?: string }) => (request.url ?? '').split('?')[0]?.endsWith(`/${DEV_BUILD_FILE}`) === true,
+          }),
+        }),
     /**
      * Destroy what is left when the server closes, instead of waiting on it.
      *

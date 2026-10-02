@@ -144,9 +144,6 @@ export function onAppChanged(
   let stopped = false;
   const look = async (): Promise<void> => {
     if (stopped) return;
-    // A tab nobody is looking at asks nothing; it catches up when it is shown again.
-    const visibility = (globalThis as { document?: { visibilityState?: string } }).document?.visibilityState;
-    if (visibility === 'hidden') return;
     try {
       const response = await doFetch(`${base}dev-build.json`, { cache: 'no-store', credentials: 'same-origin' });
       if (!response.ok) return;

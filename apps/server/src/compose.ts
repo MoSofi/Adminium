@@ -1811,6 +1811,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             await createSampleDataService(sampleDataDeps).add(target, { locale: 'en-US', userId: null, userLabel: 'project folder' });
           },
           refreshServed: () => installedApps.refresh(),
+          publicApi: {
+            registered: env.ADMINIUM_PUBLIC_API_ORIGINS !== undefined,
+            isEnabled: async () => (await settingsRepo(meta).get('publicApi.enabled')) === true,
+            enable: async () => {
+              await settingsRepo(meta).set('publicApi.enabled', true, { updatedBy: null });
+              publicGate.invalidate();
+            },
+          },
         });
       }
       // The add-on runtime. Registered unconditionally: an instance with no

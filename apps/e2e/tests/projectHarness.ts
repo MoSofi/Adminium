@@ -239,8 +239,13 @@ export class ProjectHarness {
     readonly sourceUrl: string,
   ) {}
 
-  /** `adminium new` on a fresh Northwind, with the project's code written in. */
-  static async create(files: Record<string, string>): Promise<ProjectHarness> {
+  /**
+   * `adminium new` on a fresh Northwind, with the project's code written in.
+   * `packages` are linked into the project as `npm install` would have put
+   * them there: an app's own screens need React, which the server package
+   * carries for its tests.
+   */
+  static async create(files: Record<string, string>, packages: readonly string[] = []): Promise<ProjectHarness> {
     if (!existsSync(CLI)) throw new Error(`${CLI} is missing — build the server first`);
     if (!(await portIsFree(PROJECT_PORT))) throw new Error(`port ${String(PROJECT_PORT)} is taken`);
     // The real path: on macOS the temp folder is a link, and the server names the project by where it is.
@@ -253,6 +258,10 @@ export class ProjectHarness {
     // The project's own esbuild, as `npm install` would have put it there.
     mkdirSync(join(project.root, 'node_modules'), { recursive: true });
     symlinkSync(dirname(require.resolve('esbuild/package.json')), join(project.root, 'node_modules', 'esbuild'), 'dir');
+    const fromServer = createRequire(join(repoRoot, 'apps', 'server', 'package.json'));
+    for (const name of packages) {
+      symlinkSync(dirname(fromServer.resolve(`${name}/package.json`)), join(project.root, 'node_modules', name), 'dir');
+    }
     if (metaUrl !== null) appendFileSync(join(project.root, '.env'), `\nADMINIUM_META_URL=${metaUrl}\n`);
     for (const [path, text] of Object.entries(files)) project.write(path, text);
     return project;

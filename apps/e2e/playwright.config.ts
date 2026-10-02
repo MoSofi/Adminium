@@ -64,7 +64,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      testIgnore: [/onboarding\.spec\.ts/, /project\.spec\.ts/],
+      testIgnore: [/onboarding\.spec\.ts/, /project(-app)?\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
@@ -82,7 +82,8 @@ export default defineConfig({
     // session is the project owner's, saved by the spec's own setup.
     {
       name: 'project',
-      testMatch: /project\.spec\.ts/,
+      // Two files, one port: they run one after the other (`workers: 1`), each on a project of its own.
+      testMatch: /project(-app)?\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: PROJECT_URL, storageState: projectStatePath() },
     },
   ],

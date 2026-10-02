@@ -225,6 +225,17 @@ for (const [dialect, available] of ENGINES) {
       h.put('apps/repairs/manifest/access.json', ACCESS);
       expect((await h.sync())[0]).toMatchObject({ state: 'installed' });
       expect(await endpoints()).toHaveLength(2);
+      // The customer side reaches nothing while the public API is off, so dev switches it on, and says so.
+      expect(h.publicApi.enabled).toBe(true);
+      expect(h.lines.log.join('\n')).toContain('App "repairs": switched the public API on (Settings → API)');
+    });
+
+    it('leaves the public API alone for an app that grants nothing to the public', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await h.newApp('repairs');
+      await h.sync();
+      expect(h.publicApi.enabled).toBe(false);
+      expect(h.lines.log.join('\n')).not.toContain('public API');
     });
 
     it('gives none on a server unless the config says so, and says how to allow it', async () => {
@@ -265,6 +276,19 @@ for (const [dialect, available] of ENGINES) {
       expect((await h.sync())[0]).toMatchObject({ state: 'installed' });
       expect(await endpoints()).toHaveLength(2);
       expect(h.lines.log.join('\n')).not.toContain('WITHOUT public access');
+      // The access is made; switching an anonymous API on stays a person's decision on a server.
+      expect(h.publicApi.enabled).toBe(false);
+      expect(h.lines.log.join('\n')).toContain('App "repairs": its public access is made, and the public API is off. Switch it on in Settings → API.');
+    });
+
+    it('says when the server has no public API at all', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      h.publicApi.registered = false;
+      await h.newApp('repairs');
+      h.put('apps/repairs/manifest/access.json', ACCESS);
+      expect((await h.sync())[0]).toMatchObject({ state: 'installed' });
+      expect(h.publicApi.enabled).toBe(false);
+      expect(h.lines.log.join('\n')).toContain('this server has no public API: set ADMINIUM_PUBLIC_API_ORIGINS');
     });
 
     it('is not applied when a table name it needs is taken, and names the table', async () => {

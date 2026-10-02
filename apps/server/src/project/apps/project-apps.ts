@@ -91,6 +91,13 @@ export interface ProjectAppsOptions {
   changed?: ((key: string, hash: string) => void) | undefined;
   /** Add an app's sample data. Dev calls it once, after the first install. */
   addSampleData?: ((key: string) => Promise<void>) | undefined;
+  /**
+   * The public API of this server: whether its routes exist at all (they are
+   * registered at boot, and only when `ADMINIUM_PUBLIC_API_ORIGINS` is set),
+   * whether it is switched on, and how to switch it on. An app's customer
+   * side reaches nothing without it. Absent in a composition with no public API.
+   */
+  publicApi?: { registered: boolean; isEnabled(): Promise<boolean>; enable(): Promise<void> } | undefined;
   /** Re-read which apps are served; called when only an app's screens changed. */
   refreshServed?: (() => Promise<unknown>) | undefined;
 }
@@ -165,6 +172,34 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     return { id };
   }
 
+  /**
+   * An app whose public access was just given needs the public API itself to
+   * answer. Under `adminium dev` it is switched on, and said; a server only
+   * says what is missing, because switching an anonymous API on is a
+   * person's decision there.
+   */
+  const saidApiOff = new Set<string>();
+  async function publicApiFor(key: string, declares: boolean, allowed: boolean): Promise<void> {
+    if (!declares || !allowed || opts.publicApi === undefined) return;
+    if (!opts.publicApi.registered) {
+      if (!saidApiOff.has(key)) {
+        opts.log(
+          `App "${key}": its public access is made, and this server has no public API: set ADMINIUM_PUBLIC_API_ORIGINS (for its own pages, "self") and restart.`,
+        );
+      }
+      saidApiOff.add(key);
+      return;
+    }
+    if (await opts.publicApi.isEnabled()) return;
+    if (opts.mode === 'dev') {
+      await opts.publicApi.enable();
+      opts.log(`App "${key}": switched the public API on (Settings → API), so its customer side can reach what its manifest grants.`);
+    } else if (!saidApiOff.has(key)) {
+      saidApiOff.add(key);
+      opts.log(`App "${key}": its public access is made, and the public API is off. Switch it on in Settings → API.`);
+    }
+  }
+
   async function failed(app: BuiltProjectApp & { hash: string }, error: unknown): Promise<AppliedApp> {
     const { stage, message } = describeFailure(error);
     await repo.setFailure(app.key, { stage, message, hash: app.hash });
@@ -201,6 +236,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     if (declaresAccess && !access.allowed) {
       opts.log(`App "${app.key}" is installed WITHOUT public access: ${access.refusal} to give it what its manifest declares.`);
     }
+    await publicApiFor(app.key, declaresAccess, access.allowed);
     if (opts.mode === 'dev' && manifest.kind === 'app' && manifest.sampleData !== undefined && opts.apps?.[app.key]?.sampleData !== false) {
       try {
         await opts.addSampleData?.(app.key);
@@ -222,6 +258,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       unattended,
     });
     await repo.setApplied(app.key, app.hash);
+    await publicApiFor(app.key, reply.manifest.kind === 'app' && (reply.manifest.publicAccess ?? []).length > 0, access.allowed);
     const made = reply.schema?.created ?? [];
     opts.log(`App "${app.key}" applied from apps/${app.key}${made.length === 0 ? '' : ` (new tables: ${made.join(', ')})`}.`);
 
@@ -289,6 +326,9 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       if (state?.appliedHash === app.hash) {
         // A manifest that failed and was put back as it was: the failure is over.
         if (state.failure !== null) await repo.setApplied(app.key, app.hash, state.appliedAt ?? Date.now());
+        // Nothing to apply, and its customer side still needs the public API: a server started without it says so again.
+        const declared = (row.document as { publicAccess?: unknown } | null)?.publicAccess;
+        await publicApiFor(app.key, Array.isArray(declared) && declared.length > 0, publicAccessFor(app.key).allowed);
         return { key: app.key, state: 'unchanged', hash: app.hash };
       }
       return await applyChanged(built);

@@ -45,6 +45,7 @@ import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
 import { prepareProject } from '../../project/boot.js';
+import { withDefaults } from '../../project/config.js';
 import { syncProjectDatabases } from '../../project/databases.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { databasesWithPageFiles } from '../../project/project-files.js';
@@ -129,8 +130,19 @@ export const startCommand: Command = {
       io.out(`Project: ${project.project.root}${project.from === 'new-build' ? ' (built it first)' : ''}`);
     }
 
+    /*
+     * Under `adminium dev` the public API answers this address's own pages
+     * unless the environment says otherwise. Its routes are registered at
+     * boot, so an app's customer side would otherwise reach nothing until
+     * somebody found the variable; `self` is the narrowest value there is,
+     * and the API still answers nothing until it is switched on.
+     */
+    const developing = project !== null && deps.env.ADMINIUM_PROJECT_MODE === 'dev';
+    const projectEnv =
+      project !== null && developing ? withDefaults(project.env, { ADMINIUM_PUBLIC_API_ORIGINS: 'self' }) : project?.env;
+
     const env = loadCliEnv(
-      project?.env ?? deps.env,
+      projectEnv ?? deps.env,
       {
         ...(port === undefined ? {} : { port }),
         ...(host === undefined ? {} : { host }),

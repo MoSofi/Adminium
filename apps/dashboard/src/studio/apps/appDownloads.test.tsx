@@ -376,6 +376,8 @@ describe('an app that runs from the project folder', () => {
     await renderPage();
     expect(screen.getByText('From this project’s folder')).toBeTruthy();
     expect(screen.queryByText('Folder gone')).toBeNull();
+    // It is removed from the folder, so Studio does not offer what the server would refuse.
+    expect(screen.queryByRole('button', { name: 'Uninstall' })).toBeNull();
   });
 
   it('says its folder is gone and that it stays installed, not that its files are missing', async () => {
