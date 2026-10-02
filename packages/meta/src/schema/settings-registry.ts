@@ -425,6 +425,15 @@ export const SETTINGS_REGISTRY = {
    */
   'assistant.rowData': def(z.boolean(), true, 'Let the page assistant read masked rows from a connection'),
   'retention.assistantSessionsDays': def(z.number().int().min(1), 30, 'Closed assistant session retention in days', P),
+  // ── Adminium Designer ─────────────────────────────────────────────────────
+  //
+  // The limits a building turn runs under, shown to the person on the page.
+  // A step is one call to the model; tokens are input and output together,
+  // as the provider reports them (estimated when it reports none). The
+  // session's ceiling is what keeps a long session from spending without end.
+  'designer.maxSteps': def(z.number().int().min(5).max(500), 60, 'Model calls one Designer turn may make', P),
+  'designer.turnTokens': def(z.number().int().min(10_000).max(5_000_000), 400_000, 'Tokens one Designer turn may use', P),
+  'designer.sessionTokens': def(z.number().int().min(100_000).max(50_000_000), 4_000_000, 'Tokens one Designer session may use in all', P),
   // ── files & storage ───────────────────────────────────────────────────────
   //
   // `files.maxBytes` default is 200 MiB figure, which is also the number the
