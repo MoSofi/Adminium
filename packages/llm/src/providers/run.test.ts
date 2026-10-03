@@ -349,6 +349,18 @@ describe('a run against Anthropic', () => {
     expect(result.usage).toEqual({ inputTokens: 9125, outputTokens: 12 });
   });
 
+  it('keeps that count when the closing event gives the uncached number again', async () => {
+    serve(
+      fixture('anthropic-text')
+        .replace('"input_tokens":25', '"input_tokens":25,"cache_creation_input_tokens":100,"cache_read_input_tokens":9000')
+        .replace('"output_tokens":12', '"input_tokens":25,"cache_creation_input_tokens":100,"cache_read_input_tokens":9000,"output_tokens":12'),
+    );
+    expect((await collect(ANTHROPIC())).result.usage).toEqual({ inputTokens: 9125, outputTokens: 12 });
+    // A closing event with the bare number and no cache fields is the whole count: nothing was cached.
+    serve(fixture('anthropic-text').replace('"output_tokens":12', '"input_tokens":25,"output_tokens":12'));
+    expect((await collect(ANTHROPIC())).result.usage).toEqual({ inputTokens: 25, outputTokens: 12 });
+  });
+
   it('reads text as it comes', async () => {
     serve(fixture('anthropic-text'));
     const { result, events } = await collect(ANTHROPIC());

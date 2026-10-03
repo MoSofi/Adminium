@@ -74,6 +74,22 @@ export function anthropicRunBody(req: RunRequest): Record<string, unknown> {
   };
 }
 
+interface Usage {
+  input_tokens?: unknown;
+  cache_creation_input_tokens?: unknown;
+  cache_read_input_tokens?: unknown;
+}
+
+/** What a call was sent, in tokens: what was read from the cache, or written to it, is still what was sent, and `input_tokens` alone leaves it out. */
+function sentTokens(usage: Usage | undefined): number | undefined {
+  if (typeof usage?.input_tokens !== 'number') return undefined;
+  return (
+    usage.input_tokens +
+    (typeof usage.cache_creation_input_tokens === 'number' ? usage.cache_creation_input_tokens : 0) +
+    (typeof usage.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : 0)
+  );
+}
+
 const STOPS: Record<string, RunStop> = {
   end_turn: 'end',
   stop_sequence: 'end',
@@ -125,14 +141,8 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
         const event = parseItem('anthropic', item, apiKey);
         const type = event['type'];
         if (type === 'message_start') {
-          const usage = (event['message'] as { usage?: { input_tokens?: unknown; cache_creation_input_tokens?: unknown; cache_read_input_tokens?: unknown } } | undefined)?.usage;
-          // What was read from the cache, or written to it, is still what the call was sent: `input_tokens` alone leaves it out.
-          if (typeof usage?.input_tokens === 'number') {
-            inputTokens =
-              usage.input_tokens +
-              (typeof usage.cache_creation_input_tokens === 'number' ? usage.cache_creation_input_tokens : 0) +
-              (typeof usage.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : 0);
-          }
+          const sent = sentTokens((event['message'] as { usage?: Usage } | undefined)?.usage);
+          if (sent !== undefined) inputTokens = sent;
         } else if (type === 'content_block_start') {
           const index = Number(event['index']);
           const block = event['content_block'] as { type?: unknown; id?: unknown; name?: unknown; text?: unknown } | undefined;
@@ -170,9 +180,11 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
         } else if (type === 'message_delta') {
           const reason = (event['delta'] as { stop_reason?: unknown } | undefined)?.stop_reason;
           if (typeof reason === 'string') stop = STOPS[reason] ?? 'end';
-          const usage = event['usage'] as { output_tokens?: unknown; input_tokens?: unknown } | undefined;
+          const usage = event['usage'] as (Usage & { output_tokens?: unknown }) | undefined;
           if (typeof usage?.output_tokens === 'number') outputTokens = usage.output_tokens;
-          if (typeof usage?.input_tokens === 'number') inputTokens = usage.input_tokens;
+          // The closing count, when the API gives one, is read the same way: its `input_tokens` alone would drop what the cache carried.
+          const sent = sentTokens(usage);
+          if (sent !== undefined) inputTokens = sent;
         } else if (type === 'message_stop') {
           finished = true;
         } else if (type === 'error') {
