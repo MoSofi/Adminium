@@ -40,6 +40,9 @@ import {
   type CatalogEntry,
 } from '../src/add-ons/catalog.js';
 import { APP_VERSION } from '../src/version.js';
+import { APP_CATALOG_ENABLED_SETTING, createAppCatalogClient } from '../src/apps/catalog.js';
+import { registerAddOnAcquireHandlers } from '../src/jobs/add-on-acquire.js';
+import { MARKETPLACE_ENDPOINT, fetchBothLists } from '../src/marketplace/both-lists.js';
 
 // ─── Network kill-switch (mirrors telemetry-network-isolation.test.ts) ──────────
 
@@ -175,7 +178,13 @@ function recordingFetch(calls: string[]): typeof globalThis.fetch {
 }
 
 describe('add-on catalog: off means zero outbound attempts', () => {
-  it('makes no call when the toggle is off (its default)', async () => {
+  it('is on for a new install: the list is this server’s to ask for until someone switches it off (0.3.16)', async () => {
+    const client = createCatalogClient({ meta, networkFeatures: true, fetchImpl: recordingFetch([]) });
+    expect(await client.isEnabled()).toBe(true);
+  });
+
+  it('makes no call when the toggle is off (an install from before 0.3.16, or switched off)', async () => {
+    await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, false);
     const calls: string[] = [];
     const client = createCatalogClient({
       meta,
@@ -534,3 +543,95 @@ describe('add-on catalog: the shelf defers monetization by construction', () => 
   });
 });
 
+
+// ─── Both lists in one request (plan 65, D103) ───────────────────────────────
+
+describe('both lists in one request: only when both are on', () => {
+  const answering = (calls: string[], body: unknown): typeof globalThis.fetch =>
+    ((input: unknown) => {
+      calls.push(String(input));
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }));
+    }) as unknown as typeof globalThis.fetch;
+  const clients = (networkFeatures: boolean, fetchImpl: typeof globalThis.fetch) => ({
+    addOns: createCatalogClient({ meta, networkFeatures, fetchImpl }),
+    apps: createAppCatalogClient({ meta, networkFeatures, fetchImpl }),
+    fetchImpl,
+  });
+  const BOTH = { format: 'adminium-marketplace/1', generatedAt: '2026-10-03T00:00:00Z', apps: [], addOns: [wireItem()] };
+
+  it('makes one request, to the combined address with this server’s version, and reads each list as its own address is read', async () => {
+    const calls: string[] = [];
+    const lists = await fetchBothLists(clients(true, answering(calls, BOTH)));
+    expect(calls).toEqual([`${MARKETPLACE_ENDPOINT}?adminium=${APP_VERSION}`]);
+    expect(lists.addOns.addOns.map((entry) => entry.key)).toEqual([ENTRY.key]);
+    expect(lists.apps.apps).toEqual([]);
+    expect(lists.addOns.generatedAt).toBe(BOTH.generatedAt);
+    // An item this server cannot read is left out of its list; the rest is still offered.
+    const odd = await fetchBothLists(clients(true, answering([], { ...BOTH, addOns: [wireItem(), wireItem({ key: 'priced' }, { price: 9 })] })));
+    expect(odd.addOns.addOns.map((entry) => entry.key)).toEqual([ENTRY.key]);
+    expect(odd.addOns.skipped.map((entry) => entry.key)).toEqual(['priced']);
+  });
+
+  it('asks for nothing when either list is off, or network features are', async () => {
+    for (const off of [CATALOG_ENABLED_SETTING, APP_CATALOG_ENABLED_SETTING] as const) {
+      await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, true);
+      await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, true);
+      await settingsRepo(meta).set(off, false);
+      const calls: string[] = [];
+      await expect(fetchBothLists(clients(true, recordingFetch(calls)))).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
+      expect(calls, off).toEqual([]);
+    }
+    await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, true);
+    await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, true);
+    const calls: string[] = [];
+    await expect(fetchBothLists(clients(false, recordingFetch(calls)))).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
+    expect(calls).toEqual([]);
+    expect(guard.attempts).toEqual([]);
+  });
+
+  it('refuses an answer that is not the two lists', async () => {
+    for (const body of [{ format: 'adminium-marketplace/1', generatedAt: 'x', items: [] }, { format: 'other/9', generatedAt: 'x', apps: [], addOns: [] }, 'nonsense']) {
+      await expect(fetchBothLists(clients(true, answering([], body)))).rejects.toMatchObject({ reason: 'CATALOG_MALFORMED' });
+    }
+  });
+
+  it('the refresh nobody asked for by hand fills both caches from one request; a person’s refresh, or a list off, asks for the add-ons alone', async () => {
+    type Handler = (payload: { userId?: string }, ctx: { signal: AbortSignal; jobId: string; progress: () => void }) => Promise<unknown>;
+    const handlers = new Map<string, Handler>();
+    const registry = { registerJobHandler: (kind: string, _schema: unknown, handler: Handler) => void handlers.set(kind, handler) };
+    const written: Record<'addOns' | 'apps', unknown[]> = { addOns: [], apps: [] };
+    const calls: string[] = [];
+    const fetchImpl = ((input: unknown) => {
+      calls.push(String(input));
+      const combined = String(input).startsWith(`${MARKETPLACE_ENDPOINT}?`);
+      const body = combined ? BOTH : { format: 'adminium-marketplace/1', generatedAt: BOTH.generatedAt, items: [wireItem()] };
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    }) as unknown as typeof globalThis.fetch;
+    const { addOns, apps } = clients(true, fetchImpl);
+    registerAddOnAcquireHandlers(registry as never, {
+      meta,
+      store: { writeCatalogCache: async (document: unknown) => void written.addOns.push(document) } as never,
+      catalog: addOns,
+      both: { apps, appStore: { writeCatalogCache: async (document: unknown) => void written.apps.push(document) }, fetchImpl },
+    });
+    const run = (payload: { userId?: string }) => (handlers.get('catalog-refresh') as Handler)(payload, { signal: new AbortController().signal, jobId: 'job_x', progress: () => undefined });
+
+    // The server starting, the daily tick: both lists, one request.
+    await run({});
+    expect(calls).toEqual([`${MARKETPLACE_ENDPOINT}?adminium=${APP_VERSION}`]);
+    expect([written.addOns.length, written.apps.length]).toEqual([1, 1]);
+
+    // "Check for newer" on the Add-ons page: its own list.
+    calls.length = 0;
+    await run({ userId: 'usr_1' });
+    expect(calls).toEqual([`${CATALOG_ENDPOINT}?adminium=${APP_VERSION}`]);
+    expect([written.addOns.length, written.apps.length]).toEqual([2, 1]);
+
+    // The app list switched off: it is never asked for, and never written.
+    await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, false);
+    calls.length = 0;
+    await run({});
+    expect(calls).toEqual([`${CATALOG_ENDPOINT}?adminium=${APP_VERSION}`]);
+    expect([written.addOns.length, written.apps.length]).toEqual([3, 1]);
+  });
+});

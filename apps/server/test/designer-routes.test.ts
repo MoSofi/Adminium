@@ -14,7 +14,7 @@ import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { addSide } from '../src/project/apps/scaffold-app.js';
@@ -470,8 +470,10 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(later.tables).toHaveLength(2);
   });
 
-  it('say the online app list is off on an install that has not switched it on', async () => {
+  it('say the online app list is off on an install that has it switched off', async () => {
     const client = await server({ designer: true });
+    // On by default since 0.3.16; an install from before it, or one whose operator switched it off, reads off.
+    await settingsRepo(client.meta).set('apps.catalogEnabled', false);
     expect((await client.call('GET', '/api/v1/designer/apps')).body).toEqual({ state: 'off', apps: [] });
   });
 

@@ -84600,12 +84600,16 @@
                     },
                     "onlineEnabled": {
                       "type": "boolean"
+                    },
+                    "refreshing": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "apps",
                     "catalogFetchedAt",
-                    "onlineEnabled"
+                    "onlineEnabled",
+                    "refreshing"
                   ],
                   "additionalProperties": false
                 }
@@ -90887,12 +90891,16 @@
                     },
                     "onlineEnabled": {
                       "type": "boolean"
+                    },
+                    "refreshing": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "addOns",
                     "catalogFetchedAt",
-                    "onlineEnabled"
+                    "onlineEnabled",
+                    "refreshing"
                   ],
                   "additionalProperties": false
                 }

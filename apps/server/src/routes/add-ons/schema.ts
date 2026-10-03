@@ -390,6 +390,8 @@ export const catalogBrowseReply = z.object({
   catalogFetchedAt: z.number().nullable(),
   /** Whether browsing online is switched on at all (D8). */
   onlineEnabled: z.boolean(),
+  /** Whether the list is being fetched right now: a page that opens before the first fetch has answered reads again. */
+  refreshing: z.boolean(),
 });
 
 export const refreshCatalogReply = z.object({ jobId: z.string() });

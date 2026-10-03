@@ -125,6 +125,17 @@ export function jobsRepo(meta: MetaDb) {
       return mapJob(row as Selectable<AdminiumJobsTable>);
     },
 
+    /** The job holding `dedupeKey` that has not finished yet (waiting or running), or null. */
+    async active(dedupeKey: string): Promise<Job | null> {
+      const row = await db
+        .selectFrom('adminium_jobs')
+        .selectAll()
+        .where('dedupeKey', '=', dedupeKey)
+        .where('status', 'in', ['pending', 'running'])
+        .executeTakeFirst();
+      return row === undefined ? null : mapJob(row);
+    },
+
     /**
      * Claim the next due job for `workerId` using the portable UPDATE guard.
      * Considers pending jobs due at `at` (priority desc, run_at asc, id asc)

@@ -145,7 +145,7 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect !== 'mysql') {
         const before = await allColumnTypes(m);
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default']);
         // Nothing of 0047's here; 0048 adds a key's peak, two columns of its own, and 0049 a table of its own.
         expect(
           (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\./.test(column)),
@@ -167,7 +167,7 @@ for (const dialect of TEST_DIALECTS) {
           publicEndpointsRepo(m).create({ connectionId, ref: 'refused', origin: 'custom', definition: BIG }, T0),
         ).rejects.toThrow(/Data too long/);
 
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default']);
         const after = await textColumns(m);
         expect(after).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
       }

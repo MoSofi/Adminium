@@ -1317,7 +1317,7 @@ describe('acquisition routes', () => {
 
     it('merges the last cached catalog in, and flags a newer version', async () => {
       await stage('holiday-calendars');
-      const app = await buildApp();
+      const app = await buildApp([], {});
       await app.inject({
         method: 'POST',
         url: '/api/v1/add-ons',
@@ -1427,7 +1427,7 @@ describe('acquisition routes', () => {
      * keeps (drops only `npmPackage`).
      */
     it('names a catalog row from the feed key space, not from its slug', async () => {
-      const app = await buildApp();
+      const app = await buildApp([], {});
       await store.writeCatalogCache(
         {
           format: 'adminium-marketplace/1', unavailable: [], skipped: [],
@@ -1495,7 +1495,7 @@ describe('acquisition routes', () => {
     });
 
     it('lists a release this server is too old for, blocked rather than hidden', async () => {
-      const app = await buildApp([], undefined, { serverVersion: '0.2.9' });
+      const app = await buildApp([], {}, { serverVersion: '0.2.9' });
       await store.writeCatalogCache(
         {
           format: 'adminium-marketplace/1', unavailable: [], skipped: [],
@@ -1539,7 +1539,7 @@ describe('acquisition routes', () => {
 
     it('withholds an upgrade this server cannot take, and says which version it needs', async () => {
       await stage('holiday-calendars');
-      const app = await buildApp([], undefined, { serverVersion: '0.2.9' });
+      const app = await buildApp([], {}, { serverVersion: '0.2.9' });
       await app.inject({
         method: 'POST',
         url: '/api/v1/add-ons',

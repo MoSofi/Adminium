@@ -59,6 +59,7 @@ import {
   settingsRepo,
   snapshotsRepo,
   userPrefsRepo,
+  jobsRepo,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { z } from 'zod';
@@ -85,9 +86,11 @@ import { audited, auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   appEntryFromCache,
+  APP_CATALOG_REFRESH_KIND,
   enqueueAppCatalogRefresh,
   enqueueAppDownload,
 } from '../../jobs/app-acquire.js';
+import { CATALOG_REFRESH_KIND } from '../../jobs/add-on-acquire.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { forgetAppSurfaceSettings, NO_SURFACE_SETTINGS, sideOffOf } from '../../surfaces/settings.js';
 import { validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
@@ -902,6 +905,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           apps,
           catalogFetchedAt: parsedCatalog?.success === true ? (cached?.fetchedAt ?? null) : null,
           onlineEnabled: online,
+          // Being fetched now, by its own refresh or with the add-on list (one request for both).
+          refreshing: online && ((await jobsRepo(deps.meta).active(APP_CATALOG_REFRESH_KIND)) !== null || (await jobsRepo(deps.meta).active(CATALOG_REFRESH_KIND)) !== null),
         };
       },
     );

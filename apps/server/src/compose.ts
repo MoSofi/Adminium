@@ -293,6 +293,10 @@ export const CATALOG_REFRESH_JITTER_MS = 60 * 60 * 1000;
  * and `apps.catalogEnabled` are both on, and registered unconditionally because
  * registering a schedule is not consent.
  */
+/** A list older than this is asked for again when the server starts, and when its page opens. */
+export const CATALOG_STALE_MS = 24 * 60 * 60 * 1000;
+/** The app list written this recently came with the add-on list: its own tick, half an hour later, makes no request. */
+export const CATALOG_BOTH_FRESH_MS = 2 * 60 * 60 * 1000;
 export const APP_CATALOG_REFRESH_SCHEDULE_NAME = 'app-catalog-refresh';
 export const APP_CATALOG_REFRESH_CRON = '30 5 * * *';
 
@@ -370,6 +374,12 @@ export const PUBLIC_STATS_FLUSH_NAME = 'public-request-stats-flush';
 export const RETENTION_GC_CRON = '0 3 * * *';
 
 export interface ComposeServerOptions {
+  /**
+   * Ask adminium.dev for the lists when the server starts, where a list is on
+   * and nothing was fetched in the last day. Set by the commands that start a
+   * server for people; a server composed in a test never asks.
+   */
+  catalogBootRefresh?: boolean | undefined;
   env: Env;
   /** The opened meta store — `meta` for the services, `url` for checks. */
   metaStore: MetaStoreHandle;
@@ -2246,13 +2256,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // AND the default-off `addOns.catalogEnabled` setting) is checked before any
   // URL is constructed — the same shape as telemetry below, and pinned by
   // `add-on-network-isolation.test.ts`. Registering the schedule is not consent.
+  const jobsAddOnCatalog = createCatalogClient({
+    meta,
+    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+  });
   registerAddOnAcquireHandlers(jobs.registry, {
     meta,
     store: addOnStore,
-    catalog: createCatalogClient({
-      meta,
-      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
-    }),
+    catalog: jobsAddOnCatalog,
+    // The server starting and the daily tick ask for both lists in one request when both are on (D103).
+    both: { apps: appCatalog, appStore },
   });
   jobs.scheduler.registerSchedule(
     CATALOG_REFRESH_SCHEDULE_NAME,
@@ -2263,7 +2276,41 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   // App acquisition (b G8-D3/D5): the add-on jobs' twins, behind the app
   // catalog's own switch and cached in the app store.
-  registerAppAcquireHandlers(jobs.registry, { meta, store: appStore, catalog: appCatalog });
+  registerAppAcquireHandlers(jobs.registry, {
+    meta,
+    store: appStore,
+    catalog: appCatalog,
+    // Its own daily tick stands down where the add-on refresh just before it asked for both lists.
+    coveredByBoth: async () => {
+      if (!(await jobsAddOnCatalog.isEnabled())) return false;
+      const cached = await appStore.readCatalogCache();
+      return cached !== null && Date.now() - cached.fetchedAt < CATALOG_BOTH_FRESH_MS;
+    },
+  });
+  /*
+   * A new install lists what adminium.dev offers from its first start, and a
+   * server whose list is a day old asks again without waiting for 05:00. A job,
+   * never a wait: a firewall that drops instead of refusing must not hold the
+   * start. Asked for only by a command that starts a server for people
+   * (`start`, `dev`, `design`, the desktop), never by composing one in a test.
+   */
+  if (opts.catalogBootRefresh === true) {
+    app.addHook('onReady', async () => {
+      try {
+        const stale = async (store: { readCatalogCache(): Promise<{ fetchedAt: number } | null> }): Promise<boolean> => {
+          const cached = await store.readCatalogCache();
+          return cached === null || Date.now() - cached.fetchedAt > CATALOG_STALE_MS;
+        };
+        const addOnsOn = await jobsAddOnCatalog.isEnabled();
+        const appsOn = await appCatalog.isEnabled();
+        // The add-on refresh asks for both lists when both are on.
+        if (addOnsOn && ((await stale(addOnStore)) || (appsOn && (await stale(appStore))))) await enqueueCatalogRefresh(meta);
+        else if (appsOn && (await stale(appStore))) await enqueueAppCatalogRefresh(meta);
+      } catch (error) {
+        app.log.warn({ err: error }, 'the lists of adminium.dev were not asked for at start');
+      }
+    });
+  }
   // An app's sample data is added by a job (its rows and images in one go).
   registerSampleDataHandler(jobs.registry, sampleDataDeps);
   jobs.scheduler.registerSchedule(

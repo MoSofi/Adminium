@@ -305,6 +305,8 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
   // boot. Absent ⇒ empty list ⇒ nothing about this boot changes.
   const surfaces = discoverSurfaces(resolveSurfacesDir());
   const { app, bridgePairingCode } = await composeServer({
+    // A server started for people asks adminium.dev for its lists at start, where a list is on (0.3.16).
+    catalogBootRefresh: true,
     env,
     metaStore: runtime.metaStore,
     manager: runtime.manager,

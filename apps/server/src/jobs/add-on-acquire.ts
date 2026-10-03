@@ -25,6 +25,8 @@
  * on the same version get one download.
  */
 
+import type { AppCatalog, AppCatalogClient } from '../apps/catalog.js';
+import { bothListsOn, fetchBothLists } from '../marketplace/both-lists.js';
 import { auditRepo, jobsRepo, type Job, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -70,6 +72,20 @@ export interface AddOnAcquireDeps {
   now?: (() => number) | undefined;
   /** Tests only; production checks minimums against the running version. */
   serverVersion?: string | undefined;
+  /**
+   * The app list beside this one. With it, a refresh nobody asked for by hand
+   * (the server starting, the daily tick) asks adminium.dev for BOTH lists in
+   * one request when both are on, and fills both caches. A person's "Check for
+   * newer" on the Add-ons page asks for the add-ons alone.
+   */
+  both?:
+    | {
+        apps: Pick<AppCatalogClient, 'isEnabled'>;
+        appStore: { writeCatalogCache(document: unknown, at: number): Promise<void> };
+        endpoint?: string | undefined;
+        fetchImpl?: typeof globalThis.fetch | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -273,8 +289,17 @@ export function registerAddOnAcquireHandlers(
 
       ctx.progress(20, { step: 'fetch', message: 'Fetching the catalog' });
       let catalog;
+      // Both lists in one request, when both are on and no person asked for this one alone.
+      let apps: AppCatalog | null = null;
       try {
-        catalog = await deps.catalog.fetchCatalog(ctx.signal);
+        const together = payload.userId === undefined && deps.both !== undefined && (await bothListsOn({ addOns: deps.catalog, apps: deps.both.apps }));
+        if (together && deps.both !== undefined) {
+          const lists = await fetchBothLists({ addOns: deps.catalog, apps: deps.both.apps, endpoint: deps.both.endpoint, fetchImpl: deps.both.fetchImpl }, ctx.signal);
+          catalog = lists.addOns;
+          apps = lists.apps;
+        } else {
+          catalog = await deps.catalog.fetchCatalog(ctx.signal);
+        }
       } catch (err) {
         await audit(
           deps,
@@ -288,6 +313,20 @@ export function registerAddOnAcquireHandlers(
       if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
       await deps.store.writeCatalogCache(catalog, now());
+      if (apps !== null && deps.both !== undefined) {
+        await deps.both.appStore.writeCatalogCache(apps, now());
+        await auditRepo(deps.meta).append(
+          {
+            actorKind: 'system',
+            actorId: null,
+            actorLabel: 'system',
+            category: 'app',
+            action: 'app.catalog-refreshed',
+            changes: { after: { count: apps.apps.length, generatedAt: apps.generatedAt, skipped: apps.skipped, with: 'add-ons' } },
+          },
+          now(),
+        );
+      }
       ctx.progress(100, { step: 'cached', message: `${catalog.addOns.length} add-ons listed` });
       await audit(
         deps,

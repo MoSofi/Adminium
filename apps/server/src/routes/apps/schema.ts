@@ -760,6 +760,8 @@ export const appCatalogReply = z.object({
   catalogFetchedAt: z.number().nullable(),
   /** Whether online browsing is on: `ADMINIUM_NETWORK_FEATURES` AND `apps.catalogEnabled`. */
   onlineEnabled: z.boolean(),
+  /** Whether the list is being fetched right now. */
+  refreshing: z.boolean(),
 });
 
 /**

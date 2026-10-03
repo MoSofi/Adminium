@@ -64,6 +64,11 @@ export interface AppAcquireDeps {
   now?: (() => number) | undefined;
   /** Tests only; production checks minimums against the running version. */
   serverVersion?: string | undefined;
+  /**
+   * Whether the add-on refresh, which runs just before the scheduled one of this list, already asked for both
+   * lists and wrote this cache recently. The scheduled tick then makes no request of its own.
+   */
+  coveredByBoth?: (() => Promise<boolean>) | undefined;
 }
 
 /** An acquisition event under the `app` audit category, written by the worker. */
@@ -223,6 +228,11 @@ export function registerAppAcquireHandlers(registry: JobRegistry, deps: AppAcqui
       if (!(await deps.catalog.isEnabled())) {
         ctx.progress(100, { step: 'skipped', message: 'The online app catalog is off' });
         return { refreshed: false, reason: 'disabled' };
+      }
+      // The daily tick, on a server whose add-on list is on too: the add-on refresh asks for both lists in one request.
+      if (payload.userId === undefined && (await deps.coveredByBoth?.()) === true) {
+        ctx.progress(100, { step: 'skipped', message: 'Refreshed with the add-on list' });
+        return { refreshed: false, reason: 'with-add-ons' };
       }
 
       ctx.progress(20, { step: 'fetch', message: 'Fetching the app catalog' });

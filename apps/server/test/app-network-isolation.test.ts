@@ -172,7 +172,13 @@ function recordingFetch(calls: string[]): typeof globalThis.fetch {
 }
 
 describe('app catalog: off means zero outbound attempts', () => {
-  it('makes no call when its switch is off (the default)', async () => {
+  it('is on for a new install: the list is this server’s to ask for until someone switches it off (0.3.16)', async () => {
+    const client = createAppCatalogClient({ meta, networkFeatures: true, fetchImpl: recordingFetch([]) });
+    expect(await client.isEnabled()).toBe(true);
+  });
+
+  it('makes no call when its switch is off (an install from before 0.3.16, or switched off)', async () => {
+    await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, false);
     const calls: string[] = [];
     const client = createAppCatalogClient({ meta, networkFeatures: true, fetchImpl: recordingFetch(calls) });
 
@@ -199,6 +205,7 @@ describe('app catalog: off means zero outbound attempts', () => {
   });
 
   it('is not switched on by the ADD-ON catalog switch (R2: two switches)', async () => {
+    await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, false);
     await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, true);
     const calls: string[] = [];
     const client = createAppCatalogClient({ meta, networkFeatures: true, fetchImpl: recordingFetch(calls) });

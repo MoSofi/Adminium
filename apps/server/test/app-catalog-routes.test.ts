@@ -464,6 +464,9 @@ describe('GET /apps/catalog', () => {
 
 describe('PUT /apps/catalog', () => {
   it('stores the app switch, never the add-on one, and audits the change', async () => {
+    // An install from before 0.3.16: both lists off.
+    await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, false);
+    await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, false);
     const app = await buildApp();
     const res = await app.inject({ method: 'PUT', url: '/apps/catalog', payload: { enabled: true } });
     expect(res.statusCode, res.body).toBe(200);

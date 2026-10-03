@@ -14,6 +14,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     ...workers(),
+    // No test reaches adminium.dev: the catalogue switches are on by default since 0.3.16.
+    setupFiles: ['./test/no-adminium-dev.setup.ts'],
     // The quality bar asks 85 statements / 80 branches. The statements floor
     // keeps its existing 88 ratchet; branches move 79 -> 80 because 79 was the
     // one configured floor in the repo sitting BELOW its number, which is

@@ -487,19 +487,18 @@ export const SETTINGS_REGISTRY = {
   // the vendor, so a self-hosted instance opts into it explicitly rather than
   // inheriting consent from the telemetry answer.
   'updates.checkEnabled': def(z.boolean(), false, 'Check for new releases (opt-in outbound call)', P),
-  // The add-on catalog's browse-online switch. OFF by default, and for the
-  // same reason `updates.checkEnabled` is: an online browse discloses this
-  // deployment's IP, the time, and the exact `package@version` it pulls to a
-  // third-party registry. The bundled set (D3) makes the Add-ons page useful
-  // with the switch off, so default-off costs a fresh install nothing.
-  // `ADMINIUM_NETWORK_FEATURES=off` and the desktop's air-gap mode both
+  // The add-on catalog's switch. ON by default since 0.3.16 (owner's ruling, plan 65
+  // C1): a new install lists what adminium.dev offers from its first start, and
+  // one click installs an item. Asking for the list tells adminium.dev (and
+  // Cloudflare in front of it) this deployment's address, the time and its
+  // Adminium version; an install names the item and its version. An install
+  // made before 0.3.16 that never stored a value keeps off: migration 0050
+  // writes `false` for it, so upgrading starts no outbound call.
+  // `ADMINIUM_NETWORK_FEATURES=off` and the desktop's no-network mode both
   // override it downward; nothing overrides it up.
-  'addOns.catalogEnabled': def(z.boolean(), false, 'Browse the online add-on catalog (opt-in outbound call)', P),
-  // The app catalog's own switch (b, R2: two switches, not one). Off by default for the
-  // add-on switch's reason: browsing online discloses this deployment's IP, the time and
-  // the exact app and version it pulls. The bundled set and uploads keep Hosted apps
-  // useful with it off, and the same two overrides force it down.
-  'apps.catalogEnabled': def(z.boolean(), false, 'Browse the online app catalog (opt-in outbound call)', P),
+  'addOns.catalogEnabled': def(z.boolean(), true, 'List and install add-ons from adminium.dev (an outbound call)', P),
+  // The app catalog's own switch (two switches, not one), on the same terms.
+  'apps.catalogEnabled': def(z.boolean(), true, 'List and install apps from adminium.dev (an outbound call)', P),
   // ── NOT portable ──────────────────────────────────────────────────────────
   // Everything below identifies THIS instance, records that something already
   // happened to it, or answers a question about the MACHINE it runs on. A

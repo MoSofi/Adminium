@@ -77,6 +77,7 @@ import {
   userPrefsRepo,
   type InstalledManifest,
   type MetaDb,
+  jobsRepo,
 } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -117,6 +118,7 @@ import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusa
 import {
   addOnEntryFromCache,
   enqueueAddOnDownload,
+  CATALOG_REFRESH_KIND,
   enqueueCatalogRefresh,
 } from '../../jobs/add-on-acquire.js';
 import { audited } from '../../audit/coverage.js';
@@ -811,7 +813,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
         // Then anything the last refresh offered that is not already accounted
         // for. `source: 'catalog'` is the honest label: these need the network.
-        for (const entry of feed.values()) {
+        // Only while the list is on: a list someone switched off is not shown from
+        // what was fetched before (the Apps page has always read it so).
+        const online = (await deps.catalog?.isEnabled()) ?? false;
+        for (const entry of online ? feed.values() : []) {
           const blocked = blockedBy(entry);
           const existing = rows.get(entry.key);
           if (existing === undefined) {
@@ -866,7 +871,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * of offering an Install the download route refuses; for an add-on
          * already here, a too-new release is the upgrade it cannot take.
          */
-        const unavailable = parsedCatalog?.success === true ? parsedCatalog.data.unavailable : [];
+        const unavailable = online && parsedCatalog?.success === true ? parsedCatalog.data.unavailable : [];
         for (const listed of unavailable) {
           const existing = rows.get(listed.key) ?? entries.find((entry) => entry.key === listed.key);
           const blocked =
@@ -943,7 +948,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         return {
           addOns: entries,
           catalogFetchedAt: parsedCatalog?.success === true ? (cached?.fetchedAt ?? null) : null,
-          onlineEnabled: (await deps.catalog?.isEnabled()) ?? false,
+          onlineEnabled: online,
+          // The list is being asked for now (the server just started, or someone pressed "Check for newer"): the page reads again.
+          refreshing: online && (await jobsRepo(deps.meta).active(CATALOG_REFRESH_KIND)) !== null,
         };
       },
     );
