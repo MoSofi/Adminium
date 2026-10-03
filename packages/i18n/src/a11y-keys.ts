@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2613 entries. */
+/** `namespace:key` — 2639 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -713,6 +713,27 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'dataio:import.stepValidate',
   'dataio:import.validateFailed',
   'designer:apps.continueApp',
+  'designer:build.answerPlaceholder',
+  'designer:build.chat',
+  'designer:build.halves',
+  'designer:build.message',
+  'designer:build.openDashboard',
+  'designer:build.placeholder',
+  'designer:build.rename',
+  'designer:build.renameApp',
+  'designer:build.resize',
+  'designer:build.stop',
+  'designer:build.work',
+  'designer:card.keepAll',
+  'designer:card.keepAsWas',
+  'designer:card.keepColumn',
+  'designer:card.keepTable',
+  'designer:card.narrowIt',
+  'designer:card.narrowTitle',
+  'designer:card.package',
+  'designer:card.removalTitle',
+  'designer:card.removeAll',
+  'designer:card.removeIt',
   'designer:examples.bikes.label',
   'designer:examples.catering.label',
   'designer:examples.classes.label',
@@ -768,6 +789,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:topbar.language',
   'designer:topbar.toDark',
   'designer:topbar.toLight',
+  'designer:turn.putBackDone',
+  'designer:versions.button',
+  'designer:versions.confirmTitle',
+  'designer:versions.goBackTo',
+  'designer:versions.wentBack',
   'email:actions.menu',
   'email:archivedChip.leave',
   'email:blocks.box.label',

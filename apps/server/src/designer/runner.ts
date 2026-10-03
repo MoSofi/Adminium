@@ -107,6 +107,12 @@ interface Running {
   done: Promise<void>;
 }
 
+/** The file or name a call is about, for the page to name: its `path`, else its `name`. */
+function stepSubject(input: Record<string, unknown>): string | undefined {
+  const value = typeof input['path'] === 'string' ? input['path'] : typeof input['name'] === 'string' ? input['name'] : undefined;
+  return value === undefined || value === '' ? undefined : value.slice(0, 200);
+}
+
 export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
   const now = deps.now ?? Date.now;
   const logs = new Map<string, EventLog>();
@@ -249,7 +255,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           }
           const stepId = `${String(turn)}.${String(steps)}.${call.id}`;
           const started = now();
-          log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input), tool.name), state: 'running' });
+          const subject = stepSubject(call.input);
+          const about = subject === undefined ? {} : { subject };
+          log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input), tool.name), state: 'running', ...about });
           try {
             const done = await tool.run(call.input, context);
             log.emit(turn, {
@@ -259,16 +267,19 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               label: done.label,
               state: done.isError === true ? 'failed' : 'done',
               ms: now() - started,
+              ...about,
+              ...(done.facts ?? {}),
+              ...(done.isError === true ? { ended: 'error' as const } : {}),
               ...(done.detail === undefined ? {} : { detail: done.detail }),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
           } catch (error) {
             if (error instanceof TurnStoppedError || signal.aborted) {
-              log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: 'Stopped', state: 'failed', ms: now() - started });
+              log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: 'Stopped', state: 'failed', ms: now() - started, ...about, ended: 'stopped' });
               break;
             }
             const message = error instanceof Error ? error.message : String(error);
-            log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: `${tool.name} failed`, state: 'failed', ms: now() - started, detail: message });
+            log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: `${tool.name} failed`, state: 'failed', ms: now() - started, ...about, ended: 'error', detail: message });
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `The tool failed: ${message}` });
           }
         }

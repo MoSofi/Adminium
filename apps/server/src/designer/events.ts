@@ -20,7 +20,24 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 export type DesignerEventBody =
   | { kind: 'turn-started'; text: string }
   | { kind: 'text'; delta: string }
-  | { kind: 'step'; id: string; tool: string; label: string; state: 'running' | 'done' | 'failed'; ms?: number; detail?: string }
+  | {
+      kind: 'step';
+      id: string;
+      tool: string;
+      /** The step's line in English, for logs and a page that does not know the tool. The page words it from the facts below. */
+      label: string;
+      state: 'running' | 'done' | 'failed';
+      ms?: number;
+      detail?: string;
+      /** The file or name the step is about. */
+      subject?: string;
+      /** A count the line names: a check's errors, the screens built. */
+      count?: number;
+      /** What came of a package asked for. */
+      outcome?: 'added' | 'declined' | 'refused' | 'failed';
+      /** How a failed step ended: stopped by the person, or an error in the tool. */
+      ended?: 'stopped' | 'error';
+    }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
   | { kind: 'card'; card: DesignerCard }
   | { kind: 'card-answered'; id: string; value: unknown }

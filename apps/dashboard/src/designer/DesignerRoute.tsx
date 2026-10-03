@@ -17,13 +17,14 @@ import { AppToastProvider } from '../pages/toasts.js';
 import { useDesignerMessages } from './designerMessages.js';
 import { useLateDesignToken } from './lateToken.js';
 import { SpentLinkPage } from './SpentLinkPage.js';
+import { BuildPage } from './build/BuildPage.js';
 import { DesignerHome } from './home/DesignerHome.js';
 
 function Signed({ sessionId }: { sessionId: string | null }): ReactNode {
   useDesignerMessages();
   // A language picked in the top bar lands after its messages load; the router's outlet would not re-render for it.
   useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
-  return <AppToastProvider>{sessionId === null ? <DesignerHome /> : <DesignerHome />}</AppToastProvider>;
+  return <AppToastProvider>{sessionId === null ? <DesignerHome /> : <BuildPage key={sessionId} sessionId={sessionId} />}</AppToastProvider>;
 }
 
 export function DesignerRoute({ sessionId = null }: { sessionId?: string | null }): ReactNode {

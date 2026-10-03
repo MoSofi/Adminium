@@ -8271,6 +8271,178 @@
     "status": "src",
     "srcHash": "c7b22145f13e"
   },
+  "designer.build.answerFailed": {
+    "status": "mt",
+    "srcHash": "12be5a1a90d4"
+  },
+  "designer.build.answerPlaceholder": {
+    "status": "mt",
+    "srcHash": "4d10456d08c6"
+  },
+  "designer.build.chat": {
+    "status": "src",
+    "srcHash": "2ced57f12591"
+  },
+  "designer.build.empty": {
+    "status": "mt",
+    "srcHash": "c1d32c1e2b09"
+  },
+  "designer.build.halves": {
+    "status": "mt",
+    "srcHash": "b144ba6befb9"
+  },
+  "designer.build.home": {
+    "status": "mt",
+    "srcHash": "35e1e52da73f"
+  },
+  "designer.build.message": {
+    "status": "mt",
+    "srcHash": "71d0909b8926"
+  },
+  "designer.build.missing": {
+    "status": "mt",
+    "srcHash": "f158067b65f0"
+  },
+  "designer.build.missingBody": {
+    "status": "mt",
+    "srcHash": "df2195fd67b6"
+  },
+  "designer.build.openDashboard": {
+    "status": "mt",
+    "srcHash": "06c2ab625b0d"
+  },
+  "designer.build.placeholder": {
+    "status": "mt",
+    "srcHash": "150e28631bd7"
+  },
+  "designer.build.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "designer.build.rename": {
+    "status": "mt",
+    "srcHash": "eb75f2a8dcb3"
+  },
+  "designer.build.renameApp": {
+    "status": "mt",
+    "srcHash": "c2729bef2e41"
+  },
+  "designer.build.resize": {
+    "status": "mt",
+    "srcHash": "f0475d7758c4"
+  },
+  "designer.build.saveFailed": {
+    "status": "mt",
+    "srcHash": "79dbebbd19eb"
+  },
+  "designer.build.stop": {
+    "status": "src",
+    "srcHash": "9e253470c876"
+  },
+  "designer.build.stopFailed": {
+    "status": "mt",
+    "srcHash": "2eb751d9e351"
+  },
+  "designer.build.turnFailed": {
+    "status": "mt",
+    "srcHash": "08d7241fba97"
+  },
+  "designer.build.work": {
+    "status": "mt",
+    "srcHash": "9445c325125a"
+  },
+  "designer.card.addIt": {
+    "status": "mt",
+    "srcHash": "90c75b6d9022"
+  },
+  "designer.card.doWithout": {
+    "status": "mt",
+    "srcHash": "d399dba4c617"
+  },
+  "designer.card.keepAll": {
+    "status": "mt",
+    "srcHash": "40343dab3a33"
+  },
+  "designer.card.keepAsWas": {
+    "status": "mt",
+    "srcHash": "c2a4a4698468"
+  },
+  "designer.card.keepColumn": {
+    "status": "mt",
+    "srcHash": "7823729a6043"
+  },
+  "designer.card.keepTable": {
+    "status": "mt",
+    "srcHash": "210fc3332556"
+  },
+  "designer.card.kept": {
+    "status": "mt",
+    "srcHash": "08f032fd6366"
+  },
+  "designer.card.narrow": {
+    "status": "mt",
+    "srcHash": "e9f8ee259faf"
+  },
+  "designer.card.narrowIt": {
+    "status": "mt",
+    "srcHash": "dd95135c8071"
+  },
+  "designer.card.narrowTitle": {
+    "status": "mt",
+    "srcHash": "57b66f49f5c2"
+  },
+  "designer.card.narrowed": {
+    "status": "mt",
+    "srcHash": "4aa65503eef7"
+  },
+  "designer.card.noAnswer": {
+    "status": "mt",
+    "srcHash": "17cfc9741f95"
+  },
+  "designer.card.ownWords": {
+    "status": "mt",
+    "srcHash": "2cc0053f535f"
+  },
+  "designer.card.package": {
+    "status": "mt",
+    "srcHash": "77a50eb02b3a"
+  },
+  "designer.card.packageNo": {
+    "status": "mt",
+    "srcHash": "5d86ab14a178"
+  },
+  "designer.card.packageYes": {
+    "status": "mt",
+    "srcHash": "452a849b4249"
+  },
+  "designer.card.removalTitle": {
+    "status": "mt",
+    "srcHash": "545ea32dc719"
+  },
+  "designer.card.removeAll": {
+    "status": "mt",
+    "srcHash": "096e3264fc47"
+  },
+  "designer.card.removeColumn": {
+    "status": "mt",
+    "srcHash": "5995c863cc35"
+  },
+  "designer.card.removeIt": {
+    "status": "mt",
+    "srcHash": "641b440b9315"
+  },
+  "designer.card.removeTable": {
+    "status": "mt",
+    "srcHash": "60dbd0311c6f"
+  },
+  "designer.card.removed": {
+    "status": "mt",
+    "srcHash": "aca57ff9f010"
+  },
+  "designer.card.youAnswered": {
+    "status": "mt",
+    "srcHash": "f698fbd8ec00"
+  },
   "designer.examples.bikes.label": {
     "status": "mt",
     "srcHash": "380183d16d5a"
@@ -8671,6 +8843,170 @@
     "status": "mt",
     "srcHash": "e675e5757cb9"
   },
+  "designer.step.addOns": {
+    "status": "mt",
+    "srcHash": "8aa7a329fbc1"
+  },
+  "designer.step.addOnsDone": {
+    "status": "mt",
+    "srcHash": "38a9041670d7"
+  },
+  "designer.step.answered": {
+    "status": "mt",
+    "srcHash": "52e64af59dd0"
+  },
+  "designer.step.applied": {
+    "status": "mt",
+    "srcHash": "c52545af0da8"
+  },
+  "designer.step.applying": {
+    "status": "mt",
+    "srcHash": "05745c7e28a9"
+  },
+  "designer.step.asking": {
+    "status": "mt",
+    "srcHash": "31237454d741"
+  },
+  "designer.step.buildFailed": {
+    "status": "mt",
+    "srcHash": "7a7f6b9e1dd4"
+  },
+  "designer.step.building": {
+    "status": "mt",
+    "srcHash": "1662b5c4c244"
+  },
+  "designer.step.built": {
+    "status": "mt",
+    "srcHash": "04d85af0f439"
+  },
+  "designer.step.checkedClean": {
+    "status": "mt",
+    "srcHash": "5442d6cd33ed"
+  },
+  "designer.step.checkedErrors": {
+    "status": "mt",
+    "srcHash": "b04efeea6a99"
+  },
+  "designer.step.checking": {
+    "status": "mt",
+    "srcHash": "0a17d550680d"
+  },
+  "designer.step.deleted": {
+    "status": "mt",
+    "srcHash": "1af4fca8d430"
+  },
+  "designer.step.deleting": {
+    "status": "mt",
+    "srcHash": "1e79ee83d631"
+  },
+  "designer.step.edited": {
+    "status": "mt",
+    "srcHash": "9f440a85a169"
+  },
+  "designer.step.editing": {
+    "status": "mt",
+    "srcHash": "b61bbc02307b"
+  },
+  "designer.step.failed": {
+    "status": "mt",
+    "srcHash": "bdf7203c8d6a"
+  },
+  "designer.step.listed": {
+    "status": "mt",
+    "srcHash": "5bcf8376d961"
+  },
+  "designer.step.listing": {
+    "status": "mt",
+    "srcHash": "0ba2472f2439"
+  },
+  "designer.step.noScreens": {
+    "status": "mt",
+    "srcHash": "9cae55812b9f"
+  },
+  "designer.step.notApplied": {
+    "status": "mt",
+    "srcHash": "68d1e1222698"
+  },
+  "designer.step.packageAdded": {
+    "status": "mt",
+    "srcHash": "d2cdbf4de23a"
+  },
+  "designer.step.packageAsking": {
+    "status": "mt",
+    "srcHash": "b395c79bacc5"
+  },
+  "designer.step.packageDeclined": {
+    "status": "mt",
+    "srcHash": "d251877baf0b"
+  },
+  "designer.step.packageFailed": {
+    "status": "mt",
+    "srcHash": "0211027d7f14"
+  },
+  "designer.step.packageRefused": {
+    "status": "mt",
+    "srcHash": "6a7c440f2c75"
+  },
+  "designer.step.read": {
+    "status": "mt",
+    "srcHash": "1c567849f6ff"
+  },
+  "designer.step.reading": {
+    "status": "mt",
+    "srcHash": "18be9daaeb9b"
+  },
+  "designer.step.stopped": {
+    "status": "mt",
+    "srcHash": "51e9111b8711"
+  },
+  "designer.step.testing": {
+    "status": "mt",
+    "srcHash": "bb9c37613a8d"
+  },
+  "designer.step.testsFailed": {
+    "status": "mt",
+    "srcHash": "4b4fe51e180e"
+  },
+  "designer.step.testsPassed": {
+    "status": "mt",
+    "srcHash": "62a3e0068aa2"
+  },
+  "designer.step.writing": {
+    "status": "mt",
+    "srcHash": "71ba2d225870"
+  },
+  "designer.step.wrote": {
+    "status": "mt",
+    "srcHash": "315309abb640"
+  },
+  "designer.step.wroteMany": {
+    "status": "mt",
+    "srcHash": "547b435d7845"
+  },
+  "designer.steps.count": {
+    "status": "mt",
+    "srcHash": "6350a7384d7c"
+  },
+  "designer.steps.running": {
+    "status": "mt",
+    "srcHash": "3ec734dc6019"
+  },
+  "designer.steps.seconds": {
+    "status": "src",
+    "srcHash": "c1f7eddeb673"
+  },
+  "designer.steps.summary": {
+    "status": "mt",
+    "srcHash": "8a7646247f1e"
+  },
+  "designer.steps.usage": {
+    "status": "mt",
+    "srcHash": "710e117c5383"
+  },
+  "designer.steps.working": {
+    "status": "mt",
+    "srcHash": "3b4dfc971393"
+  },
   "designer.target.auto": {
     "status": "src",
     "srcHash": "c614ba7c453c"
@@ -8722,6 +9058,146 @@
   "designer.topbar.toLight": {
     "status": "mt",
     "srcHash": "f90085feb032"
+  },
+  "designer.turn.continue": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "designer.turn.continueMessage": {
+    "status": "mt",
+    "srcHash": "5ff5105f48f7"
+  },
+  "designer.turn.failed": {
+    "status": "mt",
+    "srcHash": "a2956bb2154c"
+  },
+  "designer.turn.keepGoing": {
+    "status": "mt",
+    "srcHash": "6902b083a9c1"
+  },
+  "designer.turn.keepGoingMessage": {
+    "status": "mt",
+    "srcHash": "91458f16a87d"
+  },
+  "designer.turn.limitSaved": {
+    "status": "mt",
+    "srcHash": "f85a7ec07ce5"
+  },
+  "designer.turn.limitSessionTokens": {
+    "status": "mt",
+    "srcHash": "624a435cadd2"
+  },
+  "designer.turn.limitSteps": {
+    "status": "mt",
+    "srcHash": "3f5350b850b4"
+  },
+  "designer.turn.limitTurnTokens": {
+    "status": "mt",
+    "srcHash": "a2c08e245d71"
+  },
+  "designer.turn.modelFailed": {
+    "status": "mt",
+    "srcHash": "2d9ec3cb53f3"
+  },
+  "designer.turn.notApplied": {
+    "status": "mt",
+    "srcHash": "6deda9b12fc6"
+  },
+  "designer.turn.putBack": {
+    "status": "mt",
+    "srcHash": "f119a8267976"
+  },
+  "designer.turn.putBackDone": {
+    "status": "mt",
+    "srcHash": "ef25c9f0a374"
+  },
+  "designer.turn.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.turn.saved": {
+    "status": "mt",
+    "srcHash": "c0e58799c266"
+  },
+  "designer.turn.stopped": {
+    "status": "mt",
+    "srcHash": "d8715a4ff2c6"
+  },
+  "designer.versions.button": {
+    "status": "src",
+    "srcHash": "e6140d8ef3ee"
+  },
+  "designer.versions.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.versions.confirm": {
+    "status": "mt",
+    "srcHash": "e84712fbf4ee"
+  },
+  "designer.versions.confirmBody": {
+    "status": "mt",
+    "srcHash": "d2a336cbe2be"
+  },
+  "designer.versions.confirmBodyNone": {
+    "status": "mt",
+    "srcHash": "7cdd79fe9995"
+  },
+  "designer.versions.confirmTitle": {
+    "status": "mt",
+    "srcHash": "5320e3afec4e"
+  },
+  "designer.versions.current": {
+    "status": "mt",
+    "srcHash": "405ab5d2b930"
+  },
+  "designer.versions.failed": {
+    "status": "mt",
+    "srcHash": "1205e3afbe91"
+  },
+  "designer.versions.goBack": {
+    "status": "mt",
+    "srcHash": "8d644565d3a2"
+  },
+  "designer.versions.goBackTo": {
+    "status": "mt",
+    "srcHash": "623dcdd6177b"
+  },
+  "designer.versions.notApplied": {
+    "status": "mt",
+    "srcHash": "ca10fb3c08bb"
+  },
+  "designer.versions.off": {
+    "status": "mt",
+    "srcHash": "65dc47994559"
+  },
+  "designer.versions.offHint": {
+    "status": "mt",
+    "srcHash": "f6d4124a9bfd"
+  },
+  "designer.versions.title": {
+    "status": "mt",
+    "srcHash": "a239107ef28f"
+  },
+  "designer.versions.wentBack": {
+    "status": "mt",
+    "srcHash": "7072e095bdcb"
+  },
+  "designer.work.architecture": {
+    "status": "mt",
+    "srcHash": "b040b4179b8b"
+  },
+  "designer.work.architectureSoon": {
+    "status": "mt",
+    "srcHash": "386091a2f2a9"
+  },
+  "designer.work.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "designer.work.previewSoon": {
+    "status": "mt",
+    "srcHash": "0530bc967ad9"
   },
   "email.actions.archived": {
     "status": "mt",

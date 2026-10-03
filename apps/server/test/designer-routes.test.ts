@@ -385,6 +385,12 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
       'Checked: no errors',
       'Applied the app',
     ]);
+    // What the page words the lines from, in its own language.
+    expect(steps.filter((step) => step.state !== 'running').map(({ label: _label, ...facts }) => facts)).toEqual([
+      expect.objectContaining({ tool: 'write_file', state: 'done', subject: 'apps/repair-desk/manifest/tables/jobs.json' }),
+      expect.objectContaining({ tool: 'check_app', state: 'done', count: 0 }),
+      expect.objectContaining({ tool: 'apply_app', state: 'done' }),
+    ]);
     expect(events.find((event) => event.kind === 'version')).toMatchObject({ n: 1, name: 'v1' });
     const shop = new BetterSqlite3(join(root!, 'shop.db'), { readonly: true });
     const tables = (shop.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((row) => row.name);

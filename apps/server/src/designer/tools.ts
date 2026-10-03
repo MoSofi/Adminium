@@ -248,6 +248,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         return {
           content: [head, ...lines].join('\n'),
           label: errors === 0 ? 'Checked: no errors' : `Checked: ${String(errors)} error${errors === 1 ? '' : 's'}`,
+          facts: { count: errors },
           ...(errors === 0 ? {} : { isError: true, detail: lines.slice(0, 5).join('\n') }),
         };
       },
@@ -267,7 +268,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           return { content: problems.slice(0, 20).join('\n'), label: 'Screens did not build', isError: true, detail: problems.slice(0, 3).join('\n') };
         }
         const sides = app?.sides ?? [];
-        return text(sides.length === 0 ? 'The app has no screens of its own; nothing to build.' : `Built: ${sides.join(', ')}.`, sides.length === 0 ? 'No screens to build' : `Built ${sides.join(' and ')}`);
+        return text(sides.length === 0 ? 'The app has no screens of its own; nothing to build.' : `Built: ${sides.join(', ')}.`, sides.length === 0 ? 'No screens to build' : `Built ${sides.join(' and ')}`, {
+          facts: { count: sides.length },
+        });
       },
     },
     {
@@ -375,18 +378,20 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const name = str(input, 'name') ?? '';
         const version = str(input, 'version') ?? '';
         const why = (str(input, 'why') ?? '').slice(0, 300);
-        if (!PACKAGE_NAME.test(name) || name.length > 214) return refused(`"${name}" is not an npm package name.`, 'No package added');
-        if (!EXACT_VERSION.test(version)) return refused(`"${version}" is not an exact version. Give one like 1.2.3, not a range or a tag.`, 'No package added');
+        if (!PACKAGE_NAME.test(name) || name.length > 214) return { ...refused(`"${name}" is not an npm package name.`, 'No package added'), facts: { outcome: 'refused' } };
+        if (!EXACT_VERSION.test(version)) {
+          return { ...refused(`"${version}" is not an exact version. Give one like 1.2.3, not a range or a tag.`, 'No package added'), facts: { outcome: 'refused' } };
+        }
         const answer = await ctx.ask({ type: 'package', name, version, why });
-        if (answer.type !== 'package' || !answer.accept) return text(`The person said no to ${name}@${version}. Do without it.`, `Did without ${name}`);
+        if (answer.type !== 'package' || !answer.accept) return text(`The person said no to ${name}@${version}. Do without it.`, `Did without ${name}`, { facts: { outcome: 'declined' } });
         const manager = projectPackageManager(deps.root, {});
         const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
         const args = [manager === 'npm' ? 'install' : 'add', `${name}@${version}`, '--ignore-scripts', exact];
         const result = await runChild(manager, args, { cwd: deps.root, timeoutMs: INSTALL_TIMEOUT_MS, signal: ctx.signal });
         if (result.code !== 0) {
-          return refused(`${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`, `Could not add ${name}`);
+          return { ...refused(`${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`, `Could not add ${name}`), facts: { outcome: 'failed' } };
         }
-        return text(`Added ${name}@${version} to the project.`, `Added ${name}@${version}`);
+        return text(`Added ${name}@${version} to the project.`, `Added ${name}@${version}`, { facts: { outcome: 'added' } });
       },
     },
   ];

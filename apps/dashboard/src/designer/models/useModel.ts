@@ -32,21 +32,30 @@ function offered(models: DesignerModels, picked: PickedModel | null): boolean {
   return picked !== null && models.connections.some((connection) => connection.id === picked.connectionId);
 }
 
-export function useDesignerModel() {
+/**
+ * `session`: the build page's model is the session's own; picking one changes the session
+ * (`onPick`) and is not remembered for Home.
+ */
+export function useDesignerModel(session?: { picked: PickedModel; onPick: (next: PickedModel) => void }) {
   const models = useQuery(modelsQuery());
-  const [mine, setMine] = useState<PickedModel | null>(() => remembered());
+  const [mine, setMine] = useState<PickedModel | null>(() => (session === undefined ? remembered() : null));
   const data = models.data;
-  const picked: PickedModel | null = data === undefined ? null : offered(data, mine) ? mine : data.selected;
+  const picked: PickedModel | null = session !== undefined ? session.picked : data === undefined ? null : offered(data, mine) ? mine : data.selected;
   const verdict = data === undefined || picked === null ? undefined : data.verdicts.find((entry) => entry.connectionId === picked.connectionId && entry.model === picked.model);
 
+  const onSessionPick = session?.onPick;
   const pick = useCallback((next: PickedModel) => {
+    if (onSessionPick !== undefined) {
+      onSessionPick(next);
+      return;
+    }
     setMine(next);
     try {
       window.localStorage.setItem(KEY, JSON.stringify(next));
     } catch {
       // A private window: remembered for this page only.
     }
-  }, []);
+  }, [onSessionPick]);
 
   // A remembered model whose connection went away is forgotten.
   useEffect(() => {
