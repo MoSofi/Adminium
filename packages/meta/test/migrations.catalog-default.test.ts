@@ -5,8 +5,8 @@
  *
  * - A NEW store (every migration in one pass) is given no row: both switches
  *   read the new default, on.
- * - A store that already existed (the migration before this one was applied
- *   in an earlier run) gets `false` for each switch it never stored: what it
+ * - A store that already existed (its first migration was applied in an
+ *   earlier run, whichever version it comes from) gets `false` for each switch it never stored: what it
  *   was running on. Upgrading starts no call to adminium.dev.
  * - A value somebody stored, on or off, is never touched.
  * - Running the wave again changes nothing.
@@ -68,10 +68,26 @@ for (const dialect of TEST_DIALECTS) {
       expect(await stored()).toEqual({ 'addOns.catalogEnabled': false, 'apps.catalogEnabled': false });
     });
 
-    it('reads the previous migration applied a moment ago as the same run', async () => {
+    it('keeps a store from before 0.3.13 off too: it applies the migration before this one in the same pass', async () => {
+      // 0049 first shipped in 0.3.13. A store on 0.3.12 has neither it nor this one.
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS.filter((m) => m.name < '0049_project_apps') });
+      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 30 * DAY}`.execute(t.meta.db);
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+      expect(await stored()).toEqual({ 'addOns.catalogEnabled': false, 'apps.catalogEnabled': false });
+      expect(await settingsRepo(t.meta).get('addOns.catalogEnabled')).toBe(false);
+    });
+
+    it('keeps a store from the very first version off', async () => {
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS.slice(0, 3) });
+      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 300 * DAY}`.execute(t.meta.db);
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+      expect(await stored()).toEqual({ 'addOns.catalogEnabled': false, 'apps.catalogEnabled': false });
+    });
+
+    it('reads a first pass that began a few minutes ago as the same run', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: PRE_0050 });
-      // Thirty seconds between two migrations of one slow first pass: still a new store.
-      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 30_000}`.execute(t.meta.db);
+      // A slow first pass on a far database, five minutes in: still a new store.
+      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 5 * 60_000}`.execute(t.meta.db);
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
       expect(await stored()).toEqual({});
     });
