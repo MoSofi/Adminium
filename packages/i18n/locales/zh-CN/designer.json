@@ -254,7 +254,13 @@
     "testsPassed": "测试通过",
     "writing": "正在写入 {subject}",
     "wrote": "已写入 {subject}",
-    "wroteMany": "{count, plural, other {已写入 # 个文件}}"
+    "wroteMany": "{count, plural, other {已写入 # 个文件}}",
+    "missed": "查找了 {subject} — 不存在",
+    "missedPlain": "查找了不存在的内容",
+    "readFailed": "无法读取 {subject}",
+    "writeFailed": "无法写入 {subject}",
+    "editFailed": "无法编辑 {subject}",
+    "deleteFailed": "无法删除 {subject}"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -262,7 +268,8 @@
     "summary": "{count, plural, other {# 步}} · {seconds} 秒",
     "usage": "第 {step} 步 · 目前已用 {tokens} 个令牌",
     "working": "正在处理",
-    "seconds": "{seconds} 秒"
+    "seconds": "{seconds} 秒",
+    "failedMark": "（失败）"
   },
   "turn": {
     "continue": "继续",

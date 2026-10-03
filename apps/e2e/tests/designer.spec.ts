@@ -138,4 +138,38 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   await expect(page.getByRole('heading', { name: 'How Repair desk fits together' })).toBeVisible();
   await expect(page.getByRole('tabpanel').last().getByRole('button', { name: 'jobs' })).toBeVisible();
   await bothThemes(page, 'Architecture', testInfo);
+
+  // The chat column over a streamed turn, in a window short enough that it scrolls: it stays at its
+  // end at every frame, and never moves back up while the Designer writes (it used to, by a line at
+  // every file written, and a stray scroll event could stop it following for good).
+  await page.setViewportSize({ width: 1280, height: 520 });
+  await page.getByRole('tab', { name: 'Preview' }).click();
+  await page.evaluate(() => {
+    const scroller = document.querySelector('aside .nb-scroll') as HTMLElement;
+    const frames: [number, number, number][] = [];
+    (window as unknown as { chatFrames: typeof frames }).chatFrames = frames;
+    const tick = (): void => {
+      frames.push([scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight]);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByRole('textbox', { name: 'Message to Adminium Designer' }).fill('Write them again, exactly as they are.');
+  await page.keyboard.press('Enter');
+  // The same files again change nothing, so no version is saved: the turn is over when its own reply and summary are there.
+  await expect(page.getByText('The app has a jobs table now. It is applied and saved.')).toHaveCount(2, { timeout: 120_000 });
+  await expect(page.getByRole('button', { name: /steps ·/ })).toHaveCount(2);
+  const frames = await page.evaluate(() => (window as unknown as { chatFrames: [number, number, number][] }).chatFrames);
+  expect(frames.length).toBeGreaterThan(5);
+  expect(Math.max(...frames.map(([, height, client]) => height - client)), 'the chat never overflowed: the test proves nothing').toBeGreaterThan(40);
+  let offEnd = 0;
+  let movedBack = 0;
+  frames.forEach(([top, height, client], index) => {
+    const before = frames[index - 1];
+    // Off its end for two frames running is something a person sees.
+    if (height - top - client > 1 && before !== undefined && before[1] - before[0] - before[2] > 1) offEnd += 1;
+    // Up, while nothing was taken away below it.
+    if (before !== undefined && top < before[0] - 1 && height >= before[1]) movedBack += 1;
+  });
+  expect({ offEnd, movedBack }).toEqual({ offEnd: 0, movedBack: 0 });
 });

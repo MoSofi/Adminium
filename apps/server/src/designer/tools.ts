@@ -157,7 +157,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     try {
       return step();
     } catch (error) {
-      if (error instanceof JailError) return refused(error.message, label);
+      // A path that is not there is a miss the model recovers from, not a failure of the step.
+      if (error instanceof JailError) return { ...refused(error.message, label), ...(error.message.endsWith(' does not exist.') ? { miss: true } : {}) };
       throw error;
     }
   };
@@ -559,10 +560,13 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         if (found === null) {
           // A guessed name: answer with the index of the folder it guessed in, so the next call is right.
           const index = nearestIndex(deps.skills, name);
-          return refused(
-            `There is no skill file "${name}".${index === null ? ' Read a skill’s references/INDEX.md for the names.' : ` The files there are listed below; give read_reference one of these names, with "${index.skill}/" in front.\n\n${index.text}`}`,
-            'No such reference',
-          );
+          return {
+            ...refused(
+              `There is no skill file "${name}".${index === null ? ' Read a skill’s references/INDEX.md for the names.' : ` The files there are listed below; give read_reference one of these names, with "${index.skill}/" in front.\n\n${index.text}`}`,
+              'No such reference',
+            ),
+            miss: true,
+          };
         }
         return text(found, `Read ${name}`);
       },

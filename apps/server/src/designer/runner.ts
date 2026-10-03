@@ -154,6 +154,12 @@ interface Running {
   done: Promise<void>;
 }
 
+/** The first line of a refusal, short enough for a step's line on the page. */
+function whyOf(content: string): string {
+  const line = content.split('\n', 1)[0] ?? '';
+  return line.length > 240 ? `${line.slice(0, 239)}…` : line;
+}
+
 /** The file or name a call is about, for the page to name: its `path`, else its `name`. */
 function stepSubject(input: Record<string, unknown>): string | undefined {
   const value = typeof input['path'] === 'string' ? input['path'] : typeof input['name'] === 'string' ? input['name'] : undefined;
@@ -359,8 +365,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               ms: now() - started,
               ...about,
               ...(done.facts ?? {}),
-              ...(done.isError === true ? { ended: 'error' as const } : {}),
-              ...(done.detail === undefined ? {} : { detail: done.detail }),
+              ...(done.isError === true ? { ended: done.miss === true ? ('miss' as const) : ('error' as const) } : {}),
+              // A failure says why on the page too: the first line of what the model was told.
+              ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
           } catch (error) {

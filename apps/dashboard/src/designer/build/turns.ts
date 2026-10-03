@@ -16,7 +16,8 @@ export interface StepRow extends StepFacts {
   id: string;
   tool: string;
   label: string;
-  state: 'running' | 'done' | 'failed';
+  /** `missed`: what was looked for is not there, and the Designer went on. Not a failure. */
+  state: 'running' | 'done' | 'failed' | 'missed';
   ms: number | null;
   detail: string | null;
   /** Rows folded into this one: files written one after another. */
@@ -78,14 +79,27 @@ function blank(turn: number, at: number): TurnView {
   };
 }
 
-/** Consecutive finished file writes, folded into one row. */
+/**
+ * Consecutive file writes, folded into one row. A write still running joins
+ * the row above it at once ("Writing b", then "Wrote 2 files"): a row that
+ * appeared and then folded away made the list grow and shrink by a line at
+ * every write, and the chat moved up and down with it.
+ */
 function fold(rows: StepRow[]): StepRow[] {
   const out: StepRow[] = [];
   for (const row of rows) {
     const last = out.at(-1);
-    if (last !== undefined && FOLDABLE.has(row.tool) && FOLDABLE.has(last.tool) && row.state === 'done' && last.state === 'done') {
+    if (last !== undefined && FOLDABLE.has(row.tool) && FOLDABLE.has(last.tool) && last.state === 'done' && (row.state === 'done' || row.state === 'running')) {
       const { subject: _subject, ...rest } = last;
-      out[out.length - 1] = { ...rest, folded: last.folded + 1, ms: (last.ms ?? 0) + (row.ms ?? 0) };
+      out[out.length - 1] = {
+        ...rest,
+        tool: row.tool,
+        state: row.state,
+        folded: last.folded + 1,
+        ms: (last.ms ?? 0) + (row.ms ?? 0),
+        // While it runs the row names the file being written; done, it counts them.
+        ...(row.state === 'running' && row.subject !== undefined ? { subject: row.subject } : {}),
+      };
       continue;
     }
     out.push(row);
@@ -123,7 +137,8 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
           id: event.id,
           tool: event.tool,
           label: event.label,
-          state: event.state,
+          // A session written before misses were told apart says a wrong reference name this way.
+          state: event.state === 'failed' && (event.ended === 'miss' || (event.tool === 'read_reference' && event.label === 'No such reference')) ? 'missed' : event.state,
           ms: event.ms ?? null,
           detail: event.detail ?? null,
           folded: 1,
@@ -173,8 +188,8 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         if (!event.ok) list.push({ id: `build-${String(event.seq)}`, tool: 'build', label: 'Build', state: 'failed', ms: null, detail: event.problems.slice(0, 3).join('\n') || null, folded: 1 });
         break;
       case 'apply':
-        // A good apply is said once: by the tool's own step, or by the first apply event of the turn.
-        if (event.ok && list.some((row) => (row.tool === 'apply_app' && row.state === 'done') || (row.tool === 'apply' && row.state === 'done'))) break;
+        // A good apply is said once: by the tool's own step (which is still running when its apply is told), or by the first apply event of the turn.
+        if (event.ok && list.some((row) => (row.tool === 'apply_app' && row.state !== 'failed') || (row.tool === 'apply' && row.state === 'done'))) break;
         list.push({
           id: `apply-${String(event.seq)}`,
           tool: 'apply',

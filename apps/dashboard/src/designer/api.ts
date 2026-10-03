@@ -116,7 +116,7 @@ export type StepFacts = {
   subject?: string;
   count?: number;
   outcome?: 'added' | 'declined' | 'refused' | 'failed';
-  ended?: 'stopped' | 'error';
+  ended?: 'stopped' | 'error' | 'miss';
 };
 
 export type DesignerEventBody =

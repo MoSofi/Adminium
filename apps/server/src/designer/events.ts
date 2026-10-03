@@ -38,8 +38,8 @@ export type DesignerEventBody =
       count?: number;
       /** What came of a package asked for. */
       outcome?: 'added' | 'declined' | 'refused' | 'failed';
-      /** How a failed step ended: stopped by the person, or an error in the tool. */
-      ended?: 'stopped' | 'error';
+      /** How a failed step ended: stopped by the person, an error in the tool, or a miss (a file or reference that is not there, which the model is told how to find). */
+      ended?: 'stopped' | 'error' | 'miss';
     }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
   | { kind: 'spend'; which: SpendMark; mark: number; used: number }

@@ -217,6 +217,10 @@ describe('the Designer’s tools', () => {
     // A guessed name is answered with the index of the folder it guessed in.
     const guessed = await run('read_reference', { name: 'adminium-app/references/guides/manifest-by-task--page-crud.md' });
     expect(guessed.isError).toBe(true);
+    // Not there, and told where to look: a miss, which the page does not draw as a failure.
+    expect(guessed.miss).toBe(true);
+    expect(await run('read_file', { path: 'apps/repairs/manifest/tables/nope.json' })).toMatchObject({ isError: true, miss: true });
+    expect((await run('read_file', { path: '../outside.txt' })).miss).toBeUndefined();
     expect(guessed.content).toContain('`references/guides/manifest-by-task--add-a-dashboard-page.md`');
     expect(guessed.content).toContain('"adminium-app/" in front');
   });

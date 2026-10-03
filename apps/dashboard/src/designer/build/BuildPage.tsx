@@ -40,6 +40,7 @@ import { TopBar } from '../parts/TopBar.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
 import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
+import { useFollowEnd } from './useFollowEnd.js';
 import { useSessionEvents } from './useSessionEvents.js';
 import { WorkArea } from './WorkArea.js';
 
@@ -71,8 +72,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const [chatWidth, setChatWidth] = useState<number>(CHAT_WIDTH.start);
   const [tab, setTab] = useState<'chat' | 'preview'>('chat');
   const box = useRef<HTMLTextAreaElement>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const pinned = useRef(true);
+  const follow = useFollowEnd([events.length]);
 
   const refresh = (): void => {
     void queryClient.invalidateQueries({ queryKey: designerKeys.session(sessionId) });
@@ -99,11 +99,16 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     if (news && fresh.some((event) => event.kind === 'spend')) playSpendSound();
   }, [events, loaded]);
 
-  // Follow the end of the chat unless the person scrolled up to read.
+  // A card that waits for the person is never left out of sight: it is scrolled to, and focus goes to it
+  // (unless they are in the middle of writing a message, which a card must not take from under their hands).
+  const waitingId = waiting.at(-1)?.id ?? null;
   useEffect(() => {
-    const el = scroller.current;
-    if (el !== null && pinned.current) el.scrollTop = el.scrollHeight;
-  }, [events.length]);
+    if (waitingId === null) return;
+    const card = [...(follow.scroller.current?.querySelectorAll<HTMLElement>('[data-card-id]') ?? [])].find((el) => el.dataset['cardId'] === waitingId);
+    if (card === undefined) return;
+    follow.reveal(card);
+    if (!(document.activeElement === box.current && (box.current?.value ?? '') !== '')) card.focus({ preventScroll: true });
+  }, [waitingId, follow.reveal, follow.scroller]);
 
   const fail = (title: string) => (error: unknown) => toasts.push({ variant: 'error', title, description: errorText(error) });
 
@@ -116,7 +121,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     mutationFn: (message: string) => designerApi.startTurn(sessionId, message),
     onSuccess: () => {
       setText('');
-      pinned.current = true;
+      follow.pin();
     },
     onError: fail(t('designer:build.turnFailed', 'The Designer could not start this turn')),
   });
@@ -343,17 +348,11 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           style={{ '--designer-chat-w': `${String(chatWidth)}px` }}
           className={`flex min-w-0 flex-col border-border bg-surface max-md:w-full md:w-[var(--designer-chat-w)] md:shrink-0 md:border-e ${tab === 'chat' ? '' : 'max-md:hidden'}`}
         >
-          <div
-            ref={scroller}
-            onScroll={(event) => {
-              const el = event.currentTarget;
-              pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-            }}
-            aria-busy={!loaded}
-            className="nb-scroll flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-3 pt-[22px]"
-          >
-            {turns.map((turn, index) => turnBlock(turn, index === turns.length - 1))}
-            {loaded && turns.length === 0 ? <p className="m-0 text-center text-[13px] text-fg-muted">{t('designer:build.empty', 'Describe what to build or change, and the Designer starts.')}</p> : null}
+          <div ref={follow.scroller} onScroll={follow.onScroll} aria-busy={!loaded} className="nb-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-[22px] [overflow-anchor:none]">
+            <div ref={follow.content} className="flex flex-col gap-5">
+              {turns.map((turn, index) => turnBlock(turn, index === turns.length - 1))}
+              {loaded && turns.length === 0 ? <p className="m-0 text-center text-[13px] text-fg-muted">{t('designer:build.empty', 'Describe what to build or change, and the Designer starts.')}</p> : null}
+            </div>
           </div>
           <SpendNotice warnings={spend} />
           <BuildComposer

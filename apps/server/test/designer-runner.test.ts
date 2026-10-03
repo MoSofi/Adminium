@@ -413,6 +413,22 @@ describe('a Designer turn', () => {
     expect(stuck.pipelineRuns).toBe(0);
   });
 
+  it('says a miss is a miss and gives a real refusal its reason, for the page', async () => {
+    const session = newSession();
+    const missing: DesignerTool = { ...echo, name: 'read_file', run: async () => ({ content: 'There is no skill file "x.md". The files there are listed below.\n\n- a.md\n- b.md', label: 'No such reference', isError: true, miss: true }) };
+    const refusing: DesignerTool = { ...echo, name: 'write_file', run: async () => ({ content: 'That is not valid JSON, and nothing was written: line 3.\nSend the whole file again.', label: 'Could not write x', isError: true }) };
+    const h = harness([calls('read_file'), calls('write_file'), says('ok')], { tools: [missing, refusing] });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    const ended = h.published.filter((event) => event.kind === 'step' && event.state === 'failed');
+    expect(ended[0]).toMatchObject({ tool: 'read_file', ended: 'miss' });
+    expect(ended[0]).not.toHaveProperty('detail');
+    expect(ended[1]).toMatchObject({ tool: 'write_file', ended: 'error', detail: 'That is not valid JSON, and nothing was written: line 3.' });
+    // The model is told both in full, as errors: it is the page that draws them apart.
+    expect(h.model.requests[1]?.messages.at(-1)?.content[0]).toMatchObject({ isError: true, content: expect.stringContaining('- a.md') });
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+  });
+
   it('tells the model a tool it named does not exist, and goes on', async () => {
     const session = newSession();
     const h = harness([calls('run_shell'), says('ok')]);

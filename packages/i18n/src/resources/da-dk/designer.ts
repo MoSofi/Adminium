@@ -264,7 +264,13 @@ export default {
     "testsPassed": "Tests bestået",
     "writing": "Skriver {subject}",
     "wrote": "Skrev {subject}",
-    "wroteMany": "{count, plural, one {Skrev # fil} other {Skrev # filer}}"
+    "wroteMany": "{count, plural, one {Skrev # fil} other {Skrev # filer}}",
+    "missed": "Ledte efter {subject} — findes ikke",
+    "missedPlain": "Ledte efter noget, der ikke findes",
+    "readFailed": "Kunne ikke læse {subject}",
+    "writeFailed": "Kunne ikke skrive {subject}",
+    "editFailed": "Kunne ikke redigere {subject}",
+    "deleteFailed": "Kunne ikke slette {subject}"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -272,7 +278,8 @@ export default {
     "summary": "{count, plural, one {# trin} other {# trin}} · {seconds} s",
     "usage": "Trin {step} · {tokens} tokens indtil nu",
     "working": "Arbejder",
-    "seconds": "{seconds} s"
+    "seconds": "{seconds} s",
+    "failedMark": "(mislykkedes)"
   },
   "turn": {
     "continue": "Fortsæt",

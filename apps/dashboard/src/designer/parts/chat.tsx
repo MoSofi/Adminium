@@ -12,6 +12,7 @@ import { useId, type ReactNode } from 'react';
 import {
   Check,
   ChevronDown,
+  CircleSlash2,
   CircleAlert,
   CircleStop,
   CircleX,
@@ -32,6 +33,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import type { DesignerCard, LimitKind, SpendMark } from '../api.js';
 import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
 import type { StepRow } from '../build/turns.js';
+import { Markdown } from './markdown.js';
 
 const SECONDARY = 'inline-flex items-center gap-1.5 rounded-[10px] border border-border-strong bg-surface px-3 py-[7px] text-[12.5px] font-bold text-fg hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50';
 const PRIMARY = 'inline-flex items-center gap-1.5 rounded-[10px] bg-accent px-3 py-[7px] text-[12.5px] font-bold text-accent-fg hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50';
@@ -90,10 +92,9 @@ export function DesignerMessage({ text, streaming, children }: { text: string; s
         {t('designer:brand', 'Adminium Designer')}
       </div>
       {text === '' && !streaming ? null : (
-        <p dir="auto" aria-live={streaming ? 'polite' : undefined} className="m-0 whitespace-pre-wrap text-pretty text-[13.5px] leading-normal text-fg">
-          {text}
-          {streaming ? <span aria-hidden="true" className="ms-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] animate-pulse bg-accent" /> : null}
-        </p>
+        <div aria-live={streaming ? 'polite' : undefined}>
+          <Markdown text={text} caret={streaming ? <span aria-hidden="true" className="ms-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] animate-pulse bg-accent" /> : null} />
+        </div>
       )}
       {children}
     </div>
@@ -157,11 +158,20 @@ export function StepsBlock({
               <li key={row.id} className="flex flex-col gap-1">
                 <div className="flex items-start gap-2">
                   <span aria-hidden="true" className={`mt-0.5 flex shrink-0 ${tone}`}>
-                    {row.state === 'running' ? <LoaderCircle className="size-[13px] animate-spin" /> : row.state === 'failed' ? <CircleX className="size-[13px]" /> : <Check className="size-[13px]" />}
+                    {row.state === 'running' ? (
+                      <LoaderCircle className="size-[13px] animate-spin" />
+                    ) : row.state === 'failed' ? (
+                      <CircleX className="size-[13px]" />
+                    ) : row.state === 'missed' ? (
+                      <CircleSlash2 className="size-[13px]" />
+                    ) : (
+                      <Check className="size-[13px]" />
+                    )}
                   </span>
                   <span className={`min-w-0 flex-1 break-words text-[12.5px] leading-snug ${row.state === 'failed' ? 'font-bold text-danger' : row.state === 'running' ? 'font-bold text-fg' : 'text-fg-muted'}`}>
                     <StepLine row={row} />
                     {row.state === 'running' ? <span className="sr-only"> {t('designer:steps.running', '(running)')}</span> : null}
+                    {row.state === 'failed' ? <span className="sr-only"> {t('designer:steps.failedMark', '(failed)')}</span> : null}
                   </span>
                   {row.ms === null || row.state === 'running' ? null : (
                     <span className="shrink-0 font-mono text-[11px] text-fg-subtle">{t('designer:steps.seconds', '{seconds} s', { seconds: secondsOf(row.ms) })}</span>
@@ -196,10 +206,31 @@ export function SavedChip({ name }: { name: string }): ReactNode {
   );
 }
 
-function CardShell({ tone = 'plain', icon, title, children, role = 'group' }: { tone?: 'plain' | 'danger'; icon: ReactNode; title: ReactNode; children: ReactNode; role?: 'group' | 'alert' }): ReactNode {
+function CardShell({
+  tone = 'plain',
+  icon,
+  title,
+  children,
+  role = 'group',
+  cardId,
+}: {
+  tone?: 'plain' | 'danger';
+  icon: ReactNode;
+  title: ReactNode;
+  children: ReactNode;
+  role?: 'group' | 'alert';
+  /** The page finds a waiting card by this, to scroll to it and focus it. */
+  cardId: string;
+}): ReactNode {
   const titleId = useId();
   return (
-    <div role={role} aria-labelledby={titleId} className={`flex flex-col gap-3 rounded-xl border bg-surface p-3.5 shadow-sm ${tone === 'danger' ? 'border-danger/35' : 'border-border-strong'}`}>
+    <div
+      role={role}
+      aria-labelledby={titleId}
+      data-card-id={cardId}
+      tabIndex={-1}
+      className={`flex flex-col gap-3 rounded-xl border bg-surface p-3.5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${tone === 'danger' ? 'border-danger/35' : 'border-border-strong'}`}
+    >
       <div className="flex items-start gap-[9px]">
         <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${tone === 'danger' ? 'bg-danger-soft text-danger' : 'bg-surface-3 text-fg-muted'}`}>
           {icon}
@@ -229,7 +260,7 @@ export function QuestionCard({
   onOwnWords: () => void;
 }): ReactNode {
   return (
-    <CardShell icon={<MessageCircleQuestion className="size-4" />} title={card.question}>
+    <CardShell cardId={card.id} icon={<MessageCircleQuestion className="size-4" />} title={card.question}>
       {answered ? (
         <p className="m-0 text-[12.5px] text-fg-muted">
           {answer === undefined || answer === '' ? t('designer:card.noAnswer', 'No answer was given.') : t('designer:card.youAnswered', 'You answered: {answer}', { answer })}
@@ -304,7 +335,7 @@ export function RemovalCard({
         : t('designer:card.keepAll', 'Keep them');
   const goLabel = narrowing ? t('designer:card.narrowIt', 'Narrow it') : only !== undefined ? t('designer:card.removeIt', 'Remove it and its data') : t('designer:card.removeAll', 'Remove them and their data');
   return (
-    <CardShell role="alert" tone="danger" icon={<TriangleAlert className="size-[15px]" />} title={narrowing ? t('designer:card.narrowTitle', 'This change narrows a column') : t('designer:card.removalTitle', 'This change removes data')}>
+    <CardShell cardId={card.id} role="alert" tone="danger" icon={<TriangleAlert className="size-[15px]" />} title={narrowing ? t('designer:card.narrowTitle', 'This change narrows a column') : t('designer:card.removalTitle', 'This change removes data')}>
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
         {card.changes.map((change) => (
           <li key={`${change.table}.${change.column ?? ''}.${change.kind}`} className="text-[13px] leading-normal text-fg-muted">
@@ -351,7 +382,7 @@ export function PackageCard({
   onSkip: () => void;
 }): ReactNode {
   return (
-    <CardShell icon={<Package className="size-[15px]" />} title={withMono(t('designer:card.package', 'A package is needed: {name} ({version}). Add it?', { name: M1, version: M2 }), [M1, M2], [card.name, card.version])}>
+    <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={withMono(t('designer:card.package', 'A package is needed: {name} ({version}). Add it?', { name: M1, version: M2 }), [M1, M2], [card.name, card.version])}>
       {card.why === '' ? null : (
         <p dir="auto" className="m-0 text-[12.5px] leading-normal text-fg-muted">
           {card.why}

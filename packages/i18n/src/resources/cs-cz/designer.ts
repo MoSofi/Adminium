@@ -264,7 +264,13 @@ export default {
     "testsPassed": "Testy prošly",
     "writing": "Zapisuje {subject}",
     "wrote": "Zapsáno {subject}",
-    "wroteMany": "{count, plural, one {Zapsán # soubor} few {Zapsány # soubory} many {Zapsáno # souboru} other {Zapsáno # souborů}}"
+    "wroteMany": "{count, plural, one {Zapsán # soubor} few {Zapsány # soubory} many {Zapsáno # souboru} other {Zapsáno # souborů}}",
+    "missed": "Hledal {subject} — není tam",
+    "missedPlain": "Hledal něco, co tam není",
+    "readFailed": "Nepodařilo se přečíst {subject}",
+    "writeFailed": "Nepodařilo se zapsat {subject}",
+    "editFailed": "Nepodařilo se upravit {subject}",
+    "deleteFailed": "Nepodařilo se smazat {subject}"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -272,7 +278,8 @@ export default {
     "summary": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}} · {seconds} s",
     "usage": "Krok {step} · zatím {tokens} tokenů",
     "working": "Pracuje",
-    "seconds": "{seconds} s"
+    "seconds": "{seconds} s",
+    "failedMark": "(selhalo)"
   },
   "turn": {
     "continue": "Pokračovat",

@@ -15,6 +15,14 @@ const S = { subject: SUBJECT };
 export function stepLine(row: StepRow): string {
   const running = row.state === 'running';
   if (row.state === 'failed' && row.ended === 'stopped') return t('designer:step.stopped', 'Stopped');
+  if (row.state === 'missed') return row.subject === undefined ? t('designer:step.missedPlain', 'Looked for something that is not there') : t('designer:step.missed', 'Looked for {subject} — not there', S);
+  if (row.state === 'failed' && row.subject !== undefined) {
+    // A file step that failed says so: "Wrote x" in red reads as if it had been written.
+    if (row.tool === 'read_file' || row.tool === 'read_reference') return t('designer:step.readFailed', 'Could not read {subject}', S);
+    if (row.tool === 'write_file') return t('designer:step.writeFailed', 'Could not write {subject}', S);
+    if (row.tool === 'edit_file') return t('designer:step.editFailed', 'Could not edit {subject}', S);
+    if (row.tool === 'delete_file') return t('designer:step.deleteFailed', 'Could not delete {subject}', S);
+  }
   switch (row.tool) {
     case 'list_files':
       return running ? t('designer:step.listing', 'Listing files') : t('designer:step.listed', 'Listed the files');
@@ -22,7 +30,7 @@ export function stepLine(row: StepRow): string {
       return running ? t('designer:step.reading', 'Reading {subject}', S) : t('designer:step.read', 'Read {subject}', S);
     case 'write_file':
     case 'edit_file':
-      if (row.folded > 1) return t('designer:step.wroteMany', '{count, plural, one {Wrote # file} other {Wrote # files}}', { count: row.folded });
+      if (row.folded > 1 && !running) return t('designer:step.wroteMany', '{count, plural, one {Wrote # file} other {Wrote # files}}', { count: row.folded });
       if (row.tool === 'edit_file') return running ? t('designer:step.editing', 'Editing {subject}', S) : t('designer:step.edited', 'Edited {subject}', S);
       return running ? t('designer:step.writing', 'Writing {subject}', S) : t('designer:step.wrote', 'Wrote {subject}', S);
     case 'delete_file':

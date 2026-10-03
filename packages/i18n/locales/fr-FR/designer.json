@@ -254,7 +254,13 @@
     "testsPassed": "Tests réussis",
     "writing": "Écrit {subject}",
     "wrote": "{subject} écrit",
-    "wroteMany": "{count, plural, one {# fichier écrit} other {# fichiers écrits}}"
+    "wroteMany": "{count, plural, one {# fichier écrit} other {# fichiers écrits}}",
+    "missed": "A cherché {subject} — introuvable",
+    "missedPlain": "A cherché quelque chose qui n’existe pas",
+    "readFailed": "Impossible de lire {subject}",
+    "writeFailed": "Impossible d’écrire {subject}",
+    "editFailed": "Impossible de modifier {subject}",
+    "deleteFailed": "Impossible de supprimer {subject}"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -262,7 +268,8 @@
     "summary": "{count, plural, one {# étape} other {# étapes}} · {seconds} s",
     "usage": "Étape {step} · {tokens} jetons jusqu’ici",
     "working": "En cours",
-    "seconds": "{seconds} s"
+    "seconds": "{seconds} s",
+    "failedMark": "(échec)"
   },
   "turn": {
     "continue": "Continuer",

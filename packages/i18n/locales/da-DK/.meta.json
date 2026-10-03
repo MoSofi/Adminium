@@ -9375,6 +9375,10 @@
     "status": "mt",
     "srcHash": "0a17d550680d"
   },
+  "designer.step.deleteFailed": {
+    "status": "mt",
+    "srcHash": "98d6f3c18a7f"
+  },
   "designer.step.deleted": {
     "status": "mt",
     "srcHash": "1af4fca8d430"
@@ -9382,6 +9386,10 @@
   "designer.step.deleting": {
     "status": "mt",
     "srcHash": "1e79ee83d631"
+  },
+  "designer.step.editFailed": {
+    "status": "mt",
+    "srcHash": "d531e4e43512"
   },
   "designer.step.edited": {
     "status": "mt",
@@ -9402,6 +9410,14 @@
   "designer.step.listing": {
     "status": "mt",
     "srcHash": "0ba2472f2439"
+  },
+  "designer.step.missed": {
+    "status": "mt",
+    "srcHash": "09c08936e181"
+  },
+  "designer.step.missedPlain": {
+    "status": "mt",
+    "srcHash": "121bfa240a1e"
   },
   "designer.step.noScreens": {
     "status": "mt",
@@ -9434,6 +9450,10 @@
   "designer.step.read": {
     "status": "mt",
     "srcHash": "1c567849f6ff"
+  },
+  "designer.step.readFailed": {
+    "status": "mt",
+    "srcHash": "61b61875b510"
   },
   "designer.step.reading": {
     "status": "mt",
@@ -9475,6 +9495,10 @@
     "status": "mt",
     "srcHash": "62a3e0068aa2"
   },
+  "designer.step.writeFailed": {
+    "status": "mt",
+    "srcHash": "73b5af5ba5eb"
+  },
   "designer.step.writing": {
     "status": "mt",
     "srcHash": "71ba2d225870"
@@ -9490,6 +9514,10 @@
   "designer.steps.count": {
     "status": "mt",
     "srcHash": "6350a7384d7c"
+  },
+  "designer.steps.failedMark": {
+    "status": "mt",
+    "srcHash": "47cb70a9d33d"
   },
   "designer.steps.running": {
     "status": "mt",

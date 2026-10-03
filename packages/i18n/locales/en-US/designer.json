@@ -254,7 +254,13 @@
     "testsPassed": "Tests passed",
     "writing": "Writing {subject}",
     "wrote": "Wrote {subject}",
-    "wroteMany": "{count, plural, one {Wrote # file} other {Wrote # files}}"
+    "wroteMany": "{count, plural, one {Wrote # file} other {Wrote # files}}",
+    "missed": "Looked for {subject} — not there",
+    "missedPlain": "Looked for something that is not there",
+    "readFailed": "Could not read {subject}",
+    "writeFailed": "Could not write {subject}",
+    "editFailed": "Could not edit {subject}",
+    "deleteFailed": "Could not delete {subject}"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -262,7 +268,8 @@
     "summary": "{count, plural, one {# step} other {# steps}} · {seconds} s",
     "usage": "Step {step} · {tokens} tokens so far",
     "working": "Working",
-    "seconds": "{seconds} s"
+    "seconds": "{seconds} s",
+    "failedMark": "(failed)"
   },
   "turn": {
     "continue": "Continue",

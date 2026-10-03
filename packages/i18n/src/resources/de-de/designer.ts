@@ -264,7 +264,13 @@ export default {
     "testsPassed": "Tests bestanden",
     "writing": "Schreibt {subject}",
     "wrote": "{subject} geschrieben",
-    "wroteMany": "{count, plural, one {# Datei geschrieben} other {# Dateien geschrieben}}"
+    "wroteMany": "{count, plural, one {# Datei geschrieben} other {# Dateien geschrieben}}",
+    "missed": "Nach {subject} gesucht — nicht vorhanden",
+    "missedPlain": "Nach etwas gesucht, das nicht vorhanden ist",
+    "readFailed": "{subject} konnte nicht gelesen werden",
+    "writeFailed": "{subject} konnte nicht geschrieben werden",
+    "editFailed": "{subject} konnte nicht bearbeitet werden",
+    "deleteFailed": "{subject} konnte nicht gelöscht werden"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -272,7 +278,8 @@ export default {
     "summary": "{count, plural, one {# Schritt} other {# Schritte}} · {seconds} s",
     "usage": "Schritt {step} · bisher {tokens} Tokens",
     "working": "Arbeitet",
-    "seconds": "{seconds} s"
+    "seconds": "{seconds} s",
+    "failedMark": "(fehlgeschlagen)"
   },
   "turn": {
     "continue": "Weiter",

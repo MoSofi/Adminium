@@ -264,7 +264,13 @@ export default {
     "testsPassed": "測試通過",
     "writing": "正在寫入 {subject}",
     "wrote": "已寫入 {subject}",
-    "wroteMany": "{count, plural, other {已寫入 # 個檔案}}"
+    "wroteMany": "{count, plural, other {已寫入 # 個檔案}}",
+    "missed": "尋找了 {subject} — 不存在",
+    "missedPlain": "尋找了不存在的內容",
+    "readFailed": "無法讀取 {subject}",
+    "writeFailed": "無法寫入 {subject}",
+    "editFailed": "無法編輯 {subject}",
+    "deleteFailed": "無法刪除 {subject}"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -272,7 +278,8 @@ export default {
     "summary": "{count, plural, other {# 步}} · {seconds} 秒",
     "usage": "第 {step} 步 · 目前已用 {tokens} 個詞元",
     "working": "正在處理",
-    "seconds": "{seconds} 秒"
+    "seconds": "{seconds} 秒",
+    "failedMark": "（失敗）"
   },
   "turn": {
     "continue": "繼續",

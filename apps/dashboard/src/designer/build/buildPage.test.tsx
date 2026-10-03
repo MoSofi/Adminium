@@ -195,6 +195,31 @@ describe('the build page', () => {
     expect(screen.getByText(/Saved as/).textContent).toBe('Saved as v1');
   });
 
+  it('draws the reply as Markdown and a miss plainly, not as a failure', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A bike repair shop.' }, 0),
+      ev(1, { kind: 'text', delta: '## Done\n\nI built **Repair Desk** with:\n\n- a `jobs` table\n- a board\n\n<img src=x onerror=alert(1)>' }),
+      ev(1, { kind: 'step', id: 'a', tool: 'read_reference', label: 'No such reference', state: 'failed', ms: 2, subject: 'adminium-app/references/guides/nope.md', ended: 'miss' }),
+      ev(1, { kind: 'step', id: 'b', tool: 'write_file', label: 'Could not write', state: 'failed', ms: 2, subject: 'apps/repairs/manifest/tables/jobs.json', ended: 'error', detail: 'That is not valid JSON, and nothing was written.' }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }, 900),
+    ];
+    await open();
+    const chat = screen.getByRole('complementary', { name: 'Chat' });
+    expect((await within(chat).findByRole('heading', { name: 'Done' })).tagName).toBe('H3');
+    expect(within(chat).getByText('Repair Desk').tagName).toBe('STRONG');
+    expect(within(chat).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['a jobs table', 'a board']);
+    expect(chat.querySelector('img')).toBeNull();
+    expect(within(chat).getByText('<img src=x onerror=alert(1)>')).toBeTruthy();
+
+    await userEvent.click(within(chat).getByRole('button', { name: /2 steps/ }));
+    const miss = within(chat).getByText(/Looked for/);
+    expect(miss.textContent).toBe('Looked for adminium-app/references/guides/nope.md — not there');
+    expect(miss.className).not.toContain('text-danger');
+    const failed = within(chat).getByText(/Could not write/);
+    expect(failed.className).toContain('text-danger');
+    expect(within(chat).getByText('That is not valid JSON, and nothing was written.')).toBeTruthy();
+  });
+
   it('streams a turn with a caret, reads again on a gap, sends on Enter and stops', async () => {
     const history = finishedTurn();
     stored = history;
@@ -232,6 +257,8 @@ describe('the build page', () => {
     ];
     await open();
     const card = await screen.findByRole('group', { name: 'Should mechanics see part prices?' });
+    // A card that waits takes the focus: it is never left unseen below the fold.
+    await waitFor(() => expect(document.activeElement).toBe(card));
     await userEvent.click(within(card).getByRole('button', { name: 'No, hide prices' }));
     expect(posted('/answers')).toEqual([{ cardId: 'q1', value: { text: 'No, hide prices' } }]);
 

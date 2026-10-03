@@ -264,7 +264,13 @@ export default {
     "testsPassed": "نجحت الاختبارات",
     "writing": "يكتب {subject}",
     "wrote": "كتب {subject}",
-    "wroteMany": "{count, plural, zero {لم يكتب ملفات} one {كتب ملفًا واحدًا} two {كتب ملفين} few {كتب # ملفات} many {كتب # ملفًا} other {كتب # ملف}}"
+    "wroteMany": "{count, plural, zero {لم يكتب ملفات} one {كتب ملفًا واحدًا} two {كتب ملفين} few {كتب # ملفات} many {كتب # ملفًا} other {كتب # ملف}}",
+    "missed": "بحث عن {subject} — غير موجود",
+    "missedPlain": "بحث عن شيء غير موجود",
+    "readFailed": "تعذّرت قراءة {subject}",
+    "writeFailed": "تعذّرت كتابة {subject}",
+    "editFailed": "تعذّر تعديل {subject}",
+    "deleteFailed": "تعذّر حذف {subject}"
   },
   "steps": {
     "count": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
@@ -272,7 +278,8 @@ export default {
     "summary": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}} · {seconds} ث",
     "usage": "الخطوة {step} · {tokens} رمزًا حتى الآن",
     "working": "يعمل",
-    "seconds": "{seconds} ث"
+    "seconds": "{seconds} ث",
+    "failedMark": "(فشل)"
   },
   "turn": {
     "continue": "متابعة",

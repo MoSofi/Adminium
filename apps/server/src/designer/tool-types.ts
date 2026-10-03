@@ -29,6 +29,8 @@ export interface ToolOutcome {
   /** What the model is told. */
   content: string;
   isError?: boolean;
+  /** With `isError`: what was asked for is not there, and the answer says where to look. The page draws it plainly, not as a failure. */
+  miss?: boolean;
   /** The step's line on the page: "Wrote tables/jobs.json". */
   label: string;
   /** More for the page, never for the model: a check's findings, the first error. */

@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DesignerEvent, DesignerEventBody } from '../api.js';
-import { foldTurns, isWorking, spendWarnings, waitingCards } from './turns.js';
+import { stepLine } from './stepLine.js';
+import { foldTurns, isWorking, spendWarnings, waitingCards, type StepRow } from './turns.js';
 
 let seq = 0;
 const at = (turn: number, body: DesignerEventBody, time = seq * 100): DesignerEvent => {
@@ -64,6 +65,46 @@ describe('foldTurns', () => {
       ['build_sides', 'running', undefined],
     ]);
     expect(isWorking(turns)).toBe(true);
+  });
+
+  it('joins a write still running to the row above it, so the list never grows and then shrinks', () => {
+    seq = 0;
+    const first = [
+      at(1, { kind: 'turn-started', text: 'x' }),
+      at(1, { kind: 'step', id: 'a', tool: 'write_file', label: 'Wrote a', state: 'done', ms: 10, subject: 'apps/r/a.json' }),
+      at(1, { kind: 'step', id: 'b', tool: 'write_file', label: 'Writing b', state: 'running', subject: 'apps/r/b.json' }),
+    ];
+    const running = foldTurns(first)[0]?.steps ?? [];
+    expect(running).toHaveLength(1);
+    expect(running[0]).toMatchObject({ id: 'a', state: 'running', folded: 2, subject: 'apps/r/b.json' });
+    expect(stepLine(running[0] as StepRow)).toBe('Writing \u0001');
+
+    const done = foldTurns([...first, at(1, { kind: 'step', id: 'b', tool: 'write_file', label: 'Wrote b', state: 'done', ms: 5, subject: 'apps/r/b.json' })])[0]?.steps ?? [];
+    expect(done).toHaveLength(1);
+    expect(done[0]).toMatchObject({ id: 'a', state: 'done', folded: 2 });
+    expect(stepLine(done[0] as StepRow)).toBe('Wrote 2 files');
+
+    // A write that fails stands on its own line, and says it was not written.
+    const failed = foldTurns([...first, at(1, { kind: 'step', id: 'b', tool: 'write_file', label: 'Could not write b', state: 'failed', ms: 5, subject: 'apps/r/b.json', ended: 'error', detail: 'That is not valid JSON' })])[0]?.steps ?? [];
+    expect(failed.map((row) => row.state)).toEqual(['done', 'failed']);
+    expect(stepLine(failed[1] as StepRow)).toBe('Could not write \u0001');
+    expect(failed[1]?.detail).toBe('That is not valid JSON');
+  });
+
+  it('tells a miss from a failure: a file or reference that is not there', () => {
+    seq = 0;
+    const rows =
+      foldTurns([
+        at(1, { kind: 'turn-started', text: 'x' }),
+        at(1, { kind: 'step', id: 'a', tool: 'read_reference', label: 'No such reference', state: 'failed', ms: 1, subject: 'adminium-surface/references/guides/own-row.md', ended: 'miss' }),
+        // A session written before misses were told apart.
+        at(1, { kind: 'step', id: 'b', tool: 'read_reference', label: 'No such reference', state: 'failed', ms: 1, subject: 'x.md', ended: 'error' }),
+        at(1, { kind: 'step', id: 'c', tool: 'read_file', label: 'Could not read', state: 'failed', ms: 1, subject: 'apps/r/nope.json', ended: 'miss' }),
+        at(1, { kind: 'step', id: 'd', tool: 'read_file', label: 'Could not read', state: 'failed', ms: 1, subject: '../.env', ended: 'error', detail: 'outside' }),
+      ])[0]?.steps ?? [];
+    expect(rows.map((row) => row.state)).toEqual(['missed', 'missed', 'missed', 'failed']);
+    expect(stepLine(rows[0] as StepRow)).toBe('Looked for \u0001 — not there');
+    expect(stepLine(rows[3] as StepRow)).toBe('Could not read \u0001');
   });
 
   it('lists the cards still waiting, and none once answered or the turn ended', () => {
