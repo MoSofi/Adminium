@@ -94,6 +94,26 @@ pages and the role's grants. It is kept on course in four ways:
   [Let a customer find their own row](/guides/apps/manifest-by-task/#let-a-customer-find-their-own-row).
 - If the model's server fails in passing (a 5xx, a 429, a dropped connection), it is asked again.
 
+### Attach a picture or a file
+
+The message box takes files: press the clip, paste a screenshot, or drop a file on the box. Up to
+four go with one message.
+
+| File | What the Designer does with it |
+|---|---|
+| **A picture** (PNG, JPEG, WebP or GIF, up to 5 MB) | It is sent to the model with your message, so "make it look like this" works. A model that does not read pictures cannot see it: the box says so before you send, and the model is told only that a picture was attached |
+| **A CSV file** (up to 10 MB and 20,000 rows) | The model is shown its columns and first rows and shapes the table from them. Once the app is applied, a card asks: "Load 1,204 rows from orders.csv into orders?", with which column goes where. **Load them** adds the rows; **Do not load** leaves the table empty |
+
+Rows are loaded by the dashboard's own import, so the table's checks hold (types, required columns,
+the rules you gave a column); a row that does not pass is left out, the answer says how many, and
+**Imports** in the dashboard keeps the report. Only new rows are added, and only into a table of the
+app you are building. For a larger file, or to update rows, use **Import** on the table's page.
+
+What a file is, is read from the file itself, not from its name: anything that is not one of the
+four kinds of picture or a CSV is refused. Files are kept in the session's folder in your project
+(`.adminium/designer/sessions/`), not sent anywhere but to the model you chose. What a CSV's cells
+or a picture say is data to the Designer, never an instruction.
+
 ### Building on an add-on
 
 Ask for it by name: "use the Invoices & Receipts add-on for the invoicing". The Designer writes the
