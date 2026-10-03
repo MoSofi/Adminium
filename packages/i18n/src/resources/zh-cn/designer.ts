@@ -236,19 +236,19 @@ export default {
     "addThem": "添加",
     "addOn": "此应用需要附加组件 {name}（{version}），此服务器上没有。要获取吗？",
     "addOnHere": "此应用需要附加组件 {name}（{version}）。它在此服务器上但尚未安装。要安装吗？",
-    "addOnOff": "此应用需要附加组件 {key}，此服务器上没有。要开启 adminium.dev 的列表并获取它吗？",
+    "addOnOff": "此应用需要附加组件 {key}，此服务器上没有。要开启 adminium.dev 的列表来查找它吗？",
     "addOnSends": "它将从 adminium.dev 下载（adminium.dev 会得知此附加组件及其版本），并安装到此服务器，与“工作室 → 附加组件”的安装方式相同。",
     "addOnHereSends": "不会下载任何内容。它将安装到此服务器，与“工作室 → 附加组件”的安装方式相同。",
-    "addOnOffSends": "此服务器上已关闭 adminium.dev 的列表。开启后会立即并每天一次向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。获取附加组件会说明是哪一个。可在“工作室 → 附加组件”中再次关闭列表。",
+    "addOnOffSends": "此服务器上已关闭 adminium.dev 的列表。开启后会立即并每天一次向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。此时不会下载任何内容：如果列表中有该附加组件，会再次按其名称和版本询问你。可在“工作室 → 附加组件”中再次关闭列表。",
     "addOnGet": "获取",
     "addOnInstall": "安装",
-    "addOnSwitchAndGet": "开启并获取",
     "rows": "{count, plural, other {将 {file} 中的 # 行加载到 {table}？}}",
     "rowsLeft": "{count, plural, other {有 # 行未通过表的检查，将被略过。}}",
     "rowsHow": "它们将作为新行添加，并经过与任何导入相同的检查。仪表板中的“导入”会保留报告。",
     "rowsLoad": "加载",
     "rowsSkip": "不加载",
-    "rowsNo": "你选择了不加载。"
+    "rowsNo": "你选择了不加载。",
+    "addOnSwitchOn": "开启列表"
   },
   "step": {
     "addOns": "正在查看附加组件",

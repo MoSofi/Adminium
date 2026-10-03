@@ -34,7 +34,21 @@ const MAX_PARSED = 60_000;
 const MAX_DEPTH = 4;
 
 const FENCE = /^\s{0,3}(`{3,}|~{3,})(.*)$/;
-const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+/** A heading's marks and the rest of its line. The closing marks are cut in code: a pattern that tried to (lazy words, then spaces, then marks) took seconds on one long line of spaces. */
+const HEADING = /^\s{0,3}(#{1,6})[ \t]+(.*)$/;
+/** A heading's words without the marks and spaces that may close it. */
+function headingWords(rest: string): string {
+  let end = rest.length;
+  while (end > 0 && (rest[end - 1] === ' ' || rest[end - 1] === '\t')) end -= 1;
+  let marks = end;
+  while (marks > 0 && rest[marks - 1] === '#') marks -= 1;
+  // Closing marks count only after a space ("# C#" keeps its sharp).
+  if (marks < end && (marks === 0 || rest[marks - 1] === ' ' || rest[marks - 1] === '\t')) end = marks;
+  while (end > 0 && (rest[end - 1] === ' ' || rest[end - 1] === '\t')) end -= 1;
+  return rest.slice(0, end);
+}
+/** How far ahead a link's or an image's own text is looked for: a run of brackets with no end is words, not a search of the whole reply at every one. */
+const LINK_SPAN = 2000;
 const RULE = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/;
 const ITEM = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
@@ -86,7 +100,7 @@ function parseBlocks(lines: readonly string[], depth: number): Block[] {
 
     const heading = HEADING.exec(line);
     if (heading !== null) {
-      blocks.push({ type: 'heading', level: (heading[1] as string).length, text: heading[2] as string });
+      blocks.push({ type: 'heading', level: (heading[1] as string).length, text: headingWords(heading[2] as string) });
       i += 1;
       continue;
     }
@@ -243,7 +257,7 @@ export function inline(text: string, depth = 0): ReactNode[] {
 
     // An image is never fetched: its description stands for it.
     if (char === '!' && next === '[') {
-      const image = /^!\[([^\]]*)\]\([^)]*\)/.exec(text.slice(i));
+      const image = /^!\[([^\]]*)\]\([^)]*\)/.exec(text.slice(i, i + LINK_SPAN));
       if (image !== null) {
         plain += image[1] as string;
         i += image[0].length;
@@ -253,7 +267,7 @@ export function inline(text: string, depth = 0): ReactNode[] {
 
     // A link is its words, with the address beside them: nothing a model wrote is something to click.
     if (char === '[') {
-      const link = /^\[([^\]]+)\]\(\s*<?([^)\s>]*)>?(?:\s+"[^"]*")?\s*\)/.exec(text.slice(i));
+      const link = /^\[([^\]]+)\]\(\s*<?([^)\s>]*)>?(?:\s+"[^"]*")?\s*\)/.exec(text.slice(i, i + LINK_SPAN));
       if (link !== null) {
         const words = link[1] as string;
         const address = link[2] as string;

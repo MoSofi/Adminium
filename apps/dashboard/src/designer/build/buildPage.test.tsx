@@ -66,6 +66,8 @@ let stored: DesignerEvent[];
 let versions: DesignerVersion[];
 let seq: number;
 let uploads: number;
+/** How many times the next turns are refused before one starts. */
+let turnRefusals: number;
 let readsImages: boolean | null;
 
 const ev = (turn: number, body: DesignerEventBody, at = seq * 100): DesignerEvent => {
@@ -94,6 +96,7 @@ beforeEach(() => {
   look = null;
   seq = 0;
   uploads = 0;
+  turnRefusals = 0;
   readsImages = true;
   stored = [];
   versions = [
@@ -130,6 +133,10 @@ beforeEach(() => {
         return Promise.resolve(jsonResponse(201, { attachment: { id: `att_${String(uploads).padStart(20, '0')}`, label: file.name, kind: file.type === 'text/csv' ? 'csv' : 'image', mediaType: file.type, bytes: file.size } }));
       }
       if (url === '/api/v1/designer/models/reads-images') return Promise.resolve(jsonResponse(200, { readsImages }));
+      if (url === `/api/v1/designer/sessions/${ID}/turns` && turnRefusals > 0) {
+        turnRefusals -= 1;
+        return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'The Designer is already working on something in this project.', requestId: 'r' } }));
+      }
       if (url === `/api/v1/designer/sessions/${ID}/turns`) return Promise.resolve(jsonResponse(202, { turn: 9 }));
       if (url === `/api/v1/designer/sessions/${ID}/stop`) return Promise.resolve(jsonResponse(200, { stopped: true }));
       if (url === `/api/v1/designer/sessions/${ID}/answers`) return Promise.resolve(jsonResponse(200, { answered: true }));
@@ -398,10 +405,11 @@ describe('the build page', () => {
     expect(listed.textContent).toContain('names this add-on and its version to adminium.dev');
     await userEvent.click(within(listed).getByRole('button', { name: 'Get it' }));
 
-    const off = screen.getByRole('group', { name: /Switch the list of adminium.dev on and get it\?/ });
+    const off = screen.getByRole('group', { name: /Switch the list of adminium.dev on to look for it\?/ });
     expect(off.textContent).toContain('tells it this server’s address, the time and its Adminium version');
     await userEvent.click(within(off).getByRole('button', { name: 'Do without' }));
-    expect(within(off).getByRole('button', { name: 'Switch it on and get it' })).toBeTruthy();
+    expect(off.textContent).toContain('Nothing is downloaded yet');
+    expect(within(off).getByRole('button', { name: 'Switch the list on' })).toBeTruthy();
 
     const here = screen.getByRole('group', { name: /It is on this server and not installed/ });
     expect(here.textContent).toContain('Nothing is downloaded.');
@@ -434,6 +442,34 @@ describe('the build page', () => {
     expect(order).toEqual(['attachments', 'attachments', 'turns']);
     // Sent: the box and its files are cleared.
     await waitFor(() => expect(screen.queryByRole('list', { name: 'Attached files' })).toBeNull());
+  });
+
+  it('does not send a file up twice when the turn did not start, and a retry of a failed turn carries its files', async () => {
+    turnRefusals = 1;
+    await open();
+    await userEvent.upload(document.querySelector<HTMLInputElement>('[data-part="attach-input"]')!, new File(['a,b\n1,2\n'], 'orders.csv', { type: 'text/csv' }));
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Use these.{Enter}');
+    await screen.findByText('The Designer is already working on something in this project.');
+    // The file went up; the turn was refused; the message and the file are still there.
+    expect(uploads).toBe(1);
+    expect((box as HTMLTextAreaElement).value).toBe('Use these.');
+    await userEvent.type(box, '{Enter}');
+    await waitFor(() => expect(posted('/turns').at(-1)).toEqual({ text: 'Use these.', attachments: ['att_00000000000000000001'] }));
+    // The second send named the file already there: nothing went up again.
+    expect(uploads).toBe(1);
+  });
+
+  it('asks again with a failed turn’s own files, and not with what waits in the box', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Like this picture.', attachments: [{ id: 'att_00000000000000000007', label: 'shot.png', kind: 'image' }] }),
+      ev(1, { kind: 'error', code: 'server', message: 'The model’s server failed.' }),
+      ev(1, { kind: 'turn-finished', outcome: 'failed' }),
+    ];
+    await open();
+    await userEvent.click(await screen.findByRole('button', { name: /Try again|Retry/ }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this picture.', attachments: ['att_00000000000000000007'] }]));
+    expect(uploads).toBe(0);
   });
 
   it('keeps the message and says why when the server refuses a file', async () => {

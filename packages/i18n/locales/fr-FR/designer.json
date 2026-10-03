@@ -226,19 +226,19 @@
     "addThem": "Les ajouter",
     "addOn": "Cette application a besoin de l’extension {name} ({version}), qui n’est pas sur ce serveur. L’obtenir ?",
     "addOnHere": "Cette application a besoin de l’extension {name} ({version}). Elle est sur ce serveur et n’est pas installée. L’installer ?",
-    "addOnOff": "Cette application a besoin de l’extension {key}, qui n’est pas sur ce serveur. Activer la liste d’adminium.dev et l’obtenir ?",
+    "addOnOff": "Cette application a besoin de l’extension {key}, qui n’est pas sur ce serveur. Activer la liste d’adminium.dev pour la chercher ?",
     "addOnSends": "Elle est téléchargée depuis adminium.dev, qui apprend ainsi cette extension et sa version, puis installée sur ce serveur, comme Studio → Extensions l’installerait.",
     "addOnHereSends": "Rien n’est téléchargé. Elle est installée sur ce serveur, comme Studio → Extensions l’installerait.",
-    "addOnOffSends": "La liste d’adminium.dev est désactivée sur ce serveur. L’activer demande la liste à adminium.dev, maintenant et une fois par jour, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Obtenir l’extension la nomme. Studio → Extensions désactive de nouveau la liste.",
+    "addOnOffSends": "La liste d’adminium.dev est désactivée sur ce serveur. L’activer demande la liste à adminium.dev, maintenant et une fois par jour, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Rien n’est encore téléchargé : si l’extension est dans la liste, on vous le redemande, avec son nom et sa version. Studio → Extensions désactive de nouveau la liste.",
     "addOnGet": "L’obtenir",
     "addOnInstall": "L’installer",
-    "addOnSwitchAndGet": "Activer et l’obtenir",
     "rows": "{count, plural, one {Charger # ligne de {file} dans {table} ?} other {Charger # lignes de {file} dans {table} ?}}",
     "rowsLeft": "{count, plural, one {# ligne ne passe pas les contrôles de la table et est laissée de côté.} other {# lignes ne passent pas les contrôles de la table et sont laissées de côté.}}",
     "rowsHow": "Elles sont ajoutées comme nouvelles lignes, avec les mêmes contrôles que tout import. Les imports du tableau de bord conservent le rapport.",
     "rowsLoad": "Les charger",
     "rowsSkip": "Ne pas charger",
-    "rowsNo": "Vous avez dit de ne pas les charger."
+    "rowsNo": "Vous avez dit de ne pas les charger.",
+    "addOnSwitchOn": "Activer la liste"
   },
   "step": {
     "addOns": "Examine les extensions",

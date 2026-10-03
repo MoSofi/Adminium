@@ -128,8 +128,14 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const attach = useAttach();
   const start = useMutation({
     // The files go up first; the turn names them. A file the server refuses stops here, with its words, and the message stays in the box.
-    mutationFn: async (message: string) => designerApi.startTurn(sessionId, message, await attach.upload(sessionId)),
-    onSuccess: () => {
+    mutationFn: async (input: string | { message: string; attachments: readonly string[] }) =>
+      // A message from the box takes the files waiting with it. One the page sends itself ("Continue.", a retry, a fix) names its own, or none.
+      typeof input === 'string' ? designerApi.startTurn(sessionId, input, await attach.upload(sessionId)) : designerApi.startTurn(sessionId, input.message, input.attachments),
+    onSuccess: (_reply, input) => {
+      if (typeof input !== 'string') {
+        follow.pin();
+        return;
+      }
       setText('');
       attach.clear();
       follow.pin();
@@ -343,7 +349,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           {turn.outcome === 'stopped' ? (
             <StoppedNote
               busy={busy}
-              onContinue={actionable ? () => start.mutate(t('designer:turn.continueMessage', 'Continue.')) : undefined}
+              onContinue={actionable ? () => start.mutate({ message: t('designer:turn.continueMessage', 'Continue.'), attachments: [] }) : undefined}
               onPutBack={actionable && turn.changedFiles ? () => restore.mutate({ n: data?.session.version ?? 0, record: false }) : undefined}
             />
           ) : null}
@@ -353,11 +359,11 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               value={turn.limit.value}
               version={turn.version?.name ?? null}
               busy={busy}
-              onKeepGoing={actionable && turn.limit.which !== 'session-tokens' ? () => start.mutate(t('designer:turn.keepGoingMessage', 'Keep going.')) : undefined}
+              onKeepGoing={actionable && turn.limit.which !== 'session-tokens' ? () => start.mutate({ message: t('designer:turn.keepGoingMessage', 'Keep going.'), attachments: [] }) : undefined}
             />
           ) : null}
           {turn.outcome === 'failed' && turn.error !== null ? (
-            <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate(turn.text ?? '') : undefined} />
+            <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate({ message: turn.text ?? '', attachments: turn.attachments.map((file) => file.id) }) : undefined} />
           ) : null}
           {turn.look === null ? null : <LookChip direction={turn.look} />}
           {turn.version === null ? null : <SavedChip name={turn.version.name} />}
@@ -452,7 +458,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             placeholder={placeholder}
             model={control.element}
             inputRef={box}
-            attach={question === null ? attach : undefined}
+            attach={question === null && !start.isPending ? attach : undefined}
             tray={question === null ? <AttachTray state={attach} modelName={model.picked?.model ?? null} readsImages={readsImages} /> : null}
           />
         </aside>
@@ -471,7 +477,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           <span aria-hidden="true" className="h-full w-px bg-border" />
         </div>
         <section aria-label={t('designer:build.work', 'The app')} className={`min-w-0 flex-1 flex-col ${tab === 'preview' ? 'flex' : 'max-md:hidden md:flex'}`}>
-          {data === undefined ? null : <WorkArea session={data.session} turns={turns} onFix={(message) => (working ? undefined : start.mutate(message))} />}
+          {data === undefined ? null : <WorkArea session={data.session} turns={turns} onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))} />}
         </section>
       </div>
     </div>

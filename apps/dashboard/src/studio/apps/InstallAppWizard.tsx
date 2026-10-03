@@ -82,6 +82,7 @@ import {
   RotateCcw,
   Sprout,
   Table2,
+  Download,
 } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
@@ -190,11 +191,13 @@ export interface InstallAppWizardProps {
    * database, or none), the dialog says so and "More choices" is its button.
    */
   quick?: boolean | undefined;
+  /** Told whether the wizard is working (a download, a check, an install): the dialog around it does not close meanwhile. */
+  onBusy?: ((busy: boolean) => void) | undefined;
   /** "More choices": open the steps on the same app. */
   onMoreChoices?: (() => void) | undefined;
 }
 
-export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices }: InstallAppWizardProps) {
+export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices, onBusy }: InstallAppWizardProps) {
   const queryClient = useQueryClient();
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
@@ -457,29 +460,40 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   }, [quick, staged, onlyDatabase, connectionId]);
   const quickNeedsChoice = quick && onlyDatabase === '';
   /*
-   * The one dialog: an add-on the app requires comes with it (D98). It is
-   * fetched as the app was, by the press that opened this dialog, so Install
-   * is one press; nothing is installed before that press. Once per add-on: a
-   * download that failed is said, and left to the person.
+   * The one dialog: an add-on the app requires comes with it (D98), and it is
+   * fetched by the dialog's own Install, never before: until that press the
+   * person has only been shown its name. So Install does three things in
+   * order: fetch each required add-on that is not on this server, check the
+   * app again (an add-on's own plan can only be read from its bytes), and
+   * install if that check still stands. If it does not, the dialog shows why
+   * and installs nothing.
    */
-  const fetched = useRef(new Set<string>());
-  const toFetch = !quick || step !== 'plan' || busy
-    ? undefined
-    : addOnRows.find(
-        (row) =>
-          row.need === 'requires' &&
-          row.state !== 'unavailable' &&
-          (row.action === 'install' || row.action === 'update') &&
-          !row.staged &&
-          row.offeredVersion !== null &&
-          !fetched.current.has(row.key),
-      );
+  const needFetch = addOnRows.filter(
+    (row) => row.need === 'requires' && row.state !== 'unavailable' && (row.action === 'install' || row.action === 'update') && !row.staged && row.offeredVersion !== null,
+  );
+  /** Only fetching holds Install: the press that installs fetches first. */
+  const onlyFetchHolds = quick && needFetch.length > 0 && addOnHint !== null && addOnBlock(appName, addOnRows.map((row) => (needFetch.includes(row) ? { ...row, staged: true } : row)), addOnPicks) === null;
+  /** Set by the Install press, read once the check made after the fetch is on screen. */
+  const [installAfterCheck, setInstallAfterCheck] = useState(false);
+  const fetchThenInstall = async (): Promise<void> => {
+    try {
+      for (const row of needFetch) await download.mutateAsync(row);
+    } catch {
+      // Said by the download's own error; nothing is installed.
+      return;
+    }
+    setInstallAfterCheck(true);
+  };
   useEffect(() => {
-    if (toFetch === undefined) return;
-    fetched.current.add(toFetch.key);
-    download.mutate(toFetch);
-    // `download` is a new object each render; the set makes this run once per add-on.
-  }, [toFetch]);
+    if (!installAfterCheck || busy || plan === null) return;
+    setInstallAfterCheck(false);
+    // The check made after the fetch: installed only if nothing holds it now.
+    if (plan.installable && addOnHint === null && !dirty && stopped === null) install.mutate();
+    // `install` is a new object each render; the flag makes this run once.
+  }, [installAfterCheck, busy, plan, addOnHint, dirty, stopped]);
+  useEffect(() => {
+    onBusy?.(busy);
+  }, [busy, onBusy]);
 
   /** What comes with the app: public access, the add-ons it brings, sample data. */
   const cardsOfPlan =
@@ -1055,6 +1069,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
               app: appName,
             })}
           </span>
+        ) : onlyFetchHolds && checking && stopped === null && !install.isPending ? (
+          // Not a refusal: what the Install press will do first, said before it is pressed.
+          <span data-part="quick-brings" className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-fg-muted">
+            <Download aria-hidden className="size-3.5 shrink-0" />
+            {t('studio:hostedApps.install.quick.brings', 'Install first downloads {addOn}, which {app} needs, from adminium.dev.', {
+              addOn: needFetch.map((row) => row.name).join(', '),
+              app: appName,
+            })}
+          </span>
         ) : checking && stopped === null && !install.isPending && plan !== null && addOnHint !== null ? (
           // The add-ons' refusal wins over the table hint: it is the one that holds Install.
           <span
@@ -1148,8 +1171,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
 
           {step === 'plan' && !(checking && (dirty || stopped !== null || install.isPending)) ? (
             <Button
-              disabled={busy || plan === null || !plan.installable || addOnHint !== null}
-              onClick={() => install.mutate()}
+              disabled={busy || plan === null || !plan.installable || (addOnHint !== null && !onlyFetchHolds)}
+              onClick={() => (onlyFetchHolds ? void fetchThenInstall() : install.mutate())}
             >
               {install.isPending ? <Spinner size="sm" /> : null}
               {t('studio:hostedApps.install.confirm', 'Install')}

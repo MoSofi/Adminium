@@ -761,7 +761,8 @@
         "reading": "جارٍ قراءة ما سيضيفه…",
         "more": "خيارات أكثر",
         "tables": "{count, plural, zero {لا يضيف جداول إلى {database}} one {يضيف جدولًا جديدًا واحدًا إلى {database}. اعرضه} two {يضيف جدولين جديدين إلى {database}. اعرضهما} few {يضيف # جداول جديدة إلى {database}. اعرضها} many {يضيف # جدولًا جديدًا إلى {database}. اعرضها} other {يضيف # جدول جديد إلى {database}. اعرضها}}",
-        "getting": "جارٍ جلب {addOn} الذي يحتاجه {app}…"
+        "getting": "جارٍ جلب {addOn} الذي يحتاجه {app}…",
+        "brings": "«تثبيت» ينزّل أولًا {addOn} الذي يحتاجه {app} من adminium.dev."
       }
     },
     "installed": {

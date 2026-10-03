@@ -166,6 +166,8 @@ function stubFetch(options: StubOptions = {}) {
 }
 
 async function renderPage(options: StubOptions = {}) {
+  // Each test opens the page as if for the first time.
+  forgetStaleAsk();
   vi.stubGlobal('WebSocket', FakeWebSocket);
   const stub = stubFetch(options);
   const queryClient = createQueryClient();
@@ -191,6 +193,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   jobSteps = [];
 });
+
+import { forgetStaleAsk } from './AddOnsPage.js';
 
 describe('AddOnsPage', () => {
   it('resolves the lazy route and lists what is available', async () => {
@@ -441,11 +445,16 @@ describe('AddOnsPage', () => {
       expect(calls.some((c) => c.url === '/api/v1/add-ons/catalog/refresh')).toBe(false);
       await user.click(screen.getByRole('button', { name: 'Show what is available' }));
       await waitFor(() => expect(calls.some((c) => c.method === 'PUT' && c.url === '/api/v1/add-ons/catalog')).toBe(true));
+      // Switched on: the list is asked for at once.
+      await waitFor(() => expect(calls.some((c) => c.url === '/api/v1/add-ons/catalog/refresh')).toBe(true));
     });
 
     it('asks for a list that was never fetched when the page opens, once, and only while the list is on', async () => {
       const { calls } = await renderPage({ entries: [], onlineEnabled: true });
       await waitFor(() => expect(calls.filter((c) => c.url === '/api/v1/add-ons/catalog/refresh')).toHaveLength(1));
+      // Once: the reads that follow the refresh do not start another.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(calls.filter((c) => c.url === '/api/v1/add-ons/catalog/refresh')).toHaveLength(1);
     });
 
     it('switches the online catalogue on from the page that uses it', async () => {

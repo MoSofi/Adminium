@@ -577,6 +577,13 @@ const CATALOG_POLL_MS = 1500;
 /** A list older than this is asked for again when the page opens. */
 const CATALOG_STALE_MS = 24 * 60 * 60 * 1000;
 
+/** When this page last asked for a stale list by itself. */
+let askedForStaleAt = 0;
+/** For a test that opens the page more than once. */
+export function forgetStaleAsk(): void {
+  askedForStaleAt = 0;
+}
+
 export function AddOnsPage() {
   const queryClient = useQueryClient();
   const [{ data: installed }, { data: catalog }] = useSuspenseQueries({
@@ -786,7 +793,10 @@ export function AddOnsPage() {
   useEffect(() => {
     if (askedForStale.current || !catalog.onlineEnabled || catalog.refreshing === true) return;
     if (catalog.catalogFetchedAt !== null && Date.now() - catalog.catalogFetchedAt < CATALOG_STALE_MS) return;
+    // A list that cannot be fetched is not asked for at every opening of the page: once in ten minutes.
+    if (Date.now() - askedForStaleAt < 10 * 60 * 1000) return;
     askedForStale.current = true;
+    askedForStaleAt = Date.now();
     void refreshCatalog()
       .then(() => queryClient.invalidateQueries({ queryKey: ADD_ON_CATALOG_QUERY_KEY }))
       .catch(() => undefined);

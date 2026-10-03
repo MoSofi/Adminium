@@ -226,19 +226,19 @@
     "addThem": "Hinzufügen",
     "addOn": "Diese App braucht das Add-on {name} ({version}), das nicht auf diesem Server ist. Holen?",
     "addOnHere": "Diese App braucht das Add-on {name} ({version}). Es ist auf diesem Server und nicht installiert. Installieren?",
-    "addOnOff": "Diese App braucht das Add-on {key}, das nicht auf diesem Server ist. Die Liste von adminium.dev einschalten und es holen?",
+    "addOnOff": "Diese App braucht das Add-on {key}, das nicht auf diesem Server ist. Die Liste von adminium.dev einschalten, um danach zu suchen?",
     "addOnSends": "Es wird von adminium.dev heruntergeladen, wobei adminium.dev dieses Add-on und seine Version erfährt, und auf diesem Server installiert, wie Studio → Add-ons es installieren würde.",
     "addOnHereSends": "Es wird nichts heruntergeladen. Es wird auf diesem Server installiert, wie Studio → Add-ons es installieren würde.",
-    "addOnOffSends": "Die Liste von adminium.dev ist auf diesem Server aus. Sie einzuschalten fragt adminium.dev nach der Liste, jetzt und einmal täglich; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Das Holen des Add-ons nennt es. Studio → Add-ons schaltet die Liste wieder aus.",
+    "addOnOffSends": "Die Liste von adminium.dev ist auf diesem Server aus. Sie einzuschalten fragt adminium.dev nach der Liste, jetzt und einmal täglich; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Es wird noch nichts heruntergeladen: Steht das Add-on in der Liste, wirst du erneut gefragt, mit seinem Namen und seiner Version. Studio → Add-ons schaltet die Liste wieder aus.",
     "addOnGet": "Holen",
     "addOnInstall": "Installieren",
-    "addOnSwitchAndGet": "Einschalten und holen",
     "rows": "{count, plural, one {# Zeile aus {file} in {table} laden?} other {# Zeilen aus {file} in {table} laden?}}",
     "rowsLeft": "{count, plural, one {# Zeile besteht die Prüfungen der Tabelle nicht und wird ausgelassen.} other {# Zeilen bestehen die Prüfungen der Tabelle nicht und werden ausgelassen.}}",
     "rowsHow": "Sie werden als neue Zeilen hinzugefügt, mit denselben Prüfungen wie jeder Import. Die Importe im Dashboard bewahren den Bericht auf.",
     "rowsLoad": "Laden",
     "rowsSkip": "Nicht laden",
-    "rowsNo": "Du hast gesagt, sie nicht zu laden."
+    "rowsNo": "Du hast gesagt, sie nicht zu laden.",
+    "addOnSwitchOn": "Liste einschalten"
   },
   "step": {
     "addOns": "Sieht sich die Add-ons an",

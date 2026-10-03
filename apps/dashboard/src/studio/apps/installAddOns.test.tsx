@@ -397,22 +397,42 @@ describe('the Add-ons card', () => {
     await waitFor(() => expect(installButton().hasAttribute('disabled')).toBe(false));
   });
 
-  it('the one dialog fetches an add-on the app requires by itself, once, and Install is then one press', async () => {
+  it('the one dialog names nothing to adminium.dev until Install is pressed; that press fetches the required add-on, checks again and installs', async () => {
     plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }, { ...HOLIDAYS, source: 'catalog', staged: false, plan: null }]), planWith([INVOICES, HOLIDAYS])];
+    const user = userEvent.setup();
     render(
       <QueryClientProvider client={createQueryClient()}>
         <InstallAppWizard quick preselected={{ key: 'clients', version: '1.0.0', name: 'Client Portal', downloaded: true }} onClose={() => {}} onMoreChoices={() => {}} />
       </QueryClientProvider>,
     );
-    // Nobody pressed "Download it": the required add-on came with the app, and the check was made again.
-    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2));
-    const downloads = calls.filter((call) => call.url === '/api/v1/add-ons/download');
-    // The required one only: a suggestion is left for the person to tick.
-    expect(downloads.map((call) => call.body)).toEqual([{ key: 'invoices', version: '1.1.0' }]);
-    await waitFor(() => expect(installButton().hasAttribute('disabled')).toBe(false));
+    // The dialog is open on the plan, and says what Install will fetch. Nothing was fetched by opening it.
+    expect((await screen.findByText('Install first downloads Invoices & Receipts, which Client Portal needs, from adminium.dev.')).closest('[data-part="quick-brings"]')).not.toBeNull();
+    expect(calls.filter((call) => call.url === '/api/v1/add-ons/download')).toEqual([]);
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(1);
     // The tables fold while there is nothing to answer about them.
     expect(document.querySelector('[data-part="quick-tables"]')?.textContent).toContain('new table');
-    // Nothing was installed by the dialog opening.
+    expect(installButton().hasAttribute('disabled')).toBe(false);
+
+    await user.click(installButton());
+    await screen.findByText('Client Portal is installed');
+    // The required one only (a suggestion is left for the person to tick), then the check again, then the install: in that order.
+    const order = calls.filter((call) => ['/api/v1/add-ons/download', '/api/v1/apps/plan', '/api/v1/apps/install'].includes(call.url)).map((call) => call.url.split('/').pop());
+    expect(order).toEqual(['plan', 'download', 'plan', 'install']);
+    expect(calls.find((call) => call.url === '/api/v1/add-ons/download')?.body).toEqual({ key: 'invoices', version: '1.1.0' });
+  });
+
+  it('the one dialog installs nothing when the check made after the fetch no longer stands', async () => {
+    plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }]), { ...planWith([INVOICES]), installable: false }];
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <InstallAppWizard quick preselected={{ key: 'clients', version: '1.0.0', name: 'Client Portal', downloaded: true }} onClose={() => {}} onMoreChoices={() => {}} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Install first downloads Invoices & Receipts/);
+    await user.click(installButton());
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2));
+    await waitFor(() => expect(installButton().hasAttribute('disabled')).toBe(true));
     expect(calls.some((call) => call.url === '/api/v1/apps/install')).toBe(false);
   });
 

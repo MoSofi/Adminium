@@ -761,7 +761,8 @@
         "reading": "Es wird gelesen, was sie hinzufügen würde…",
         "more": "Weitere Optionen",
         "tables": "{count, plural, one {Sie fügt # neue Tabelle zu {database} hinzu. Anzeigen} other {Sie fügt # neue Tabellen zu {database} hinzu. Anzeigen}}",
-        "getting": "{addOn} wird geholt, das {app} braucht…"
+        "getting": "{addOn} wird geholt, das {app} braucht…",
+        "brings": "Installieren lädt zuerst {addOn}, das {app} braucht, von adminium.dev herunter."
       }
     },
     "installed": {

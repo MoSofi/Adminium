@@ -5,7 +5,7 @@
  * a reload and an `app-changed` that must, and the states a turn puts it in.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@adminium/ui';
@@ -173,7 +173,7 @@ describe('the preview', () => {
   });
 
   it('reloads once a file’s rows are loaded: the app is the same, what its pages show is not', async () => {
-    const loaded = (state: 'running' | 'done') => [turn({ steps: [{ id: 's1', tool: 'load_rows', label: 'Loaded 40 rows', state, ms: 10, detail: null, folded: 1, ...(state === 'done' ? { outcome: 'added' as const, count: 40 } : {}) }] })];
+    const loaded = (state: 'running' | 'done', outcome: TurnView['outcome'] = null) => [turn({ outcome, steps: [{ id: 's1', tool: 'load_rows', label: 'Loaded 40 rows', state, ms: 10, detail: null, folded: 1, ...(state === 'done' ? { outcome: 'added' as const, count: 40 } : {}) }] })];
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = (turns: TurnView[]) => (
       <QueryClientProvider client={client}>
@@ -188,10 +188,18 @@ describe('the preview', () => {
     await waitFor(() => expect(tickets).toHaveLength(1));
     shown.rerender(view(loaded('done')));
     await waitFor(() => expect(tickets).toHaveLength(2));
-    // The same rows seen again start nothing.
-    shown.rerender(view(loaded('done')));
+    // The same rows seen again start nothing; nor does the turn ending.
+    shown.rerender(view(loaded('done', 'done')));
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(tickets).toHaveLength(2);
+    // A session opened later: its past loads arrive with the first read of events, and are no reason to spend a ticket.
+    cleanup();
+    tickets.length = 0;
+    const later = render(view([]));
+    await waitFor(() => expect(tickets).toHaveLength(1));
+    later.rerender(view(loaded('done', 'done')));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(tickets).toHaveLength(1);
   });
 
   it('says there is nothing yet before the app is applied', async () => {

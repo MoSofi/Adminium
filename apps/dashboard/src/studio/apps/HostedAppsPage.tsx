@@ -95,6 +95,7 @@ export function HostedAppsPage() {
   >(undefined);
   /** The one dialog: an app that came off adminium.dev's list by one click is confirmed in place, not walked through the steps. */
   const [quick, setQuick] = useState(false);
+  const [quickBusy, setQuickBusy] = useState(false);
   /** The online app catalog: switch, check for newer, download, update (48 G8-D7). */
   const acquisition = useAppAcquisition();
   const [busy, setBusy] = useState(false);
@@ -138,7 +139,8 @@ export function HostedAppsPage() {
         <Modal
           open
           onOpenChange={(next) => {
-            if (next) return;
+            // Not while it installs or downloads: closing would hide how it ended.
+            if (next || quickBusy) return;
             setQuick(false);
             setChosen(undefined);
           }}
@@ -149,6 +151,7 @@ export function HostedAppsPage() {
           <ModalBody className="pb-0">
             <InstallAppWizard
               quick
+              onBusy={setQuickBusy}
               preselected={chosen}
               onClose={() => {
                 setQuick(false);
@@ -192,7 +195,7 @@ export function HostedAppsPage() {
         busy={acquisition.busy}
         onToggleOnline={(next) => void acquisition.toggleOnline(next)}
         onRefresh={() => void acquisition.refreshCatalog()}
-        onShowAvailable={() => void acquisition.toggleOnline(true).then(() => acquisition.refreshCatalog())}
+        onShowAvailable={() => void acquisition.toggleOnline(true).then((on) => (on ? acquisition.refreshCatalog() : undefined))}
         onInstall={(app) => {
           if (app.source === 'catalog') {
             // Not on disk yet: download it, then open the wizard on what landed.

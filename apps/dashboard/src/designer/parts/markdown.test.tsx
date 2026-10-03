@@ -12,7 +12,7 @@
  *     block, a `**` with no partner. The caret stands at the end of the text.
  *  4. A name with underscores is not emphasis.
  */
-import { render } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Markdown } from './markdown.js';
@@ -105,5 +105,26 @@ describe('Markdown', () => {
     expect(() => draw(`${'- a\n'.repeat(3000)}${'  '.repeat(40)}- deep\n| a |\n|---|\n${'*'.repeat(500)}${'['.repeat(500)}`)).not.toThrow();
     const long = draw('x'.repeat(70_000));
     expect(long.textContent).toHaveLength(70_000);
+  });
+});
+
+describe('a reply made to be slow', () => {
+  const timed = (text: string): number => {
+    const start = performance.now();
+    render(<Markdown text={text} />);
+    return performance.now() - start;
+  };
+
+  it('a heading with a long run of spaces is drawn at once, with its closing marks cut as before', () => {
+    expect(timed(`# a${' '.repeat(20_000)}x`)).toBeLessThan(500);
+    cleanup();
+    render(<Markdown text={'## Orders ##\n\n# C#\n\n### Trailing   \n\n#### Mixed # marks ###'} />);
+    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual(['Orders', 'C#', 'Trailing', 'Mixed # marks']);
+  });
+
+  it('a long run of brackets with no end is words, not a search of the whole reply at each one', () => {
+    expect(timed('['.repeat(50_000))).toBeLessThan(1500);
+    cleanup();
+    expect(timed('!['.repeat(25_000))).toBeLessThan(1500);
   });
 });

@@ -226,19 +226,19 @@
     "addThem": "Přidat je",
     "addOn": "Tato aplikace potřebuje doplněk {name} ({version}), který na tomto serveru není. Získat ho?",
     "addOnHere": "Tato aplikace potřebuje doplněk {name} ({version}). Je na tomto serveru a není nainstalovaný. Nainstalovat ho?",
-    "addOnOff": "Tato aplikace potřebuje doplněk {key}, který na tomto serveru není. Zapnout seznam z adminium.dev a získat ho?",
+    "addOnOff": "Tato aplikace potřebuje doplněk {key}, který na tomto serveru není. Zapnout seznam z adminium.dev a podívat se po něm?",
     "addOnSends": "Stáhne se z adminium.dev, čímž se adminium.dev dozví tento doplněk a jeho verzi, a nainstaluje se na tento server, jak by ho nainstalovalo Studio → Doplňky.",
     "addOnHereSends": "Nic se nestahuje. Nainstaluje se na tento server, jak by ho nainstalovalo Studio → Doplňky.",
-    "addOnOffSends": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zapnutí požádá adminium.dev o seznam, nyní a jednou denně, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Získání doplňku ho jmenuje. Studio → Doplňky seznam zase vypne.",
+    "addOnOffSends": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zapnutí požádá adminium.dev o seznam, nyní a jednou denně, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Zatím se nic nestahuje: je-li doplněk v seznamu, budete dotázáni znovu, s jeho názvem a verzí. Studio → Doplňky seznam zase vypne.",
     "addOnGet": "Získat",
     "addOnInstall": "Nainstalovat",
-    "addOnSwitchAndGet": "Zapnout a získat",
     "rows": "{count, plural, one {Načíst # řádek z {file} do {table}?} few {Načíst # řádky z {file} do {table}?} many {Načíst # řádku z {file} do {table}?} other {Načíst # řádků z {file} do {table}?}}",
     "rowsLeft": "{count, plural, one {# řádek neprojde kontrolami tabulky a vynechá se.} few {# řádky neprojdou kontrolami tabulky a vynechají se.} many {# řádku neprojde kontrolami tabulky a vynechá se.} other {# řádků neprojde kontrolami tabulky a vynechá se.}}",
     "rowsHow": "Přidají se jako nové řádky, se stejnými kontrolami jako každý import. Zprávu uchovávají Importy v dashboardu.",
     "rowsLoad": "Načíst",
     "rowsSkip": "Nenačítat",
-    "rowsNo": "Řekli jste, že se nemají načíst."
+    "rowsNo": "Řekli jste, že se nemají načíst.",
+    "addOnSwitchOn": "Zapnout seznam"
   },
   "step": {
     "addOns": "Prohlíží doplňky",

@@ -8803,9 +8803,9 @@
     "status": "mt",
     "srcHash": "a29f877504bc"
   },
-  "designer.card.addOnSwitchAndGet": {
+  "designer.card.addOnSwitchOn": {
     "status": "mt",
-    "srcHash": "c085ac1e30ad"
+    "srcHash": "c87a4d73496a"
   },
   "designer.card.addThem": {
     "status": "mt",
@@ -18818,6 +18818,10 @@
   "studio.hostedApps.install.progress": {
     "status": "mt",
     "srcHash": "b30df64744a8"
+  },
+  "studio.hostedApps.install.quick.brings": {
+    "status": "mt",
+    "srcHash": "d084c114510d"
   },
   "studio.hostedApps.install.quick.getting": {
     "status": "mt",

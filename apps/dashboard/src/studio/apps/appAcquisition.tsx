@@ -225,11 +225,16 @@ export function useAppAcquisition() {
     columnsConsent,
     origin,
 
-    toggleOnline: (next: boolean): Promise<void> =>
-      attempt(async () => {
+    /** Resolves to whether the list is on now: a switch the environment vetoes, or one that failed, is not. */
+    toggleOnline: async (next: boolean): Promise<boolean> => {
+      let on = false;
+      await attempt(async () => {
         const state = await setAppCatalogEnabled(next);
         setVetoed(state.vetoed);
-      }, 'shelf'),
+        on = state.onlineEnabled;
+      }, 'shelf');
+      return on;
+    },
 
     refreshCatalog: (): Promise<void> =>
       attempt(() =>

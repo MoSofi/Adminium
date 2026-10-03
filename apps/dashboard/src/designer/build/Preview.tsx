@@ -154,10 +154,12 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   // Rows loaded from an attached file: the app did not change, what its pages show did.
   const loads = turns.reduce((sum, turn) => sum + turn.steps.filter((step) => step.tool === 'load_rows' && step.outcome === 'added' && step.state !== 'running').length, 0);
   const seenLoads = useRef(loads);
+  // Only a load that finishes while its turn runs: a session opened later already shows those rows, and its past loads arriving with the first read of events are no reason to spend a ticket.
+  const running = turns.length > 0 && turns[turns.length - 1]?.outcome === null;
   useEffect(() => {
-    if (loads > seenLoads.current) setRound((value) => value + 1);
+    if (loads > seenLoads.current && running) setRound((value) => value + 1);
     seenLoads.current = loads;
-  }, [loads]);
+  }, [loads, running]);
 
   const built = previewState(turns);
   // A screen that built and then stopped as it opened says so from inside its frame (dev bundles only).

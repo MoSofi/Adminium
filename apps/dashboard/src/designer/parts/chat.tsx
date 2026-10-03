@@ -492,7 +492,7 @@ export function AddOnCard({
   const off = card.listOff === true;
   const here = card.here === true;
   const title = off
-    ? withMono(t('designer:card.addOnOff', 'This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on and get it?', { key: M1 }), [M1], [card.key])
+    ? withMono(t('designer:card.addOnOff', 'This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on to look for it?', { key: M1 }), [M1], [card.key])
     : here
       ? t('designer:card.addOnHere', 'This app needs the add-on {name} ({version}). It is on this server and not installed. Install it?', { name: card.name, version: card.version ?? '' })
       : t('designer:card.addOn', 'This app needs the add-on {name} ({version}), which is not on this server. Get it?', { name: card.name, version: card.version ?? '' });
@@ -507,7 +507,7 @@ export function AddOnCard({
         {off
           ? t(
               'designer:card.addOnOffSends',
-              'The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Getting the add-on names it. Studio → Add-ons switches the list off again.',
+              'The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Nothing is downloaded yet: if the add-on is in the list, you are asked again, by its name and version. Studio → Add-ons switches the list off again.',
             )
           : here
             ? t('designer:card.addOnHereSends', 'Nothing is downloaded. It is installed on this server, as Studio → Add-ons would install it.')
@@ -520,7 +520,7 @@ export function AddOnCard({
       ) : (
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={busy} onClick={onGet} className={PRIMARY}>
-            {off ? t('designer:card.addOnSwitchAndGet', 'Switch it on and get it') : here ? t('designer:card.addOnInstall', 'Install it') : t('designer:card.addOnGet', 'Get it')}
+            {off ? t('designer:card.addOnSwitchOn', 'Switch the list on') : here ? t('designer:card.addOnInstall', 'Install it') : t('designer:card.addOnGet', 'Get it')}
           </button>
           <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
             {t('designer:card.doWithout', 'Do without')}

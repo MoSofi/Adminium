@@ -81,6 +81,14 @@ const ALL = '*';
 
 /** A list older than this is asked for again when the page opens. */
 const STALE_MS = 24 * 60 * 60 * 1000;
+/** When this page last asked for a stale list by itself: a list that cannot be fetched is not asked for at every opening of the page. */
+let askedForStaleAt = 0;
+const ASK_AGAIN_MS = 10 * 60 * 1000;
+
+/** For a test that opens the page more than once. */
+export function forgetStaleAsk(): void {
+  askedForStaleAt = 0;
+}
 
 export function AppBrowser({ onInstall, onToggleOnline, onShowAvailable, onRefresh, busy = false }: AppBrowserProps) {
   const { data } = useSuspenseQuery(appCatalogQuery());
@@ -100,7 +108,9 @@ export function AppBrowser({ onInstall, onToggleOnline, onShowAvailable, onRefre
   useEffect(() => {
     if (askedForStale.current || !data.onlineEnabled || data.refreshing === true) return;
     if (data.catalogFetchedAt !== null && Date.now() - data.catalogFetchedAt < STALE_MS) return;
+    if (Date.now() - askedForStaleAt < ASK_AGAIN_MS) return;
     askedForStale.current = true;
+    askedForStaleAt = Date.now();
     void refreshAppCatalog()
       // The request only queues the fetch: the list is read again when the job ends.
       .then(({ jobId }) => followAppJob(jobId, { onProgress: () => undefined, failed: '' }))

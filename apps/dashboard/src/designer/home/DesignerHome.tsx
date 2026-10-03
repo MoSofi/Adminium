@@ -61,6 +61,8 @@ export function DesignerHome(): ReactNode {
   const [starting, setStarting] = useState<CatalogApp | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const attach = useAttach();
+  /** The session a first message with files made, kept until that message is sent. */
+  const made = useRef<Awaited<ReturnType<typeof designerApi.createSession>> | null>(null);
   const readsImages = useReadsImages(model.picked, attach.hasImage);
   const drop = attachHandlers(attach, false);
 
@@ -85,16 +87,13 @@ export function DesignerHome(): ReactNode {
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
       const base = { name: nameFromRequest(text), target, connectionId: model.picked.connectionId, model: model.picked.model };
-      if (attach.files.length === 0) return designerApi.createSession({ ...base, text: text.trim() });
+      if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim() });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
-      const made = await designerApi.createSession(base);
-      try {
-        await designerApi.startTurn(made.session.id, text.trim(), await attach.upload(made.session.id));
-      } catch (error) {
-        // The session is made and holds the app: the person lands in it, where the message can be sent again, and is told why it was not.
-        toasts.push({ variant: 'error', title: t('designer:attach.notSent', 'The message was not sent'), description: error instanceof ApiError ? error.message : String(error) });
-      }
-      return made;
+      // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
+      // in the box, and the next send goes to the session already made instead of making another.
+      made.current ??= await designerApi.createSession(base);
+      await designerApi.startTurn(made.current.session.id, text.trim(), await attach.upload(made.current.session.id));
+      return made.current;
     },
     onSuccess: async ({ session }) => {
       await navigate({ to: '/design/$sessionId', params: { sessionId: session.id } });
@@ -102,7 +101,7 @@ export function DesignerHome(): ReactNode {
     onError: (error) => {
       toasts.push({
         variant: 'error',
-        title: t('designer:home.failed', 'The Designer could not start'),
+        title: made.current === null ? t('designer:home.failed', 'The Designer could not start') : t('designer:attach.notSent', 'The message was not sent'),
         description: error instanceof ApiError ? error.message : String(error),
       });
     },

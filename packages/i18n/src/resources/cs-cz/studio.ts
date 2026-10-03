@@ -771,7 +771,8 @@ export default {
         "reading": "Zjišťuji, co by přidala…",
         "more": "Další volby",
         "tables": "{count, plural, one {Přidá # novou tabulku do {database}. Zobrazit ji} few {Přidá # nové tabulky do {database}. Zobrazit je} many {Přidá # nové tabulky do {database}. Zobrazit je} other {Přidá # nových tabulek do {database}. Zobrazit je}}",
-        "getting": "Získávám {addOn}, který {app} potřebuje…"
+        "getting": "Získávám {addOn}, který {app} potřebuje…",
+        "brings": "Nainstalovat nejprve stáhne {addOn}, který {app} potřebuje, z adminium.dev."
       }
     },
     "installed": {

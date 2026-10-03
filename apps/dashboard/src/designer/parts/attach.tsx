@@ -25,6 +25,8 @@ export interface PendingFile {
   kind: 'image' | 'csv';
   /** A picture's own address in this page, for its small view. */
   preview: string | null;
+  /** Once it went up: where, and the id it was given. A send that failed after that does not send the file again. */
+  sent?: { sessionId: string; id: string };
 }
 
 const kindOf = (file: File): 'image' | 'csv' | null =>
@@ -36,6 +38,7 @@ export interface AttachState {
   refused: string | null;
   add(list: Iterable<File>): void;
   remove(key: string): void;
+  /** Take off the files that went up with a message that was sent; one added since stays. */
   clear(): void;
   /** Send every waiting file to the session; the ids to give the turn. Throws what the server said of a file it refused. */
   upload(sessionId: string): Promise<string[]>;
@@ -89,15 +92,19 @@ export function useAttach(): AttachState {
   }, []);
 
   const clear = useCallback(() => {
-    for (const entry of held.current) if (entry.preview !== null) URL.revokeObjectURL(entry.preview);
-    held.current = [];
-    setFiles([]);
+    for (const entry of held.current) if (entry.sent !== undefined && entry.preview !== null) URL.revokeObjectURL(entry.preview);
+    held.current = held.current.filter((entry) => entry.sent === undefined);
+    setFiles(held.current);
     setRefused(null);
   }, []);
 
   const upload = useCallback(async (sessionId: string): Promise<string[]> => {
     const ids: string[] = [];
-    for (const entry of held.current) ids.push((await designerApi.uploadAttachment(sessionId, entry.file)).id);
+    // The files as they were when the message was sent: one added while they go up waits for the next message.
+    for (const entry of [...held.current]) {
+      if (entry.sent?.sessionId !== sessionId) entry.sent = { sessionId, id: (await designerApi.uploadAttachment(sessionId, entry.file)).id };
+      ids.push(entry.sent.id);
+    }
     return ids;
   }, []);
 
@@ -121,7 +128,8 @@ export function attachHandlers(state: AttachState, disabled = false) {
   return {
     onPaste: (event: ClipboardEvent<HTMLElement>): void => {
       const pasted = [...event.clipboardData.files];
-      if (disabled || pasted.length === 0) return;
+      // A copy from a spreadsheet carries its cells as text and a picture of them: the text is what was meant.
+      if (disabled || pasted.length === 0 || event.clipboardData.types.includes('text/plain')) return;
       event.preventDefault();
       state.add(pasted);
     },

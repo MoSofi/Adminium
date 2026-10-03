@@ -771,7 +771,8 @@ export default {
         "reading": "Læser, hvad den vil tilføje…",
         "more": "Flere valg",
         "tables": "{count, plural, one {Den tilføjer # ny tabel til {database}. Vis den} other {Den tilføjer # nye tabeller til {database}. Vis dem}}",
-        "getting": "Henter {addOn}, som {app} har brug for…"
+        "getting": "Henter {addOn}, som {app} har brug for…",
+        "brings": "Installér henter først {addOn}, som {app} har brug for, fra adminium.dev."
       }
     },
     "installed": {

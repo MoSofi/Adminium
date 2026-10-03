@@ -236,19 +236,19 @@ export default {
     "addThem": "Add them",
     "addOn": "This app needs the add-on {name} ({version}), which is not on this server. Get it?",
     "addOnHere": "This app needs the add-on {name} ({version}). It is on this server and not installed. Install it?",
-    "addOnOff": "This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on and get it?",
+    "addOnOff": "This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on to look for it?",
     "addOnSends": "It is downloaded from adminium.dev, which names this add-on and its version to adminium.dev, and installed on this server, as Studio → Add-ons would install it.",
     "addOnHereSends": "Nothing is downloaded. It is installed on this server, as Studio → Add-ons would install it.",
-    "addOnOffSends": "The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Getting the add-on names it. Studio → Add-ons switches the list off again.",
+    "addOnOffSends": "The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Nothing is downloaded yet: if the add-on is in the list, you are asked again, by its name and version. Studio → Add-ons switches the list off again.",
     "addOnGet": "Get it",
     "addOnInstall": "Install it",
-    "addOnSwitchAndGet": "Switch it on and get it",
     "rows": "{count, plural, one {Load # row from {file} into {table}?} other {Load # rows from {file} into {table}?}}",
     "rowsLeft": "{count, plural, one {# row does not pass the table’s checks and is left out.} other {# rows do not pass the table’s checks and are left out.}}",
     "rowsHow": "They are added as new rows, through the same checks as any import. Imports in the dashboard keeps the report.",
     "rowsLoad": "Load them",
     "rowsSkip": "Do not load",
-    "rowsNo": "You said not to load them."
+    "rowsNo": "You said not to load them.",
+    "addOnSwitchOn": "Switch the list on"
   },
   "step": {
     "addOns": "Looking at the add-ons",
