@@ -233,7 +233,16 @@ export default {
     "removed": "Entfernt.",
     "youAnswered": "Ihre Antwort: {answer}",
     "packages": "Es werden Pakete benötigt: {list}. Hinzufügen?",
-    "addThem": "Hinzufügen"
+    "addThem": "Hinzufügen",
+    "addOn": "Diese App braucht das Add-on {name} ({version}), das nicht auf diesem Server ist. Holen?",
+    "addOnHere": "Diese App braucht das Add-on {name} ({version}). Es ist auf diesem Server und nicht installiert. Installieren?",
+    "addOnOff": "Diese App braucht das Add-on {key}, das nicht auf diesem Server ist. Die Liste von adminium.dev einschalten und es holen?",
+    "addOnSends": "Es wird von adminium.dev heruntergeladen, wobei adminium.dev dieses Add-on und seine Version erfährt, und auf diesem Server installiert, wie Studio → Add-ons es installieren würde.",
+    "addOnHereSends": "Es wird nichts heruntergeladen. Es wird auf diesem Server installiert, wie Studio → Add-ons es installieren würde.",
+    "addOnOffSends": "Die Liste von adminium.dev ist auf diesem Server aus. Sie einzuschalten fragt adminium.dev nach der Liste, jetzt und einmal täglich; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Das Holen des Add-ons nennt es. Studio → Add-ons schaltet die Liste wieder aus.",
+    "addOnGet": "Holen",
+    "addOnInstall": "Installieren",
+    "addOnSwitchAndGet": "Einschalten und holen"
   },
   "step": {
     "addOns": "Sieht sich die Add-ons an",
@@ -284,7 +293,12 @@ export default {
     "deleteFailed": "{subject} konnte nicht gelöscht werden",
     "look": "Aussehen wird geändert",
     "lookDone": "Aussehen geändert",
-    "lookFailed": "Das Aussehen wurde nicht geändert"
+    "lookFailed": "Das Aussehen wurde nicht geändert",
+    "addOnAsking": "Frage, ob das Add-on {subject} geholt werden soll",
+    "addOnGot": "Add-on {subject} geholt",
+    "addOnDeclined": "Ohne das Add-on {subject} ausgekommen",
+    "addOnFailed": "Add-on {subject} konnte nicht geholt werden",
+    "addOnRefused": "Kein Add-on geholt"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",

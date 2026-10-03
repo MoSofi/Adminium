@@ -8719,6 +8719,42 @@
     "status": "mt",
     "srcHash": "90c75b6d9022"
   },
+  "designer.card.addOn": {
+    "status": "mt",
+    "srcHash": "bebe80062863"
+  },
+  "designer.card.addOnGet": {
+    "status": "mt",
+    "srcHash": "83d98fe30a5e"
+  },
+  "designer.card.addOnHere": {
+    "status": "mt",
+    "srcHash": "19dee174962c"
+  },
+  "designer.card.addOnHereSends": {
+    "status": "mt",
+    "srcHash": "8067c8376eb7"
+  },
+  "designer.card.addOnInstall": {
+    "status": "mt",
+    "srcHash": "5d28aa5c3f5f"
+  },
+  "designer.card.addOnOff": {
+    "status": "mt",
+    "srcHash": "4c2c66ee338e"
+  },
+  "designer.card.addOnOffSends": {
+    "status": "mt",
+    "srcHash": "b2745ed1087a"
+  },
+  "designer.card.addOnSends": {
+    "status": "mt",
+    "srcHash": "a29f877504bc"
+  },
+  "designer.card.addOnSwitchAndGet": {
+    "status": "mt",
+    "srcHash": "c085ac1e30ad"
+  },
   "designer.card.addThem": {
     "status": "mt",
     "srcHash": "254c14a35735"
@@ -9542,6 +9578,26 @@
   "designer.start.title": {
     "status": "mt",
     "srcHash": "e675e5757cb9"
+  },
+  "designer.step.addOnAsking": {
+    "status": "mt",
+    "srcHash": "dacdb5a8b6de"
+  },
+  "designer.step.addOnDeclined": {
+    "status": "mt",
+    "srcHash": "b3401a71f0fc"
+  },
+  "designer.step.addOnFailed": {
+    "status": "mt",
+    "srcHash": "3ee66d9d2e09"
+  },
+  "designer.step.addOnGot": {
+    "status": "mt",
+    "srcHash": "6d394dce97f0"
+  },
+  "designer.step.addOnRefused": {
+    "status": "mt",
+    "srcHash": "68e3ebfca03e"
   },
   "designer.step.addOns": {
     "status": "mt",

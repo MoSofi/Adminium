@@ -374,6 +374,33 @@ describe('the build page', () => {
     ]);
   });
 
+  it('asks before an add-on is got, says what getting it sends, and says more when the list is off', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Invoices for my jobs.' }),
+      ev(1, { kind: 'card', card: { id: 'a1', type: 'add-on', key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.' } }),
+      ev(1, { kind: 'card', card: { id: 'a2', type: 'add-on', key: 'bookings', name: 'bookings', version: null, line: '', listOff: true } }),
+      ev(1, { kind: 'card', card: { id: 'a3', type: 'add-on', key: 'quotes', name: 'Quotes', version: '1.0.0', line: '', here: true } }),
+    ];
+    await open();
+    const listed = await screen.findByRole('group', { name: 'This app needs the add-on Invoices & Receipts (1.0.7), which is not on this server. Get it?' });
+    expect(listed.textContent).toContain('Invoices and receipts for an app.');
+    expect(listed.textContent).toContain('names this add-on and its version to adminium.dev');
+    await userEvent.click(within(listed).getByRole('button', { name: 'Get it' }));
+
+    const off = screen.getByRole('group', { name: /Switch the list of adminium.dev on and get it\?/ });
+    expect(off.textContent).toContain('tells it this server’s address, the time and its Adminium version');
+    await userEvent.click(within(off).getByRole('button', { name: 'Do without' }));
+    expect(within(off).getByRole('button', { name: 'Switch it on and get it' })).toBeTruthy();
+
+    const here = screen.getByRole('group', { name: /It is on this server and not installed/ });
+    expect(here.textContent).toContain('Nothing is downloaded.');
+    expect(within(here).getByRole('button', { name: 'Install it' })).toBeTruthy();
+    expect(posted('/answers')).toEqual([
+      { cardId: 'a1', value: { accept: true } },
+      { cardId: 'a2', value: { accept: false } },
+    ]);
+  });
+
   it('says a card left unanswered by a turn that ended was not answered, and offers no buttons', async () => {
     stored = [
       ev(1, { kind: 'turn-started', text: 'Drop notes.' }),

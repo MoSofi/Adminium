@@ -223,7 +223,16 @@
     "removed": "已删除。",
     "youAnswered": "你的回答：{answer}",
     "packages": "需要这些包：{list}。要添加吗？",
-    "addThem": "添加"
+    "addThem": "添加",
+    "addOn": "此应用需要附加组件 {name}（{version}），此服务器上没有。要获取吗？",
+    "addOnHere": "此应用需要附加组件 {name}（{version}）。它在此服务器上但尚未安装。要安装吗？",
+    "addOnOff": "此应用需要附加组件 {key}，此服务器上没有。要开启 adminium.dev 的列表并获取它吗？",
+    "addOnSends": "它将从 adminium.dev 下载（adminium.dev 会得知此附加组件及其版本），并安装到此服务器，与“工作室 → 附加组件”的安装方式相同。",
+    "addOnHereSends": "不会下载任何内容。它将安装到此服务器，与“工作室 → 附加组件”的安装方式相同。",
+    "addOnOffSends": "此服务器上已关闭 adminium.dev 的列表。开启后会立即并每天一次向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。获取附加组件会说明是哪一个。可在“工作室 → 附加组件”中再次关闭列表。",
+    "addOnGet": "获取",
+    "addOnInstall": "安装",
+    "addOnSwitchAndGet": "开启并获取"
   },
   "step": {
     "addOns": "正在查看附加组件",
@@ -274,7 +283,12 @@
     "deleteFailed": "无法删除 {subject}",
     "look": "正在更改外观",
     "lookDone": "已更改外观",
-    "lookFailed": "外观未更改"
+    "lookFailed": "外观未更改",
+    "addOnAsking": "正在询问是否获取附加组件 {subject}",
+    "addOnGot": "已获取附加组件 {subject}",
+    "addOnDeclined": "未使用附加组件 {subject}",
+    "addOnFailed": "无法获取附加组件 {subject}",
+    "addOnRefused": "未获取任何附加组件"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",

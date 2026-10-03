@@ -233,7 +233,16 @@ export default {
     "removed": "Fjernet.",
     "youAnswered": "Dit svar: {answer}",
     "packages": "Der skal bruges pakker: {list}. Skal de tilføjes?",
-    "addThem": "Tilføj dem"
+    "addThem": "Tilføj dem",
+    "addOn": "Denne app har brug for tilføjelsen {name} ({version}), som ikke er på denne server. Hent den?",
+    "addOnHere": "Denne app har brug for tilføjelsen {name} ({version}). Den er på denne server og ikke installeret. Installér den?",
+    "addOnOff": "Denne app har brug for tilføjelsen {key}, som ikke er på denne server. Slå listen fra adminium.dev til og hent den?",
+    "addOnSends": "Den hentes fra adminium.dev, hvilket fortæller adminium.dev denne tilføjelse og dens version, og installeres på denne server, som Studio → Tilføjelser ville installere den.",
+    "addOnHereSends": "Intet hentes. Den installeres på denne server, som Studio → Tilføjelser ville installere den.",
+    "addOnOffSends": "Listen fra adminium.dev er slået fra på denne server. At slå den til beder adminium.dev om listen, nu og én gang om dagen, hvilket fortæller den serverens adresse, tidspunktet og dens Adminium-version. At hente tilføjelsen nævner den. Studio → Tilføjelser slår listen fra igen.",
+    "addOnGet": "Hent den",
+    "addOnInstall": "Installér den",
+    "addOnSwitchAndGet": "Slå til og hent den"
   },
   "step": {
     "addOns": "Ser på tilføjelserne",
@@ -284,7 +293,12 @@ export default {
     "deleteFailed": "Kunne ikke slette {subject}",
     "look": "Skifter udseende",
     "lookDone": "Udseendet er skiftet",
-    "lookFailed": "Udseendet blev ikke ændret"
+    "lookFailed": "Udseendet blev ikke ændret",
+    "addOnAsking": "Spørger om at hente tilføjelsen {subject}",
+    "addOnGot": "Hentede tilføjelsen {subject}",
+    "addOnDeclined": "Klarede sig uden tilføjelsen {subject}",
+    "addOnFailed": "Kunne ikke hente tilføjelsen {subject}",
+    "addOnRefused": "Ingen tilføjelse blev hentet"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",

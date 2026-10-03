@@ -233,7 +233,16 @@ export default {
     "removed": "Odstraněno.",
     "youAnswered": "Vaše odpověď: {answer}",
     "packages": "Jsou potřeba balíčky: {list}. Přidat je?",
-    "addThem": "Přidat je"
+    "addThem": "Přidat je",
+    "addOn": "Tato aplikace potřebuje doplněk {name} ({version}), který na tomto serveru není. Získat ho?",
+    "addOnHere": "Tato aplikace potřebuje doplněk {name} ({version}). Je na tomto serveru a není nainstalovaný. Nainstalovat ho?",
+    "addOnOff": "Tato aplikace potřebuje doplněk {key}, který na tomto serveru není. Zapnout seznam z adminium.dev a získat ho?",
+    "addOnSends": "Stáhne se z adminium.dev, čímž se adminium.dev dozví tento doplněk a jeho verzi, a nainstaluje se na tento server, jak by ho nainstalovalo Studio → Doplňky.",
+    "addOnHereSends": "Nic se nestahuje. Nainstaluje se na tento server, jak by ho nainstalovalo Studio → Doplňky.",
+    "addOnOffSends": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zapnutí požádá adminium.dev o seznam, nyní a jednou denně, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Získání doplňku ho jmenuje. Studio → Doplňky seznam zase vypne.",
+    "addOnGet": "Získat",
+    "addOnInstall": "Nainstalovat",
+    "addOnSwitchAndGet": "Zapnout a získat"
   },
   "step": {
     "addOns": "Prohlíží doplňky",
@@ -284,7 +293,12 @@ export default {
     "deleteFailed": "Nepodařilo se smazat {subject}",
     "look": "Měním vzhled",
     "lookDone": "Vzhled změněn",
-    "lookFailed": "Vzhled nebyl změněn"
+    "lookFailed": "Vzhled nebyl změněn",
+    "addOnAsking": "Ptám se na získání doplňku {subject}",
+    "addOnGot": "Doplněk {subject} získán",
+    "addOnDeclined": "Bez doplňku {subject}",
+    "addOnFailed": "Doplněk {subject} se nepodařilo získat",
+    "addOnRefused": "Žádný doplněk nebyl získán"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",

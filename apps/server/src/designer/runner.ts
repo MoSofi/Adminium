@@ -162,7 +162,7 @@ function whyOf(content: string): string {
 
 /** The file or name a call is about, for the page to name: its `path`, else its `name`. */
 function stepSubject(input: Record<string, unknown>): string | undefined {
-  const value = typeof input['path'] === 'string' ? input['path'] : typeof input['name'] === 'string' ? input['name'] : undefined;
+  const value = typeof input['path'] === 'string' ? input['path'] : typeof input['name'] === 'string' ? input['name'] : typeof input['key'] === 'string' ? input['key'] : undefined;
   return value === undefined || value === '' ? undefined : value.slice(0, 200);
 }
 
@@ -483,6 +483,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           turn: running.turn,
           card: card.type,
           ...(card.type === 'package' ? { name: card.name, version: card.version } : {}),
+          ...(card.type === 'add-on' ? { key: card.key, version: card.version, ...(card.listOff === true ? { switchesListOn: true } : {}) } : {}),
           ...(card.type === 'question' ? { question: card.question.slice(0, 300) } : {}),
           answer: answer.type === 'question' ? answer.text.slice(0, 300) : answer,
         })

@@ -27,6 +27,20 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /** An add-on the app needs and this server does not have. Every word of it is the server's, from its own store or the list adminium.dev gave. */
+      type: 'add-on';
+      key: string;
+      name: string;
+      /** Null while the list is off: what it holds is not known yet. */
+      version: string | null;
+      line: string;
+      /** The list of adminium.dev is off here: a yes switches it on (which asks adminium.dev for the list), then gets the add-on. */
+      listOff?: true;
+      /** Already in this server's store: a yes installs it and nothing is fetched. */
+      here?: true;
+    }
+  | {
+      id: string;
       type: 'removal';
       appKey: string;
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
@@ -39,6 +53,7 @@ export type CardRequest = DesignerCard extends infer Card ? (Card extends Design
 export type CardAnswer =
   | { type: 'question'; text: string }
   | { type: 'package'; accept: boolean }
+  | { type: 'add-on'; accept: boolean }
   | { type: 'removal'; accept: boolean };
 
 /** A card's answer, checked against the card it is for; null when it does not fit. */

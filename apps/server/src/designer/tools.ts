@@ -11,6 +11,7 @@
  *   read_reference    one file of the skills
  *   list_add_ons      the add-ons this server has or can get
  *   add_side          the starter's screen for a side, to rewrite
+ *   get_add_on        an add-on this server lacks, after the person's yes
  *   build_on_shape    the tables and emails of an add-on's shape, from its manifest
  *   ask_person        a question for the person, and their answer
  *   request_package   an npm package, installed only when the person says yes
@@ -35,6 +36,7 @@ import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { projectPackageManager } from '../project/package-manager.js';
 import { runChild } from './child.js';
+import type { AddOnGetter } from './get-add-on.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import type { Designer } from './service.js';
 import type { Skills } from './skills.js';
@@ -55,7 +57,8 @@ export interface AddOnLine {
   name: string;
   version: string;
   line: string;
-  state: 'installed' | 'available';
+  /** `available`: in this server's store. `listed`: only in the list adminium.dev gave; get_add_on brings it. */
+  state: 'installed' | 'available' | 'listed';
   /** The shapes an app can build tables on: `invoice@1`. */
   shapes?: string[];
 }
@@ -68,6 +71,10 @@ export interface ToolsDeps {
   listAddOns: () => Promise<AddOnLine[]>;
   /** An add-on's manifest, installed or in this server's store; null when it is neither. */
   readAddOn?: (key: string) => Promise<unknown>;
+  /** Getting an add-on this server does not have, after a person's yes. Absent where nothing can be installed. */
+  addOnGetter?: AddOnGetter;
+  /** `local` under `adminium design`, where applying an app installs the add-ons it needs that are already in the store. */
+  mode?: 'local' | 'live';
 }
 
 const text = (content: string, label: string, extra: Partial<ToolOutcome> = {}): ToolOutcome => ({ content, label, ...extra });
@@ -387,6 +394,55 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     }
     return serverCode === 'allowed' ? null : refused('The person did not allow server code (hooks/, actions/) in this turn. Do it with the manifest, or say what cannot be done without it.', 'Server code not allowed');
   }
+
+  /** What was said to an add-on's card, by turn: one card for an add-on in a turn, and a no is kept (the model cannot ask until the person gives in). */
+  const addOnAnswers = new Map<string, 'yes' | 'no'>();
+
+  /**
+   * Get an add-on this server does not have, after a card. The model gave a
+   * key; everything the card says comes from this server's store or from the
+   * list adminium.dev gave it.
+   */
+  const offerAddOn = async (key: string, ctx: ToolContext): Promise<{ got: true; name: string; version: string; fresh: boolean } | { got: false; outcome: ToolOutcome }> => {
+    const none = (content: string, outcome: 'declined' | 'refused' | 'failed', miss = false): { got: false; outcome: ToolOutcome } => ({
+      got: false,
+      outcome: { content, label: `Did not get ${key}`, isError: true, ...(miss ? { miss: true } : {}), facts: { outcome } },
+    });
+    const getter = deps.addOnGetter;
+    const upload = 'The person can upload it in Studio → Add-ons. Say so, and build the rest of the app meanwhile.';
+    if (!/^[a-z][a-z0-9-]{0,79}$/.test(key)) return none(`"${key.slice(0, 80)}" is not an add-on's key. list_add_ons gives the keys.`, 'refused', true);
+    if (getter === undefined) return none(`The add-on "${key}" is not on this server, and this Designer cannot get one. ${upload}`, 'refused');
+    const found = await getter.look(key);
+    if (found.state === 'installed') return { got: true, name: found.name, version: found.version, fresh: false };
+    if (found.state === 'unknown') return none(`There is no add-on "${key}", here or in the list of adminium.dev. list_add_ons gives the ones there are; do not ask for this one again.`, 'refused', true);
+    if (found.state === 'too-new') return none(`${found.name} needs Adminium ${found.needs} or later, and this server is ${deps.version}. Tell the person; build without it.`, 'refused');
+    if (found.state === 'off' && found.vetoed) return none(`The add-on "${key}" is not on this server, and this server is set to ask nothing of adminium.dev. ${upload}`, 'refused');
+    if (!(await getter.allowed(ctx.handle.by))) {
+      return none(`The add-on "${key}" is not on this server, and the person you are working with may not add one. Someone who manages this server’s add-ons can install it in Studio → Add-ons. Say so, and build the rest meanwhile.`, 'refused');
+    }
+    const turnKey = `${ctx.session.id}:${String(ctx.turn)}:`;
+    const before = addOnAnswers.get(turnKey + key) ?? (found.state === 'off' ? addOnAnswers.get(`${turnKey}*list`) : undefined);
+    if (before !== undefined) {
+      return none(
+        before === 'no'
+          ? `The person already said no to ${found.state === 'off' ? 'switching the list of adminium.dev on' : `"${key}"`} in this turn. Do not ask again: build without it, and say what is left out.`
+          : `"${key}" was already asked for in this turn and could not be got. Do not ask again.`,
+        'declined',
+      );
+    }
+    const answer = await ctx.ask(
+      found.state === 'off'
+        ? { type: 'add-on', key, name: key, version: null, line: '', listOff: true }
+        : { type: 'add-on', key, name: found.name, version: found.version, line: found.line.slice(0, 300), ...(found.state === 'here' ? { here: true as const } : {}) },
+    );
+    const yes = answer.type === 'add-on' && answer.accept;
+    addOnAnswers.set(turnKey + key, yes ? 'yes' : 'no');
+    if (found.state === 'off' && !yes) addOnAnswers.set(`${turnKey}*list`, 'no');
+    if (!yes) return none(`The person said no to the add-on "${key}". Build without it, and say what is left out.`, 'declined');
+    const result = await getter.get(key, ctx.handle.by, ctx.signal, { switchOn: found.state === 'off' });
+    if (!result.ok) return none(`${result.why} Tell the person in their own words; build the rest meanwhile.`, 'failed');
+    return { got: true, name: result.name, version: result.version, fresh: true };
+  };
 
   const tools: DesignerTool[] = [
     {
@@ -711,7 +767,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const all = await deps.listAddOns();
         if (all.length === 0) {
           return text(
-            'This server has no add-ons, and its online add-on catalogue is off. An app that requires an add-on is not applied here until the person switches the catalogue on (Studio → Add-ons) or uploads the add-on there. Say that before you build on one; if they asked for one by name, build the app to require it and tell them this is the one step left to them.',
+            'This server has no add-ons, and its list of adminium.dev is off, so what is on offer is not known here. If the app needs one (invoices, quotes, receipts: key "invoices"), call get_add_on with its key: the person is asked, and a yes switches the list on and gets it.',
             'No add-ons here',
           );
         }
@@ -719,10 +775,29 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           all
             .map(
               (addOn) =>
-                `${addOn.key} ${addOn.version} (${addOn.state}) — ${addOn.name}: ${addOn.line}${(addOn.shapes ?? []).length === 0 ? '' : ` Shapes to build tables on with build_on_shape: ${(addOn.shapes ?? []).join(', ')}.`}`,
+                `${addOn.key} ${addOn.version} (${addOn.state === 'listed' ? 'not on this server: get_add_on brings it' : addOn.state}) — ${addOn.name}: ${addOn.line}${(addOn.shapes ?? []).length === 0 ? '' : ` Shapes to build tables on with build_on_shape: ${(addOn.shapes ?? []).join(', ')}.`}`,
             )
             .join('\n'),
           `Found ${String(all.length)} add-ons`,
+        );
+      },
+    },
+    {
+      name: 'get_add_on',
+      description:
+        'Get an add-on this server does not have yet, by its key (as list_add_ons gives it). The person is asked first; a yes downloads and installs it, and then build_on_shape can build on it. Only for an add-on the app needs.',
+      inputSchema: { type: 'object', properties: { key: { type: 'string', description: 'The add-on’s key, e.g. invoices' } }, required: ['key'], additionalProperties: false },
+      running: (input) => `Asking to get ${String(input['key'] ?? 'an add-on').slice(0, 80)}`,
+      run: async (input, ctx) => {
+        const key = str(input, 'key') ?? '';
+        const got = await offerAddOn(key, ctx);
+        if (!got.got) return got.outcome;
+        if (!got.fresh) return text(`${got.name} ${got.version} is already installed here. Build on it with build_on_shape.`, `${got.name} is already here`, { facts: { outcome: 'added' } });
+        const shapes = (await deps.listAddOns()).find((addOn) => addOn.key === key)?.shapes ?? [];
+        return text(
+          `${got.name} ${got.version} is installed.${shapes.length === 0 ? '' : ` Its shapes, for build_on_shape: ${shapes.join(', ')}.`}`,
+          `Got ${got.name}`,
+          { facts: { outcome: 'added' } },
         );
       },
     },
@@ -821,16 +896,17 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         additionalProperties: false,
       },
       running: (input) => `Building on ${String(input['shape'] ?? 'a shape')}`,
-      run: async (input) => {
+      run: async (input, ctx) => {
         const addOn = str(input, 'add_on');
         const shape = str(input, 'shape');
         if (addOn === null || shape === null) return refused('Give "add_on" and "shape".', 'Built on nothing');
-        const document = (await deps.readAddOn?.(addOn)) ?? null;
+        let document = (await deps.readAddOn?.(addOn)) ?? null;
         if (document === null) {
-          return refused(
-            `The add-on "${addOn}" is not on this server, so its shape cannot be read. The person can switch the add-on catalogue on, or upload the add-on, in Studio → Add-ons; say so, and build the rest of the app meanwhile.`,
-            `Could not build on ${shape}`,
-          );
+          // Not on this server: the person is asked for it here, so the model need not know to ask first.
+          const got = await offerAddOn(addOn, ctx);
+          if (!got.got) return { ...got.outcome, label: `Could not build on ${shape}` };
+          document = (await deps.readAddOn?.(addOn)) ?? null;
+          if (document === null) return refused(`The add-on "${addOn}" was installed and its shapes do not read. Tell the person, and build the rest meanwhile.`, `Could not build on ${shape}`);
         }
         const given = input['recipient'] as Record<string, unknown> | undefined;
         const recipient =
@@ -964,6 +1040,7 @@ export const DESIGNER_TOOL_NAMES = [
   'run_tests',
   'read_reference',
   'list_add_ons',
+  'get_add_on',
   'add_side',
   'set_look',
   'build_on_shape',

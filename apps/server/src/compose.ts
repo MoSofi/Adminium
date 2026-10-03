@@ -104,6 +104,7 @@ import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.j
 import { stopOwnBuilds } from './project/apps/own-build.js';
 import { projectBundlerManifest } from './project/build.js';
 import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
+import { createAddOnGetter } from './designer/get-add-on.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
@@ -1983,6 +1984,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const designerSkills = createSkills();
         const designerVersions = createVersions(root);
         const designerService = createAppInstallService(appDeps);
+        /*
+         * An add-on from inside a turn: the page's download job and the page's
+         * installer, for the person who started the turn. They must hold
+         * `manifests.manage`, as the page asks; on a live server, where the
+         * Designer is already a Super Admin's, they must be one.
+         */
+        const designerAddOns = createAddOnGetter({
+          meta,
+          installer: addOnInstaller,
+          catalog: addOnCatalog,
+          serverVersion: APP_VERSION,
+          allowed: async (by) => {
+            if (by.id === null) return false;
+            const set = await permissionsOf(by.id);
+            return designerOpts.mode === 'live' ? set.superAdmin : permissionSetAllows(set, 'system:manifests:manage');
+          },
+        });
         const designerAudit = async (action: string, actor: { id: string | null; label: string } | null, detail: Record<string, unknown>): Promise<void> => {
             await auditRepo(meta).append({
               actorKind: actor === null ? 'system' : 'user',
@@ -2056,8 +2074,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                     meta,
                     credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
                     store: addOnStore,
-                    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+                    catalogEnabled: () => addOnCatalog.isEnabled(),
                   }),
+                mode: designerOpts.mode,
+                addOnGetter: designerAddOns,
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
               },
               session.appKey,

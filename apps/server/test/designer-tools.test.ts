@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { CardAnswer, CardRequest } from '../src/designer/cards.js';
+import type { AddOnGetter, AddOnLook, GetAddOnResult } from '../src/designer/get-add-on.js';
 import { createEventLog } from '../src/designer/events.js';
 import { createSkills, skillsDir } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -25,6 +26,12 @@ let tools: DesignerTool[];
 let asked: CardRequest[];
 let answers: CardAnswer[];
 let said: string;
+/** What the server knows of each add-on, and what getting one answers: the getter the tools are given. */
+let looks: Record<string, AddOnLook>;
+let mayAdd: boolean;
+let gets: { key: string; switchOn: boolean }[];
+let getResult: GetAddOnResult;
+let onServer: Set<string>;
 
 const session = { id: 'ds_000000000000000000000000', appKey: 'repairs' } as DesignerSession;
 const context = (): ToolContext => {
@@ -59,6 +66,11 @@ beforeEach(async () => {
   asked = [];
   answers = [];
   said = 'A repair desk for bikes.';
+  looks = {};
+  mayAdd = true;
+  gets = [];
+  getResult = { ok: true, name: 'Invoices & Receipts', version: '1.0.7' };
+  onServer = new Set(['invoices']);
   tools = createDesignerTools(
     {
       root,
@@ -67,8 +79,17 @@ beforeEach(async () => {
       designer: () => ({ store: { messages: () => [{ turn: 1, message: { role: 'user', content: [{ type: 'text', text: said }] } }] } }) as never,
       skills: createSkills(),
       listAddOns: async () => [{ key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.', state: 'available' }],
+      addOnGetter: {
+        look: async (key) => looks[key] ?? { state: 'unknown' },
+        allowed: async () => mayAdd,
+        get: async (key, _by, _signal, opts) => {
+          gets.push({ key, switchOn: opts?.switchOn === true });
+          if (getResult.ok) onServer.add(key);
+          return getResult;
+        },
+      } satisfies AddOnGetter,
       readAddOn: async (key) =>
-        key === 'invoices'
+        onServer.has(key)
           ? (JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'packages', 'manifest', 'test', 'fixtures', 'released', 'invoices-1.0.6.manifest.json'), 'utf8')) as unknown)
           : null,
     },
@@ -77,6 +98,110 @@ beforeEach(async () => {
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
+});
+
+describe('an add-on this server does not have', () => {
+  const LISTED: AddOnLook = { state: 'listed', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.' };
+  beforeEach(() => {
+    onServer = new Set();
+    looks = { invoices: LISTED };
+  });
+
+  it('asks on a card whose every word is the server’s, and a yes gets it', async () => {
+    answers = [{ type: 'add-on', accept: true }];
+    const got = await run('get_add_on', { key: 'invoices' });
+    expect(asked).toEqual([{ type: 'add-on', key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.' }]);
+    expect(gets).toEqual([{ key: 'invoices', switchOn: false }]);
+    expect(got).toMatchObject({ label: 'Got Invoices & Receipts', facts: { outcome: 'added' } });
+    expect(got.isError).toBeUndefined();
+  });
+
+  it('a no gets nothing, and is not asked again in the turn', async () => {
+    answers = [{ type: 'add-on', accept: false }];
+    expect(await run('get_add_on', { key: 'invoices' })).toMatchObject({ isError: true, facts: { outcome: 'declined' } });
+    const again = await run('get_add_on', { key: 'invoices' });
+    expect(again.content).toContain('already said no');
+    // Nor by the other door.
+    expect((await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1' })).content).toContain('already said no');
+    expect(asked).toHaveLength(1);
+    expect(gets).toEqual([]);
+  });
+
+  it('takes a key and nothing else', async () => {
+    for (const key of ['https://example.test/pkg.tgz', '../invoices', 'invoices@9.9.9', 'Invoices', '']) {
+      expect(await run('get_add_on', { key }), key).toMatchObject({ isError: true });
+    }
+    // A key the list does not hold raises no card.
+    expect(await run('get_add_on', { key: 'made-up' })).toMatchObject({ isError: true, miss: true });
+    expect(asked).toEqual([]);
+    expect(gets).toEqual([]);
+  });
+
+  it('answers in words, with no card, for a person who may not add one', async () => {
+    mayAdd = false;
+    const refused = await run('get_add_on', { key: 'invoices' });
+    expect(refused).toMatchObject({ isError: true, facts: { outcome: 'refused' } });
+    expect(refused.content).toContain('may not add one');
+    expect(asked).toEqual([]);
+  });
+
+  it('a list that is off: the card says so, a yes switches it on, and one no covers every add-on in the turn', async () => {
+    looks = { invoices: { state: 'off', vetoed: false }, bookings: { state: 'off', vetoed: false } };
+    answers = [{ type: 'add-on', accept: false }];
+    await run('get_add_on', { key: 'invoices' });
+    expect(asked).toEqual([{ type: 'add-on', key: 'invoices', name: 'invoices', version: null, line: '', listOff: true }]);
+    expect((await run('get_add_on', { key: 'bookings' })).content).toContain('already said no to switching the list');
+    expect(asked).toHaveLength(1);
+    expect(gets).toEqual([]);
+  });
+
+  it('a list that is off and a yes: the list is switched on with the get', async () => {
+    looks = { invoices: { state: 'off', vetoed: false } };
+    answers = [{ type: 'add-on', accept: true }];
+    expect(await run('get_add_on', { key: 'invoices' })).toMatchObject({ facts: { outcome: 'added' } });
+    expect(gets).toEqual([{ key: 'invoices', switchOn: true }]);
+  });
+
+  it('a server set to ask nothing of adminium.dev raises no card', async () => {
+    looks = { invoices: { state: 'off', vetoed: true } };
+    expect((await run('get_add_on', { key: 'invoices' })).content).toContain('ask nothing of adminium.dev');
+    expect(asked).toEqual([]);
+  });
+
+  it('one in the store is installed after a yes, and the card says nothing is fetched', async () => {
+    looks = { invoices: { state: 'here', name: 'Invoices & Receipts', version: '1.0.7', line: '' } };
+    answers = [{ type: 'add-on', accept: true }];
+    await run('get_add_on', { key: 'invoices' });
+    expect(asked[0]).toMatchObject({ type: 'add-on', here: true });
+  });
+
+  it('says why when it could not be got, and does not ask twice', async () => {
+    getResult = { ok: false, why: 'Invoices & Receipts could not be downloaded: adminium.dev did not answer in time.' };
+    answers = [{ type: 'add-on', accept: true }];
+    const failed = await run('get_add_on', { key: 'invoices' });
+    expect(failed).toMatchObject({ isError: true, facts: { outcome: 'failed' } });
+    expect(failed.content).toContain('did not answer in time');
+    expect((await run('get_add_on', { key: 'invoices' })).content).toContain('could not be got');
+    expect(asked).toHaveLength(1);
+  });
+
+  it('build_on_shape asks for it on the way, and builds once it is here', async () => {
+    writeFileSync(
+      join(root, 'apps/repairs/manifest/tables/clients.json'),
+      JSON.stringify({ ref: 'clients', name: 'repairs_clients', columns: [{ name: 'id', type: 'uuid', primaryKey: true }, { name: 'name', type: 'text' }, { name: 'email', type: 'text' }] }),
+    );
+    answers = [{ type: 'add-on', accept: true }];
+    const built = await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1', recipient: { table: 'clients', email: 'email', name: 'name' } });
+    expect(asked).toHaveLength(1);
+    expect(gets).toEqual([{ key: 'invoices', switchOn: false }]);
+    expect(built, built.content).toMatchObject({ label: 'Built on invoice@1' });
+  });
+
+  it('already installed: nothing is asked', async () => {
+    looks = { invoices: { state: 'installed', name: 'Invoices & Receipts', version: '1.0.7' } };
+    expect(await run('get_add_on', { key: 'invoices' })).toMatchObject({ label: 'Invoices & Receipts is already here' });
+    expect(asked).toEqual([]);
+  });
 });
 
 describe('the Designer’s tools', () => {
@@ -303,7 +428,8 @@ describe('the Designer’s tools', () => {
 
   it('build on an add-on’s shape from the add-on’s own manifest, and never over what the app has', async () => {
     // Not on this server: said, with what the person can do about it.
-    expect((await run('build_on_shape', { add_on: 'nope', shape: 'invoice@1' })).content).toContain('is not on this server');
+    expect(await run('build_on_shape', { add_on: 'nope', shape: 'invoice@1' })).toMatchObject({ isError: true, miss: true, label: 'Could not build on invoice@1' });
+    expect(asked).toEqual([]);
     // A shape that sends email needs to know who it writes to, and that table has to be there.
     expect((await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1' })).content).toContain('who it writes to');
     const recipient = { table: 'clients', email: 'email', name: 'name' };

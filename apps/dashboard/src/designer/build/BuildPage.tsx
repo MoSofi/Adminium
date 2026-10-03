@@ -27,6 +27,7 @@ import {
   LimitNote,
   LookChip,
   NotAppliedNote,
+  AddOnCard,
   PackageCard,
   PersonMessage,
   QuestionCard,
@@ -286,6 +287,20 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   accepted={said.accept}
                   busy={busy}
                   onAdd={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
+                  onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
+                />
+              );
+            }
+            if (card.type === 'add-on') {
+              return (
+                <AddOnCard
+                  key={card.id}
+                  card={card}
+                  answered={answered}
+                  closed={!live}
+                  accepted={said.accept}
+                  busy={busy}
+                  onGet={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
                   onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
                 />
               );

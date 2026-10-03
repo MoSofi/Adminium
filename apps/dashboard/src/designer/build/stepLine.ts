@@ -67,6 +67,18 @@ export function stepLine(row: StepRow): string {
       return row.state === 'failed' ? t('designer:step.shapeFailed', 'Could not build on the add-on') : t('designer:step.shapeDone', 'Built on an add-on');
     case 'ask_person':
       return running ? t('designer:step.asking', 'Asking you') : t('designer:step.answered', 'You answered');
+    case 'get_add_on':
+      if (running) return t('designer:step.addOnAsking', 'Asking to get the add-on {subject}', S);
+      switch (row.outcome) {
+        case 'added':
+          return t('designer:step.addOnGot', 'Got the add-on {subject}', S);
+        case 'declined':
+          return t('designer:step.addOnDeclined', 'Did without the add-on {subject}', S);
+        case 'failed':
+          return t('designer:step.addOnFailed', 'Could not get the add-on {subject}', S);
+        default:
+          return t('designer:step.addOnRefused', 'No add-on was got');
+      }
     case 'request_package':
       if (running) return t('designer:step.packageAsking', 'Asking to add {subject}', S);
       switch (row.outcome) {

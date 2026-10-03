@@ -233,7 +233,16 @@ export default {
     "removed": "已刪除。",
     "youAnswered": "你的回答：{answer}",
     "packages": "需要這些套件：{list}。要加入嗎？",
-    "addThem": "加入"
+    "addThem": "加入",
+    "addOn": "此應用程式需要附加元件 {name}（{version}），此伺服器上沒有。要取得嗎？",
+    "addOnHere": "此應用程式需要附加元件 {name}（{version}）。它在此伺服器上但尚未安裝。要安裝嗎？",
+    "addOnOff": "此應用程式需要附加元件 {key}，此伺服器上沒有。要開啟 adminium.dev 的清單並取得它嗎？",
+    "addOnSends": "它將從 adminium.dev 下載（adminium.dev 會得知此附加元件及其版本），並安裝到此伺服器，與「工作室 → 附加元件」的安裝方式相同。",
+    "addOnHereSends": "不會下載任何內容。它將安裝到此伺服器，與「工作室 → 附加元件」的安裝方式相同。",
+    "addOnOffSends": "此伺服器上已關閉 adminium.dev 的清單。開啟後會立即並每天一次向 adminium.dev 請求清單，對方會得知此伺服器的位址、時間及其 Adminium 版本。取得附加元件會說明是哪一個。可在「工作室 → 附加元件」中再次關閉清單。",
+    "addOnGet": "取得",
+    "addOnInstall": "安裝",
+    "addOnSwitchAndGet": "開啟並取得"
   },
   "step": {
     "addOns": "正在查看附加元件",
@@ -284,7 +293,12 @@ export default {
     "deleteFailed": "無法刪除 {subject}",
     "look": "正在變更外觀",
     "lookDone": "已變更外觀",
-    "lookFailed": "外觀未變更"
+    "lookFailed": "外觀未變更",
+    "addOnAsking": "正在詢問是否取得附加元件 {subject}",
+    "addOnGot": "已取得附加元件 {subject}",
+    "addOnDeclined": "未使用附加元件 {subject}",
+    "addOnFailed": "無法取得附加元件 {subject}",
+    "addOnRefused": "未取得任何附加元件"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",

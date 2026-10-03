@@ -12,6 +12,7 @@ import {
   FailedNote,
   LimitNote,
   NotAppliedNote,
+  AddOnCard,
   PackageCard,
   PersonMessage,
   QuestionCard,
@@ -78,6 +79,14 @@ export const Cards = {
         onRemove={noop}
       />
       <PackageCard card={{ id: 'p', type: 'package', name: 'qrcode', version: '1.5.4', why: 'A QR code on the customer page links to the repair.' }} answered={false} busy={false} onAdd={noop} onSkip={noop} />
+      <AddOnCard
+        card={{ id: 'ao', type: 'add-on', key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices, quotes and receipts, numbered and sent by email.' }}
+        answered={false}
+        busy={false}
+        onGet={noop}
+        onSkip={noop}
+      />
+      <AddOnCard card={{ id: 'ao2', type: 'add-on', key: 'invoices', name: 'invoices', version: null, line: '', listOff: true }} answered={false} busy={false} onGet={noop} onSkip={noop} />
       <QuestionCard card={{ id: 'a', type: 'question', question: 'Should mechanics see part prices?', choices: [] }} answered answer="No, hide prices" busy={false} onChoose={noop} onOwnWords={noop} />
     </div>
   ),

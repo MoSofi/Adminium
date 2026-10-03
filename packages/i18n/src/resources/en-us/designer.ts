@@ -233,7 +233,16 @@ export default {
     "removed": "Removed.",
     "youAnswered": "You answered: {answer}",
     "packages": "Packages are needed: {list}. Add them?",
-    "addThem": "Add them"
+    "addThem": "Add them",
+    "addOn": "This app needs the add-on {name} ({version}), which is not on this server. Get it?",
+    "addOnHere": "This app needs the add-on {name} ({version}). It is on this server and not installed. Install it?",
+    "addOnOff": "This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on and get it?",
+    "addOnSends": "It is downloaded from adminium.dev, which names this add-on and its version to adminium.dev, and installed on this server, as Studio → Add-ons would install it.",
+    "addOnHereSends": "Nothing is downloaded. It is installed on this server, as Studio → Add-ons would install it.",
+    "addOnOffSends": "The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Getting the add-on names it. Studio → Add-ons switches the list off again.",
+    "addOnGet": "Get it",
+    "addOnInstall": "Install it",
+    "addOnSwitchAndGet": "Switch it on and get it"
   },
   "step": {
     "addOns": "Looking at the add-ons",
@@ -284,7 +293,12 @@ export default {
     "deleteFailed": "Could not delete {subject}",
     "look": "Changing the look",
     "lookDone": "Changed the look",
-    "lookFailed": "The look was not changed"
+    "lookFailed": "The look was not changed",
+    "addOnAsking": "Asking to get the add-on {subject}",
+    "addOnGot": "Got the add-on {subject}",
+    "addOnDeclined": "Did without the add-on {subject}",
+    "addOnFailed": "Could not get the add-on {subject}",
+    "addOnRefused": "No add-on was got"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",

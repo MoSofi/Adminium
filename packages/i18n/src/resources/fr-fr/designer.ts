@@ -233,7 +233,16 @@ export default {
     "removed": "Supprimé.",
     "youAnswered": "Votre réponse : {answer}",
     "packages": "Des paquets sont nécessaires : {list}. Les ajouter ?",
-    "addThem": "Les ajouter"
+    "addThem": "Les ajouter",
+    "addOn": "Cette application a besoin de l’extension {name} ({version}), qui n’est pas sur ce serveur. L’obtenir ?",
+    "addOnHere": "Cette application a besoin de l’extension {name} ({version}). Elle est sur ce serveur et n’est pas installée. L’installer ?",
+    "addOnOff": "Cette application a besoin de l’extension {key}, qui n’est pas sur ce serveur. Activer la liste d’adminium.dev et l’obtenir ?",
+    "addOnSends": "Elle est téléchargée depuis adminium.dev, qui apprend ainsi cette extension et sa version, puis installée sur ce serveur, comme Studio → Extensions l’installerait.",
+    "addOnHereSends": "Rien n’est téléchargé. Elle est installée sur ce serveur, comme Studio → Extensions l’installerait.",
+    "addOnOffSends": "La liste d’adminium.dev est désactivée sur ce serveur. L’activer demande la liste à adminium.dev, maintenant et une fois par jour, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Obtenir l’extension la nomme. Studio → Extensions désactive de nouveau la liste.",
+    "addOnGet": "L’obtenir",
+    "addOnInstall": "L’installer",
+    "addOnSwitchAndGet": "Activer et l’obtenir"
   },
   "step": {
     "addOns": "Examine les extensions",
@@ -284,7 +293,12 @@ export default {
     "deleteFailed": "Impossible de supprimer {subject}",
     "look": "Changement du style",
     "lookDone": "Style changé",
-    "lookFailed": "Le style n’a pas été changé"
+    "lookFailed": "Le style n’a pas été changé",
+    "addOnAsking": "Demande pour obtenir l’extension {subject}",
+    "addOnGot": "Extension {subject} obtenue",
+    "addOnDeclined": "On s’est passé de l’extension {subject}",
+    "addOnFailed": "Impossible d’obtenir l’extension {subject}",
+    "addOnRefused": "Aucune extension obtenue"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",

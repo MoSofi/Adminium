@@ -10,6 +10,7 @@
  */
 import { useId, type ReactNode } from 'react';
 import {
+  Blocks,
   Check,
   ChevronDown,
   CircleSlash2,
@@ -458,6 +459,67 @@ export function PackageCard({
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={busy} onClick={onAdd} className={PRIMARY}>
             {many ? t('designer:card.addThem', 'Add them') : t('designer:card.addIt', 'Add it')}
+          </button>
+          <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
+            {t('designer:card.doWithout', 'Do without')}
+          </button>
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+/** An add-on the app needs and this server does not have. Every word of it is the server's own: the model gave a key. */
+export function AddOnCard({
+  card,
+  answered,
+  closed = false,
+  accepted,
+  busy,
+  onGet,
+  onSkip,
+}: {
+  card: Extract<DesignerCard, { type: 'add-on' }>;
+  answered: boolean;
+  /** The turn ended without an answer. */
+  closed?: boolean;
+  accepted?: boolean | undefined;
+  busy: boolean;
+  onGet: () => void;
+  onSkip: () => void;
+}): ReactNode {
+  const off = card.listOff === true;
+  const here = card.here === true;
+  const title = off
+    ? withMono(t('designer:card.addOnOff', 'This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on and get it?', { key: M1 }), [M1], [card.key])
+    : here
+      ? t('designer:card.addOnHere', 'This app needs the add-on {name} ({version}). It is on this server and not installed. Install it?', { name: card.name, version: card.version ?? '' })
+      : t('designer:card.addOn', 'This app needs the add-on {name} ({version}), which is not on this server. Get it?', { name: card.name, version: card.version ?? '' });
+  return (
+    <CardShell cardId={card.id} icon={<Blocks className="size-[15px]" />} title={title}>
+      {card.line === '' ? null : (
+        <p dir="auto" className="m-0 text-[12.5px] leading-normal text-fg-muted">
+          {card.line}
+        </p>
+      )}
+      <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
+        {off
+          ? t(
+              'designer:card.addOnOffSends',
+              'The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Getting the add-on names it. Studio → Add-ons switches the list off again.',
+            )
+          : here
+            ? t('designer:card.addOnHereSends', 'Nothing is downloaded. It is installed on this server, as Studio → Add-ons would install it.')
+            : t('designer:card.addOnSends', 'It is downloaded from adminium.dev, which names this add-on and its version to adminium.dev, and installed on this server, as Studio → Add-ons would install it.')}
+      </p>
+      {closed && !answered ? (
+        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</p>
+      ) : answered ? (
+        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{accepted === true ? t('designer:card.packageYes', 'You said yes.') : t('designer:card.packageNo', 'You said to do without it.')}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={busy} onClick={onGet} className={PRIMARY}>
+            {off ? t('designer:card.addOnSwitchAndGet', 'Switch it on and get it') : here ? t('designer:card.addOnInstall', 'Install it') : t('designer:card.addOnGet', 'Get it')}
           </button>
           <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
             {t('designer:card.doWithout', 'Do without')}
