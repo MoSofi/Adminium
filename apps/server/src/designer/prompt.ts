@@ -13,6 +13,7 @@
  * person's first message always stays, and a tool call never loses its
  * answer (a provider refuses a transcript like that).
  */
+import { foldSpent } from './fold.js';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
@@ -278,6 +279,7 @@ export function createPrompt(deps: PromptDeps) {
         message: `${provider}: this model's window is too small to build with (what it must be told takes most of the ${String(limit)} tokens it reads).`,
       });
     }
-    return { system, messages: trimTranscript(messages, budget) };
+    // What the turn no longer needs is cut first (T64); the budget then trims only what is still too long.
+    return { system, messages: trimTranscript(foldSpent(messages), budget) };
   };
 }

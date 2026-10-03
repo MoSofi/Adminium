@@ -218,6 +218,13 @@ box and a sound plays once; the work goes on, and **Stop** is yours to press. Wi
 turn costs money, and each step sends the conversation again: a [new session](#a-new-session) starts
 the count from nothing, and the session's notice has the button for it.
 
+What is sent again is kept short. Before each step, the Designer cuts what the turn no longer
+needs to a line that says what it was: a file it read before changing it, the earlier of several
+writes of one file, a check that a later check replaced, a reference page read many steps ago. The
+last few steps are never cut, and the session's own record keeps everything. With Anthropic, the
+part of each request that did not change is read from Anthropic's prompt cache; what the cache read
+still counts in the tokens shown.
+
 They are settings of the install:
 
 | Setting | Default | What it does |

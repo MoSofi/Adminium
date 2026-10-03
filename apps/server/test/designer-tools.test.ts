@@ -228,6 +228,13 @@ describe('the Designer’s tools', () => {
     expect(await run('read_file', {})).toMatchObject({ isError: true });
   });
 
+  it('refuse a shortened copy of an earlier step written back as a file (the fold’s mark)', async () => {
+    const copied = `{"ref": "jobs", "columns": [ … (812 more characters written then; a later step has the file)`;
+    expect(await run('write_file', { path: 'apps/repairs/manifest/tables/jobs.json', content: copied })).toMatchObject({ isError: true, label: 'Wrote nothing' });
+    expect(existsSync(join(root, 'apps/repairs/manifest/tables/jobs.json'))).toBe(false);
+    expect(await run('edit_file', { path: 'apps/repairs/manifest/app.json', old: '"key"', new: copied })).toMatchObject({ isError: true, label: 'Edited nothing' });
+  });
+
   it('cut a long file and say how to read the rest', async () => {
     writeFileSync(join(root, 'apps/repairs/long.md'), `${'line of text\n'.repeat(8000)}`);
     const read = await run('read_file', { path: 'apps/repairs/long.md' });

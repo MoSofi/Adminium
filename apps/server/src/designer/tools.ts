@@ -36,6 +36,7 @@ import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { projectPackageManager } from '../project/package-manager.js';
 import { runChild } from './child.js';
+import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter } from './get-add-on.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import type { Designer } from './service.js';
@@ -519,6 +520,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const path = str(input, 'path');
         const content = str(input, 'content');
         if (path === null || content === null) return refused('Give "path" and "content".', 'Wrote nothing');
+        // An earlier step of this conversation, shown cut short, copied back as if it were the file.
+        if (FOLDED_MARK.test(content)) return refused('That is a shortened copy of an earlier step, not the file: it ends in "… (N more characters …)". read_file gives the whole file; then write all of it.', 'Wrote nothing');
         const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
@@ -557,6 +560,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const before = str(input, 'old');
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
+        if (FOLDED_MARK.test(after) || FOLDED_MARK.test(before)) return refused('That is a shortened copy of an earlier step, not the file\'s words: it ends in "… (N more characters …)". read_file gives the file as it is; edit from that.', 'Edited nothing');
         const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
