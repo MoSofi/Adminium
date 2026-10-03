@@ -8,8 +8,11 @@ import { useEffect, type KeyboardEvent, type ReactNode, type RefObject } from 'r
 import { ArrowUp } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
+import { AttachButton, attachHandlers, type AttachState } from './attach.js';
 
 const MAX_PX = 216;
+/** A box that takes no files. */
+const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false };
 
 export function BuildComposer({
   value,
@@ -21,6 +24,8 @@ export function BuildComposer({
   placeholder,
   model,
   inputRef,
+  attach,
+  tray,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -31,6 +36,10 @@ export function BuildComposer({
   placeholder: string;
   model: ReactNode;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  /** Files with the message: the clip, and paste and drop on the box. Absent where nothing can be attached (answering a question). */
+  attach?: AttachState | undefined;
+  /** The files waiting, above the box's own line. */
+  tray?: ReactNode;
 }): ReactNode {
   useEffect(() => {
     const el = inputRef?.current;
@@ -43,6 +52,8 @@ export function BuildComposer({
     el.style.height = `${String(Math.min(el.scrollHeight, MAX_PX))}px`;
   }, [value, inputRef]);
 
+  const handlers = attachHandlers(attach ?? NO_ATTACH, attach === undefined || working);
+
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -52,8 +63,10 @@ export function BuildComposer({
 
   return (
     <div className="shrink-0 px-3.5 pb-3.5 pt-2.5">
-      <div className="rounded-2xl border border-border-strong bg-surface shadow-sm focus-within:border-accent">
+      <div className="rounded-2xl border border-border-strong bg-surface shadow-sm focus-within:border-accent" {...(attach === undefined ? {} : { onDragOver: handlers.onDragOver, onDrop: handlers.onDrop })}>
+        {tray}
         <textarea
+          onPaste={attach === undefined ? undefined : handlers.onPaste}
           ref={inputRef}
           rows={2}
           value={value}
@@ -65,6 +78,7 @@ export function BuildComposer({
         />
         <div className="flex items-center gap-1.5 px-2 pb-2 pt-1">
           {model}
+          {attach === undefined ? null : <AttachButton state={attach} disabled={working} />}
           {working ? (
             <button
               type="button"

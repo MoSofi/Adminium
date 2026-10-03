@@ -232,7 +232,13 @@
     "addOnOffSends": "The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Getting the add-on names it. Studio → Add-ons switches the list off again.",
     "addOnGet": "Get it",
     "addOnInstall": "Install it",
-    "addOnSwitchAndGet": "Switch it on and get it"
+    "addOnSwitchAndGet": "Switch it on and get it",
+    "rows": "{count, plural, one {Load # row from {file} into {table}?} other {Load # rows from {file} into {table}?}}",
+    "rowsLeft": "{count, plural, one {# row does not pass the table’s checks and is left out.} other {# rows do not pass the table’s checks and are left out.}}",
+    "rowsHow": "They are added as new rows, through the same checks as any import. Imports in the dashboard keeps the report.",
+    "rowsLoad": "Load them",
+    "rowsSkip": "Do not load",
+    "rowsNo": "You said not to load them."
   },
   "step": {
     "addOns": "Looking at the add-ons",
@@ -288,7 +294,15 @@
     "addOnGot": "Got the add-on {subject}",
     "addOnDeclined": "Did without the add-on {subject}",
     "addOnFailed": "Could not get the add-on {subject}",
-    "addOnRefused": "No add-on was got"
+    "addOnRefused": "No add-on was got",
+    "fileReading": "Reading the attached file",
+    "fileRead": "Read the attached file",
+    "fileNotRead": "Could not read the attached file",
+    "rowsAsking": "Asking to load the file’s rows",
+    "rowsLoaded": "{count, plural, one {Loaded # row} other {Loaded # rows}}",
+    "rowsDeclined": "The rows were not loaded",
+    "rowsFailed": "Could not load the rows",
+    "rowsRefused": "No rows loaded"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -507,5 +521,20 @@
     "ownerSave": "Save",
     "ownerCancel": "Cancel",
     "ownerDone": "You now sign in as {email}, with your password."
+  },
+  "attach": {
+    "button": "Attach a picture or a CSV file",
+    "list": "Attached files",
+    "pasted": "Pasted picture",
+    "remove": "Take {name} off",
+    "open": "Open {name} in a new tab",
+    "rows": "{count, plural, one {# row} other {# rows}}",
+    "wrongKind": "Only a picture (PNG, JPEG, WebP or GIF) or a CSV file can be attached.",
+    "tooMany": "Up to {count} files go with one message.",
+    "imageTooLarge": "That picture is over 5 MB. Attach a smaller one.",
+    "csvTooLarge": "That file is over 10 MB. For a file that size, use Import on the table’s own page.",
+    "noPictures": "{model} does not read pictures. Describe what matters in it, or pick a model that does.",
+    "noPicturesPlain": "This model does not read pictures. Describe what matters in it, or pick a model that does.",
+    "notSent": "The message was not sent"
   }
 }

@@ -13,7 +13,7 @@
  * desktop fills, tablet is 768 wide, phone 360 in a bezel. The frame reloads
  * when the app is applied again (`app-changed`), and on Reload.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Eye, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
 
@@ -150,6 +150,14 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
     client.start();
     return () => client.stop();
   }, [queryClient, session.appKey]);
+
+  // Rows loaded from an attached file: the app did not change, what its pages show did.
+  const loads = turns.reduce((sum, turn) => sum + turn.steps.filter((step) => step.tool === 'load_rows' && step.outcome === 'added' && step.state !== 'running').length, 0);
+  const seenLoads = useRef(loads);
+  useEffect(() => {
+    if (loads > seenLoads.current) setRound((value) => value + 1);
+    seenLoads.current = loads;
+  }, [loads]);
 
   const built = previewState(turns);
   // A screen that built and then stopped as it opened says so from inside its frame (dev bundles only).

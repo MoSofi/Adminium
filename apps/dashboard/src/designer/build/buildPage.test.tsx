@@ -20,7 +20,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -65,6 +65,8 @@ let look: { direction: 'clean' | 'warm' | 'bold' | 'calm' } | null;
 let stored: DesignerEvent[];
 let versions: DesignerVersion[];
 let seq: number;
+let uploads: number;
+let readsImages: boolean | null;
 
 const ev = (turn: number, body: DesignerEventBody, at = seq * 100): DesignerEvent => {
   seq += 1;
@@ -91,6 +93,8 @@ beforeEach(() => {
   yourApps = [];
   look = null;
   seq = 0;
+  uploads = 0;
+  readsImages = true;
   stored = [];
   versions = [
     { n: 1, name: 'v1', at: Date.now() - 60_000, current: false },
@@ -119,6 +123,13 @@ beforeEach(() => {
         return Promise.resolve(jsonResponse(200, { events: stored.filter((event) => event.seq > after), last: stored.at(-1)?.seq ?? 0, more: false }));
       }
       if (url === `/api/v1/designer/sessions/${ID}/versions`) return Promise.resolve(jsonResponse(200, { available: true, versions }));
+      if (url.startsWith(`/api/v1/designer/sessions/${ID}/attachments?`)) {
+        const file = init?.body as File;
+        if (file.name === 'refused.csv') return Promise.resolve(jsonResponse(422, { error: { code: 'VALIDATION_FAILED', message: 'That file does not read as a CSV.', requestId: 'r' } }));
+        uploads += 1;
+        return Promise.resolve(jsonResponse(201, { attachment: { id: `att_${String(uploads).padStart(20, '0')}`, label: file.name, kind: file.type === 'text/csv' ? 'csv' : 'image', mediaType: file.type, bytes: file.size } }));
+      }
+      if (url === '/api/v1/designer/models/reads-images') return Promise.resolve(jsonResponse(200, { readsImages }));
       if (url === `/api/v1/designer/sessions/${ID}/turns`) return Promise.resolve(jsonResponse(202, { turn: 9 }));
       if (url === `/api/v1/designer/sessions/${ID}/stop`) return Promise.resolve(jsonResponse(200, { stopped: true }));
       if (url === `/api/v1/designer/sessions/${ID}/answers`) return Promise.resolve(jsonResponse(200, { answered: true }));
@@ -398,6 +409,64 @@ describe('the build page', () => {
     expect(posted('/answers')).toEqual([
       { cardId: 'a1', value: { accept: true } },
       { cardId: 'a2', value: { accept: false } },
+    ]);
+  });
+
+  it('attaches files to a message: they go up first, the turn names them, and one can be taken off', async () => {
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:shot', revokeObjectURL: () => undefined }));
+    readsImages = false;
+    await open();
+    const input = document.querySelector<HTMLInputElement>('[data-part="attach-input"]')!;
+    await userEvent.upload(input, [new File(['png'], 'shot.png', { type: 'image/png' }), new File(['a,b\n1,2\n'], 'orders.csv', { type: 'text/csv' }), new File(['x'], 'extra.csv', { type: 'text/csv' })]);
+    const list = screen.getByRole('list', { name: 'Attached files' });
+    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['shot.png', 'orders.csv', 'extra.csv']);
+    // Said before sending, not after a wasted turn.
+    expect(await screen.findByText('claude-test does not read pictures. Describe what matters in it, or pick a model that does.')).toBeTruthy();
+    await userEvent.click(within(list).getByRole('button', { name: 'Take extra.csv off' }));
+
+    // What is plainly neither kind is said at once, and nothing is sent for it.
+    fireEvent.drop(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), { dataTransfer: { files: [new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' })], types: ['Files'] } });
+    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF) or a CSV file can be attached.');
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Like this, with these orders.{Enter}');
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this, with these orders.', attachments: ['att_00000000000000000001', 'att_00000000000000000002'] }]));
+    const order = calls.filter((call) => call.method === 'POST' && call.url.includes(`/sessions/${ID}/`)).map((call) => call.url.replace(/\?.*/, '').split('/').pop());
+    expect(order).toEqual(['attachments', 'attachments', 'turns']);
+    // Sent: the box and its files are cleared.
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Attached files' })).toBeNull());
+  });
+
+  it('keeps the message and says why when the server refuses a file', async () => {
+    await open();
+    await userEvent.upload(document.querySelector<HTMLInputElement>('[data-part="attach-input"]')!, new File(['<html>'], 'refused.csv', { type: 'text/csv' }));
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Use this.{Enter}');
+    expect(await screen.findByText('That file does not read as a CSV.')).toBeTruthy();
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Use this.');
+  });
+
+  it('shows a sent message’s files, and asks before a file’s rows are loaded', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Here are my orders.', attachments: [{ id: 'att_00000000000000000001', label: 'orders.csv', kind: 'csv', rows: 1204 }, { id: 'att_00000000000000000002', label: 'shot.png', kind: 'image' }] }),
+      ev(1, { kind: 'card', card: { id: 'r1', type: 'rows', attachment: 'att_00000000000000000001', file: 'orders.csv', table: 'orders', rows: 1200, left: 4, reasons: ['row 7, email: is required'], mapping: [{ from: 'Customer', to: 'name' }, { from: 'E-mail', to: 'email' }] } }),
+    ];
+    await open();
+    const files = await screen.findByRole('list', { name: 'Attached files' });
+    expect(files.textContent).toContain('orders.csv');
+    expect(files.textContent).toContain('1,204 rows');
+    const picture = within(files).getByRole('link', { name: 'Open shot.png in a new tab' });
+    expect(picture.getAttribute('href')).toBe(`/api/v1/designer/sessions/${ID}/attachments/att_00000000000000000002`);
+    expect(picture.getAttribute('rel')).toBe('noreferrer');
+
+    const card = screen.getByRole('group', { name: /Load 1,200 rows from\s*orders.csv\s*into\s*orders\s*\?/ });
+    expect(card.textContent).toContain('Customer → name');
+    expect(card.textContent).toContain('4 rows do not pass the table’s checks and are left out. row 7, email: is required');
+    await userEvent.click(within(card).getByRole('button', { name: 'Do not load' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Load them' }));
+    expect(posted('/answers')).toEqual([
+      { cardId: 'r1', value: { accept: false } },
+      { cardId: 'r1', value: { accept: true } },
     ]);
   });
 

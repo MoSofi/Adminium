@@ -105,6 +105,7 @@ function turn(over: Partial<TurnView>): TurnView {
   return {
     turn: 1,
     text: 'x',
+    attachments: [],
     reply: '',
     steps: [],
     stepCount: 0,
@@ -169,6 +170,28 @@ describe('the preview', () => {
     act(() => socket?.onmessage?.({ data: JSON.stringify({ channel: 'config-changed', type: 'app-changed', data: { key: 'other' }, ts: '' }) }));
     act(() => socket?.onmessage?.({ data: JSON.stringify({ channel: 'config-changed', type: 'app-changed', data: { key: 'repairs' }, ts: '' }) }));
     await waitFor(() => expect(tickets).toHaveLength(3));
+  });
+
+  it('reloads once a file’s rows are loaded: the app is the same, what its pages show is not', async () => {
+    const loaded = (state: 'running' | 'done') => [turn({ steps: [{ id: 's1', tool: 'load_rows', label: 'Loaded 40 rows', state, ms: 10, detail: null, folded: 1, ...(state === 'done' ? { outcome: 'added' as const, count: 40 } : {}) }] })];
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = (turns: TurnView[]) => (
+      <QueryClientProvider client={client}>
+        <ThemeProvider>
+          <div className="flex h-[600px]">
+            <Preview session={SESSION} turns={turns} onFix={() => undefined} compact={false} />
+          </div>
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+    const shown = render(view(loaded('running')));
+    await waitFor(() => expect(tickets).toHaveLength(1));
+    shown.rerender(view(loaded('done')));
+    await waitFor(() => expect(tickets).toHaveLength(2));
+    // The same rows seen again start nothing.
+    shown.rerender(view(loaded('done')));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(tickets).toHaveLength(2);
   });
 
   it('says there is nothing yet before the app is applied', async () => {

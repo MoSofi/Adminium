@@ -242,7 +242,13 @@ export default {
     "addOnOffSends": "Die Liste von adminium.dev ist auf diesem Server aus. Sie einzuschalten fragt adminium.dev nach der Liste, jetzt und einmal täglich; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Das Holen des Add-ons nennt es. Studio → Add-ons schaltet die Liste wieder aus.",
     "addOnGet": "Holen",
     "addOnInstall": "Installieren",
-    "addOnSwitchAndGet": "Einschalten und holen"
+    "addOnSwitchAndGet": "Einschalten und holen",
+    "rows": "{count, plural, one {# Zeile aus {file} in {table} laden?} other {# Zeilen aus {file} in {table} laden?}}",
+    "rowsLeft": "{count, plural, one {# Zeile besteht die Prüfungen der Tabelle nicht und wird ausgelassen.} other {# Zeilen bestehen die Prüfungen der Tabelle nicht und werden ausgelassen.}}",
+    "rowsHow": "Sie werden als neue Zeilen hinzugefügt, mit denselben Prüfungen wie jeder Import. Die Importe im Dashboard bewahren den Bericht auf.",
+    "rowsLoad": "Laden",
+    "rowsSkip": "Nicht laden",
+    "rowsNo": "Du hast gesagt, sie nicht zu laden."
   },
   "step": {
     "addOns": "Sieht sich die Add-ons an",
@@ -298,7 +304,15 @@ export default {
     "addOnGot": "Add-on {subject} geholt",
     "addOnDeclined": "Ohne das Add-on {subject} ausgekommen",
     "addOnFailed": "Add-on {subject} konnte nicht geholt werden",
-    "addOnRefused": "Kein Add-on geholt"
+    "addOnRefused": "Kein Add-on geholt",
+    "fileReading": "Angehängte Datei wird gelesen",
+    "fileRead": "Angehängte Datei gelesen",
+    "fileNotRead": "Angehängte Datei konnte nicht gelesen werden",
+    "rowsAsking": "Frage, ob die Zeilen der Datei geladen werden sollen",
+    "rowsLoaded": "{count, plural, one {# Zeile geladen} other {# Zeilen geladen}}",
+    "rowsDeclined": "Die Zeilen wurden nicht geladen",
+    "rowsFailed": "Die Zeilen konnten nicht geladen werden",
+    "rowsRefused": "Keine Zeilen geladen"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -517,5 +531,20 @@ export default {
     "ownerSave": "Speichern",
     "ownerCancel": "Abbrechen",
     "ownerDone": "Du meldest dich jetzt als {email} mit deinem Passwort an."
+  },
+  "attach": {
+    "button": "Bild oder CSV-Datei anhängen",
+    "list": "Angehängte Dateien",
+    "pasted": "Eingefügtes Bild",
+    "remove": "{name} entfernen",
+    "open": "{name} in neuem Tab öffnen",
+    "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
+    "wrongKind": "Nur ein Bild (PNG, JPEG, WebP oder GIF) oder eine CSV-Datei kann angehängt werden.",
+    "tooMany": "Bis zu {count} Dateien passen zu einer Nachricht.",
+    "imageTooLarge": "Dieses Bild ist größer als 5 MB. Hänge ein kleineres an.",
+    "csvTooLarge": "Diese Datei ist größer als 10 MB. Für eine Datei dieser Größe nutze Import auf der Seite der Tabelle.",
+    "noPictures": "{model} liest keine Bilder. Beschreibe, worauf es darin ankommt, oder wähle ein Modell, das Bilder liest.",
+    "noPicturesPlain": "Dieses Modell liest keine Bilder. Beschreibe, worauf es darin ankommt, oder wähle ein Modell, das Bilder liest.",
+    "notSent": "Die Nachricht wurde nicht gesendet"
   }
 } as const;

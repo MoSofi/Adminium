@@ -67,6 +67,20 @@ export function stepLine(row: StepRow): string {
       return row.state === 'failed' ? t('designer:step.shapeFailed', 'Could not build on the add-on') : t('designer:step.shapeDone', 'Built on an add-on');
     case 'ask_person':
       return running ? t('designer:step.asking', 'Asking you') : t('designer:step.answered', 'You answered');
+    case 'read_attachment':
+      return running ? t('designer:step.fileReading', 'Reading the attached file') : row.state === 'failed' ? t('designer:step.fileNotRead', 'Could not read the attached file') : t('designer:step.fileRead', 'Read the attached file');
+    case 'load_rows':
+      if (running) return t('designer:step.rowsAsking', 'Asking to load the file’s rows');
+      switch (row.outcome) {
+        case 'added':
+          return t('designer:step.rowsLoaded', '{count, plural, one {Loaded # row} other {Loaded # rows}}', { count: row.count ?? 0 });
+        case 'declined':
+          return t('designer:step.rowsDeclined', 'The rows were not loaded');
+        case 'failed':
+          return t('designer:step.rowsFailed', 'Could not load the rows');
+        default:
+          return t('designer:step.rowsRefused', 'No rows loaded');
+      }
     case 'get_add_on':
       if (running) return t('designer:step.addOnAsking', 'Asking to get the add-on {subject}', S);
       switch (row.outcome) {

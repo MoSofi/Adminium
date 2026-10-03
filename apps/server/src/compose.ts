@@ -104,7 +104,9 @@ import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.j
 import { stopOwnBuilds } from './project/apps/own-build.js';
 import { projectBundlerManifest } from './project/build.js';
 import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
+import { createAttachments } from './designer/attachments.js';
 import { createAddOnGetter } from './designer/get-add-on.js';
+import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
@@ -2001,6 +2003,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             return designerOpts.mode === 'live' ? set.superAdmin : permissionSetAllows(set, 'system:manifests:manage');
           },
         });
+        // What people attach to a message, and loading an attached CSV's rows: the dashboard's own Import, for one of the app's tables.
+        const designerAttachments = createAttachments(root);
+        const designerRows = createRowLoader({
+          meta,
+          manager,
+          storage,
+          credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+        });
         const designerAudit = async (action: string, actor: { id: string | null; label: string } | null, detail: Record<string, unknown>): Promise<void> => {
             await auditRepo(meta).append({
               actorKind: actor === null ? 'system' : 'user',
@@ -2058,7 +2069,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             version: APP_VERSION,
             skills: designerSkills,
             providerOf: async (session) => (await aiConnections.find(session.connectionId))?.provider ?? 'openai-compatible',
+            attachments: designerAttachments,
+            // A model that could not be asked is sent no picture: a request refused for one would end the turn.
+            readsImages: (session) => aiConnections.readsImages(session.connectionId as Parameters<typeof aiConnections.readsImages>[0], session.model).catch(() => null),
           }),
+          attachments: designerAttachments,
           tools: (session) =>
             createDesignerTools(
               {
@@ -2078,6 +2093,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                   }),
                 mode: designerOpts.mode,
                 addOnGetter: designerAddOns,
+                attachments: designerAttachments,
+                rowLoader: designerRows,
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
               },
               session.appKey,
@@ -2089,6 +2106,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             versions: designerVersions,
             connections: aiConnections,
             mode: designerOpts.mode,
+            attachments: designerAttachments,
             ...(live === null ? {} : { live }),
             root,
             limits,

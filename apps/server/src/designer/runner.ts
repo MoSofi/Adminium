@@ -24,6 +24,8 @@
  * A card (a question, a package, data that would be lost) pauses the turn
  * until it is answered. Stop answers every waiting card with "stopped".
  */
+import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
+import { requestTokens } from './prompt.js';
 import { randomBytes } from 'node:crypto';
 
 import {
@@ -86,6 +88,8 @@ export interface RunnerDeps {
   /** The engine's last word: check, build, apply, and save a version. Emits its own events. */
   pipeline(session: DesignerSession, turn: TurnHandle): Promise<PipelineResult>;
   limits(): Promise<DesignerLimits>;
+  /** What people attach to a message: pictures and CSV files, kept in the session's folder. */
+  attachments?: Attachments;
   /** Send an event to the pages watching this session. */
   publish(event: DesignerEvent & { sessionId: string }): void;
   /** Record a turn's start and end. */
@@ -100,7 +104,7 @@ export type { Actor, TurnHandle } from './tool-types.js';
 
 export interface DesignerRunner {
   /** Start a turn. 409 (reason `TURN_RUNNING`) while another turn runs in this folder. */
-  start(sessionId: string, input: { text: string; by: Actor }): Promise<{ turn: number }>;
+  start(sessionId: string, input: { text: string; by: Actor; attachments?: readonly string[] }): Promise<{ turn: number }>;
   /** Stop the session's turn. False when none runs. */
   stop(sessionId: string): boolean;
   /** Answer a waiting card. */
@@ -283,7 +287,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
 
         // What the step cost, reported or estimated.
         const estimated = result.usage === undefined;
-        const usedIn = result.usage?.inputTokens ?? estimateTokens(request.system + JSON.stringify(request.messages));
+        const usedIn = result.usage?.inputTokens ?? requestTokens(request.system, request.messages);
         const usedOut = result.usage?.outputTokens ?? estimateTokens(JSON.stringify(result.blocks));
         tokensIn += usedIn;
         tokensOut += usedOut;
@@ -444,14 +448,33 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         });
       }
       const session = deps.store.read(sessionId);
+      // What goes with the message: files this session already holds, and nothing else.
+      const ids = [...new Set(input.attachments ?? [])];
+      if (ids.length > ATTACHMENT_MAX_PER_MESSAGE) throw new ValidationFailedError(`Up to ${String(ATTACHMENT_MAX_PER_MESSAGE)} files go with one message.`, { reason: 'TURN_ATTACHMENTS' });
+      const attached = ids.map((id) => deps.attachments?.find(sessionId, id) ?? null);
+      if (attached.some((entry) => entry === null)) throw new ValidationFailedError('One of the attached files is not in this session. Attach it again.', { reason: 'TURN_ATTACHMENTS' });
+      const files = attached.filter((entry): entry is Attachment => entry !== null);
       const turn = session.turns + 1;
       // Claimed before anything is awaited, so two starts cannot both pass the check above.
       const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve() };
       running = claim;
       try {
         const updated = deps.store.update(sessionId, { turns: turn });
-        deps.store.appendMessage(sessionId, turn, { role: 'user', content: [{ type: 'text', text }] });
-        events(sessionId).emit(turn, { kind: 'turn-started', text });
+        // The person's words first and alone; what the server says about a file is a block of its own; a picture is a reference, never its bytes.
+        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids);
+        deps.store.appendMessage(sessionId, turn, {
+          role: 'user',
+          content: [
+            { type: 'text', text },
+            ...(note === '' ? [] : [{ type: 'text' as const, text: `\n\n${note}` }]),
+            ...files.filter((file) => file.kind === 'image').map((file) => ({ type: 'image' as const, mediaType: file.mediaType, data: '', ref: file.id, name: file.label })),
+          ],
+        });
+        events(sessionId).emit(turn, {
+          kind: 'turn-started',
+          text,
+          ...(files.length === 0 ? {} : { attachments: files.map((file) => ({ id: file.id, label: file.label, kind: file.kind, ...(file.rows === undefined ? {} : { rows: file.rows }) })) }),
+        });
         await deps.audit?.('designer.turn.started', updated, { turn, by: input.by.label });
         claim.done = loop(updated, turn, claim, input.by).finally(() => {
           if (running === claim) running = null;
@@ -483,6 +506,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           turn: running.turn,
           card: card.type,
           ...(card.type === 'package' ? { name: card.name, version: card.version } : {}),
+          ...(card.type === 'rows' ? { attachment: card.attachment, table: card.table, rows: card.rows, left: card.left } : {}),
           ...(card.type === 'add-on' ? { key: card.key, version: card.version, ...(card.listOff === true ? { switchesListOn: true } : {}) } : {}),
           ...(card.type === 'question' ? { question: card.question.slice(0, 300) } : {}),
           answer: answer.type === 'question' ? answer.text.slice(0, 300) : answer,

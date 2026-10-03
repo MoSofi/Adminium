@@ -242,7 +242,13 @@ export default {
     "addOnOffSends": "此伺服器上已關閉 adminium.dev 的清單。開啟後會立即並每天一次向 adminium.dev 請求清單，對方會得知此伺服器的位址、時間及其 Adminium 版本。取得附加元件會說明是哪一個。可在「工作室 → 附加元件」中再次關閉清單。",
     "addOnGet": "取得",
     "addOnInstall": "安裝",
-    "addOnSwitchAndGet": "開啟並取得"
+    "addOnSwitchAndGet": "開啟並取得",
+    "rows": "{count, plural, other {將 {file} 中的 # 列載入到 {table}？}}",
+    "rowsLeft": "{count, plural, other {有 # 列未通過資料表的檢查，將被略過。}}",
+    "rowsHow": "它們將作為新列加入，並經過與任何匯入相同的檢查。儀表板中的「匯入」會保留報告。",
+    "rowsLoad": "載入",
+    "rowsSkip": "不載入",
+    "rowsNo": "你選擇了不載入。"
   },
   "step": {
     "addOns": "正在查看附加元件",
@@ -298,7 +304,15 @@ export default {
     "addOnGot": "已取得附加元件 {subject}",
     "addOnDeclined": "未使用附加元件 {subject}",
     "addOnFailed": "無法取得附加元件 {subject}",
-    "addOnRefused": "未取得任何附加元件"
+    "addOnRefused": "未取得任何附加元件",
+    "fileReading": "正在讀取附加的檔案",
+    "fileRead": "已讀取附加的檔案",
+    "fileNotRead": "無法讀取附加的檔案",
+    "rowsAsking": "正在詢問是否載入檔案中的列",
+    "rowsLoaded": "{count, plural, other {已載入 # 列}}",
+    "rowsDeclined": "未載入這些列",
+    "rowsFailed": "無法載入這些列",
+    "rowsRefused": "未載入任何列"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -517,5 +531,20 @@ export default {
     "ownerSave": "儲存",
     "ownerCancel": "取消",
     "ownerDone": "你現在以 {email} 和你的密碼登入。"
+  },
+  "attach": {
+    "button": "附加圖片或 CSV 檔案",
+    "list": "已附加的檔案",
+    "pasted": "貼上的圖片",
+    "remove": "移除 {name}",
+    "open": "在新分頁中開啟 {name}",
+    "rows": "{count, plural, other {# 列}}",
+    "wrongKind": "只能附加圖片（PNG、JPEG、WebP 或 GIF）或 CSV 檔案。",
+    "tooMany": "一則訊息最多附加 {count} 個檔案。",
+    "imageTooLarge": "該圖片超過 5 MB。請附加較小的圖片。",
+    "csvTooLarge": "該檔案超過 10 MB。這種大小的檔案請在資料表自己的頁面使用「匯入」。",
+    "noPictures": "{model} 無法讀取圖片。請描述其中的重點，或選擇能讀取圖片的模型。",
+    "noPicturesPlain": "此模型無法讀取圖片。請描述其中的重點，或選擇能讀取圖片的模型。",
+    "notSent": "訊息未傳送"
   }
 } as const;

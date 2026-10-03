@@ -7,7 +7,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api } from '../app/api.js';
+import { api, ApiError, csrfHeaders } from '../app/api.js';
 
 const BASE = '/api/v1/designer';
 
@@ -109,8 +109,21 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 /** A spending mark: passing one warns the person and ends nothing. */
 export type SpendMark = 'turn-tokens' | 'session-tokens';
 
+/** A file a person attached to a message. */
+export interface DesignerAttachment {
+  id: string;
+  label: string;
+  kind: 'image' | 'csv';
+  mediaType: string;
+  bytes: number;
+  rows?: number;
+  columns?: string[];
+}
+
 export type DesignerCard =
   | { id: string; type: 'question'; question: string; choices: string[]; /** The look of the app's screens: the choices are directions, worded here. */ look?: true }
+  /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */
+  | { id: string; type: 'rows'; attachment: string; file: string; table: string; rows: number; left: number; reasons: string[]; mapping: { from: string; to: string }[] }
   | { id: string; type: 'package'; name: string; version: string; why: string; also?: { name: string; version: string }[] }
   /** An add-on the app needs and this server lacks. `listOff`: a yes switches the list of adminium.dev on first. `here`: it is in this server's store, so nothing is fetched. */
   | { id: string; type: 'add-on'; key: string; name: string; version: string | null; line: string; listOff?: true; here?: true }
@@ -142,7 +155,7 @@ export type StepFacts = {
 };
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string }
+  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[] }
   | { kind: 'text'; delta: string }
   | ({ kind: 'step'; id: string; tool: string; label: string; state: 'running' | 'done' | 'failed'; ms?: number; detail?: string } & StepFacts)
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
@@ -202,6 +215,33 @@ export const designerKeys = {
   architecture: (id: string) => ['designer', 'architecture', id] as const,
 };
 
+/** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
+async function uploadAttachment(sessionId: string, file: File): Promise<DesignerAttachment> {
+  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=${encodeURIComponent(file.name === '' ? 'pasted' : file.name)}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', 'content-type': 'application/octet-stream', ...csrfHeaders() },
+    body: file,
+  });
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    // Said below.
+  }
+  if (!response.ok) {
+    const envelope = (body ?? {}) as { error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } };
+    throw new ApiError(
+      response.status,
+      typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+      typeof envelope.error?.message === 'string' ? envelope.error.message : `The file could not be attached (${String(response.status)}).`,
+      typeof envelope.error?.requestId === 'string' ? envelope.error.requestId : null,
+      envelope.error?.details,
+    );
+  }
+  return (body as { attachment: DesignerAttachment }).attachment;
+}
+
 export const designerApi = {
   state: () => api.get<DesignerState>(`${BASE}/state`),
   yourApps: () => api.get<{ apps: YourApp[] }>(`${BASE}/sessions`),
@@ -218,7 +258,11 @@ export const designerApi = {
   patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string }) => api.patch<SessionReply>(`${BASE}/sessions/${id}`, patch),
   setLook: (id: string, direction: LookDirection) =>
     api.post<{ look: { direction: LookDirection }; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { direction }),
-  startTurn: (id: string, text: string) => api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text }),
+  startTurn: (id: string, text: string, attachments: readonly string[] = []) =>
+    api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }) }),
+  uploadAttachment,
+  attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
+  readsImages: (connectionId: string, model: string) => api.post<{ readsImages: boolean | null }>(`${BASE}/models/reads-images`, { connectionId, model }),
   stop: (id: string) => api.post<{ stopped: boolean }>(`${BASE}/sessions/${id}/stop`, {}),
   answer: (id: string, cardId: string, value: unknown) => api.post<{ answered: true }>(`${BASE}/sessions/${id}/answers`, { cardId, value }),
   eventsSince: (id: string, after: number) => api.get<{ events: DesignerEvent[]; last: number; more: boolean }>(`${BASE}/sessions/${id}/events-since?after=${String(after)}`),

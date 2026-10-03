@@ -10,6 +10,7 @@
  * says how to add one (frame A); with a model that cannot build, sending is
  * off and the line under the box says why (frame B).
  */
+import { AttachButton, attachHandlers, AttachTray, useAttach, useReadsImages } from '../parts/attach.js';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -59,6 +60,9 @@ export function DesignerHome(): ReactNode {
   /** The app whose sheet is open. */
   const [starting, setStarting] = useState<CatalogApp | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const attach = useAttach();
+  const readsImages = useReadsImages(model.picked, attach.hasImage);
+  const drop = attachHandlers(attach, false);
 
   const noModel = !model.loading && model.picked === null && !model.hasModels;
   const cannotBuild = model.canBuild === false;
@@ -80,7 +84,17 @@ export function DesignerHome(): ReactNode {
   const start = useMutation({
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
-      return designerApi.createSession({ name: nameFromRequest(text), target, connectionId: model.picked.connectionId, model: model.picked.model, text: text.trim() });
+      const base = { name: nameFromRequest(text), target, connectionId: model.picked.connectionId, model: model.picked.model };
+      if (attach.files.length === 0) return designerApi.createSession({ ...base, text: text.trim() });
+      // With files: the session first (they are kept in it), then the files, then the message that names them.
+      const made = await designerApi.createSession(base);
+      try {
+        await designerApi.startTurn(made.session.id, text.trim(), await attach.upload(made.session.id));
+      } catch (error) {
+        // The session is made and holds the app: the person lands in it, where the message can be sent again, and is told why it was not.
+        toasts.push({ variant: 'error', title: t('designer:attach.notSent', 'The message was not sent'), description: error instanceof ApiError ? error.message : String(error) });
+      }
+      return made;
     },
     onSuccess: async ({ session }) => {
       await navigate({ to: '/design/$sessionId', params: { sessionId: session.id } });
@@ -123,12 +137,16 @@ export function DesignerHome(): ReactNode {
           <form onSubmit={send} className="relative z-20 mt-[clamp(26px,2.6vw,36px)] w-full max-w-[700px]">
             <div
               className={`rounded-[20px] border bg-surface shadow-sm transition-colors focus-within:border-accent ${cannotBuild ? 'border-warn/40' : 'border-border-strong'}`}
+              onDragOver={drop.onDragOver}
+              onDrop={drop.onDrop}
             >
+              <AttachTray state={attach} modelName={model.picked?.model ?? null} readsImages={readsImages} />
               <textarea
                 ref={box}
                 rows={2}
                 value={text}
                 disabled={noModel}
+                onPaste={drop.onPaste}
                 onChange={(event) => setText(event.target.value)}
                 onKeyDown={onKey}
                 aria-label={t('designer:home.promptLabel', 'Describe your app')}
@@ -138,6 +156,7 @@ export function DesignerHome(): ReactNode {
               />
               <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-2">
                 {control.element}
+                <AttachButton state={attach} disabled={noModel} />
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     disabled={noModel}

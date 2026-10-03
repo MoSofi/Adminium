@@ -232,7 +232,13 @@
     "addOnOffSends": "此服务器上已关闭 adminium.dev 的列表。开启后会立即并每天一次向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。获取附加组件会说明是哪一个。可在“工作室 → 附加组件”中再次关闭列表。",
     "addOnGet": "获取",
     "addOnInstall": "安装",
-    "addOnSwitchAndGet": "开启并获取"
+    "addOnSwitchAndGet": "开启并获取",
+    "rows": "{count, plural, other {将 {file} 中的 # 行加载到 {table}？}}",
+    "rowsLeft": "{count, plural, other {有 # 行未通过表的检查，将被略过。}}",
+    "rowsHow": "它们将作为新行添加，并经过与任何导入相同的检查。仪表板中的“导入”会保留报告。",
+    "rowsLoad": "加载",
+    "rowsSkip": "不加载",
+    "rowsNo": "你选择了不加载。"
   },
   "step": {
     "addOns": "正在查看附加组件",
@@ -288,7 +294,15 @@
     "addOnGot": "已获取附加组件 {subject}",
     "addOnDeclined": "未使用附加组件 {subject}",
     "addOnFailed": "无法获取附加组件 {subject}",
-    "addOnRefused": "未获取任何附加组件"
+    "addOnRefused": "未获取任何附加组件",
+    "fileReading": "正在读取附加的文件",
+    "fileRead": "已读取附加的文件",
+    "fileNotRead": "无法读取附加的文件",
+    "rowsAsking": "正在询问是否加载文件中的行",
+    "rowsLoaded": "{count, plural, other {已加载 # 行}}",
+    "rowsDeclined": "未加载这些行",
+    "rowsFailed": "无法加载这些行",
+    "rowsRefused": "未加载任何行"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -507,5 +521,20 @@
     "ownerSave": "保存",
     "ownerCancel": "取消",
     "ownerDone": "你现在以 {email} 和你的密码登录。"
+  },
+  "attach": {
+    "button": "附加图片或 CSV 文件",
+    "list": "已附加的文件",
+    "pasted": "粘贴的图片",
+    "remove": "移除 {name}",
+    "open": "在新标签页中打开 {name}",
+    "rows": "{count, plural, other {# 行}}",
+    "wrongKind": "只能附加图片（PNG、JPEG、WebP 或 GIF）或 CSV 文件。",
+    "tooMany": "一条消息最多附加 {count} 个文件。",
+    "imageTooLarge": "该图片超过 5 MB。请附加较小的图片。",
+    "csvTooLarge": "该文件超过 10 MB。这种大小的文件请在表自己的页面使用“导入”。",
+    "noPictures": "{model} 无法读取图片。请描述其中的要点，或选择能读取图片的模型。",
+    "noPicturesPlain": "此模型无法读取图片。请描述其中的要点，或选择能读取图片的模型。",
+    "notSent": "消息未发送"
   }
 }

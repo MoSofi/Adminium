@@ -8,6 +8,7 @@
  * made. The model never applies anything itself; it writes files, and this
  * decides what becomes of them.
  */
+import type { Attachments } from './attachments.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -49,6 +50,8 @@ export interface DesignerHost {
   limits(): Promise<DesignerLimits>;
   audit(action: string, actor: Actor | null, detail: Record<string, unknown>): Promise<void>;
   log: (message: string, error?: unknown) => void;
+  /** What people attach to a message. */
+  attachments?: Attachments;
   /** The tools and what the model is told; given by the parts that build them. */
   tools?: (session: DesignerSession) => DesignerTool[];
   prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[]) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
@@ -141,6 +144,32 @@ export function unopenedTables(manifest: unknown): string[] {
   // Customers were given a way in, and no screen to come in by.
   if ((app?.publicAccess ?? []).length > 0 && !(app?.frontends ?? []).some((side) => side.side === 'customer' && side.kind !== 'none')) {
     out.push('- Customers may reach the app’s data (access.json), and the app has no customer screen: if the person asked for a page their customers use, build the customer side.');
+  }
+  return out;
+}
+
+/** A column Adminium treats as a person's own by its name, and masks: the commonest ones, read as the engine reads them. */
+const PERSONAL_COLUMN = /(^|_)(e_?mail|phone|mobile|telephone|tel)(_|$)/;
+
+/**
+ * A role that reads a table and not its personal columns. To that role an
+ * email or a phone number reads as empty, and a board or a chart that shows
+ * the column is refused outright: seen in the preview, which is shown as the
+ * app's own role, as an error on the app's first page.
+ */
+export function unreadPersonalColumns(manifest: unknown): string[] {
+  const app = manifest as { requiredSchema?: { tables?: { ref: string; columns: { ref: string }[] }[] }; roles?: { key?: string; name?: string; permissions?: string[] }[] } | null;
+  const out: string[] = [];
+  for (const table of app?.requiredSchema?.tables ?? []) {
+    const personal = table.columns.map((column) => column.ref).filter((ref) => PERSONAL_COLUMN.test(ref));
+    if (personal.length === 0) continue;
+    for (const role of app?.roles ?? []) {
+      const held = new Set(role.permissions ?? []);
+      if (!held.has(`table:@${table.ref}:read`) || held.has(`table:@${table.ref}:read_pii`)) continue;
+      out.push(
+        `- The role "${role.key ?? role.name ?? ''}" reads the table "${table.ref}" and not its personal columns (${personal.join(', ')}): to that role they read as empty, and a board that shows one is refused. If these people work with them, add "table:@${table.ref}:read_pii" to the role in manifest/roles.json; if they should not see them, say so in a sentence.`,
+      );
+    }
   }
   return out;
 }
@@ -296,12 +325,37 @@ export function createDesigner(host: DesignerHost): Designer {
     return { ok: true, version, ...warnings };
   }
 
+  /**
+   * A CSV the person attached to this turn's message whose rows nobody tried
+   * to load: said once, so a model that shaped the table and stopped is sent
+   * back for the half the person came for. A load that was asked and refused,
+   * or that failed, is not said again.
+   */
+  const unloadedFiles = (session: DesignerSession): string[] => {
+    if (host.attachments === undefined) return [];
+    const messages = store.messages(session.id).filter((entry) => entry.turn === session.turns).map((entry) => entry.message);
+    const noted = messages.flatMap((message) => (message.role === 'user' ? message.content.flatMap((block) => (block.type === 'text' ? [...block.text.matchAll(/\(attachment (att_[0-9a-f]{20});/g)].map((match) => match[1] as string) : [])) : []));
+    const tried = new Set(messages.flatMap((message) => message.content.flatMap((block) => (block.type === 'tool_call' && block.name === 'load_rows' && typeof block.input['attachment'] === 'string' ? [block.input['attachment']] : []))));
+    return [...new Set(noted)]
+      .filter((id) => !tried.has(id))
+      .flatMap((id) => {
+        const entry = host.attachments?.find(session.id, id) ?? null;
+        if (entry === null || entry.kind !== 'csv') return [];
+        const first = `- The person attached "${entry.label}" (${String(entry.rows ?? 0)} rows) and its rows were not loaded: once the app is applied, call load_rows with attachment ${entry.id} for the table the file belongs to (the person is asked first). If its rows belong in no table, say so in a sentence and finish.`;
+        // Said among other things and passed over: said once more, alone in its words, since it is what the person attached the file for.
+        const again = `- "${entry.label}" is still not loaded, and the person attached it to have its rows in the app. Call load_rows now: attachment ${entry.id}, the table, and which CSV column goes to which column. Or say in one sentence why its rows are not loaded.`;
+        const toldFirst = messages.some((message) => message.role === 'user' && message.content.some((block) => block.type === 'text' && block.text.includes(first)));
+        return [toldFirst ? again : first];
+      });
+  };
+
   const runner = createDesignerRunner({
     store,
     runnerFor: async (session) => {
       const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model);
       return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS };
     },
+    ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
     tools: (session) => host.tools?.(session) ?? [],
     prompt: async (session, messages) => host.prompt?.(session, messages) ?? { system: 'You are Adminium Designer.', messages },
     pipeline: (session, handle) => pipeline(session, handle),
@@ -325,7 +379,9 @@ export function createDesigner(host: DesignerHost): Designer {
           ? [`- The app is still named after the request ("${named}"), and that is what its pages show as the business's name: set "name" in manifest/app.json to what the business would call it, two or three words.`]
           : [];
       return [
+        ...unloadedFiles(session),
         ...unopenedTables(manifest),
+        ...unreadPersonalColumns(manifest),
         ...placeholderScreens(host.root, session.appKey, tables),
         // A call the page makes that Adminium refuses: the person would meet it as "That did not work".
         ...sideCallLines(sideCallIssues(host.root, session.appKey, manifest)),

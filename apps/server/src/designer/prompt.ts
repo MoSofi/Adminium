@@ -13,6 +13,7 @@
  * person's first message always stays, and a tool call never loses its
  * answer (a provider refuses a transcript like that).
  */
+import { IMAGE_TOKENS, type Attachments } from './attachments.js';
 import { foldSpent } from './fold.js';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -69,6 +70,10 @@ export interface PromptDeps {
   skills: Skills;
   /** The provider a session's connection calls, for the size of its window. */
   providerOf(session: DesignerSession): Promise<ProviderId>;
+  /** What people attached, to send a picture's bytes with the message it came with. */
+  attachments?: Attachments;
+  /** Whether the session's model reads pictures; null when it could not be asked. */
+  readsImages?: (session: DesignerSession) => Promise<boolean | null>;
 }
 
 /** A skill file, or nothing. */
@@ -197,7 +202,50 @@ export function appNow(root: string, version: string, appKey: string): { text: s
   };
 }
 
-const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSON.stringify(messages));
+/** Messages with every picture's bytes left out: what an estimate reads, and what a log may hold. */
+const withoutBytes = (messages: readonly RunMessage[]): RunMessage[] =>
+  messages.map((message) => (message.content.some((block) => block.type === 'image') ? { ...message, content: message.content.map((block) => (block.type === 'image' ? { ...block, data: '' } : block)) } : message));
+const picturesIn = (messages: readonly RunMessage[]): number => messages.reduce((sum, message) => sum + message.content.filter((block) => block.type === 'image' && block.data.length > 0).length, 0);
+
+/** What a request is counted as when the provider does not say: a picture is a flat number, never its length. */
+export function requestTokens(system: string, messages: readonly RunMessage[]): number {
+  return estimateTokens(system + JSON.stringify(withoutBytes(messages))) + picturesIn(messages) * IMAGE_TOKENS;
+}
+
+const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSON.stringify(withoutBytes(messages)));
+
+/** The pictures still worth sending: those of the newest turns. */
+const PICTURE_TURNS = 2;
+
+/**
+ * Pictures, made ready to send (D134). One of the two newest turns is given
+ * its bytes when the model reads pictures; any other becomes a line of text,
+ * so the model knows a picture was there and is not sent megabytes at every
+ * step.
+ */
+export function withPictures(messages: readonly RunMessage[], opts: { reads: boolean; bytesOf: (ref: string) => Buffer | null }): RunMessage[] {
+  if (!messages.some((message) => message.content.some((block) => block.type === 'image'))) return [...messages];
+  const starts = messages.flatMap((message, index) =>
+    message.role === 'user' && message.content.some((block) => block.type === 'text') && !message.content.some((block) => block.type === 'tool_result') ? [index] : [],
+  );
+  const newestFrom = starts.length >= PICTURE_TURNS ? (starts[starts.length - PICTURE_TURNS] as number) : 0;
+  return messages.map((message, index) => {
+    if (!message.content.some((block) => block.type === 'image')) return message;
+    return {
+      ...message,
+      content: message.content.map((block): RunBlock => {
+        if (block.type !== 'image') return block;
+        const name = (block.name ?? 'a picture').replace(/["\n]/g, ' ').slice(0, 120);
+        if (index < newestFrom) return { type: 'text', text: `\n(A picture the person attached earlier: "${name}". It is not sent again.)` };
+        const bytes = opts.reads && block.ref !== undefined ? opts.bytesOf(block.ref) : null;
+        if (bytes === null) {
+          return { type: 'text', text: `\n(The person attached a picture, "${name}". You cannot see it: this model does not read pictures. Say so in one sentence, ask them to describe what matters in it, and go on with what their words say.)` };
+        }
+        return { ...block, data: bytes.toString('base64') };
+      }),
+    };
+  });
+}
 
 /** The first text of a message. */
 const firstText = (message: RunMessage | undefined): string =>
@@ -279,7 +327,10 @@ export function createPrompt(deps: PromptDeps) {
         message: `${provider}: this model's window is too small to build with (what it must be told takes most of the ${String(limit)} tokens it reads).`,
       });
     }
-    // What the turn no longer needs is cut first (T64); the budget then trims only what is still too long.
-    return { system, messages: trimTranscript(foldSpent(messages), budget) };
+    // What the turn no longer needs is cut first (T64); the budget then trims only what is still too long. Pictures get their bytes last, so no estimate reads them.
+    const fitted = trimTranscript(foldSpent(messages), budget - messages.reduce((sum, message) => sum + message.content.filter((block) => block.type === 'image').length, 0) * IMAGE_TOKENS);
+    const hasPicture = fitted.some((message) => message.content.some((block) => block.type === 'image'));
+    const reads = hasPicture && deps.attachments !== undefined ? (await deps.readsImages?.(session)) === true : false;
+    return { system, messages: withPictures(fitted, { reads, bytesOf: (ref) => deps.attachments?.read(session.id, ref) ?? null }) };
   };
 }

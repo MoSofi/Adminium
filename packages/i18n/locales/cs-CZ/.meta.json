@@ -8543,6 +8543,58 @@
     "status": "mt",
     "srcHash": "e8f3675e62a7"
   },
+  "designer.attach.button": {
+    "status": "mt",
+    "srcHash": "bbf3dd3b6a9d"
+  },
+  "designer.attach.csvTooLarge": {
+    "status": "mt",
+    "srcHash": "8eb027883b2a"
+  },
+  "designer.attach.imageTooLarge": {
+    "status": "mt",
+    "srcHash": "8aa415df470a"
+  },
+  "designer.attach.list": {
+    "status": "mt",
+    "srcHash": "a5a109e95c5b"
+  },
+  "designer.attach.noPictures": {
+    "status": "mt",
+    "srcHash": "9193347c1ba7"
+  },
+  "designer.attach.noPicturesPlain": {
+    "status": "mt",
+    "srcHash": "5a649c7f05fd"
+  },
+  "designer.attach.notSent": {
+    "status": "mt",
+    "srcHash": "a857e36a1ce5"
+  },
+  "designer.attach.open": {
+    "status": "mt",
+    "srcHash": "25c6fe05ae0f"
+  },
+  "designer.attach.pasted": {
+    "status": "mt",
+    "srcHash": "f9caa87a75c5"
+  },
+  "designer.attach.remove": {
+    "status": "mt",
+    "srcHash": "534185f5e12c"
+  },
+  "designer.attach.rows": {
+    "status": "mt",
+    "srcHash": "c1d7737f9e08"
+  },
+  "designer.attach.tooMany": {
+    "status": "mt",
+    "srcHash": "18f7d2ef8a4e"
+  },
+  "designer.attach.wrongKind": {
+    "status": "mt",
+    "srcHash": "70f255bf8236"
+  },
   "designer.banner.openOwn": {
     "status": "mt",
     "srcHash": "05fd9e064c6a"
@@ -8846,6 +8898,30 @@
   "designer.card.removed": {
     "status": "mt",
     "srcHash": "aca57ff9f010"
+  },
+  "designer.card.rows": {
+    "status": "mt",
+    "srcHash": "8c7123d7339d"
+  },
+  "designer.card.rowsHow": {
+    "status": "mt",
+    "srcHash": "dc1f32dfd5bc"
+  },
+  "designer.card.rowsLeft": {
+    "status": "mt",
+    "srcHash": "7b8719261d31"
+  },
+  "designer.card.rowsLoad": {
+    "status": "mt",
+    "srcHash": "d80c758a2c61"
+  },
+  "designer.card.rowsNo": {
+    "status": "mt",
+    "srcHash": "f0dbd27bc1c8"
+  },
+  "designer.card.rowsSkip": {
+    "status": "mt",
+    "srcHash": "404214afb86d"
   },
   "designer.card.youAnswered": {
     "status": "mt",
@@ -9675,6 +9751,18 @@
     "status": "mt",
     "srcHash": "bdf7203c8d6a"
   },
+  "designer.step.fileNotRead": {
+    "status": "mt",
+    "srcHash": "b120508f42a8"
+  },
+  "designer.step.fileRead": {
+    "status": "mt",
+    "srcHash": "bdd9b6e367f4"
+  },
+  "designer.step.fileReading": {
+    "status": "mt",
+    "srcHash": "292d58bf40df"
+  },
   "designer.step.listed": {
     "status": "mt",
     "srcHash": "5bcf8376d961"
@@ -9742,6 +9830,26 @@
   "designer.step.reading": {
     "status": "mt",
     "srcHash": "18be9daaeb9b"
+  },
+  "designer.step.rowsAsking": {
+    "status": "mt",
+    "srcHash": "d87a820af306"
+  },
+  "designer.step.rowsDeclined": {
+    "status": "mt",
+    "srcHash": "3512c8abdd29"
+  },
+  "designer.step.rowsFailed": {
+    "status": "mt",
+    "srcHash": "d4fb0152b4cd"
+  },
+  "designer.step.rowsLoaded": {
+    "status": "mt",
+    "srcHash": "fd852d95daed"
+  },
+  "designer.step.rowsRefused": {
+    "status": "mt",
+    "srcHash": "fcae4876b4f9"
   },
   "designer.step.shape": {
     "status": "mt",

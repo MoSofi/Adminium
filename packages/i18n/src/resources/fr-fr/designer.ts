@@ -242,7 +242,13 @@ export default {
     "addOnOffSends": "La liste d’adminium.dev est désactivée sur ce serveur. L’activer demande la liste à adminium.dev, maintenant et une fois par jour, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Obtenir l’extension la nomme. Studio → Extensions désactive de nouveau la liste.",
     "addOnGet": "L’obtenir",
     "addOnInstall": "L’installer",
-    "addOnSwitchAndGet": "Activer et l’obtenir"
+    "addOnSwitchAndGet": "Activer et l’obtenir",
+    "rows": "{count, plural, one {Charger # ligne de {file} dans {table} ?} other {Charger # lignes de {file} dans {table} ?}}",
+    "rowsLeft": "{count, plural, one {# ligne ne passe pas les contrôles de la table et est laissée de côté.} other {# lignes ne passent pas les contrôles de la table et sont laissées de côté.}}",
+    "rowsHow": "Elles sont ajoutées comme nouvelles lignes, avec les mêmes contrôles que tout import. Les imports du tableau de bord conservent le rapport.",
+    "rowsLoad": "Les charger",
+    "rowsSkip": "Ne pas charger",
+    "rowsNo": "Vous avez dit de ne pas les charger."
   },
   "step": {
     "addOns": "Examine les extensions",
@@ -298,7 +304,15 @@ export default {
     "addOnGot": "Extension {subject} obtenue",
     "addOnDeclined": "On s’est passé de l’extension {subject}",
     "addOnFailed": "Impossible d’obtenir l’extension {subject}",
-    "addOnRefused": "Aucune extension obtenue"
+    "addOnRefused": "Aucune extension obtenue",
+    "fileReading": "Lecture du fichier joint",
+    "fileRead": "Fichier joint lu",
+    "fileNotRead": "Impossible de lire le fichier joint",
+    "rowsAsking": "Demande pour charger les lignes du fichier",
+    "rowsLoaded": "{count, plural, one {# ligne chargée} other {# lignes chargées}}",
+    "rowsDeclined": "Les lignes n’ont pas été chargées",
+    "rowsFailed": "Impossible de charger les lignes",
+    "rowsRefused": "Aucune ligne chargée"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -517,5 +531,20 @@ export default {
     "ownerSave": "Enregistrer",
     "ownerCancel": "Annuler",
     "ownerDone": "Vous vous connectez désormais en tant que {email}, avec votre mot de passe."
+  },
+  "attach": {
+    "button": "Joindre une image ou un fichier CSV",
+    "list": "Fichiers joints",
+    "pasted": "Image collée",
+    "remove": "Retirer {name}",
+    "open": "Ouvrir {name} dans un nouvel onglet",
+    "rows": "{count, plural, one {# ligne} other {# lignes}}",
+    "wrongKind": "Seule une image (PNG, JPEG, WebP ou GIF) ou un fichier CSV peut être joint.",
+    "tooMany": "Jusqu’à {count} fichiers accompagnent un message.",
+    "imageTooLarge": "Cette image dépasse 5 Mo. Joignez-en une plus petite.",
+    "csvTooLarge": "Ce fichier dépasse 10 Mo. Pour un fichier de cette taille, utilisez Importer sur la page de la table.",
+    "noPictures": "{model} ne lit pas les images. Décrivez ce qui compte dedans, ou choisissez un modèle qui les lit.",
+    "noPicturesPlain": "Ce modèle ne lit pas les images. Décrivez ce qui compte dedans, ou choisissez un modèle qui les lit.",
+    "notSent": "Le message n’a pas été envoyé"
   }
 } as const;

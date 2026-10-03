@@ -41,6 +41,19 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /** Rows of a CSV the person attached, into a table of the app. Every word is the server's: the file's label, the table, the counts. */
+      type: 'rows';
+      attachment: string;
+      file: string;
+      table: string;
+      rows: number;
+      /** Rows the check already refuses; they are left out. */
+      left: number;
+      reasons: string[];
+      mapping: { from: string; to: string }[];
+    }
+  | {
+      id: string;
       type: 'removal';
       appKey: string;
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
@@ -54,6 +67,7 @@ export type CardAnswer =
   | { type: 'question'; text: string }
   | { type: 'package'; accept: boolean }
   | { type: 'add-on'; accept: boolean }
+  | { type: 'rows'; accept: boolean }
   | { type: 'removal'; accept: boolean };
 
 /** A card's answer, checked against the card it is for; null when it does not fit. */

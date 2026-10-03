@@ -10,7 +10,7 @@
  * files"); the header still counts every step. The end-of-turn check, build
  * and apply join the list as rows of their own.
  */
-import type { DesignerCard, DesignerEvent, LimitKind, SpendMark, StepFacts, TurnOutcome } from '../api.js';
+import type { DesignerAttachment, DesignerCard, DesignerEvent, LimitKind, SpendMark, StepFacts, TurnOutcome } from '../api.js';
 
 export interface StepRow extends StepFacts {
   id: string;
@@ -35,6 +35,8 @@ export interface TurnView {
   turn: number;
   /** What the person wrote; null for a turn whose start was not seen (a page opened mid-turn). */
   text: string | null;
+  /** What the person attached to the message. */
+  attachments: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[];
   reply: string;
   steps: StepRow[];
   /** Every step, before folding: what the header counts. */
@@ -71,6 +73,7 @@ function blank(turn: number, at: number): TurnView {
   return {
     turn,
     text: null,
+    attachments: [],
     reply: '',
     steps: [],
     stepCount: 0,
@@ -137,6 +140,7 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
     switch (event.kind) {
       case 'turn-started':
         turn.text = event.text;
+        turn.attachments = event.attachments ?? [];
         turn.startedAt = event.at;
         break;
       case 'text':

@@ -18,6 +18,7 @@
  */
 import {
   canBuild,
+  readsImages as readsImagesProbe,
   createProviderClient,
   createProviderRunner,
   DEFAULT_MAX_OUTPUT_TOKENS,
@@ -109,6 +110,8 @@ export interface AiConnections {
   verdict(id: ConnectionId, model: string): CanBuild | null;
   /** Whether a model can be built with: the verdict this process already has, else a round trip, kept. */
   canBuildWith(id: ConnectionId, model: string): Promise<CanBuild>;
+  /** Whether a model reads pictures: asked once and kept; null when it could not be asked. */
+  readsImages(id: ConnectionId, model: string): Promise<boolean | null>;
   readonly envWritable: boolean;
 }
 
@@ -169,6 +172,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   const makeClient = deps.createClient ?? createProviderClient;
   const makeRunner = deps.createRunner ?? createProviderRunner;
   const verdicts = new Map<string, CanBuild>();
+  const pictures = new Map<string, boolean>();
 
   function envConnection(values: AiEnvValues, provider: EnvProvider): AiConnection {
     const urlName = URL_NAME[provider];
@@ -387,6 +391,16 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       const verdict = await canBuild(makeRunner(config), model);
       // An error is not kept: the next try may reach the server.
       if (verdict.canBuild || verdict.reason !== 'error') verdicts.set(`${id}\u0000${model}`, verdict);
+      return verdict;
+    },
+    async readsImages(id, model) {
+      const key = `${id}\u0000${model}`;
+      const known = pictures.get(key);
+      if (known !== undefined) return known;
+      const { config, connection } = await configFor(id, model);
+      // Every Claude model the catalogue lists reads pictures; the others are asked.
+      const verdict = connection.provider === 'anthropic' ? true : await readsImagesProbe(makeRunner(config), model);
+      if (verdict !== null) pictures.set(key, verdict);
       return verdict;
     },
     envWritable: aiEnv.writable,

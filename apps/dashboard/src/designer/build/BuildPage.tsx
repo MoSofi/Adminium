@@ -17,6 +17,7 @@ import { ExternalLink, Eye, MessageSquare } from 'lucide-react';
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import { AttachTray, SentFiles, useAttach, useReadsImages } from '../parts/attach.js';
 import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion, type LookDirection } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
@@ -29,6 +30,7 @@ import {
   NotAppliedNote,
   AddOnCard,
   PackageCard,
+  RowsCard,
   PersonMessage,
   QuestionCard,
   RemovalCard,
@@ -123,10 +125,13 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onSuccess: (reply) => queryClient.setQueryData(designerKeys.session(sessionId), reply),
     onError: fail(t('designer:build.saveFailed', 'The change was not saved')),
   });
+  const attach = useAttach();
   const start = useMutation({
-    mutationFn: (message: string) => designerApi.startTurn(sessionId, message),
+    // The files go up first; the turn names them. A file the server refuses stops here, with its words, and the message stays in the box.
+    mutationFn: async (message: string) => designerApi.startTurn(sessionId, message, await attach.upload(sessionId)),
     onSuccess: () => {
       setText('');
+      attach.clear();
       follow.pin();
     },
     onError: fail(t('designer:build.turnFailed', 'The Designer could not start this turn')),
@@ -186,6 +191,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           onPick: (next) => patch.mutate({ connectionId: next.connectionId, model: next.model }),
         },
   );
+  const readsImages = useReadsImages(model.picked, attach.hasImage);
   const control = useModelControl(model);
 
   if (session.isError) {
@@ -256,6 +262,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     return (
       <div key={turn.turn} className="flex flex-col gap-5">
         {turn.text === null ? null : <PersonMessage text={turn.text} />}
+        <SentFiles sessionId={sessionId} files={turn.attachments} />
         <DesignerMessage text={turn.reply} streaming={live}>
           <StepsBlock rows={turn.steps} stepCount={turn.stepCount} live={live} ms={ms} open={isOpen} onToggle={() => setOpen((map) => ({ ...map, [turn.turn]: !isOpen }))} />
           {live && turn.usage !== null ? <UsageLine step={turn.usage.step} tokens={turn.usage.tokens} /> : null}
@@ -301,6 +308,20 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   accepted={said.accept}
                   busy={busy}
                   onGet={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
+                  onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
+                />
+              );
+            }
+            if (card.type === 'rows') {
+              return (
+                <RowsCard
+                  key={card.id}
+                  card={card}
+                  answered={answered}
+                  closed={!live}
+                  accepted={said.accept}
+                  busy={busy}
+                  onLoad={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
                   onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
                 />
               );
@@ -431,6 +452,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             placeholder={placeholder}
             model={control.element}
             inputRef={box}
+            attach={question === null ? attach : undefined}
+            tray={question === null ? <AttachTray state={attach} modelName={model.picked?.model ?? null} readsImages={readsImages} /> : null}
           />
         </aside>
         <div

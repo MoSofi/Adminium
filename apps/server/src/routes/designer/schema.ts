@@ -26,7 +26,7 @@ export const designerSession = z.object({
 });
 
 /** A card as the page draws it. Its fields depend on its type. */
-export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'add-on', 'removal']) }).passthrough();
+export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'add-on', 'rows', 'removal']) }).passthrough();
 
 /** An event as the page reads it. Its fields depend on its kind. */
 export const designerEvent = z.object({ seq: z.number().int(), turn: z.number().int(), at: z.number(), kind: z.string() }).passthrough();
@@ -96,7 +96,26 @@ export const designerSessionPatchBody = z.object({
   model: z.string().min(1).max(200).optional(),
 });
 
-export const designerTurnBody = z.object({ text: z.string().min(1).max(20_000) });
+export const designerTurnBody = z.object({
+  text: z.string().min(1).max(20_000),
+  /** Files already uploaded to this session, by the ids the upload answered with. */
+  attachments: z.array(z.string().regex(/^att_[0-9a-f]{20}$/)).max(4).optional(),
+});
+
+export const designerAttachment = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(['image', 'csv']),
+  mediaType: z.string(),
+  bytes: z.number().int(),
+  rows: z.number().int().optional(),
+  columns: z.array(z.string()).optional(),
+});
+export const designerAttachmentQuery = z.object({ filename: z.string().min(1).max(300) });
+export const designerAttachmentParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), attachment: z.string().regex(/^att_[0-9a-f]{20}$/) });
+export const designerAttachmentReply = z.object({ attachment: designerAttachment });
+export const designerReadsImagesBody = z.object({ connectionId: z.string().min(1).max(200), model: z.string().min(1).max(200) });
+export const designerReadsImagesReply = z.object({ readsImages: z.boolean().nullable() });
 export const designerTurnReply = z.object({ turn: z.number().int() });
 export const designerStopReply = z.object({ stopped: z.boolean() });
 export const designerAnswerBody = z.object({ cardId: z.string().max(64), value: z.unknown() });

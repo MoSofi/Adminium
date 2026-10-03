@@ -14,6 +14,7 @@ import {
   NotAppliedNote,
   AddOnCard,
   PackageCard,
+  RowsCard,
   PersonMessage,
   QuestionCard,
   RemovalCard,
@@ -79,6 +80,13 @@ export const Cards = {
         onRemove={noop}
       />
       <PackageCard card={{ id: 'p', type: 'package', name: 'qrcode', version: '1.5.4', why: 'A QR code on the customer page links to the repair.' }} answered={false} busy={false} onAdd={noop} onSkip={noop} />
+      <RowsCard
+        card={{ id: 'rw', type: 'rows', attachment: 'att_00000000000000000001', file: 'orders.csv', table: 'orders', rows: 1200, left: 4, reasons: ['row 7, email: is required'], mapping: [{ from: 'Customer', to: 'name' }, { from: 'E-mail', to: 'email' }, { from: 'Total', to: 'total' }] }}
+        answered={false}
+        busy={false}
+        onLoad={noop}
+        onSkip={noop}
+      />
       <AddOnCard
         card={{ id: 'ao', type: 'add-on', key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices, quotes and receipts, numbered and sent by email.' }}
         answered={false}

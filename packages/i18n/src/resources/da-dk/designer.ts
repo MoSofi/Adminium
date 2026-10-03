@@ -242,7 +242,13 @@ export default {
     "addOnOffSends": "Listen fra adminium.dev er slået fra på denne server. At slå den til beder adminium.dev om listen, nu og én gang om dagen, hvilket fortæller den serverens adresse, tidspunktet og dens Adminium-version. At hente tilføjelsen nævner den. Studio → Tilføjelser slår listen fra igen.",
     "addOnGet": "Hent den",
     "addOnInstall": "Installér den",
-    "addOnSwitchAndGet": "Slå til og hent den"
+    "addOnSwitchAndGet": "Slå til og hent den",
+    "rows": "{count, plural, one {Indlæs # række fra {file} i {table}?} other {Indlæs # rækker fra {file} i {table}?}}",
+    "rowsLeft": "{count, plural, one {# række består ikke tabellens kontroller og udelades.} other {# rækker består ikke tabellens kontroller og udelades.}}",
+    "rowsHow": "De tilføjes som nye rækker gennem de samme kontroller som enhver import. Importer i dashboardet gemmer rapporten.",
+    "rowsLoad": "Indlæs dem",
+    "rowsSkip": "Indlæs ikke",
+    "rowsNo": "Du sagde, at de ikke skulle indlæses."
   },
   "step": {
     "addOns": "Ser på tilføjelserne",
@@ -298,7 +304,15 @@ export default {
     "addOnGot": "Hentede tilføjelsen {subject}",
     "addOnDeclined": "Klarede sig uden tilføjelsen {subject}",
     "addOnFailed": "Kunne ikke hente tilføjelsen {subject}",
-    "addOnRefused": "Ingen tilføjelse blev hentet"
+    "addOnRefused": "Ingen tilføjelse blev hentet",
+    "fileReading": "Læser den vedhæftede fil",
+    "fileRead": "Læste den vedhæftede fil",
+    "fileNotRead": "Kunne ikke læse den vedhæftede fil",
+    "rowsAsking": "Spørger om at indlæse filens rækker",
+    "rowsLoaded": "{count, plural, one {Indlæste # række} other {Indlæste # rækker}}",
+    "rowsDeclined": "Rækkerne blev ikke indlæst",
+    "rowsFailed": "Kunne ikke indlæse rækkerne",
+    "rowsRefused": "Ingen rækker indlæst"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -517,5 +531,20 @@ export default {
     "ownerSave": "Gem",
     "ownerCancel": "Annuller",
     "ownerDone": "Du logger nu ind som {email} med din adgangskode."
+  },
+  "attach": {
+    "button": "Vedhæft et billede eller en CSV-fil",
+    "list": "Vedhæftede filer",
+    "pasted": "Indsat billede",
+    "remove": "Fjern {name}",
+    "open": "Åbn {name} i en ny fane",
+    "rows": "{count, plural, one {# række} other {# rækker}}",
+    "wrongKind": "Kun et billede (PNG, JPEG, WebP eller GIF) eller en CSV-fil kan vedhæftes.",
+    "tooMany": "Op til {count} filer kan følge med én besked.",
+    "imageTooLarge": "Det billede er over 5 MB. Vedhæft et mindre.",
+    "csvTooLarge": "Den fil er over 10 MB. Til en fil af den størrelse skal du bruge Import på tabellens egen side.",
+    "noPictures": "{model} læser ikke billeder. Beskriv det vigtige i det, eller vælg en model, der gør.",
+    "noPicturesPlain": "Denne model læser ikke billeder. Beskriv det vigtige i det, eller vælg en model, der gør.",
+    "notSent": "Beskeden blev ikke sendt"
   }
 } as const;

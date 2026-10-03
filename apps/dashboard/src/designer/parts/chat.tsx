@@ -11,6 +11,7 @@
 import { useId, type ReactNode } from 'react';
 import {
   Blocks,
+  FileSpreadsheet,
   Check,
   ChevronDown,
   CircleSlash2,
@@ -523,6 +524,66 @@ export function AddOnCard({
           </button>
           <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
             {t('designer:card.doWithout', 'Do without')}
+          </button>
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+/** Rows of a CSV the person attached, into one of the app's tables. Every word is the server's own; nothing is loaded before the yes. */
+export function RowsCard({
+  card,
+  answered,
+  closed = false,
+  accepted,
+  busy,
+  onLoad,
+  onSkip,
+}: {
+  card: Extract<DesignerCard, { type: 'rows' }>;
+  answered: boolean;
+  /** The turn ended without an answer. */
+  closed?: boolean;
+  accepted?: boolean | undefined;
+  busy: boolean;
+  onLoad: () => void;
+  onSkip: () => void;
+}): ReactNode {
+  const title = withMono(
+    t('designer:card.rows', '{count, plural, one {Load # row from {file} into {table}?} other {Load # rows from {file} into {table}?}}', { count: card.rows, file: M1, table: M2 }),
+    [M1, M2],
+    [card.file, card.table],
+  );
+  return (
+    <CardShell cardId={card.id} icon={<FileSpreadsheet className="size-[15px]" />} title={title}>
+      <ul className="m-0 flex list-none flex-col gap-0.5 p-0 text-[12.5px] leading-normal text-fg-muted">
+        {card.mapping.map((pair) => (
+          <li key={`${pair.from}\u0000${pair.to}`} dir="auto">
+            <span className="font-semibold text-fg">{pair.from}</span> → <span className="font-mono text-[12px]">{pair.to}</span>
+          </li>
+        ))}
+      </ul>
+      {card.left === 0 ? null : (
+        <p dir="auto" className="m-0 text-[12.5px] leading-normal text-fg-muted">
+          {t('designer:card.rowsLeft', '{count, plural, one {# row does not pass the table’s checks and is left out.} other {# rows do not pass the table’s checks and are left out.}}', { count: card.left })}
+          {card.reasons.length === 0 ? null : ` ${card.reasons.slice(0, 3).join('; ')}`}
+        </p>
+      )}
+      <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
+        {t('designer:card.rowsHow', 'They are added as new rows, through the same checks as any import. Imports in the dashboard keeps the report.')}
+      </p>
+      {closed && !answered ? (
+        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</p>
+      ) : answered ? (
+        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{accepted === true ? t('designer:card.packageYes', 'You said yes.') : t('designer:card.rowsNo', 'You said not to load them.')}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={busy} onClick={onLoad} className={PRIMARY}>
+            {t('designer:card.rowsLoad', 'Load them')}
+          </button>
+          <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
+            {t('designer:card.rowsSkip', 'Do not load')}
           </button>
         </div>
       )}

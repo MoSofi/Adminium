@@ -32,6 +32,7 @@ import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/re
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { auditExempt } from '../../audit/coverage.js';
+import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, type Attachment, type Attachments } from '../../designer/attachments.js';
 import {
   designerAnswerBody,
   designerAnswerReply,
@@ -46,6 +47,11 @@ import {
   designerModelCheckBody,
   designerModelCheckReply,
   designerModelsReply,
+  designerAttachmentParams,
+  designerAttachmentQuery,
+  designerAttachmentReply,
+  designerReadsImagesBody,
+  designerReadsImagesReply,
   designerPreviewBody,
   designerPreviewReply,
   designerEventsReply,
@@ -93,9 +99,25 @@ export interface DesignerRoutesDeps {
   previewRoles?: ((appKey: string) => Promise<string[]>) | undefined;
   /** The owner `design` made, and their first password. Present only on a `design` server. */
   owner?: { needsPassword(userId: string | null): Promise<boolean>; set(input: { email: string; password: string }, by: Actor): Promise<string> } | undefined;
+  /** What people attach to a message. */
+  attachments: Attachments;
   /** How an app fits together, from what the engine applied. */
   architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
+
+/** The largest file a message takes (a CSV), and a little for the request around it. */
+const ATTACHMENT_BODY_LIMIT = ATTACHMENT_MAX_CSV_BYTES + 64 * 1024;
+
+/** An attachment as the page is told of it: never its hash, never where it is kept. */
+const publicAttachment = (entry: Attachment) => ({
+  id: entry.id,
+  label: entry.label,
+  kind: entry.kind,
+  mediaType: entry.mediaType,
+  bytes: entry.bytes,
+  ...(entry.rows === undefined ? {} : { rows: entry.rows }),
+  ...(entry.columns === undefined ? {} : { columns: entry.columns }),
+});
 
 /** How long the adminium.dev list is kept. */
 const CATALOG_CACHE_MS = 60 * 60 * 1000;
@@ -131,6 +153,11 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
 
   return async (app) => {
     const guard = app.rbac.require(PERMISSIONS.designerUse);
+
+    // A file attached to a message comes as its raw bytes, in this plugin only (there is no multipart parser in this server).
+    app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) => {
+      done(null, body);
+    });
 
     // On a live server the Designer answers only while a Super Admin has it switched on.
     if (deps.live !== undefined) {
@@ -265,8 +292,59 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         schema: { params: designerSessionParams, body: designerTurnBody, response: { 202: designerTurnReply } },
       },
       async (request, reply) => {
-        const started = await runner.start(request.params.id, { text: request.body.text, by: actorOf(request) });
+        const started = await runner.start(request.params.id, {
+          text: request.body.text,
+          by: actorOf(request),
+          ...(request.body.attachments === undefined ? {} : { attachments: request.body.attachments }),
+        });
         return reply.code(202).send(started);
+      },
+    );
+
+    /*
+     * A file for a message: a picture or a CSV, as raw bytes. Who is asking is
+     * settled on the request's first line (`onRequest`), before a byte of the
+     * body is read; the permission and the CSRF check follow as on every
+     * Designer route. What the file is, is read from its bytes.
+     */
+    app.post(
+      '/designer/sessions/:id/attachments',
+      {
+        onRequest: app.requireAuth,
+        preHandler: guard,
+        bodyLimit: ATTACHMENT_BODY_LIMIT,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('a file attached to a Designer message changes nothing by itself; the turn that carries it is audited') },
+        schema: { params: designerSessionParams, querystring: designerAttachmentQuery, response: { 201: designerAttachmentReply } },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the file itself as the request body.', { reason: 'ATTACHMENT' });
+        try {
+          const made = deps.attachments.add(session.id, { filename: request.query.filename, bytes: request.body });
+          return await reply.code(201).send({ attachment: publicAttachment(made) });
+        } catch (error) {
+          if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
+          throw error;
+        }
+      },
+    );
+
+    // The file back, for the page's own thumbnail and nothing else: its bytes can run nothing, whatever they hold.
+    app.get(
+      '/designer/sessions/:id/attachments/:attachment',
+      { preHandler: guard, config: RATE, schema: { params: designerAttachmentParams } },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        const entry = deps.attachments.find(session.id, request.params.attachment);
+        const bytes = entry === null ? null : deps.attachments.read(session.id, entry.id);
+        if (entry === null || bytes === null) throw new NotFoundError('There is no such file in this session.');
+        return reply
+          .header('content-type', entry.kind === 'image' ? entry.mediaType : 'text/csv; charset=utf-8')
+          .header('x-content-type-options', 'nosniff')
+          .header('content-security-policy', "default-src 'none'; sandbox")
+          .header('cache-control', 'private, max-age=3600')
+          .header('content-disposition', entry.kind === 'image' ? 'inline' : 'attachment; filename="attachment.csv"')
+          .send(bytes);
       },
     );
 
@@ -478,6 +556,20 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const verdict = await connections.canBuildWith(request.body.connectionId as ConnectionId, request.body.model);
         if (verdict.canBuild) return { canBuild: true, message: null };
         return { canBuild: verdict.reason === 'error' ? null : false, message: verdict.message };
+      },
+    );
+
+    // Whether a model reads pictures: asked when a person first attaches one, kept for the process's life.
+    app.post(
+      '/designer/models/reads-images',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('a check calls the model and saves nothing') },
+        schema: { body: designerReadsImagesBody, response: { 200: designerReadsImagesReply } },
+      },
+      async (request) => {
+        if ((await connections.find(request.body.connectionId)) === null) throw new NotFoundError('There is no such model connection.', { connectionId: request.body.connectionId });
+        return { readsImages: await connections.readsImages(request.body.connectionId as ConnectionId, request.body.model) };
       },
     );
 

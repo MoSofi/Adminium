@@ -232,7 +232,13 @@
     "addOnOffSends": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zapnutí požádá adminium.dev o seznam, nyní a jednou denně, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Získání doplňku ho jmenuje. Studio → Doplňky seznam zase vypne.",
     "addOnGet": "Získat",
     "addOnInstall": "Nainstalovat",
-    "addOnSwitchAndGet": "Zapnout a získat"
+    "addOnSwitchAndGet": "Zapnout a získat",
+    "rows": "{count, plural, one {Načíst # řádek z {file} do {table}?} few {Načíst # řádky z {file} do {table}?} many {Načíst # řádku z {file} do {table}?} other {Načíst # řádků z {file} do {table}?}}",
+    "rowsLeft": "{count, plural, one {# řádek neprojde kontrolami tabulky a vynechá se.} few {# řádky neprojdou kontrolami tabulky a vynechají se.} many {# řádku neprojde kontrolami tabulky a vynechá se.} other {# řádků neprojde kontrolami tabulky a vynechá se.}}",
+    "rowsHow": "Přidají se jako nové řádky, se stejnými kontrolami jako každý import. Zprávu uchovávají Importy v dashboardu.",
+    "rowsLoad": "Načíst",
+    "rowsSkip": "Nenačítat",
+    "rowsNo": "Řekli jste, že se nemají načíst."
   },
   "step": {
     "addOns": "Prohlíží doplňky",
@@ -288,7 +294,15 @@
     "addOnGot": "Doplněk {subject} získán",
     "addOnDeclined": "Bez doplňku {subject}",
     "addOnFailed": "Doplněk {subject} se nepodařilo získat",
-    "addOnRefused": "Žádný doplněk nebyl získán"
+    "addOnRefused": "Žádný doplněk nebyl získán",
+    "fileReading": "Čtu připojený soubor",
+    "fileRead": "Připojený soubor přečten",
+    "fileNotRead": "Připojený soubor se nepodařilo přečíst",
+    "rowsAsking": "Ptám se na načtení řádků souboru",
+    "rowsLoaded": "{count, plural, one {Načten # řádek} few {Načteny # řádky} many {Načteno # řádku} other {Načteno # řádků}}",
+    "rowsDeclined": "Řádky nebyly načteny",
+    "rowsFailed": "Řádky se nepodařilo načíst",
+    "rowsRefused": "Žádné řádky nenačteny"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -507,5 +521,20 @@
     "ownerSave": "Uložit",
     "ownerCancel": "Zrušit",
     "ownerDone": "Nyní se přihlašujete jako {email}, svým heslem."
+  },
+  "attach": {
+    "button": "Připojit obrázek nebo soubor CSV",
+    "list": "Připojené soubory",
+    "pasted": "Vložený obrázek",
+    "remove": "Odebrat {name}",
+    "open": "Otevřít {name} na nové kartě",
+    "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
+    "wrongKind": "Připojit lze jen obrázek (PNG, JPEG, WebP nebo GIF) nebo soubor CSV.",
+    "tooMany": "K jedné zprávě lze připojit nejvýše {count} soubory.",
+    "imageTooLarge": "Ten obrázek má přes 5 MB. Připojte menší.",
+    "csvTooLarge": "Ten soubor má přes 10 MB. Pro takto velký soubor použijte Import na stránce tabulky.",
+    "noPictures": "{model} obrázky nečte. Popište, na čem v něm záleží, nebo vyberte model, který je čte.",
+    "noPicturesPlain": "Tento model obrázky nečte. Popište, na čem v něm záleží, nebo vyberte model, který je čte.",
+    "notSent": "Zpráva nebyla odeslána"
   }
 }

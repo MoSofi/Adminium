@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createPrompt, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
-import { emptyFirstPreview, placeholderScreens, unopenedTables } from '../src/designer/service.js';
+import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import { createSkills } from '../src/designer/skills.js';
 import { closeDangling } from '../src/designer/transcript.js';
@@ -172,6 +172,21 @@ describe('tables nobody can open', () => {
     const open = { requiredSchema: { tables: [{ ref: 'cakes', columns: [column('name')] }] }, pages: [{ bindings: { rows: 'cakes' } }], roles: [{ permissions: ['table:@cakes:read'] }], publicAccess: [{ table: 'cakes' }] };
     expect(unopenedTables({ ...open, frontends: [{ side: 'staff', kind: 'none' }] })).toEqual([expect.stringContaining('no customer screen')]);
     expect(unopenedTables({ ...open, frontends: [{ side: 'customer', kind: 'spa' }] })).toEqual([]);
+  });
+
+  it('says when a role reads a table and not its personal columns', () => {
+    const app = (permissions: string[]) => ({
+      requiredSchema: { tables: [{ ref: 'orders', columns: [{ ref: 'id' }, { ref: 'customer' }, { ref: 'email' }, { ref: 'contact_phone' }, { ref: 'emailed_at_count' }] }, { ref: 'cakes', columns: [{ ref: 'id' }, { ref: 'name' }] }] },
+      roles: [{ key: 'staff', permissions }],
+    });
+    const lines = unreadPersonalColumns(app(['table:@orders:read', 'table:@cakes:read']));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('The role "staff" reads the table "orders" and not its personal columns (email, contact_phone)');
+    expect(lines[0]).toContain('"table:@orders:read_pii"');
+    // Granted, or a role that does not read the table at all: nothing to say.
+    expect(unreadPersonalColumns(app(['table:@orders:read', 'table:@orders:read_pii']))).toEqual([]);
+    expect(unreadPersonalColumns(app(['table:@cakes:read']))).toEqual([]);
+    expect(unreadPersonalColumns(null)).toEqual([]);
   });
 });
 
