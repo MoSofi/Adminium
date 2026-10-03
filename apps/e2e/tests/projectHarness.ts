@@ -189,12 +189,12 @@ class ServerProcess {
   readonly exited: Promise<number | null>;
   private readonly child: ChildProcess;
 
-  constructor(args: string[], cwd: string) {
+  constructor(args: string[], cwd: string, env: Record<string, string> = {}) {
     this.child = spawn(process.execPath, [CLI, ...args], {
       cwd,
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: childEnv({ ADMINIUM_STATIC_ROOT: DASHBOARD, ADMINIUM_PUBLIC_API_ORIGINS: PUBLIC_ORIGIN }),
+      env: childEnv({ ADMINIUM_STATIC_ROOT: DASHBOARD, ADMINIUM_PUBLIC_API_ORIGINS: PUBLIC_ORIGIN, ...env }),
     });
     this.child.stdout?.on('data', (chunk: Buffer) => (this.text += chunk.toString('utf8')));
     this.child.stderr?.on('data', (chunk: Buffer) => (this.text += chunk.toString('utf8')));
@@ -334,6 +334,22 @@ export class ProjectHarness {
     for (const deadline = Date.now() + 60_000; ; await sleep(250)) {
       if (this.exists('pages/customers.json') && this.exists('schema/main.json')) break;
       if (Date.now() > deadline) throw new Error(`dev wrote no page files:\n${this.output()}`);
+    }
+  }
+
+  /**
+   * `adminium design` in the project: the server in its own process, on this
+   * machine only. Resolves with the one-use link it prints (it opens no
+   * browser here); the session is the link's to make.
+   */
+  async design(env: Record<string, string> = {}): Promise<string> {
+    await this.stop();
+    this.server = new ServerProcess(['design', '--port', String(PROJECT_PORT), '--no-open'], this.root, env);
+    await this.waitForHealth();
+    for (const deadline = Date.now() + 60_000; ; await sleep(250)) {
+      const link = /Open this link once to sign in: (\S+)/.exec(this.output())?.[1];
+      if (link !== undefined) return link;
+      if (Date.now() > deadline) throw new Error(`design printed no link:\n${this.output()}`);
     }
   }
 

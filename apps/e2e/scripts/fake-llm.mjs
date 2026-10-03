@@ -473,6 +473,66 @@ export function createFakeLlmServer() {
   });
 }
 
+// ─── the Designer's model ────────────────────────────────────────────────────
+
+/**
+ * A scripted model for Adminium Designer's e2e flow, in Ollama's streaming
+ * protocol (`POST /api/chat`, one JSON object per line), which the Designer
+ * reads as it would a real local model.
+ *
+ * Stateless like the rest of this file: the step is the number of tool
+ * results since the person's last message. The build check (a request that
+ * offers the `echo` tool) calls it once and then answers. A turn writes one
+ * table part, checks the app, applies it and says so.
+ *
+ * `tablePart(ref)` gives the table file's text: the spec reads it from the
+ * starter app, so the part is always one this build accepts.
+ */
+export function createDesignerModelServer({ appKey, tablePart }) {
+  const line = (res, value) => res.write(`${JSON.stringify(value)}\n`);
+  const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 900, eval_count: 40, message: { role: 'assistant', content: '' } };
+  const say = (res, content) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content } });
+  const call = (res, name, args) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name, arguments: args } }] } });
+  return createServer((req, res) => {
+    const url = String(req.url ?? '');
+    if (req.method === 'GET' && url.startsWith('/api/tags')) {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ models: [{ name: 'fake', model: 'fake' }] }));
+      return;
+    }
+    if (req.method !== 'POST' || !url.startsWith('/api/chat')) {
+      process.stderr.write(`fake-designer-model: no route for ${req.method ?? ''} ${url}\n`);
+      res.statusCode = 404;
+      res.end('{}');
+      return;
+    }
+    void readBody(req).then((raw) => {
+      const body = JSON.parse(raw);
+      const messages = Array.isArray(body?.messages) ? body.messages : [];
+      const tools = Array.isArray(body?.tools) ? body.tools.map((tool) => tool?.function?.name) : [];
+      res.setHeader('content-type', 'application/x-ndjson');
+      if (tools.includes('echo')) {
+        if (messages.some((message) => message.role === 'tool')) say(res, 'done');
+        else call(res, 'echo', { word: 'adminium' });
+        line(res, done);
+        res.end();
+        return;
+      }
+      let lastUser = -1;
+      messages.forEach((message, index) => {
+        if (message.role === 'user') lastUser = index;
+      });
+      const step = messages.slice(lastUser + 1).filter((message) => message.role === 'tool').length;
+      if (step === 0) call(res, 'write_file', { path: `apps/${appKey}/manifest/tables/jobs.json`, content: tablePart('jobs') });
+      else if (step === 1) call(res, 'check_app', {});
+      else if (step === 2) call(res, 'apply_app', {});
+      else say(res, 'The app has a jobs table now. It is applied and saved.');
+      line(res, done);
+      res.end();
+    });
+  });
+}
+
 // ─── the self-test ───────────────────────────────────────────────────────────
 
 /**

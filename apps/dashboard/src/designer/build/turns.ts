@@ -167,6 +167,8 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         if (!event.ok) list.push({ id: `build-${String(event.seq)}`, tool: 'build', label: 'Build', state: 'failed', ms: null, detail: event.problems.slice(0, 3).join('\n') || null, folded: 1 });
         break;
       case 'apply':
+        // A good apply is said once: by the tool's own step, or by the first apply event of the turn.
+        if (event.ok && list.some((row) => (row.tool === 'apply_app' && row.state === 'done') || (row.tool === 'apply' && row.state === 'done'))) break;
         list.push({
           id: `apply-${String(event.seq)}`,
           tool: 'apply',

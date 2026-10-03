@@ -24,6 +24,7 @@
    `@source` paths are relative to THIS file (packages/ui/src/styles/). */
 @source "../../../widgets/src/**/*.{ts,tsx}";
 @source "../../../charts/src/**/*.{ts,tsx}";
+@source "../../../../apps/dashboard/src/designer/**/*.{ts,tsx}";
 
 /* Paint the theme onto the preview surface.
 

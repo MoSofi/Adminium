@@ -76,6 +76,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: designerKeys.versions(sessionId) });
     void queryClient.invalidateQueries({ queryKey: designerKeys.apps });
     void queryClient.invalidateQueries({ queryKey: designerKeys.architecture(sessionId) });
+    // The preview's list of installed apps: a live `app-changed` can be missed, a turn's end cannot.
+    void queryClient.invalidateQueries({ queryKey: ['designer', 'installed'] });
   };
 
   // A turn that ends, or a version that lands, changes what the top bar and Home show.

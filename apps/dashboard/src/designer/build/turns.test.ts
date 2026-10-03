@@ -40,6 +40,18 @@ describe('foldTurns', () => {
     expect(isWorking(turns)).toBe(false);
   });
 
+  it('says a good apply once, however many times the turn applied', () => {
+    seq = 0;
+    const turns = foldTurns([
+      at(1, { kind: 'turn-started', text: 'x' }),
+      at(1, { kind: 'step', id: 'a', tool: 'apply_app', label: 'Applied', state: 'done' }),
+      at(1, { kind: 'apply', ok: true, state: 'installed' }),
+      at(1, { kind: 'apply', ok: true, state: 'installed' }),
+      at(1, { kind: 'turn-finished', outcome: 'done' }),
+    ]);
+    expect(turns[0]?.steps.map((row) => row.tool)).toEqual(['apply_app']);
+  });
+
   it('keeps a lone write named, a running step in place, and a turn with no end as working', () => {
     seq = 0;
     const turns = foldTurns([
