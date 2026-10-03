@@ -8,7 +8,7 @@
  * conversation; and when the conversation grows, what is cut must never
  * leave a provider a transcript it refuses.
  */
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
@@ -104,6 +104,22 @@ describe('an app that is new', () => {
     expect(names).toContain('adminium-app/references/guides/manifest-by-task--add-a-dashboard-page.md');
     expect(names.length).toBeGreaterThan(8);
     for (const name of names) expect(skills.read(name), name).not.toBeNull();
+  });
+});
+
+describe('an app copied from a published one', () => {
+  it('is described as it is laid out, with its source by folder and not file by file', async () => {
+    writeFileSync(`${root}/apps/repairs/build.json`, JSON.stringify({ install: 'npm ci --ignore-scripts', command: 'vite build', output: 'dist-surface/repairs' }));
+    mkdirSync(`${root}/apps/repairs/src/screens`, { recursive: true });
+    for (let n = 0; n < 40; n += 1) writeFileSync(`${root}/apps/repairs/src/screens/Screen${String(n)}.tsx`, 'export {};');
+    writeFileSync(`${root}/apps/repairs/src/main.tsx`, 'export {};');
+    const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
+    const { system } = await prompt(session(), [say('user', 'Add a column.')]);
+    expect(system).toContain('This app is a copy of a published app');
+    expect(system).toContain('apps/repairs/src/screens/ (40 files)');
+    expect(system).not.toContain('Screen7.tsx');
+    expect(system).toContain('apps/repairs/manifest/tables/items.json');
+    expect(estimateTokens(system)).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.ollama / 2);
   });
 });
 

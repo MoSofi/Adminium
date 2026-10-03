@@ -35,6 +35,7 @@ half-configured and fail later.
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
+| `ADMINIUM_DESIGNER` | No | `off` | `live` lets a Super Admin switch [Adminium Designer](/projects/designer/#on-a-server-people-reach) on for this server, in Settings → AI. Anything else, and its routes do not exist. `adminium design` needs no variable. |
 | `ADMINIUM_AI_ANTHROPIC_API_KEY` | No | — | An Anthropic key: a model connection the server has without anything saved in Settings → AI. See [the `ADMINIUM_AI_*` block](#the-adminium_ai_-block). |
 | `ADMINIUM_AI_OPENAI_API_KEY` | No | — | An OpenAI key, the same way. |
 | `ADMINIUM_AI_COMPATIBLE_BASE_URL` | No | — | The address of an OpenAI-compatible server (`http://localhost:8000/v1`). |

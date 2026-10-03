@@ -2204,7 +2204,23 @@ export default {
     "testOk": "Připojeno k {model} za {latency} ms",
     "testUnknownModel": "poskytovateli",
     "testing": "Kontaktuji poskytovatele…",
-    "title": "Obohacení pomocí AI"
+    "title": "Obohacení pomocí AI",
+    "designer": {
+      "title": "Adminium Designer",
+      "lead": "Umožní lidem s oprávněním popsat aplikaci, kterou model zapíše do tohoto projektu: tabulky, stránky, obrazovky a po každém výslovném souhlasu i serverový kód. Každý krok se zaznamená do auditního protokolu.",
+      "local": "Adminium Designer běží na tomto počítači (adminium design).",
+      "switch": "Adminium Designer na tomto serveru",
+      "switchLine": "Co postaví, se vašim zaměstnancům nabízí jako každá jiná aplikace: obrazovky napsané modelem běží v jejich prohlížečích s tím, co smějí jejich role.",
+      "notAllowed": "Provozovatel serveru to nepovolil. Nastavuje ADMINIUM_DESIGNER=live v prostředí serveru.",
+      "noProject": "Designer staví aplikace do složky projektu a tento server běží bez ní.",
+      "diskNotKept": "Byl vypnut: složka projektu se po restartu nevrátila, takže to, co zde Designer postaví, by se ztratilo. Mějte složku na disku, který zůstává.",
+      "noBundler": "Projekt nemá esbuild, kterým Designer sestavuje obrazovky. Nainstalujte ho v projektu: npm install --save-dev esbuild",
+      "notWritable": "Do složky projektu nelze zapisovat.",
+      "password": "Vaše heslo, abyste ho zapnuli",
+      "switchOn": "Zapnout",
+      "open": "Otevřít Designer",
+      "failed": "Přepínač se nepodařilo změnit."
+    }
   },
   "settingsHub": {
     "addOnsCard": {

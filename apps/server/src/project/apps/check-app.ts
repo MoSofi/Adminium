@@ -164,8 +164,10 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
    */
   (manifest.publicAccess ?? []).forEach((entry, index) => {
     if (entry.kind === 'availability') return;
-    // Anyone at all: no claim, no sign-in, no person found or made by the write.
-    const anyone = entry.claim === undefined && entry.claimedBy === undefined && entry.identity === undefined;
+    // Anyone at all: no claim, no sign-in, no person found or made by the write, and no row reached only through
+    // one the caller may already see (`visibleWith`) or by a signed-in guest (`level`). The install decides the same
+    // way (`manifest-public.ts`): a published app that installs must not be refused here once it is a folder's.
+    const anyone = entry.claim === undefined && entry.claimedBy === undefined && entry.identity === undefined && entry.visibleWith === undefined && entry.level === undefined;
     if (anyone && entry.methods.includes('POST') && entry.methods.includes('GET')) {
       const where = at(`publicAccess.${String(index)}.methods`);
       findings.push(

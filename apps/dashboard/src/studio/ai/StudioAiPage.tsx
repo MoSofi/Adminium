@@ -43,6 +43,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
 import { AssistantCard } from './AssistantCard.js';
+import { DesignerLiveCard } from './DesignerLiveCard.js';
 import { ProviderConfigForm, aiConfigQuery } from './ProviderConfigForm.js';
 import { aiApi, type LlmRunDto, type LlmRunStatus } from './api.js';
 import { PROMPT_VERSION, SCHEMA_VERSION } from './providerCatalog.js';
@@ -352,6 +353,7 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
           connect wizard's inline panel, and a field added there would ask
           somebody to name an assistant in the middle of first-run setup. */}
       <AssistantCard config={config} />
+      <DesignerLiveCard />
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
     </PageSurface>
   );

@@ -18,7 +18,8 @@ import type { Designer } from '../../designer/service.js';
 import type { Starter } from '../../designer/start-with-app.js';
 import { sourceArchiveUrl } from '../../project/apps/source-archive.js';
 import type { Actor } from '../../designer/runner.js';
-import { NotFoundError } from '../../errors.js';
+import { ForbiddenError, NotFoundError } from '../../errors.js';
+import type { Live } from '../../designer/live.js';
 import type { Versions } from '../../designer/versions.js';
 import type { ArchitectureDocument } from '../../designer/architecture.js';
 import { safeTarget, type PreviewTickets } from '../../designer/preview.js';
@@ -77,6 +78,8 @@ export interface DesignerRoutesDeps {
   limits: () => Promise<{ maxSteps: number; turnTokens: number; sessionTokens: number }>;
   /** The adminium.dev app list, for "Start with an app". */
   appCatalog?: { isEnabled(): Promise<boolean>; fetchCatalog(signal?: AbortSignal): Promise<AppCatalog> } | undefined;
+  /** The live Designer's switch: with it, every route here answers only while it is on. Absent on a `design` server. */
+  live?: Live | undefined;
   /** "Start with an app": copying one of the list into the project. Absent where the server cannot. */
   starter?: Starter | undefined;
   /** The preview's tickets and its address; null where the server has no preview name. */
@@ -119,6 +122,14 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
 
   return async (app) => {
     const guard = app.rbac.require(PERMISSIONS.designerUse);
+
+    // On a live server the Designer answers only while a Super Admin has it switched on.
+    if (deps.live !== undefined) {
+      const live = deps.live;
+      app.addHook('preHandler', async () => {
+        if (!(await live.state()).on) throw new ForbiddenError('Adminium Designer is switched off on this server.', 'FORBIDDEN', { reason: 'DESIGNER_OFF' });
+      });
+    }
 
     app.get('/designer/state', { preHandler: guard, config: RATE, schema: { response: { 200: designerStateReply } } }, async () => ({
       mode: deps.mode,

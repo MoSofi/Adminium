@@ -436,6 +436,10 @@ export const SETTINGS_REGISTRY = {
   'designer.sessionTokens': def(z.number().int().min(100_000).max(50_000_000), 15_000_000, 'Tokens one Designer session may use in all', P),
   // The owner `adminium design` made with no password; null once `adminium owner set` gave them one.
   // Not portable: it is this instance's own user id, and it is what lets the design link sign them in.
+  // The live Designer's switch (a Super Admin's, in Settings → AI), and the id written into the project folder when
+  // it was switched on: a folder that comes back without it was not kept, and the switch goes off. Not portable.
+  'designer.live': def(z.boolean(), false, 'Adminium Designer is switched on for this server'),
+  'designer.liveId': def<string | null>(z.string().max(80).nullable(), null, 'The id the live Designer wrote into the project folder'),
   'designer.localOwnerId': def<string | null>(z.string().nullable(), null, 'The owner adminium design made, until they have a password'),
   // ── files & storage ───────────────────────────────────────────────────────
   //

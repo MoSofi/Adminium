@@ -402,5 +402,31 @@ export default {
     "tables": "Tabulky",
     "title": "Jak do sebe {name} zapadá",
     "uses": "Co používají"
+  },
+  "sheet": {
+    "title": "Začít s aplikací {name}",
+    "close": "Zavřít",
+    "how": "Jak začít",
+    "asIs": "Nainstalovat tak, jak je",
+    "asIsLine": "Nainstaluje aplikaci beze změn. Dál dostává aktualizace. Designer může stavět kolem ní, ne uvnitř.",
+    "yours": "Udělat ji vlastní",
+    "yoursLine": "Zkopíruje aplikaci do vaší složky, aby v ní Designer mohl změnit cokoli. Aktualizace od Adminia už dostávat nebude.",
+    "yoursNoSource": "Seznam neuvádí, kde je zdrojový kód této aplikace, takže ji nelze zkopírovat.",
+    "name": "Název",
+    "key": "Klíč",
+    "keyHint": "Používá se v adresách a názvech tabulek. Později ho nelze změnit.",
+    "buildTitle": "Tato aplikace sestavuje své obrazovky vlastními příkazy",
+    "buildLine": "Spouštějí se na tomto počítači, ve složce aplikace, při každém sestavení. Než je povolíte, přečtěte si je.",
+    "approve": "Tyto příkazy se smějí spustit",
+    "licence": "Zdrojový kód této aplikace je pod licencí AGPL-3.0 a vaše kopie si tuto licenci ponechává. Pokud vaši kopii používají lidé přes síť (vaši zákazníci, na vašem webu), licence po vás žádá, abyste jim nabídli zdrojový kód své verze včetně změn.",
+    "needsModel": "Nejdřív přidejte model: Designer se otevře nad vaší kopií.",
+    "startFailed": "Kopii se nepodařilo spustit.",
+    "cancel": "Zrušit",
+    "retry": "Zkusit znovu",
+    "start": "Začít",
+    "openInstall": "Otevřít její instalaci",
+    "stepGet": "Stahuji aplikaci",
+    "stepMake": "Dělám ji vaší",
+    "stepBuild": "Sestavuji a používám"
   }
 } as const;

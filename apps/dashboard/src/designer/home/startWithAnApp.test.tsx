@@ -16,7 +16,7 @@ import type { CatalogApp } from '../api.js';
 import { FILTERS_FROM, StartWithAnApp } from './StartWithAnApp.js';
 
 function app(n: number, category: string): CatalogApp {
-  return { key: `app-${String(n)}`, version: '0.2.0', name: `App ${String(n)}`, tagline: `What app ${String(n)} does.`, category, sides: ['staff', 'customer'], iconTint: null, iconPaths: [], monogram: null };
+  return { key: `app-${String(n)}`, version: '0.2.0', name: `App ${String(n)}`, tagline: `What app ${String(n)} does.`, category, sides: ['staff', 'customer'], copyable: true, iconTint: null, iconPaths: [], monogram: null };
 }
 
 function mount(reply: () => Promise<Response>, onStart = vi.fn()) {

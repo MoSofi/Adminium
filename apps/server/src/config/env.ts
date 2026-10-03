@@ -325,6 +325,12 @@ export const envSchema = z.object({
    * underneath for an unset value to defer to, so "unset" has exactly one
    * possible meaning and a boolean says it without pretending otherwise.
    */
+  /*
+   * Adminium Designer on a server that is not `adminium design`. `live` is
+   * the operator allowing it; a Super Admin still has to switch it on in
+   * Settings → AI. Unset and `off` are the same: its routes do not exist.
+   */
+  ADMINIUM_DESIGNER: z.preprocess(emptyToUndefined, z.enum(['off', 'live']).optional().transform((value) => value ?? 'off')),
   ADMINIUM_NETWORK_FEATURES: z.preprocess(
     emptyToUndefined,
     z
@@ -656,6 +662,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_DEMO_SEED_SCRIPT:
     'absolute path to the desktop shell’s demo-seed.mjs (desktop only; enables the first-run demo card)',
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
+  ADMINIUM_DESIGNER: 'off or live (default off; live lets a Super Admin switch Adminium Designer on for this server)',
   ADMINIUM_NETWORK_FEATURES: `one of ${BOOLEANISH.join(', ')} (default on; set off on air-gapped installs so the UI stops offering webhooks/OAuth)`,
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
   ADMINIUM_TRUSTED_PROXIES:

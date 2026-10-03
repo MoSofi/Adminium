@@ -25,16 +25,17 @@ import {
 import { ApiError } from '../../app/api.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { t } from '../../i18n/t.js';
-import { designerApi, yourAppsQuery, type DesignerTarget } from '../api.js';
+import { designerApi, yourAppsQuery, type DesignerTarget, type CatalogApp } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { TopBar } from '../parts/TopBar.js';
+import { StartSheet } from './StartSheet.js';
 import { StartWithAnApp } from './StartWithAnApp.js';
 import { YourApps } from './YourApps.js';
 import { examplesAt, nameFromRequest } from './examples.js';
 
 /** "Start with an app" shows once the sheet it opens exists: a card that opens nothing is worse than no card. */
-export const SHOW_START_WITH_AN_APP = false;
+export const SHOW_START_WITH_AN_APP = true;
 
 const MAX_LINES_PX = 216;
 
@@ -55,6 +56,8 @@ export function DesignerHome(): ReactNode {
   const [text, setText] = useState('');
   const [target, setTarget] = useState<DesignerTarget>('auto');
   const [turn, setTurn] = useState(0);
+  /** The app whose sheet is open. */
+  const [starting, setStarting] = useState<CatalogApp | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
   const noModel = !model.loading && model.picked === null && !model.hasModels;
@@ -213,10 +216,11 @@ export function DesignerHome(): ReactNode {
             </button>
           </div>
 
-          {SHOW_START_WITH_AN_APP ? <StartWithAnApp /> : null}
+          {SHOW_START_WITH_AN_APP ? <StartWithAnApp onStart={setStarting} /> : null}
           {(yourApps.data?.apps.length ?? 0) > 0 ? <YourApps apps={yourApps.data?.apps ?? []} model={model.picked} target={target} /> : null}
         </div>
       </main>
+      <StartSheet app={starting} model={model.picked} onClose={() => setStarting(null)} />
     </div>
   );
 }

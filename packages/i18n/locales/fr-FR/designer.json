@@ -392,5 +392,31 @@
     "tables": "Tables",
     "title": "Comment {name} s’articule",
     "uses": "Ce qu’ils utilisent"
+  },
+  "sheet": {
+    "title": "Démarrer avec {name}",
+    "close": "Fermer",
+    "how": "Comment démarrer",
+    "asIs": "Installer telle quelle",
+    "asIsLine": "Installe l’application sans la modifier. Elle continue de recevoir les mises à jour. Le Designer peut construire autour d’elle, pas à l’intérieur.",
+    "yours": "En faire la vôtre",
+    "yoursLine": "Copie l’application dans votre dossier pour que le Designer puisse tout modifier. Elle ne recevra plus de mises à jour d’Adminium.",
+    "yoursNoSource": "La liste n’indique pas où se trouve le code source de cette application : elle ne peut pas être copiée.",
+    "name": "Nom",
+    "key": "Clé",
+    "keyHint": "Utilisée dans les adresses et les noms de tables. Ne peut plus être modifiée ensuite.",
+    "buildTitle": "Cette application construit ses écrans avec ses propres commandes",
+    "buildLine": "Elles s’exécutent sur cette machine, dans le dossier de l’application, à chaque construction. Lisez-les avant d’accepter.",
+    "approve": "Ces commandes peuvent s’exécuter",
+    "licence": "Le code source de cette application est sous licence AGPL-3.0, et votre copie conserve cette licence. Si des personnes utilisent votre copie via un réseau (vos clients, sur votre site), la licence vous demande de leur proposer le code source de votre version, modifications comprises.",
+    "needsModel": "Ajoutez d’abord un modèle : le Designer s’ouvre sur votre copie.",
+    "startFailed": "La copie n’a pas pu démarrer.",
+    "cancel": "Annuler",
+    "retry": "Réessayer",
+    "start": "Démarrer",
+    "openInstall": "Ouvrir son installation",
+    "stepGet": "Récupération de l’application",
+    "stepMake": "Elle devient la vôtre",
+    "stepBuild": "Construction et application"
   }
 }

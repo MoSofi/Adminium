@@ -26,6 +26,7 @@ import { join, relative, sep } from 'node:path';
 import { checkApp } from '../project/apps/check-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, nameFromKey, PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
+import { hasOwnBuild } from '../project/apps/own-build.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
@@ -169,6 +170,26 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
   const ALLOW_IT = 'Allow it';
 
   /**
+   * An app with a build of its own (a copy of a published app): the files that decide what its approved build
+   * RUNS are a person's to change. A model that could edit them would have a shell again.
+   */
+  function buildFileRefusal(path: string): ToolOutcome | null {
+    if (!hasOwnBuild(deps.root, appKey)) return null;
+    let normal: string;
+    try {
+      normal = jail.normalise(path).normalize('NFC').toLowerCase();
+    } catch {
+      return null; // The jail says what is wrong with the path.
+    }
+    const inside = normal.startsWith(`apps/${appKey}/`) ? normal.slice(`apps/${appKey}/`.length) : null;
+    if (inside === null) return null;
+    const guarded = inside === 'build.json' || inside === 'package.json' || inside === 'package-lock.json' || /^vite\.config\.[a-z]+$/.test(inside) || /^tsconfig[a-z.]*\.json$/.test(inside) || inside.startsWith('scripts/');
+    return guarded
+      ? refused(`${inside} decides what this app's build runs, and the person approved that build as it is. It is theirs to change. Do what was asked in the app's manifest and its src/.`, 'Not yours to change')
+      : null;
+  }
+
+  /**
    * `hooks/` and `actions/` are code the server itself runs. The model may
    * write there only once the person said so, asked once a turn; the answer
    * to a refusal is a sentence the model can act on.
@@ -265,7 +286,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const path = str(input, 'path');
         const content = str(input, 'content');
         if (path === null || content === null) return refused('Give "path" and "content".', 'Wrote nothing');
-        const notAllowed = await serverCodeRefusal(path, ctx);
+        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
@@ -295,7 +316,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const before = str(input, 'old');
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
-        const notAllowed = await serverCodeRefusal(path, ctx);
+        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
@@ -339,7 +360,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       run: async (input, ctx) => {
         const path = str(input, 'path');
         if (path === null) return refused('Give the "path" to delete.', 'Deleted nothing');
-        const notAllowed = await serverCodeRefusal(path, ctx);
+        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not delete ${shown(path)}`, () => {
           jail.delete(path);
@@ -522,6 +543,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       run: async (input) => {
         const side = str(input, 'side');
         if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff" or "customer".', 'Added no side');
+        if (hasOwnBuild(deps.root, appKey)) return refused(`This app keeps its screens in apps/${appKey}/src/ and builds them itself: edit them there.`, 'Added no side');
         return jailed(`Could not add the ${side} side`, () => {
           // Through the jail's own door, so the folder is one the Designer may write.
           jail.resolve(`apps/${appKey}/${side}/src/App.tsx`, 'write');

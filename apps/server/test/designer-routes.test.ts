@@ -142,7 +142,7 @@ interface Client {
   owner: string;
 }
 
-async function server(opts: { designer: boolean; environment?: Record<string, string> }): Promise<Client> {
+async function server(opts: { designer: boolean; environment?: Record<string, string>; bundler?: boolean }): Promise<Client> {
   // A project with its own SQLite database, connected as `main`.
   install = await makeInstall();
   root = asProject(install.dir);
@@ -161,6 +161,7 @@ async function server(opts: { designer: boolean; environment?: Record<string, st
     onMetaRelocated: () => undefined,
     project: { root, mode: 'dev', log: () => undefined, warn: () => undefined, databases: ['main'] },
     ...(opts.designer ? { designer: { mode: 'local' as const, token: 'a'.repeat(64), port: DESIGN_PORT } } : {}),
+    designerBundler: () => opts.bundler ?? true,
   });
   const { app } = composed;
   await app.ready();
@@ -494,3 +495,71 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/versions/0/restore`, { record: false })).status).toBe(409);
   });
 });
+
+describe.skipIf(!canBuildSides)('the live Designer', { timeout: 120_000 }, () => {
+  const PASSWORD = 'a-long-enough-test-password-1!';
+  const MODEL = { ADMINIUM_AI_OLLAMA_BASE_URL: '', ADMINIUM_AI_MODEL: 'ollama/fake' };
+  const live = (extra: Record<string, string> = {}) => ({ ...MODEL, ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ...extra });
+
+  it('is not there until the server’s operator allowed it', async () => {
+    const client = await server({ designer: false, environment: live() });
+    expect((await client.call('GET', '/api/v1/designer/live')).body).toEqual({ mode: 'live', allowed: false, on: false, project: true, reason: 'not-allowed' });
+    expect((await client.call('GET', '/api/v1/designer/state')).status).toBe(404);
+    const refused = await client.call('PUT', '/api/v1/designer/live', { on: true, password: PASSWORD });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ error: { details: { reason: 'not-allowed' } } });
+  });
+
+  it('is refused until a Super Admin switches it on with their password, and again once it is off', async () => {
+    const client = await server({ designer: false, environment: live({ ADMINIUM_DESIGNER: 'live' }) });
+    expect((await client.call('GET', '/api/v1/designer/live')).body).toMatchObject({ mode: 'live', allowed: true, on: false, reason: null });
+    const off = await client.call('GET', '/api/v1/designer/state');
+    expect(off.status).toBe(403);
+    expect(off.body).toMatchObject({ error: { details: { reason: 'DESIGNER_OFF' } } });
+
+    // The password, again: a session alone does not switch it on.
+    // (Two tries: the switch shares the sign-in's bucket, five a minute.)
+    for (const password of [undefined, 'not-the-password']) {
+      const wrong = await client.call('PUT', '/api/v1/designer/live', { on: true, ...(password === undefined ? {} : { password }) });
+      expect(wrong.status, String(password)).toBe(403);
+      expect(wrong.body).toMatchObject({ error: { details: { reason: 'PASSWORD' } } });
+    }
+    expect((await client.call('GET', '/api/v1/designer/state')).status).toBe(403);
+
+    const on = await client.call('PUT', '/api/v1/designer/live', { on: true, password: PASSWORD });
+    expect(on.status, JSON.stringify(on.body)).toBe(200);
+    expect(on.body).toMatchObject({ on: true, reason: null });
+    expect(existsSync(join(root!, '.adminium/designer/live.json'))).toBe(true);
+    expect((await client.call('GET', '/api/v1/designer/state')).body).toMatchObject({ mode: 'live' });
+
+    // A session can be made; a preview cannot: this server has one name.
+    const created = await client.call('POST', '/api/v1/designer/sessions', { name: 'Repair desk', target: 'auto', connectionId: 'env:ollama', model: 'fake' });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    const id = (created.body['session'] as { id: string }).id;
+    const preview = await client.call('POST', `/api/v1/designer/sessions/${id}/preview-ticket`, { to: '/' });
+    expect(preview.status).toBe(404);
+    expect(preview.body).toMatchObject({ error: { details: { reason: 'NO_PREVIEW' } } });
+
+    // Off needs no password, and the routes are refused again.
+    expect((await client.call('PUT', '/api/v1/designer/live', { on: false })).body).toMatchObject({ on: false });
+    expect((await client.call('GET', '/api/v1/designer/state')).status).toBe(403);
+    const audit = await client.meta.db.selectFrom('adminium_audit_log').select('action').where('action', 'like', 'designer.live.%').execute();
+    expect(audit.map((row) => row.action).sort()).toEqual(['designer.live.off', 'designer.live.on']);
+    expect(JSON.stringify(await client.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', 'like', 'designer.live.%').execute())).not.toContain(PASSWORD);
+  });
+
+  it('is not switched on over a project that cannot build screens, and is shown to nobody without the permission', async () => {
+    const client = await server({ designer: false, environment: live({ ADMINIUM_DESIGNER: 'live' }), bundler: false });
+    const refused = await client.call('PUT', '/api/v1/designer/live', { on: true, password: PASSWORD });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ error: { details: { reason: 'no-bundler' } } });
+    expect((await client.call('GET', '/api/v1/designer/live', undefined, '')).status).toBe(401);
+  });
+
+  it('answers "local" on a design server, which has no switch', async () => {
+    const client = await server({ designer: true });
+    expect((await client.call('GET', '/api/v1/designer/live')).body).toEqual({ mode: 'local', allowed: true, on: true, project: true, reason: null });
+    expect((await client.call('PUT', '/api/v1/designer/live', { on: false })).status).toBe(409);
+  });
+});
+

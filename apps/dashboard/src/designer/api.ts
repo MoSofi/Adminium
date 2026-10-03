@@ -43,6 +43,17 @@ export interface YourApp {
   sessionId: string | null;
 }
 
+/** A copy of a published app being made: three steps, and the session that opens on it. */
+export interface StartJob {
+  id: string;
+  key: string;
+  newKey: string;
+  name: string;
+  state: 'running' | 'done' | 'failed';
+  steps: { id: 'get' | 'make' | 'build'; state: 'waiting' | 'running' | 'done' | 'failed'; detail?: string }[];
+  sessionId: string | null;
+}
+
 export interface CatalogApp {
   key: string;
   version: string;
@@ -50,6 +61,8 @@ export interface CatalogApp {
   tagline: string;
   category: string | null;
   sides: ('staff' | 'customer')[];
+  /** Whether the list says where its source is: only then can it be made one's own. */
+  copyable: boolean;
   iconTint: string | null;
   iconPaths: string[];
   monogram: string | null;
@@ -167,6 +180,10 @@ export const designerApi = {
   state: () => api.get<DesignerState>(`${BASE}/state`),
   yourApps: () => api.get<{ apps: YourApp[] }>(`${BASE}/sessions`),
   catalog: () => api.get<{ state: 'ok' | 'off' | 'unreachable'; apps: CatalogApp[] }>(`${BASE}/apps`),
+  startCheck: (newKey: string) =>
+    api.get<{ problem: string | null; build: { install: string; command: string; output: string; fingerprint: string } | null }>(`${BASE}/start-check?newKey=${encodeURIComponent(newKey)}`),
+  start: (input: { key: string; newKey: string; name: string; approve: string; connectionId: string; model: string }) => api.post<StartJob>(`${BASE}/start`, input),
+  startStatus: (jobId: string) => api.get<StartJob>(`${BASE}/start-status/${encodeURIComponent(jobId)}`),
   models: () => api.get<DesignerModels>(`${BASE}/models`),
   checkModel: (connectionId: string, model: string) => api.post<{ canBuild: boolean | null; message: string | null }>(`${BASE}/models/check`, { connectionId, model }),
   testConnection: (draft: ConnectionDraft) => api.post<ConnectionTest>(`${BASE}/connections/test`, draft),

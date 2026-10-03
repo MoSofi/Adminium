@@ -2194,7 +2194,23 @@
     "testOk": "Connecté à {model} en {latency} ms",
     "testUnknownModel": "le fournisseur",
     "testing": "Test du fournisseur en cours…",
-    "title": "Enrichissement par IA"
+    "title": "Enrichissement par IA",
+    "designer": {
+      "title": "Adminium Designer",
+      "lead": "Permet aux personnes qui en ont l’autorisation de décrire une application qu’un modèle écrit dans ce projet : tables, pages, écrans et, avec un oui à chaque fois, du code serveur. Chaque tour est consigné dans le journal d’audit.",
+      "local": "Adminium Designer tourne sur cette machine (adminium design).",
+      "switch": "Adminium Designer sur ce serveur",
+      "switchLine": "Ce qu’il construit est servi à votre équipe comme n’importe quelle application : des écrans écrits par un modèle s’exécutent dans leurs navigateurs, avec ce que leurs rôles autorisent.",
+      "notAllowed": "L’opérateur du serveur ne l’a pas autorisé. Il définit ADMINIUM_DESIGNER=live dans l’environnement du serveur.",
+      "noProject": "Le Designer construit les applications dans un dossier de projet, et ce serveur fonctionne sans.",
+      "diskNotKept": "Il a été désactivé : le dossier du projet n’est pas revenu après un redémarrage, ce que le Designer construit ici serait donc perdu. Placez le dossier sur un disque conservé.",
+      "noBundler": "Le projet n’a pas esbuild, avec lequel le Designer construit les écrans. Installez-le dans le projet : npm install --save-dev esbuild",
+      "notWritable": "Impossible d’écrire dans le dossier du projet.",
+      "password": "Votre mot de passe, pour l’activer",
+      "switchOn": "L’activer",
+      "open": "Ouvrir le Designer",
+      "failed": "L’interrupteur n’a pas pu être modifié."
+    }
   },
   "settingsHub": {
     "addOnsCard": {

@@ -274,6 +274,22 @@ describe('the Designer’s tools', () => {
     expect(asked).toHaveLength(before);
   });
 
+  it('leave the files that decide what an approved build runs to the person', async () => {
+    // Nothing is guarded in an app Adminium builds itself.
+    expect(await run('write_file', { path: 'apps/repairs/package.json', content: '{}' })).toMatchObject({ label: 'Wrote package.json' });
+    writeFileSync(join(root, 'apps/repairs/build.json'), JSON.stringify({ install: 'npm ci --ignore-scripts', command: 'vite build', output: 'dist-surface/repairs' }));
+    for (const path of ['build.json', 'package.json', 'PACKAGE.JSON', 'package-lock.json', 'vite.config.ts', 'tsconfig.app.json', 'scripts/postbuild.mjs']) {
+      const refusal = await run('write_file', { path: `apps/repairs/${path}`, content: '{}' });
+      expect(refusal, path).toMatchObject({ isError: true, label: 'Not yours to change' });
+    }
+    expect(await run('edit_file', { path: 'apps/repairs/package.json', old: '{', new: '{ ' })).toMatchObject({ label: 'Not yours to change' });
+    expect(await run('delete_file', { path: 'apps/repairs/build.json' })).toMatchObject({ label: 'Not yours to change' });
+    expect(readFileSync(join(root, 'apps/repairs/package.json'), 'utf8')).toBe('{}');
+    // Its source and its manifest are still the model's to change, and a side is not added to it.
+    expect(await run('write_file', { path: 'apps/repairs/src/App.tsx', content: 'export {};' })).toMatchObject({ label: 'Wrote src/App.tsx' });
+    expect((await run('add_side', { side: 'staff' })).content).toContain('builds them itself');
+  });
+
   it('run the app’s own tests, and say when there are none', async () => {
     // Tests are code the model wrote: nothing runs until the person says so, and a no is taken.
     answers.push({ type: 'question', text: 'Do not run them' });

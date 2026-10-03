@@ -9143,6 +9143,102 @@
     "status": "mt",
     "srcHash": "65e430cc3082"
   },
+  "designer.sheet.approve": {
+    "status": "mt",
+    "srcHash": "a102cc2a6fa8"
+  },
+  "designer.sheet.asIs": {
+    "status": "mt",
+    "srcHash": "b59080cd6969"
+  },
+  "designer.sheet.asIsLine": {
+    "status": "mt",
+    "srcHash": "bae98bfe29c1"
+  },
+  "designer.sheet.buildLine": {
+    "status": "mt",
+    "srcHash": "e015b9f4f430"
+  },
+  "designer.sheet.buildTitle": {
+    "status": "mt",
+    "srcHash": "a753d615d307"
+  },
+  "designer.sheet.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.sheet.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "designer.sheet.how": {
+    "status": "mt",
+    "srcHash": "a300459d78bb"
+  },
+  "designer.sheet.key": {
+    "status": "mt",
+    "srcHash": "c67dd20ee842"
+  },
+  "designer.sheet.keyHint": {
+    "status": "mt",
+    "srcHash": "cd11caf20520"
+  },
+  "designer.sheet.licence": {
+    "status": "mt",
+    "srcHash": "c66fbb84815c"
+  },
+  "designer.sheet.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "designer.sheet.needsModel": {
+    "status": "mt",
+    "srcHash": "702acbf0a946"
+  },
+  "designer.sheet.openInstall": {
+    "status": "mt",
+    "srcHash": "8c71509c35da"
+  },
+  "designer.sheet.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.sheet.start": {
+    "status": "src",
+    "srcHash": "952f375412e8"
+  },
+  "designer.sheet.startFailed": {
+    "status": "mt",
+    "srcHash": "2cdda98640cb"
+  },
+  "designer.sheet.stepBuild": {
+    "status": "mt",
+    "srcHash": "f3449d7bc9f0"
+  },
+  "designer.sheet.stepGet": {
+    "status": "mt",
+    "srcHash": "2b81a863487f"
+  },
+  "designer.sheet.stepMake": {
+    "status": "mt",
+    "srcHash": "454324a84929"
+  },
+  "designer.sheet.title": {
+    "status": "mt",
+    "srcHash": "2a224bb405e2"
+  },
+  "designer.sheet.yours": {
+    "status": "mt",
+    "srcHash": "54135155f880"
+  },
+  "designer.sheet.yoursLine": {
+    "status": "mt",
+    "srcHash": "55df5cb8db37"
+  },
+  "designer.sheet.yoursNoSource": {
+    "status": "mt",
+    "srcHash": "1cbf2d754df2"
+  },
   "designer.spent.body": {
     "status": "mt",
     "srcHash": "fc802a034284"
@@ -22826,6 +22922,62 @@
   "studio.settingsAi.configure.heading": {
     "srcHash": "8415e5cfb498",
     "status": "mt"
+  },
+  "studio.settingsAi.designer.diskNotKept": {
+    "status": "mt",
+    "srcHash": "57d38cfb4381"
+  },
+  "studio.settingsAi.designer.failed": {
+    "status": "mt",
+    "srcHash": "b6dd972dc301"
+  },
+  "studio.settingsAi.designer.lead": {
+    "status": "mt",
+    "srcHash": "3b818b834dd2"
+  },
+  "studio.settingsAi.designer.local": {
+    "status": "mt",
+    "srcHash": "b862e5ae9c0c"
+  },
+  "studio.settingsAi.designer.noBundler": {
+    "status": "mt",
+    "srcHash": "ddb798abc6e7"
+  },
+  "studio.settingsAi.designer.noProject": {
+    "status": "mt",
+    "srcHash": "9ca212d4cce6"
+  },
+  "studio.settingsAi.designer.notAllowed": {
+    "status": "mt",
+    "srcHash": "d029440dd0f0"
+  },
+  "studio.settingsAi.designer.notWritable": {
+    "status": "mt",
+    "srcHash": "698958c5c1a0"
+  },
+  "studio.settingsAi.designer.open": {
+    "status": "mt",
+    "srcHash": "d7211f9e3aa8"
+  },
+  "studio.settingsAi.designer.password": {
+    "status": "mt",
+    "srcHash": "965e473b374a"
+  },
+  "studio.settingsAi.designer.switch": {
+    "status": "mt",
+    "srcHash": "0e256103f334"
+  },
+  "studio.settingsAi.designer.switchLine": {
+    "status": "mt",
+    "srcHash": "05c04d62fdce"
+  },
+  "studio.settingsAi.designer.switchOn": {
+    "status": "mt",
+    "srcHash": "6c28cea20638"
+  },
+  "studio.settingsAi.designer.title": {
+    "status": "src",
+    "srcHash": "c7b22145f13e"
   },
   "studio.settingsAi.field.baseUrl": {
     "srcHash": "1dbd61f556fe",

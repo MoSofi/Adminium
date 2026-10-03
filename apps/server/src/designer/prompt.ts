@@ -19,6 +19,7 @@ import { join, relative, sep } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, ProviderError, type ProviderId, type RunBlock, type RunMessage } from '@adminium/llm';
 
 import { checkApp, accessInWords } from '../project/apps/check-app.js';
+import { hasOwnBuild } from '../project/apps/own-build.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { starterParts } from '../project/apps/scaffold-app.js';
 import type { DesignerSession } from './session-store.js';
@@ -107,6 +108,14 @@ export function taskGuides(skills: Skills): string {
 }
 
 /** The app as the engine sees it, in short. */
+/** What a model is told about an app copied from a published one. */
+const COPIED = (appKey: string): string =>
+  `This app is a copy of a published app, made the person's own. It is large: read before you change, and change little.
+- Its manifest is part files under apps/${appKey}/manifest/ like any app's. Tables, pages, roles and access are changed there.
+- Its screens are ONE Vite app in apps/${appKey}/src/, shared by the staff and the customer side (not staff/ and customer/ folders). List a folder before reading in it; files are many.
+- It builds with its own build, which the person approved. build_sides and apply_app run it. You cannot change package.json, vite.config, tsconfig, build.json or scripts/, and add_side is not for this app.
+- A column you add to a table is not shown by its screens until you add it to the screen that lists or edits that table: find it in src/ by the table's name.`;
+
 export function appNow(root: string, version: string, appKey: string): { text: string; hasSides: boolean; empty: boolean } {
   const check = checkApp(root, appKey, { version });
   const lines: string[] = [`The app: key "${appKey}" (folder apps/${appKey}/).`];
@@ -134,7 +143,22 @@ export function appNow(root: string, version: string, appKey: string): { text: s
       else if (entry.isFile()) files.push(`${relative(root, path).split(sep).join('/')} (${String(statSync(path).size)})`);
     }
   };
-  for (const folder of [join(root, APPS_DIR, appKey), join(root, 'hooks'), join(root, 'actions')]) walk(folder);
+  const copied = hasOwnBuild(root, appKey);
+  // A copied app has hundreds of source files: its manifest is listed, and its source by folder with a count.
+  for (const folder of copied ? [join(root, APPS_DIR, appKey, 'manifest'), join(root, 'hooks'), join(root, 'actions')] : [join(root, APPS_DIR, appKey), join(root, 'hooks'), join(root, 'actions')]) walk(folder);
+  if (copied) {
+    const src = join(root, APPS_DIR, appKey, 'src');
+    const count = (folder: string): number => {
+      if (!existsSync(folder)) return 0;
+      return readdirSync(folder, { withFileTypes: true }).reduce((sum, entry) => sum + (entry.isDirectory() ? count(join(folder, entry.name)) : entry.isFile() ? 1 : 0), 0);
+    };
+    if (existsSync(src)) {
+      for (const entry of readdirSync(src, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+        if (entry.isDirectory()) files.push(`${APPS_DIR}/${appKey}/src/${entry.name}/ (${String(count(join(src, entry.name)))} files)`);
+        else if (entry.isFile() && files.length < 200) files.push(`${APPS_DIR}/${appKey}/src/${entry.name} (${String(statSync(join(src, entry.name)).size)})`);
+      }
+    }
+  }
 
   const errors = check.findings.filter((finding) => finding.level === 'error');
   const checked =
@@ -145,7 +169,7 @@ export function appNow(root: string, version: string, appKey: string): { text: s
           .map((finding) => `- ${finding.file} · ${finding.path} · ${finding.message}`)
           .join('\n')}`;
   return {
-    text: `${summary}\n\nFiles:\n${files.join('\n') || '(none)'}\n\n${checked}`,
+    text: `${copied ? `${COPIED(appKey)}\n\n` : ''}${summary}\n\nFiles:\n${files.join('\n') || '(none)'}\n\n${checked}`,
     hasSides: check.sides.length > 0,
     // By what the app declares, however its manifest is written (part files, or one manifest.json).
     empty: !(manifest !== null && manifest.kind === 'app' && (manifest.requiredSchema?.tables ?? []).length > 0) && !files.some((file) => file.startsWith(`${APPS_DIR}/${appKey}/manifest/tables/`) || file === `${APPS_DIR}/${appKey}/manifest.json`),

@@ -42,11 +42,11 @@ export const AppCards = {
   render: () => (
     <div className="grid w-[640px] grid-cols-2 gap-5 bg-surface-2 p-5">
       <AppCard
-        app={{ key: 'tickets', version: '0.2.1', name: 'Event Ticketing', tagline: 'Shows, ticket types, orders and check-in for a small venue.', category: 'Events', sides: ['staff', 'customer'], iconTint: null, iconPaths: [], monogram: 'ET' }}
+        app={{ key: 'tickets', version: '0.2.1', name: 'Event Ticketing', tagline: 'Shows, ticket types, orders and check-in for a small venue.', category: 'Events', sides: ['staff', 'customer'], copyable: true, iconTint: null, iconPaths: [], monogram: 'ET' }}
         onStart={() => undefined}
       />
       <AppCard
-        app={{ key: 'clinic', version: '0.2.3', name: 'Clinic Desk', tagline: 'Online booking, arrivals and the day sheet for a small practice.', category: 'Clinics & Health', sides: ['staff'], iconTint: null, iconPaths: [], monogram: null }}
+        app={{ key: 'clinic', version: '0.2.3', name: 'Clinic Desk', tagline: 'Online booking, arrivals and the day sheet for a small practice.', category: 'Clinics & Health', sides: ['staff'], copyable: true, iconTint: null, iconPaths: [], monogram: null }}
         onStart={() => undefined}
       />
     </div>

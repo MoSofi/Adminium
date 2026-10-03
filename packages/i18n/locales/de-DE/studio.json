@@ -2194,7 +2194,23 @@
     "testOk": "Verbunden mit {model} in {latency} ms",
     "testUnknownModel": "dem Anbieter",
     "testing": "Anbieter wird angepingt…",
-    "title": "KI-Anreicherung"
+    "title": "KI-Anreicherung",
+    "designer": {
+      "title": "Adminium Designer",
+      "lead": "Lässt Personen mit der Berechtigung eine App beschreiben, die ein Modell in dieses Projekt schreibt: Tabellen, Seiten, Bildschirme und, jedes Mal nach einem Ja, Servercode. Jeder Durchgang wird im Audit-Log festgehalten.",
+      "local": "Adminium Designer läuft auf diesem Rechner (adminium design).",
+      "switch": "Adminium Designer auf diesem Server",
+      "switchLine": "Was er baut, wird Ihren Mitarbeitenden wie jede App bereitgestellt: Bildschirme, die ein Modell geschrieben hat, laufen in ihren Browsern, mit dem, was ihre Rollen dürfen.",
+      "notAllowed": "Der Betreiber des Servers hat das nicht erlaubt. Er setzt ADMINIUM_DESIGNER=live in der Umgebung des Servers.",
+      "noProject": "Der Designer baut Apps in einen Projektordner, und dieser Server läuft ohne einen.",
+      "diskNotKept": "Er wurde ausgeschaltet: Der Projektordner war nach einem Neustart nicht mehr da, was der Designer hier baut, ginge also verloren. Legen Sie den Ordner auf einen Datenträger, der bleibt.",
+      "noBundler": "Das Projekt hat kein esbuild, mit dem der Designer Bildschirme baut. Installieren Sie es im Projekt: npm install --save-dev esbuild",
+      "notWritable": "In den Projektordner kann nicht geschrieben werden.",
+      "password": "Ihr Passwort, um ihn einzuschalten",
+      "switchOn": "Einschalten",
+      "open": "Designer öffnen",
+      "failed": "Der Schalter konnte nicht geändert werden."
+    }
   },
   "settingsHub": {
     "addOnsCard": {

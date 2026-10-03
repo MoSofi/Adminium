@@ -65,6 +65,33 @@ The add-on has to be on your server for this. A server started with `npx` has no
 switch the add-on catalogue on, or upload the add-on, in **Studio → Add-ons**. Until then the
 Designer builds the rest of the app and tells you this step is yours.
 
+## Start with an app
+
+Under the message box, **Start with an app** lists the apps published on
+[adminium.dev](https://adminium.dev/marketplace). The list is read online, so it shows once the
+online app list is switched on (**Studio → Hosted apps**). A card opens a sheet with two choices:
+
+| Choice | What you get |
+|---|---|
+| **Install as it is** | The app, unchanged, with its updates. The sheet takes you to its install in Studio, where you read its plan first. The Designer can build beside it, not inside it |
+| **Make it yours** | The app's source, copied into your project under a name and a key you give. The Designer can change anything in it. It gets no more updates |
+
+A copy is fetched from the app's own repository at its release, and renamed wherever its key is
+written: its pages, permissions, emails and tables, its screens' address. Its manifest becomes part
+files under `apps/<key>/manifest/`, and its screens stay one Vite app in `apps/<key>/src/`.
+
+**The build command.** A copied app builds its screens with the build it was written with, not with
+Adminium's. That is a command, run on your machine each time the app is built. The sheet shows its
+exact words and nothing is fetched until you tick that they may run. The approval is kept in
+`.adminium/approved-builds.json`, outside the app's folder, and is of those exact words: if
+`apps/<key>/build.json` changes, it has to be given again
+([`adminium app approve-build`](/reference/cli/#app-approve-build)). The Designer cannot change
+`build.json`, `package.json`, the Vite or TypeScript config, or `scripts/` of such an app.
+
+**The licence.** The apps are AGPL-3.0, and a copy keeps that licence. If people use your copy over
+a network (your customers, on your site), the licence asks you to offer them the source of your
+version, changes included.
+
 ## Look at it
 
 - **Preview** shows the app as a person with the app's own role sees it: the dashboard pages, and
@@ -109,6 +136,29 @@ They are settings of the install:
 | `designer.maxSteps` | 60 | Model calls in one turn |
 | `designer.turnTokens` | 1,500,000 | Tokens one turn may use, counting what is sent again at each step |
 | `designer.sessionTokens` | 15,000,000 | Tokens one session may use in all |
+
+## On a server people reach
+
+`adminium design` is for your own machine. On a server that runs your project for other people
+(`adminium start`), the Designer is off, and three steps away, each taken by a different hand:
+
+1. **The operator** sets `ADMINIUM_DESIGNER=live` in the server's environment. Without it the
+   Designer's routes do not exist.
+2. **A Super Admin** switches it on in **Settings → AI**, and types their password to do it.
+3. **Whoever uses it** holds the permission `system:designer:use`. Only a Super Admin does by default.
+
+Every turn is recorded in the audit log, and so is the switch.
+
+| On a live server | |
+|---|---|
+| The preview | Off. A preview keeps model-written screens on a second address of the machine, and a server has one. Open the app from the dashboard once it is applied |
+| What it builds | Is served to your staff like any app of the project: screens a model wrote run in their browsers, with what their roles may do |
+| The project folder | Has to be on a disk that is kept. If the folder does not come back after a restart, the switch goes off and says why |
+| Screens | Need `esbuild` in the project, which the published image carries |
+| A model's address | A private or loopback address is refused, except Ollama's |
+
+Treat it as you would giving someone a shell on that server: the Designer writes server code only
+after a yes, and that yes is theirs to give.
 
 ## After the Designer
 

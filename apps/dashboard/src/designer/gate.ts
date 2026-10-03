@@ -9,7 +9,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { notFound, redirect } from '@tanstack/react-router';
 
-import { ApiError } from '../app/api.js';
+import { api, ApiError } from '../app/api.js';
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { systemInfoQuery } from '../app/capabilities.js';
 
@@ -21,5 +21,10 @@ export async function designerGate({ context, location }: { context: { queryClie
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
     if (!info.designer.link) throw redirect({ to: '/login', search: { returnTo: location.href } });
+  }
+  // On a live server the Designer is there only while a Super Admin has it switched on.
+  if (info.designer.mode === 'live') {
+    const live = await api.get<{ on: boolean }>('/api/v1/designer/live').catch(() => ({ on: false }));
+    if (!live.on) throw notFound();
   }
 }

@@ -2204,7 +2204,23 @@ export default {
     "testOk": "已連線到 {model}，耗時 {latency} 毫秒",
     "testUnknownModel": "供應商",
     "testing": "正在連線供應商…",
-    "title": "AI 增強"
+    "title": "AI 增強",
+    "designer": {
+      "title": "Adminium Designer",
+      "lead": "讓擁有權限的人描述一個應用程式，由模型把它寫入此專案：資料表、頁面、畫面，以及每次經過同意後的伺服器程式碼。每一輪都會記入稽核記錄。",
+      "local": "Adminium Designer 正在這台電腦上執行（adminium design）。",
+      "switch": "在此伺服器上使用 Adminium Designer",
+      "switchLine": "它建置的內容會像其他應用程式一樣提供給你的員工：由模型撰寫的畫面在他們的瀏覽器中執行，權限以其角色為準。",
+      "notAllowed": "伺服器的維運者尚未允許。需要在伺服器環境中設定 ADMINIUM_DESIGNER=live。",
+      "noProject": "Designer 把應用程式建置到專案資料夾中，而此伺服器沒有專案資料夾。",
+      "diskNotKept": "已被關閉：重新啟動後專案資料夾沒有恢復，Designer 在這裡建置的內容會遺失。請把資料夾放在會保留的磁碟上。",
+      "noBundler": "專案中沒有 esbuild，Designer 需要它來建置畫面。請在專案中安裝：npm install --save-dev esbuild",
+      "notWritable": "無法寫入專案資料夾。",
+      "password": "輸入你的密碼以開啟",
+      "switchOn": "開啟",
+      "open": "開啟 Designer",
+      "failed": "無法變更此開關。"
+    }
   },
   "settingsHub": {
     "addOnsCard": {

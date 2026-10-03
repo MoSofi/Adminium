@@ -49,6 +49,7 @@ file. Every file is 8 KB or less.
 | `references/cli/new.md` | `new` | 3070 |
 | `references/cli/dev.md` | `dev` | 2619 |
 | `references/cli/design.md` | `design` | 1569 |
+| `references/cli/app-approve-build.md` | `app approve-build` | 800 |
 | `references/cli/owner.md` | `owner` | 645 |
 | `references/cli/build.md` | `build` | 1221 |
 | `references/cli/check.md` | `check` | 1558 |

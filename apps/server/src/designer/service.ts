@@ -18,6 +18,7 @@ import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.j
 import type { AiConnections, ConnectionId } from '../llm/connections.js';
 import { rebuildApps } from '../project/build.js';
 import { checkApp } from '../project/apps/check-app.js';
+import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { appKeyProblem, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
@@ -259,6 +260,8 @@ export function createDesigner(host: DesignerHost): Designer {
     advice: (session) => {
       const manifest = checkApp(host.root, session.appKey, { version: host.version }).manifest;
       const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []).map((table) => table.ref) : [];
+      // A copy of a published app is as its authors laid it out: its tables without pages and its screens are theirs.
+      if (hasOwnBuild(host.root, session.appKey)) return [];
       return [...unopenedTables(manifest), ...placeholderScreens(host.root, session.appKey, tables)];
     },
     limits: () => host.limits(),

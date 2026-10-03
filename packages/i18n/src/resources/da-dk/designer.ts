@@ -402,5 +402,31 @@ export default {
     "tables": "Tabeller",
     "title": "Sådan hænger {name} sammen",
     "uses": "Hvad de bruger"
+  },
+  "sheet": {
+    "title": "Start med {name}",
+    "close": "Luk",
+    "how": "Sådan vil du starte",
+    "asIs": "Installer som den er",
+    "asIsLine": "Installerer appen uændret. Den får fortsat opdateringer. Designeren kan bygge omkring den, ikke inde i den.",
+    "yours": "Gør den til din egen",
+    "yoursLine": "Kopierer appen til din mappe, så Designeren kan ændre alt. Den får ikke længere opdateringer fra Adminium.",
+    "yoursNoSource": "Listen siger ikke, hvor appens kildekode ligger, så den kan ikke kopieres.",
+    "name": "Navn",
+    "key": "Nøgle",
+    "keyHint": "Bruges i adresser og tabelnavne. Kan ikke ændres senere.",
+    "buildTitle": "Denne app bygger sine skærme med sine egne kommandoer",
+    "buildLine": "De kører på denne maskine, i appens mappe, hver gang appen bygges. Læs dem, før du siger ja.",
+    "approve": "Disse kommandoer må køre",
+    "licence": "Appens kildekode er licenseret under AGPL-3.0, og din kopi beholder den licens. Hvis andre bruger din kopi over et netværk (dine kunder, på dit websted), beder licensen dig om at tilbyde dem kildekoden til din version, inklusive ændringer.",
+    "needsModel": "Tilføj først en model: Designeren åbner på din kopi.",
+    "startFailed": "Kopien kunne ikke startes.",
+    "cancel": "Annuller",
+    "retry": "Prøv igen",
+    "start": "Start",
+    "openInstall": "Åbn dens installation",
+    "stepGet": "Henter appen",
+    "stepMake": "Gør den til din egen",
+    "stepBuild": "Bygger og anvender"
   }
 } as const;

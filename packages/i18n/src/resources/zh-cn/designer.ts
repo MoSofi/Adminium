@@ -402,5 +402,31 @@ export default {
     "tables": "数据表",
     "title": "{name} 如何组合在一起",
     "uses": "他们使用的内容"
+  },
+  "sheet": {
+    "title": "从 {name} 开始",
+    "close": "关闭",
+    "how": "如何开始",
+    "asIs": "按原样安装",
+    "asIsLine": "原样安装该应用。它会继续收到更新。Designer 可以围绕它构建，但不能改动它内部。",
+    "yours": "变成你自己的",
+    "yoursLine": "把应用复制到你的文件夹，Designer 可以修改其中任何内容。它将不再收到 Adminium 的更新。",
+    "yoursNoSource": "列表没有说明此应用的源代码在哪里，因此无法复制。",
+    "name": "名称",
+    "key": "标识",
+    "keyHint": "用于地址和数据表名称。之后无法更改。",
+    "buildTitle": "此应用用自己的命令构建界面",
+    "buildLine": "每次构建应用时，它们都会在这台电脑上、应用的文件夹里运行。同意之前请先阅读。",
+    "approve": "允许运行这些命令",
+    "licence": "此应用的源代码采用 AGPL-3.0 许可，你的副本也沿用该许可。如果有人通过网络使用你的副本（例如你网站上的客户），许可要求你向他们提供你这个版本的源代码，包括你的修改。",
+    "needsModel": "请先添加模型：Designer 会在你的副本上打开。",
+    "startFailed": "无法开始复制。",
+    "cancel": "取消",
+    "retry": "重试",
+    "start": "开始",
+    "openInstall": "打开它的安装",
+    "stepGet": "正在获取应用",
+    "stepMake": "正在变成你自己的",
+    "stepBuild": "正在构建并应用"
   }
 } as const;

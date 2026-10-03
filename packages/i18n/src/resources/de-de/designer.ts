@@ -402,5 +402,31 @@ export default {
     "tables": "Tabellen",
     "title": "Wie {name} zusammenhängt",
     "uses": "Was sie nutzen"
+  },
+  "sheet": {
+    "title": "Mit {name} starten",
+    "close": "Schließen",
+    "how": "So möchten Sie starten",
+    "asIs": "Unverändert installieren",
+    "asIsLine": "Installiert die App unverändert. Sie erhält weiterhin Updates. Der Designer kann um sie herum bauen, nicht in ihr.",
+    "yours": "Zu Ihrer eigenen machen",
+    "yoursLine": "Kopiert die App in Ihren Ordner, damit der Designer alles ändern kann. Sie erhält keine Updates von Adminium mehr.",
+    "yoursNoSource": "Die Liste nennt nicht, wo der Quellcode dieser App liegt, daher kann sie nicht kopiert werden.",
+    "name": "Name",
+    "key": "Schlüssel",
+    "keyHint": "Wird in Adressen und Tabellennamen verwendet. Kann später nicht geändert werden.",
+    "buildTitle": "Diese App baut ihre Bildschirme mit eigenen Befehlen",
+    "buildLine": "Sie laufen auf diesem Rechner, im Ordner der App, bei jedem Bau der App. Lesen Sie sie, bevor Sie zustimmen.",
+    "approve": "Diese Befehle dürfen ausgeführt werden",
+    "licence": "Der Quellcode dieser App steht unter AGPL-3.0, und Ihre Kopie behält diese Lizenz. Wenn Menschen Ihre Kopie über ein Netzwerk nutzen (Ihre Kunden, auf Ihrer Website), verlangt die Lizenz, dass Sie ihnen den Quellcode Ihrer Version anbieten, einschließlich Ihrer Änderungen.",
+    "needsModel": "Fügen Sie zuerst ein Modell hinzu: Der Designer öffnet sich auf Ihrer Kopie.",
+    "startFailed": "Die Kopie konnte nicht gestartet werden.",
+    "cancel": "Abbrechen",
+    "retry": "Erneut versuchen",
+    "start": "Starten",
+    "openInstall": "Installation öffnen",
+    "stepGet": "App wird geholt",
+    "stepMake": "Wird zu Ihrer eigenen gemacht",
+    "stepBuild": "Wird gebaut und angewendet"
   }
 } as const;

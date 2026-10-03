@@ -2204,7 +2204,23 @@ export default {
     "testOk": "Forbundet til {model} på {latency} ms",
     "testUnknownModel": "udbyderen",
     "testing": "Kontakter udbyderen…",
-    "title": "AI-berigelse"
+    "title": "AI-berigelse",
+    "designer": {
+      "title": "Adminium Designer",
+      "lead": "Lader personer med tilladelsen beskrive en app, som en model skriver ind i dette projekt: tabeller, sider, skærme og, med et ja hver gang, serverkode. Hver tur registreres i revisionsloggen.",
+      "local": "Adminium Designer kører på denne maskine (adminium design).",
+      "switch": "Adminium Designer på denne server",
+      "switchLine": "Det, den bygger, vises for dine medarbejdere som enhver anden app: skærme skrevet af en model kører i deres browsere med det, deres roller må.",
+      "notAllowed": "Serverens operatør har ikke tilladt det. De sætter ADMINIUM_DESIGNER=live i serverens miljø.",
+      "noProject": "Designeren bygger apps i en projektmappe, og denne server kører uden en.",
+      "diskNotKept": "Den blev slået fra: projektmappen kom ikke tilbage efter en genstart, så det, Designeren bygger her, ville gå tabt. Hold mappen på en disk, der bliver.",
+      "noBundler": "Projektet har ikke esbuild, som Designeren bygger skærme med. Installer det i projektet: npm install --save-dev esbuild",
+      "notWritable": "Der kan ikke skrives til projektmappen.",
+      "password": "Din adgangskode, for at slå den til",
+      "switchOn": "Slå den til",
+      "open": "Åbn Designeren",
+      "failed": "Kontakten kunne ikke ændres."
+    }
   },
   "settingsHub": {
     "addOnsCard": {

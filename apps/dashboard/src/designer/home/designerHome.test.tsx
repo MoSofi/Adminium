@@ -209,11 +209,11 @@ describe('the examples', () => {
 });
 
 describe('Your apps', () => {
-  it('is absent with no apps, and "Start with an app" is not shown yet', async () => {
+  it('is absent with no apps; "Start with an app" is on the page now that its sheet exists', async () => {
     await renderHome();
     await waitFor(() => expect(box().disabled).toBe(false));
     expect(screen.queryByRole('heading', { name: 'Your apps' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Start with an app' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Start with an app' })).toBeTruthy();
   });
 
   it('opens the newest session, and gives an app no session built a new one with no message', async () => {

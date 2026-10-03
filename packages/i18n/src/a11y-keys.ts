@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2675 entries. */
+/** `namespace:key` — 2682 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -810,6 +810,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:provider.compatible',
   'designer:provider.ollama',
   'designer:provider.openai',
+  'designer:sheet.asIs',
+  'designer:sheet.close',
+  'designer:sheet.how',
+  'designer:sheet.title',
+  'designer:sheet.yours',
   'designer:spent.copied',
   'designer:spent.copy',
   'designer:start.filters',
@@ -2025,6 +2030,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:settingsAi.assistant.rowData.label',
   'studio:settingsAi.assistant.saveFailed',
   'studio:settingsAi.assistant.saved',
+  'studio:settingsAi.designer.password',
+  'studio:settingsAi.designer.switch',
   'studio:settingsAi.field.baseUrl',
   'studio:settingsAi.field.key',
   'studio:settingsAi.field.model',

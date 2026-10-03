@@ -2204,7 +2204,23 @@ export default {
     "testOk": "Connected to {model} in {latency} ms",
     "testUnknownModel": "the provider",
     "testing": "Pinging the provider…",
-    "title": "AI enrichment"
+    "title": "AI enrichment",
+    "designer": {
+      "title": "Adminium Designer",
+      "lead": "Lets people with the permission describe an app and have a model write it into this project: tables, pages, screens and, with a yes each time, server code. Every turn is recorded in the audit log.",
+      "local": "Adminium Designer is running on this machine (adminium design).",
+      "switch": "Adminium Designer on this server",
+      "switchLine": "What it builds is served to your staff like any app: screens a model wrote run in their browsers, with what their roles may do.",
+      "notAllowed": "The server’s operator has not allowed this. They set ADMINIUM_DESIGNER=live in the server’s environment.",
+      "noProject": "The Designer builds apps into a project folder, and this server runs without one.",
+      "diskNotKept": "It was switched off: the project folder did not come back after a restart, so what the Designer builds here would be lost. Keep the folder on a disk that stays.",
+      "noBundler": "The project has no esbuild, which the Designer builds screens with. Install it in the project: npm install --save-dev esbuild",
+      "notWritable": "The project folder cannot be written to.",
+      "password": "Your password, to switch it on",
+      "switchOn": "Switch it on",
+      "open": "Open the Designer",
+      "failed": "The switch could not be changed."
+    }
   },
   "settingsHub": {
     "addOnsCard": {

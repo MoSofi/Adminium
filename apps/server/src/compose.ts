@@ -31,6 +31,7 @@
  */
 
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
@@ -108,6 +109,8 @@ import { createVersions } from './designer/versions.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
+import { createLive } from './designer/live.js';
+import { designerLiveRoutes } from './routes/designer/live.js';
 import { pickLocalized } from './add-ons/catalog.js';
 import { designerRoutes } from './routes/designer/index.js';
 import { designSessionRoutes } from './routes/auth/design-session.js';
@@ -415,6 +418,8 @@ export interface ComposeServerOptions {
    * project folder; registers `/api/v1/designer` and nothing else changes.
    */
   designer?: { mode: 'local'; token: string | null; port: number } | undefined;
+  /** Tests only: whether the project can build screens. Production asks the project for its esbuild. */
+  designerBundler?: (() => boolean) | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -572,7 +577,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
     ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
   });
-  if (!app.hasDecorator('designerMode')) app.decorate('designerMode', opts.designer === undefined ? 'off' : opts.designer.mode);
+  // The live Designer: the operator allowed it, and this is not `adminium design` (which is local) nor the desktop app.
+  const liveAllowed = opts.designer === undefined && env.ADMINIUM_DESIGNER === 'live' && env.ADMINIUM_RUNTIME !== 'desktop';
+  if (!app.hasDecorator('designerMode')) app.decorate('designerMode', opts.designer !== undefined ? opts.designer.mode : liveAllowed ? 'live' : 'off');
   if (!app.hasDecorator('designerLink')) app.decorate('designerLink', opts.designer?.token != null);
   // The preview's own low session, spent on the preview's name (designer/preview.ts).
   const previewTickets = opts.designer === undefined ? null : registerPreview(app, { meta, port: opts.designer.port });
@@ -653,6 +660,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     aiEnv,
     networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
     production: process.env.NODE_ENV === 'production',
+    // On a live server a signed-in person names the model's address: loopback and private ranges are refused (M22).
+    ...(liveAllowed ? { blockPrivate: true } : {}),
   });
   if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
 
@@ -1890,7 +1899,37 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
        * server's own check, build and apply after every turn. Only in a
        * server started to run it, and only over a project folder.
        */
-      if (opts.designer !== undefined && projectRoot !== null) {
+      // The live Designer's switch. On every server, so the Settings card has one thing to ask.
+      const liveSettings = settingsRepo(meta);
+      const live =
+        opts.designer !== undefined
+          ? null
+          : createLive({
+              root: projectRoot,
+              allowed: liveAllowed,
+              settings: {
+                get: async () => ({ on: await liveSettings.get('designer.live'), id: await liveSettings.get('designer.liveId') }),
+                set: async (value) => {
+                  await liveSettings.set('designer.live', value.on);
+                  await liveSettings.set('designer.liveId', value.id);
+                },
+              },
+              hasBundler:
+                opts.designerBundler ??
+                (() => {
+                  try {
+                    createRequire(join(projectRoot ?? process.cwd(), 'package.json')).resolve('esbuild');
+                    return true;
+                  } catch {
+                    return false;
+                  }
+                }),
+              log: (message) => app.log.warn(message),
+            });
+      await live?.checkAtBoot();
+      await api.register(designerLiveRoutes({ meta, live }));
+      const designerOpts = opts.designer ?? (liveAllowed ? ({ mode: 'live' } as const) : undefined);
+      if (designerOpts !== undefined && projectRoot !== null) {
         const root = projectRoot;
         const settings = settingsRepo(meta);
         const limits = async () => ({
@@ -1988,10 +2027,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             designer,
             versions: designerVersions,
             connections: aiConnections,
-            mode: opts.designer.mode,
+            mode: designerOpts.mode,
+            ...(live === null ? {} : { live }),
             root,
             limits,
-            preview: previewTickets === null ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
+            // A preview needs a second name for this server, which only `adminium design` has: off on a live server.
+            preview: previewTickets === null || opts.designer === undefined ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
             appCatalog,
             starter: createStarter({
               root,
@@ -2028,7 +2069,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           }),
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.
-        if (opts.designer.token !== null) {
+        if (opts.designer !== undefined && opts.designer.token !== null) {
           await api.register(designSessionRoutes({ meta, token: opts.designer.token, port: opts.designer.port }));
         }
       }

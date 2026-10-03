@@ -79,7 +79,14 @@ const ALL = '*';
 
 export function AppBrowser({ onInstall, onToggleOnline, onRefresh, busy = false }: AppBrowserProps) {
   const { data } = useSuspenseQuery(appCatalogQuery());
-  const [query, setQuery] = useState('');
+  // Opened on one app (`/studio/apps#app=<key>`, as the Designer's sheet does): its key is in the search to begin with.
+  const [query, setQuery] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.hash.replace(/^#/, '')).get('app') ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [category, setCategory] = useState<string>(ALL);
 
   /** The comp's chips, with their counts — derived, never hard-coded. */

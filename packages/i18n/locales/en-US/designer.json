@@ -392,5 +392,31 @@
     "tables": "Tables",
     "title": "How {name} fits together",
     "uses": "What they use"
+  },
+  "sheet": {
+    "title": "Start with {name}",
+    "close": "Close",
+    "how": "How to start",
+    "asIs": "Install as it is",
+    "asIsLine": "Installs the app unchanged. It keeps receiving updates. The Designer can build around it, not inside it.",
+    "yours": "Make it yours",
+    "yoursLine": "Copies the app into your folder so the Designer can change anything. It will no longer receive updates from Adminium.",
+    "yoursNoSource": "The list does not say where this app’s source is, so it cannot be copied.",
+    "name": "Name",
+    "key": "Key",
+    "keyHint": "Used in addresses and table names. Cannot be changed later.",
+    "buildTitle": "This app builds its screens with its own commands",
+    "buildLine": "They run on this machine, in the app’s folder, each time the app is built. Read them before you say yes.",
+    "approve": "These commands may run",
+    "licence": "This app’s source is licensed AGPL-3.0, and your copy keeps that licence. If people use your copy over a network (your customers, on your site), the licence asks you to offer them the source of your version, changes included.",
+    "needsModel": "Add a model first: the Designer opens on your copy.",
+    "startFailed": "The copy could not be started.",
+    "cancel": "Cancel",
+    "retry": "Try again",
+    "start": "Start",
+    "openInstall": "Open its install",
+    "stepGet": "Getting the app",
+    "stepMake": "Making it yours",
+    "stepBuild": "Building and applying"
   }
 }
