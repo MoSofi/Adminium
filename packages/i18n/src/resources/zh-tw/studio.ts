@@ -772,7 +772,8 @@ export default {
         "more": "更多選項",
         "tables": "{count, plural, other {它會向 {database} 加入 # 個新資料表。顯示它們}}",
         "getting": "正在取得 {app} 所需的 {addOn}…",
-        "brings": "「安裝」會先從 adminium.dev 下載 {app} 所需的 {addOn}。"
+        "brings": "「安裝」會先從 adminium.dev 下載 {app} 所需的 {addOn}。",
+        "readFirst": "{addOn} 現已在此伺服器上。請先閱讀上方它會加入的內容，然後按「安裝」。"
       }
     },
     "installed": {

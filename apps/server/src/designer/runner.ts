@@ -246,6 +246,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let limit: { which: LimitKind; value: number } | null = null;
     const warned = new Set<SpendMark>();
 
+    /** The request just refused carried pictures, and the next one goes without them: its outcome says whether they were the reason. */
+    let triedWithout = false;
+
     try {
       const { runner, maxTokens } = await deps.runnerFor(session);
       const tools = deps.tools(session);
@@ -259,7 +262,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         const transcript = joinUserMessages(closeDangling(entries.map((entry) => entry.message)));
         // What the messages alone do not say: the person's own words for this turn, and the turn each picture came with.
         const pictureTurns = new Map<string, number>();
-        for (const entry of entries) for (const block of entry.message.content) if (block.type === 'image' && block.ref !== undefined && !pictureTurns.has(block.ref)) pictureTurns.set(block.ref, entry.turn);
+        // The latest turn a picture came with: one attached again (a retry of its turn) is that turn's, not an old one.
+        for (const entry of entries) for (const block of entry.message.content) if (block.type === 'image' && block.ref !== undefined) pictureTurns.set(block.ref, entry.turn);
         const opening = entries.find((entry) => entry.turn === turn && entry.message.role === 'user')?.message.content.find((block) => block.type === 'text');
         const request = await deps.prompt(session, transcript, {
           turn,
@@ -291,12 +295,15 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             if (error instanceof ProviderError && error.code === 'aborted') throw new TurnStoppedError();
             // A request refused while it carried pictures: asked again without them, and no picture is sent in this session again.
             // (A picture a provider cannot take would otherwise go with every later message, and the session could never run.)
-            if (error instanceof ProviderError && (error.code === 'http' || error.code === 'bad_response') && carriesPictures && !said) {
+            if (error instanceof ProviderError && error.code === 'http' && carriesPictures && !said) {
               blind.add(session.id);
+              triedWithout = true;
               deps.log?.('the Designer’s model refused a request that carried pictures; asking again without them');
               retryWithout = true;
               break;
             }
+            // Asked again without them and refused again: the pictures were not the reason, and the session keeps them.
+            if (triedWithout) blind.delete(session.id);
             // A provider that failed in passing is asked again, as long as nothing of this reply reached the page.
             const wait = waits[attempt];
             if (!(error instanceof ProviderError) || !PASSING.has(error.code) || said || wait === undefined) throw error;
@@ -306,6 +313,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           }
         }
         if (retryWithout || result === undefined) continue;
+        // Answered: if this was the try without pictures, they were the reason, and the session stays without them.
+        triedWithout = false;
         steps += 1;
 
         // What the step cost, reported or estimated.

@@ -87,10 +87,12 @@ export function createRowLoader(deps: RowLoaderDeps): RowLoader {
       }
 
       const entries = Object.entries(columns).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim() !== '');
-      if (entries.length === 0) return { ok: false, problem: `Give "columns": which CSV column goes to which column of "${ref}". The CSV's columns are: ${csv.header.join(', ')}.` };
+      // The file's column names, as many as a model needs to see: a file a thousand columns wide is not written out in an answer.
+      const named = `${csv.header.slice(0, 60).join(', ')}${csv.header.length > 60 ? `, and ${String(csv.header.length - 60)} more` : ''}`;
+      if (entries.length === 0) return { ok: false, problem: `Give "columns": which CSV column goes to which column of "${ref}". The CSV's columns are: ${named}.` };
       const headers = new Set(csv.header.map((name) => name.trim()));
       const unknown = entries.filter(([from]) => !headers.has(from.trim())).map(([from]) => from);
-      if (unknown.length > 0) return { ok: false, problem: `The CSV has no column ${unknown.map((name) => `"${name}"`).join(', ')}. Its columns are: ${csv.header.join(', ')}.` };
+      if (unknown.length > 0) return { ok: false, problem: `The CSV has no column ${unknown.map((name) => `"${name}"`).join(', ')}. Its columns are: ${named}.` };
       const tableColumns = resolved.table.columns.map((column) => column.name);
       const missing = entries.filter(([, to]) => !tableColumns.includes(to)).map(([, to]) => to);
       if (missing.length > 0) return { ok: false, problem: `"${ref}" has no column ${missing.map((name) => `"${name}"`).join(', ')}. Its columns are: ${tableColumns.join(', ')}.` };

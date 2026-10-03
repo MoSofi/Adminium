@@ -285,6 +285,14 @@ describe('pictures, made ready to send', () => {
     expect(lines(blind)).toContain('You cannot see it: this model does not read pictures.');
   });
 
+  it('a picture attached again goes once, with the newest message that carries it', () => {
+    // Turn 2 failed and was asked again as turn 3 with the same file.
+    const messages = [user('Like this.', 'a'), user('Like this.', 'a')];
+    const out = withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: () => 3, turn: 3 });
+    expect(out.map((message) => sent([message]))).toEqual([[], ['a']]);
+    expect(lines([out[0] as RunMessage])).toContain('The picture "a.png" is with a later message.');
+  });
+
   it('keeps one request under what a provider takes: the newest pictures first', () => {
     const five = 5 * 1024 * 1024;
     const messages = [user('One.', 'p1', 'p2'), said('ok'), user('Two.', 'p3', 'p4')];

@@ -18843,6 +18843,10 @@
     "status": "mt",
     "srcHash": "502de127a736"
   },
+  "studio.hostedApps.install.quick.readFirst": {
+    "status": "mt",
+    "srcHash": "f8e82e778da8"
+  },
   "studio.hostedApps.install.quick.reading": {
     "status": "mt",
     "srcHash": "7fa93d3614d5"

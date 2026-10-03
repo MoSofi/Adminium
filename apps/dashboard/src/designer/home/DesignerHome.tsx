@@ -62,7 +62,7 @@ export function DesignerHome(): ReactNode {
   const box = useRef<HTMLTextAreaElement>(null);
   const attach = useAttach();
   /** The session a first message with files made, kept until that message is sent. */
-  const made = useRef<Awaited<ReturnType<typeof designerApi.createSession>> | null>(null);
+  const made = useRef<{ key: string; reply: Awaited<ReturnType<typeof designerApi.createSession>> } | null>(null);
   const readsImages = useReadsImages(model.picked, attach.hasImage);
   const drop = attachHandlers(attach, false);
 
@@ -91,9 +91,12 @@ export function DesignerHome(): ReactNode {
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
       // in the box, and the next send goes to the session already made instead of making another.
-      made.current ??= await designerApi.createSession(base);
-      await designerApi.startTurn(made.current.session.id, text.trim(), await attach.upload(made.current.session.id));
-      return made.current;
+      // …unless the model or what to build was changed since: that session was made for the other, so a new one is.
+      const key = JSON.stringify([base.connectionId, base.model, base.target]);
+      if (made.current === null || made.current.key !== key) made.current = { key, reply: await designerApi.createSession(base) };
+      const { reply } = made.current;
+      await designerApi.startTurn(reply.session.id, text.trim(), await attach.upload(reply.session.id));
+      return reply;
     },
     onSuccess: async ({ session }) => {
       await navigate({ to: '/design/$sessionId', params: { sessionId: session.id } });

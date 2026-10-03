@@ -184,7 +184,8 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
           if (typeof usage?.output_tokens === 'number') outputTokens = usage.output_tokens;
           // The closing count, when the API gives one, is read the same way: its `input_tokens` alone would drop what the cache carried.
           const sent = sentTokens(usage);
-          if (sent !== undefined) inputTokens = sent;
+          // Never below what the opening event counted: a closing event that gives the bare number again does not take the cache's share away.
+          if (sent !== undefined) inputTokens = Math.max(inputTokens ?? 0, sent);
         } else if (type === 'message_stop') {
           finished = true;
         } else if (type === 'error') {

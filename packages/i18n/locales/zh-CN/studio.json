@@ -762,7 +762,8 @@
         "more": "更多选项",
         "tables": "{count, plural, other {它会向 {database} 添加 # 个新表。显示它们}}",
         "getting": "正在获取 {app} 所需的 {addOn}…",
-        "brings": "“安装”会先从 adminium.dev 下载 {app} 所需的 {addOn}。"
+        "brings": "“安装”会先从 adminium.dev 下载 {app} 所需的 {addOn}。",
+        "readFirst": "{addOn} 现已在此服务器上。请先阅读上方它会添加的内容，然后按“安装”。"
       }
     },
     "installed": {

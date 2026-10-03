@@ -83,6 +83,7 @@ import {
   Sprout,
   Table2,
   Download,
+  Info,
 } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
@@ -475,9 +476,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const onlyFetchHolds = quick && needFetch.length > 0 && addOnHint !== null && addOnBlock(appName, addOnRows.map((row) => (needFetch.includes(row) ? { ...row, staged: true } : row)), addOnPicks) === null;
   /** Set by the Install press, read once the check made after the fetch is on screen. */
   const [installAfterCheck, setInstallAfterCheck] = useState(false);
+  /** The add-ons this dialog fetched, and those of them whose own plan the person has yet to read. */
+  const fetchedKeys = useRef(new Set<string>());
+  const [toRead, setToRead] = useState<string[]>([]);
   const fetchThenInstall = async (): Promise<void> => {
     try {
-      for (const row of needFetch) await download.mutateAsync(row);
+      for (const row of needFetch) {
+        fetchedKeys.current.add(row.key);
+        await download.mutateAsync(row);
+      }
     } catch {
       // Said by the download's own error; nothing is installed.
       return;
@@ -487,7 +494,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   useEffect(() => {
     if (!installAfterCheck || busy || plan === null) return;
     setInstallAfterCheck(false);
-    // The check made after the fetch: installed only if nothing holds it now.
+    // The check made after the fetch. An add-on's own plan can only be read from its bytes, so it is on screen for the
+    // first time now: one that makes tables or changes the database is the person's to read, and Install is pressed again.
+    const unread = addOnRows.filter((row) => fetchedKeys.current.has(row.key) && row.plan !== undefined && row.plan !== null && (row.plan.create.length > 0 || row.plan.requiresSchemaChange || row.plan.touchesData));
+    fetchedKeys.current.clear();
+    if (unread.length > 0) {
+      setToRead(unread.map((row) => row.name));
+      return;
+    }
+    // Installed only if nothing holds it now.
     if (plan.installable && addOnHint === null && !dirty && stopped === null) install.mutate();
     // `install` is a new object each render; the flag makes this run once.
   }, [installAfterCheck, busy, plan, addOnHint, dirty, stopped]);
@@ -1069,7 +1084,12 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
               app: appName,
             })}
           </span>
-        ) : onlyFetchHolds && checking && stopped === null && !install.isPending ? (
+        ) : quick && toRead.length > 0 && stopped === null && !install.isPending && step === 'plan' ? (
+          <span data-part="quick-read" role="status" className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-fg">
+            <Info aria-hidden className="size-3.5 shrink-0" />
+            {t('studio:hostedApps.install.quick.readFirst', '{addOn} is on this server now. Read what it adds, above, then press Install.', { addOn: toRead.join(', ') })}
+          </span>
+        ) : onlyFetchHolds && stopped === null && !install.isPending && step === 'plan' ? (
           // Not a refusal: what the Install press will do first, said before it is pressed.
           <span data-part="quick-brings" className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-fg-muted">
             <Download aria-hidden className="size-3.5 shrink-0" />

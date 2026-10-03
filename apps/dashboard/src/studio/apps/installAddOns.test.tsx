@@ -414,11 +414,30 @@ describe('the Add-ons card', () => {
     expect(installButton().hasAttribute('disabled')).toBe(false);
 
     await user.click(installButton());
+    // The add-on makes tables of its own, and its plan could only be read once it was here: shown now, and nothing installed yet.
+    expect((await screen.findByText('Invoices & Receipts is on this server now. Read what it adds, above, then press Install.')).closest('[data-part="quick-read"]')).not.toBeNull();
+    expect(calls.some((call) => call.url === '/api/v1/apps/install')).toBe(false);
+    await user.click(installButton());
     await screen.findByText('Client Portal is installed');
     // The required one only (a suggestion is left for the person to tick), then the check again, then the install: in that order.
     const order = calls.filter((call) => ['/api/v1/add-ons/download', '/api/v1/apps/plan', '/api/v1/apps/install'].includes(call.url)).map((call) => call.url.split('/').pop());
     expect(order).toEqual(['plan', 'download', 'plan', 'install']);
     expect(calls.find((call) => call.url === '/api/v1/add-ons/download')?.body).toEqual({ key: 'invoices', version: '1.1.0' });
+  });
+
+  it('the one dialog installs at the one press when the fetched add-on makes nothing in the database', async () => {
+    const plain = { ...INVOICES, plan: { ...(INVOICES['plan'] as Record<string, unknown>), create: [], touchesData: false, requiresSchemaChange: false } };
+    plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }]), planWith([plain])];
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <InstallAppWizard quick preselected={{ key: 'clients', version: '1.0.0', name: 'Client Portal', downloaded: true }} onClose={() => {}} onMoreChoices={() => {}} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Install first downloads Invoices & Receipts/);
+    await user.click(installButton());
+    await screen.findByText('Client Portal is installed');
+    expect(calls.filter((call) => call.url === '/api/v1/apps/install')).toHaveLength(1);
   });
 
   it('the one dialog installs nothing when the check made after the fetch no longer stands', async () => {

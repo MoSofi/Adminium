@@ -198,7 +198,8 @@ const WORD = /[\p{L}\p{N}]/u;
 /** Where a closing `mark` is, from `from`, with something between; -1 when there is none. */
 function closing(text: string, mark: string, from: number): number {
   let at = text.indexOf(mark, from);
-  while (at !== -1) {
+  // Looked for within a span: a reply of openers that never close would otherwise be searched to its end at every one.
+  while (at !== -1 && at - from <= LINK_SPAN) {
     const before = text[at - 1] as string;
     // `**` inside a longer run of stars belongs to that run.
     if (at > from && before !== ' ' && before !== '\n' && before !== '\\') return at;

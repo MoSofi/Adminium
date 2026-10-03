@@ -126,5 +126,10 @@ describe('a reply made to be slow', () => {
     expect(timed('['.repeat(50_000))).toBeLessThan(1500);
     cleanup();
     expect(timed('!['.repeat(25_000))).toBeLessThan(1500);
+    cleanup();
+    // Emphasis that opens and never closes.
+    expect(timed('_a '.repeat(20_000))).toBeLessThan(1500);
+    cleanup();
+    expect(timed('**a '.repeat(15_000))).toBeLessThan(1500);
   });
 });

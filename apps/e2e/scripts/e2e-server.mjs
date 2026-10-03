@@ -319,6 +319,14 @@ try {
     });
   }
 
+  // A test run asks adminium.dev for nothing. From 0.3.16 a new install lists what adminium.dev
+  // offers; here both lists start OFF, as on a server that was there before, so no page under test
+  // starts a call out and the live list never decides what a page shows. The specs that need a
+  // list switch it on themselves, over one they seeded.
+  for (const key of ['addOns.catalogEnabled', 'apps.catalogEnabled']) {
+    await settingsRepo(runtime.metaStore.meta).set(key, false, { updatedBy: null, at: Date.now() });
+  }
+
   // LOCAL SANDBOX ONLY: an AI provider from the environment, so a restart (which
   // reseeds) does not lose it. Unset in every test run — the specs configure
   // and clear the scripted provider themselves.

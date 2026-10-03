@@ -254,6 +254,9 @@ export function withPictures(messages: readonly RunMessage[], opts: PictureOpts)
       bytes += size;
     }
   }
+  // A picture attached again (a retry of its turn) is in two messages: its bytes go once, with the newest.
+  const newest = new Map<string, RunBlock>();
+  for (const message of messages) for (const block of message.content) if (block.type === 'image' && block.ref !== undefined) newest.set(block.ref, block);
   return messages.map((message) => {
     if (!message.content.some((block) => block.type === 'image')) return message;
     return {
@@ -261,6 +264,9 @@ export function withPictures(messages: readonly RunMessage[], opts: PictureOpts)
       content: message.content.map((block): RunBlock => {
         if (block.type !== 'image') return block;
         const name = (block.name ?? 'a picture').replace(/["\n]/g, ' ').slice(0, 120);
+        if (block.ref !== undefined && sendable.has(block.ref) && newest.get(block.ref) !== block) {
+          return { type: 'text', text: `\n(The picture "${name}" is with a later message.)` };
+        }
         const data = block.ref !== undefined && sendable.has(block.ref) ? opts.bytesOf(block.ref) : null;
         if (data !== null) return { ...block, data: data.toString('base64') };
         const attached = block.ref === undefined ? undefined : opts.turnOf(block.ref);

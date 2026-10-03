@@ -772,7 +772,8 @@ export default {
         "more": "Plus de choix",
         "tables": "{count, plural, one {Elle ajoute # nouvelle table à {database}. L’afficher} other {Elle ajoute # nouvelles tables à {database}. Les afficher}}",
         "getting": "Obtention de {addOn}, dont {app} a besoin…",
-        "brings": "Installer télécharge d’abord {addOn}, dont {app} a besoin, depuis adminium.dev."
+        "brings": "Installer télécharge d’abord {addOn}, dont {app} a besoin, depuis adminium.dev.",
+        "readFirst": "{addOn} est maintenant sur ce serveur. Lisez ci-dessus ce qu’elle ajoute, puis appuyez sur Installer."
       }
     },
     "installed": {
