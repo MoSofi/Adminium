@@ -72,10 +72,15 @@ if (env['ADMINIUM_AI_OLLAMA_BASE_URL'] && env['ADMINIUM_LIVE_OLLAMA_MODEL']) {
 
 /** Ids that name a message, a request, an organisation or a user, as a placeholder of the same shape. */
 function scrubIds(text: string): string {
+  const calls = new Map<string, string>();
   return text
     .replace(/\b(msg|req|toolu|srvtoolu)_[A-Za-z0-9]{6,}/g, (_all, prefix: string) => `${prefix}_${'0'.repeat(22)}`)
     .replace(/\bchatcmpl-[A-Za-z0-9]{6,}/g, `chatcmpl-${'0'.repeat(29)}`)
-    .replace(/\bcall_[A-Za-z0-9]{6,}/g, `call_${'0'.repeat(24)}`)
+    .replace(/\bcall_[A-Za-z0-9]{6,}/g, (id) => {
+      // Two calls in one reply stay two ids.
+      if (!calls.has(id)) calls.set(id, `call_${String(calls.size + 1).padStart(24, '0')}`);
+      return calls.get(id) ?? id;
+    })
     .replace(/\b(org|user|proj)-[A-Za-z0-9]{6,}/g, (_all, prefix: string) => `${prefix}-${'0'.repeat(24)}`)
     .replace(/"system_fingerprint":"[^"]*"/g, '"system_fingerprint":""');
 }

@@ -1,0 +1,21 @@
+# recorded 2026-10-03 from openai-compatible, model gpt-oss:120b-cloud
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"The user asks"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" to \"Count from 1"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" to 500, one number"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" per line.\" This is a"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" straightforward request."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" There's no disallowed content"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{},"finish_reason":"length"}]}
+
+data: {"id":"chatcmpl-39","object":"chat.completion.chunk","created":1791006325,"model":"gpt-oss:120b","system_fingerprint":"","choices":[],"usage":{"prompt_tokens":99,"completion_tokens":32,"total_tokens":131,"prompt_tokens_details":{"cached_tokens":80}}}
+
+data: [DONE]
+

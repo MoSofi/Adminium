@@ -1,0 +1,13 @@
+# recorded 2026-10-03 from openai-compatible, model gemma4:31b-cloud
+data: {"id":"chatcmpl-531","object":"chat.completion.chunk","created":1791006332,"model":"gemma4:31b","system_fingerprint":"","choices":[{"index":0,"delta":{"role":"assistant","content":"","tool_calls":[{"id":"call_000000000000000000000001","index":0,"type":"function","function":{"name":"list_files","arguments":"{}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-531","object":"chat.completion.chunk","created":1791006332,"model":"gemma4:31b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","tool_calls":[{"id":"call_000000000000000000000002","index":1,"type":"function","function":{"name":"write_file","arguments":"{\"content\":\"{}\",\"path\":\"a.json\"}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-531","object":"chat.completion.chunk","created":1791006332,"model":"gemma4:31b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-531","object":"chat.completion.chunk","created":1791006332,"model":"gemma4:31b","system_fingerprint":"","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: {"id":"chatcmpl-531","object":"chat.completion.chunk","created":1791006332,"model":"gemma4:31b","system_fingerprint":"","choices":[],"usage":{"prompt_tokens":146,"completion_tokens":31,"total_tokens":177,"prompt_tokens_details":{"cached_tokens":128}}}
+
+data: [DONE]
+

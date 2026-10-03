@@ -15,3 +15,12 @@ To record: set the provider's key or address in the environment (the `ADMINIUM_A
 The recorder replaces the key with `[REDACTED]` and every message, completion, request and
 organisation id with a fixed placeholder of the same shape, and blanks `system_fingerprint`.
 Read a new file before committing it.
+
+## What is recorded, and what is not (2026-10-03)
+
+- `ollama-*` (but `ollama-in-stream-error`) and `openai-compatible-*` are recordings, taken through a
+  local Ollama (its own protocol, and its OpenAI-style address at `/v1`) from the two models named
+  on each file's first line. One of them thinks before it answers: the thinking arrives in its own
+  field (`thinking`, `reasoning`) and is not part of the reply.
+- `anthropic-*` and `openai-*` are still synthetic: no key for either was available when the
+  Designer was first evaluated. Record them before trusting a change to those two readers.

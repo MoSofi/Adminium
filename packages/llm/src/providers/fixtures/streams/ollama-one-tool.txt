@@ -1,4 +1,12 @@
-# synthetic: written from the provider's published stream format, not recorded. Replace with a recording (see README.md).
-{"model":"qwen3","created_at":"2026-10-03T00:00:00.000000Z","message":{"role":"assistant","content":"Writing it."},"done":false}
-{"model":"qwen3","created_at":"2026-10-03T00:00:00.000000Z","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"write_file","arguments":{"path":"apps/repairs/manifest/tables/jobs.json","content":"{\"ref\": \"jobs\"}"}}}]},"done":false}
-{"model":"qwen3","created_at":"2026-10-03T00:00:00.000000Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":1,"prompt_eval_count":412,"eval_count":58}
+# recorded 2026-10-03 from ollama, model gpt-oss:120b-cloud
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.640483467Z","message":{"role":"assistant","content":"","thinking":"The"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.647848063Z","message":{"role":"assistant","content":"","thinking":" user wants us"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.652683727Z","message":{"role":"assistant","content":"","thinking":" to call write_file with given"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.659134332Z","message":{"role":"assistant","content":"","thinking":" path and content. No additional"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.666096558Z","message":{"role":"assistant","content":"","thinking":" words"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.671169742Z","message":{"role":"assistant","content":"","thinking":". So"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.678275788Z","message":{"role":"assistant","content":"","thinking":" just"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.683943633Z","message":{"role":"assistant","content":"","thinking":" output"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.689671078Z","message":{"role":"assistant","content":"","thinking":" the function call."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.772313757Z","message":{"role":"assistant","content":"","tool_calls":[{"id":"call_000000000000000000000001","function":{"index":0,"name":"write_file","arguments":{"path":"apps/repairs/manifest/tables/jobs.json","content":"{\"ref\": \"jobs\"}"}}}]},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.857626279Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":350114854,"prompt_eval_count":188,"prompt_eval_cached_count":160,"eval_count":73}

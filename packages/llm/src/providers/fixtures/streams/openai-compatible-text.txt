@@ -1,0 +1,63 @@
+# recorded 2026-10-03 from openai-compatible, model gpt-oss:120b-cloud
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"The user asks"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":": \"Say hello to the"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" wörld in one short"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" sentence.\"\n\n"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":"We just"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" need to output a short"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" sentence greeting"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" the"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" world,"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" possibly"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" including"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" the special character"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" ö"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":". The instruction"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":": \"Say hello to the"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" wörld in one short"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" sentence.\" So respond"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":": \"Hello,"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" wörld!\" That's"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" a"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" short sentence. Ensure it's a"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" short"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" sentence. That"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" matches"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":"."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"Hello, wörld"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"!"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl-642","object":"chat.completion.chunk","created":1791006323,"model":"gpt-oss:120b","system_fingerprint":"","choices":[],"usage":{"prompt_tokens":98,"completion_tokens":92,"total_tokens":190,"prompt_tokens_details":{"cached_tokens":80}}}
+
+data: [DONE]
+

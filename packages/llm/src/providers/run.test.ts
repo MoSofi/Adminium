@@ -496,6 +496,45 @@ describe('a run against an OpenAI-compatible server', () => {
     expect(sent).toHaveLength(1);
   });
 
+  it('reads a recorded reply whose reasoning comes in its own field, and its usage', async () => {
+    serve(fixture('openai-compatible-text'));
+    const { result, events } = await collect(COMPATIBLE());
+    expect(result).toEqual({
+      blocks: [{ type: 'text', text: 'Hello, wörld!' }],
+      stop: 'end',
+      malformed: [],
+      usage: { inputTokens: 98, outputTokens: 92 },
+    });
+    expect(textOf(events)).toBe('Hello, wörld!');
+  });
+
+  it('reads a recorded call', async () => {
+    serve(fixture('openai-compatible-one-tool'));
+    const { result } = await collect(COMPATIBLE());
+    expect(result.stop).toBe('tool_calls');
+    expect(result.blocks).toEqual([
+      { type: 'tool_call', id: 'call_000000000000000000000001', name: 'write_file', input: { path: 'apps/repairs/manifest/tables/jobs.json', content: '{"ref": "jobs"}' } },
+    ]);
+  });
+
+  it('reads two recorded calls', async () => {
+    serve(fixture('openai-compatible-two-tools'));
+    const { result } = await collect(COMPATIBLE());
+    expect(result.stop).toBe('tool_calls');
+    expect(result.malformed).toEqual([]);
+    expect(result.blocks).toEqual([
+      { type: 'tool_call', id: 'call_000000000000000000000001', name: 'list_files', input: {} },
+      { type: 'tool_call', id: 'call_000000000000000000000002', name: 'write_file', input: { content: '{}', path: 'a.json' } },
+    ]);
+  });
+
+  it('says the tokens ran out on a recorded reply that got no further than its reasoning', async () => {
+    serve(fixture('openai-compatible-max-tokens'));
+    const { result } = await collect(COMPATIBLE());
+    expect(result.stop).toBe('max_tokens');
+    expect(result.blocks).toEqual([]);
+  });
+
   it('turns an error chunk into a ProviderError', async () => {
     serve(chunk({ content: 'Sta' }) + 'data: {"error":{"message":"CUDA out of memory"}}\n\n');
     await expect(COMPATIBLE().run(request())).rejects.toMatchObject({ code: 'server' });
@@ -520,26 +559,56 @@ describe('a run against Ollama', () => {
     ]);
   });
 
-  it('reads text and the counts on the last line', async () => {
+  it('reads text and the counts on the last line, and leaves the thinking out', async () => {
     serve(fixture('ollama-text'));
     const { result, events } = await collect(OLLAMA());
     expect(result).toEqual({
-      blocks: [{ type: 'text', text: 'Hello, wörld — done.' }],
+      blocks: [{ type: 'text', text: 'Hello, wörld!' }],
       stop: 'end',
       malformed: [],
-      usage: { inputTokens: 25, outputTokens: 12 },
+      usage: { inputTokens: 98, outputTokens: 58 },
     });
-    expect(textOf(events)).toBe('Hello, wörld — done.');
+    expect(textOf(events)).toBe('Hello, wörld!');
   });
 
-  it('reads a call, gives it an id, and says tools were called although the line says "stop"', async () => {
+  it('reads a call with the id it came with, and says tools were called although the line says "stop"', async () => {
     serve(fixture('ollama-one-tool'));
     const { result } = await collect(OLLAMA());
     expect(result.stop).toBe('tool_calls');
     expect(result.blocks).toEqual([
-      { type: 'text', text: 'Writing it.' },
-      { type: 'tool_call', id: 'call_1', name: 'write_file', input: { path: 'apps/repairs/manifest/tables/jobs.json', content: '{"ref": "jobs"}' } },
+      { type: 'tool_call', id: 'call_000000000000000000000001', name: 'write_file', input: { path: 'apps/repairs/manifest/tables/jobs.json', content: '{"ref": "jobs"}' } },
     ]);
+  });
+
+  it('gives a call an id when the server sends none', async () => {
+    serve(
+      '{"message":{"role":"assistant","content":"Writing it.","tool_calls":[{"function":{"name":"list_files","arguments":{}}}]},"done":false}\n' +
+        '{"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","prompt_eval_count":1,"eval_count":1}\n',
+    );
+    const { result } = await collect(OLLAMA());
+    expect(result.stop).toBe('tool_calls');
+    expect(result.blocks).toEqual([
+      { type: 'text', text: 'Writing it.' },
+      { type: 'tool_call', id: 'call_1', name: 'list_files', input: {} },
+    ]);
+  });
+
+  it('reads two calls that arrive on two lines', async () => {
+    serve(fixture('ollama-two-tools'));
+    const { result } = await collect(OLLAMA());
+    expect(result.stop).toBe('tool_calls');
+    expect(result.malformed).toEqual([]);
+    expect(result.blocks).toEqual([
+      { type: 'tool_call', id: 'call_000000000000000000000001', name: 'list_files', input: {} },
+      { type: 'tool_call', id: 'call_000000000000000000000002', name: 'write_file', input: { content: '{}', path: 'a.json' } },
+    ]);
+  });
+
+  it('says the tokens ran out when the line says "length", even with nothing but thinking', async () => {
+    serve(fixture('ollama-max-tokens'));
+    const { result } = await collect(OLLAMA());
+    expect(result.stop).toBe('max_tokens');
+    expect(result.blocks).toEqual([]);
   });
 
   it('turns an error line in the middle of a reply into a ProviderError', async () => {

@@ -1,0 +1,5 @@
+# recorded 2026-10-03 from ollama, model gemma4:31b-cloud
+{"model":"gemma4:31b","created_at":"2026-10-03T05:45:35.675592949Z","message":{"role":"assistant","content":"","tool_calls":[{"id":"call_000000000000000000000001","function":{"index":0,"name":"list_files","arguments":{}}}]},"done":false}
+{"model":"gemma4:31b","created_at":"2026-10-03T05:45:35.740924864Z","message":{"role":"assistant","content":"","tool_calls":[{"id":"call_000000000000000000000002","function":{"index":1,"name":"write_file","arguments":{"content":"{}","path":"a.json"}}}]},"done":false}
+{"model":"gemma4:31b","created_at":"2026-10-03T05:45:35.754228745Z","message":{"role":"assistant","content":""},"done":false}
+{"model":"gemma4:31b","created_at":"2026-10-03T05:45:35.824767354Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":299494151,"prompt_eval_count":146,"prompt_eval_cached_count":128,"eval_count":31}

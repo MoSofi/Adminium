@@ -1,4 +1,24 @@
-# synthetic: written from the provider's published stream format, not recorded. Replace with a recording (see README.md).
-{"model":"qwen3","created_at":"2026-10-03T00:00:00.000000Z","message":{"role":"assistant","content":"Hello"},"done":false}
-{"model":"qwen3","created_at":"2026-10-03T00:00:00.000000Z","message":{"role":"assistant","content":", wörld — done."},"done":false}
-{"model":"qwen3","created_at":"2026-10-03T00:00:00.000000Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":1,"prompt_eval_count":25,"eval_count":12}
+# recorded 2026-10-03 from ollama, model gpt-oss:120b-cloud
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.163479216Z","message":{"role":"assistant","content":"","thinking":"We"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.168798444Z","message":{"role":"assistant","content":"","thinking":" need to respond"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.175192254Z","message":{"role":"assistant","content":"","thinking":" with"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.180724633Z","message":{"role":"assistant","content":"","thinking":" a"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.186500542Z","message":{"role":"assistant","content":"","thinking":" short sentence,"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.192535431Z","message":{"role":"assistant","content":"","thinking":" saying"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.198962081Z","message":{"role":"assistant","content":"","thinking":" hello"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.20426993Z","message":{"role":"assistant","content":"","thinking":" to the world,"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.21095885Z","message":{"role":"assistant","content":"","thinking":" with the special"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.216571419Z","message":{"role":"assistant","content":"","thinking":" character ö"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.22348527Z","message":{"role":"assistant","content":"","thinking":" maybe"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.229442639Z","message":{"role":"assistant","content":"","thinking":". \""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.23604016Z","message":{"role":"assistant","content":"","thinking":"Hello"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.241544818Z","message":{"role":"assistant","content":"","thinking":", wörld!\""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.247436177Z","message":{"role":"assistant","content":"","thinking":" It's"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.253869008Z","message":{"role":"assistant","content":"","thinking":" a"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.260015537Z","message":{"role":"assistant","content":"","thinking":" short sentence. Should"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.266283427Z","message":{"role":"assistant","content":"","thinking":" be fine. No"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.272361317Z","message":{"role":"assistant","content":"","thinking":" policy issues."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.278890487Z","message":{"role":"assistant","content":"Hello"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.284705006Z","message":{"role":"assistant","content":", wörld!"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.285518967Z","message":{"role":"assistant","content":""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:27.356547968Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":330998429,"prompt_eval_count":98,"prompt_eval_cached_count":80,"eval_count":58}

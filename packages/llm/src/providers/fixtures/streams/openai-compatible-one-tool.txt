@@ -1,0 +1,27 @@
+# recorded 2026-10-03 from openai-compatible, model gpt-oss:120b-cloud
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"The"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" user wants to call write_file"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" with specified"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" path and content,"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" and"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" no"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" additional"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" text. So we need to"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","reasoning":" call the function."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{"content":"","tool_calls":[{"id":"call_000000000000000000000001","index":0,"type":"function","function":{"name":"write_file","arguments":"{\"path\":\"apps/repairs/manifest/tables/jobs.json\",\"content\":\"{\\\"ref\\\": \\\"jobs\\\"}\"}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: {"id":"chatcmpl-739","object":"chat.completion.chunk","created":1791006324,"model":"gpt-oss:120b","system_fingerprint":"","choices":[],"usage":{"prompt_tokens":188,"completion_tokens":74,"total_tokens":262,"prompt_tokens_details":{"cached_tokens":160}}}
+
+data: [DONE]
+

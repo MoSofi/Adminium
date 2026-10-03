@@ -1,0 +1,17 @@
+# recorded 2026-10-03 from ollama, model gpt-oss:120b-cloud
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.694743174Z","message":{"role":"assistant","content":"","thinking":"We"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.700896944Z","message":{"role":"assistant","content":"","thinking":" need to output numbers"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.707581365Z","message":{"role":"assistant","content":"","thinking":" "},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.713344384Z","message":{"role":"assistant","content":"","thinking":"1 to 500,"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.719305093Z","message":{"role":"assistant","content":"","thinking":" each on its"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.725060342Z","message":{"role":"assistant","content":"","thinking":" own line. That's"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.731230212Z","message":{"role":"assistant","content":"","thinking":" a"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.737115391Z","message":{"role":"assistant","content":"","thinking":" large"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.744139792Z","message":{"role":"assistant","content":"","thinking":" output"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.749764911Z","message":{"role":"assistant","content":"","thinking":" but fine"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.756391781Z","message":{"role":"assistant","content":"","thinking":". Must ensure"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.76215334Z","message":{"role":"assistant","content":"","thinking":" exactly"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.768861521Z","message":{"role":"assistant","content":"","thinking":" one"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.772557027Z","message":{"role":"assistant","content":"","thinking":" number"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.772597596Z","message":{"role":"assistant","content":""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-10-03T05:45:29.842455066Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"length","total_duration":278490216,"prompt_eval_count":99,"prompt_eval_cached_count":80,"eval_count":32}
