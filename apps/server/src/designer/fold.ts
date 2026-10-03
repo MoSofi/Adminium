@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a turn no longer needs, folded before each call to the model (65-T64).
+ * What a turn no longer needs, folded before each call to the model.
  *
  * Every step sends the whole conversation again. Measured on real turns, half
  * of what is sent after the fixed prompt is text the model cannot use any

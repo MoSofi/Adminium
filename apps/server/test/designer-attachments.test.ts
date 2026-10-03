@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Files a person attaches to a Designer message (65-T65): what is taken, what
+ * Files a person attaches to a Designer message: what is taken, what
  * is refused, and where it is kept. The whole-server path (the upload route,
  * the turn, the load) is in designer-routes.test.ts.
  */

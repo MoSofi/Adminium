@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * An attached CSV's rows, loaded into a table of the session's own app (65-T65).
+ * An attached CSV's rows, loaded into a table of the session's own app.
  *
  * This is the dashboard's Import, not a second way to write: the file is kept
  * as an import's file, checked by the import's own validation, and written by

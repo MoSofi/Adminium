@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a turn no longer needs is cut before each call to the model (65-T64).
+ * What a turn no longer needs is cut before each call to the model.
  * The cuts are a view: same messages, same calls, same order; and nothing the
  * model is still working from is touched.
  */

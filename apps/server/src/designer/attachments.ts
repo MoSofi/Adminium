@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a person attaches to a Designer message: a picture or a CSV (65-T65).
+ * What a person attaches to a Designer message: a picture or a CSV.
  *
  * Kept in the session's own folder, under names this file makes; the name the
  * person's file had is a label and never a path. What a file is, is read from
