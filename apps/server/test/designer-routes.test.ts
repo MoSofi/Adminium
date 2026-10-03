@@ -41,6 +41,8 @@ let reply: { text: string; wait?: boolean } = { text: 'I looked, and the app is 
 /** A model's steps in order, each made when it is reached: text, or tool calls. Used before `reply`. */
 type ScriptStep = () => { text: string } | { calls: { name: string; arguments: Record<string, unknown> }[] };
 let script: ScriptStep[] = [];
+/** What each request to the model carried: its messages, as sent. */
+let asked: { role: string; content?: string }[][] = [];
 const held: (() => void)[] = [];
 
 beforeAll(async () => {
@@ -54,7 +56,8 @@ beforeAll(async () => {
         response.end(JSON.stringify({ models: [{ name: 'fake', model: 'fake' }] }));
         return;
       }
-      const sent = JSON.parse(body) as { model: string; messages: { role: string }[]; tools?: { function: { name: string } }[] };
+      const sent = JSON.parse(body) as { model: string; messages: { role: string; content?: string }[]; tools?: { function: { name: string } }[] };
+      asked.push(sent.messages);
       const line = (value: unknown): void => {
         response.write(`${JSON.stringify(value)}\n`);
       };
@@ -126,6 +129,7 @@ afterEach(async () => {
   root = undefined;
   reply = { text: 'I looked, and the app is fine as it is.' };
   script = [];
+  asked = [];
 });
 
 /** The port design mode is told it listens on, and the Designer's own name on it. */
@@ -267,6 +271,25 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     // The catch-up read after the last event is empty, and says where it is.
     const last = events.at(-1)!.seq;
     expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=${String(last)}`)).body).toEqual({ events: [], more: false, last });
+
+    // A new session on the same app: nothing of the first conversation is sent, and the app's files are what the model is told.
+    asked = [];
+    const again = await client.call('POST', '/api/v1/designer/sessions', { appKey: 'repair-desk', name: 'Repair desk', target: 'auto', connectionId: 'env:ollama', model: 'fake', text: 'Is it fine?' });
+    expect(again.status, JSON.stringify(again.body)).toBe(201);
+    const second = again.body['session'] as { id: string; appKey: string; createdApp: boolean; title: string };
+    expect(second).toMatchObject({ appKey: 'repair-desk', createdApp: false, title: 'Repair desk' });
+    expect(second.id).not.toBe(session.id);
+    await finishedTurn(client, second.id, 1);
+    const first = asked[0] ?? [];
+    expect(first.map((message) => message.role)).toEqual(['system', 'user']);
+    expect(first[1]?.content).toBe('Is it fine?');
+    expect(first[0]?.content).toContain('Table items:');
+    expect(JSON.stringify(first)).not.toContain('Make me a repair desk.');
+    // Both stay listed, newest first; the first chat is still read whole.
+    const listed = ((await client.call('GET', '/api/v1/designer/sessions')).body['apps'] as { sessionId: string; sessions: { id: string; turns: number }[] }[])[0];
+    expect(listed?.sessionId).toBe(second.id);
+    expect(listed?.sessions.map((entry) => [entry.id, entry.turns])).toEqual([[second.id, 1], [session.id, 1]]);
+    expect(((await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=0`)).body['events'] as unknown[]).length).toBe(events.length);
   });
 
   it('let one turn run at a time, and stop it', async () => {

@@ -8,7 +8,7 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowRight, Boxes } from 'lucide-react';
+import { ArrowRight, Boxes, MessageSquarePlus } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
@@ -39,10 +39,10 @@ export function YourApps({ apps, model, target }: { apps: YourApp[]; model: Pick
   const navigate = useNavigate();
   const toasts = useAppToasts();
   const open = useMutation({
-    mutationFn: async (app: YourApp) => {
-      if (app.sessionId !== null) return app.sessionId;
+    mutationFn: async ({ app, fresh }: { app: YourApp; fresh: boolean }) => {
+      if (app.sessionId !== null && !fresh) return app.sessionId;
       if (model === null) throw new Error(t('designer:home.noModel', 'Adminium Designer uses your own AI model. Add one to begin.'));
-      const created = await designerApi.createSession({ appKey: app.key, target, connectionId: model.connectionId, model: model.model });
+      const created = await designerApi.createSession({ appKey: app.key, name: app.name, target, connectionId: model.connectionId, model: model.model });
       return created.session.id;
     },
     onSuccess: async (sessionId) => {
@@ -85,10 +85,23 @@ export function YourApps({ apps, model, target }: { apps: YourApp[]; model: Pick
                 )}
               </div>
             </div>
+            {app.sessionId === null ? null : (
+              <button
+                type="button"
+                disabled={open.isPending || model === null}
+                onClick={() => open.mutate({ app, fresh: true })}
+                aria-label={t('designer:apps.newSessionApp', 'New session on {name}', { name: app.name })}
+                title={t('designer:build.newSessionHint', 'Start a new chat on this app. The Designer starts from the app’s files; this chat is kept.')}
+                className="inline-flex items-center gap-1.5 rounded-[9px] px-3 py-2 text-[12.5px] font-bold text-fg-muted hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <MessageSquarePlus aria-hidden="true" className="size-3.5" />
+                {t('designer:build.newSession', 'New session')}
+              </button>
+            )}
             <button
               type="button"
               disabled={open.isPending || (app.sessionId === null && model === null)}
-              onClick={() => open.mutate(app)}
+              onClick={() => open.mutate({ app, fresh: false })}
               aria-label={t('designer:apps.continueApp', 'Continue {name}', { name: app.name })}
               className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface px-3 py-2 text-[12.5px] font-bold text-fg hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
             >

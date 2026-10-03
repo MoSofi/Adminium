@@ -18,7 +18,8 @@ export default {
   },
   "spend": {
     "turn": "本輪已使用超過 {value} 個詞元，仍在繼續工作。如果超出了你想花費的用量，請將其停止。",
-    "session": "本工作階段已使用超過 {value} 個詞元。沒有任何內容被停止。新的工作階段會重新開始計數。"
+    "session": "本工作階段已使用超過 {value} 個詞元。沒有任何內容被停止。新的工作階段會重新開始計數。",
+    "newSession": "開始新工作階段"
   },
   "topbar": {
     "home": "Adminium Designer 首頁",
@@ -122,7 +123,8 @@ export default {
     "versions": "{count, plural, other {# 個版本}}",
     "edited": "{when}編輯",
     "continue": "繼續",
-    "continueApp": "繼續 {name}"
+    "continueApp": "繼續 {name}",
+    "newSessionApp": "{name} 的新工作階段"
   },
   "model": {
     "add": "新增模型",
@@ -197,7 +199,14 @@ export default {
     "stop": "停止",
     "stopFailed": "無法停止本輪",
     "turnFailed": "Designer 無法開始本輪",
-    "work": "應用程式"
+    "work": "應用程式",
+    "newSession": "新工作階段",
+    "newSessionHint": "為此應用程式開始新的對話。Designer 從應用程式的檔案開始；此對話會保留。",
+    "newSessionWorking": "Designer 正在工作。請先停止它或等它完成，再開始新工作階段。",
+    "newSessionFailed": "無法開始新工作階段",
+    "sessions": "此應用程式的工作階段",
+    "sessionTurns": "{count, plural, other {# 輪}}",
+    "emptyNew": "{name} 的新工作階段。Designer 從應用程式目前的檔案開始；先前的對話保留在頂端的「此應用程式的工作階段」中。"
   },
   "card": {
     "addIt": "新增",

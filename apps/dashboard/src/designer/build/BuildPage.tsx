@@ -10,14 +10,14 @@
  * between 340 and 600. On a phone the two halves are tabs.
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Eye, MessageSquare } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
-import { designerApi, designerKeys, sessionQuery, versionsQuery, type DesignerCard, type DesignerVersion } from '../api.js';
+import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { BuildComposer } from '../parts/BuildComposer.js';
@@ -37,6 +37,7 @@ import {
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
+import { SessionMenu } from './SessionMenu.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
 import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
@@ -56,8 +57,10 @@ function answerOf(value: unknown): { text?: string; accept?: boolean } {
 
 export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const toasts = useAppToasts();
   const session = useQuery(sessionQuery(sessionId));
+  const apps = useQuery({ ...yourAppsQuery(), enabled: session.data !== undefined });
   const versions = useQuery({ ...versionsQuery(sessionId), enabled: session.data !== undefined });
   const { events, loaded } = useSessionEvents(sessionId);
   const turns = useMemo(() => foldTurns(events), [events]);
@@ -134,6 +137,20 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     },
     onError: fail(t('designer:build.answerFailed', 'The answer was not taken')),
   });
+  // A new session on the same app: its files are what the model starts from, and this chat stays as it is.
+  const newSession = useMutation({
+    mutationFn: () => {
+      const from = session.data?.session;
+      if (from === undefined) throw new Error('no session');
+      return designerApi.createSession({ appKey: from.appKey, name: from.title, target: from.target, connectionId: from.connectionId, model: from.model });
+    },
+    onSuccess: async ({ session: made }) => {
+      void queryClient.invalidateQueries({ queryKey: designerKeys.apps });
+      setText('');
+      await navigate({ to: '/design/$sessionId', params: { sessionId: made.id } });
+    },
+    onError: fail(t('designer:build.newSessionFailed', 'The new session could not be started')),
+  });
   const restore = useMutation({
     mutationFn: ({ n, record }: { n: number; record: boolean }) => designerApi.restore(sessionId, n, record),
     onSuccess: (reply, { n, record }) => {
@@ -175,7 +192,10 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   }
 
   const data = session.data;
-  const busy = start.isPending || answer.isPending || restore.isPending;
+  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending;
+  const appSessions = apps.data?.apps.find((app) => app.key === data?.session.appKey)?.sessions ?? [];
+  // A session that has not been used yet is already a new one: another would only be an empty twin.
+  const canStartNew = data !== undefined && !working && !busy && turns.length > 0;
   const versionList = versions.data?.versions ?? [];
   const current: DesignerVersion | null = versionList.find((version) => version.current) ?? null;
   const placeholder = question !== null && (answering || question.choices.length === 0) ? t('designer:build.answerPlaceholder', 'Answer the question above…') : t('designer:build.placeholder', 'Describe a change…');
@@ -315,7 +335,18 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           )
         }
         end={
-          <a
+          <>
+            {data === undefined ? null : (
+              <SessionMenu
+                sessions={appSessions}
+                currentId={sessionId}
+                disabled={!canStartNew}
+                why={working ? t('designer:build.newSessionWorking', 'The Designer is working. Stop it, or wait for it to finish, before starting a new session.') : undefined}
+                onNew={() => newSession.mutate()}
+                onOpen={(id) => void navigate({ to: '/design/$sessionId', params: { sessionId: id } })}
+              />
+            )}
+            <a
             href="/"
             className="inline-flex items-center gap-[7px] rounded-[10px] px-[11px] py-2 text-[13px] font-bold text-fg-muted hover:bg-surface-2 hover:text-fg"
             aria-label={t('designer:build.openDashboard', 'Open in the dashboard')}
@@ -323,6 +354,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             <ExternalLink aria-hidden="true" className="size-4" />
             <span className="hidden lg:inline">{t('designer:build.openDashboard', 'Open in the dashboard')}</span>
           </a>
+          </>
         }
       />
 
@@ -351,10 +383,16 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           <div ref={follow.scroller} onScroll={follow.onScroll} aria-busy={!loaded} className="nb-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-[22px] [overflow-anchor:none]">
             <div ref={follow.content} className="flex flex-col gap-5">
               {turns.map((turn, index) => turnBlock(turn, index === turns.length - 1))}
-              {loaded && turns.length === 0 ? <p className="m-0 text-center text-[13px] text-fg-muted">{t('designer:build.empty', 'Describe what to build or change, and the Designer starts.')}</p> : null}
+              {loaded && turns.length === 0 ? (
+                <p className="m-0 text-pretty text-center text-[13px] leading-normal text-fg-muted">
+                  {data !== undefined && !data.session.createdApp && appSessions.length > 1
+                    ? t('designer:build.emptyNew', 'A new session on {name}. The Designer starts from the app’s files as they are now; the earlier chats are kept under “Sessions on this app”, at the top.', { name: data.session.title })
+                    : t('designer:build.empty', 'Describe what to build or change, and the Designer starts.')}
+                </p>
+              ) : null}
             </div>
           </div>
-          <SpendNotice warnings={spend} />
+          <SpendNotice warnings={spend} onNewSession={canStartNew ? () => newSession.mutate() : undefined} />
           <BuildComposer
             value={text}
             onChange={setText}

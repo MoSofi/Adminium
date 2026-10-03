@@ -18,7 +18,8 @@ export default {
   },
   "spend": {
     "turn": "Denne runde har brugt mere end {value} tokens og arbejder stadig. Stop den, hvis det er mere, end du ville bruge.",
-    "session": "Denne session har brugt mere end {value} tokens. Intet er stoppet. En ny session begynder optællingen forfra."
+    "session": "Denne session har brugt mere end {value} tokens. Intet er stoppet. En ny session begynder optællingen forfra.",
+    "newSession": "Start en ny session"
   },
   "topbar": {
     "home": "Forside for Adminium Designer",
@@ -122,7 +123,8 @@ export default {
     "versions": "{count, plural, one {# version} other {# versioner}}",
     "edited": "Redigeret {when}",
     "continue": "Fortsæt",
-    "continueApp": "Fortsæt {name}"
+    "continueApp": "Fortsæt {name}",
+    "newSessionApp": "Ny session om {name}"
   },
   "model": {
     "add": "Tilføj en model",
@@ -197,7 +199,14 @@ export default {
     "stop": "Stop",
     "stopFailed": "Runden kunne ikke stoppes",
     "turnFailed": "Designeren kunne ikke starte denne runde",
-    "work": "Appen"
+    "work": "Appen",
+    "newSession": "Ny session",
+    "newSessionHint": "Start en ny chat om denne app. Designer starter fra appens filer; denne chat bevares.",
+    "newSessionWorking": "Designer arbejder. Stop den, eller vent til den er færdig, før du starter en ny session.",
+    "newSessionFailed": "Den nye session kunne ikke startes",
+    "sessions": "Sessioner for denne app",
+    "sessionTurns": "{count, plural, one {# tur} other {# ture}}",
+    "emptyNew": "En ny session om {name}. Designer starter fra appens filer, som de er nu; de tidligere chats ligger under “Sessioner for denne app” øverst."
   },
   "card": {
     "addIt": "Tilføj den",

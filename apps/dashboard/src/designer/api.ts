@@ -41,6 +41,8 @@ export interface YourApp {
   version: number | null;
   editedAt: number | null;
   sessionId: string | null;
+  /** Every session on this app, newest first. */
+  sessions: { id: string; title: string; updatedAt: number; turns: number }[];
 }
 
 /** A copy of a published app being made: three steps, and the session that opens on it. */

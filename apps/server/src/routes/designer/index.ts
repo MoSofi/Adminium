@@ -159,6 +159,10 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
             version: newest?.version ?? null,
             editedAt: newest?.updatedAt ?? null,
             sessionId: newest?.id ?? null,
+            sessions: sessions
+              .filter((session) => session.appKey === key)
+              .slice(0, 50)
+              .map((session) => ({ id: session.id, title: session.title, updatedAt: session.updatedAt, turns: session.turns })),
           };
         }),
       };

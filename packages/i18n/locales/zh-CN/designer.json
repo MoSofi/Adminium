@@ -8,7 +8,8 @@
   },
   "spend": {
     "turn": "本轮已使用超过 {value} 个令牌，仍在继续工作。如果超出了你想花费的用量，请将其停止。",
-    "session": "本会话已使用超过 {value} 个令牌。没有任何内容被停止。新会话会重新开始计数。"
+    "session": "本会话已使用超过 {value} 个令牌。没有任何内容被停止。新会话会重新开始计数。",
+    "newSession": "开始新会话"
   },
   "topbar": {
     "home": "Adminium Designer 首页",
@@ -112,7 +113,8 @@
     "versions": "{count, plural, other {# 个版本}}",
     "edited": "{when}编辑",
     "continue": "继续",
-    "continueApp": "继续 {name}"
+    "continueApp": "继续 {name}",
+    "newSessionApp": "{name} 的新会话"
   },
   "model": {
     "add": "添加模型",
@@ -187,7 +189,14 @@
     "stop": "停止",
     "stopFailed": "无法停止本轮",
     "turnFailed": "Designer 无法开始本轮",
-    "work": "应用"
+    "work": "应用",
+    "newSession": "新会话",
+    "newSessionHint": "为此应用开始新的对话。Designer 从应用的文件开始；此对话会保留。",
+    "newSessionWorking": "Designer 正在工作。请先停止它或等它完成，再开始新会话。",
+    "newSessionFailed": "无法开始新会话",
+    "sessions": "此应用的会话",
+    "sessionTurns": "{count, plural, other {# 轮}}",
+    "emptyNew": "{name} 的新会话。Designer 从应用当前的文件开始；之前的对话保留在顶部的“此应用的会话”中。"
   },
   "card": {
     "addIt": "添加",

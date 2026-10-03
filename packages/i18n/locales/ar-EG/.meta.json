@@ -8255,6 +8255,10 @@
     "status": "mt",
     "srcHash": "15ba47e0d2c0"
   },
+  "designer.apps.newSessionApp": {
+    "status": "mt",
+    "srcHash": "1089c424e576"
+  },
   "designer.apps.noVersions": {
     "status": "mt",
     "srcHash": "0cf5a5fb34a9"
@@ -8559,6 +8563,10 @@
     "status": "mt",
     "srcHash": "c1d32c1e2b09"
   },
+  "designer.build.emptyNew": {
+    "status": "mt",
+    "srcHash": "18b683c076ce"
+  },
   "designer.build.halves": {
     "status": "mt",
     "srcHash": "b144ba6befb9"
@@ -8578,6 +8586,22 @@
   "designer.build.missingBody": {
     "status": "mt",
     "srcHash": "df2195fd67b6"
+  },
+  "designer.build.newSession": {
+    "status": "mt",
+    "srcHash": "5c881d23b555"
+  },
+  "designer.build.newSessionFailed": {
+    "status": "mt",
+    "srcHash": "e25ca8c05b7f"
+  },
+  "designer.build.newSessionHint": {
+    "status": "mt",
+    "srcHash": "b230781d3b6c"
+  },
+  "designer.build.newSessionWorking": {
+    "status": "mt",
+    "srcHash": "2e64cfc6f289"
   },
   "designer.build.openDashboard": {
     "status": "mt",
@@ -8606,6 +8630,14 @@
   "designer.build.saveFailed": {
     "status": "mt",
     "srcHash": "79dbebbd19eb"
+  },
+  "designer.build.sessionTurns": {
+    "status": "mt",
+    "srcHash": "8216decc06cd"
+  },
+  "designer.build.sessions": {
+    "status": "mt",
+    "srcHash": "959927550a8b"
   },
   "designer.build.stop": {
     "status": "mt",
@@ -9250,6 +9282,10 @@
   "designer.sheet.yoursNoSource": {
     "status": "mt",
     "srcHash": "1cbf2d754df2"
+  },
+  "designer.spend.newSession": {
+    "status": "mt",
+    "srcHash": "a6d200884816"
   },
   "designer.spend.session": {
     "status": "mt",

@@ -50,6 +50,8 @@ export const designerAppsReply = z.object({
       version: z.number().int().nullable(),
       editedAt: z.number().nullable(),
       sessionId: z.string().nullable(),
+      /** Every session on this app, newest first (the newest fifty): an earlier chat stays readable after a new session. */
+      sessions: z.array(z.object({ id: z.string(), title: z.string(), updatedAt: z.number(), turns: z.number().int() })),
     }),
   ),
 });

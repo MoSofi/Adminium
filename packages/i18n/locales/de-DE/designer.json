@@ -8,7 +8,8 @@
   },
   "spend": {
     "turn": "Dieser Durchgang hat mehr als {value} Tokens verbraucht und arbeitet weiter. Halten Sie ihn an, wenn das mehr ist, als Sie ausgeben wollten.",
-    "session": "Diese Sitzung hat mehr als {value} Tokens verbraucht. Nichts wurde angehalten. Eine neue Sitzung beginnt die Zählung von vorn."
+    "session": "Diese Sitzung hat mehr als {value} Tokens verbraucht. Nichts wurde angehalten. Eine neue Sitzung beginnt die Zählung von vorn.",
+    "newSession": "Neue Sitzung beginnen"
   },
   "topbar": {
     "home": "Startseite von Adminium Designer",
@@ -112,7 +113,8 @@
     "versions": "{count, plural, one {# Version} other {# Versionen}}",
     "edited": "Bearbeitet {when}",
     "continue": "Weiter",
-    "continueApp": "{name} fortsetzen"
+    "continueApp": "{name} fortsetzen",
+    "newSessionApp": "Neue Sitzung zu {name}"
   },
   "model": {
     "add": "Modell hinzufügen",
@@ -187,7 +189,14 @@
     "stop": "Anhalten",
     "stopFailed": "Der Durchgang konnte nicht angehalten werden",
     "turnFailed": "Der Designer konnte diesen Durchgang nicht starten",
-    "work": "Die App"
+    "work": "Die App",
+    "newSession": "Neue Sitzung",
+    "newSessionHint": "Einen neuen Chat zu dieser App beginnen. Der Designer geht von den Dateien der App aus; dieser Chat bleibt erhalten.",
+    "newSessionWorking": "Der Designer arbeitet. Halte ihn an oder warte, bis er fertig ist, bevor du eine neue Sitzung beginnst.",
+    "newSessionFailed": "Die neue Sitzung konnte nicht gestartet werden",
+    "sessions": "Sitzungen zu dieser App",
+    "sessionTurns": "{count, plural, one {# Runde} other {# Runden}}",
+    "emptyNew": "Eine neue Sitzung zu {name}. Der Designer geht von den Dateien der App aus, wie sie jetzt sind; die früheren Chats bleiben oben unter „Sitzungen zu dieser App“."
   },
   "card": {
     "addIt": "Hinzufügen",

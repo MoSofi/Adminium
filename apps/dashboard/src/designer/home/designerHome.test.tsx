@@ -218,8 +218,8 @@ describe('Your apps', () => {
 
   it('opens the newest session, and gives an app no session built a new one with no message', async () => {
     apps = [
-      { key: 'repairs', name: 'Repair Desk', version: 4, editedAt: Date.now() - 3 * 60_000, sessionId: SESSION.id },
-      { key: 'classes', name: 'Class Sign-ups', version: null, editedAt: null, sessionId: null },
+      { key: 'repairs', name: 'Repair Desk', version: 4, editedAt: Date.now() - 3 * 60_000, sessionId: SESSION.id, sessions: [{ id: SESSION.id, title: 'Repair Desk', updatedAt: Date.now() - 3 * 60_000, turns: 7 }] },
+      { key: 'classes', name: 'Class Sign-ups', version: null, editedAt: null, sessionId: null, sessions: [] },
     ];
     const router = await renderHome();
     await screen.findByRole('heading', { name: 'Your apps' });
@@ -232,13 +232,27 @@ describe('Your apps', () => {
     expect(created()).toHaveLength(0);
   });
 
+  it('starts a new session on an app that already has one, and offers none where "Continue" already makes it', async () => {
+    apps = [
+      { key: 'repairs', name: 'Repair Desk', version: 4, editedAt: Date.now() - 3 * 60_000, sessionId: SESSION.id, sessions: [{ id: SESSION.id, title: 'Repair Desk', updatedAt: Date.now() - 3 * 60_000, turns: 7 }] },
+      { key: 'classes', name: 'Class Sign-ups', version: null, editedAt: null, sessionId: null, sessions: [] },
+    ];
+    await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    expect(screen.queryByRole('button', { name: 'New session on Class Sign-ups' })).toBeNull();
+    await userEvent.click(await screen.findByRole('button', { name: 'New session on Repair Desk' }));
+    await waitFor(() => expect(created()).toHaveLength(1));
+    // No message: the session opens empty, on the app's files.
+    expect(created()[0]?.body).toEqual({ appKey: 'repairs', name: 'Repair Desk', target: 'auto', connectionId: 'env:anthropic', model: 'claude-test' });
+  });
+
   it('starts a session on an app no session built', async () => {
-    apps = [{ key: 'classes', name: 'Class Sign-ups', version: null, editedAt: null, sessionId: null }];
+    apps = [{ key: 'classes', name: 'Class Sign-ups', version: null, editedAt: null, sessionId: null, sessions: [] }];
     await renderHome();
     await waitFor(() => expect(box().disabled).toBe(false));
     await userEvent.click(await screen.findByRole('button', { name: 'Continue Class Sign-ups' }));
     await waitFor(() => expect(created()).toHaveLength(1));
-    expect(created()[0]?.body).toEqual({ appKey: 'classes', target: 'auto', connectionId: 'env:anthropic', model: 'claude-test' });
+    expect(created()[0]?.body).toEqual({ appKey: 'classes', name: 'Class Sign-ups', target: 'auto', connectionId: 'env:anthropic', model: 'claude-test' });
   });
 });
 

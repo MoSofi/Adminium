@@ -18,7 +18,8 @@ export default {
   },
   "spend": {
     "turn": "Toto kolo už spotřebovalo více než {value} tokenů a stále pracuje. Zastavte ho, pokud je to víc, než jste chtěli utratit.",
-    "session": "Tato relace už spotřebovala více než {value} tokenů. Nic se nezastavilo. Nová relace začne počítat znovu."
+    "session": "Tato relace už spotřebovala více než {value} tokenů. Nic se nezastavilo. Nová relace začne počítat znovu.",
+    "newSession": "Začít novou relaci"
   },
   "topbar": {
     "home": "Úvod Adminium Designer",
@@ -122,7 +123,8 @@ export default {
     "versions": "{count, plural, one {# verze} few {# verze} many {# verze} other {# verzí}}",
     "edited": "Upraveno {when}",
     "continue": "Pokračovat",
-    "continueApp": "Pokračovat v {name}"
+    "continueApp": "Pokračovat v {name}",
+    "newSessionApp": "Nová relace k aplikaci {name}"
   },
   "model": {
     "add": "Přidat model",
@@ -197,7 +199,14 @@ export default {
     "stop": "Zastavit",
     "stopFailed": "Kolo se nepodařilo zastavit",
     "turnFailed": "Designer nemohl toto kolo zahájit",
-    "work": "Aplikace"
+    "work": "Aplikace",
+    "newSession": "Nová relace",
+    "newSessionHint": "Začněte nový chat k této aplikaci. Designer vyjde ze souborů aplikace; tento chat zůstane zachován.",
+    "newSessionWorking": "Designer pracuje. Zastavte ho, nebo počkejte, až skončí, než začnete novou relaci.",
+    "newSessionFailed": "Novou relaci se nepodařilo spustit",
+    "sessions": "Relace této aplikace",
+    "sessionTurns": "{count, plural, one {# tah} few {# tahy} many {# tahu} other {# tahů}}",
+    "emptyNew": "Nová relace k aplikaci {name}. Designer vychází ze souborů aplikace, jak jsou teď; dřívější chaty zůstávají nahoře pod „Relace této aplikace“."
   },
   "card": {
     "addIt": "Přidat",

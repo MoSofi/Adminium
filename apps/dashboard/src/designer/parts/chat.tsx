@@ -458,7 +458,7 @@ export function LimitNote({ which, value, version, onKeepGoing, busy }: { which:
  * Above the message box, for as long as a spending mark is passed. It stops
  * nothing (D92): the person reads it, hears it once, and decides.
  */
-export function SpendNotice({ warnings }: { warnings: readonly { which: SpendMark; mark: number }[] }): ReactNode {
+export function SpendNotice({ warnings, onNewSession }: { warnings: readonly { which: SpendMark; mark: number }[]; onNewSession?: (() => void) | undefined }): ReactNode {
   if (warnings.length === 0) return null;
   return (
     <div role="alert" className="mx-3.5 mt-2.5 flex shrink-0 flex-col gap-1 rounded-xl border border-danger/30 bg-danger-soft px-3.5 py-2.5">
@@ -469,6 +469,14 @@ export function SpendNotice({ warnings }: { warnings: readonly { which: SpendMar
             {which === 'turn-tokens'
               ? withMono(t('designer:spend.turn', 'This turn has used more than {value} tokens and is still working. Stop it if that is more than you meant to spend.', { value: M1 }), [M1], [number(mark)])
               : withMono(t('designer:spend.session', 'This session has used more than {value} tokens. Nothing is stopped. A new session starts the count again.', { value: M1 }), [M1], [number(mark)])}
+            {which === 'session-tokens' && onNewSession !== undefined ? (
+              <>
+                {' '}
+                <button type="button" onClick={onNewSession} className="font-extrabold underline underline-offset-2 hover:no-underline">
+                  {t('designer:spend.newSession', 'Start a new session')}
+                </button>
+              </>
+            ) : null}
           </span>
         </p>
       ))}

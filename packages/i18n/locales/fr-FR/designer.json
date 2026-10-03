@@ -8,7 +8,8 @@
   },
   "spend": {
     "turn": "Ce tour a utilisé plus de {value} jetons et travaille encore. Arrêtez-le si c’est plus que ce que vous vouliez dépenser.",
-    "session": "Cette session a utilisé plus de {value} jetons. Rien n’est arrêté. Une nouvelle session reprend le compte à zéro."
+    "session": "Cette session a utilisé plus de {value} jetons. Rien n’est arrêté. Une nouvelle session reprend le compte à zéro.",
+    "newSession": "Démarrer une nouvelle session"
   },
   "topbar": {
     "home": "Accueil d’Adminium Designer",
@@ -112,7 +113,8 @@
     "versions": "{count, plural, one {# version} other {# versions}}",
     "edited": "Modifiée {when}",
     "continue": "Continuer",
-    "continueApp": "Continuer {name}"
+    "continueApp": "Continuer {name}",
+    "newSessionApp": "Nouvelle session sur {name}"
   },
   "model": {
     "add": "Ajouter un modèle",
@@ -187,7 +189,14 @@
     "stop": "Arrêter",
     "stopFailed": "Le tour n’a pas pu être arrêté",
     "turnFailed": "Le Designer n’a pas pu commencer ce tour",
-    "work": "L’application"
+    "work": "L’application",
+    "newSession": "Nouvelle session",
+    "newSessionHint": "Démarrer une nouvelle discussion sur cette application. Le Designer part des fichiers de l’application ; cette discussion est conservée.",
+    "newSessionWorking": "Le Designer travaille. Arrêtez-le ou attendez qu’il ait fini avant de démarrer une nouvelle session.",
+    "newSessionFailed": "La nouvelle session n’a pas pu démarrer",
+    "sessions": "Sessions de cette application",
+    "sessionTurns": "{count, plural, one {# tour} other {# tours}}",
+    "emptyNew": "Une nouvelle session sur {name}. Le Designer part des fichiers de l’application tels qu’ils sont ; les discussions précédentes restent en haut, sous « Sessions de cette application »."
   },
   "card": {
     "addIt": "L’ajouter",

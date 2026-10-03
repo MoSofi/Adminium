@@ -45,6 +45,21 @@ sentences on what was built, and the result is saved as a version (`v1`, `v2`, �
 | You press **Stop** | The turn ends within a second. What it wrote stays in the folder; **Put the files back** returns to the last version |
 | It reaches a limit | The turn ends and says which limit. **Keep going** starts the next turn where it stopped |
 
+The reply is drawn as text is written: headings, lists, bold, code and tables. Nothing in it is run
+or fetched: a link is its words with the address beside them, and an image is its description.
+
+In the steps, a line in grey that reads "Looked for … — not there" is not an error: the Designer
+asked for a file or a reference by a name that does not exist, was told the names that do, and went
+on. A red line is a step that failed, with the reason under it.
+
+### A new session
+
+Each step of a turn sends the session's whole conversation to the model, so a long session costs more
+with every turn. **New session**, at the top of the build page and on each row of **Your apps**,
+starts an empty conversation on the same app: the Designer is told the app as its files are now, and
+nothing of the earlier chat. The earlier sessions stay in the menu beside the button; each can still
+be read and gone on with.
+
 A new app starts with nothing in it but its name and a role. The Designer writes the tables, the
 pages and the role's grants. It is kept on course in four ways:
 
@@ -148,8 +163,8 @@ then offers **Keep going**.
 
 Tokens stop nothing. When a turn or a session passes its mark, a red notice appears above the message
 box and a sound plays once; the work goes on, and **Stop** is yours to press. With a paid model a long
-turn costs money, and each step sends the conversation again: a new session starts the count from
-nothing.
+turn costs money, and each step sends the conversation again: a [new session](#a-new-session) starts
+the count from nothing, and the session's notice has the button for it.
 
 They are settings of the install:
 

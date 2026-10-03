@@ -28,12 +28,13 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { DesignerEvent, DesignerEventBody, DesignerVersion } from '../api.js';
+import type { DesignerEvent, DesignerEventBody, DesignerVersion, YourApp } from '../api.js';
 
 const spendSound = vi.hoisted(() => ({ playSpendSound: vi.fn() }));
 vi.mock('./spendSound.js', () => spendSound);
 
 const ID = 'ds_000000000000000000000007';
+const NEW_ID = 'ds_000000000000000000000008';
 
 class FakeSocket {
   static all: FakeSocket[] = [];
@@ -59,6 +60,7 @@ interface Call {
 }
 
 let calls: Call[];
+let yourApps: YourApp[];
 let stored: DesignerEvent[];
 let versions: DesignerVersion[];
 let seq: number;
@@ -85,6 +87,7 @@ const SESSION = {
 
 beforeEach(() => {
   calls = [];
+  yourApps = [];
   seq = 0;
   stored = [];
   versions = [
@@ -127,7 +130,8 @@ beforeEach(() => {
           }),
         );
       }
-      if (url === '/api/v1/designer/sessions') return Promise.resolve(jsonResponse(200, { apps: [] }));
+      if (url === '/api/v1/designer/sessions' && method === 'POST') return Promise.resolve(jsonResponse(201, { session: { ...SESSION, id: NEW_ID, turns: 0, version: null, createdApp: false }, turn: null }));
+      if (url === '/api/v1/designer/sessions') return Promise.resolve(jsonResponse(200, { apps: yourApps }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'r' } }));
     }),
   );
@@ -359,7 +363,7 @@ describe('the build page', () => {
     stored = history;
     await open();
     const chat = screen.getByRole('complementary', { name: 'Chat' });
-    expect((await within(chat).findByRole('alert')).textContent).toBe('This session has used more than 15,000,000 tokens. Nothing is stopped. A new session starts the count again.');
+    expect((await within(chat).findByRole('alert')).textContent).toBe('This session has used more than 15,000,000 tokens. Nothing is stopped. A new session starts the count again. Start a new session');
     expect(spendSound.playSpendSound).not.toHaveBeenCalled();
 
     // A turn passes its own mark while the page is open: heard once, and the turn goes on.
@@ -374,6 +378,43 @@ describe('the build page', () => {
     expect(spendSound.playSpendSound).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
     expect(screen.queryByText(/reached its limit/)).toBeNull();
+  });
+
+  it('starts a new session on the same app, lists the earlier ones, and offers neither a twin nor one mid-turn', async () => {
+    yourApps = [
+      {
+        key: 'repairs',
+        name: 'Repair Desk',
+        version: 2,
+        editedAt: 5,
+        sessionId: ID,
+        sessions: [
+          { id: ID, title: 'Repair Desk', updatedAt: Date.now() - 60_000, turns: 1 },
+          { id: 'ds_000000000000000000000001', title: 'Repair Desk, first try', updatedAt: Date.now() - 3_600_000, turns: 12 },
+        ],
+      },
+    ];
+    stored = [...finishedTurn(), ev(2, { kind: 'turn-started', text: 'More.' }), ev(2, { kind: 'spend', which: 'session-tokens', mark: 15_000_000, used: 15_000_001 })];
+    const router = await open();
+    // A turn is running: no new session from under it.
+    const button = await screen.findByRole('button', { name: 'New session' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(within(screen.getByRole('alert')).queryByRole('button', { name: 'Start a new session' })).toBeNull();
+
+    live(ev(2, { kind: 'turn-finished', outcome: 'done' }));
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    // The earlier sessions stay reachable.
+    await userEvent.click(screen.getByRole('button', { name: 'Sessions on this app' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([expect.stringMatching(/^Repair Desk.*1 turn$/), expect.stringMatching(/^Repair Desk, first try.*12 turns$/)]);
+    await userEvent.keyboard('{Escape}');
+
+    // The spend notice's last sentence has a button behind it.
+    await userEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Start a new session' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/design/${NEW_ID}`));
+    expect(calls.filter((call) => call.method === 'POST' && call.url === '/api/v1/designer/sessions').map((call) => call.body)).toEqual([
+      { appKey: 'repairs', name: 'Repair Desk', target: 'auto', connectionId: 'env:anthropic', model: 'claude-test' },
+    ]);
   });
 
   it('renames the app, lists the versions and goes back with a word on what stays', async () => {
