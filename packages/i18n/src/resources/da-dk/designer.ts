@@ -325,6 +325,7 @@ export default {
     "loading": "Åbner forhåndsvisningen",
     "newTab": "Åbn i en ny fane",
     "nothing": "Intet at vise endnu. Når Designeren anvender appen, vises den her.",
+    "offLive": "Forhåndsvisningen er slået fra på en live-server. Åbn appen fra dashboardet, når den er anvendt.",
     "phone": "Telefon",
     "reload": "Genindlæs",
     "side": "Side",

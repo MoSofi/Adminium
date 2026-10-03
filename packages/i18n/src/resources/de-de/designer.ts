@@ -325,6 +325,7 @@ export default {
     "loading": "Vorschau wird geöffnet",
     "newTab": "In neuem Tab öffnen",
     "nothing": "Noch nichts zu sehen. Sobald der Designer die App übernimmt, erscheint sie hier.",
+    "offLive": "Auf einem Live-Server ist die Vorschau aus. Öffnen Sie die App im Dashboard, sobald sie übernommen ist.",
     "phone": "Telefon",
     "reload": "Neu laden",
     "side": "Seite",

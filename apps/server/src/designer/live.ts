@@ -56,8 +56,8 @@ export const LIVE_ID_FILE = join('.adminium', 'designer', 'live.json');
 
 export interface Live {
   state(): Promise<LiveState>;
-  /** At boot: a switch left on over a folder that was not kept goes off. */
-  checkAtBoot(): Promise<void>;
+  /** At boot: a switch left on over a folder that was not kept goes off. True when it did. */
+  checkAtBoot(): Promise<boolean>;
   /** Switch it. Returns the reason it cannot be switched on, or null. */
   set(on: boolean): Promise<LiveReason | null>;
 }
@@ -85,11 +85,12 @@ export function createLive(deps: LiveDeps): Live {
     },
     async checkAtBoot() {
       const stored = await deps.settings.get();
-      if (!stored.on || deps.root === null) return;
-      if (stored.id !== null && idInFolder() === stored.id) return;
+      if (!stored.on || deps.root === null) return false;
+      if (stored.id !== null && idInFolder() === stored.id) return false;
       lost = true;
       await deps.settings.set({ on: false, id: null });
       deps.log('Adminium Designer was switched off: the project folder did not come back as it was left (it is not on a disk that is kept across restarts).');
+      return true;
     },
     async set(on) {
       if (!on) {

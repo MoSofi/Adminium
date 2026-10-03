@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
 
 import { api } from '../../app/api.js';
+import { systemInfoQuery } from '../../app/capabilities.js';
 import { createRealtimeClient } from '../../app/ws.js';
 import { AppFrame } from '../../apps/AppFrame.js';
 import { t } from '../../i18n/t.js';
@@ -94,6 +95,8 @@ export function previewState(turns: readonly TurnView[]): { building: boolean; f
 
 export function Preview({ session, turns, onFix, compact }: { session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void; compact: boolean }): ReactNode {
   const queryClient = useQueryClient();
+  // A live server has one name, so model-written screens have no second one to be shown on (D74).
+  const noPreview = useQuery(systemInfoQuery()).data?.designer?.mode === 'live';
   const installed = useQuery({ queryKey: installedKey, queryFn: () => api.get<{ apps: InstalledApp[] }>('/api/v1/apps') });
   const app = installed.data?.apps.find((entry) => entry.key === session.appKey) ?? null;
   const sides = useMemo<PreviewSide[]>(() => {
@@ -112,7 +115,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   const ticket = useQuery({
     queryKey: ['designer', 'preview', session.id, side, round] as const,
     queryFn: () => designerApi.previewTicket(session.id, to),
-    enabled: app !== null,
+    enabled: app !== null && !noPreview,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0,
     retry: false,
@@ -204,6 +207,16 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   const segment = 'inline-flex h-[30px] items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] font-bold text-fg-muted hover:text-fg aria-pressed:bg-surface aria-pressed:text-fg aria-pressed:shadow-sm';
   const iconFor = (entry: PreviewSide): ReactNode =>
     entry === 'dashboard' ? <LayoutDashboard aria-hidden="true" className="size-3.5" /> : entry === 'staff' ? <IdCard aria-hidden="true" className="size-3.5" /> : <UserRound aria-hidden="true" className="size-3.5" />;
+
+  if (noPreview) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <p className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
+          {t('designer:preview.offLive', 'The preview is off on a live server. Open the app from the dashboard once it is applied.')}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

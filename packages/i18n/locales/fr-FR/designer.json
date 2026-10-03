@@ -315,6 +315,7 @@
     "loading": "Ouverture de l’aperçu",
     "newTab": "Ouvrir dans un nouvel onglet",
     "nothing": "Rien à afficher pour l’instant. Dès que le Designer applique l’application, elle s’affiche ici.",
+    "offLive": "L’aperçu est désactivé sur un serveur en ligne. Ouvrez l’application depuis le tableau de bord une fois qu’elle est appliquée.",
     "phone": "Téléphone",
     "reload": "Recharger",
     "side": "Côté",

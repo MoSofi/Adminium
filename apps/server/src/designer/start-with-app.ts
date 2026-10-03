@@ -15,6 +15,7 @@
  * Nothing here is reachable by a model: it is the person's action, taken from
  * the sheet, and the build command it approves is the one the sheet showed.
  */
+import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -94,7 +95,8 @@ export function createStarter(host: StarterHost): Starter {
   const jobs = new Map<string, StartJob>();
   /** Copies this process wrote and has not yet applied: "Try again" finishes one, by its key. */
   const unfinished = new Set<string>();
-  let counter = 0;
+  /** One copy at a time, held from the first line of `start`: two requests never both pass the checks. */
+  let busy = false;
 
   const folder = (key: string): string => join(host.root, APPS_DIR, key);
 
@@ -142,6 +144,13 @@ export function createStarter(host: StarterHost): Starter {
         const plan = planCopy(source, { to: job.newKey, name: job.name });
         if (plan.problems.length > 0) return fail('make', plan.problems.slice(0, 4).join('\n'));
         const dir = folder(job.newKey);
+        // The folder is made here and must not be there: one that appeared since the key was checked is someone else's app.
+        try {
+          mkdirSync(dirname(dir), { recursive: true });
+          mkdirSync(dir);
+        } catch {
+          return fail('make', `There is already an app "${job.newKey}" in this project.`);
+        }
         try {
           for (const [path, bytes] of plan.files) {
             const file = join(dir, path);
@@ -157,6 +166,11 @@ export function createStarter(host: StarterHost): Starter {
         if (written === null || 'problem' in written) {
           rmSync(dir, { recursive: true, force: true });
           return fail('make', 'The copy’s build file could not be read back.');
+        }
+        // What the person read and approved is what runs: a file that reads otherwise is not approved.
+        if (buildFingerprint(written) !== input.approve) {
+          rmSync(dir, { recursive: true, force: true });
+          return fail('make', 'The copy’s build is not the one that was approved.');
         }
         approveBuild(host.root, job.newKey, written);
         unfinished.add(job.newKey);
@@ -175,6 +189,8 @@ export function createStarter(host: StarterHost): Starter {
       host.log('a "Start with an app" job failed', error);
       const running = job.steps.find((candidate) => candidate.state === 'running');
       fail(running?.id ?? 'build', error instanceof Error ? error.message : String(error));
+    } finally {
+      busy = false;
     }
   }
 
@@ -182,36 +198,14 @@ export function createStarter(host: StarterHost): Starter {
     keyProblem,
     buildFor,
     async start(input) {
-      const name = input.name.trim();
-      if (name === '' || name.length > 80) throw new ValidationFailedError('Give the app a name of 1 to 80 characters.', { reason: 'NAME' });
-      const problem = await keyProblem(input.newKey);
-      if (problem !== null) throw new ConflictError(problem, 'CONFLICT', { reason: 'KEY' });
-      if ([...jobs.values()].some((job) => job.state === 'running')) {
-        throw new ConflictError('Another app is being copied. Wait for it to finish.', 'CONFLICT', { reason: 'COPY_RUNNING' });
+      if (busy) throw new ConflictError('Another app is being copied. Wait for it to finish.', 'CONFLICT', { reason: 'COPY_RUNNING' });
+      busy = true;
+      try {
+        return await begin(input);
+      } catch (error) {
+        busy = false;
+        throw error;
       }
-      // The approval is of the exact build this copy gets: a page that showed another one approved nothing.
-      if (input.approve !== buildFor(input.newKey).fingerprint) {
-        throw new ValidationFailedError('Approve the build command as it is shown.', { reason: 'BUILD_NOT_APPROVED' });
-      }
-      const app = await host.listed(input.key);
-      if (app === null) throw new NotFoundError(`"${input.key}" is not an app of the list.`, { key: input.key });
-      counter += 1;
-      const job: StartJob = {
-        id: `start_${String(Date.now())}_${String(counter)}`,
-        key: app.key,
-        newKey: input.newKey,
-        name,
-        state: 'running',
-        steps: [
-          { id: 'get', state: 'waiting' },
-          { id: 'make', state: 'waiting' },
-          { id: 'build', state: 'waiting' },
-        ],
-        sessionId: null,
-      };
-      jobs.set(job.id, job);
-      void run(job, app, input);
-      return job;
     },
     job(id) {
       const job = jobs.get(id);
@@ -219,4 +213,35 @@ export function createStarter(host: StarterHost): Starter {
       return job;
     },
   };
+
+  async function begin(input: StartInput): Promise<StartJob> {
+    const name = input.name.trim();
+    if (name === '' || name.length > 80) throw new ValidationFailedError('Give the app a name of 1 to 80 characters.', { reason: 'NAME' });
+    const problem = await keyProblem(input.newKey);
+    if (problem !== null) throw new ConflictError(problem, 'CONFLICT', { reason: 'KEY' });
+    // The approval is of the exact build this copy gets: a page that showed another one approved nothing.
+    if (input.approve !== buildFor(input.newKey).fingerprint) {
+      throw new ValidationFailedError('Approve the build command as it is shown.', { reason: 'BUILD_NOT_APPROVED' });
+    }
+    const app = await host.listed(input.key);
+    if (app === null) throw new NotFoundError(`"${input.key}" is not an app of the list.`, { key: input.key });
+    // Only the last few are kept: a job is read while its sheet is open.
+    for (const id of [...jobs.keys()].slice(0, Math.max(0, jobs.size - 20))) jobs.delete(id);
+    const job: StartJob = {
+      id: `start_${randomBytes(12).toString('hex')}`,
+      key: app.key,
+      newKey: input.newKey,
+      name,
+      state: 'running',
+      steps: [
+        { id: 'get', state: 'waiting' },
+        { id: 'make', state: 'waiting' },
+        { id: 'build', state: 'waiting' },
+      ],
+      sessionId: null,
+    };
+    jobs.set(job.id, job);
+    void run(job, app, input);
+    return job;
+  }
 }

@@ -26,7 +26,7 @@ import { join, relative, sep } from 'node:path';
 import { checkApp } from '../project/apps/check-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, nameFromKey, PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
-import { hasOwnBuild } from '../project/apps/own-build.js';
+import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
@@ -166,6 +166,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
   let sameErrors = 0;
   let testsAllowed = false;
   let serverCode: 'unasked' | 'allowed' | 'refused' = 'unasked';
+  let buildCode: 'unasked' | 'allowed' | 'refused' = 'unasked';
   const RUN_THEM = 'Run them';
   const ALLOW_IT = 'Allow it';
 
@@ -174,7 +175,6 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
    * RUNS are a person's to change. A model that could edit them would have a shell again.
    */
   function buildFileRefusal(path: string): ToolOutcome | null {
-    if (!hasOwnBuild(deps.root, appKey)) return null;
     let normal: string;
     try {
       normal = jail.normalise(path).normalize('NFC').toLowerCase();
@@ -183,10 +183,49 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     }
     const inside = normal.startsWith(`apps/${appKey}/`) ? normal.slice(`apps/${appKey}/`.length) : null;
     if (inside === null) return null;
-    const guarded = inside === 'build.json' || inside === 'package.json' || inside === 'package-lock.json' || /^vite\.config\.[a-z]+$/.test(inside) || /^tsconfig[a-z.]*\.json$/.test(inside) || inside.startsWith('scripts/');
+    // A build of its own is a person's to give an app: no app gets one from a model.
+    if (inside === 'build.json') return refused('build.json names a command this machine runs, and only a person writes it. Build the screens in src/<side>/ as the skill says.', 'Not yours to change');
+    if (!hasOwnBuild(deps.root, appKey)) return null;
+    const guarded =
+      inside === 'package.json' ||
+      inside === 'package-lock.json' ||
+      // Every config the build's tools look for and run: Vite's own, and the ones its plugins find by name.
+      /^(vite|vitest|postcss|tailwind|babel|rollup|svgo|uno|windi)\.config\.[a-z]+$/.test(inside) ||
+      /^tsconfig[a-z.]*\.json$/.test(inside) ||
+      inside.startsWith('scripts/');
     return guarded
       ? refused(`${inside} decides what this app's build runs, and the person approved that build as it is. It is theirs to change. Do what was asked in the app's manifest and its src/.`, 'Not yours to change')
       : null;
+  }
+
+  /**
+   * The files a copied app's build runs on this machine (its Vite config imports them) are code with the
+   * person's whole account, like server code: the model may change one only once the person said so, asked
+   * once a turn.
+   */
+  async function buildCodeRefusal(path: string, ctx: ToolContext): Promise<ToolOutcome | null> {
+    if (!hasOwnBuild(deps.root, appKey)) return null;
+    let normal: string;
+    try {
+      normal = jail.normalise(path);
+    } catch {
+      return null; // The jail says what is wrong with the path.
+    }
+    const lead = `apps/${appKey}/`;
+    if (!normal.toLowerCase().startsWith(lead)) return null;
+    const inside = normal.slice(lead.length);
+    if (!buildCodeStems(deps.root, appKey).has(codeStem(inside))) return null;
+    if (buildCode === 'unasked') {
+      const answer = await ctx.ask({
+        type: 'question',
+        question: `Let the Designer change ${inside}? This app's build runs that file on this machine each time it builds (its Vite config imports it), with everything your account can reach.`,
+        choices: [ALLOW_IT, 'Do not allow it'],
+      });
+      buildCode = answer.type === 'question' && answer.text === ALLOW_IT ? 'allowed' : 'refused';
+    }
+    return buildCode === 'allowed'
+      ? null
+      : refused(`The person did not allow changes to files the build runs (${inside}) in this turn. Do it in a file the Vite config does not import, or say what cannot be done without it.`, 'Build code not allowed');
   }
 
   /**
@@ -286,7 +325,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const path = str(input, 'path');
         const content = str(input, 'content');
         if (path === null || content === null) return refused('Give "path" and "content".', 'Wrote nothing');
-        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx));
+        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
@@ -316,7 +355,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const before = str(input, 'old');
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
-        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx));
+        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
@@ -360,7 +399,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       run: async (input, ctx) => {
         const path = str(input, 'path');
         if (path === null) return refused('Give the "path" to delete.', 'Deleted nothing');
-        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx));
+        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not delete ${shown(path)}`, () => {
           jail.delete(path);

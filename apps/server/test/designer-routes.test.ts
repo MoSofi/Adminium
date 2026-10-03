@@ -540,11 +540,23 @@ describe.skipIf(!canBuildSides)('the live Designer', { timeout: 120_000 }, () =>
     expect(preview.status).toBe(404);
     expect(preview.body).toMatchObject({ error: { details: { reason: 'NO_PREVIEW' } } });
 
+    // A model's address is the server's own setting here: the Designer neither tries one nor saves one.
+    expect((await client.call('GET', '/api/v1/designer/models')).body).toMatchObject({ canAdd: false });
+    for (const [method, path] of [
+      ['POST', '/api/v1/designer/connections/test'],
+      ['PUT', '/api/v1/designer/connections'],
+    ] as const) {
+      const refusedModel = await client.call(method, path, { provider: 'ollama', baseUrl: 'http://127.0.0.1:5432', model: 'x' });
+      expect(refusedModel.status, path).toBe(403);
+      expect(refusedModel.body).toMatchObject({ error: { details: { reason: 'LIVE' } } });
+    }
+
     // Off needs no password, and the routes are refused again.
     expect((await client.call('PUT', '/api/v1/designer/live', { on: false })).body).toMatchObject({ on: false });
     expect((await client.call('GET', '/api/v1/designer/state')).status).toBe(403);
     const audit = await client.meta.db.selectFrom('adminium_audit_log').select('action').where('action', 'like', 'designer.live.%').execute();
-    expect(audit.map((row) => row.action).sort()).toEqual(['designer.live.off', 'designer.live.on']);
+    // The two refused tries are kept beside the switch itself.
+    expect(audit.map((row) => row.action).sort()).toEqual(['designer.live.off', 'designer.live.on', 'designer.live.refused', 'designer.live.refused']);
     expect(JSON.stringify(await client.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', 'like', 'designer.live.%').execute())).not.toContain(PASSWORD);
   });
 

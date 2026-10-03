@@ -48,10 +48,12 @@ const SESSION: DesignerSession = {
 let tickets: string[];
 let sides: { side: string; prefix: string; navAvailable: boolean }[];
 let installed: boolean;
+let live: boolean;
 
 beforeEach(() => {
   tickets = [];
   installed = true;
+  live = false;
   sides = [
     { side: 'staff', prefix: '/apps/repairs/staff', navAvailable: true },
     { side: 'customer', prefix: '/apps/repairs/customer', navAvailable: true },
@@ -62,6 +64,7 @@ beforeEach(() => {
     'fetch',
     vi.fn((input: unknown, init?: RequestInit) => {
       const url = String(input);
+      if (url === '/api/v1/system/info') return Promise.resolve(jsonResponse(200, { designer: { mode: live ? 'live' : 'local', link: false } }));
       if (url === '/api/v1/apps') return Promise.resolve(jsonResponse(200, { apps: installed ? [{ key: 'repairs', version: '0.1.0', sides }] : [], staged: [] }));
       if (url.endsWith('/preview-ticket')) {
         const { to } = JSON.parse(String(init?.body)) as { to: string };
@@ -169,6 +172,14 @@ describe('the preview', () => {
     installed = false;
     mount();
     expect(await screen.findByText('Nothing to show yet. Once the Designer applies the app, it shows here.')).toBeTruthy();
+    expect(tickets).toEqual([]);
+  });
+
+  it('says the preview is off on a live server, and asks for no ticket', async () => {
+    live = true;
+    mount();
+    expect(await screen.findByText('The preview is off on a live server. Open the app from the dashboard once it is applied.')).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Side' })).toBeNull();
     expect(tickets).toEqual([]);
   });
 

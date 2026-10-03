@@ -87,6 +87,8 @@ export interface RunnerDeps {
   publish(event: DesignerEvent & { sessionId: string }): void;
   /** Record a turn's start and end. */
   audit?(action: 'designer.turn.started' | 'designer.turn.finished', session: DesignerSession, detail: Record<string, unknown>): Promise<void>;
+  /** A card a person answered, for the audit log. */
+  auditCard?(sessionId: string, by: Actor, detail: Record<string, unknown>): Promise<void>;
   log?: (message: string, error?: unknown) => void;
   now?: () => number;
 }
@@ -457,13 +459,24 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       running.controller.abort();
       return true;
     },
-    answer(sessionId, cardId, value) {
+    answer(sessionId, cardId, value, by) {
       const waiting = running !== null && running.sessionId === sessionId ? running.cards.get(cardId) : undefined;
       if (running === null || waiting === undefined) throw new NotFoundError('Nothing is waiting for that answer.', { cardId });
       const answer = answerFor(waiting.card, value);
       if (answer === null) throw new ValidationFailedError('That answer does not fit the question.', { cardId });
       running.cards.delete(cardId);
       events(sessionId).emit(running.turn, { kind: 'card-answered', id: cardId, value: answer });
+      // A yes to a package, to tests or to server code is a person's decision about this server: it is kept, with who gave it.
+      const { card } = waiting;
+      void deps
+        .auditCard?.(sessionId, by, {
+          turn: running.turn,
+          card: card.type,
+          ...(card.type === 'package' ? { name: card.name, version: card.version } : {}),
+          ...(card.type === 'question' ? { question: card.question.slice(0, 300) } : {}),
+          answer: answer.type === 'question' ? answer.text.slice(0, 300) : answer,
+        })
+        .catch(() => undefined);
       waiting.resolve(answer);
     },
     waiting(sessionId) {

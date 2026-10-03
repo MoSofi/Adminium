@@ -325,6 +325,7 @@ export default {
     "loading": "正在開啟預覽",
     "newTab": "在新分頁中開啟",
     "nothing": "尚無內容。Designer 套用應用程式後，它會顯示在這裡。",
+    "offLive": "線上伺服器上預覽已關閉。套用完成後，請從儀表板開啟應用程式。",
     "phone": "手機",
     "reload": "重新載入",
     "side": "端",

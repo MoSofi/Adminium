@@ -1926,8 +1926,27 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 }),
               log: (message) => app.log.warn(message),
             });
-      await live?.checkAtBoot();
-      await api.register(designerLiveRoutes({ meta, live }));
+      // The switch going off by itself is in the audit log beside a person's own on and off.
+      if ((await live?.checkAtBoot()) === true) {
+        await auditRepo(meta).append({
+          actorKind: 'system',
+          actorId: null,
+          actorLabel: 'Adminium Designer',
+          category: 'settings',
+          action: 'designer.live.off',
+          changes: { after: { on: false, reason: 'disk-not-kept' } },
+        });
+      }
+      await api.register(
+        designerLiveRoutes({
+          meta,
+          live,
+          stopRunning: () => {
+            const active = designer?.runner.active() ?? null;
+            if (active !== null) designer?.runner.stop(active.sessionId);
+          },
+        }),
+      );
       const designerOpts = opts.designer ?? (liveAllowed ? ({ mode: 'live' } as const) : undefined);
       if (designerOpts !== undefined && projectRoot !== null) {
         const root = projectRoot;

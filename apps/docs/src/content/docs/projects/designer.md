@@ -86,7 +86,12 @@ exact words and nothing is fetched until you tick that they may run. The approva
 `.adminium/approved-builds.json`, outside the app's folder, and is of those exact words: if
 `apps/<key>/build.json` changes, it has to be given again
 ([`adminium app approve-build`](/reference/cli/#app-approve-build)). The Designer cannot change
-`build.json`, `package.json`, the Vite or TypeScript config, or `scripts/` of such an app.
+`build.json`, `package.json`, the lock file, a config file of the build (Vite, PostCSS, Tailwind,
+TypeScript) or `scripts/` of such an app, and it never writes a `build.json` for any app.
+
+The app's Vite config imports some of the app's own source (its navigation, its words), and Vite
+runs those files on your machine each time it builds. Before the Designer changes one of them it
+asks, once in a turn, naming the file. A screen the config does not import needs no question.
 
 **The licence.** The apps are AGPL-3.0, and a copy keeps that licence. If people use your copy over
 a network (your customers, on your site), the licence asks you to offer them the source of your
@@ -147,18 +152,22 @@ They are settings of the install:
 2. **A Super Admin** switches it on in **Settings → AI**, and types their password to do it.
 3. **Whoever uses it** holds the permission `system:designer:use`. Only a Super Admin does by default.
 
-Every turn is recorded in the audit log, and so is the switch.
+Every turn is recorded in the audit log, and so are the switch (on, off, and a wrong password),
+each answer to a card (a package, tests, server code) with who gave it, and a switch that went off
+by itself. Switching it off stops the turn that is running.
 
 | On a live server | |
 |---|---|
 | The preview | Off. A preview keeps model-written screens on a second address of the machine, and a server has one. Open the app from the dashboard once it is applied |
 | What it builds | Is served to your staff like any app of the project: screens a model wrote run in their browsers, with what their roles may do |
 | The project folder | Has to be on a disk that is kept. If the folder does not come back after a restart, the switch goes off and says why |
-| Screens | Need `esbuild` in the project, which the published image carries |
-| A model's address | A private or loopback address is refused, except Ollama's |
+| Screens | Need `esbuild` in the project's own `node_modules`. A new project has it as a dev dependency; the published image does not carry it, and the project's `Dockerfile` removes `node_modules` after the build. In a container, keep the project folder on a volume and run `npm install` in it. Without it the switch is refused and says so |
+| Models | The ones the server has: Settings → AI, or the operator's environment. The Designer does not add or try a model connection on a live server |
 
-Treat it as you would giving someone a shell on that server: the Designer writes server code only
-after a yes, and that yes is theirs to give.
+Treat the permission as you would giving someone a shell on that server: the Designer writes
+server code only after a yes, and that yes is theirs to give. The screens it writes run in the
+same browser session as the dashboard, so give the permission only to people you would give the
+server to.
 
 ## After the Designer
 

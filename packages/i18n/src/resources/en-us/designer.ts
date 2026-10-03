@@ -325,6 +325,7 @@ export default {
     "loading": "Opening the preview",
     "newTab": "Open in a new tab",
     "nothing": "Nothing to show yet. Once the Designer applies the app, it shows here.",
+    "offLive": "The preview is off on a live server. Open the app from the dashboard once it is applied.",
     "phone": "Phone",
     "reload": "Reload",
     "side": "Side",

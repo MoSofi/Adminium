@@ -325,6 +325,7 @@ export default {
     "loading": "Otevírá se náhled",
     "newTab": "Otevřít na nové kartě",
     "nothing": "Zatím není co ukázat. Jakmile Designer aplikaci použije, zobrazí se zde.",
+    "offLive": "Na živém serveru je náhled vypnutý. Otevřete aplikaci z dashboardu, jakmile bude použita.",
     "phone": "Telefon",
     "reload": "Načíst znovu",
     "side": "Strana",

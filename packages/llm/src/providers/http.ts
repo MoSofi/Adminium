@@ -80,7 +80,8 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
     controller.abort();
   }, timeoutMs);
 
-  const init: RequestInit = { method, signal: controller.signal };
+  // A redirect is never followed: the address that was checked is the address that is called.
+  const init: RequestInit = { method, signal: controller.signal, redirect: 'manual' };
   if (headers !== undefined) init.headers = headers;
   if (body !== undefined) init.body = JSON.stringify(body);
 
@@ -104,6 +105,15 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
     });
   } finally {
     clearTimeout(timer);
+  }
+
+  if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) {
+    throw new ProviderError({
+      provider,
+      code: codeForStatus(res.status),
+      status: res.status,
+      message: `${provider}: the provider answered a redirect (HTTP ${String(res.status)}), which is never followed. Give the address it redirects to.`,
+    });
   }
 
   if (!res.ok) {

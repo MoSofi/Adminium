@@ -166,6 +166,12 @@ describe('a server running adminium design', () => {
       expect(res.statusCode, url).toBe(403);
       expect(res.json(), url).toMatchObject({ error: { details: { reason: 'PREVIEW_HOST' } } });
     }
+    // Nor any door that would leave a session other than the preview user's on that name.
+    for (const url of ['/api/v1/auth/login', '/api/v1/auth/2fa/verify', '/api/v1/auth/password/reset', '/api/v1/auth/desktop-session']) {
+      const res = await app.inject({ method: 'POST', url, headers: { host: PREVIEW, origin: `http://${PREVIEW}` }, payload: {} });
+      expect(res.statusCode, url).toBe(403);
+      expect(res.json(), url).toMatchObject({ error: { details: { reason: 'PREVIEW_HOST' } } });
+    }
   });
 
   it('lets the Designer frame the preview, and only the Designer', async () => {

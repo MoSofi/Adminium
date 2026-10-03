@@ -131,6 +131,15 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       });
     }
 
+    /*
+     * On a live server a model's address is the server's own setting (Settings → AI, or the operator's
+     * environment): someone who may use the Designer does not point the server at an address of their choosing.
+     */
+    const onLive = deps.mode === 'live';
+    const refuseOnLive = (): void => {
+      if (onLive) throw new ForbiddenError('On a live server, model connections are set in Settings → AI.', 'FORBIDDEN', { reason: 'LIVE' });
+    };
+
     app.get('/designer/state', { preHandler: guard, config: RATE, schema: { response: { 200: designerStateReply } } }, async () => ({
       mode: deps.mode,
       project: basename(deps.root),
@@ -388,7 +397,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           return verdict === null ? [] : [{ connectionId: connection.id, model: model.id, canBuild: verdict.canBuild, message: verdict.canBuild ? null : verdict.message }];
         }),
       );
-      return { connections: listedModels, selected, verdicts, canAdd: connections.envWritable };
+      return { connections: listedModels, selected, verdicts, canAdd: connections.envWritable && !onLive };
     });
 
     // Whether one model can build: a round trip, kept for the process (Q15).
@@ -415,13 +424,17 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         config: { ...RATE, audit: auditExempt('a test saves nothing') },
         schema: { body: designerConnectionDraft, response: { 200: designerConnectionTestReply } },
       },
-      async (request) => connections.test(request.body),
+      async (request) => {
+        refuseOnLive();
+        return connections.test(request.body);
+      },
     );
 
     app.put(
       '/designer/connections',
       { preHandler: guard, config: RATE, schema: { body: designerConnectionSaveBody, response: { 200: designerConnectionReply } } },
       async (request) => {
+        refuseOnLive();
         const saved = await connections.save(request.body);
         // Provider and model only: the key is never in an audit entry.
         await app.rbac.audit(request, {

@@ -113,7 +113,7 @@ const COPIED = (appKey: string): string =>
   `This app is a copy of a published app, made the person's own. It is large: read before you change, and change little.
 - Its manifest is part files under apps/${appKey}/manifest/ like any app's. Tables, pages, roles and access are changed there.
 - Its screens are ONE Vite app in apps/${appKey}/src/, shared by the staff and the customer side (not staff/ and customer/ folders). List a folder before reading in it; files are many.
-- It builds with its own build, which the person approved. build_sides and apply_app run it. You cannot change package.json, vite.config, tsconfig, build.json or scripts/, and add_side is not for this app.
+- It builds with its own build, which the person approved. build_sides and apply_app run it. You cannot change package.json, the lock file, a config file of the build (vite, postcss, tailwind, tsconfig), build.json or scripts/, and add_side is not for this app. A file the Vite config imports (vite.config.ts names them, and what they import in turn) runs on the person's machine at every build: changing one waits for the person's yes, so change one only when what was asked needs it.
 - A column you add to a table is not shown by its screens until you add it to the screen that lists or edits that table: find it in src/ by the table's name.`;
 
 export function appNow(root: string, version: string, appKey: string): { text: string; hasSides: boolean; empty: boolean } {

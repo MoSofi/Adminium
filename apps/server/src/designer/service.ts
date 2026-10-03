@@ -269,6 +269,7 @@ export function createDesigner(host: DesignerHost): Designer {
       host.publish(event);
     },
     audit: (action, session, detail) => host.audit(action, null, { sessionId: session.id, appKey: session.appKey, ...detail }),
+    auditCard: (sessionId, by, detail) => host.audit('designer.card.answered', by, { sessionId, ...detail }),
     log: host.log,
   });
 

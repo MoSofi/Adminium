@@ -49,7 +49,7 @@ export function hostRole(host: string | undefined, port: number): 'designer' | '
 }
 
 /** What the preview's name may never reach: everything that acts for the person. */
-const DESIGNER_ONLY = /^\/api\/v1\/(designer|auth\/design-session|auth\/login|llm|setup|users|roles|permissions|api-keys|settings)(\/|$|\?)/i;
+const DESIGNER_ONLY = /^\/api\/v1\/(designer|auth\/design-session|auth\/login|auth\/2fa|auth\/password|auth\/desktop-session|llm|setup|users|roles|permissions|api-keys|settings)(\/|$|\?)/i;
 
 /**
  * An app's own screens: code a model wrote. On the Designer's name they would

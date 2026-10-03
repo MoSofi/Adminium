@@ -290,6 +290,48 @@ describe('the Designer’s tools', () => {
     expect((await run('add_side', { side: 'staff' })).content).toContain('builds them itself');
   });
 
+  it('never write a build.json, and in a copied app change a file the build runs only with a yes', async () => {
+    // No app gets a build of its own from a model.
+    expect(await run('write_file', { path: 'apps/repairs/build.json', content: '{}' })).toMatchObject({ isError: true, label: 'Not yours to change' });
+    expect(existsSync(join(root, 'apps/repairs/build.json'))).toBe(false);
+
+    // A copied app: its Vite config imports its own source, which Vite runs in Node at every build.
+    const put = (path: string, content: string): void => {
+      mkdirSync(join(root, 'apps/repairs', path, '..'), { recursive: true });
+      writeFileSync(join(root, 'apps/repairs', path), content);
+    };
+    put('build.json', JSON.stringify({ install: 'npm ci --ignore-scripts', command: 'vite build', output: 'dist-surface/repairs' }));
+    put('vite.config.ts', "import { emit } from './surface-emit';\nimport { nav } from './src/surface-nav.js';\nexport default { plugins: [emit(nav)] };\n");
+    put('surface-emit.ts', "import words from './src/i18n/messages';\nexport const emit = (x: unknown) => ({ x, words });\n");
+    put('src/surface-nav.ts', 'export const nav = [];\n');
+    put('src/i18n/messages/index.ts', "export { en } from './en';\n");
+    put('src/i18n/messages/en.ts', 'export const en = {};\n');
+    put('src/screens/Home.tsx', 'export {};\n');
+
+    // A config the build's tools find by name is never the model's.
+    for (const path of ['postcss.config.mjs', 'tailwind.config.ts', 'vite.config.js']) {
+      expect(await run('write_file', { path: `apps/repairs/${path}`, content: 'export default {};' }), path).toMatchObject({ isError: true, label: 'Not yours to change' });
+    }
+
+    // A screen the config does not import is the model's, with no card.
+    const before = asked.length;
+    expect(await run('write_file', { path: 'apps/repairs/src/screens/Home.tsx', content: 'export const a = 1;' })).toMatchObject({ label: 'Wrote src/screens/Home.tsx' });
+    expect(asked).toHaveLength(before);
+
+    // What the config imports, however deep, and any spelling that would resolve in its place, waits for a yes.
+    answers.push({ type: 'question', text: 'Do not allow it' });
+    expect(await run('edit_file', { path: 'apps/repairs/src/i18n/messages/en.ts', old: '{}', new: '{ a: 1 }' })).toMatchObject({ isError: true, label: 'Build code not allowed' });
+    expect(asked.at(-1)).toMatchObject({ type: 'question', question: expect.stringContaining('src/i18n/messages/en.ts') });
+    expect(asked).toHaveLength(before + 1);
+    for (const path of ['surface-emit.ts', 'src/surface-nav.ts', 'src/surface-nav.tsx', 'src/Surface-Nav.js', 'src/i18n/messages.ts', 'src/i18n/messages/index.tsx']) {
+      expect(await run('write_file', { path: `apps/repairs/${path}`, content: 'export {};' }), path).toMatchObject({ isError: true, label: 'Build code not allowed' });
+    }
+    expect(await run('delete_file', { path: 'apps/repairs/src/surface-nav.ts' })).toMatchObject({ isError: true, label: 'Build code not allowed' });
+    // One card for the turn.
+    expect(asked).toHaveLength(before + 1);
+    expect(readFileSync(join(root, 'apps/repairs/src/i18n/messages/en.ts'), 'utf8')).toBe('export const en = {};\n');
+  });
+
   it('run the app’s own tests, and say when there are none', async () => {
     // Tests are code the model wrote: nothing runs until the person says so, and a no is taken.
     answers.push({ type: 'question', text: 'Do not run them' });

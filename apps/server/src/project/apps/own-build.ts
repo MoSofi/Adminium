@@ -24,8 +24,8 @@
  */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, posix } from 'node:path';
 
 import { BUILD_DIR } from '../build-shared.js';
 import { APPS_DIR, SIDES, appDir, type AppSide } from './read-app.js';
@@ -97,6 +97,73 @@ export function approveBuild(root: string, key: string, build: AppBuildFile): vo
 export const unapprovedProblem = (key: string, build: AppBuildFile): string =>
   `${APPS_DIR}/${key} — its build is not approved, so it was not run. It would run, in ${APPS_DIR}/${key}/:  ${build.install}  and then  ${build.command}  Approve it with:  adminium app approve-build ${key}`;
 
+const CODE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json'];
+const IMPORT_SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"\n]*)\1/g;
+const MAX_CODE_FILES = 4000;
+
+/** A path inside the app without its last extension, folded: `src/Nav.ts` and `src/nav.tsx` are one stem. */
+export const codeStem = (path: string): string => {
+  const folded = path.normalize('NFC').toLowerCase();
+  const dot = folded.lastIndexOf('.');
+  return dot > folded.lastIndexOf('/') && CODE_EXTENSIONS.includes(folded.slice(dot)) ? folded.slice(0, dot) : folded;
+};
+
+/**
+ * The files an app's build RUNS on this machine, as stems: its Vite config
+ * and everything that config imports, by relative path, however deep. Vite
+ * bundles the config's imports and executes them in Node before it builds
+ * anything, so a change to one of them is a change to what the approved
+ * command does.
+ *
+ * Stems, not files: beside `nav.ts` a new `nav.tsx` would be picked first by
+ * the resolver, and beside a folder's `index.ts` a file named as the folder.
+ * Every spelling an import could resolve to is in the set, there or not.
+ */
+export function buildCodeStems(root: string, key: string): Set<string> {
+  const dir = appDir(root, key);
+  const stems = new Set<string>();
+  const seen = new Set<string>();
+  let entries: string[];
+  try {
+    entries = readdirSync(dir).filter((name) => /^vite\.config\.[a-z]+$/i.test(name));
+  } catch {
+    return stems;
+  }
+  const isFile = (relative: string): boolean => {
+    try {
+      return statSync(join(dir, relative)).isFile();
+    } catch {
+      return false;
+    }
+  };
+  const queue = [...entries];
+  while (queue.length > 0 && seen.size < MAX_CODE_FILES) {
+    const file = queue.shift() as string;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    stems.add(codeStem(file));
+    let text: string;
+    try {
+      text = readFileSync(join(dir, file), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const found of text.matchAll(IMPORT_SPEC)) {
+      const spec = (found[2] as string).split(/[?#]/)[0] as string;
+      const target = posix.normalize(posix.join(posix.dirname(file), spec)).replace(/\/$/, '');
+      if (target === '' || target === '.' || target.startsWith('..') || target.split('/').includes('node_modules')) continue;
+      const bare = CODE_EXTENSIONS.some((extension) => target.toLowerCase().endsWith(extension)) ? target.slice(0, target.lastIndexOf('.')) : target;
+      stems.add(codeStem(target));
+      stems.add(bare.normalize('NFC').toLowerCase());
+      stems.add(`${bare.normalize('NFC').toLowerCase()}/index`);
+      for (const candidate of [target, ...CODE_EXTENSIONS.flatMap((extension) => [`${bare}${extension}`, `${bare}/index${extension}`, `${target}${extension}`])]) {
+        if (!seen.has(candidate) && isFile(candidate)) queue.push(candidate);
+      }
+    }
+  }
+  return stems;
+}
+
 /** The environment a build gets: where programs are, and nothing of this server's. */
 function buildEnvironment(env: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = {};
@@ -114,7 +181,9 @@ export type StepRunner = (line: string, cwd: string, signal?: AbortSignal) => Pr
 export const runLine: StepRunner = (line, cwd, signal) =>
   new Promise((resolve) => {
     let output = '';
-    const child = spawn(line, { cwd, env: buildEnvironment(process.env), shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    // Its own process group where there are groups: the shell's children (npm, Vite) end with it.
+    const grouped = process.platform !== 'win32';
+    const child = spawn(line, { cwd, env: buildEnvironment(process.env), shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
     const keep = (chunk: Buffer): void => {
       output = `${output}${chunk.toString('utf8')}`.slice(-MAX_OUTPUT);
     };
@@ -123,7 +192,12 @@ export const runLine: StepRunner = (line, cwd, signal) =>
     let killed = false;
     const kill = (): void => {
       killed = true;
-      child.kill('SIGKILL');
+      try {
+        if (grouped && child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
+        else child.kill('SIGKILL');
+      } catch {
+        child.kill('SIGKILL');
+      }
     };
     const timer = setTimeout(kill, STEP_TIMEOUT_MS);
     signal?.addEventListener('abort', kill, { once: true });

@@ -9083,6 +9083,10 @@
     "status": "mt",
     "srcHash": "4981b72433c5"
   },
+  "designer.preview.offLive": {
+    "status": "mt",
+    "srcHash": "220daa88d17c"
+  },
   "designer.preview.phone": {
     "status": "mt",
     "srcHash": "77064d526523"

@@ -43,6 +43,8 @@ export interface DesignerLiveRoutesDeps {
   meta: MetaDb;
   /** Null on a `design` server, which is local and has no switch. */
   live: Live | null;
+  /** Stop the turn that is running, if one is: switching off ends what the Designer is doing. */
+  stopRunning?: () => void;
 }
 
 export function designerLiveRoutes(deps: DesignerLiveRoutesDeps): FastifyPluginAsyncZod {
@@ -66,14 +68,29 @@ export function designerLiveRoutes(deps: DesignerLiveRoutesDeps): FastifyPluginA
         const user = request.user;
         if (user === null) throw new AppError(401, 'UNAUTHENTICATED', 'Sign in first.');
         if (request.body.on) {
+          // The second of three hands: holding the permission to use the Designer is not enough to switch it on.
+          if (!(await app.rbac.resolve(request)).superAdmin) {
+            throw new AppError(403, 'FORBIDDEN', 'Only a Super Admin switches Adminium Designer on.', { reason: 'SUPER_ADMIN' });
+          }
           const stored = await usersRepo(deps.meta).findById(user.id);
           const given = request.body.password ?? '';
           if (stored === null || stored.passwordHash === null || given === '' || !(await verifyPassword(stored.passwordHash, given))) {
+            // A wrong password here is someone trying a session that is not theirs: it is kept.
+            await auditRepo(deps.meta).append({
+              actorKind: 'user',
+              actorId: user.id,
+              actorLabel: user.email,
+              category: 'settings',
+              action: 'designer.live.refused',
+              changes: { after: { reason: 'password' } },
+            });
             throw new AppError(403, 'FORBIDDEN', 'That is not your password.', { reason: 'PASSWORD' });
           }
         }
         const refused = await deps.live.set(request.body.on);
         if (refused !== null) throw new ConflictError(WHY[refused], 'CONFLICT', { reason: refused });
+        // Off is off now: a turn left running could no longer be stopped by anyone.
+        if (!request.body.on) deps.stopRunning?.();
         await auditRepo(deps.meta).append({
           actorKind: 'user',
           actorId: user.id,
