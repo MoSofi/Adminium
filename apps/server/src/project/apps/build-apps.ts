@@ -177,6 +177,8 @@ export interface BuildAppsOptions {
   sideModule?: string;
   /** How an app's own build command is run; tests pass their own. */
   runBuild?: StepRunner;
+  /** Ends an app's own build command that is running: the Designer's Stop. */
+  signal?: AbortSignal;
 }
 
 /** Build one app, or say why not. Never throws for what is in the app's files. */
@@ -202,7 +204,7 @@ async function buildOne(root: string, key: string, opts: BuildAppsOptions): Prom
     if ('problem' in own) return failed([own.problem]);
     // A command runs only once a person approved its exact words.
     if (!isBuildApproved(root, key, own)) return failed([unapprovedProblem(key, own)]);
-    const ran = await runOwnBuild(root, key, own, { sides: check.sides, ...(opts.runBuild === undefined ? {} : { run: opts.runBuild }) });
+    const ran = await runOwnBuild(root, key, own, { sides: check.sides, ...(opts.runBuild === undefined ? {} : { run: opts.runBuild }), ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
     if ('problems' in ran) return failed(ran.problems);
   } else if (check.sides.length > 0 && opts.bundler === null) {
     return failed([`apps/${key} — its screens need esbuild to build, and this project does not have it. Install it:  npm install --save-dev esbuild`]);

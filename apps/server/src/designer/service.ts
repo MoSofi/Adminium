@@ -195,7 +195,7 @@ export function createDesigner(host: DesignerHost): Designer {
     if (errors.length > 0) return { ok: false, version: null };
 
     // 2. Built as `adminium build` builds it: the manifest put together, the screens bundled.
-    const built = await rebuildApps(project(), { version: host.version, dev: true });
+    const built = await rebuildApps(project(), { version: host.version, dev: true, signal: handle.signal });
     const app = built.apps.find((candidate) => candidate.key === key);
     const problems = app?.problems ?? (app === undefined ? [`apps/${key} was not built.`] : []);
     events.emit(turn, { kind: 'build', ok: problems.length === 0, problems: problems.slice(0, 20) });

