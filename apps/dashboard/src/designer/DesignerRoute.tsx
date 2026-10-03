@@ -15,6 +15,7 @@ import { getI18nRevision, subscribeI18nRevision } from '@adminium/i18n';
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { useDesignerMessages } from './designerMessages.js';
+import { useLateDesignToken } from './lateToken.js';
 import { SpentLinkPage } from './SpentLinkPage.js';
 import { DesignerHome } from './home/DesignerHome.js';
 
@@ -26,6 +27,7 @@ function Signed({ sessionId }: { sessionId: string | null }): ReactNode {
 }
 
 export function DesignerRoute({ sessionId = null }: { sessionId?: string | null }): ReactNode {
+  useLateDesignToken();
   // Read, never fetched here: the route's check already asked, and a 401 left no data.
   const bootstrap = useQuery({ ...bootstrapQuery(), enabled: false });
   if (bootstrap.data === undefined) {

@@ -334,7 +334,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       async (request) => {
         if ((await connections.find(request.body.connectionId)) === null) throw new NotFoundError('There is no such model connection.', { connectionId: request.body.connectionId });
         const verdict = await connections.canBuildWith(request.body.connectionId as ConnectionId, request.body.model);
-        return verdict.canBuild ? { canBuild: true, message: null } : { canBuild: false, message: verdict.message };
+        if (verdict.canBuild) return { canBuild: true, message: null };
+        return { canBuild: verdict.reason === 'error' ? null : false, message: verdict.message };
       },
     );
 

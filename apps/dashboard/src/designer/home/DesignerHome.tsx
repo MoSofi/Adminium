@@ -26,8 +26,8 @@ import { ApiError } from '../../app/api.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, yourAppsQuery, type DesignerTarget } from '../api.js';
-import { ModelButton } from '../models/ModelButton.js';
 import { useDesignerModel } from '../models/useModel.js';
+import { useModelControl } from '../models/useModelControl.js';
 import { TopBar } from '../parts/TopBar.js';
 import { StartWithAnApp } from './StartWithAnApp.js';
 import { YourApps } from './YourApps.js';
@@ -46,17 +46,18 @@ function targets(): { id: DesignerTarget; label: string; line: string; icon: Luc
   ];
 }
 
-export function DesignerHome({ onAddModel, onOpenModels }: { onAddModel?: () => void; onOpenModels?: () => void }): ReactNode {
+export function DesignerHome(): ReactNode {
   const navigate = useNavigate();
   const toasts = useAppToasts();
   const model = useDesignerModel();
+  const control = useModelControl(model);
   const yourApps = useQuery(yourAppsQuery());
   const [text, setText] = useState('');
   const [target, setTarget] = useState<DesignerTarget>('auto');
   const [turn, setTurn] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const noModel = !model.loading && model.picked === null;
+  const noModel = !model.loading && model.picked === null && !model.hasModels;
   const cannotBuild = model.canBuild === false;
   const canSend = text.trim() !== '' && model.picked !== null && !cannotBuild;
 
@@ -133,7 +134,7 @@ export function DesignerHome({ onAddModel, onOpenModels }: { onAddModel?: () => 
                 className="block max-h-[216px] min-h-[72px] w-full resize-none rounded-t-[20px] bg-transparent px-[18px] pt-4 text-[15px] leading-normal text-fg outline-none placeholder:text-fg-subtle disabled:cursor-not-allowed"
               />
               <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-2">
-                <ModelButton model={model} onAdd={onAddModel} onOpen={onOpenModels} />
+                {control.element}
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     disabled={noModel}
@@ -170,11 +171,9 @@ export function DesignerHome({ onAddModel, onOpenModels }: { onAddModel?: () => 
                 <Sparkles aria-hidden="true" className="mt-0.5 size-[15px] shrink-0" />
                 <span>
                   {t('designer:home.noModel', 'Adminium Designer uses your own AI model. Add one to begin.')}{' '}
-                  {onAddModel === undefined ? null : (
-                    <button type="button" onClick={onAddModel} className="whitespace-nowrap font-bold text-accent hover:underline">
-                      {t('designer:model.add', 'Add a model')}
-                    </button>
-                  )}
+                  <button type="button" onClick={control.openAdd} className="whitespace-nowrap font-bold text-accent hover:underline">
+                    {t('designer:model.add', 'Add a model')}
+                  </button>
                 </span>
               </p>
             ) : null}

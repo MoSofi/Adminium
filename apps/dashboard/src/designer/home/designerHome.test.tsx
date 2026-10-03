@@ -94,6 +94,7 @@ function stubFetch(): void {
         return Promise.resolve(jsonResponse(201, { session: { ...SESSION, appKey: sent.appKey ?? SESSION.appKey }, turn: sent.text === undefined ? null : 1 }));
       }
       if (url === '/api/v1/designer/apps') return Promise.resolve(jsonResponse(200, { state: 'ok', apps: [] }));
+      if (url === '/api/v1/auth/design-session') return Promise.resolve(jsonResponse(200, { ok: true }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'req_t' } }));
     }),
   );
@@ -136,7 +137,11 @@ describe('Designer Home with no model', () => {
     expect(screen.getByText('Adminium Designer uses your own AI model. Add one to begin.')).toBeTruthy();
     expect(box().getAttribute('aria-describedby')).toBe('designer-home-note');
     expect(sendButton().disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Add a model' })).toBeTruthy();
+    // The model button and the note's link both open the dialog.
+    const adds = screen.getAllByRole('button', { name: 'Add a model' });
+    expect(adds).toHaveLength(2);
+    await userEvent.click(adds[1] as HTMLElement);
+    expect(await screen.findByRole('dialog', { name: 'Add a model' })).toBeTruthy();
   });
 });
 
@@ -234,5 +239,15 @@ describe('Your apps', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Continue Class Sign-ups' }));
     await waitFor(() => expect(created()).toHaveLength(1));
     expect(created()[0]?.body).toEqual({ appKey: 'classes', target: 'auto', connectionId: 'env:anthropic', model: 'claude-test' });
+  });
+});
+
+describe('the design link opened on a page already showing the Designer', () => {
+  it('is taken out of the address and spent, though the page did not load again', async () => {
+    await renderHome();
+    window.history.replaceState(null, '', `/design#designToken=${'b'.repeat(64)}`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/auth/design-session').map((call) => call.body)).toEqual([{ designToken: 'b'.repeat(64) }]));
+    expect(window.location.hash).toBe('');
   });
 });

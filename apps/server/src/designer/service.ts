@@ -189,6 +189,9 @@ export function createDesigner(host: DesignerHost): Designer {
       if (input.model.trim() === '') throw new ValidationFailedError('Choose a model.', { reason: 'MODEL' });
       // A model that cannot call tools cannot build (Q15): said before anything is made.
       const verdict = await host.connections.canBuildWith(connection.id, input.model);
+      if (!verdict.canBuild && verdict.reason === 'error') {
+        throw new ConflictError(`The model could not be asked: ${verdict.message}`, 'CONFLICT', { reason: 'MODEL_UNREACHABLE', code: verdict.code });
+      }
       if (!verdict.canBuild) {
         throw new ConflictError(`This model cannot build: ${verdict.message}`, 'CONFLICT', { reason: 'MODEL_CANNOT_BUILD', why: verdict.reason });
       }

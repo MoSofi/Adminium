@@ -34,9 +34,11 @@ export type CanBuild =
   | {
       canBuild: false;
       /** `no-tool-call`: it ignored the tool. `refused-result`: it would not take the tool's answer. */
-      reason: 'no-tool-call' | 'refused-result' | 'error';
+      reason: 'no-tool-call' | 'refused-result';
       message: string;
-    };
+    }
+  /** The model could not be asked (a refused key, no answer): no verdict on the model. `code` is the provider error's. */
+  | { canBuild: false; reason: 'error'; code: string; message: string };
 
 const ECHO: RunTool = {
   name: 'echo',
@@ -73,7 +75,7 @@ export async function canBuild(runner: ProviderRunner, model: string, opts: { si
   } catch (error) {
     // The caller's own stop is not a verdict on the model.
     if (error instanceof ProviderError && error.code === 'aborted') throw error;
-    return { canBuild: false, reason: 'error', message: error instanceof Error ? error.message : String(error) };
+    return { canBuild: false, reason: 'error', code: error instanceof ProviderError ? error.code : 'error', message: error instanceof Error ? error.message : String(error) };
   }
   const call = first.blocks.find((block) => block.type === 'tool_call');
   if (call === undefined || call.type !== 'tool_call' || call.name !== ECHO.name) {

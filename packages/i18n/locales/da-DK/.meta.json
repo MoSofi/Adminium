@@ -8415,6 +8415,22 @@
     "status": "mt",
     "srcHash": "5dd98dadf960"
   },
+  "designer.model.addedChip": {
+    "status": "mt",
+    "srcHash": "b68734c25910"
+  },
+  "designer.model.addedToast": {
+    "status": "mt",
+    "srcHash": "d716c72262d0"
+  },
+  "designer.model.address": {
+    "status": "mt",
+    "srcHash": "d70f93df5e8f"
+  },
+  "designer.model.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
   "designer.model.button": {
     "status": "src",
     "srcHash": "e60d2adb303f"
@@ -8422,6 +8438,170 @@
   "designer.model.buttonCannot": {
     "status": "mt",
     "srcHash": "f5f34994e222"
+  },
+  "designer.model.canBuild": {
+    "status": "mt",
+    "srcHash": "adbda122dd1c"
+  },
+  "designer.model.cannotBuild": {
+    "status": "mt",
+    "srcHash": "7454543b2d95"
+  },
+  "designer.model.cannotBuildHint": {
+    "status": "mt",
+    "srcHash": "0ad59fd90d53"
+  },
+  "designer.model.cannotBuildSave": {
+    "status": "mt",
+    "srcHash": "a2fc14f572df"
+  },
+  "designer.model.checking": {
+    "status": "mt",
+    "srcHash": "1c828cdc3722"
+  },
+  "designer.model.choose": {
+    "status": "mt",
+    "srcHash": "fefb33262ac7"
+  },
+  "designer.model.chooseProvider": {
+    "status": "mt",
+    "srcHash": "759c2eab54d2"
+  },
+  "designer.model.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "designer.model.connected": {
+    "status": "mt",
+    "srcHash": "54f07a6ac0b6"
+  },
+  "designer.model.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "designer.model.copyKey": {
+    "status": "mt",
+    "srcHash": "39963ac718fa"
+  },
+  "designer.model.empty": {
+    "status": "mt",
+    "srcHash": "7bcd787e6c15"
+  },
+  "designer.model.find": {
+    "status": "mt",
+    "srcHash": "2f629b09bdc7"
+  },
+  "designer.model.fromSettings": {
+    "status": "mt",
+    "srcHash": "711a8fe1925a"
+  },
+  "designer.model.hideKey": {
+    "status": "mt",
+    "srcHash": "136231049a42"
+  },
+  "designer.model.kept": {
+    "status": "mt",
+    "srcHash": "93fe2a292e73"
+  },
+  "designer.model.keptLead": {
+    "status": "mt",
+    "srcHash": "c7b24db085b0"
+  },
+  "designer.model.key": {
+    "status": "mt",
+    "srcHash": "cf678cab87dc"
+  },
+  "designer.model.keyRefused": {
+    "status": "mt",
+    "srcHash": "9d653ddbc8d5"
+  },
+  "designer.model.keySaved": {
+    "status": "mt",
+    "srcHash": "d90c7c82ab0b"
+  },
+  "designer.model.list": {
+    "status": "mt",
+    "srcHash": "f3798f81c7b6"
+  },
+  "designer.model.model": {
+    "status": "src",
+    "srcHash": "68c2cc7f0cea"
+  },
+  "designer.model.optional": {
+    "status": "mt",
+    "srcHash": "0c6c4102d4df"
+  },
+  "designer.model.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.model.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "designer.model.saving": {
+    "status": "mt",
+    "srcHash": "56a2285c5b11"
+  },
+  "designer.model.showKey": {
+    "status": "mt",
+    "srcHash": "f7975bfb6ad1"
+  },
+  "designer.model.test": {
+    "status": "src",
+    "srcHash": "640ab2bae07b"
+  },
+  "designer.model.testAddressFirst": {
+    "status": "mt",
+    "srcHash": "68f936ecacc4"
+  },
+  "designer.model.testFailed": {
+    "status": "mt",
+    "srcHash": "2ba0408462ab"
+  },
+  "designer.model.testKeyFirst": {
+    "status": "mt",
+    "srcHash": "f510a0703646"
+  },
+  "designer.model.testing": {
+    "status": "mt",
+    "srcHash": "95c4564a945f"
+  },
+  "designer.model.unreachable": {
+    "status": "mt",
+    "srcHash": "bc097bb5fde6"
+  },
+  "designer.provider.anthropic": {
+    "status": "src",
+    "srcHash": "b780a23b530e"
+  },
+  "designer.provider.anthropicLine": {
+    "status": "mt",
+    "srcHash": "f512f8726c3e"
+  },
+  "designer.provider.compatible": {
+    "status": "mt",
+    "srcHash": "b10d74b5bb37"
+  },
+  "designer.provider.compatibleLine": {
+    "status": "mt",
+    "srcHash": "06b92c3c8ccd"
+  },
+  "designer.provider.ollama": {
+    "status": "mt",
+    "srcHash": "853b51a95351"
+  },
+  "designer.provider.ollamaLine": {
+    "status": "mt",
+    "srcHash": "6c4cae99ffd1"
+  },
+  "designer.provider.openai": {
+    "status": "src",
+    "srcHash": "a19ee5a9fdc1"
+  },
+  "designer.provider.openaiLine": {
+    "status": "mt",
+    "srcHash": "65e430cc3082"
   },
   "designer.spent.body": {
     "status": "mt",

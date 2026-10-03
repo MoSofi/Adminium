@@ -82,8 +82,8 @@ export interface ConnectionDraft {
 export interface ConnectionTest {
   ok: boolean;
   models: ModelInfo[];
-  /** Whether the named model can be built with; null when no model was named or the test did not get that far. */
-  canBuild: CanBuild | null;
+  /** Whether the named model can be built with; null when no model was named or the test did not get that far (a model that could not be asked fails the test). */
+  canBuild: Exclude<CanBuild, { reason: 'error' }> | null;
   error: { code: string; message: string } | null;
 }
 
@@ -335,6 +335,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         const models = await makeClient(config).listModels();
         if (draft.model === undefined || draft.model === '') return { ok: true, models, canBuild: null, error: null };
         const verdict = await canBuild(makeRunner(config), draft.model, opts.signal === undefined ? {} : { signal: opts.signal });
+        // The model could not be asked (a refused key shows here: the list above falls back to a built-in one): the test failed.
+        if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: { code: verdict.code, message: verdict.message } };
         verdicts.set(`env:${draft.provider}\u0000${draft.model}`, verdict);
         return { ok: true, models, canBuild: verdict, error: null };
       } catch (error) {

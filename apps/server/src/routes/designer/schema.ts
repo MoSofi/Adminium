@@ -134,7 +134,8 @@ export const designerModelsReply = z.object({
 });
 
 export const designerModelCheckBody = z.object({ connectionId: z.string().max(64), model: z.string().min(1).max(200) });
-export const designerModelCheckReply = z.object({ canBuild: z.boolean(), message: z.string().nullable() });
+/** `canBuild: null`: the model could not be asked (a refused key, no answer); `message` says why. */
+export const designerModelCheckReply = z.object({ canBuild: z.boolean().nullable(), message: z.string().nullable() });
 
 export const designerPreviewBody = z.object({ to: z.string().min(1).max(500) });
 export const designerPreviewReply = z.object({ url: z.string(), origin: z.string() });
@@ -155,7 +156,7 @@ export const designerConnectionTestReply = z.object({
   canBuild: z
     .union([
       z.object({ canBuild: z.literal(true), reportsUsage: z.boolean() }),
-      z.object({ canBuild: z.literal(false), reason: z.enum(['no-tool-call', 'refused-result', 'error']), message: z.string() }),
+      z.object({ canBuild: z.literal(false), reason: z.enum(['no-tool-call', 'refused-result']), message: z.string() }),
     ])
     .nullable(),
   error: z.object({ code: z.string(), message: z.string() }).nullable(),

@@ -55,6 +55,8 @@ export function useDesignerModel() {
 
   return {
     loading: models.isPending,
+    /** Some connection lists at least one model: there is something to pick. */
+    hasModels: data?.connections.some((connection) => connection.models.length > 0) ?? false,
     models: data,
     picked,
     /** `false`: it cannot build, with why. `true`: it can. `null`: not known yet. */

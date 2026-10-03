@@ -614,7 +614,10 @@ describe('whether a model can be built with', () => {
 
   it('reports an unreachable server as an error, and lets the caller’s own stop through', async () => {
     const down = new ProviderError({ provider: 'openai-compatible', code: 'network', message: 'connection refused' });
-    expect(await canBuild(scripted(down), 'm')).toMatchObject({ canBuild: false, reason: 'error' });
+    expect(await canBuild(scripted(down), 'm')).toMatchObject({ canBuild: false, reason: 'error', code: 'network' });
+    // A refused key is not a verdict on the model either: its code says what happened.
+    const refused = new ProviderError({ provider: 'anthropic', code: 'auth', status: 401, message: 'invalid x-api-key' });
+    expect(await canBuild(scripted(refused), 'm')).toMatchObject({ canBuild: false, reason: 'error', code: 'auth' });
     const stopped = new ProviderError({ provider: 'openai-compatible', code: 'aborted', message: 'stopped' });
     await expect(canBuild(scripted(stopped), 'm')).rejects.toBe(stopped);
   });

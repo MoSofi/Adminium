@@ -58,6 +58,12 @@ beforeAll(async () => {
         response.write(`${JSON.stringify(value)}\n`);
       };
       const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 50, eval_count: 5, message: { role: 'assistant', content: '' } };
+      // `locked` stands for a refused key.
+      if (sent.model === 'locked') {
+        response.statusCode = 401;
+        response.end(JSON.stringify({ error: 'unauthorized' }));
+        return;
+      }
       // The build check: call `echo`, then answer once the result is back. `plain` never calls a tool.
       if (sent.tools?.some((tool) => tool.function.name === 'echo') === true) {
         if (sent.model === 'plain') {
@@ -299,6 +305,18 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(refused.status).toBe(409);
     expect(refused.body).toMatchObject({ error: { details: { reason: 'MODEL_CANNOT_BUILD' } } });
     expect(existsSync(join(root!, 'apps', 'repair-desk'))).toBe(false);
+  });
+
+  it('fail a test whose model could not be asked, and never call that "cannot build"', async () => {
+    const client = await server({ designer: true });
+    const tested = await client.call('POST', '/api/v1/designer/connections/test', { provider: 'ollama', baseUrl: modelUrl, model: 'locked' });
+    expect(tested.body).toMatchObject({ ok: false, canBuild: null, error: { code: 'auth' } });
+    expect((await client.call('POST', '/api/v1/designer/models/check', { connectionId: 'env:ollama', model: 'locked' })).body).toMatchObject({ canBuild: null });
+    const refused = await client.call('POST', '/api/v1/designer/sessions', createBody({ model: 'locked' }));
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ error: { details: { reason: 'MODEL_UNREACHABLE', code: 'auth' } } });
+    // Nothing was decided about the model.
+    expect((await client.call('GET', '/api/v1/designer/models')).body['verdicts']).toEqual([]);
   });
 
   it('open a session on an app no session built, with no first message', async () => {

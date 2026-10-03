@@ -80,7 +80,7 @@ export interface ConnectionDraft {
 export interface ConnectionTest {
   ok: boolean;
   models: { id: string; label: string }[];
-  canBuild: { canBuild: true; reportsUsage: boolean } | { canBuild: false; reason: 'no-tool-call' | 'refused-result' | 'error'; message: string } | null;
+  canBuild: { canBuild: true; reportsUsage: boolean } | { canBuild: false; reason: 'no-tool-call' | 'refused-result'; message: string } | null;
   error: { code: string; message: string } | null;
 }
 
@@ -98,7 +98,7 @@ export const designerApi = {
   yourApps: () => api.get<{ apps: YourApp[] }>(`${BASE}/sessions`),
   catalog: () => api.get<{ state: 'ok' | 'off' | 'unreachable'; apps: CatalogApp[] }>(`${BASE}/apps`),
   models: () => api.get<DesignerModels>(`${BASE}/models`),
-  checkModel: (connectionId: string, model: string) => api.post<{ canBuild: boolean; message: string | null }>(`${BASE}/models/check`, { connectionId, model }),
+  checkModel: (connectionId: string, model: string) => api.post<{ canBuild: boolean | null; message: string | null }>(`${BASE}/models/check`, { connectionId, model }),
   testConnection: (draft: ConnectionDraft) => api.post<ConnectionTest>(`${BASE}/connections/test`, draft),
   saveConnection: (draft: ConnectionDraft & { model: string }) => api.put<ModelConnection>(`${BASE}/connections`, draft),
   createSession: (input: { appKey?: string; name?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
