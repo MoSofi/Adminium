@@ -183,8 +183,8 @@ describe('numbers without gaps', () => {
   it('asks every sample row to spell its gapless number null, so the load never numbers it into the real series', () => {
     expect(sampleBundleIssues(bundleOf([{ number_seq: null, number: 'INV-S2041' }]), studio())).toEqual([]);
     expect(sampleBundleIssues(bundleOf([{ number: 'INV-S2042' }, { number_seq: 7, number: 'INV-S2043' }]), studio())).toEqual([
-      { path: 'tables.0.rows.0.number_seq', message: '"number_seq" is numbered without gaps: a sample row spells it null, so it stays off the real series.' },
-      { path: 'tables.0.rows.1.number_seq', message: '"number_seq" is numbered without gaps: a sample row spells it null, so it stays off the real series.' },
+      { path: 'tables.0.rows.0.number_seq', message: '"number_seq" is numbered without gaps, and this row leaves it out. Write "number_seq": null in every sample row of "invoices", so the sample stays off the real series.' },
+      { path: 'tables.0.rows.1.number_seq', message: '"number_seq" is numbered without gaps, and this row gives it a value. Write "number_seq": null in every sample row of "invoices", so the sample stays off the real series.' },
     ]);
   });
 });
