@@ -102,6 +102,7 @@ import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
+import { stopOwnBuilds } from './project/apps/own-build.js';
 import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
@@ -1909,9 +1910,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               allowed: liveAllowed,
               settings: {
                 get: async () => ({ on: await liveSettings.get('designer.live'), id: await liveSettings.get('designer.liveId') }),
+                // The id first when switching on, the switch first when switching off: a write that stops half-way leaves it off.
                 set: async (value) => {
-                  await liveSettings.set('designer.live', value.on);
+                  if (!value.on) await liveSettings.set('designer.live', false);
                   await liveSettings.set('designer.liveId', value.id);
+                  if (value.on) await liveSettings.set('designer.live', true);
                 },
               },
               hasBundler:
@@ -1928,15 +1931,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             });
       // The switch going off by itself is in the audit log beside a person's own on and off.
       if ((await live?.checkAtBoot()) === true) {
-        await auditRepo(meta).append({
-          actorKind: 'system',
-          actorId: null,
-          actorLabel: 'Adminium Designer',
-          category: 'settings',
-          action: 'designer.live.off',
-          changes: { after: { on: false, reason: 'disk-not-kept' } },
-        });
+        await auditRepo(meta)
+          .append({
+            actorKind: 'system',
+            actorId: null,
+            actorLabel: 'Adminium Designer',
+            category: 'settings',
+            action: 'designer.live.off',
+            changes: { after: { on: false, reason: 'disk-not-kept' } },
+          })
+          .catch((error: unknown) => {
+            app.log.warn({ err: error }, 'the Designer switching off was not recorded in the audit log');
+          });
       }
+      // A build command still running when the server stops is ended with it.
+      app.addHook('onClose', async () => {
+        stopOwnBuilds();
+      });
       await api.register(
         designerLiveRoutes({
           meta,
@@ -1944,6 +1955,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           stopRunning: () => {
             const active = designer?.runner.active() ?? null;
             if (active !== null) designer?.runner.stop(active.sessionId);
+            stopOwnBuilds();
           },
         }),
       );

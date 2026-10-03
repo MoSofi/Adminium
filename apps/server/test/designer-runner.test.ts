@@ -335,6 +335,11 @@ describe('a Designer turn', () => {
     expect(() => {
       h.runner.answer(session.id, 'card_9_9', { text: 'Blue' }, { id: null, label: 'x' });
     }).toThrow('Nothing is waiting');
+    // A card's id is not one a page could guess, and the answer is the asker's to give.
+    expect(card?.id).toMatch(/^card_1_1_[0-9a-f]{16}$/);
+    expect(() => {
+      h.runner.answer(session.id, card?.id ?? '', { text: 'Blue' }, { id: 'usr_someone_else', label: 'y' });
+    }).toThrow('for the person who started the turn');
     h.runner.answer(session.id, card?.id ?? '', { text: 'Blue' }, { id: null, label: 'x' });
     await h.runner.settled();
     expect(kinds(h)).toContain('card-answered');

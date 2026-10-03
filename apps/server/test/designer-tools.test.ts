@@ -319,17 +319,37 @@ describe('the Designer’s tools', () => {
     expect(asked).toHaveLength(before);
 
     // What the config imports, however deep, and any spelling that would resolve in its place, waits for a yes.
-    answers.push({ type: 'question', text: 'Do not allow it' });
+    const NO = { type: 'question', text: 'Do not allow it' } as const;
+    answers.push(NO);
     expect(await run('edit_file', { path: 'apps/repairs/src/i18n/messages/en.ts', old: '{}', new: '{ a: 1 }' })).toMatchObject({ isError: true, label: 'Build code not allowed' });
-    expect(asked.at(-1)).toMatchObject({ type: 'question', question: expect.stringContaining('src/i18n/messages/en.ts') });
+    expect(asked.at(-1)).toMatchObject({ type: 'question', question: expect.stringContaining('the files in src/i18n/messages/ that this app\'s build runs (first: en.ts)') });
+    // The answer holds for that folder, for the turn.
+    expect(await run('write_file', { path: 'apps/repairs/src/i18n/messages/index.tsx', content: 'export {};' })).toMatchObject({ isError: true, label: 'Build code not allowed' });
     expect(asked).toHaveLength(before + 1);
-    for (const path of ['surface-emit.ts', 'src/surface-nav.ts', 'src/surface-nav.tsx', 'src/Surface-Nav.js', 'src/i18n/messages.ts', 'src/i18n/messages/index.tsx']) {
+    expect(readFileSync(join(root, 'apps/repairs/src/i18n/messages/en.ts'), 'utf8')).toBe('export const en = {};\n');
+
+    // A yes is for what the question named: the build's own plugin is asked about by its name, whatever was said before.
+    answers.push({ type: 'question', text: 'Allow it' });
+    expect(await run('write_file', { path: 'apps/repairs/surface-emit.ts', content: "export const emit = () => ({});\n" })).toMatchObject({ label: 'Wrote surface-emit.ts' });
+    expect(asked.at(-1)).toMatchObject({ type: 'question', question: expect.stringContaining('Let the Designer change surface-emit.ts?') });
+    expect(asked).toHaveLength(before + 2);
+
+    // Another folder, another question; every spelling that would resolve in a file's place is the same file.
+    answers.push(NO);
+    for (const path of ['src/surface-nav.tsx', 'src/Surface-Nav.js', 'src/surface-nav.ts']) {
       expect(await run('write_file', { path: `apps/repairs/${path}`, content: 'export {};' }), path).toMatchObject({ isError: true, label: 'Build code not allowed' });
     }
     expect(await run('delete_file', { path: 'apps/repairs/src/surface-nav.ts' })).toMatchObject({ isError: true, label: 'Build code not allowed' });
-    // One card for the turn.
-    expect(asked).toHaveLength(before + 1);
-    expect(readFileSync(join(root, 'apps/repairs/src/i18n/messages/en.ts'), 'utf8')).toBe('export const en = {};\n');
+    expect(asked).toHaveLength(before + 3);
+
+    // A folder's own package.json says which file an import of the folder runs: never the model's, at any depth.
+    expect(await run('write_file', { path: 'apps/repairs/src/i18n/messages/package.json', content: '{"main":"./x.js"}' })).toMatchObject({ isError: true, label: 'Not yours to change' });
+    // What a build left is not read back, and a short name is no second spelling of a guarded file.
+    mkdirSync(join(root, 'apps/repairs/dist-surface/repairs/staff'), { recursive: true });
+    writeFileSync(join(root, 'apps/repairs/dist-surface/repairs/staff/main.js'), 'x');
+    expect((await run('read_file', { path: 'apps/repairs/dist-surface/repairs/staff/main.js' })).isError).toBe(true);
+    expect((await run('write_file', { path: 'apps/repairs/VITECO~1.TS', content: 'export {};' })).isError).toBe(true);
+    expect(asked).toHaveLength(before + 3);
   });
 
   it('run the app’s own tests, and say when there are none', async () => {

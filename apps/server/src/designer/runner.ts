@@ -24,6 +24,8 @@
  * A card (a question, a package, data that would be lost) pauses the turn
  * until it is answered. Stop answers every waiting card with "stopped".
  */
+import { randomBytes } from 'node:crypto';
+
 import {
   DEFAULT_MAX_OUTPUT_TOKENS,
   estimateTokens,
@@ -34,7 +36,7 @@ import {
   type RunResult,
 } from '@adminium/llm';
 
-import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
 import type { DesignerEvent, EventLog, LimitKind, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
@@ -145,6 +147,8 @@ interface Running {
   sessionId: string;
   turn: number;
   controller: AbortController;
+  /** Who started the turn: its cards are theirs to answer. */
+  by: Actor;
   cards: Map<string, { card: DesignerCard; resolve: (answer: CardAnswer) => void; reject: (error: Error) => void }>;
   done: Promise<void>;
 }
@@ -191,7 +195,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       ask: (card) => {
         if (signal.aborted) return Promise.reject(new TurnStoppedError());
         cardSeq += 1;
-        const full = { ...card, id: `card_${String(turn)}_${String(cardSeq)}` } as DesignerCard;
+        // Not guessable: a page that is not the Designer's cannot name the card it would answer.
+        const full = { ...card, id: `card_${String(turn)}_${String(cardSeq)}_${randomBytes(8).toString('hex')}` } as DesignerCard;
         return new Promise<CardAnswer>((resolve, reject) => {
           // Stop answers the card at once: the tool waiting on it must not hold the turn open.
           const onStop = (): void => {
@@ -438,7 +443,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       const session = deps.store.read(sessionId);
       const turn = session.turns + 1;
       // Claimed before anything is awaited, so two starts cannot both pass the check above.
-      const claim: Running = { sessionId, turn, controller: new AbortController(), cards: new Map(), done: Promise.resolve() };
+      const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve() };
       running = claim;
       try {
         const updated = deps.store.update(sessionId, { turns: turn });
@@ -462,6 +467,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     answer(sessionId, cardId, value, by) {
       const waiting = running !== null && running.sessionId === sessionId ? running.cards.get(cardId) : undefined;
       if (running === null || waiting === undefined) throw new NotFoundError('Nothing is waiting for that answer.', { cardId });
+      // A yes is the yes of the person who asked for the turn, not of whoever else may use the Designer.
+      if (running.by.id !== by.id) throw new ForbiddenError('This question is for the person who started the turn.', 'FORBIDDEN', { reason: 'NOT_YOUR_TURN' });
       const answer = answerFor(waiting.card, value);
       if (answer === null) throw new ValidationFailedError('That answer does not fit the question.', { cardId });
       running.cards.delete(cardId);

@@ -18,7 +18,12 @@
  * last approved build left keeps serving.
  *
  * The build runs in the app's folder with a scrubbed environment (no
- * `ADMINIUM_*`, no keys) and a time limit. What it leaves in
+ * `ADMINIUM_*`, no keys) and a time limit. It is NOT a sandbox: it runs as
+ * the server's user and can read what that user can. Two things stand in
+ * for one. What the build runs as code is a person's to change (the config,
+ * and with a yes each time what the config imports). And a source file that
+ * names a path outside the app's folder stops the build before it starts: a
+ * bundler copies whatever a source file imports into the screens it serves. What it leaves in
  * `<output>/staff` and `<output>/customer` is copied to where the engine's
  * own builds go, so serving is the same for both kinds of app.
  */
@@ -98,7 +103,9 @@ export const unapprovedProblem = (key: string, build: AppBuildFile): string =>
   `${APPS_DIR}/${key} — its build is not approved, so it was not run. It would run, in ${APPS_DIR}/${key}/:  ${build.install}  and then  ${build.command}  Approve it with:  adminium app approve-build ${key}`;
 
 const CODE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json'];
-const IMPORT_SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"\n]*)\1/g;
+const IMPORT_SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"`])(\.{1,2}(?:\/[^'"`\n]*)?)\1/g;
+/** `import type … from` and `export type … from`: erased before anything runs. */
+const TYPE_ONLY = /\b(?:import|export)\s+type\s[^;'"`]*?\bfrom\s*(['"`])[^'"`\n]*\1/g;
 const MAX_CODE_FILES = 4000;
 
 /** A path inside the app without its last extension, folded: `src/Nav.ts` and `src/nav.tsx` are one stem. */
@@ -148,10 +155,12 @@ export function buildCodeStems(root: string, key: string): Set<string> {
     } catch {
       continue;
     }
-    for (const found of text.matchAll(IMPORT_SPEC)) {
+    for (const found of text.replace(TYPE_ONLY, '').matchAll(IMPORT_SPEC)) {
       const spec = (found[2] as string).split(/[?#]/)[0] as string;
-      const target = posix.normalize(posix.join(posix.dirname(file), spec)).replace(/\/$/, '');
-      if (target === '' || target === '.' || target.startsWith('..') || target.split('/').includes('node_modules')) continue;
+      const joined = posix.normalize(posix.join(posix.dirname(file), spec)).replace(/\/$/, '');
+      // `from '.'` is the folder's own index.
+      const target = joined === '.' || joined === '' ? 'index' : joined;
+      if (target.startsWith('..') || target.split('/').includes('node_modules')) continue;
       const bare = CODE_EXTENSIONS.some((extension) => target.toLowerCase().endsWith(extension)) ? target.slice(0, target.lastIndexOf('.')) : target;
       stems.add(codeStem(target));
       stems.add(bare.normalize('NFC').toLowerCase());
@@ -178,8 +187,20 @@ function buildEnvironment(env: NodeJS.ProcessEnv): Record<string, string> {
 export type StepRunner = (line: string, cwd: string, signal?: AbortSignal) => Promise<{ ok: boolean; output: string }>;
 
 /** One line, run by the machine's shell in `cwd`. Killed after ten minutes, or when the signal says stop. */
+/** The builds running now, by the way to end each: a server that stops takes them with it. */
+const liveBuilds = new Set<() => void>();
+
+/** End every build command that is running (the server is stopping, or the Designer was switched off). */
+export function stopOwnBuilds(): void {
+  for (const end of [...liveBuilds]) end();
+}
+
 export const runLine: StepRunner = (line, cwd, signal) =>
   new Promise((resolve) => {
+    if (signal?.aborted === true) {
+      resolve({ ok: false, output: 'Stopped.' });
+      return;
+    }
     let output = '';
     // Its own process group where there are groups: the shell's children (npm, Vite) end with it.
     const grouped = process.platform !== 'win32';
@@ -201,11 +222,22 @@ export const runLine: StepRunner = (line, cwd, signal) =>
     };
     const timer = setTimeout(kill, STEP_TIMEOUT_MS);
     signal?.addEventListener('abort', kill, { once: true });
+    liveBuilds.add(kill);
+    let grace: NodeJS.Timeout | undefined;
+    let settled = false;
     const done = (ok: boolean): void => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      clearTimeout(grace);
       signal?.removeEventListener('abort', kill);
+      liveBuilds.delete(kill);
       resolve({ ok: ok && !killed, output });
     };
+    // `close` waits for the pipes, which a child of the shell can hold open after it: the exit is enough, a moment later.
+    child.on('exit', (code) => {
+      grace = setTimeout(() => done(code === 0), 2000);
+    });
     child.on('error', (error) => {
       output += `\n${error.message}`;
       done(false);
@@ -233,8 +265,135 @@ export async function runOwnBuild(
   build: AppBuildFile,
   opts: { run?: StepRunner; signal?: AbortSignal; sides: readonly AppSide[] },
 ): Promise<{ sides: AppSide[] } | { problems: string[] }> {
+  // One build of an app at a time: two would install into, and copy out of, the same folders.
+  const dir = appDir(root, key);
+  const before = building.get(dir) ?? Promise.resolve();
+  const mine = before.then(() => buildNow(root, key, build, opts)).catch((error: unknown) => ({ problems: [`${APPS_DIR}/${key} — its build stopped: ${error instanceof Error ? error.message : String(error)}`] }));
+  const settled = mine.then(() => undefined);
+  building.set(dir, settled);
+  try {
+    return await mine;
+  } finally {
+    if (building.get(dir) === settled) building.delete(dir);
+  }
+}
+
+const building = new Map<string, Promise<void>>();
+
+/** Everything of an app its build reads: its files, by path and content, without what is installed or built. */
+function ownSourcesHash(dir: string, build: AppBuildFile): string {
+  const hash = createHash('sha256').update(buildFingerprint(build));
+  const outputTop = build.output.split('/')[0] as string;
+  const walk = (folder: string, relative: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(folder, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || (relative === '' && entry.name === outputTop)) continue;
+      const path = relative === '' ? entry.name : `${relative}/${entry.name}`;
+      if (entry.isDirectory()) walk(join(folder, entry.name), path);
+      else if (entry.isFile()) hash.update(`\0${path}\0`).update(readFileSync(join(folder, entry.name)));
+    }
+  };
+  walk(dir, '');
+  return hash.digest('hex');
+}
+
+const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.css', '.scss', '.sass', '.less', '.styl', '.html', '.vue', '.svelte', '.astro', '.mdx'];
+/** `\x2e`, `\u002e`, `\u{2e}` and CSS's `\2e ` read as the character they are: a path is judged as the bundler reads it. */
+const unescaped = (text: string): string =>
+  text
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_all, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
+    .replace(/\\u\{([0-9a-fA-F]{1,6})\}/g, (_all, hex: string) => String.fromCodePoint(Math.min(Number.parseInt(hex, 16), 0x10ffff)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_all, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
+    .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_all, hex: string) => String.fromCodePoint(Math.min(Number.parseInt(hex, 16), 0x10ffff)));
+/** Where a bundler reads a path from: an import, a `new URL(…, import.meta.url)`, a stylesheet's `url()` and `@import`. */
+const NAMED = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*|\burl\(\s*|@import\s+(?:url\(\s*)?|\bURL\(\s*)(['"`]?)([./][^'"`)\s]*)\1/g;
+/** `import.meta.glob(…)`: every pattern it is given. */
+const GLOBBED = /\bglob\(([^)]*)\)/g;
+const QUOTED = /(['"`])([^'"`\n]*)\1/g;
+const ANYWHERE = /['"`(\s](\/@fs\/[^'"`)\s]*|file:\/[^'"`)\s]*)/;
+
+/**
+ * The source files of an app that name a path outside its folder, as problems. A bundler puts what a source file
+ * imports into the screens it builds, whatever it is and wherever it is (`../../../.env?raw`): a copied app's
+ * build reads its own folder and nothing else.
+ */
+export function outsideReaches(root: string, key: string, build: AppBuildFile): string[] {
+  const dir = appDir(root, key);
+  const outputTop = build.output.split('/')[0] as string;
+  const problems: string[] = [];
+  const walk = (folder: string, relative: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(folder, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (problems.length >= 5) return;
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || (relative === '' && entry.name === outputTop)) continue;
+      const path = relative === '' ? entry.name : `${relative}/${entry.name}`;
+      if (entry.isDirectory()) {
+        walk(join(folder, entry.name), path);
+        continue;
+      }
+      const dot = entry.name.lastIndexOf('.');
+      if (!entry.isFile() || dot === -1 || !SOURCE_EXTENSIONS.includes(entry.name.slice(dot).toLowerCase())) continue;
+      let text: string;
+      try {
+        text = unescaped(readFileSync(join(folder, entry.name), 'utf8'));
+      } catch {
+        continue;
+      }
+      const say = (named: string): void => {
+        problems.push(`${APPS_DIR}/${key}/${path} names a path outside the app ("${named.slice(0, 120)}"), so the app was not built. A copied app's build reads its own folder and nothing else.`);
+      };
+      const at = posix.dirname(path);
+      const named = [...text.matchAll(NAMED)].map((match) => match[2] as string);
+      for (const call of text.matchAll(GLOBBED)) for (const quoted of (call[1] as string).matchAll(QUOTED)) named.push((quoted[2] as string).replace(/^!/, ''));
+      const outside = named.find((spec) => {
+        const plain = spec.split(/[?#*{$]/)[0] as string;
+        // A leading "/" is the app's own folder to the bundler, and the machine's when nothing is there.
+        if (plain.startsWith('/')) return plain.startsWith('/@fs/') || (!existsSync(join(dir, plain)) && existsSync(plain));
+        return posix.normalize(posix.join(at, plain)).startsWith('..');
+      });
+      if (outside !== undefined) {
+        say(outside);
+        continue;
+      }
+      const anywhere = ANYWHERE.exec(text);
+      if (anywhere !== null) say(anywhere[1] as string);
+    }
+  };
+  walk(dir, '');
+  return problems;
+}
+
+async function buildNow(
+  root: string,
+  key: string,
+  build: AppBuildFile,
+  opts: { run?: StepRunner; signal?: AbortSignal; sides: readonly AppSide[] },
+): Promise<{ sides: AppSide[] } | { problems: string[] }> {
   const run = opts.run ?? runLine;
   const dir = appDir(root, key);
+  // Nothing of the app changed since its last whole build, and what that left is still there: it is not run again.
+  const sources = ownSourcesHash(dir, build);
+  const builtStamp = join(dir, 'node_modules', '.adminium-built');
+  const wanted = SIDES.filter((side) => opts.sides.includes(side));
+  if (
+    existsSync(builtStamp) &&
+    readFileSync(builtStamp, 'utf8') === `${sources}\n${wanted.join(',')}` &&
+    wanted.every((side) => existsSync(join(root, BUILD_DIR, APPS_DIR, key, side, 'index.html')))
+  ) {
+    return { sides: wanted };
+  }
+  const reaches = outsideReaches(root, key, build);
+  if (reaches.length > 0) return { problems: reaches };
   const lock = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'].map((name) => join(dir, name)).find((file) => existsSync(file));
   const lockHash = lock === undefined ? '' : sha256(readFileSync(lock));
   const stamp = join(dir, 'node_modules', '.adminium-installed');
@@ -267,5 +426,7 @@ export async function runOwnBuild(
     renameSync(staging, to);
     sides.push(side);
   }
-  return problems.length > 0 ? { problems } : { sides };
+  if (problems.length > 0) return { problems };
+  writeFileSync(builtStamp, `${sources}\n${wanted.join(',')}`);
+  return { sides };
 }

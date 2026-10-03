@@ -68,6 +68,8 @@ export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions 
     try {
       addresses = await (opts.resolve ?? defaultResolve)(host);
     } catch {
+      // Where private addresses are refused, a name nobody can check is refused too: it may resolve the next time it is asked.
+      if (opts.blockPrivate === true) throw new ValidationFailedError('That address does not resolve, so it cannot be checked.', { host });
       return;
     }
   }

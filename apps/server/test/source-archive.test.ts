@@ -29,7 +29,10 @@ describe('where an app’s source comes from', () => {
     for (const repo of ['http://github.com/a/b', 'https://github.com.evil.test/a/b', 'https://gitlab.com/a/b', 'https://github.com/a/b/tree/x', 'https://github.com/a', 'https://user@github.com/a/b', 'https://github.com/a/b?x=1']) {
       expect(sourceArchiveUrl(repo, '0.2.3'), repo).toBeNull();
     }
-    for (const version of ['main', '0.2', 'v0.2.3', '0.2.3/../../x', '']) expect(sourceArchiveUrl('https://github.com/a/b', version), version).toBeNull();
+    // Only the publishers Adminium vouches for: a copy's build runs the repository's own config on this machine.
+    for (const repo of ['https://github.com/someone-else/point-of-sale', 'https://github.com/Adminiumjs/..', 'https://github.com/Adminiumjs/.']) expect(sourceArchiveUrl(repo, '0.2.3'), repo).toBeNull();
+    expect(sourceArchiveUrl('https://github.com/adminiumjs/point-of-sale', '0.2.3')).not.toBeNull();
+    for (const version of ['main', '0.2', 'v0.2.3', '0.2.3/../../x', '']) expect(sourceArchiveUrl('https://github.com/Adminiumjs/b', version), version).toBeNull();
   });
 });
 

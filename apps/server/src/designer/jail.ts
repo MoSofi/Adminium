@@ -66,12 +66,19 @@ export function createJail(root: string, appKey: string): Jail {
       if (segment === '' || segment === '.' || segment === '..') throw new JailError(`"${path}" is not a plain path.`);
       if (segment.startsWith('.')) throw new JailError(`"${path}": names starting with "." are never read or written here.`);
       if (fold(segment) === 'node_modules') throw new JailError(`"${path}": node_modules is not part of the app.`);
+      // A short name (`VITECO~1.TS`) is a second spelling of another file on some disks.
+      if (segment.includes('~')) throw new JailError(`"${path}": a name with "~" is never read or written here.`);
     }
     // The root a path is under, by its folded spelling; rewritten to the root's real one.
     const folded = segments.map(fold);
     const under = roots.find((rootSegments) => rootSegments.every((part, index) => folded[index] === fold(part)));
     if (under === undefined) {
       throw new JailError(`"${path}" is outside what the Designer may touch: apps/${appKey}/, hooks/ and actions/.`);
+    }
+    // What a build left is not the app's source: it can hold more than the source says (a file a bundler read from elsewhere).
+    const first = folded[under.length];
+    if (under[0] === 'apps' && first !== undefined && /^dist(-|$)/.test(first)) {
+      throw new JailError(`"${path}": a build's output is not read or written here. The app's source is in src/ and manifest/.`);
     }
     return [...under, ...segments.slice(under.length).map((segment) => segment.normalize('NFC'))];
   }

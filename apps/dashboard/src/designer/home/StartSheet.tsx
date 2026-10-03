@@ -102,12 +102,18 @@ export function StartSheet({
     queryKey: ['designer', 'start-job', jobId] as const,
     queryFn: () => designerApi.startStatus(jobId as string),
     enabled: jobId !== null,
-    refetchInterval: (query) => (query.state.data?.state === 'running' || query.state.data === undefined ? 1000 : false),
+    refetchInterval: (query) => (query.state.status !== 'error' && (query.state.data?.state === 'running' || query.state.data === undefined) ? 1000 : false),
     retry: false,
   });
   const running = jobId !== null && (job.data === undefined || job.data.state === 'running');
   const failed = job.data?.state === 'failed';
   const done = job.data?.state === 'done' ? job.data : null;
+  // The copy can no longer be asked about (the server restarted, or the Designer was switched off): the sheet is let go, with why.
+  useEffect(() => {
+    if (jobId === null || !job.isError) return;
+    setRefused(job.error instanceof ApiError ? job.error.message : t('designer:sheet.startFailed', 'The copy could not be started.'));
+    setJobId(null);
+  }, [jobId, job.isError, job.error]);
   useEffect(() => {
     if (done?.sessionId == null) return;
     void navigate({ to: '/design/$sessionId', params: { sessionId: done.sessionId } });

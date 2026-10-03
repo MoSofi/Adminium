@@ -166,7 +166,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
   let sameErrors = 0;
   let testsAllowed = false;
   let serverCode: 'unasked' | 'allowed' | 'refused' = 'unasked';
-  let buildCode: 'unasked' | 'allowed' | 'refused' = 'unasked';
+  const buildCode = new Map<string, 'allowed' | 'refused'>();
   const RUN_THEM = 'Run them';
   const ALLOW_IT = 'Allow it';
 
@@ -186,12 +186,14 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     // A build of its own is a person's to give an app: no app gets one from a model.
     if (inside === 'build.json') return refused('build.json names a command this machine runs, and only a person writes it. Build the screens in src/<side>/ as the skill says.', 'Not yours to change');
     if (!hasOwnBuild(deps.root, appKey)) return null;
+    const name = inside.slice(inside.lastIndexOf('/') + 1);
     const guarded =
-      inside === 'package.json' ||
+      // At any depth: a folder's own package.json says which file an import of the folder runs.
+      name === 'package.json' ||
       inside === 'package-lock.json' ||
       // Every config the build's tools look for and run: Vite's own, and the ones its plugins find by name.
       /^(vite|vitest|postcss|tailwind|babel|rollup|svgo|uno|windi)\.config\.[a-z]+$/.test(inside) ||
-      /^tsconfig[a-z.]*\.json$/.test(inside) ||
+      /^[jt]sconfig[a-z.]*\.json$/.test(name) ||
       inside.startsWith('scripts/');
     return guarded
       ? refused(`${inside} decides what this app's build runs, and the person approved that build as it is. It is theirs to change. Do what was asked in the app's manifest and its src/.`, 'Not yours to change')
@@ -215,15 +217,25 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     if (!normal.toLowerCase().startsWith(lead)) return null;
     const inside = normal.slice(lead.length);
     if (!buildCodeStems(deps.root, appKey).has(codeStem(inside))) return null;
-    if (buildCode === 'unasked') {
+    /*
+     * A yes is for what the question named and nothing wider: one file at the app's top (its build's own
+     * plugins live there), or the build's files in one folder (an app's words are a file a language).
+     */
+    const slash = inside.lastIndexOf('/');
+    const folder = slash === -1 ? null : inside.slice(0, slash);
+    const scope = (folder ?? inside).normalize('NFC').toLowerCase();
+    let answered = buildCode.get(scope);
+    if (answered === undefined) {
+      const what = folder === null ? inside : `the files in ${folder}/ that this app's build runs (first: ${inside.slice(slash + 1)})`;
       const answer = await ctx.ask({
         type: 'question',
-        question: `Let the Designer change ${inside}? This app's build runs that file on this machine each time it builds (its Vite config imports it), with everything your account can reach.`,
+        question: `Let the Designer change ${what}? This app's build runs ${folder === null ? 'that file' : 'them'} on this machine each time it builds (its Vite config imports ${folder === null ? 'it' : 'them'}), with everything your account can reach.`,
         choices: [ALLOW_IT, 'Do not allow it'],
       });
-      buildCode = answer.type === 'question' && answer.text === ALLOW_IT ? 'allowed' : 'refused';
+      answered = answer.type === 'question' && answer.text === ALLOW_IT ? 'allowed' : 'refused';
+      buildCode.set(scope, answered);
     }
-    return buildCode === 'allowed'
+    return answered === 'allowed'
       ? null
       : refused(`The person did not allow changes to files the build runs (${inside}) in this turn. Do it in a file the Vite config does not import, or say what cannot be done without it.`, 'Build code not allowed');
   }

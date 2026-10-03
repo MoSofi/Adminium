@@ -14,7 +14,7 @@ import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -558,6 +558,27 @@ describe.skipIf(!canBuildSides)('the live Designer', { timeout: 120_000 }, () =>
     // The two refused tries are kept beside the switch itself.
     expect(audit.map((row) => row.action).sort()).toEqual(['designer.live.off', 'designer.live.on', 'designer.live.refused', 'designer.live.refused']);
     expect(JSON.stringify(await client.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', 'like', 'designer.live.%').execute())).not.toContain(PASSWORD);
+  });
+
+  it('is switched on by a Super Admin only: holding the permission is not enough', async () => {
+    const client = await server({ designer: false, environment: live({ ADMINIUM_DESIGNER: 'live' }) });
+    const admin = await usersRepo(client.meta).create({ email: 'admin@example.test', name: 'Admin', passwordHash: await hashPassword('another-long-test-password-2!') });
+    const adminRole = await rolesRepo(client.meta).findBySlug('admin');
+    await rolesRepo(client.meta).assignToUser(admin.id, adminRole!.id);
+    const login = await composed!.app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: { host: HOST }, payload: { email: 'admin@example.test', password: 'another-long-test-password-2!' } });
+    expect(login.statusCode, login.body).toBe(200);
+    const adminCookie = String(login.headers['set-cookie']).split(';')[0] ?? '';
+    // Without the permission the card's own question is refused.
+    expect((await client.call('GET', '/api/v1/designer/live', undefined, adminCookie)).status).toBe(403);
+    await permissionsRepo(client.meta).grant(adminRole!.id, 'system', 'designer.use', { allowed: true });
+    const login2 = await composed!.app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: { host: HOST }, payload: { email: 'admin@example.test', password: 'another-long-test-password-2!' } });
+    const holder = String(login2.headers['set-cookie']).split(';')[0] ?? '';
+    expect((await client.call('GET', '/api/v1/designer/live', undefined, holder)).status).toBe(200);
+    // Their own right password does not switch it on.
+    const refused = await client.call('PUT', '/api/v1/designer/live', { on: true, password: 'another-long-test-password-2!' }, holder);
+    expect(refused.status, JSON.stringify(refused.body)).toBe(403);
+    expect(refused.body).toMatchObject({ error: { details: { reason: 'SUPER_ADMIN' } } });
+    expect((await client.call('GET', '/api/v1/designer/live')).body).toMatchObject({ on: false });
   });
 
   it('is not switched on over a project that cannot build screens, and is shown to nobody without the permission', async () => {

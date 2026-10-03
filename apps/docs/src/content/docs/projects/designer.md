@@ -91,7 +91,13 @@ TypeScript) or `scripts/` of such an app, and it never writes a `build.json` for
 
 The app's Vite config imports some of the app's own source (its navigation, its words), and Vite
 runs those files on your machine each time it builds. Before the Designer changes one of them it
-asks, once in a turn, naming the file. A screen the config does not import needs no question.
+asks, naming the file or the folder; a yes is for what was named, for that turn. A screen the
+config does not import needs no question.
+
+The build is not a sandbox: it runs as you, and can read what you can. So a source file that
+names a path outside the app's own folder (an import of `../../../.env`, say) stops the build
+before it starts, and says which file. The Designer does not read back what a build left. A copy
+is taken only from the repositories of publishers Adminium vouches for.
 
 **The licence.** The apps are AGPL-3.0, and a copy keeps that licence. If people use your copy over
 a network (your customers, on your site), the licence asks you to offer them the source of your
@@ -154,7 +160,9 @@ They are settings of the install:
 
 Every turn is recorded in the audit log, and so are the switch (on, off, and a wrong password),
 each answer to a card (a package, tests, server code) with who gave it, and a switch that went off
-by itself. Switching it off stops the turn that is running.
+by itself. Switching it off stops the turn that is running and any build with it. A card is
+answered by the person who started the turn. Copying an app (**Make it yours**) is a Super Admin's
+on a live server: its build is a command the server runs.
 
 | On a live server | |
 |---|---|

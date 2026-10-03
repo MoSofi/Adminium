@@ -180,6 +180,48 @@ describe('the copy', () => {
     expect(await made.keyProblem('my-desk')).toContain('already an app');
   });
 
+  it('copies one app at a time, and lets the next one start when the first has ended', async () => {
+    let release: () => void = () => undefined;
+    const made = starter({
+      buildAndApply: async (key) => {
+        applied.push(key);
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return [];
+      },
+    });
+    const first = await made.start(input({ approve: made.buildFor('my-desk').fingerprint }));
+    await expect(made.start(input({ newKey: 'other-desk', approve: made.buildFor('other-desk').fingerprint }))).rejects.toMatchObject({ details: { reason: 'COPY_RUNNING' } });
+    await vi.waitFor(() => expect(applied).toEqual(['my-desk']));
+    release();
+    expect(await settled(made, first.id)).toMatchObject({ state: 'done' });
+    // A refusal before anything started does not hold the next one back either.
+    await expect(made.start(input({ newKey: 'other-desk', approve: 'not-it' }))).rejects.toMatchObject({ details: { reason: 'BUILD_NOT_APPROVED' } });
+    const second = await made.start(input({ newKey: 'other-desk', approve: made.buildFor('other-desk').fingerprint }));
+    await vi.waitFor(() => expect(applied).toEqual(['my-desk', 'other-desk']));
+    release();
+    expect(await settled(made, second.id)).toMatchObject({ state: 'done' });
+    expect(first.id).toMatch(/^start_[0-9a-f]{24}$/);
+  });
+
+  it('finishes a copy whose session did not open on "Try again", from the same app only', async () => {
+    let opens = 0;
+    const made = starter({
+      openSession: async () => {
+        opens += 1;
+        if (opens === 1) throw new Error('There is no such model connection.');
+        return 'ds_000000000000000000000002';
+      },
+    });
+    const approve = made.buildFor('my-desk').fingerprint;
+    const failed = await settled(made, (await made.start(input({ approve }))).id);
+    expect(failed).toMatchObject({ state: 'failed', steps: [{ state: 'done' }, { state: 'done' }, { state: 'failed', detail: expect.stringContaining('no such model connection') }] });
+    const again = await settled(made, (await made.start(input({ approve }))).id);
+    expect(again).toMatchObject({ state: 'done', sessionId: 'ds_000000000000000000000002' });
+    expect(fetched).toHaveLength(1);
+  });
+
   it('writes nothing when the source cannot be fetched, and says so', async () => {
     const made = starter({ fetch: (async () => new Response(null, { status: 404 })) as never });
     const job = await settled(made, (await made.start(input({ approve: made.buildFor('my-desk').fingerprint }))).id);

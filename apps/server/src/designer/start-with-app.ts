@@ -94,7 +94,7 @@ const KEY_MAX = 40;
 export function createStarter(host: StarterHost): Starter {
   const jobs = new Map<string, StartJob>();
   /** Copies this process wrote and has not yet applied: "Try again" finishes one, by its key. */
-  const unfinished = new Set<string>();
+  const unfinished = new Map<string, string>();
   /** One copy at a time, held from the first line of `start`: two requests never both pass the checks. */
   let busy = false;
 
@@ -122,7 +122,7 @@ export function createStarter(host: StarterHost): Starter {
       step(id).detail = detail.slice(0, 2000);
       job.state = 'failed';
     };
-    const resumed = unfinished.has(job.newKey);
+    const resumed = unfinished.get(job.newKey) === app.key;
     try {
       if (resumed) {
         // The copy is written: only the last step is left.
@@ -148,8 +148,9 @@ export function createStarter(host: StarterHost): Starter {
         try {
           mkdirSync(dirname(dir), { recursive: true });
           mkdirSync(dir);
-        } catch {
-          return fail('make', `There is already an app "${job.newKey}" in this project.`);
+        } catch (error) {
+          const taken = (error as NodeJS.ErrnoException).code === 'EEXIST';
+          return fail('make', taken ? `There is already an app "${job.newKey}" in this project.` : `The copy's folder could not be made: ${error instanceof Error ? error.message : String(error)}`);
         }
         try {
           for (const [path, bytes] of plan.files) {
@@ -172,19 +173,27 @@ export function createStarter(host: StarterHost): Starter {
           rmSync(dir, { recursive: true, force: true });
           return fail('make', 'The copy’s build is not the one that was approved.');
         }
-        approveBuild(host.root, job.newKey, written);
-        unfinished.add(job.newKey);
+        try {
+          approveBuild(host.root, job.newKey, written);
+        } catch (error) {
+          rmSync(dir, { recursive: true, force: true });
+          return fail('make', `The approval could not be kept: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        unfinished.set(job.newKey, app.key);
         step('make').state = 'done';
       }
 
       step('build').state = 'running';
       const problems = await host.buildAndApply(job.newKey);
       if (problems.length > 0) return fail('build', problems.slice(0, 4).join('\n'));
-      step('build').state = 'done';
-      unfinished.delete(job.newKey);
+      // The copy is whole once its session is open: until then "Try again" finishes it.
       job.sessionId = await host.openSession(job.newKey, input);
+      unfinished.delete(job.newKey);
+      step('build').state = 'done';
       job.state = 'done';
-      await host.audit('designer.app.copied', input.by, { from: app.key, version: app.version, key: job.newKey });
+      await host.audit('designer.app.copied', input.by, { from: app.key, version: app.version, key: job.newKey }).catch((error: unknown) => {
+        host.log('a copy was not recorded in the audit log', error);
+      });
     } catch (error) {
       host.log('a "Start with an app" job failed', error);
       const running = job.steps.find((candidate) => candidate.state === 'running');
@@ -225,6 +234,9 @@ export function createStarter(host: StarterHost): Starter {
     }
     const app = await host.listed(input.key);
     if (app === null) throw new NotFoundError(`"${input.key}" is not an app of the list.`, { key: input.key });
+    // A copy left unfinished is finished from the app it was made from, and no other.
+    const begun = unfinished.get(input.newKey);
+    if (begun !== undefined && begun !== app.key) throw new ConflictError(`There is already an app "${input.newKey}" in this project.`, 'CONFLICT', { reason: 'KEY' });
     // Only the last few are kept: a job is read while its sheet is open.
     for (const id of [...jobs.keys()].slice(0, Math.max(0, jobs.size - 20))) jobs.delete(id);
     const job: StartJob = {

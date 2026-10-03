@@ -38,9 +38,15 @@ export class SourceArchiveError extends Error {
 }
 
 /** `https://github.com/<owner>/<repo>` → the archive of its tag, or null when it is not such an address. */
+/**
+ * Whose repositories a copy is taken from. A copy's build runs the repository's own Vite config on this machine, so
+ * the list's word for where an app's source is counts only for the publishers Adminium itself vouches for.
+ */
+export const SOURCE_OWNERS: readonly string[] = ['adminiumjs'];
+
 export function sourceArchiveUrl(repo: string, version: string): string | null {
   const found = /^https:\/\/github\.com\/([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?$/.exec(repo);
-  if (found === null || /^\.+$/.test(found[2] as string) || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) return null;
+  if (found === null || !SOURCE_OWNERS.includes((found[1] as string).toLowerCase()) || /^\.+$/.test(found[2] as string) || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) return null;
   return `https://codeload.github.com/${found[1] as string}/${found[2] as string}/tar.gz/refs/tags/v${version}`;
 }
 

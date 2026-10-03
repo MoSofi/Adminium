@@ -24,6 +24,18 @@ describe('scrubSecret', () => {
   });
 });
 
+describe('requestJson and redirects', () => {
+  it('never follows one: the address that was checked is the address that is called', async () => {
+    const fetchMock = vi.fn(async () => new Response('', { status: 307, headers: { location: 'http://169.254.169.254/latest/' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const error = await requestJson({ provider: 'ollama', method: 'GET', url: 'https://models.example/api/tags' }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect(error).toMatchObject({ status: 307, message: expect.stringContaining('redirect') });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].redirect).toBe('manual');
+  });
+});
+
 describe('requestJson error mapping', () => {
   const cases: { status: number; code: string }[] = [
     { status: 401, code: 'auth' },

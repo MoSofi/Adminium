@@ -149,7 +149,7 @@ export function renameSource(path: string, text: string, from: string, to: strin
   swap('the key constant', new RegExp(`\\b((?:DEMO_)?APP_KEY\\s*(?::\\s*string\\s*)?=\\s*)${quote}${K}\\2`, 'g'), (_all, lead, q) => `${lead as string}${q as string}${to}${q as string}`);
   swap('the key field', new RegExp(`\\b((?:appKey|app)\\s*:\\s*)${quote}${K}\\2`, 'g'), (_all, lead, q) => `${lead as string}${q as string}${to}${q as string}`);
   // The table prefix, as a literal: `"clients_"`, `` `pos_${short}` ``.
-  swap('the table prefix', new RegExp(`${quote}${K}_(\\2|\\$\\{)`, 'g'), (_all, q, tail) => `${q as string}${tablePrefix(to)}_${tail as string}`);
+  swap('the table prefix', new RegExp(`${quote}${K}_(\\1|\\$\\{)`, 'g'), (_all, q, tail) => `${q as string}${tablePrefix(to)}_${tail as string}`);
   // The role prefix, as a literal: `` `clinic-${role}` ``.
   swap('the role prefix', new RegExp(`\`${K}-(\\$\\{)`, 'g'), (_all, tail) => `\`${to}-${tail as string}`);
   // Links to the app's own dashboard pages, and its page refs named whole.
@@ -177,6 +177,8 @@ export function isDropped(path: string): boolean {
   const top = path.split('/')[0] ?? '';
   if (['.github', '.do', 'db', 'e2e', 'node_modules', 'dist', 'dist-surface', 'dist-demo', '.git', 'test-results', 'playwright-report'].includes(top)) return true;
   if (['Dockerfile', 'Caddyfile', 'docker-compose.yml', 'playwright.config.ts', 'RELEASES.json', '.dockerignore'].includes(path)) return true;
+  // The original's package settings (a registry, a token's name) are not the copy's: its install reads the machine's own.
+  if (/(^|\/)\.(npmrc|yarnrc|yarnrc\.yml|pnpmfile\.cjs)$/.test(path)) return true;
   if (path.startsWith('src/contract/') || path.startsWith('src/testing/')) return true;
   // The original's tests are about the original: they read its manifest.json, and are not the copy's gate.
   if (/\.test\.(ts|tsx|mjs)$/.test(path)) return true;
@@ -197,8 +199,12 @@ export interface CopyPlan {
  * original's type check also reads tests the copy leaves behind. Known before anything is fetched, so a person can
  * read it and approve it first.
  */
-export function copyBuildFor(key: string): AppBuildFile {
-  const side = (name: string): string => `VITE_ADMINIUM_SURFACE_SIDE=${name} node_modules/.bin/vite build --base=/apps/${key}/${name}/ --outDir dist-surface/${key}/${name}`;
+export function copyBuildFor(key: string, platform: NodeJS.Platform = process.platform): AppBuildFile {
+  // The machine's own shell runs the line: `NAME=value command` is not a line of Windows' one.
+  const side = (name: string): string =>
+    platform === 'win32'
+      ? `set "VITE_ADMINIUM_SURFACE_SIDE=${name}" && node_modules\\.bin\\vite build --base=/apps/${key}/${name}/ --outDir dist-surface/${key}/${name}`
+      : `VITE_ADMINIUM_SURFACE_SIDE=${name} node_modules/.bin/vite build --base=/apps/${key}/${name}/ --outDir dist-surface/${key}/${name}`;
   return { install: 'npm ci --ignore-scripts', command: `${side('staff')} && ${side('customer')}`, output: `dist-surface/${key}` };
 }
 

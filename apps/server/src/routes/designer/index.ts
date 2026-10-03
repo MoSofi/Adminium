@@ -358,6 +358,10 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request, reply) => {
         if (deps.starter === undefined) throw new NotFoundError('This server cannot copy an app.', { reason: 'NO_STARTER' });
+        // A copy's build is a command this server runs: on a live server, approving one is a Super Admin's.
+        if (onLive && !(await app.rbac.resolve(request)).superAdmin) {
+          throw new ForbiddenError('On a live server, only a Super Admin copies an app: its build is a command the server runs.', 'FORBIDDEN', { reason: 'SUPER_ADMIN' });
+        }
         const job = await deps.starter.start({ ...request.body, by: actorOf(request) });
         return reply.code(202).send(job);
       },
