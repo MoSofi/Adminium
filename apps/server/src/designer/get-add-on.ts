@@ -37,8 +37,10 @@ export interface AddOnGetter {
   look(key: string): Promise<AddOnLook>;
   /** Whether this person may add an add-on to this server (and switch its list on). */
   allowed(by: Actor): Promise<boolean>;
-  /** Download (when it is not here) and install. `switchOn` first turns the list on and reads it, as the page's switch does. */
-  get(key: string, by: Actor, signal: AbortSignal, opts?: { switchOn?: boolean }): Promise<GetAddOnResult>;
+  /** Turn the list of adminium.dev on and read it, as the page's switch does. Nothing is downloaded. */
+  switchOn(by: Actor, signal: AbortSignal): Promise<{ ok: true } | { ok: false; why: string }>;
+  /** Download (when it is not here) and install, at the version the person was shown: a list that moved since is refused, not followed. */
+  get(key: string, by: Actor, signal: AbortSignal, opts: { version: string }): Promise<GetAddOnResult>;
 }
 
 export interface AddOnGetterDeps {
@@ -114,13 +116,10 @@ export function createAddOnGetter(deps: AddOnGetterDeps): AddOnGetter {
   return {
     look,
     allowed: (by) => deps.allowed(by),
-    async get(key, by, signal, opts = {}) {
-      // Asked again here: the person may have lost the permission between the card and its answer.
-      if (!(await deps.allowed(by))) return { ok: false, why: 'This person may not add an add-on to this server.' };
-      let found = await look(key);
-      if (found.state === 'off') {
-        if (found.vetoed) return { ok: false, why: 'This server is set to ask nothing of adminium.dev (ADMINIUM_NETWORK_FEATURES=off).' };
-        if (opts.switchOn !== true) return { ok: false, why: 'The list of adminium.dev is off on this server.' };
+    async switchOn(by, signal) {
+      if (!(await deps.allowed(by))) return { ok: false, why: 'This person may not switch this server’s add-on list on.' };
+      if (!deps.catalog.networkFeaturesAllowed()) return { ok: false, why: 'This server is set to ask nothing of adminium.dev (ADMINIUM_NETWORK_FEATURES=off).' };
+      if (!(await deps.catalog.isEnabled())) {
         // The page's switch, by the same person, kept in the same audit row.
         await settingsRepo(deps.meta).set(CATALOG_ENABLED_SETTING, true, { updatedBy: by.id });
         await auditRepo(deps.meta).append({
@@ -131,15 +130,23 @@ export function createAddOnGetter(deps: AddOnGetterDeps): AddOnGetter {
           action: 'add-on.catalog-toggled',
           changes: { before: { onlineEnabled: false }, after: { onlineEnabled: true, from: 'designer' } },
         });
-        // No user on the job: with the app list on as well, one request fills both.
-        const failed = await follow((await enqueueCatalogRefresh(deps.meta)).id, signal);
-        if (failed !== null) return { ok: false, why: `The list is on now, and it could not be read: ${failed}` };
-        found = await look(key);
       }
+      // No user on the job: with the app list on as well, one request fills both.
+      const failed = await follow((await enqueueCatalogRefresh(deps.meta)).id, signal);
+      return failed === null ? { ok: true } : { ok: false, why: `The list is on now, and it could not be read: ${failed}` };
+    },
+    async get(key, by, signal, opts) {
+      // Asked again here: the person may have lost the permission between the card and its answer.
+      if (!(await deps.allowed(by))) return { ok: false, why: 'This person may not add an add-on to this server.' };
+      const found = await look(key);
       if (found.state === 'installed') return { ok: true, name: found.name, version: found.version };
       if (found.state === 'unknown') return { ok: false, why: `adminium.dev lists no add-on "${key}".` };
       if (found.state === 'too-new') return { ok: false, why: `${found.name} needs Adminium ${found.needs} or later; this server is ${deps.serverVersion}.` };
       if (found.state === 'off') return { ok: false, why: 'The list of adminium.dev is off on this server.' };
+      // What the card showed is what is got: a list that moved between the card and the yes is not followed.
+      if (found.version !== opts.version) {
+        return { ok: false, why: `${found.name} is now at version ${found.version}, not the ${opts.version} the person was shown. Ask again, and the card will show the new one.` };
+      }
       if (found.state === 'listed') {
         // The page's own job: the address and the fingerprint are the list's, checked again inside it.
         const job = await enqueueAddOnDownload(deps.meta, { key, version: found.version, userId: by.id ?? undefined });

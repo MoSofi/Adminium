@@ -2011,6 +2011,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           storage,
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+          // The Imports page's own right: using the Designer does not stand in for it.
+          mayImport: async (by, connectionId, table) => by.id !== null && permissionSetAllows(await permissionsOf(by.id), `table:${connectionId}:${table}:import`),
         });
         const designerAudit = async (action: string, actor: { id: string | null; label: string } | null, detail: Record<string, unknown>): Promise<void> => {
             await auditRepo(meta).append({

@@ -173,6 +173,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   const makeRunner = deps.createRunner ?? createProviderRunner;
   const verdicts = new Map<string, CanBuild>();
   const pictures = new Map<string, boolean>();
+  /** When a model could not be asked whether it reads pictures. */
+  const unasked = new Map<string, number>();
 
   function envConnection(values: AiEnvValues, provider: EnvProvider): AiConnection {
     const urlName = URL_NAME[provider];
@@ -397,10 +399,17 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       const key = `${id}\u0000${model}`;
       const known = pictures.get(key);
       if (known !== undefined) return known;
+      // A model that could not be asked is not asked again at every step of a turn: once in five minutes.
+      const failedAt = unasked.get(key);
+      if (failedAt !== undefined && Date.now() - failedAt < 5 * 60_000) return null;
       const { config, connection } = await configFor(id, model);
       // Every Claude model the catalogue lists reads pictures; the others are asked.
       const verdict = connection.provider === 'anthropic' ? true : await readsImagesProbe(makeRunner(config), model);
-      if (verdict !== null) pictures.set(key, verdict);
+      if (verdict === null) unasked.set(key, Date.now());
+      else {
+        pictures.set(key, verdict);
+        unasked.delete(key);
+      }
       return verdict;
     },
     envWritable: aiEnv.writable,

@@ -25,7 +25,7 @@
  * until it is answered. Stop answers every waiting card with "stopped".
  */
 import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
-import { requestTokens } from './prompt.js';
+import { requestTokens, type PromptOpts } from './prompt.js';
 import { randomBytes } from 'node:crypto';
 
 import {
@@ -70,7 +70,7 @@ export interface RunnerDeps {
   /** The tools a session's model may call. */
   tools(session: DesignerSession): DesignerTool[];
   /** What the model is told, and the transcript as it fits the model's window. */
-  prompt(session: DesignerSession, messages: RunMessage[]): Promise<{ system: string; messages: RunMessage[] }>;
+  prompt(session: DesignerSession, messages: RunMessage[], opts?: PromptOpts): Promise<{ system: string; messages: RunMessage[] }>;
   /**
    * What the check says is wrong with the app now, one line per error. Asked
    * when the model says it is finished: a model that stops with errors left
@@ -174,6 +174,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
   const now = deps.now ?? Date.now;
   const logs = new Map<string, EventLog>();
   let running: Running | null = null;
+  /** Sessions whose model refused a request that carried pictures: none is sent to them again while this server runs. */
+  const blind = new Set<string>();
   let cardSeq = 0;
 
   function events(sessionId: string): EventLog {
@@ -253,9 +255,21 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           limit = { which: 'steps', value: limits.maxSteps };
           break;
         }
-        const transcript = joinUserMessages(closeDangling(deps.store.messages(session.id).map((entry) => entry.message)));
-        const request = await deps.prompt(session, transcript);
-        let result: RunResult;
+        const entries = deps.store.messages(session.id);
+        const transcript = joinUserMessages(closeDangling(entries.map((entry) => entry.message)));
+        // What the messages alone do not say: the person's own words for this turn, and the turn each picture came with.
+        const pictureTurns = new Map<string, number>();
+        for (const entry of entries) for (const block of entry.message.content) if (block.type === 'image' && block.ref !== undefined && !pictureTurns.has(block.ref)) pictureTurns.set(block.ref, entry.turn);
+        const opening = entries.find((entry) => entry.turn === turn && entry.message.role === 'user')?.message.content.find((block) => block.type === 'text');
+        const request = await deps.prompt(session, transcript, {
+          turn,
+          pictureTurns,
+          pictures: !blind.has(session.id),
+          ...(opening?.type === 'text' ? { said: opening.text } : {}),
+        });
+        const carriesPictures = request.messages.some((message) => message.content.some((block) => block.type === 'image' && block.data.length > 0));
+        let result: RunResult | undefined;
+        let retryWithout = false;
         for (let attempt = 0; ; attempt += 1) {
           let said = false;
           try {
@@ -275,6 +289,14 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             break;
           } catch (error) {
             if (error instanceof ProviderError && error.code === 'aborted') throw new TurnStoppedError();
+            // A request refused while it carried pictures: asked again without them, and no picture is sent in this session again.
+            // (A picture a provider cannot take would otherwise go with every later message, and the session could never run.)
+            if (error instanceof ProviderError && (error.code === 'http' || error.code === 'bad_response') && carriesPictures && !said) {
+              blind.add(session.id);
+              deps.log?.('the Designer’s model refused a request that carried pictures; asking again without them');
+              retryWithout = true;
+              break;
+            }
             // A provider that failed in passing is asked again, as long as nothing of this reply reached the page.
             const wait = waits[attempt];
             if (!(error instanceof ProviderError) || !PASSING.has(error.code) || said || wait === undefined) throw error;
@@ -283,6 +305,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             if (signal.aborted) throw new TurnStoppedError();
           }
         }
+        if (retryWithout || result === undefined) continue;
         steps += 1;
 
         // What the step cost, reported or estimated.

@@ -54,7 +54,7 @@ export interface DesignerHost {
   attachments?: Attachments;
   /** The tools and what the model is told; given by the parts that build them. */
   tools?: (session: DesignerSession) => DesignerTool[];
-  prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[]) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
+  prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[], opts?: import('./prompt.js').PromptOpts) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
   /** Versions after each turn; absent in a harness that keeps none. */
   versions?: Versions | null;
 }
@@ -357,7 +357,7 @@ export function createDesigner(host: DesignerHost): Designer {
     },
     ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
     tools: (session) => host.tools?.(session) ?? [],
-    prompt: async (session, messages) => host.prompt?.(session, messages) ?? { system: 'You are Adminium Designer.', messages },
+    prompt: async (session, messages, opts) => host.prompt?.(session, messages, opts) ?? { system: 'You are Adminium Designer.', messages },
     pipeline: (session, handle) => pipeline(session, handle),
     problems: (session) => [
       ...checkApp(host.root, session.appKey, { version: host.version })

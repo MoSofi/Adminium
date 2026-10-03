@@ -93,3 +93,40 @@ describe('the fold', () => {
     expect(resultOf(foldSpent(tiny), 1)).toBe('{}');
   });
 });
+
+describe('the fold, on a provider that numbers its calls afresh at every step', () => {
+  /** Ollama's ids: "call_1" at every step. */
+  const stepAs = (id: string, name: string, input: Record<string, unknown>, result: string, isError = false): RunMessage[] => [
+    { role: 'assistant', content: [{ type: 'tool_call', id, name, input }] },
+    { role: 'user', content: [{ type: 'tool_result', callId: id, content: result, ...(isError ? { isError: true } : {}) }] },
+  ];
+
+  it('reads a result against the call just before it, never against a later call that reused the id', () => {
+    const messages = [
+      ...stepAs('call_1', 'read_file', { path: 'b.json' }, LONG('kept')),
+      ...stepAs('call_1', 'read_file', { path: 'a.json' }, LONG('old')),
+      ...stepAs('call_1', 'write_file', { path: 'a.json', content: '{}' }, 'Wrote'),
+      ...filler(),
+    ];
+    const folded = foldSpent(messages);
+    // b.json was never touched again: whole. a.json was written after: cut.
+    expect(resultOf(folded, 1)).toBe(LONG('kept'));
+    expect(resultOf(folded, 3)).toContain('of the file as it was then');
+  });
+
+  it('a later call that was refused, or that read only some lines, does not stand for the file', () => {
+    const refusedWrite = [...step('read_file', { path: 'a.json' }, LONG('whole')), ...step('write_file', { path: 'a.json', content: '{' }, 'That is not valid JSON.', true), ...filler()];
+    expect(resultOf(foldSpent(refusedWrite), 1)).toBe(LONG('whole'));
+    const paged = [...step('read_file', { path: 'long.md' }, LONG('first')), ...step('read_file', { path: 'long.md', from: 200, lines: 200 }, LONG('second')), ...filler()];
+    expect(resultOf(foldSpent(paged), 1)).toBe(LONG('first'));
+    const written = [...step('write_file', { path: 'a.json', content: LONG('body') }, 'Wrote'), ...step('read_file', { path: 'a.json', from: 1, lines: 5 }, 'five lines'), ...filler()];
+    expect(inputOf(foldSpent(written), 0)['content']).toBe(LONG('body'));
+  });
+
+  it('never cuts through a character written as a pair', () => {
+    const emoji = `${'a'.repeat(159)}😀${'b'.repeat(900)}`;
+    const cutText = resultOf(foldSpent([...step('check_app', {}, emoji), ...step('check_app', {}, 'No errors.'), ...filler()]), 1);
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(cutText)).toBe(false);
+    expect(cutText.startsWith(`${'a'.repeat(159)} …`)).toBe(true);
+  });
+});

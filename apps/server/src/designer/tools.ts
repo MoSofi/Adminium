@@ -40,7 +40,7 @@ import { projectPackageManager } from '../project/package-manager.js';
 import { runChild } from './child.js';
 import { csvLines, csvOf, type Attachments } from './attachments.js';
 import { FOLDED_MARK } from './fold.js';
-import type { AddOnGetter } from './get-add-on.js';
+import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import type { Designer } from './service.js';
@@ -442,16 +442,31 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         'declined',
       );
     }
-    const answer = await ctx.ask(
-      found.state === 'off'
-        ? { type: 'add-on', key, name: key, version: null, line: '', listOff: true }
-        : { type: 'add-on', key, name: found.name, version: found.version, line: found.line.slice(0, 300), ...(found.state === 'here' ? { here: true as const } : {}) },
-    );
+    let offer: AddOnLook = found;
+    if (offer.state === 'off') {
+      // The list is off, so what it holds is not known: the first card is about the list alone, and says what switching it on sends.
+      const first = await ctx.ask({ type: 'add-on', key, name: key, version: null, line: '', listOff: true });
+      const on = first.type === 'add-on' && first.accept;
+      if (!on) {
+        addOnAnswers.set(`${turnKey}*list`, 'no');
+        addOnAnswers.set(turnKey + key, 'no');
+        return none(`The person said no to switching the list of adminium.dev on, so "${key}" cannot be looked for. Build without it, and say what is left out.`, 'declined');
+      }
+      const switched = await getter.switchOn(ctx.handle.by, ctx.signal);
+      if (!switched.ok) return none(`${switched.why} Tell the person in their own words; build the rest meanwhile.`, 'failed');
+      offer = await getter.look(key);
+      if (offer.state === 'installed') return { got: true, name: offer.name, version: offer.version, fresh: false };
+      if (offer.state === 'unknown') return none(`The list of adminium.dev is on now, and it has no add-on "${key}". list_add_ons gives the ones there are; do not ask for this one again.`, 'refused', true);
+      if (offer.state === 'too-new') return none(`${offer.name} needs Adminium ${offer.needs} or later, and this server is ${deps.version}. Tell the person; build without it.`, 'refused');
+      if (offer.state === 'off') return none('The list of adminium.dev could not be switched on. Tell the person; build without the add-on.', 'failed');
+    }
+    if (offer.state !== 'here' && offer.state !== 'listed') return none(`The add-on "${key}" cannot be got here.`, 'refused');
+    // Now the add-on itself, by its own name and version: a yes is to what the card shows.
+    const answer = await ctx.ask({ type: 'add-on', key, name: offer.name, version: offer.version, line: offer.line.slice(0, 300), ...(offer.state === 'here' ? { here: true as const } : {}) });
     const yes = answer.type === 'add-on' && answer.accept;
     addOnAnswers.set(turnKey + key, yes ? 'yes' : 'no');
-    if (found.state === 'off' && !yes) addOnAnswers.set(`${turnKey}*list`, 'no');
     if (!yes) return none(`The person said no to the add-on "${key}". Build without it, and say what is left out.`, 'declined');
-    const result = await getter.get(key, ctx.handle.by, ctx.signal, { switchOn: found.state === 'off' });
+    const result = await getter.get(key, ctx.handle.by, ctx.signal, { version: offer.version });
     if (!result.ok) return none(`${result.why} Tell the person in their own words; build the rest meanwhile.`, 'failed');
     return { got: true, name: result.name, version: result.version, fresh: true };
   };
@@ -1050,7 +1065,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const csv = bytes === null ? null : csvOf(bytes);
         if (bytes === null || csv === null) return none(`"${entry.label}" could not be read.`, 'failed');
         // Checked in full before anyone is asked: the table, the mapping, every row.
-        const planned = await loader.plan(appKey, ref, csv, columns);
+        const planned = await loader.plan(appKey, ref, csv, columns, ctx.handle.by);
         if (!planned.ok) return none(planned.problem, 'refused');
         const { plan } = planned;
         const answer = await ctx.ask({ type: 'rows', attachment: entry.id, file: entry.label, table: plan.ref, rows: plan.valid, left: plan.invalid, reasons: plan.reasons, mapping: plan.mapping });

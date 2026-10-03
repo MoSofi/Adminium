@@ -8,6 +8,7 @@
  * conversation; and when the conversation grows, what is cut must never
  * leave a provider a transcript it refuses.
  */
+import { withPictures } from '../src/designer/prompt.js';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -73,6 +74,9 @@ describe('what the Designer’s model is told', () => {
     // The next turn is about something else: the page is not carried again.
     const after = await prompt(session({ target: 'web' }), [say('user', 'Add a page where a customer can track their order.'), say('assistant', 'Done.'), say('user', 'Make the buttons bigger.')]);
     expect(after.system).not.toContain(OWN_ROW_GUIDE.concat(' ====='));
+    // Mid-turn, the server sends a line back ("Before you finish…"): the recipe stays, because the runner says what the person wrote.
+    const nudged = [say('user', 'Add a page where a customer can track their order.'), say('assistant', ''), say('user', 'Before you finish:\n- The table "orders" has no dashboard page: nobody can open it.')];
+    expect((await prompt(session({ target: 'web' }), nudged, { said: 'Add a page where a customer can track their order.' })).system).toContain(`===== ${OWN_ROW_GUIDE} =====`);
   });
 
   it('fits the smallest window with every skill a request can pull in, and leaves room to talk', async () => {
@@ -246,5 +250,47 @@ describe('a long session, made to fit', () => {
     // Every call still has its answer.
     expect(closeDangling(trimmed)).toEqual(trimmed);
     expect(estimateTokens(JSON.stringify(trimmed))).toBeLessThan(estimateTokens(JSON.stringify(messages)) / 4);
+  });
+});
+
+describe('pictures, made ready to send', () => {
+  const picture = (ref: string): RunMessage['content'][number] => ({ type: 'image', mediaType: 'image/png', data: '', ref, name: `${ref}.png` });
+  const user = (text: string, ...refs: string[]): RunMessage => ({ role: 'user', content: [{ type: 'text', text }, ...refs.map(picture)] });
+  const said = (text: string): RunMessage => ({ role: 'assistant', content: [{ type: 'text', text }] });
+  const bytesOf = (size = 4) => (ref: string) => Buffer.alloc(size, ref.length);
+  const sent = (messages: RunMessage[]): string[] => messages.flatMap((message) => message.content.flatMap((block) => (block.type === 'image' && block.data.length > 0 ? [block.ref ?? ''] : [])));
+  const lines = (messages: RunMessage[]): string => messages.flatMap((message) => message.content.flatMap((block) => (block.type === 'text' ? [block.text] : []))).join(' ');
+
+  it('goes by the turn a picture was attached in: a line the server sends back mid-turn is not a turn', () => {
+    const turns = new Map([['a', 3]]);
+    // Turn 3, with two "Before you finish" lines sent back by the server: the picture is still this turn's.
+    const messages = [user('Make it look like this.', 'a'), said(''), user('Before you finish: one'), said(''), user('Before you finish: two')];
+    expect(sent(withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 3 }))).toEqual(['a']);
+    // The turn after: still sent. Two turns after: a line saying it was there.
+    expect(sent(withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 4 }))).toEqual(['a']);
+    const later = withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 5 });
+    expect(sent(later)).toEqual([]);
+    expect(lines(later)).toContain('A picture the person attached earlier: "a.png"');
+  });
+
+  it('a turn that failed does not keep its picture with every later message', () => {
+    // Turn 2 failed before any answer, so its message and turn 3's and 4's are one message to the provider.
+    const merged = [user('Like this.', 'a'), { role: 'user', content: [{ type: 'text', text: 'Again.' }] } as RunMessage, { role: 'user', content: [{ type: 'text', text: 'And again.' }] } as RunMessage];
+    expect(sent(withPictures(merged, { reads: true, bytesOf: bytesOf(), turnOf: () => 2, turn: 4 }))).toEqual([]);
+  });
+
+  it('sends none to a model that reads none, or once a request with pictures was refused', () => {
+    const blind = withPictures([user('Like this.', 'a')], { reads: false, bytesOf: bytesOf(), turnOf: () => 1, turn: 1 });
+    expect(sent(blind)).toEqual([]);
+    expect(lines(blind)).toContain('You cannot see it: this model does not read pictures.');
+  });
+
+  it('keeps one request under what a provider takes: the newest pictures first', () => {
+    const five = 5 * 1024 * 1024;
+    const messages = [user('One.', 'p1', 'p2'), said('ok'), user('Two.', 'p3', 'p4')];
+    const out = withPictures(messages, { reads: true, bytesOf: bytesOf(five), turnOf: () => 2, turn: 2 });
+    // Twelve megabytes: two of five fit, and they are the newest two.
+    expect(sent(out)).toEqual(['p3', 'p4']);
+    expect(lines(out)).toContain('"p1.png". You cannot see it: it could not be sent with this request');
   });
 });

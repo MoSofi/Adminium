@@ -45,6 +45,8 @@ let script: ScriptStep[] = [];
 /** What each request to the model carried: its messages, as sent. */
 let asked: { role: string; content?: string }[][] = [];
 const held: (() => void)[] = [];
+/** The model's server answers 400 to a request with a picture in it. */
+let refusesPictures = false;
 
 beforeAll(async () => {
   model = createServer((request, response) => {
@@ -63,6 +65,12 @@ beforeAll(async () => {
         response.write(`${JSON.stringify(value)}\n`);
       };
       const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 50, eval_count: 5, message: { role: 'assistant', content: '' } };
+      // A model whose server refuses any request that carries a picture.
+      if (refusesPictures && (sent.messages as { images?: unknown[] }[]).some((message) => Array.isArray(message.images) && message.images.length > 0)) {
+        response.statusCode = 400;
+        response.end(JSON.stringify({ error: 'this model does not take images' }));
+        return;
+      }
       // `locked` stands for a refused key.
       if (sent.model === 'locked') {
         response.statusCode = 401;
@@ -130,6 +138,7 @@ afterEach(async () => {
   root = undefined;
   reply = { text: 'I looked, and the app is fine as it is.' };
   script = [];
+  refusesPictures = false;
   asked = [];
 });
 
@@ -477,6 +486,44 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     await finishedTurn(client, session.id, 4);
     expect(JSON.stringify(asked.at(-1))).not.toContain(png.toString('base64'));
     expect(JSON.stringify(asked.at(-1))).toContain('A picture the person attached earlier: \\"shot.png\\"');
+  });
+
+  it('goes on without a picture the model’s server refuses, and never sends that session a picture again', async () => {
+    const client = await server({ designer: true });
+    script = [writesStarter];
+    const session = (await client.call('POST', '/api/v1/designer/sessions', createBody())).body['session'] as { id: string };
+    await finishedTurn(client, session.id, 1);
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('cut short')]);
+    const file = (
+      (
+        await composed!.app.inject({
+          method: 'POST',
+          url: `/api/v1/designer/sessions/${session.id}/attachments?filename=shot.png`,
+          headers: { host: HOST, cookie: client.owner, 'content-type': 'application/octet-stream' },
+          payload: png,
+        })
+      ).json() as { attachment: { id: string } }
+    ).attachment;
+    // It said it reads pictures; then its server refuses the one it is sent.
+    reply = { text: 'Yellow, blue.' };
+    await client.call('POST', '/api/v1/designer/models/reads-images', { connectionId: 'env:ollama', model: 'fake' });
+    refusesPictures = true;
+    reply = { text: 'I cannot see the picture; tell me what matters in it.' };
+    asked = [];
+    await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Make it look like this.', attachments: [file.id] });
+    const events = await finishedTurn(client, session.id, 2);
+    // The turn ended with an answer, not a failure: asked with the picture (refused), then without.
+    expect(events.at(-1)).toMatchObject({ outcome: 'done' });
+    expect(JSON.stringify(asked.at(-2))).toContain(png.toString('base64'));
+    expect(JSON.stringify(asked.at(-1))).not.toContain(png.toString('base64'));
+    expect(JSON.stringify(asked.at(-1))).toContain('You cannot see it');
+
+    // The next message does not carry it either: the session goes on.
+    asked = [];
+    await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Then make it warmer.' });
+    expect((await finishedTurn(client, session.id, 3)).at(-1)).toMatchObject({ outcome: 'done' });
+    expect(asked).toHaveLength(1);
+    expect(JSON.stringify(asked[0])).not.toContain(png.toString('base64'));
   });
 
   it('let one turn run at a time, and stop it', async () => {

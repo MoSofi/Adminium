@@ -60,6 +60,9 @@ describe('what a file is', () => {
     expect(csvOf(Buffer.from('<html><body>hi</body></html>'))).toBeNull();
     expect(csvOf(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00]))).toBeNull();
     expect(csvOf(Buffer.from([0xff, 0xfe, 0x41, 0x00]))).toBeNull();
+    // Semicolons or tabs would read as one column: refused, with words that say what to do.
+    expect(csvOf(Buffer.from('a;b;c\n1;2;3\n'))).toBeNull();
+    expect(csvOf(Buffer.from('a\tb\n1\t2\n'))).toBeNull();
   });
 
   it('a file’s name is a label: its last part, with nothing that steers text or a path', () => {
@@ -110,6 +113,14 @@ describe('what a model is shown of a CSV', () => {
     expect(lines[1]?.length).toBeLessThan(230);
     expect(lines).toHaveLength(3);
     expect(csvLines(csv, 3, 50).split('\n')).toEqual(['row | Name | Note', '3 | Cy | ok']);
+    // A file a thousand columns wide is shown sixty of them, and said so.
+    const wide = { header: Array.from({ length: 1000 }, (_, i) => `c${String(i)}`), rows: [Array.from({ length: 1000 }, () => 'v')] };
+    const shown = csvLines(wide, 1, 1).split('\n');
+    expect(shown[0]?.endsWith('| c59 | (and 940 more columns, not shown)')).toBe(true);
+    expect(shown[1]?.split(' | ')).toHaveLength(61);
+    // A cut never ends on half of a character written as a pair.
+    const paired = csvLines({ header: ['Note'], rows: [[`${'a'.repeat(199)}😀${'b'.repeat(50)}`]] }, 1, 1);
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(paired)).toBe(false);
   });
 
   it('is said to be data, with the id the tools take; a picture gets no note', () => {

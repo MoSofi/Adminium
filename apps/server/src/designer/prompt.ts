@@ -214,34 +214,60 @@ export function requestTokens(system: string, messages: readonly RunMessage[]): 
 
 const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSON.stringify(withoutBytes(messages)));
 
-/** The pictures still worth sending: those of the newest turns. */
+/** The pictures still worth sending: those attached in the newest turns. */
 const PICTURE_TURNS = 2;
+/** The most pictures, and bytes of pictures, one request carries: providers cap a request's size. */
+const PICTURES_MAX = 6;
+const PICTURES_MAX_BYTES = 12 * 1024 * 1024;
+
+export interface PictureOpts {
+  /** Whether the model reads pictures (and none it was sent this session was refused). */
+  reads: boolean;
+  bytesOf: (ref: string) => Buffer | null;
+  /** The turn a picture was attached in; undefined when it is not known. */
+  turnOf: (ref: string) => number | undefined;
+  /** The turn being run. */
+  turn: number;
+}
 
 /**
- * Pictures, made ready to send (D134). One of the two newest turns is given
- * its bytes when the model reads pictures; any other becomes a line of text,
- * so the model knows a picture was there and is not sent megabytes at every
- * step.
+ * Pictures, made ready to send (D134). One attached in the two newest turns is
+ * given its bytes when the model reads pictures; any other becomes a line of
+ * text, so the model knows a picture was there and is not sent megabytes at
+ * every step. "Newest" is by the turn the picture was attached in, as the
+ * session recorded it: a line the server sends back mid-turn is not a turn,
+ * and a turn that failed does not keep its picture with every later message.
  */
-export function withPictures(messages: readonly RunMessage[], opts: { reads: boolean; bytesOf: (ref: string) => Buffer | null }): RunMessage[] {
+export function withPictures(messages: readonly RunMessage[], opts: PictureOpts): RunMessage[] {
   if (!messages.some((message) => message.content.some((block) => block.type === 'image'))) return [...messages];
-  const starts = messages.flatMap((message, index) =>
-    message.role === 'user' && message.content.some((block) => block.type === 'text') && !message.content.some((block) => block.type === 'tool_result') ? [index] : [],
-  );
-  const newestFrom = starts.length >= PICTURE_TURNS ? (starts[starts.length - PICTURE_TURNS] as number) : 0;
-  return messages.map((message, index) => {
+  // Newest first, under the caps: an older one gives way before a newer one does.
+  const sendable = new Set<string>();
+  let bytes = 0;
+  for (const message of [...messages].reverse()) {
+    for (const block of [...message.content].reverse()) {
+      if (block.type !== 'image' || block.ref === undefined || !opts.reads) continue;
+      const attached = opts.turnOf(block.ref);
+      if (attached === undefined || attached <= opts.turn - PICTURE_TURNS) continue;
+      const size = opts.bytesOf(block.ref)?.length ?? null;
+      if (size === null || sendable.size >= PICTURES_MAX || bytes + size > PICTURES_MAX_BYTES) continue;
+      sendable.add(block.ref);
+      bytes += size;
+    }
+  }
+  return messages.map((message) => {
     if (!message.content.some((block) => block.type === 'image')) return message;
     return {
       ...message,
       content: message.content.map((block): RunBlock => {
         if (block.type !== 'image') return block;
         const name = (block.name ?? 'a picture').replace(/["\n]/g, ' ').slice(0, 120);
-        if (index < newestFrom) return { type: 'text', text: `\n(A picture the person attached earlier: "${name}". It is not sent again.)` };
-        const bytes = opts.reads && block.ref !== undefined ? opts.bytesOf(block.ref) : null;
-        if (bytes === null) {
-          return { type: 'text', text: `\n(The person attached a picture, "${name}". You cannot see it: this model does not read pictures. Say so in one sentence, ask them to describe what matters in it, and go on with what their words say.)` };
+        const data = block.ref !== undefined && sendable.has(block.ref) ? opts.bytesOf(block.ref) : null;
+        if (data !== null) return { ...block, data: data.toString('base64') };
+        const attached = block.ref === undefined ? undefined : opts.turnOf(block.ref);
+        if (opts.reads && attached !== undefined && attached <= opts.turn - PICTURE_TURNS) {
+          return { type: 'text', text: `\n(A picture the person attached earlier: "${name}". It is not sent again.)` };
         }
-        return { ...block, data: bytes.toString('base64') };
+        return { type: 'text', text: `\n(The person attached a picture, "${name}". You cannot see it: ${opts.reads ? 'it could not be sent with this request' : 'this model does not read pictures'}. Say so in one sentence, ask them to describe what matters in it, and go on with what their words say.)` };
       }),
     };
   });
@@ -300,8 +326,19 @@ export function trimTranscript(messages: readonly RunMessage[], budget: number):
   return out;
 }
 
+/** What the runner knows of the turn it is running, that the messages alone do not say. */
+export interface PromptOpts {
+  /** What the person wrote for this turn. */
+  said?: string;
+  /** The turn being run, and the turn each picture was attached in. */
+  turn?: number;
+  pictureTurns?: ReadonlyMap<string, number>;
+  /** False once the provider refused a request that carried pictures: they go as a line of text from then on. */
+  pictures?: boolean;
+}
+
 export function createPrompt(deps: PromptDeps) {
-  return async (session: DesignerSession, messages: RunMessage[]): Promise<{ system: string; messages: RunMessage[] }> => {
+  return async (session: DesignerSession, messages: RunMessage[], opts: PromptOpts = {}): Promise<{ system: string; messages: RunMessage[] }> => {
     const provider = await deps.providerOf(session);
     const app = appNow(deps.root, deps.version, session.appKey);
     const said = messages.flatMap((message) => (message.role === 'user' ? [firstText(message)] : [])).join(' ');
@@ -313,8 +350,9 @@ export function createPrompt(deps: PromptDeps) {
           ? 'The person asked for screens on the web: a staff side, a customer side, or both, as the request needs.'
           : 'The person left the kind of app to you: pick the lowest rung that answers the request.';
     // What the person last asked for decides: the recipe is a page of text, and only a turn about it carries it.
+    // The runner says what the person wrote for this turn: a line the server sent back mid-turn ("Before you finish…") is not theirs, and the recipe must not leave the prompt because of one.
     const lastSaid = [...messages].reverse().find((message) => message.role === 'user' && message.content.some((block) => block.type === 'text') && !message.content.some((block) => block.type === 'tool_result'));
-    const ownRow = MENTIONS_OWN_ROW.test(firstText(lastSaid)) ? skill(deps.skills, OWN_ROW_GUIDE) : '';
+    const ownRow = MENTIONS_OWN_ROW.test(opts.said ?? firstText(lastSaid)) ? skill(deps.skills, OWN_ROW_GUIDE) : '';
     const system = `${PREAMBLE}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 
     // The limit is what a request may carry; the reply has its own room beyond it.
@@ -330,7 +368,15 @@ export function createPrompt(deps: PromptDeps) {
     // What the turn no longer needs is cut first (T64); the budget then trims only what is still too long. Pictures get their bytes last, so no estimate reads them.
     const fitted = trimTranscript(foldSpent(messages), budget - messages.reduce((sum, message) => sum + message.content.filter((block) => block.type === 'image').length, 0) * IMAGE_TOKENS);
     const hasPicture = fitted.some((message) => message.content.some((block) => block.type === 'image'));
-    const reads = hasPicture && deps.attachments !== undefined ? (await deps.readsImages?.(session)) === true : false;
-    return { system, messages: withPictures(fitted, { reads, bytesOf: (ref) => deps.attachments?.read(session.id, ref) ?? null }) };
+    const reads = opts.pictures !== false && hasPicture && deps.attachments !== undefined ? (await deps.readsImages?.(session)) === true : false;
+    return {
+      system,
+      messages: withPictures(fitted, {
+        reads,
+        bytesOf: (ref) => deps.attachments?.read(session.id, ref) ?? null,
+        turnOf: (ref) => opts.pictureTurns?.get(ref),
+        turn: opts.turn ?? session.turns,
+      }),
+    };
   };
 }

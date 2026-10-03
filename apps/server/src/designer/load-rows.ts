@@ -38,7 +38,7 @@ export type LoadOutcome = { ok: true; loaded: number; left: number; reasons: str
 
 export interface RowLoader {
   /** Check a load without writing: the table, the mapping, every row. */
-  plan(appKey: string, ref: string, csv: { header: string[]; rows: string[][] }, columns: Record<string, string>): Promise<{ ok: true; plan: LoadPlan } | { ok: false; problem: string }>;
+  plan(appKey: string, ref: string, csv: { header: string[]; rows: string[][] }, columns: Record<string, string>, by: Actor): Promise<{ ok: true; plan: LoadPlan } | { ok: false; problem: string }>;
   load(plan: LoadPlan, file: { label: string; bytes: Buffer }, by: Actor, signal: AbortSignal): Promise<LoadOutcome>;
 }
 
@@ -48,6 +48,8 @@ export interface RowLoaderDeps {
   storage: FileStore;
   credentialCrypto: { encrypt(value: string): string; decrypt(value: string): string };
   enqueue(input: EnqueueJobInput): Promise<Job>;
+  /** Whether this person may import into this table: the permission the Imports page asks for (`table:<connection>:<table>:import`). */
+  mayImport(by: Actor, connectionId: string, table: string): Promise<boolean>;
   jobTimeoutMs?: number;
   pollMs?: number;
 }
@@ -56,7 +58,7 @@ const said = (error: unknown): string => (error instanceof Error ? error.message
 
 export function createRowLoader(deps: RowLoaderDeps): RowLoader {
   return {
-    async plan(appKey, ref, csv, columns) {
+    async plan(appKey, ref, csv, columns, by) {
       const installed = await manifestsRepo(deps.meta, deps.credentialCrypto).findByKey(appKey);
       const connectionId = installed?.row.connectionId ?? null;
       if (installed === null || installed.row.kind !== 'app' || connectionId === null) {
@@ -79,6 +81,10 @@ export function createRowLoader(deps: RowLoaderDeps): RowLoader {
         return { ok: false, problem: `The table "${ref}" cannot be read yet (${said(error)}). apply_app, then call this again.` };
       }
       if (resolved.readOnly) return { ok: false, problem: `The table "${ref}" is read-only.` };
+      // The same right the Imports page asks for: using the Designer does not stand in for it.
+      if (!(await deps.mayImport(by, connectionId, resolved.id))) {
+        return { ok: false, problem: `The person you are working with may not import rows into "${ref}". Someone who may can load the file with Import on the table's page. Say so, and leave the table as it is.` };
+      }
 
       const entries = Object.entries(columns).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim() !== '');
       if (entries.length === 0) return { ok: false, problem: `Give "columns": which CSV column goes to which column of "${ref}". The CSV's columns are: ${csv.header.join(', ')}.` };
@@ -142,6 +148,8 @@ export function createRowLoader(deps: RowLoaderDeps): RowLoader {
 
     async load(plan, file, by, signal) {
       if (by.id === null) return { ok: false, why: 'Nobody is signed in to load rows as.' };
+      // Asked again: the right may have been taken away between the card and its answer.
+      if (!(await deps.mayImport(by, plan.connectionId, plan.table))) return { ok: false, why: 'This person may not import rows into that table.' };
       try {
         const fileId = newId('file');
         const written = await deps.storage.write({ id: fileId, kind: 'import', filename: file.label, mime: 'text/csv; charset=utf-8', bytes: file.bytes });

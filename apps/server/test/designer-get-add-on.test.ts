@@ -179,23 +179,34 @@ describe('what this server knows of an add-on', () => {
 });
 
 describe('getting one', () => {
-  it('downloads what the list names, at the list’s version, and installs it as the person', async () => {
+  const V = { version: '1.0.0' };
+
+  it('downloads what the list names, at the version the person was shown, and installs it as the person', async () => {
     await store.writeCatalogCache(CATALOG, Date.now());
-    expect(await getter().get('design-studio', OWNER, signal())).toEqual({ ok: true, name: 'Design Studio', version: '1.0.0' });
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toEqual({ ok: true, name: 'Design Studio', version: '1.0.0' });
     expect(fetched).toEqual(['tarball']);
     expect(await store.versions('design-studio')).toEqual(['1.0.0']);
     expect(installAddOn).toHaveBeenCalledTimes(1);
     expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], actor: OWNER });
   });
 
+  it('does not follow a list that moved between the card and the yes', async () => {
+    await store.writeCatalogCache(CATALOG, Date.now());
+    const result = await getter().get('design-studio', OWNER, signal(), { version: '0.9.0' });
+    expect(result).toMatchObject({ ok: false });
+    expect((result as { why: string }).why).toContain('now at version 1.0.0, not the 0.9.0 the person was shown');
+    expect(fetched).toEqual([]);
+    expect(installAddOn).not.toHaveBeenCalled();
+  });
+
   it('installs one already in the store without asking adminium.dev for anything', async () => {
     await store.writeCatalogCache(CATALOG, Date.now());
-    await getter().get('design-studio', OWNER, signal());
+    await getter().get('design-studio', OWNER, signal(), V);
     fetched = [];
     installAddOn.mockClear();
     await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, false, { updatedBy: null });
     expect(await getter().look('design-studio')).toMatchObject({ state: 'here', version: '1.0.0' });
-    expect(await getter().get('design-studio', OWNER, signal())).toMatchObject({ ok: true });
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toMatchObject({ ok: true });
     expect(fetched).toEqual([]);
     expect(installAddOn).toHaveBeenCalledTimes(1);
   });
@@ -203,40 +214,44 @@ describe('getting one', () => {
   it('does nothing for a person who may not add an add-on, checked when the answer comes', async () => {
     await store.writeCatalogCache(CATALOG, Date.now());
     may = false;
-    expect(await getter().get('design-studio', OWNER, signal())).toMatchObject({ ok: false });
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toMatchObject({ ok: false });
+    expect(await getter().switchOn(OWNER, signal())).toMatchObject({ ok: false });
     expect(fetched).toEqual([]);
     expect(installAddOn).not.toHaveBeenCalled();
   });
 
-  it('a list that is off stays off unless the yes was to switching it on', async () => {
+  it('a list that is off stays off when an add-on is asked for: getting never switches it on', async () => {
     await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, false, { updatedBy: null });
-    expect(await getter().get('design-studio', OWNER, signal())).toMatchObject({ ok: false });
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toMatchObject({ ok: false });
     expect(await settingsRepo(meta).get(CATALOG_ENABLED_SETTING)).toBe(false);
     expect(fetched).toEqual([]);
   });
 
-  it('switches the list on (audited as the page’s switch), reads it, then gets the add-on', async () => {
+  it('switching the list on is its own step: audited as the page’s switch, the list read, nothing downloaded', async () => {
     await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, false, { updatedBy: null });
-    expect(await getter().get('design-studio', OWNER, signal(), { switchOn: true })).toEqual({ ok: true, name: 'Design Studio', version: '1.0.0' });
+    expect(await getter().switchOn(OWNER, signal())).toEqual({ ok: true });
     expect(await settingsRepo(meta).get(CATALOG_ENABLED_SETTING)).toBe(true);
-    expect(fetched).toEqual(['list', 'tarball']);
+    expect(fetched).toEqual(['list']);
+    expect(installAddOn).not.toHaveBeenCalled();
     const toggled = (await auditRepo(meta).list({ category: 'add-on', limit: 50 })).find((row) => row.action === 'add-on.catalog-toggled');
     expect(toggled).toMatchObject({ actorId: OWNER.id, changes: { before: { onlineEnabled: false }, after: { onlineEnabled: true, from: 'designer' } } });
     expect(await actions()).toContain('add-on.catalog-refreshed');
+    // Then the add-on is in the list, to be shown by its own name and version before it is got.
+    expect(await getter().look('design-studio')).toMatchObject({ state: 'listed', name: 'Design Studio', version: '1.0.0' });
   });
 
   it('the environment’s off outranks any yes', async () => {
     await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, false, { updatedBy: null });
     networkFeatures = false;
-    expect(await getter().get('design-studio', OWNER, signal(), { switchOn: true })).toMatchObject({ ok: false });
+    expect(await getter().switchOn(OWNER, signal())).toMatchObject({ ok: false });
     expect(await settingsRepo(meta).get(CATALOG_ENABLED_SETTING)).toBe(false);
     expect(fetched).toEqual([]);
   });
 
   it('says so when the list does not name it, and installs nothing', async () => {
     await store.writeCatalogCache(CATALOG, Date.now());
-    expect(await getter().get('nope', OWNER, signal())).toEqual({ ok: false, why: 'adminium.dev lists no add-on "nope".' });
-    expect(await getter().get('from-the-future', OWNER, signal())).toMatchObject({ ok: false });
+    expect(await getter().get('nope', OWNER, signal(), V)).toEqual({ ok: false, why: 'adminium.dev lists no add-on "nope".' });
+    expect(await getter().get('from-the-future', OWNER, signal(), V)).toMatchObject({ ok: false });
     expect(installAddOn).not.toHaveBeenCalled();
     expect(fetched).toEqual([]);
   });
@@ -244,7 +259,7 @@ describe('getting one', () => {
   it('carries the installer’s own refusal back in words', async () => {
     await store.writeCatalogCache(CATALOG, Date.now());
     installAddOn.mockRejectedValueOnce(new Error('its tables do not fit'));
-    const result = await getter().get('design-studio', OWNER, signal());
+    const result = await getter().get('design-studio', OWNER, signal(), V);
     expect(result).toEqual({ ok: false, why: 'Design Studio was downloaded and could not be installed: its tables do not fit' });
   });
 });

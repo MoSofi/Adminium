@@ -29,7 +29,10 @@ let said: string;
 /** What the server knows of each add-on, and what getting one answers: the getter the tools are given. */
 let looks: Record<string, AddOnLook>;
 let mayAdd: boolean;
-let gets: { key: string; switchOn: boolean }[];
+let gets: { key: string; version: string }[];
+/** How often the list was switched on, and what the server knows once it is. */
+let switched: number;
+let afterSwitch: Record<string, AddOnLook> | null;
 let getResult: GetAddOnResult;
 let onServer: Set<string>;
 
@@ -69,6 +72,8 @@ beforeEach(async () => {
   looks = {};
   mayAdd = true;
   gets = [];
+  switched = 0;
+  afterSwitch = null;
   getResult = { ok: true, name: 'Invoices & Receipts', version: '1.0.7' };
   onServer = new Set(['invoices']);
   tools = createDesignerTools(
@@ -82,8 +87,13 @@ beforeEach(async () => {
       addOnGetter: {
         look: async (key) => looks[key] ?? { state: 'unknown' },
         allowed: async () => mayAdd,
+        switchOn: async () => {
+          switched += 1;
+          looks = afterSwitch ?? looks;
+          return { ok: true };
+        },
         get: async (key, _by, _signal, opts) => {
-          gets.push({ key, switchOn: opts?.switchOn === true });
+          gets.push({ key, version: opts.version });
           if (getResult.ok) onServer.add(key);
           return getResult;
         },
@@ -111,7 +121,7 @@ describe('an add-on this server does not have', () => {
     answers = [{ type: 'add-on', accept: true }];
     const got = await run('get_add_on', { key: 'invoices' });
     expect(asked).toEqual([{ type: 'add-on', key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.' }]);
-    expect(gets).toEqual([{ key: 'invoices', switchOn: false }]);
+    expect(gets).toEqual([{ key: 'invoices', version: '1.0.7' }]);
     expect(got).toMatchObject({ label: 'Got Invoices & Receipts', facts: { outcome: 'added' } });
     expect(got.isError).toBeUndefined();
   });
@@ -145,21 +155,48 @@ describe('an add-on this server does not have', () => {
     expect(asked).toEqual([]);
   });
 
-  it('a list that is off: the card says so, a yes switches it on, and one no covers every add-on in the turn', async () => {
+  it('a list that is off: the first card is about the list alone, and one no covers every add-on in the turn', async () => {
     looks = { invoices: { state: 'off', vetoed: false }, bookings: { state: 'off', vetoed: false } };
     answers = [{ type: 'add-on', accept: false }];
     await run('get_add_on', { key: 'invoices' });
     expect(asked).toEqual([{ type: 'add-on', key: 'invoices', name: 'invoices', version: null, line: '', listOff: true }]);
     expect((await run('get_add_on', { key: 'bookings' })).content).toContain('already said no to switching the list');
     expect(asked).toHaveLength(1);
+    expect(switched).toBe(0);
     expect(gets).toEqual([]);
   });
 
-  it('a list that is off and a yes: the list is switched on with the get', async () => {
+  it('a list that is off and a yes: the list is switched on, then a second card shows the add-on by its own name and version', async () => {
     looks = { invoices: { state: 'off', vetoed: false } };
-    answers = [{ type: 'add-on', accept: true }];
+    afterSwitch = { invoices: LISTED };
+    answers = [{ type: 'add-on', accept: true }, { type: 'add-on', accept: true }];
     expect(await run('get_add_on', { key: 'invoices' })).toMatchObject({ facts: { outcome: 'added' } });
-    expect(gets).toEqual([{ key: 'invoices', switchOn: true }]);
+    expect(switched).toBe(1);
+    expect(asked).toEqual([
+      { type: 'add-on', key: 'invoices', name: 'invoices', version: null, line: '', listOff: true },
+      { type: 'add-on', key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.' },
+    ]);
+    // What is got is what the second card showed.
+    expect(gets).toEqual([{ key: 'invoices', version: '1.0.7' }]);
+  });
+
+  it('a list switched on that does not hold the key: said, and nothing is got; a no to the add-on itself gets nothing either', async () => {
+    looks = { 'made-up': { state: 'off', vetoed: false } };
+    afterSwitch = {};
+    answers = [{ type: 'add-on', accept: true }];
+    const missing = await run('get_add_on', { key: 'made-up' });
+    expect(missing).toMatchObject({ isError: true, miss: true });
+    expect(missing.content).toContain('has no add-on "made-up"');
+    expect(asked).toHaveLength(1);
+    expect(gets).toEqual([]);
+
+    looks = { invoices: { state: 'off', vetoed: false } };
+    afterSwitch = { invoices: LISTED };
+    asked = [];
+    answers = [{ type: 'add-on', accept: true }, { type: 'add-on', accept: false }];
+    expect(await run('get_add_on', { key: 'invoices' })).toMatchObject({ isError: true, facts: { outcome: 'declined' } });
+    expect(asked).toHaveLength(2);
+    expect(gets).toEqual([]);
   });
 
   it('a server set to ask nothing of adminium.dev raises no card', async () => {
@@ -193,7 +230,7 @@ describe('an add-on this server does not have', () => {
     answers = [{ type: 'add-on', accept: true }];
     const built = await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1', recipient: { table: 'clients', email: 'email', name: 'name' } });
     expect(asked).toHaveLength(1);
-    expect(gets).toEqual([{ key: 'invoices', switchOn: false }]);
+    expect(gets).toEqual([{ key: 'invoices', version: '1.0.7' }]);
     expect(built, built.content).toMatchObject({ label: 'Built on invoice@1' });
   });
 
