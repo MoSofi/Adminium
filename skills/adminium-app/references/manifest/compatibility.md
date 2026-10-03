@@ -4,7 +4,7 @@
 
 ```json
 "compatibility": {
-  "minAdminiumVersion": "0.3.13",
+  "minAdminiumVersion": "0.3.14",
   "engines": ["postgres", "mysql", "sqlite"],
   "requires": ["realtime"]
 }
