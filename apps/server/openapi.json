@@ -90582,6 +90582,144 @@
         }
       }
     },
+    "/api/v1/designer/live": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "live"
+                      ]
+                    },
+                    "allowed": {
+                      "type": "boolean"
+                    },
+                    "on": {
+                      "type": "boolean"
+                    },
+                    "project": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not-allowed",
+                            "no-project",
+                            "disk-not-kept",
+                            "no-bundler",
+                            "not-writable"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "allowed",
+                    "on",
+                    "project",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "type": "boolean"
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "on"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "live"
+                      ]
+                    },
+                    "allowed": {
+                      "type": "boolean"
+                    },
+                    "on": {
+                      "type": "boolean"
+                    },
+                    "project": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not-allowed",
+                            "no-project",
+                            "disk-not-kept",
+                            "no-bundler",
+                            "not-writable"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "allowed",
+                    "on",
+                    "project",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/add-ons/catalog": {
       "get": {
         "responses": {

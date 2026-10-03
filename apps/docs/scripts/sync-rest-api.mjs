@@ -84,6 +84,9 @@ const DESCRIPTIONS = {
   branding: 'Instance name, colours and logo (read is public; writes are admin)',
   connections: 'Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation',
   data: 'Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references',
+  designer:
+    'Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself ' +
+    '(a Super Admin, with their password). The Designer’s own routes exist only while the server runs it',
   'email-blocks': 'Reusable email sections saved from the editor — list, save one, delete one',
   'email-runs': 'Campaign sends — cancel a scheduled or running run',
   'email-templates':

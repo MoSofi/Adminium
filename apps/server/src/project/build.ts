@@ -103,6 +103,15 @@ export type Bundler = ClientBundler;
 
 export type LoadBundler = (root: string) => Promise<Bundler | null>;
 
+/** The `package.json` of the esbuild a project would build with, or null when it has none. */
+export function projectBundlerManifest(root: string): string | null {
+  for (let dir = resolve(root); ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', 'esbuild', 'package.json');
+    if (existsSync(candidate)) return candidate;
+    if (dirname(dir) === dir) return null;
+  }
+}
+
 /**
  * esbuild, from a `node_modules` folder in the project or above it (a
  * workspace root), or null when there is none. Only real `node_modules`
@@ -110,15 +119,7 @@ export type LoadBundler = (root: string) => Promise<Bundler | null>;
  * dependencies.
  */
 export const loadProjectBundler: LoadBundler = async (root) => {
-  let manifest: string | null = null;
-  for (let dir = resolve(root); ; dir = dirname(dir)) {
-    const candidate = join(dir, 'node_modules', 'esbuild', 'package.json');
-    if (existsSync(candidate)) {
-      manifest = candidate;
-      break;
-    }
-    if (dirname(dir) === dir) break;
-  }
+  const manifest = projectBundlerManifest(root);
   if (manifest === null) return null;
   let entry: string;
   try {

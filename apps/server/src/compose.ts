@@ -31,7 +31,6 @@
  */
 
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
@@ -103,6 +102,7 @@ import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
 import { stopOwnBuilds } from './project/apps/own-build.js';
+import { projectBundlerManifest } from './project/build.js';
 import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
@@ -1919,14 +1919,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               },
               hasBundler:
                 opts.designerBundler ??
-                (() => {
-                  try {
-                    createRequire(join(projectRoot ?? process.cwd(), 'package.json')).resolve('esbuild');
-                    return true;
-                  } catch {
-                    return false;
-                  }
-                }),
+                // The same esbuild `adminium build` would load: the project's own, or one above it.
+                (() => projectBundlerManifest(projectRoot ?? process.cwd()) !== null),
               log: (message) => app.log.warn(message),
             });
       // The switch going off by itself is in the audit log beside a person's own on and off.
