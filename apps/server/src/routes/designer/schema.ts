@@ -170,3 +170,55 @@ export const designerConnectionReply = z.object({
   hasKey: z.boolean(),
   model: z.string().nullable(),
 });
+
+const cell = z.enum(['read', 'write', 'none']);
+/** How an app fits together (`designer/architecture.ts`). */
+export const designerArchitectureReply = z.object({
+  name: z.string(),
+  applied: z.boolean(),
+  people: z.array(z.object({ id: z.string(), kind: z.enum(['role', 'customers']), label: z.string() })),
+  uses: z.array(z.object({ id: z.enum(['dashboard', 'staff', 'customer']), label: z.string(), count: z.number().int() })),
+  tables: z.array(
+    z.object({
+      id: z.string(),
+      ref: z.string(),
+      name: z.string(),
+      rows: z.number().int().nullable(),
+      columns: z.array(z.object({ name: z.string(), type: z.string() })),
+      relations: z.array(z.object({ to: z.string(), column: z.string() })),
+    }),
+  ),
+  addOns: z.array(
+    z.object({
+      id: z.string(),
+      key: z.string(),
+      name: z.string(),
+      need: z.enum(['required', 'suggested']),
+      state: z.enum(['installed', 'not-installed']),
+      version: z.string().nullable(),
+      reason: z.string(),
+    }),
+  ),
+  builtIn: z.array(z.enum(['sign-in', 'files', 'automations', 'import-export', 'reports', 'api'])),
+  emails: z.array(z.object({ id: z.string(), key: z.string(), name: z.string(), when: z.string() })),
+  edges: z.array(
+    z.object({
+      id: z.string(),
+      from: z.string(),
+      to: z.string(),
+      kind: z.enum(['session', 'customer-key', 'uses', 'relation', 'add-on', 'email']),
+      reads: z.number().int().optional(),
+      writes: z.number().int().optional(),
+    }),
+  ),
+  lists: z.object({
+    pages: z.array(z.object({ ref: z.string(), name: z.string(), kind: z.string(), shows: z.string() })),
+    roles: z.object({
+      tables: z.array(z.string()),
+      rows: z.array(z.object({ id: z.string(), role: z.string(), cells: z.array(cell), notes: z.array(z.string().nullable()) })),
+    }),
+    access: z.array(z.string()),
+    screens: z.array(z.object({ id: z.string(), name: z.string(), side: z.enum(['staff', 'customer']) })),
+  }),
+  pending: z.array(z.object({ part: z.string(), node: z.string().nullable() })),
+});

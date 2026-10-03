@@ -3,13 +3,16 @@
  * The build page's other half: the app itself (Preview) and how it is made
  * (Architecture).
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import type { DesignerSession } from '../api.js';
 import { Preview } from './Preview.js';
 import type { TurnView } from './turns.js';
+
+/** The diagram library is loaded only when the tab opens. */
+const ArchitectureTab = lazy(() => import('../architecture/ArchitectureTab.js'));
 
 /** A phone-wide window: the preview has no width switch there. */
 function useNarrow(): boolean {
@@ -40,9 +43,11 @@ export function WorkArea({ session, turns, onFix }: { session: DesignerSession; 
         <Preview session={session} turns={turns} onFix={onFix} compact={narrow} />
       </TabsContent>
       <TabsContent value="architecture" className="flex min-h-0 flex-1 flex-col bg-surface-2">
-        <div className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
-          {t('designer:work.architectureSoon', 'How {name} is made shows here.', { name: session.title })}
-        </div>
+        {tab === 'architecture' ? (
+          <Suspense fallback={null}>
+            <ArchitectureTab session={session} />
+          </Suspense>
+        ) : null}
       </TabsContent>
     </Tabs>
   );

@@ -129,6 +129,30 @@ export interface DesignerVersion {
   current: boolean;
 }
 
+export type ArchitectureCell = 'read' | 'write' | 'none';
+export type ArchitectureEdgeKind = 'session' | 'customer-key' | 'uses' | 'relation' | 'add-on' | 'email';
+export type BuiltIn = 'sign-in' | 'files' | 'automations' | 'import-export' | 'reports' | 'api';
+
+/** How an app fits together, from what the engine applied. */
+export interface ArchitectureDoc {
+  name: string;
+  applied: boolean;
+  people: { id: string; kind: 'role' | 'customers'; label: string }[];
+  uses: { id: 'dashboard' | 'staff' | 'customer'; label: string; count: number }[];
+  tables: { id: string; ref: string; name: string; rows: number | null; columns: { name: string; type: string }[]; relations: { to: string; column: string }[] }[];
+  addOns: { id: string; key: string; name: string; need: 'required' | 'suggested'; state: 'installed' | 'not-installed'; version: string | null; reason: string }[];
+  builtIn: BuiltIn[];
+  emails: { id: string; key: string; name: string; when: string }[];
+  edges: { id: string; from: string; to: string; kind: ArchitectureEdgeKind; reads?: number; writes?: number }[];
+  lists: {
+    pages: { ref: string; name: string; kind: string; shows: string }[];
+    roles: { tables: string[]; rows: { id: string; role: string; cells: ArchitectureCell[]; notes: (string | null)[] }[] };
+    access: string[];
+    screens: { id: string; name: string; side: 'staff' | 'customer' }[];
+  };
+  pending: { part: string; node: string | null }[];
+}
+
 export const designerKeys = {
   state: ['designer', 'state'] as const,
   apps: ['designer', 'your-apps'] as const,
@@ -136,6 +160,7 @@ export const designerKeys = {
   models: ['designer', 'models'] as const,
   session: (id: string) => ['designer', 'session', id] as const,
   versions: (id: string) => ['designer', 'versions', id] as const,
+  architecture: (id: string) => ['designer', 'architecture', id] as const,
 };
 
 export const designerApi = {
@@ -156,6 +181,7 @@ export const designerApi = {
   versions: (id: string) => api.get<{ available: boolean; versions: DesignerVersion[] }>(`${BASE}/sessions/${id}/versions`),
   restore: (id: string, n: number, record: boolean) =>
     api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/versions/${String(n)}/restore`, { record }),
+  architecture: (id: string) => api.get<ArchitectureDoc>(`${BASE}/sessions/${id}/architecture`),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   createSession: (input: { appKey?: string; name?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
@@ -167,3 +193,4 @@ export const catalogQuery = () => queryOptions({ queryKey: designerKeys.catalog,
 export const modelsQuery = () => queryOptions({ queryKey: designerKeys.models, queryFn: designerApi.models, staleTime: 30_000 });
 export const sessionQuery = (id: string) => queryOptions({ queryKey: designerKeys.session(id), queryFn: () => designerApi.session(id) });
 export const versionsQuery = (id: string) => queryOptions({ queryKey: designerKeys.versions(id), queryFn: () => designerApi.versions(id) });
+export const architectureQuery = (id: string) => queryOptions({ queryKey: designerKeys.architecture(id), queryFn: () => designerApi.architecture(id) });

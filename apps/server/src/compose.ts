@@ -110,6 +110,7 @@ import { createDesigner, type Designer } from './designer/service.js';
 import { designerRoutes } from './routes/designer/index.js';
 import { designSessionRoutes } from './routes/auth/design-session.js';
 import { registerPreview } from './designer/preview.js';
+import { architectureOf } from './designer/architecture.js';
 import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
@@ -1899,13 +1900,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // The skills, read once: the same files a coding agent reads.
         const designerSkills = createSkills();
         const designerVersions = createVersions(root);
+        const designerService = createAppInstallService(appDeps);
         designer = createDesigner({
           root,
           version: APP_VERSION,
           meta,
           connections: aiConnections,
           projectApps: () => projectApps,
-          service: createAppInstallService(appDeps),
+          service: designerService,
           installHost: {
             log: {
               info: (obj, msg) => {
@@ -1987,6 +1989,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             limits,
             preview: previewTickets === null ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
             appCatalog,
+            architecture: (appKey) =>
+              architectureOf(
+                {
+                  meta,
+                  root,
+                  version: APP_VERSION,
+                  manifests: () => designerService.manifests.list('app'),
+                  addOnRows: (manifest, connectionId) => designerService.addOnRowsFor(manifest, connectionId, false),
+                  count: async (connectionId, table) => {
+                    const count = appDeps.schemaTarget?.count;
+                    if (count === undefined) throw new Error('This server cannot count rows.');
+                    return count(connectionId, table, { kind: 'all' });
+                  },
+                },
+                appKey,
+              ),
           }),
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.

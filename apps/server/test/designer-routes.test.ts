@@ -9,7 +9,7 @@
  * written and read back.
  */
 import { createServer, type Server } from 'node:http';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
@@ -332,6 +332,56 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     const events = (await client.call('GET', `/api/v1/designer/sessions/${(opened.body['session'] as { id: string }).id}/events-since?after=0`)).body['events'];
     expect(events).toEqual([]);
     expect((await client.call('GET', '/api/v1/designer/state')).body['active']).toBeNull();
+  });
+
+  it('draw the app as the engine applied it, and say which folder changes are not applied yet', async () => {
+    const client = await server({ designer: true });
+    // A session with no first message: nothing is applied yet.
+    const bare = await client.call('POST', '/api/v1/designer/sessions', { name: 'Repair desk', target: 'auto', connectionId: 'env:ollama', model: 'fake' });
+    const bareId = (bare.body['session'] as { id: string }).id;
+    expect((await client.call('GET', `/api/v1/designer/sessions/${bareId}/architecture`)).body).toMatchObject({ name: 'Repair desk', applied: false, tables: [], people: [] });
+
+    const first = await client.call('POST', '/api/v1/designer/sessions', { ...createBody(), appKey: 'repair-desk', name: undefined });
+    await finishedTurn(client, (first.body['session'] as { id: string }).id, 1);
+    const drawn = await client.call('GET', `/api/v1/designer/sessions/${bareId}/architecture`);
+    expect(drawn.status, JSON.stringify(drawn.body)).toBe(200);
+    const doc = drawn.body as {
+      applied: boolean;
+      tables: { ref: string; name: string; rows: number | null }[];
+      people: { id: string; kind: string }[];
+      uses: { id: string; count: number }[];
+      edges: { from: string; to: string; kind: string }[];
+      lists: { pages: { name: string; shows: string }[]; roles: { tables: string[]; rows: { role: string; cells: string[]; notes: (string | null)[] }[] } };
+      pending: { part: string; node: string | null }[];
+    };
+    expect(doc.applied).toBe(true);
+    expect(doc.tables.map((table) => [table.ref, table.name])).toEqual([
+      ['items', 'repair_desk_items'],
+      ['requests', 'repair_desk_requests'],
+    ]);
+    expect(doc.tables.every((table) => typeof table.rows === 'number')).toBe(true);
+    expect(doc.uses).toEqual([{ id: 'dashboard', label: 'Dashboard', count: 2 }]);
+    expect(doc.lists.pages).toEqual([
+      { ref: 'repair-desk-items', name: 'Items', kind: 'page-crud', shows: 'items' },
+      { ref: 'repair-desk-requests', name: 'Requests', kind: 'page-crud', shows: 'requests' },
+    ]);
+    // The role, from what it was really granted: items read and write (no delete), requests read and change.
+    expect(doc.people).toEqual([expect.objectContaining({ id: 'r_staff', kind: 'role' })]);
+    expect(doc.lists.roles).toMatchObject({ tables: ['items', 'requests'], rows: [{ cells: ['write', 'write'], notes: ['no delete', 'no delete'] }] });
+    expect(doc.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ from: 'r_staff', to: 'dashboard', kind: 'session' }),
+        expect.objectContaining({ from: 'dashboard', to: 't_items', kind: 'uses' }),
+      ]),
+    );
+    expect(doc.pending).toEqual([]);
+
+    // A table written to the folder and not applied: waiting.
+    const items = JSON.parse(readFileSync(join(root!, 'apps/repair-desk/manifest/tables/items.json'), 'utf8')) as Record<string, unknown>;
+    writeFileSync(join(root!, 'apps/repair-desk/manifest/tables/parts.json'), JSON.stringify({ ...items, ref: 'parts' }));
+    const later = (await client.call('GET', `/api/v1/designer/sessions/${bareId}/architecture`)).body as { pending: unknown[]; tables: unknown[] };
+    expect(later.pending).toEqual([{ part: 'Table parts', node: 't_parts' }]);
+    expect(later.tables).toHaveLength(2);
   });
 
   it('say the online app list is off on an install that has not switched it on', async () => {

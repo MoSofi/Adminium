@@ -8267,6 +8267,278 @@
     "status": "src",
     "srcHash": "7366aaf954c1"
   },
+  "designer.arch.access": {
+    "status": "mt",
+    "srcHash": "aaae346112a1"
+  },
+  "designer.arch.actions": {
+    "status": "src",
+    "srcHash": "c3cd636a585b"
+  },
+  "designer.arch.addOns": {
+    "status": "mt",
+    "srcHash": "41b634ed2413"
+  },
+  "designer.arch.adminium": {
+    "status": "src",
+    "srcHash": "8931e5588607"
+  },
+  "designer.arch.api": {
+    "status": "mt",
+    "srcHash": "a64c1d8dd555"
+  },
+  "designer.arch.appTables": {
+    "status": "mt",
+    "srcHash": "b2a5e822d3ca"
+  },
+  "designer.arch.asList": {
+    "status": "mt",
+    "srcHash": "9c04c9720977"
+  },
+  "designer.arch.automations": {
+    "status": "mt",
+    "srcHash": "82542d6d0a0a"
+  },
+  "designer.arch.clear": {
+    "status": "mt",
+    "srcHash": "82c4e82b4355"
+  },
+  "designer.arch.columns": {
+    "status": "mt",
+    "srcHash": "cf723c59b62a"
+  },
+  "designer.arch.comesWith": {
+    "status": "mt",
+    "srcHash": "3d2b3be0fe67"
+  },
+  "designer.arch.customerSide": {
+    "status": "mt",
+    "srcHash": "bddd0ade3d15"
+  },
+  "designer.arch.customers": {
+    "status": "mt",
+    "srcHash": "035eae60290f"
+  },
+  "designer.arch.customersSub": {
+    "status": "mt",
+    "srcHash": "05505b14d10e"
+  },
+  "designer.arch.dashboard": {
+    "status": "mt",
+    "srcHash": "d87f47b47e4d"
+  },
+  "designer.arch.diagramLabel": {
+    "status": "mt",
+    "srcHash": "10997de8d4a1"
+  },
+  "designer.arch.email": {
+    "status": "mt",
+    "srcHash": "84add5b29527"
+  },
+  "designer.arch.emails": {
+    "status": "mt",
+    "srcHash": "473558393914"
+  },
+  "designer.arch.failed": {
+    "status": "mt",
+    "srcHash": "984bc2246fca"
+  },
+  "designer.arch.files": {
+    "status": "mt",
+    "srcHash": "1034ff014ad9"
+  },
+  "designer.arch.hide": {
+    "status": "mt",
+    "srcHash": "34d8b60fe253"
+  },
+  "designer.arch.importExport": {
+    "status": "mt",
+    "srcHash": "fe6115e1df77"
+  },
+  "designer.arch.install": {
+    "status": "mt",
+    "srcHash": "fd6c3ebf7bef"
+  },
+  "designer.arch.installed": {
+    "status": "mt",
+    "srcHash": "af28b40b6894"
+  },
+  "designer.arch.keyCounts": {
+    "status": "mt",
+    "srcHash": "7cadf06665f3"
+  },
+  "designer.arch.kind": {
+    "status": "mt",
+    "srcHash": "e00ac23f2ac2"
+  },
+  "designer.arch.kindAddOn": {
+    "status": "mt",
+    "srcHash": "2877bc7cc2bc"
+  },
+  "designer.arch.kindEmail": {
+    "status": "mt",
+    "srcHash": "ea0ced9d3385"
+  },
+  "designer.arch.kindKey": {
+    "status": "mt",
+    "srcHash": "aa13c4f12fbd"
+  },
+  "designer.arch.kindRelation": {
+    "status": "mt",
+    "srcHash": "bbe1c5ece319"
+  },
+  "designer.arch.kindSession": {
+    "status": "mt",
+    "srcHash": "5e078e16974d"
+  },
+  "designer.arch.kindUses": {
+    "status": "mt",
+    "srcHash": "62be4731dedf"
+  },
+  "designer.arch.legend": {
+    "status": "mt",
+    "srcHash": "5846955db6be"
+  },
+  "designer.arch.linesTo": {
+    "status": "mt",
+    "srcHash": "069512918fe4"
+  },
+  "designer.arch.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "designer.arch.noAccess": {
+    "status": "mt",
+    "srcHash": "63bde5f75456"
+  },
+  "designer.arch.noCustomerSide": {
+    "status": "mt",
+    "srcHash": "d991d21da1f5"
+  },
+  "designer.arch.notApplied": {
+    "status": "mt",
+    "srcHash": "f1b2e119bae6"
+  },
+  "designer.arch.notAppliedYet": {
+    "status": "mt",
+    "srcHash": "af8a00b37e1f"
+  },
+  "designer.arch.notInstalled": {
+    "status": "mt",
+    "srcHash": "1aab9f182430"
+  },
+  "designer.arch.open": {
+    "status": "mt",
+    "srcHash": "06c2ab625b0d"
+  },
+  "designer.arch.pages": {
+    "status": "src",
+    "srcHash": "5c0451aaed78"
+  },
+  "designer.arch.pagesHead": {
+    "status": "src",
+    "srcHash": "600584c2d5cc"
+  },
+  "designer.arch.pending": {
+    "status": "mt",
+    "srcHash": "30c8c84e436e"
+  },
+  "designer.arch.people": {
+    "status": "mt",
+    "srcHash": "b37554f695b1"
+  },
+  "designer.arch.read": {
+    "status": "mt",
+    "srcHash": "852b438f91ad"
+  },
+  "designer.arch.readOnly": {
+    "status": "mt",
+    "srcHash": "601dcc1c87c3"
+  },
+  "designer.arch.readOnlyFrom": {
+    "status": "mt",
+    "srcHash": "e3daa5cae141"
+  },
+  "designer.arch.readWrite": {
+    "status": "mt",
+    "srcHash": "6106d0fccefb"
+  },
+  "designer.arch.relatesTo": {
+    "status": "mt",
+    "srcHash": "e5f566a6b844"
+  },
+  "designer.arch.reports": {
+    "status": "mt",
+    "srcHash": "88bc3fe3dadd"
+  },
+  "designer.arch.required": {
+    "status": "mt",
+    "srcHash": "eed6bfb41051"
+  },
+  "designer.arch.role": {
+    "status": "mt",
+    "srcHash": "c3f104d13657"
+  },
+  "designer.arch.roles": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "designer.arch.rows": {
+    "status": "mt",
+    "srcHash": "c1d7737f9e08"
+  },
+  "designer.arch.rowsHead": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "designer.arch.screens": {
+    "status": "mt",
+    "srcHash": "c9e368da8cb5"
+  },
+  "designer.arch.screensHead": {
+    "status": "mt",
+    "srcHash": "ac0c7c727e8f"
+  },
+  "designer.arch.sentWhen": {
+    "status": "mt",
+    "srcHash": "dfc8774b0d7b"
+  },
+  "designer.arch.show": {
+    "status": "mt",
+    "srcHash": "d97d1ee339e4"
+  },
+  "designer.arch.shows": {
+    "status": "mt",
+    "srcHash": "e7f76b77a73d"
+  },
+  "designer.arch.side": {
+    "status": "mt",
+    "srcHash": "26528381ea05"
+  },
+  "designer.arch.signIn": {
+    "status": "mt",
+    "srcHash": "4db7bc141f45"
+  },
+  "designer.arch.staffSide": {
+    "status": "mt",
+    "srcHash": "a22df641b6e5"
+  },
+  "designer.arch.suggested": {
+    "status": "mt",
+    "srcHash": "7fcd8d44c6f2"
+  },
+  "designer.arch.tables": {
+    "status": "src",
+    "srcHash": "193daf137ed8"
+  },
+  "designer.arch.title": {
+    "status": "mt",
+    "srcHash": "1cb12a6bb0bf"
+  },
+  "designer.arch.uses": {
+    "status": "mt",
+    "srcHash": "e8f3675e62a7"
+  },
   "designer.brand": {
     "status": "src",
     "srcHash": "c7b22145f13e"
@@ -9270,10 +9542,6 @@
   "designer.work.architecture": {
     "status": "src",
     "srcHash": "b040b4179b8b"
-  },
-  "designer.work.architectureSoon": {
-    "status": "mt",
-    "srcHash": "386091a2f2a9"
   },
   "designer.work.preview": {
     "status": "mt",

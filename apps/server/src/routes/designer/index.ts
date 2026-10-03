@@ -18,6 +18,7 @@ import type { Designer } from '../../designer/service.js';
 import type { Actor } from '../../designer/runner.js';
 import { NotFoundError } from '../../errors.js';
 import type { Versions } from '../../designer/versions.js';
+import type { ArchitectureDocument } from '../../designer/architecture.js';
 import { safeTarget, type PreviewTickets } from '../../designer/preview.js';
 import { parseSelected, type AiConnections, type ConnectionId } from '../../llm/connections.js';
 import { pickLocalized } from '../../add-ons/catalog.js';
@@ -57,6 +58,7 @@ import {
   designerVersionsReply,
   designerTurnBody,
   designerTurnReply,
+  designerArchitectureReply,
 } from './schema.js';
 
 export interface DesignerRoutesDeps {
@@ -70,6 +72,8 @@ export interface DesignerRoutesDeps {
   appCatalog?: { isEnabled(): Promise<boolean>; fetchCatalog(signal?: AbortSignal): Promise<AppCatalog> } | undefined;
   /** The preview's tickets and its address; null where the server has no preview name. */
   preview: { tickets: PreviewTickets; origin: string } | null;
+  /** How an app fits together, from what the engine applied. */
+  architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
 
 /** How long the adminium.dev list is kept. */
@@ -266,6 +270,17 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const ticket = deps.preview.tickets.issue(session.appKey);
         const url = `${deps.preview.origin}/designer-preview/enter?ticket=${ticket}&to=${encodeURIComponent(to)}`;
         return { url, origin: deps.preview.origin };
+      },
+    );
+
+    // The Architecture tab: read only, from what the engine applied.
+    app.get(
+      '/designer/sessions/:id/architecture',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerArchitectureReply } } },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (deps.architecture === undefined) throw new NotFoundError('This server cannot draw the app.', { reason: 'NO_ARCHITECTURE' });
+        return deps.architecture(session.appKey);
       },
     );
 

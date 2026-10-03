@@ -75,6 +75,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: designerKeys.session(sessionId) });
     void queryClient.invalidateQueries({ queryKey: designerKeys.versions(sessionId) });
     void queryClient.invalidateQueries({ queryKey: designerKeys.apps });
+    void queryClient.invalidateQueries({ queryKey: designerKeys.architecture(sessionId) });
   };
 
   // A turn that ends, or a version that lands, changes what the top bar and Home show.
