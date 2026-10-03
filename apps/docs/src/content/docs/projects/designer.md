@@ -102,15 +102,29 @@ and the quotes they point at), the emails the shape sends, and the requirement, 
 add-on declares them. You name nothing but the people the emails go to; the Designer writes that
 table first.
 
-The add-on has to be on your server for this. A server started with `npx` has none until you
-switch the add-on catalogue on, or upload the add-on, in **Studio → Add-ons**. Until then the
-Designer builds the rest of the app and tells you this step is yours.
+The add-on has to be on your server for this, and the Designer gets it for you. When your request
+needs one that is not there, a card asks: "This app needs the add-on Invoices & Receipts. Get it?"
+**Get it** downloads it from adminium.dev and installs it, as **Studio → Add-ons** would, and the
+turn goes on and builds on it. **Do without** builds the rest, and the Designer does not ask again
+in that turn.
+
+- The card's words are the server's own, from the list adminium.dev gave it. The model names an
+  add-on by its key and nothing else: never an address, a version or a file.
+- Where the list from adminium.dev is off on your server, the card says so, and says what
+  switching it on sends (your server's address, the time and its Adminium version, now and once a
+  day). **Switch it on and get it** does both; it is the same switch as the one on the Add-ons
+  page, and you can switch it off there again.
+- You are asked only if you may add an add-on to this server (on a live server, a Super Admin).
+  Otherwise the Designer tells you who can, and builds the rest.
+- A server set to ask nothing of adminium.dev (`ADMINIUM_NETWORK_FEATURES=off`) shows no card;
+  upload the add-on in **Studio → Add-ons** instead.
 
 ## Start with an app
 
 Under the message box, **Start with an app** lists the apps published on
-[adminium.dev](https://adminium.dev/marketplace). The list is read online, so it shows once the
-online app list is switched on (**Studio → Hosted apps**). A card opens a sheet with two choices:
+[adminium.dev](https://adminium.dev/marketplace). The list is read online: a new install shows it from
+the first start, and a server whose app list is off shows it once the list is switched on
+(**Studio → Hosted apps**). A card opens a sheet with two choices:
 
 | Choice | What you get |
 |---|---|

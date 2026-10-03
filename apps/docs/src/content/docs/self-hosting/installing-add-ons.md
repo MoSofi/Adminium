@@ -1,6 +1,6 @@
 ---
 title: Installing add-ons
-description: The bundled add-on set works with zero network; browsing online is an explicit opt-in, and sideloading covers air-gapped installs.
+description: One Install button per add-on. A new install lists what adminium.dev offers; what that sends, the two ways to switch it off, and uploading a file for a server with no network.
 sidebar:
   order: 10
 ---
@@ -30,8 +30,8 @@ Install and names every table and every host before anything is registered.
 :::note
 A checkout running from source (`pnpm dev`) ships **no bundled set** — those are
 baked into the Docker image and the desktop app at build time. So a source run
-shows an empty catalog until you switch browsing online on, or upload a package
-yourself. That is expected, not a misconfiguration.
+shows only what the list from adminium.dev offers, or nothing while that list is
+off, until you upload a package yourself. That is expected, not a misconfiguration.
 :::
 
 ## The bundled set: zero network
@@ -43,39 +43,65 @@ its add-on store — copy-if-absent, with every hash re-verified on the way in �
 so the Add-ons page has something real to browse **without a single outbound
 request**.
 
-That is the default experience. An air-gapped install browses the bundled set,
-installs from it, enables, disables, and uninstalls — all of it local file I/O.
+An air-gapped install browses the bundled set, installs from it, enables,
+disables, and uninstalls — all of it local file I/O.
 
 Seeding is per-package and best-effort: one unreadable bundle entry is reported
 in the boot log and skipped, and the rest still arrive. A bundled package whose
 bytes no longer match its integrity sidecar is a corrupt image and is refused
 rather than installed.
 
-## Browsing online: an explicit opt-in
+## The list from adminium.dev
 
-The Add-ons page can also browse the **online catalog** — newer versions and
-packages that are not in your build. That is a toggle, it is **off by
-default**, and nothing contacts the network until you turn it on.
+The Add-ons page lists what adminium.dev offers beside what is already on the server: newer
+versions, and add-ons that are not in your build. Each has one button, **Install**. It downloads
+the add-on, then shows what it adds, what it reaches and what it attaches to, with **Cancel** and
+**Install**. Nothing is installed before that second Install; Cancel leaves the downloaded file on
+the server, and the next click opens the dialog at once.
 
-The catalog is adminium.dev's marketplace API, so a refresh sees a release as
-soon as the site has checked it — no site build in between. Browsing reads only
-what is already on disk — the bundled set plus whatever the last refresh cached
-— and **Check for newer** is the separate, explicit action that goes and
-fetches it.
+**On a new install the list is on.** The server asks adminium.dev for it once when it starts (when
+it holds no list, or one older than a day), once a day after that, and when the page opens on a
+list older than a day. **Check for newer** asks at once. Browsing itself reads only what is on disk.
 
-The request names your Adminium version, and the catalog answers with the
-newest release of each add-on that version can install. An add-on whose every
-release needs a newer Adminium is listed with the version it needs, and cannot
-be installed. An add-on the site lists as **coming soon** is shown with that
-badge and has nothing to download yet.
+**A server that was installed before 0.3.16 keeps what it had.** If its list was off, it is still
+off after the upgrade and asks adminium.dev for nothing: the page shows one button, **Show what is
+available**, with a line on what showing it sends. A choice you made, on or off, is never changed
+by an upgrade.
 
-Two things veto the toggle outright, so it stays off even if switched on:
+The request names your Adminium version, and the list answers with the newest release of each
+add-on that version can install. An add-on whose every release needs a newer Adminium is listed
+with the version it needs, and cannot be installed. An add-on the site lists as **coming soon** is
+shown with that badge and has nothing to download yet.
 
-- `ADMINIUM_NETWORK_FEATURES=off` — the air-gap policy answer covers the
-  catalog exactly as it covers webhooks, OAuth, and provider-API AI.
-- The desktop app's air-gap mode.
+### What is sent, and to whom
 
-With the toggle on, exactly **two hosts** are ever contacted, both pinned in
+| When | To | What it learns |
+|---|---|---|
+| The list is read (at start, daily, **Check for newer**) | `adminium.dev` | Your server's **IP address**, the **time**, and its **Adminium version**. Nothing about your data, your users or what you have installed. |
+| You confirm an install or an upgrade | **Cloudflare**, which serves `downloads.adminium.dev` | The same, plus the **add-on and version** you pulled. |
+
+No add-on is named to anyone until a person presses Install.
+
+### Switching it off
+
+Two ways, and either is enough:
+
+- **The switch on the Add-ons page** (it needs the permission to manage add-ons). Off, the page
+  lists only what is on the server, and nothing is asked of adminium.dev.
+- **`ADMINIUM_NETWORK_FEATURES=off`** in the environment, and the desktop app's air-gap mode. These
+  outrank the switch: the list stays off even if someone turns the switch on, exactly as they
+  cover webhooks, OAuth and provider-API AI. Set it before the first start and a new install never
+  asks for the list at all.
+
+Both are checked before any address is built. The update check (`updates.checkEnabled`) and
+telemetry are separate, and both stay off until you turn them on.
+
+:::note[A host with no disk]
+On a host that keeps no files between deploys, the cached list is lost at each deploy, so each
+start asks for it again. That is one small request.
+:::
+
+With the list on, exactly **two hosts** are ever contacted, both pinned in
 code:
 
 | Host | What it serves |
@@ -84,8 +110,9 @@ code:
 | `downloads.adminium.dev` | The add-on files themselves, one `.tgz` per released version, under `/add-ons/`. |
 
 The same two hosts serve **apps**, under their own feed and their own `/apps/` folder, behind a
-switch of their own — see [Installing apps](/self-hosting/installing-apps/). Turning this one on
-says nothing about that one.
+switch of their own — see [Installing apps](/self-hosting/installing-apps/). Switching one off says
+nothing about the other. Where both lists are on, the start-up and daily refresh ask for both in
+one request, `GET /api/v1/marketplace`; a list that is off is never asked for.
 
 There is no third host, no redirect following, and no `latest` resolution. The
 server builds each download address itself, from the add-on's key and exact
@@ -94,15 +121,6 @@ and the downloaded bytes must match the sha512 the catalog carries before
 anything is unpacked. The catalog takes that value from the release ledger, never
 from the download host, so the folder that serves the file is never the one
 vouching for it.
-
-:::caution[What an online install discloses]
-Both are ordinary HTTPS requests. Refreshing the catalog tells `adminium.dev`
-your deployment's **IP address** and **Adminium version**; downloading tells
-**Cloudflare**, which serves `downloads.adminium.dev`, the same two things plus
-the **exact add-on and version** you pulled, at that moment. That is the entire
-reason the catalog is opt-in rather than on: the bundled set exists so that
-nobody has to accept even that disclosure just to use add-ons.
-:::
 
 ## Sideloading: air-gapped installs
 

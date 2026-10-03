@@ -1,6 +1,6 @@
 ---
 title: Installing apps
-description: Hosted apps install from your build, from a file you upload, or from the online app catalogue — an opt-in of its own, served by the same two hosts as add-ons.
+description: One Install button per app. A new install lists the apps adminium.dev offers; what that sends, how to switch it off, the one dialog and the wizard behind More choices, and uploading a file.
 sidebar:
   order: 11
 ---
@@ -29,30 +29,53 @@ permission.
 |---|---|---|
 | **Bundled** | none | Tarballs in the folder [`ADMINIUM_BUNDLED_APPS`](#adminium_bundled_apps) names, seeded into the app store at boot. |
 | **Uploaded** | none | A `.tgz` you upload yourself, with the fingerprint you paste. |
-| **The online app catalogue** | opt-in | Released apps listed by adminium.dev, downloaded from `downloads.adminium.dev`. |
+| **The list from adminium.dev** | on for a new install; a switch | Released apps listed by adminium.dev, downloaded from `downloads.adminium.dev`. |
 
 No build Adminium publishes carries a bundled app set — not the Docker image, not the desktop app,
-not a source checkout — so the shelf is empty until you upload an app or switch browsing online on.
-That is expected, not a misconfiguration. An image you build yourself can carry one.
+not a source checkout — so with the list off the shelf is empty until you upload an app. That is
+expected, not a misconfiguration. An image you build yourself can carry one.
 
-## Browsing online: an explicit opt-in of its own
+## The list from adminium.dev
 
-The shelf can also list apps from the **online app catalogue**: released apps that are not in your
-build. It is a toggle in the shelf's header, it is **off by default**, and it is **separate from the
-add-on catalogue's toggle** — a deployment may want one and not the other, and one switch could not
-say that.
+The shelf lists the apps adminium.dev offers beside what is on the server. Each has one button,
+**Install**. It downloads the app and opens **one dialog**: the database it goes into, what it
+adds there, and the add-ons it brings, with **Cancel**, **Install** and **More choices**.
 
-Browsing is a disk read. With the toggle on, the shelf shows what the last refresh cached; **Check
-for newer** is the separate, explicit action that goes and fetches the list. Turning the toggle off
-again stops the cached list being offered at all, even though the file stays on disk.
+- With one database connected, the dialog takes it and reads the app's plan against it at once.
+  Nothing is added until you press Install.
+- **More choices** opens the full wizard on the same downloaded app: another database, a table
+  prefix, sharing tables with an app you already have, sample data. Where the dialog cannot decide
+  for you (more than one database, or none yet), More choices is its main button and it says why.
+- Cancel leaves the downloaded file on the server; the next Install opens the dialog at once.
 
-Two things veto the toggle outright, so it stays off even when switched on:
+**On a new install the list is on.** The server asks adminium.dev for it once when it starts (when
+it holds no list, or one older than a day), once a day after that, and when the page opens on a
+list older than a day. **Check for newer** asks at once. Browsing itself is a disk read.
 
-- `ADMINIUM_NETWORK_FEATURES=off` — the air-gap policy answer, which covers this exactly as it
-  covers webhooks, OAuth and provider-API AI.
+**A server installed before 0.3.16 keeps what it had.** If its list was off it is still off after
+the upgrade and asks adminium.dev for nothing; the shelf shows one button, **Show what is
+available**, with a line on what showing it sends.
+
+The switch is in the shelf's header and is **separate from the add-on list's switch**: a deployment
+may want one and not the other. Switching it off stops the cached list being offered at all, even
+though the file stays on disk. Two things outrank the switch, so the list stays off even when it
+is switched on:
+
+- `ADMINIUM_NETWORK_FEATURES=off` — the air-gap answer, which covers this exactly as it covers
+  webhooks, OAuth and provider-API AI. Set before the first start, a new install never asks.
 - The desktop app's air-gap mode.
 
-With the toggle on, exactly **two hosts** are ever contacted, both pinned in code — the same two
+### What is sent, and to whom
+
+| When | To | What it learns |
+|---|---|---|
+| The list is read (at start, daily, **Check for newer**) | `adminium.dev` | Your server's **IP address**, the **time**, and its **Adminium version**. |
+| You press Install on an app | **Cloudflare**, which serves `downloads.adminium.dev` | The same, plus the **app and version** you pulled. |
+
+Where the add-on list is on as well, the start-up and daily refresh ask for both lists in one
+request (`GET /api/v1/marketplace`); a list that is off is never asked for.
+
+With the list on, exactly **two hosts** are ever contacted, both pinned in code — the same two
 that serve add-ons:
 
 | Host | What it serves |
@@ -67,13 +90,6 @@ match the sha512 the feed carries before anything is unpacked. That value comes 
 ledger, never from the download host, so the folder that serves the file is never the one vouching
 for it.
 
-:::caution[What an online install discloses]
-Both are ordinary HTTPS requests. Refreshing the list tells `adminium.dev` your deployment's **IP
-address** and **Adminium version**; downloading tells **Cloudflare**, which serves
-`downloads.adminium.dev`, the same two things plus the **exact app and version** you pulled, at that
-moment. That is the entire reason the catalogue is opt-in rather than on.
-:::
-
 ## An app that needs a newer Adminium
 
 Every released app declares the oldest Adminium it can run on. A release that needs a newer one than
@@ -83,7 +99,7 @@ about does not simply go missing; upgrade Adminium and it becomes installable.
 
 ## Installing an app
 
-Choose an app on the shelf, or **Install an app** to upload one. The wizard has four steps:
+**Install an app** (an upload) and **More choices** (in the one dialog) open the wizard. It has four steps:
 **Bundle**, **Database**, **Schema plan** and **Done**.
 
 1. **Bundle.** For an upload, the `.tgz` and, optionally, its `sha512-` fingerprint. For an app

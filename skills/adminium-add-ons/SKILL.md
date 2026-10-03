@@ -101,8 +101,8 @@ email or draw a document: tell the person to send one invoice to themselves afte
 ## 5. Tell the person what they need
 
 An app that requires an add-on installs only where that add-on can be had: bundled (the Docker
-image and the desktop app carry the first-party set), uploaded, or from the online catalogue when
-it is switched on. Say which add-on and which versions, and that the install offers to add it.
+image and the desktop app carry the first-party set), uploaded, or from the list of adminium.dev
+(on for a new install; a server may have switched it off). Say which add-on and which versions, and that the install offers to add it.
 
 ## What an add-on does not change
 

@@ -9,8 +9,8 @@ its add-on store — copy-if-absent, with every hash re-verified on the way in �
 so the Add-ons page has something real to browse **without a single outbound
 request**.
 
-That is the default experience. An air-gapped install browses the bundled set,
-installs from it, enables, disables, and uninstalls — all of it local file I/O.
+An air-gapped install browses the bundled set, installs from it, enables,
+disables, and uninstalls — all of it local file I/O.
 
 Seeding is per-package and best-effort: one unreadable bundle entry is reported
 in the boot log and skipped, and the rest still arrive. A bundled package whose

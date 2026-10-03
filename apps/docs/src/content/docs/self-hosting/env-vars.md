@@ -34,7 +34,7 @@ half-configured and fail later.
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
-| `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
+| `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI, and the server asks adminium.dev for no list of add-ons or apps. |
 | `ADMINIUM_DESIGNER` | No | `off` | `live` lets a Super Admin switch [Adminium Designer](/projects/designer/#on-a-server-people-reach) on for this server, in Settings → AI. Anything else, and its routes do not exist. `adminium design` needs no variable. |
 | `ADMINIUM_AI_ANTHROPIC_API_KEY` | No | — | An Anthropic key: a model connection the server has without anything saved in Settings → AI. See [the `ADMINIUM_AI_*` block](#the-adminium_ai_-block). |
 | `ADMINIUM_AI_OPENAI_API_KEY` | No | — | An OpenAI key, the same way. |
@@ -536,6 +536,14 @@ Set it `off` on an install with no outbound network. Features that need the
 internet — webhooks, OAuth integrations, provider-API AI enrichment — then say so
 up front instead of being discovered one timeout at a time. Nothing is hidden:
 each surface explains why it is unavailable.
+
+It is also the one setting that stops a **new install** asking adminium.dev for what it offers.
+From 0.3.16 a new install lists the add-ons and apps of adminium.dev from its first start: one
+request for the two lists when it starts and once a day, which tells adminium.dev the server's IP
+address, the time and its Adminium version. With `off` set before the first start, that request is
+never made, and no switch in the dashboard can turn it on. A server upgraded from an earlier
+version keeps the setting it had. See [Installing add-ons](/self-hosting/installing-add-ons/#the-list-from-adminiumdev)
+and [Installing apps](/self-hosting/installing-apps/#the-list-from-adminiumdev).
 
 Everything Adminium does locally is unaffected: browsing and editing data, charts,
 generation, exports, scheduled reports, and the copy/paste AI round-trip all work

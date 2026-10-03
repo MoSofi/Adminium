@@ -16,5 +16,5 @@ Install and names every table and every host before anything is registered.
 > **Note**
 > A checkout running from source (`pnpm dev`) ships **no bundled set** — those are
 > baked into the Docker image and the desktop app at build time. So a source run
-> shows an empty catalog until you switch browsing online on, or upload a package
-> yourself. That is expected, not a misconfiguration.
+> shows only what the list from adminium.dev offers, or nothing while that list is
+> off, until you upload a package yourself. That is expected, not a misconfiguration.

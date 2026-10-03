@@ -2,7 +2,7 @@
 
 # Installing apps: Installing an app
 
-Choose an app on the shelf, or **Install an app** to upload one. The wizard has four steps:
+**Install an app** (an upload) and **More choices** (in the one dialog) open the wizard. It has four steps:
 **Bundle**, **Database**, **Schema plan** and **Done**.
 
 1. **Bundle.** For an upload, the `.tgz` and, optionally, its `sha512-` fingerprint. For an app
