@@ -291,7 +291,29 @@
   "work": {
     "architecture": "Architecture",
     "architectureSoon": "La manière dont {name} est construite s’affiche ici.",
-    "preview": "Aperçu",
-    "previewSoon": "L’aperçu de {name} s’affiche ici."
+    "preview": "Aperçu"
+  },
+  "preview": {
+    "buildingCustomer": "Construction du côté client…",
+    "buildingDashboard": "Construction du tableau de bord…",
+    "buildingStaff": "Construction du côté équipe…",
+    "customer": "Client",
+    "dashboard": "Tableau de bord",
+    "desktop": "Ordinateur",
+    "failedCustomer": "Le côté client n’a pas pu être construit.",
+    "failedDashboard": "L’application n’a pas été appliquée.",
+    "failedStaff": "Le côté équipe n’a pas pu être construit.",
+    "fix": "Demander au Designer de corriger",
+    "fixMessage": "Les écrans n’ont pas pu être construits : {error} Corrige-le, s’il te plaît.",
+    "loading": "Ouverture de l’aperçu",
+    "newTab": "Ouvrir dans un nouvel onglet",
+    "nothing": "Rien à afficher pour l’instant. Dès que le Designer applique l’application, elle s’affiche ici.",
+    "phone": "Téléphone",
+    "reload": "Recharger",
+    "side": "Côté",
+    "staff": "Équipe",
+    "tablet": "Tablette",
+    "unavailable": "L’aperçu n’a pas pu être ouvert : {message}",
+    "width": "Largeur"
   }
 }

@@ -301,7 +301,29 @@ export default {
   "work": {
     "architecture": "Arkitektur",
     "architectureSoon": "Her vises det, hvordan {name} er bygget.",
-    "preview": "Forhåndsvisning",
-    "previewSoon": "Forhåndsvisningen af {name} vises her."
+    "preview": "Forhåndsvisning"
+  },
+  "preview": {
+    "buildingCustomer": "Bygger kundesiden…",
+    "buildingDashboard": "Bygger dashboardet…",
+    "buildingStaff": "Bygger medarbejdersiden…",
+    "customer": "Kunde",
+    "dashboard": "Dashboard",
+    "desktop": "Computer",
+    "failedCustomer": "Kundesiden kunne ikke bygges.",
+    "failedDashboard": "Appen blev ikke anvendt.",
+    "failedStaff": "Medarbejdersiden kunne ikke bygges.",
+    "fix": "Bed Designeren rette det",
+    "fixMessage": "Skærmene kunne ikke bygges: {error} Ret det venligst.",
+    "loading": "Åbner forhåndsvisningen",
+    "newTab": "Åbn i en ny fane",
+    "nothing": "Intet at vise endnu. Når Designeren anvender appen, vises den her.",
+    "phone": "Telefon",
+    "reload": "Genindlæs",
+    "side": "Side",
+    "staff": "Medarbejdere",
+    "tablet": "Tablet",
+    "unavailable": "Forhåndsvisningen kunne ikke åbnes: {message}",
+    "width": "Bredde"
   }
 } as const;

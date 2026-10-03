@@ -219,6 +219,11 @@ describe('the preview’s own sign-in', () => {
     expect(entered.statusCode).toBe(303);
     expect(entered.headers.location).toBe('/apps/repairs/staff/');
     expect(String(entered.headers['set-cookie'])).toMatch(new RegExp(`^adminium_session_${String(PORT)}=`));
+    // Framed by the Designer, another site: only a SameSite=None (so Secure) cookie is sent inside the frame.
+    expect(String(entered.headers['set-cookie'])).toMatch(/; HttpOnly/);
+    expect(String(entered.headers['set-cookie'])).toMatch(/; Secure/);
+    expect(String(entered.headers['set-cookie'])).toMatch(/; SameSite=None/);
+    expect(String(entered.headers['set-cookie'])).toMatch(/; Partitioned/);
     // Once.
     expect((await app.inject({ method: 'GET', url: path, headers: { host: PREVIEW } })).statusCode).toBe(401);
     // Never to another app's address.

@@ -55,9 +55,18 @@ export interface AppFrameProps {
   title: string;
   /** Called when the APP navigates itself, so the address bar can follow. */
   onNavigate: (path: string) => void;
+  /**
+   * Where the frame starts, instead of the app's own staff mount: the
+   * Designer's preview, served on another host name. Read once, like the
+   * default.
+   */
+  src?: string | undefined;
+  /** The origin `src` is served from: the bridge speaks to it and listens to it only. Defaults to this page's. */
+  origin?: string | undefined;
 }
 
-export function AppFrame({ appKey, path, persona, title, onNavigate }: AppFrameProps) {
+export function AppFrame({ appKey, path, persona, title, onNavigate, src, origin }: AppFrameProps) {
+  const target = origin ?? window.location.origin;
   const frame = useRef<HTMLIFrameElement>(null);
   const resolved = useTheme();
   const [ready, setReady] = useState(false);
@@ -77,16 +86,16 @@ export function AppFrame({ appKey, path, persona, title, onNavigate }: AppFrameP
   const lastFromChild = useRef<string | null>(null);
 
   const post = useCallback((message: HostInit | HostSet): void => {
-    // `location.origin`, never `*` — see bridge.ts.
-    frame.current?.contentWindow?.postMessage(message, window.location.origin);
-  }, []);
+    // The frame's own origin, never `*` — see bridge.ts.
+    frame.current?.contentWindow?.postMessage(message, target);
+  }, [target]);
 
   // The handshake, plus the child's own navigations. One listener for both:
   // the child may re-`hello` after an internal reload, and treating that as a
   // fresh handshake is exactly right.
   useEffect(() => {
     const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
+      if (event.origin !== target) return;
       if (event.source !== frame.current?.contentWindow) return;
       const message = bridgeMessage(event.data);
 
@@ -130,7 +139,7 @@ export function AppFrame({ appKey, path, persona, title, onNavigate }: AppFrameP
     return () => window.removeEventListener('message', onMessage);
     // `path`, `resolved` and `persona` are read inside and must be fresh when a
     // late `hello` arrives; re-subscribing is one listener swap, not a remount.
-  }, [appKey, onNavigate, path, persona, post, resolved]);
+  }, [appKey, onNavigate, path, persona, post, resolved, target]);
 
   // Route → child. Skipped when this path is the one the child just reported,
   // which is the echo guard's whole job.
@@ -168,7 +177,7 @@ export function AppFrame({ appKey, path, persona, title, onNavigate }: AppFrameP
   const { appKey: mountKey, instance } = splitAppKeyParam(appKey);
   const mountPrefix =
     instance === null ? `/apps/${mountKey}/staff` : `/apps/${mountKey}/${instance}/staff`;
-  const initialSrc = useRef(`${mountPrefix}/${path}`).current;
+  const initialSrc = useRef(src ?? `${mountPrefix}/${path}`).current;
 
   return (
     <iframe

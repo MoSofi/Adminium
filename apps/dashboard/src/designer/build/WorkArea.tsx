@@ -3,14 +3,31 @@
  * The build page's other half: the app itself (Preview) and how it is made
  * (Architecture).
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import type { DesignerSession } from '../api.js';
+import { Preview } from './Preview.js';
+import type { TurnView } from './turns.js';
 
-export function WorkArea({ session }: { session: DesignerSession }): ReactNode {
+/** A phone-wide window: the preview has no width switch there. */
+function useNarrow(): boolean {
+  const query = '(max-width: 767px)';
+  const [narrow, setNarrow] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const list = window.matchMedia(query);
+    const on = (): void => setNarrow(list.matches);
+    list.addEventListener('change', on);
+    return () => list.removeEventListener('change', on);
+  }, []);
+  return narrow;
+}
+
+export function WorkArea({ session, turns, onFix }: { session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void }): ReactNode {
   const [tab, setTab] = useState('preview');
+  const narrow = useNarrow();
   return (
     <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
@@ -19,10 +36,8 @@ export function WorkArea({ session }: { session: DesignerSession }): ReactNode {
           <TabsTrigger value="architecture">{t('designer:work.architecture', 'Architecture')}</TabsTrigger>
         </TabsList>
       </div>
-      <TabsContent value="preview" className="flex min-h-0 flex-1 flex-col bg-surface-2">
-        <div className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
-          {t('designer:work.previewSoon', 'The preview of {name} shows here.', { name: session.title })}
-        </div>
+      <TabsContent value="preview" className="flex min-h-0 flex-1 flex-col">
+        <Preview session={session} turns={turns} onFix={onFix} compact={narrow} />
       </TabsContent>
       <TabsContent value="architecture" className="flex min-h-0 flex-1 flex-col bg-surface-2">
         <div className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">

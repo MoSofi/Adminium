@@ -301,7 +301,29 @@ export default {
   "work": {
     "architecture": "Architecture",
     "architectureSoon": "How {name} is made shows here.",
-    "preview": "Preview",
-    "previewSoon": "The preview of {name} shows here."
+    "preview": "Preview"
+  },
+  "preview": {
+    "buildingCustomer": "Building the customer side…",
+    "buildingDashboard": "Building the dashboard…",
+    "buildingStaff": "Building the staff side…",
+    "customer": "Customer",
+    "dashboard": "Dashboard",
+    "desktop": "Desktop",
+    "failedCustomer": "The customer side did not build.",
+    "failedDashboard": "The app was not applied.",
+    "failedStaff": "The staff side did not build.",
+    "fix": "Ask the Designer to fix it",
+    "fixMessage": "The screens did not build: {error} Please fix it.",
+    "loading": "Opening the preview",
+    "newTab": "Open in a new tab",
+    "nothing": "Nothing to show yet. Once the Designer applies the app, it shows here.",
+    "phone": "Phone",
+    "reload": "Reload",
+    "side": "Side",
+    "staff": "Staff",
+    "tablet": "Tablet",
+    "unavailable": "The preview could not be opened: {message}",
+    "width": "Width"
   }
 } as const;

@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The preview: which sides it offers, the one-use ticket it opens each side
+ * with, a width change that must not reload (a reload spends a new ticket),
+ * a reload and an `app-changed` that must, and the states a turn puts it in.
+ */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ThemeProvider } from '@adminium/ui';
+
+import { installTestI18n } from '../../i18n/testing.js';
+import { jsonResponse } from '../../test/fixtures.js';
+import type { DesignerSession } from '../api.js';
+import { Preview } from './Preview.js';
+import type { TurnView } from './turns.js';
+
+class FakeSocket {
+  static all: FakeSocket[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  readyState = 0;
+  constructor() {
+    FakeSocket.all.push(this);
+  }
+  send(): void {}
+  close(): void {}
+}
+
+const SESSION: DesignerSession = {
+  id: 'ds_000000000000000000000009',
+  appKey: 'repairs',
+  title: 'Repair Desk',
+  target: 'auto',
+  connectionId: 'env:ollama',
+  model: 'm',
+  createdAt: 1,
+  updatedAt: 1,
+  turns: 1,
+  version: 1,
+  createdApp: true,
+  tokens: { in: 0, out: 0 },
+};
+
+let tickets: string[];
+let sides: { side: string; prefix: string; navAvailable: boolean }[];
+let installed: boolean;
+
+beforeEach(() => {
+  tickets = [];
+  installed = true;
+  sides = [
+    { side: 'staff', prefix: '/apps/repairs/staff', navAvailable: true },
+    { side: 'customer', prefix: '/apps/repairs/customer', navAvailable: true },
+  ];
+  FakeSocket.all = [];
+  vi.stubGlobal('WebSocket', FakeSocket);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/v1/apps') return Promise.resolve(jsonResponse(200, { apps: installed ? [{ key: 'repairs', version: '0.1.0', sides }] : [], staged: [] }));
+      if (url.endsWith('/preview-ticket')) {
+        const { to } = JSON.parse(String(init?.body)) as { to: string };
+        tickets.push(to);
+        return Promise.resolve(jsonResponse(200, { url: `http://localhost:4731/designer-preview/enter?ticket=t${String(tickets.length)}&to=${encodeURIComponent(to)}`, origin: 'http://localhost:4731' }));
+      }
+      return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'r' } }));
+    }),
+  );
+});
+
+let restoreI18n: () => void;
+beforeAll(() => {
+  restoreI18n = installTestI18n();
+});
+afterAll(() => {
+  restoreI18n();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function mount(turns: TurnView[] = [], onFix = vi.fn()) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <ThemeProvider>
+        <div className="flex h-[600px]">
+          <Preview session={SESSION} turns={turns} onFix={onFix} compact={false} />
+        </div>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+  return { onFix };
+}
+
+function turn(over: Partial<TurnView>): TurnView {
+  return {
+    turn: 1,
+    text: 'x',
+    reply: '',
+    steps: [],
+    stepCount: 0,
+    usage: null,
+    cards: [],
+    version: null,
+    limit: null,
+    error: null,
+    notApplied: null,
+    outcome: 'done',
+    startedAt: 0,
+    finishedAt: 1,
+    changedFiles: false,
+    ...over,
+  };
+}
+
+const frame = () => document.querySelector('iframe') as HTMLIFrameElement;
+
+describe('the preview', () => {
+  it('offers the app’s own sides, opens the first one by a ticket, and frames the others by theirs', async () => {
+    mount();
+    await waitFor(() => expect(frame()).not.toBeNull());
+    expect(within(screen.getByRole('group', { name: 'Side' })).getAllByRole('button').map((button) => button.textContent)).toEqual(['Dashboard', 'Staff', 'Customer']);
+    expect(screen.getByRole('button', { name: 'Staff' }).getAttribute('aria-pressed')).toBe('true');
+    expect(tickets).toEqual(['/apps/repairs/staff/']);
+    expect(frame().src).toContain('ticket=t1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
+    await waitFor(() => expect(tickets).toEqual(['/apps/repairs/staff/', '/']));
+    await userEvent.click(screen.getByRole('button', { name: 'Customer' }));
+    await waitFor(() => expect(tickets.at(-1)).toBe('/apps/repairs/customer/'));
+  });
+
+  it('leaves out a side the app does not have', async () => {
+    sides = [];
+    mount();
+    await waitFor(() => expect(tickets).toEqual(['/']));
+    expect(screen.getByRole('button', { name: 'Dashboard' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Staff' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();
+  });
+
+  it('keeps the frame on a width change, and opens it again on Reload and when the app is applied', async () => {
+    mount();
+    await waitFor(() => expect(frame()).not.toBeNull());
+    const first = frame();
+    await userEvent.click(screen.getByRole('button', { name: 'Phone' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Tablet' }));
+    expect(frame()).toBe(first);
+    expect(tickets).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    await waitFor(() => expect(tickets).toHaveLength(2));
+    await waitFor(() => expect(frame().src).toContain('ticket=t2'));
+
+    // Another app applied: nothing. This one: a fresh ticket.
+    const socket = FakeSocket.all.at(-1);
+    act(() => socket?.onmessage?.({ data: JSON.stringify({ channel: 'config-changed', type: 'app-changed', data: { key: 'other' }, ts: '' }) }));
+    act(() => socket?.onmessage?.({ data: JSON.stringify({ channel: 'config-changed', type: 'app-changed', data: { key: 'repairs' }, ts: '' }) }));
+    await waitFor(() => expect(tickets).toHaveLength(3));
+  });
+
+  it('says there is nothing yet before the app is applied', async () => {
+    installed = false;
+    mount();
+    expect(await screen.findByText('Nothing to show yet. Once the Designer applies the app, it shows here.')).toBeTruthy();
+    expect(tickets).toEqual([]);
+  });
+
+  it('says a side is building while the turn builds it', async () => {
+    mount([turn({ outcome: null, finishedAt: null, steps: [{ id: 'b', tool: 'build_sides', label: 'Building', state: 'running', ms: null, detail: null, folded: 1 }] })]);
+    expect(await screen.findByText('Building the staff side…')).toBeTruthy();
+  });
+
+  it('shows a side that did not build with its first error, and asks the Designer to fix it', async () => {
+    const { onFix } = mount([turn({ steps: [{ id: 'b', tool: 'build_sides', label: 'x', state: 'failed', ms: 10, detail: 'src/Today.tsx: Cannot find name "jobs".\nmore', folded: 1 }] })]);
+    await screen.findByRole('button', { name: 'Staff' });
+    const card = await screen.findByRole('alert');
+    expect(card.textContent).toContain('The staff side did not build.');
+    expect(card.textContent).toContain('src/Today.tsx: Cannot find name "jobs".');
+    expect(card.textContent).not.toContain('more');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask the Designer to fix it' }));
+    expect(onFix).toHaveBeenCalledWith('The screens did not build: src/Today.tsx: Cannot find name "jobs". Please fix it.');
+  });
+});

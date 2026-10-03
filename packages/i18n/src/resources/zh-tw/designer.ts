@@ -301,7 +301,29 @@ export default {
   "work": {
     "architecture": "架構",
     "architectureSoon": "{name} 的構成會顯示在這裡。",
-    "preview": "預覽",
-    "previewSoon": "{name} 的預覽會顯示在這裡。"
+    "preview": "預覽"
+  },
+  "preview": {
+    "buildingCustomer": "正在建置客戶端…",
+    "buildingDashboard": "正在建置儀表板…",
+    "buildingStaff": "正在建置員工端…",
+    "customer": "客戶",
+    "dashboard": "儀表板",
+    "desktop": "桌面",
+    "failedCustomer": "客戶端未能建置。",
+    "failedDashboard": "應用程式未被套用。",
+    "failedStaff": "員工端未能建置。",
+    "fix": "請 Designer 修正",
+    "fixMessage": "畫面未能建置：{error} 請修正。",
+    "loading": "正在開啟預覽",
+    "newTab": "在新分頁中開啟",
+    "nothing": "尚無內容。Designer 套用應用程式後，它會顯示在這裡。",
+    "phone": "手機",
+    "reload": "重新載入",
+    "side": "端",
+    "staff": "員工",
+    "tablet": "平板",
+    "unavailable": "無法開啟預覽：{message}",
+    "width": "寬度"
   }
 } as const;

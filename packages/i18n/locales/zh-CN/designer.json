@@ -291,7 +291,29 @@
   "work": {
     "architecture": "架构",
     "architectureSoon": "{name} 的构成会显示在这里。",
-    "preview": "预览",
-    "previewSoon": "{name} 的预览会显示在这里。"
+    "preview": "预览"
+  },
+  "preview": {
+    "buildingCustomer": "正在构建客户端…",
+    "buildingDashboard": "正在构建仪表板…",
+    "buildingStaff": "正在构建员工端…",
+    "customer": "客户",
+    "dashboard": "仪表板",
+    "desktop": "桌面",
+    "failedCustomer": "客户端未能构建。",
+    "failedDashboard": "应用未被应用。",
+    "failedStaff": "员工端未能构建。",
+    "fix": "让 Designer 修复",
+    "fixMessage": "界面未能构建：{error} 请修复。",
+    "loading": "正在打开预览",
+    "newTab": "在新标签页中打开",
+    "nothing": "暂无内容。Designer 应用该应用后，它会显示在这里。",
+    "phone": "手机",
+    "reload": "重新加载",
+    "side": "端",
+    "staff": "员工",
+    "tablet": "平板",
+    "unavailable": "无法打开预览：{message}",
+    "width": "宽度"
   }
 }

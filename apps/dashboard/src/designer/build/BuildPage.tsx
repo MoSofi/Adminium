@@ -366,7 +366,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           <span aria-hidden="true" className="h-full w-px bg-border" />
         </div>
         <section aria-label={t('designer:build.work', 'The app')} className={`min-w-0 flex-1 flex-col ${tab === 'preview' ? 'flex' : 'max-md:hidden md:flex'}`}>
-          {data === undefined ? null : <WorkArea session={data.session} />}
+          {data === undefined ? null : <WorkArea session={data.session} turns={turns} onFix={(message) => (working ? undefined : start.mutate(message))} />}
         </section>
       </div>
     </div>

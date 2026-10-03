@@ -291,7 +291,29 @@
   "work": {
     "architecture": "البنية",
     "architectureSoon": "تظهر هنا طريقة بناء {name}.",
-    "preview": "المعاينة",
-    "previewSoon": "تظهر هنا معاينة {name}."
+    "preview": "المعاينة"
+  },
+  "preview": {
+    "buildingCustomer": "جارٍ بناء واجهة العملاء…",
+    "buildingDashboard": "جارٍ بناء لوحة التحكم…",
+    "buildingStaff": "جارٍ بناء واجهة الموظفين…",
+    "customer": "العملاء",
+    "dashboard": "لوحة التحكم",
+    "desktop": "سطح المكتب",
+    "failedCustomer": "لم تُبنَ واجهة العملاء.",
+    "failedDashboard": "لم يُطبّق التطبيق.",
+    "failedStaff": "لم تُبنَ واجهة الموظفين.",
+    "fix": "اطلب من المصمم إصلاحه",
+    "fixMessage": "لم تُبنَ الشاشات: {error} أصلحها من فضلك.",
+    "loading": "جارٍ فتح المعاينة",
+    "newTab": "فتح في علامة تبويب جديدة",
+    "nothing": "لا شيء للعرض بعد. بمجرد أن يطبّق المصمم التطبيق، سيظهر هنا.",
+    "phone": "الهاتف",
+    "reload": "إعادة التحميل",
+    "side": "الواجهة",
+    "staff": "الموظفون",
+    "tablet": "الجهاز اللوحي",
+    "unavailable": "تعذّر فتح المعاينة: {message}",
+    "width": "العرض"
   }
 }

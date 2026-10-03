@@ -156,6 +156,7 @@ export const designerApi = {
   versions: (id: string) => api.get<{ available: boolean; versions: DesignerVersion[] }>(`${BASE}/sessions/${id}/versions`),
   restore: (id: string, n: number, record: boolean) =>
     api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/versions/${String(n)}/restore`, { record }),
+  previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   createSession: (input: { appKey?: string; name?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
 };

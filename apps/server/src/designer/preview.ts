@@ -11,7 +11,8 @@
  *
  * The Designer asks for a one-use ticket (on its own name, signed in); the
  * preview frame opens `/designer-preview/enter?ticket=…` on the preview's
- * name; the ticket is spent, the session set, and the frame sent on.
+ * name; the ticket is spent, the session set, and the frame sent on. The
+ * cookie is made for a frame on another site (SameSite=None, Partitioned).
  */
 import { randomBytes } from 'node:crypto';
 
@@ -19,7 +20,7 @@ import { rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { createSession, setSessionCookie } from '../auth/sessions.js';
+import { createSession, sessionCookieNameOf } from '../auth/sessions.js';
 import { hostRole } from './design-mode.js';
 
 /** Who the preview signs in as. `.localhost` is a name nobody can own. */
@@ -74,7 +75,18 @@ export function registerPreview(app: FastifyInstance, deps: { meta: MetaDb; port
     const user = await previewUser(deps.meta, held.appKey);
     const now = Date.now();
     const minted = await createSession(deps.meta, user.id, { ip: request.ip, userAgent: 'preview' }, now, { absoluteDeadline: now + PREVIEW_SESSION_MS });
-    setSessionCookie(reply, minted, request);
+    // The preview is framed by the Designer, another site: a Lax cookie would never be sent inside the frame.
+    // `None` needs `Secure`, which browsers allow on `localhost` over plain http; `Partitioned` keeps it to frames
+    // under this Designer, and lets it work where third-party cookies are otherwise blocked.
+    void reply.setCookie(sessionCookieNameOf(request), minted.token, {
+      path: '/',
+      httpOnly: true,
+      signed: true,
+      sameSite: 'none',
+      secure: true,
+      partitioned: true,
+      maxAge: Math.floor(PREVIEW_SESSION_MS / 1000),
+    });
     return reply.header('cache-control', 'no-store').header('referrer-policy', 'no-referrer').redirect(target, 303);
   });
 

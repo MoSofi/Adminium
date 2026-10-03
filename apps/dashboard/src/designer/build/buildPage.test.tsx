@@ -153,7 +153,8 @@ async function open() {
 
 /** Open the socket and send events down it, as the server would. */
 function live(...events: DesignerEvent[]): void {
-  const socket = FakeSocket.all.at(-1);
+  // The session's own socket is the first one opened; the preview opens another for `app-changed`.
+  const socket = FakeSocket.all[0];
   if (socket === undefined) throw new Error('no socket');
   act(() => {
     for (const event of events) socket.onmessage?.({ data: JSON.stringify({ channel: `designer:${ID}`, type: 'designer', data: event, ts: '' }) });

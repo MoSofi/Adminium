@@ -291,7 +291,29 @@
   "work": {
     "architecture": "Aufbau",
     "architectureSoon": "Hier sehen Sie, wie {name} aufgebaut ist.",
-    "preview": "Vorschau",
-    "previewSoon": "Hier erscheint die Vorschau von {name}."
+    "preview": "Vorschau"
+  },
+  "preview": {
+    "buildingCustomer": "Die Kundenseite wird gebaut…",
+    "buildingDashboard": "Das Dashboard wird gebaut…",
+    "buildingStaff": "Die Mitarbeiterseite wird gebaut…",
+    "customer": "Kunden",
+    "dashboard": "Dashboard",
+    "desktop": "Desktop",
+    "failedCustomer": "Die Kundenseite wurde nicht gebaut.",
+    "failedDashboard": "Die App wurde nicht übernommen.",
+    "failedStaff": "Die Mitarbeiterseite wurde nicht gebaut.",
+    "fix": "Den Designer bitten, es zu beheben",
+    "fixMessage": "Die Bildschirme wurden nicht gebaut: {error} Bitte behebe das.",
+    "loading": "Vorschau wird geöffnet",
+    "newTab": "In neuem Tab öffnen",
+    "nothing": "Noch nichts zu sehen. Sobald der Designer die App übernimmt, erscheint sie hier.",
+    "phone": "Telefon",
+    "reload": "Neu laden",
+    "side": "Seite",
+    "staff": "Mitarbeiter",
+    "tablet": "Tablet",
+    "unavailable": "Die Vorschau konnte nicht geöffnet werden: {message}",
+    "width": "Breite"
   }
 }

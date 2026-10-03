@@ -8743,6 +8743,90 @@
     "status": "mt",
     "srcHash": "bc097bb5fde6"
   },
+  "designer.preview.buildingCustomer": {
+    "status": "mt",
+    "srcHash": "38dcdb566032"
+  },
+  "designer.preview.buildingDashboard": {
+    "status": "mt",
+    "srcHash": "4adde6960a60"
+  },
+  "designer.preview.buildingStaff": {
+    "status": "mt",
+    "srcHash": "749f12f03ac2"
+  },
+  "designer.preview.customer": {
+    "status": "mt",
+    "srcHash": "0e85749a6f40"
+  },
+  "designer.preview.dashboard": {
+    "status": "src",
+    "srcHash": "d87f47b47e4d"
+  },
+  "designer.preview.desktop": {
+    "status": "mt",
+    "srcHash": "532c67fe1b5a"
+  },
+  "designer.preview.failedCustomer": {
+    "status": "mt",
+    "srcHash": "a26ec9fb9e43"
+  },
+  "designer.preview.failedDashboard": {
+    "status": "mt",
+    "srcHash": "4f1bfe5a3133"
+  },
+  "designer.preview.failedStaff": {
+    "status": "mt",
+    "srcHash": "d31be5eab6ee"
+  },
+  "designer.preview.fix": {
+    "status": "mt",
+    "srcHash": "bf4f1e5d8013"
+  },
+  "designer.preview.fixMessage": {
+    "status": "mt",
+    "srcHash": "29b6149c2496"
+  },
+  "designer.preview.loading": {
+    "status": "mt",
+    "srcHash": "db093d7a6f00"
+  },
+  "designer.preview.newTab": {
+    "status": "mt",
+    "srcHash": "b22f39c9558f"
+  },
+  "designer.preview.nothing": {
+    "status": "mt",
+    "srcHash": "4981b72433c5"
+  },
+  "designer.preview.phone": {
+    "status": "mt",
+    "srcHash": "77064d526523"
+  },
+  "designer.preview.reload": {
+    "status": "mt",
+    "srcHash": "cce7155371fc"
+  },
+  "designer.preview.side": {
+    "status": "src",
+    "srcHash": "26528381ea05"
+  },
+  "designer.preview.staff": {
+    "status": "mt",
+    "srcHash": "a4730a22cf49"
+  },
+  "designer.preview.tablet": {
+    "status": "src",
+    "srcHash": "fabcacd2a76a"
+  },
+  "designer.preview.unavailable": {
+    "status": "mt",
+    "srcHash": "66342f4e38a8"
+  },
+  "designer.preview.width": {
+    "status": "mt",
+    "srcHash": "a58ddf50c5ea"
+  },
   "designer.provider.anthropic": {
     "status": "src",
     "srcHash": "b780a23b530e"
@@ -9194,10 +9278,6 @@
   "designer.work.preview": {
     "status": "mt",
     "srcHash": "f1fbb2b43dca"
-  },
-  "designer.work.previewSoon": {
-    "status": "mt",
-    "srcHash": "0530bc967ad9"
   },
   "email.actions.archived": {
     "status": "mt",

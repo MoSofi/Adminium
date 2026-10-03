@@ -291,7 +291,29 @@
   "work": {
     "architecture": "Architektura",
     "architectureSoon": "Zde se ukáže, jak je {name} sestavena.",
-    "preview": "Náhled",
-    "previewSoon": "Zde se zobrazí náhled {name}."
+    "preview": "Náhled"
+  },
+  "preview": {
+    "buildingCustomer": "Sestavuje se strana zákazníků…",
+    "buildingDashboard": "Sestavuje se nástěnka…",
+    "buildingStaff": "Sestavuje se strana personálu…",
+    "customer": "Zákazníci",
+    "dashboard": "Nástěnka",
+    "desktop": "Počítač",
+    "failedCustomer": "Stranu zákazníků se nepodařilo sestavit.",
+    "failedDashboard": "Aplikace nebyla použita.",
+    "failedStaff": "Stranu personálu se nepodařilo sestavit.",
+    "fix": "Požádat Designer o opravu",
+    "fixMessage": "Obrazovky se nepodařilo sestavit: {error} Oprav to, prosím.",
+    "loading": "Otevírá se náhled",
+    "newTab": "Otevřít na nové kartě",
+    "nothing": "Zatím není co ukázat. Jakmile Designer aplikaci použije, zobrazí se zde.",
+    "phone": "Telefon",
+    "reload": "Načíst znovu",
+    "side": "Strana",
+    "staff": "Personál",
+    "tablet": "Tablet",
+    "unavailable": "Náhled se nepodařilo otevřít: {message}",
+    "width": "Šířka"
   }
 }
