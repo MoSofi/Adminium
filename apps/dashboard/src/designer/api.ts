@@ -105,8 +105,8 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerCard =
-  | { id: string; type: 'question'; question: string; choices: string[] }
-  | { id: string; type: 'package'; name: string; version: string; why: string }
+  | { id: string; type: 'question'; question: string; choices: string[]; /** The look of the app's screens: the choices are directions, worded here. */ look?: true }
+  | { id: string; type: 'package'; name: string; version: string; why: string; also?: { name: string; version: string }[] }
   | {
       id: string;
       type: 'removal';
@@ -114,11 +114,24 @@ export type DesignerCard =
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
     };
 
+/** The four looks an app's own screens can take. */
+export const LOOK_DIRECTIONS = ['clean', 'warm', 'bold', 'calm'] as const;
+export type LookDirection = (typeof LOOK_DIRECTIONS)[number];
+
+export interface SessionReply {
+  session: DesignerSession;
+  waiting: DesignerCard[];
+  active: boolean;
+  /** The look of the app's own screens, when it can be changed from the page. */
+  look?: { direction: LookDirection; accent?: string } | null;
+}
+
 export type StepFacts = {
   subject?: string;
   count?: number;
   outcome?: 'added' | 'declined' | 'refused' | 'failed';
   ended?: 'stopped' | 'error' | 'miss';
+  look?: string;
 };
 
 export type DesignerEventBody =
@@ -133,6 +146,7 @@ export type DesignerEventBody =
   | { kind: 'build'; ok: boolean; problems: string[] }
   | { kind: 'apply'; ok: boolean; state: string; stage?: string; message?: string }
   | { kind: 'version'; n: number; name: string }
+  | { kind: 'look'; direction: string }
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }
@@ -193,9 +207,10 @@ export const designerApi = {
   checkModel: (connectionId: string, model: string) => api.post<{ canBuild: boolean | null; message: string | null }>(`${BASE}/models/check`, { connectionId, model }),
   testConnection: (draft: ConnectionDraft) => api.post<ConnectionTest>(`${BASE}/connections/test`, draft),
   saveConnection: (draft: ConnectionDraft & { model: string }) => api.put<ModelConnection>(`${BASE}/connections`, draft),
-  session: (id: string) => api.get<{ session: DesignerSession; waiting: DesignerCard[]; active: boolean }>(`${BASE}/sessions/${id}`),
-  patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string }) =>
-    api.patch<{ session: DesignerSession; waiting: DesignerCard[]; active: boolean }>(`${BASE}/sessions/${id}`, patch),
+  session: (id: string) => api.get<SessionReply>(`${BASE}/sessions/${id}`),
+  patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string }) => api.patch<SessionReply>(`${BASE}/sessions/${id}`, patch),
+  setLook: (id: string, direction: LookDirection) =>
+    api.post<{ look: { direction: LookDirection }; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { direction }),
   startTurn: (id: string, text: string) => api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text }),
   stop: (id: string) => api.post<{ stopped: boolean }>(`${BASE}/sessions/${id}/stop`, {}),
   answer: (id: string, cardId: string, value: unknown) => api.post<{ answered: true }>(`${BASE}/sessions/${id}/answers`, { cardId, value }),

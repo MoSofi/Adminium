@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { LOCAL_PUBLISHER_ID, RESERVED_KEYS } from '@adminium/manifest';
 
 import { CliError } from '../../cli/exit.js';
+import { readLook, themeCss, type Look } from './look.js';
 import { APP_KEY_PATTERN, APPS_DIR, appDir, appPath, type AppSide } from './read-app.js';
 
 /** React, for the app's own screens. Its types follow the project's existing `@types/react`. */
@@ -218,6 +219,16 @@ function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides'>): strin
   ].join('\n');
 }
 
+/** The look's own templates: one `app.css`, written to every side so the two never drift. */
+const LOOK_TEMPLATES = 'look';
+/** The look a side starts with when the app has chosen none. */
+const DEFAULT_LOOK: Look = { direction: 'clean' };
+
+/** A side's two stylesheets: the parts, and the look they are drawn from. */
+function sideStyles(templates: string, look: Look): Record<string, string> {
+  return { 'src/app.css': readFileSync(join(templates, LOOK_TEMPLATES, 'app.css'), 'utf8'), 'src/theme.css': themeCss(look) };
+}
+
 /** Every template file under `dir`, relative to it with `/`. */
 function templateFiles(dir: string, prefix = ''): string[] {
   const out: string[] = [];
@@ -250,10 +261,12 @@ export function scaffoldApp(opts: ScaffoldAppOptions): string[] {
   for (const [file, value] of Object.entries(opts.bare === true ? bareParts(opts) : starterParts(opts))) write(file, `${JSON.stringify(value, null, 2)}\n`);
   for (const file of templateFiles(templates)) {
     const [top] = file.split('/');
+    if (top === LOOK_TEMPLATES) continue;
     if ((top === 'staff' || top === 'customer') && !opts.sides.includes(top)) continue;
     // Source templates end in `.tmpl`: they are the person's code once written, not this package's.
     write(file.replace(/\.tmpl$/, ''), fill(readFileSync(join(templates, file), 'utf8')));
   }
+  for (const side of opts.sides) for (const [file, text] of Object.entries(sideStyles(templates, DEFAULT_LOOK))) write(`${side}/${file}`, text);
   write('README.md', readme(opts));
   return created.sort();
 }
@@ -285,6 +298,11 @@ export function addSide(opts: { root: string; key: string; name: string; side: A
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, fill(readFileSync(join(templates, opts.side, file), 'utf8')));
       created.push(appPath(opts.key, opts.side, file.replace(/\.tmpl$/, '')));
+    }
+    // The look the app already chose (another side has it), or the default one.
+    for (const [file, text] of Object.entries(sideStyles(templates, readLook(opts.root, opts.key) ?? DEFAULT_LOOK))) {
+      writeFileSync(join(dir, opts.side, file), text);
+      created.push(appPath(opts.key, opts.side, file));
     }
     // The staff starter reads the app's sample rows for its demo: an app with none gets an empty file to read.
     const sample = join(dir, 'seeds', 'sample.json');

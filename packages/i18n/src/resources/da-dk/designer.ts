@@ -231,7 +231,9 @@ export default {
     "removeIt": "Fjern den og dens data",
     "removeTable": "Hvis tabellen {table} fjernes, slettes {rows, plural, one {dens # række} other {dens # rækker}}.",
     "removed": "Fjernet.",
-    "youAnswered": "Dit svar: {answer}"
+    "youAnswered": "Dit svar: {answer}",
+    "packages": "Der skal bruges pakker: {list}. Skal de tilføjes?",
+    "addThem": "Tilføj dem"
   },
   "step": {
     "addOns": "Ser på tilføjelserne",
@@ -279,7 +281,10 @@ export default {
     "readFailed": "Kunne ikke læse {subject}",
     "writeFailed": "Kunne ikke skrive {subject}",
     "editFailed": "Kunne ikke redigere {subject}",
-    "deleteFailed": "Kunne ikke slette {subject}"
+    "deleteFailed": "Kunne ikke slette {subject}",
+    "look": "Skifter udseende",
+    "lookDone": "Udseendet er skiftet",
+    "lookFailed": "Udseendet blev ikke ændret"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -451,5 +456,26 @@ export default {
     "stepGet": "Henter appen",
     "stepMake": "Gør den til din egen",
     "stepBuild": "Bygger og anvender"
+  },
+  "look": {
+    "question": "Hvordan skal det se ud?",
+    "lead": "Vælg en retning for de skærme, folk ser. Du kan ændre den bagefter.",
+    "surprise": "Overrask mig",
+    "ownWords": "Beskriv det med mine egne ord",
+    "clean": "Ren",
+    "warm": "Varm",
+    "bold": "Markant",
+    "calm": "Rolig",
+    "cleanLine": "Neutrale grå, en klar blå, skarpe hjørner",
+    "warmLine": "Creme og brun, serif til overskrifter, runde hjørner",
+    "boldLine": "Sort på hvidt, én stærk farve, kraftig skrift",
+    "calmLine": "Blød grågrøn, let skrift, luft omkring",
+    "changed": "Udseendet er ændret til {look}",
+    "change": "Skift udseende",
+    "changing": "Skifter udseende…",
+    "menu": "Skærmenes udseende",
+    "finer": "Vil du have noget finere, så skriv det i chatten: “mørkere, med guld”.",
+    "notApplied": "Udseendet blev skrevet, men appen blev ikke anvendt. Næste tur siger hvorfor.",
+    "failed": "Udseendet kunne ikke ændres"
   }
 } as const;

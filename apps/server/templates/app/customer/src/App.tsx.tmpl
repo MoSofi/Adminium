@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createPublicClient, PublicApiError, type PublicClient, type Row } from '@adminiumjs/public-client';
-import { en, useCustomer, type CustomerConfig } from '@adminiumjs/adminium/side';
+import { APP_NAME, en, useCustomer, type CustomerConfig } from '@adminiumjs/adminium/side';
 
 /** The tables' short names: the `ref` of each file in manifest/tables/. */
 const ITEMS = 'items';
@@ -17,14 +17,14 @@ const REQUESTS = 'requests';
 
 export function App() {
   const loaded = useCustomer();
-  if (loaded.state === 'loading') return <p className="note">{en('Loading…')}</p>;
-  if (loaded.state === 'error') return <p className="note error">{loaded.message}</p>;
+  if (loaded.state === 'loading') return <p className="page muted">{en('Loading…')}</p>;
+  if (loaded.state === 'error') return <p className="page notice error">{loaded.message}</p>;
   return <Items config={loaded.value} />;
 }
 
 function Items({ config }: { config: CustomerConfig }) {
   const client = useMemo(() => createPublicClient({ baseUrl: config.baseUrl, publishableKey: config.publishableKey }), [config]);
-  if (client === null) return <p className="note error">{en('This page is not connected yet.')}</p>;
+  if (client === null) return <p className="page notice error">{en('This page is not connected yet.')}</p>;
   return <Requests client={client} config={config} />;
 }
 
@@ -76,25 +76,87 @@ function Requests({ client, config }: { client: PublicClient; config: CustomerCo
     }
   }
 
+  // The operator's own name for the app when they set one, else the name in the app's manifest.
+  const name = config.appName ?? (APP_NAME || en('__NAME__'));
+
+  // The parts (page, hero, grid, card, form, notice, empty) are in app.css; the colours and type in theme.css.
   return (
-    <main>
-      <h1>{config.appName ?? en('__NAME__')}</h1>
-      {problem === null ? null : <p className="note error">{problem}</p>}
+    <div className="page">
+      <header className="site-header">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            {name.slice(0, 1).toUpperCase()}
+          </span>
+          {name}
+        </div>
+      </header>
 
-      <form onSubmit={send}>
-        <label htmlFor="message">{en('What do you need?')}</label>
-        <input id="message" value={message} maxLength={500} onChange={(event) => setMessage(event.target.value)} />
-        <button type="submit">{en('Send')}</button>
-      </form>
-      {sent ? <p className="note">{en('Sent. Thank you.')}</p> : null}
+      <section className="hero">
+        <p className="eyebrow">{en('Welcome')}</p>
+        <h1>{en('What can we do for you?')}</h1>
+        <p className="lead">{en('See what is on offer, and send us what you need. We will get back to you.')}</p>
+      </section>
 
-      <ul>
-        {rows.map((row) => (
-          <li key={String(row['id'])}>
-            <span className={row['status'] === 'done' ? 'done' : undefined}>{String(row['title'] ?? '')}</span>
-          </li>
-        ))}
-      </ul>
-    </main>
+      {problem === null ? null : (
+        <p className="notice error" role="alert">
+          {problem}
+        </p>
+      )}
+
+      <main className="layout">
+        <section className="section" aria-labelledby="offer">
+          <div className="section-head">
+            <h2 id="offer">{en('On offer')}</h2>
+            <span className="muted small">{rows.length}</span>
+          </div>
+          {rows.length === 0 ? (
+            <div className="empty">
+              <strong>{en('Nothing here yet')}</strong>
+              <span>{en('Come back soon.')}</span>
+            </div>
+          ) : (
+            <div className="grid">
+              {rows.map((row) => (
+                <article className="card" key={String(row['id'])}>
+                  <div className="card-media" aria-hidden="true">
+                    {String(row['title'] ?? '?').slice(0, 1).toUpperCase()}
+                  </div>
+                  <h3 className="card-title">{String(row['title'] ?? '')}</h3>
+                  <div className="card-row">
+                    <span className={row['status'] === 'done' ? 'badge' : 'badge good'}>{row['status'] === 'done' ? en('Gone') : en('Available')}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="aside card" aria-labelledby="ask">
+          <h2 id="ask">{en('Send a request')}</h2>
+          {sent ? (
+            <div className="stack">
+              <p className="notice ok" role="status">
+                {en('Sent. Thank you — we will be in touch.')}
+              </p>
+              <button type="button" className="btn btn-quiet" onClick={() => setSent(false)}>
+                {en('Send another')}
+              </button>
+            </div>
+          ) : (
+            <form className="form" onSubmit={send}>
+              <div className="field">
+                <label htmlFor="message">{en('What do you need?')}</label>
+                <textarea id="message" value={message} maxLength={500} required onChange={(event) => setMessage(event.target.value)} />
+              </div>
+              <button type="submit" className="btn btn-primary btn-block">
+                {en('Send')}
+              </button>
+            </form>
+          )}
+        </aside>
+      </main>
+
+      <footer className="site-footer">{name}</footer>
+    </div>
   );
 }

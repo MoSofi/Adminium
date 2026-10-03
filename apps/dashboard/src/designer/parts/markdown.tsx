@@ -397,7 +397,12 @@ function draw(blocks: readonly Block[], caret: ReactNode, top: boolean): ReactNo
  * A model's reply. `caret` is drawn at the end of the last line while the
  * reply is still being written.
  */
-export function Markdown({ text, caret = null }: { text: string; caret?: ReactNode }): ReactNode {
+/** The few signs a model writes as TeX in the middle of a sentence. Nothing else of TeX is read. */
+const SIGNS: Record<string, string> = { rightarrow: '→', to: '→', leftarrow: '←', leftrightarrow: '↔', times: '×', le: '≤', ge: '≥', ne: '≠', approx: '≈' };
+const signs = (text: string): string => text.replace(/\$\s*\\(rightarrow|to|leftarrow|leftrightarrow|times|le|ge|ne|approx)\s*\$/g, (_whole, name: string) => SIGNS[name] ?? _whole);
+
+export function Markdown({ text: written, caret = null }: { text: string; caret?: ReactNode }): ReactNode {
+  const text = signs(written);
   const parsed = text.length > MAX_PARSED ? text.slice(0, MAX_PARSED) : text;
   const rest = text.length > MAX_PARSED ? text.slice(MAX_PARSED) : '';
   const blocks = parseBlocks(parsed.replace(/\r\n?/g, '\n').split('\n'), 0);

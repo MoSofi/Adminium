@@ -30,6 +30,7 @@
 import { useEffect, useState } from 'react';
 
 declare const __ADMINIUM_APP_KEY__: string | undefined;
+declare const __ADMINIUM_APP_NAME__: string | undefined;
 declare const __ADMINIUM_SIDE__: string | undefined;
 declare const __ADMINIUM_DEV__: boolean | undefined;
 
@@ -38,6 +39,11 @@ export type Row = Record<string, unknown>;
 
 /** The app's key, as the build knew it. */
 export const APP_KEY: string = typeof __ADMINIUM_APP_KEY__ === 'string' ? __ADMINIUM_APP_KEY__ : '';
+/**
+ * The app's name, as its manifest had it when this bundle was built; empty when the build did not say.
+ * A screen shows `config.appName ?? APP_NAME`: the operator's own name for the app when they set one, else the app's.
+ */
+export const APP_NAME: string = typeof __ADMINIUM_APP_NAME__ === 'string' ? __ADMINIUM_APP_NAME__ : '';
 /** Which side this bundle is. */
 export const SIDE: Side = typeof __ADMINIUM_SIDE__ === 'string' && __ADMINIUM_SIDE__ === 'customer' ? 'customer' : 'staff';
 

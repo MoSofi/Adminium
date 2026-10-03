@@ -56,6 +56,8 @@ import {
   designerStateReply,
   designerRestoreBody,
   designerRestoreReply,
+  designerLookBody,
+  designerLookReply,
   designerStopReply,
   designerVersionParams,
   designerVersionsReply,
@@ -148,6 +150,12 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     }));
 
     // "Your apps": every app of the folder, with the newest session that built it.
+    /** The look as the page is told it: the direction and the accent, never the person's words. */
+    const publicLook = (appKey: string): { direction: 'clean' | 'warm' | 'bold' | 'calm'; accent?: string } | null => {
+      const look = designer.lookOf(appKey);
+      return look === null ? null : { direction: look.direction, ...(look.accent === undefined ? {} : { accent: look.accent }) };
+    };
+
     app.get('/designer/sessions', { preHandler: guard, config: RATE, schema: { response: { 200: designerAppsReply } } }, async () => {
       const sessions = store.list();
       return {
@@ -189,7 +197,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerSessionReply } } },
       async (request) => {
         const session = store.read(request.params.id);
-        return { session, waiting: runner.waiting(session.id), active: runner.active()?.sessionId === session.id };
+        return { session, waiting: runner.waiting(session.id), active: runner.active()?.sessionId === session.id, look: publicLook(session.appKey) };
       },
     );
 
@@ -206,11 +214,11 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           throw new NotFoundError('There is no such model connection.', { connectionId: request.body.connectionId });
         }
         const session = store.update(current.id, {
-          ...(request.body.title === undefined ? {} : { title: request.body.title }),
+          ...(request.body.title === undefined ? {} : { title: request.body.title, titled: true }),
           ...(request.body.connectionId === undefined ? {} : { connectionId: request.body.connectionId }),
           ...(request.body.model === undefined ? {} : { model: request.body.model }),
         });
-        return { session, waiting: runner.waiting(session.id), active: runner.active()?.sessionId === session.id };
+        return { session, waiting: runner.waiting(session.id), active: runner.active()?.sessionId === session.id, look: publicLook(session.appKey) };
       },
     );
 
@@ -273,6 +281,20 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         store.read(request.params.id);
         const available = deps.versions !== null && (await deps.versions.available());
         return { available, versions: available && deps.versions !== null ? await deps.versions.list(request.params.id) : [] };
+      },
+    );
+
+    // "Change the look": a direction written to every side, built, applied and saved. No model is called.
+    app.post(
+      '/designer/sessions/:id/look',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits a change of look itself, with the direction') },
+        schema: { params: designerSessionParams, body: designerLookBody, response: { 200: designerLookReply } },
+      },
+      async (request) => {
+        const done = await designer.setLook(request.params.id, { direction: request.body.direction, accent: request.body.accent }, actorOf(request));
+        return { look: { direction: done.look.direction, ...(done.look.accent === undefined ? {} : { accent: done.look.accent }) }, version: done.version, applied: done.applied };
       },
     );
 

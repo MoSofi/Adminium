@@ -231,7 +231,9 @@ export default {
     "removeIt": "Odstranit i s daty",
     "removeTable": "Odstraněním tabulky {table} se smaže {rows, plural, one {její # řádek} few {jejích # řádky} many {jejích # řádku} other {jejích # řádků}}.",
     "removed": "Odstraněno.",
-    "youAnswered": "Vaše odpověď: {answer}"
+    "youAnswered": "Vaše odpověď: {answer}",
+    "packages": "Jsou potřeba balíčky: {list}. Přidat je?",
+    "addThem": "Přidat je"
   },
   "step": {
     "addOns": "Prohlíží doplňky",
@@ -279,7 +281,10 @@ export default {
     "readFailed": "Nepodařilo se přečíst {subject}",
     "writeFailed": "Nepodařilo se zapsat {subject}",
     "editFailed": "Nepodařilo se upravit {subject}",
-    "deleteFailed": "Nepodařilo se smazat {subject}"
+    "deleteFailed": "Nepodařilo se smazat {subject}",
+    "look": "Měním vzhled",
+    "lookDone": "Vzhled změněn",
+    "lookFailed": "Vzhled nebyl změněn"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -451,5 +456,26 @@ export default {
     "stepGet": "Stahuji aplikaci",
     "stepMake": "Dělám ji vaší",
     "stepBuild": "Sestavuji a používám"
+  },
+  "look": {
+    "question": "Jak to má vypadat?",
+    "lead": "Vyberte směr pro obrazovky, které lidé uvidí. Později ho můžete změnit.",
+    "surprise": "Překvapte mě",
+    "ownWords": "Popíšu to vlastními slovy",
+    "clean": "Čistý",
+    "warm": "Hřejivý",
+    "bold": "Výrazný",
+    "calm": "Klidný",
+    "cleanLine": "Neutrální šedé, jasná modrá, ostré rohy",
+    "warmLine": "Krémová a hnědá, patkové nadpisy, oblé rohy",
+    "boldLine": "Černá na bílé, jedna silná barva, tučné písmo",
+    "calmLine": "Jemná šedozelená, lehké písmo, prostor k nadechnutí",
+    "changed": "Vzhled změněn na {look}",
+    "change": "Změnit vzhled",
+    "changing": "Měním vzhled…",
+    "menu": "Vzhled obrazovek",
+    "finer": "Cokoli jemnějšího napište do chatu: „tmavší, se zlatou“.",
+    "notApplied": "Vzhled byl zapsán, ale aplikace nebyla použita. Další tah řekne proč.",
+    "failed": "Vzhled se nepodařilo změnit"
   }
 } as const;

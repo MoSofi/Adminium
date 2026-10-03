@@ -59,6 +59,9 @@ export function stepLine(row: StepRow): string {
       return running ? t('designer:step.addOns', 'Looking at the add-ons') : t('designer:step.addOnsDone', 'Looked at the add-ons');
     case 'add_side':
       return running ? t('designer:step.side', 'Adding screens') : t('designer:step.sideDone', 'Added screens');
+    case 'set_look':
+      if (running) return t('designer:step.look', 'Changing the look');
+      return row.state === 'failed' ? t('designer:step.lookFailed', 'The look was not changed') : t('designer:step.lookDone', 'Changed the look');
     case 'build_on_shape':
       if (running) return t('designer:step.shape', 'Building on an add-on');
       return row.state === 'failed' ? t('designer:step.shapeFailed', 'Could not build on the add-on') : t('designer:step.shapeDone', 'Built on an add-on');

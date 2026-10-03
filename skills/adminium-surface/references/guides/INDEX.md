@@ -5,7 +5,8 @@
 | File | What it covers | Bytes |
 |---|---|---|
 | `references/guides/building-a-side--overview.md` | Building an app's screens | 616 |
-| `references/guides/building-a-side--the-folder.md` | The folder | 1120 |
+| `references/guides/building-a-side--the-folder.md` | The folder | 1269 |
+| `references/guides/building-a-side--the-look.md` | The look | 2448 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
 | `references/guides/building-a-side--a-staff-side.md` | A staff side | 3317 |
 | `references/guides/building-a-side--a-customer-side.md` | A customer side | 3576 |

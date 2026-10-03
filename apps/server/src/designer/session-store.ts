@@ -44,6 +44,8 @@ export interface DesignerSession {
   version: number | null;
   /** Whether this session made the app's folder (then "put the files back" in its first turn empties it). */
   createdApp: boolean;
+  /** A person gave the session its title: it no longer follows the app's name. */
+  titled?: boolean;
   /** Tokens spent across the session, for its ceiling. */
   tokens: { in: number; out: number };
 }

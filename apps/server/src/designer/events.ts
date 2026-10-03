@@ -38,6 +38,8 @@ export type DesignerEventBody =
       count?: number;
       /** What came of a package asked for. */
       outcome?: 'added' | 'declined' | 'refused' | 'failed';
+      /** The look a step changed to. */
+      look?: string;
       /** How a failed step ended: stopped by the person, an error in the tool, or a miss (a file or reference that is not there, which the model is told how to find). */
       ended?: 'stopped' | 'error' | 'miss';
     }
@@ -49,6 +51,8 @@ export type DesignerEventBody =
   | { kind: 'build'; ok: boolean; problems: string[] }
   | { kind: 'apply'; ok: boolean; state: string; stage?: string; message?: string }
   | { kind: 'version'; n: number; name: string }
+  /** The look was changed from the page ("Change the look"), with no model behind it. */
+  | { kind: 'look'; direction: string }
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }

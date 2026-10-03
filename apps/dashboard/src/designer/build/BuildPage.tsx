@@ -17,7 +17,7 @@ import { ExternalLink, Eye, MessageSquare } from 'lucide-react';
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
-import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion } from '../api.js';
+import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion, type LookDirection } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { BuildComposer } from '../parts/BuildComposer.js';
@@ -25,6 +25,7 @@ import {
   DesignerMessage,
   FailedNote,
   LimitNote,
+  LookChip,
   NotAppliedNote,
   PackageCard,
   PersonMessage,
@@ -37,6 +38,7 @@ import {
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
+import { LookMenu } from './LookMenu.js';
 import { SessionMenu } from './SessionMenu.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
@@ -151,6 +153,15 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     },
     onError: fail(t('designer:build.newSessionFailed', 'The new session could not be started')),
   });
+  // "Change the look": no turn, no model. The server writes it, builds, applies and saves a version.
+  const look = useMutation({
+    mutationFn: (direction: LookDirection) => designerApi.setLook(sessionId, direction),
+    onSuccess: (reply) => {
+      refresh();
+      if (!reply.applied) toasts.push({ variant: 'warning', title: t('designer:look.notApplied', 'The look was written, and the app was not applied. The next turn will say why.') });
+    },
+    onError: fail(t('designer:look.failed', 'The look could not be changed')),
+  });
   const restore = useMutation({
     mutationFn: ({ n, record }: { n: number; record: boolean }) => designerApi.restore(sessionId, n, record),
     onSuccess: (reply, { n, record }) => {
@@ -192,7 +203,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   }
 
   const data = session.data;
-  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending;
+  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending || look.isPending;
   const appSessions = apps.data?.apps.find((app) => app.key === data?.session.appKey)?.sessions ?? [];
   // A session that has not been used yet is already a new one: another would only be an empty twin.
   const canStartNew = data !== undefined && !working && !busy && turns.length > 0;
@@ -312,7 +323,9 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           {turn.outcome === 'failed' && turn.error !== null ? (
             <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate(turn.text ?? '') : undefined} />
           ) : null}
+          {turn.look === null ? null : <LookChip direction={turn.look} />}
           {turn.version === null ? null : <SavedChip name={turn.version.name} />}
+          {last && !live && data?.look != null ? <LookMenu current={data.look.direction} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(direction) => look.mutate(direction)} /> : null}
         </DesignerMessage>
       </div>
     );

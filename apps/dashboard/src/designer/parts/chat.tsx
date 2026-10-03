@@ -23,6 +23,7 @@ import {
   LoaderCircle,
   MessageCircleQuestion,
   Package,
+  Palette,
   Play,
   RotateCcw,
   RotateCw,
@@ -30,9 +31,10 @@ import {
 } from 'lucide-react';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import type { DesignerCard, LimitKind, SpendMark } from '../api.js';
+import { LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type SpendMark } from '../api.js';
 import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
 import type { StepRow } from '../build/turns.js';
+import { lookLine, lookName, LookSwatch } from './look.js';
 import { Markdown } from './markdown.js';
 
 const SECONDARY = 'inline-flex items-center gap-1.5 rounded-[10px] border border-border-strong bg-surface px-3 py-[7px] text-[12.5px] font-bold text-fg hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50';
@@ -206,6 +208,16 @@ export function SavedChip({ name }: { name: string }): ReactNode {
   );
 }
 
+/** After "Change the look": what it was changed to. */
+export function LookChip({ direction }: { direction: string }): ReactNode {
+  return (
+    <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-surface-3 px-[9px] py-[3px] text-[11px] font-bold text-fg-muted">
+      <Palette aria-hidden="true" className="size-3" />
+      {t('designer:look.changed', 'Look changed to {look}', { look: lookName(direction) })}
+    </span>
+  );
+}
+
 function CardShell({
   tone = 'plain',
   icon,
@@ -259,6 +271,47 @@ export function QuestionCard({
   onChoose: (choice: string) => void;
   onOwnWords: () => void;
 }): ReactNode {
+  if (card.look === true) {
+    // The look of the app's screens: the server asks by direction, and the page says it in its own words.
+    return (
+      <CardShell cardId={card.id} icon={<Palette className="size-4" />} title={t('designer:look.question', 'How should it look?')}>
+        {answered ? (
+          <p className="m-0 text-[12.5px] text-fg-muted">
+            {answer === undefined || answer === '' ? t('designer:card.noAnswer', 'No answer was given.') : t('designer:card.youAnswered', 'You answered: {answer}', { answer: lookName(answer) })}
+          </p>
+        ) : (
+          <>
+            <p className="m-0 text-[12.5px] leading-normal text-fg-muted">{t('designer:look.lead', 'Pick a direction for the screens people will see. You can change it afterwards.')}</p>
+            <div className="flex flex-col gap-1.5">
+              {LOOK_DIRECTIONS.filter((direction) => card.choices.includes(direction)).map((direction) => (
+                <button
+                  key={direction}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onChoose(direction)}
+                  className="flex items-center gap-2.5 rounded-[10px] border border-border-strong bg-surface px-2.5 py-2 text-start hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <LookSwatch direction={direction} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-[12.5px] font-bold text-fg">{lookName(direction)}</span>
+                    <span className="text-[11.5px] leading-snug text-fg-muted">{lookLine(direction)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <button type="button" disabled={busy} onClick={() => onChoose('surprise')} className={PRIMARY}>
+                {t('designer:look.surprise', 'Surprise me')}
+              </button>
+              <button type="button" onClick={onOwnWords} className="text-[12.5px] font-bold text-accent hover:underline">
+                {t('designer:look.ownWords', 'Describe it in my own words')}
+              </button>
+            </div>
+          </>
+        )}
+      </CardShell>
+    );
+  }
   return (
     <CardShell cardId={card.id} icon={<MessageCircleQuestion className="size-4" />} title={card.question}>
       {answered ? (
@@ -381,8 +434,17 @@ export function PackageCard({
   onAdd: () => void;
   onSkip: () => void;
 }): ReactNode {
+  const all = [{ name: card.name, version: card.version }, ...(card.also ?? [])];
+  const many = all.length > 1;
+  const title = many
+    ? withMono(
+        t('designer:card.packages', 'Packages are needed: {list}. Add them?', { list: M1 }),
+        [M1],
+        [all.map((entry) => `${entry.name} (${entry.version})`).join(', ')],
+      )
+    : withMono(t('designer:card.package', 'A package is needed: {name} ({version}). Add it?', { name: M1, version: M2 }), [M1, M2], [card.name, card.version]);
   return (
-    <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={withMono(t('designer:card.package', 'A package is needed: {name} ({version}). Add it?', { name: M1, version: M2 }), [M1, M2], [card.name, card.version])}>
+    <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={title}>
       {card.why === '' ? null : (
         <p dir="auto" className="m-0 text-[12.5px] leading-normal text-fg-muted">
           {card.why}
@@ -395,7 +457,7 @@ export function PackageCard({
       ) : (
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={busy} onClick={onAdd} className={PRIMARY}>
-            {t('designer:card.addIt', 'Add it')}
+            {many ? t('designer:card.addThem', 'Add them') : t('designer:card.addIt', 'Add it')}
           </button>
           <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
             {t('designer:card.doWithout', 'Do without')}
@@ -484,17 +546,38 @@ export function SpendNotice({ warnings, onNewSession }: { warnings: readonly { w
   );
 }
 
+/** What a provider said, out of "provider: HTTP 402 — {"error":"…"}": the sentence alone, cut short. */
+export function providerWords(message: string): string {
+  const after = message.replace(/^[a-z0-9-]+: HTTP \d+\s*[—-]\s*/i, '').trim();
+  let words = after;
+  try {
+    const parsed = JSON.parse(after) as { error?: unknown; message?: unknown };
+    const inner = typeof parsed.error === 'string' ? parsed.error : typeof (parsed.error as { message?: unknown } | undefined)?.message === 'string' ? (parsed.error as { message: string }).message : parsed.message;
+    if (typeof inner === 'string') words = inner;
+  } catch {
+    // Not JSON: the words as they are.
+  }
+  return words.length > 300 ? `${words.slice(0, 299)}…` : words;
+}
+
 export function FailedNote({ error, onRetry, busy }: { error: { code: string; message: string; provider?: string | undefined; status?: number | undefined }; onRetry?: (() => void) | undefined; busy: boolean }): ReactNode {
   const said =
     error.provider !== undefined && error.status !== undefined
       ? withMono(t('designer:turn.modelFailed', 'The model stopped answering ({provider}, {status}). Nothing was lost.', { provider: error.provider, status: M1 }), [M1], [String(error.status)])
       : t('designer:turn.failed', 'The turn failed: {message} Nothing was lost.', { message: error.message });
+  // The provider's own words, when it gave a reason a person can act on ("add usage credits"): shown as text, never as a link.
+  const theirs = error.provider !== undefined && error.status !== undefined && error.status >= 400 && error.status < 500 ? providerWords(error.message) : '';
   return (
     <div role="alert" className="flex flex-col gap-[11px] rounded-xl border border-danger/30 bg-danger-soft px-3.5 py-[13px]">
       <p className="m-0 flex items-start gap-[9px] text-[13px] font-semibold leading-normal text-danger">
         <CircleAlert aria-hidden="true" className="mt-0.5 size-[15px] shrink-0" />
         <span>{said}</span>
       </p>
+      {theirs === '' ? null : (
+        <p dir="auto" className="m-0 ms-6 break-words text-[12px] leading-normal text-fg-muted">
+          {theirs}
+        </p>
+      )}
       {onRetry === undefined ? null : (
         <button type="button" disabled={busy} onClick={onRetry} className={`${SECONDARY} self-start`}>
           <RotateCw aria-hidden="true" className="size-[13px]" />

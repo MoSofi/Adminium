@@ -221,7 +221,9 @@
     "removeIt": "刪除它及其資料",
     "removeTable": "刪除資料表 {table} 會刪除其 {rows, plural, other {# 列}}。",
     "removed": "已刪除。",
-    "youAnswered": "你的回答：{answer}"
+    "youAnswered": "你的回答：{answer}",
+    "packages": "需要這些套件：{list}。要加入嗎？",
+    "addThem": "加入"
   },
   "step": {
     "addOns": "正在查看附加元件",
@@ -269,7 +271,10 @@
     "readFailed": "無法讀取 {subject}",
     "writeFailed": "無法寫入 {subject}",
     "editFailed": "無法編輯 {subject}",
-    "deleteFailed": "無法刪除 {subject}"
+    "deleteFailed": "無法刪除 {subject}",
+    "look": "正在變更外觀",
+    "lookDone": "已變更外觀",
+    "lookFailed": "外觀未變更"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -441,5 +446,26 @@
     "stepGet": "正在取得應用程式",
     "stepMake": "正在變成你自己的",
     "stepBuild": "正在建置並套用"
+  },
+  "look": {
+    "question": "它應該是什麼樣子？",
+    "lead": "為人們將看到的畫面選擇一個方向。之後可以變更。",
+    "surprise": "給我驚喜",
+    "ownWords": "用我自己的話描述",
+    "clean": "簡潔",
+    "warm": "溫暖",
+    "bold": "醒目",
+    "calm": "沉靜",
+    "cleanLine": "中性灰、清澈的藍、俐落的邊角",
+    "warmLine": "奶油色與棕色、襯線標題、圓角",
+    "boldLine": "白底黑字、一種強烈的顏色、粗重的字體",
+    "calmLine": "柔和的灰綠、輕盈的字體、留白充足",
+    "changed": "外觀已改為{look}",
+    "change": "變更外觀",
+    "changing": "正在變更外觀…",
+    "menu": "畫面的外觀",
+    "finer": "想要更細的調整，請在對話中說明：「更深一些，帶點金色」。",
+    "notApplied": "外觀已寫入，但應用程式未套用。下一輪會說明原因。",
+    "failed": "無法變更外觀"
   }
 }

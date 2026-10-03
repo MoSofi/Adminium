@@ -24,8 +24,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 import { checkApp } from '../project/apps/check-app.js';
+import { applyLook, cleanLook, directionForBusiness, directionFromWords, DIRECTIONS, isDirection, LOOK_DIRECTIONS, mentionsLook, readLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, nameFromKey, PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
+import type { AppSide } from '../project/apps/read-app.js';
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
 import { rebuildApps } from '../project/build.js';
@@ -93,6 +95,30 @@ export function knownPackageVersion(name: string, serverVersion: string): string
   return null;
 }
 
+/** What a side's screens need in the project and do not find there: react, react-dom, and the public client for a customer side. */
+export function missingScreenPackages(root: string, side: AppSide, serverVersion: string): { name: string; version: string }[] {
+  let listed: Record<string, unknown> = {};
+  try {
+    const json = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown>; devDependencies?: Record<string, unknown> };
+    listed = { ...(json.devDependencies ?? {}), ...(json.dependencies ?? {}) };
+  } catch {
+    // No package.json to read: the build will say what it cannot find.
+    return [];
+  }
+  return ['react', 'react-dom', ...(side === 'customer' ? [PUBLIC_CLIENT_PACKAGE] : [])]
+    .filter((name) => listed[name] === undefined)
+    .map((name) => ({ name, version: knownPackageVersion(name, serverVersion) ?? '' }));
+}
+
+/** The parts a starter screen is drawn with, for whoever rewrites it. */
+export const LOOK_PARTS = `The screen is drawn with made parts: class names in src/app.css, coloured by src/theme.css. Use them; do not write inline styles or a stylesheet of your own for what a part already does.
+- Page: "page" (add "narrow" for one column), "site-header" with "brand" and "brand-mark", "hero" with "eyebrow", an h1 and "lead", "section" with "section-head", "layout" (a wide column and an "aside" that stays in view), "site-footer".
+- Things on offer: "grid" of "card"s, each with "card-media", "card-title", "card-row", "price"; "stepper" for a quantity; "summary" with a "total" line for what was chosen.
+- Forms: "form" of "field"s (a label, then the input, then an optional "hint"); "btn btn-primary" for the one main action, "btn" and "btn btn-quiet" for the rest, "btn-small", "btn-block".
+- What the page says back: "notice ok" after sending, "notice error" for a problem, "empty" (a strong line and a sentence) where a list has nothing, "badge" with "accent", "good", "warn" or "bad" for a status.
+- For staff: "toolbar", "list" of "list-row"s, or a "board" of "column"s holding cards; "row" to put things side by side; "muted", "small".
+A page people see has the business's name in its header, a first line that says what the page is for, and one clear main button. Write real words for this business, not placeholders.`;
+
 /** An app manifest's own build command is set by a person (D33): refused when the model writes one. */
 function addsBuildCommand(path: string, content: string, appKey: string): boolean {
   const manifestFiles = [`apps/${appKey}/manifest/app.json`, `apps/${appKey}/manifest.json`];
@@ -107,14 +133,45 @@ function addsBuildCommand(path: string, content: string, appKey: string): boolea
   }
 }
 
-/** Why a `.json` file's text does not read, or null. Said at the write, a step before the check would. */
-function jsonProblem(path: string, content: string): string | null {
+/**
+ * Why a `.json` file's text does not read, or null. Said at the write, a step
+ * before the check would. The parser's own sentence names a position and
+ * little else, and a model sent the same broken file nine times on it: so the
+ * lines around the fault are shown with the place marked, and what is still
+ * open there, which is where a missing or extra brace shows.
+ */
+export function jsonProblem(path: string, content: string): string | null {
   if (!path.endsWith('.json')) return null;
   try {
     JSON.parse(content);
     return null;
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    const said = error instanceof Error ? error.message : String(error);
+    const found = /position (\d+)/.exec(said);
+    if (found === null) return said;
+    const at = Math.min(Number(found[1]), content.length);
+    const lines = content.split('\n');
+    const line = content.slice(0, at).split('\n').length;
+    const column = at - content.lastIndexOf('\n', at - 1);
+    const from = Math.max(1, line - 3);
+    const shown = lines.slice(from - 1, line).map((text, index) => `${from + index === line ? '>' : ' '} ${String(from + index).padStart(3)} | ${text.length > 160 ? `${text.slice(0, 160)}…` : text}`);
+    shown.push(`        ${' '.repeat(Math.min(column - 1, 160))}^ here`);
+    // What is open at the mark, outside strings: a brace closed once too often, or not at all, shows as a wrong list.
+    const open: { mark: string; line: number }[] = [];
+    let inString = false;
+    let row = 1;
+    for (let i = 0; i < at; i += 1) {
+      const char = content[i] as string;
+      if (char === '\n') row += 1;
+      if (inString) {
+        if (char === '\\') i += 1;
+        else if (char === '"') inString = false;
+      } else if (char === '"') inString = true;
+      else if (char === '{' || char === '[') open.push({ mark: char, line: row });
+      else if (char === '}' || char === ']') open.pop();
+    }
+    const still = open.length === 0 ? 'Nothing is open there: a closing brace or bracket too many came before it.' : `Still open there: ${open.slice(-6).map((entry) => `"${entry.mark}" from line ${String(entry.line)}`).join(', ')}.`;
+    return `${said}\n${shown.join('\n')}\n${still} Look at the lines just above the mark: a brace or bracket closed once too often or not often enough, or a comma missing or left over. Writing one property per line makes the nesting plain`;
   }
 }
 
@@ -162,6 +219,68 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       throw error;
     }
   };
+
+  /** Add packages to the project, exact versions, no install scripts. Null when it worked; else what the manager said. */
+  const installPackages = async (specs: readonly { name: string; version: string }[], signal: AbortSignal): Promise<string | null> => {
+    const manager = projectPackageManager(deps.root, {});
+    const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
+    const args = [manager === 'npm' ? 'install' : 'add', ...specs.map((spec) => `${spec.name}@${spec.version}`), '--ignore-scripts', exact];
+    const result = await runChild(manager, args, { cwd: deps.root, timeoutMs: INSTALL_TIMEOUT_MS, signal });
+    return result.code === 0 ? null : `${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`;
+  };
+
+  /** What the person wrote in this session: the first message of each turn. Never the engine's own notes to the model. */
+  const personWords = (sessionId: string): string => {
+    const seen = new Set<number>();
+    const out: string[] = [];
+    for (const { turn, message } of deps.designer().store.messages(sessionId)) {
+      if (seen.has(turn)) continue;
+      seen.add(turn);
+      if (message.role !== 'user') continue;
+      for (const block of message.content) if (block.type === 'text') out.push(block.text);
+    }
+    return out.join(' ');
+  };
+
+  /**
+   * The look of the app's screens, chosen once (D106). When the person said
+   * something about it, their words decide; otherwise they are asked, with
+   * four directions and "Surprise me". It is the server that asks, so the
+   * question is the same on every model.
+   */
+  const chooseLook = async (ctx: ToolContext): Promise<{ look: Look; how: string }> => {
+    const kept = readLook(deps.root, appKey);
+    if (kept !== null) return { look: kept, how: 'chosen earlier' };
+    const said = personWords(ctx.session.id);
+    let look: Look;
+    let how: string;
+    if (mentionsLook(said)) {
+      look = cleanLook({ direction: directionFromWords(said), words: said });
+      how = 'read from what the person wrote about the look';
+    } else {
+      const answer = await ctx.ask({ type: 'question', question: 'How should it look?', choices: [...LOOK_DIRECTIONS, 'surprise'], look: true });
+      const given = answer.type === 'question' ? answer.text.trim() : 'surprise';
+      if (isDirection(given)) {
+        look = { direction: given };
+        how = 'the person chose it';
+      } else if (given === 'surprise') {
+        look = { direction: directionForBusiness(said) };
+        how = 'the person left it to you; it was picked for this kind of business';
+      } else {
+        look = cleanLook({ direction: directionFromWords(`${given} ${said}`), words: given });
+        how = 'read from the person’s own words about the look';
+      }
+    }
+    applyLook(deps.root, appKey, look);
+    return { look, how };
+  };
+
+  /** A look in a sentence, for the model. The person's words are data. */
+  const lookLine = (look: Look, how: string): string =>
+    `The look is "${look.direction}" (${how}). ${DIRECTIONS[look.direction].line}${look.words === undefined ? '' : ` What the person said about it, as data: "${look.words}".`} Its colours and type are in src/theme.css of each side: to change the look, call set_look or change values there, never restyle part by part.`;
+
+  /** The last text refused as invalid JSON, by file: the same text again is said to be the same. */
+  const refusedJson = new Map<string, string>();
 
   let lastErrors = '';
   let sameErrors = 0;
@@ -351,7 +470,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             return refused('An app’s own build command is set by a person, never written here. Leave "build" out of app.json.', `Refused ${shown(path)}`);
           }
           const unread = jsonProblem(normal, content);
-          if (unread !== null) return refused(`That is not valid JSON, and nothing was written: ${unread}. Send the whole file again.`, `Could not write ${shown(path)}`);
+          if (unread !== null) {
+            const again = refusedJson.get(normal) === content;
+            refusedJson.set(normal, content);
+            return refused(
+              `${again ? 'This is the same text as your last try, character for character, so it fails at the same place. Do not send it again: change it where the mark is. ' : ''}That is not valid JSON, and nothing was written: ${unread}. Send the whole file again, corrected.`,
+              `Could not write ${shown(path)}`,
+            );
+          }
+          refusedJson.delete(normal);
           const existed = existsSync(jail.resolve(path, 'write'));
           jail.write(path, content);
           return text(`${existed ? 'Replaced' : 'Made'} ${normal} (${String(Buffer.byteLength(content, 'utf8'))} bytes).`, `Wrote ${shown(path)}`);
@@ -598,14 +725,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     {
       name: 'add_side',
       description:
-        'Give the app screens of its own for one side: "staff" (people who sign in) or "customer" (public, nobody signed in). Writes a working starter screen (src/main.tsx, src/App.tsx, src/app.css) and declares the side in app.json. The starter screen lists and adds rows of tables named "items" and "requests": rewrite src/App.tsx for this app’s own tables, keeping the way it loads, lists, sends and reports errors. A customer screen reaches only what manifest/access.json grants: write that file too.',
+        'Give the app screens of its own for one side: "staff" (people who sign in) or "customer" (public, nobody signed in). Writes a working starter screen (src/main.tsx, src/App.tsx, and its look: src/app.css, src/theme.css) and declares the side in app.json. The first time, the person is asked how it should look unless they already said. The starter screen lists and adds rows of tables named "items" and "requests": rewrite src/App.tsx for this app’s own tables, keeping the way it loads, lists, sends and reports errors. A customer screen reaches only what manifest/access.json grants: write that file too.',
       inputSchema: { type: 'object', properties: { side: { type: 'string', enum: ['staff', 'customer'] } }, required: ['side'], additionalProperties: false },
       running: (input) => `Adding the ${String(input['side'] ?? '')} side`,
-      run: async (input) => {
+      run: async (input, ctx) => {
         const side = str(input, 'side');
         if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff" or "customer".', 'Added no side');
         if (hasOwnBuild(deps.root, appKey)) return refused(`This app keeps its screens in apps/${appKey}/src/ and builds them itself: edit them there.`, 'Added no side');
-        return jailed(`Could not add the ${side} side`, () => {
+        let written: string[];
+        try {
           // Through the jail's own door, so the folder is one the Designer may write.
           jail.resolve(`apps/${appKey}/${side}/src/App.tsx`, 'write');
           // The app's own name, as app.json has it: a key loses what a name had ("Bakery's").
@@ -616,18 +744,54 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           } catch {
             // The key's words will do.
           }
-          let written: string[];
-          try {
-            written = addSide({ root: deps.root, key: appKey, name, side });
-          } catch (error) {
-            return refused(error instanceof Error ? error.message : String(error), `Could not add the ${side} side`);
+          written = addSide({ root: deps.root, key: appKey, name, side });
+        } catch (error) {
+          if (error instanceof JailError || error instanceof Error) return refused(error.message, `Could not add the ${side} side`);
+          throw error;
+        }
+        // The look, once for the app: asked here, where the first screen people see is made.
+        const { look, how } = await chooseLook(ctx);
+        // What the screens need and the project lacks: one card for all of it.
+        const missing = missingScreenPackages(deps.root, side, deps.version);
+        let packages = '';
+        if (missing.length > 0) {
+          const [first, ...rest] = missing as [{ name: string; version: string }, ...{ name: string; version: string }[]];
+          const answer = await ctx.ask({ type: 'package', name: first.name, version: first.version, why: 'The app’s own screens are built with these.', ...(rest.length === 0 ? {} : { also: rest }) });
+          if (answer.type === 'package' && answer.accept) {
+            const failed = await installPackages(missing, ctx.signal);
+            packages = failed === null ? `\nAdded to the project: ${missing.map((spec) => spec.name).join(', ')}.` : `\nThe packages the screens need could not be added:\n${failed}`;
+          } else {
+            packages = `\nThe person said no to ${missing.map((spec) => spec.name).join(', ')}: the screens cannot be built without them. Say so, and build what needs no screen.`;
           }
-          if (written.length === 0) return text(`The ${side} side is already there: edit apps/${appKey}/${side}/src/App.tsx.`, `The ${side} side is there`);
-          return text(
-            `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json${side === 'staff' ? ', and each role may open it (app:@:staff)' : ''}. Now read apps/${appKey}/${side}/src/App.tsx and write it again for this app’s tables${side === 'customer' ? ', and write manifest/access.json with what customers may read and add' : ''}. Then build_sides.`,
-            `Added the ${side} side`,
-          );
-        });
+        }
+        if (written.length === 0) return text(`The ${side} side is already there: edit apps/${appKey}/${side}/src/App.tsx.\n${lookLine(look, how)}${packages}`, `The ${side} side is there`);
+        return text(
+          `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json${side === 'staff' ? ', and each role may open it (app:@:staff)' : ''}. Now read apps/${appKey}/${side}/src/App.tsx and write it again for this app’s tables${side === 'customer' ? ', and write manifest/access.json with what customers may read and add' : ''}, keeping its parts and its shape. Then build_sides. You need not read app.css or theme.css.\n\n${lookLine(look, how)}\n\n${LOOK_PARTS}${packages}`,
+          `Added the ${side} side`,
+        );
+      },
+    },
+    {
+      name: 'set_look',
+      description:
+        'Change the look of the app’s own screens to one of four directions: "clean", "warm", "bold" or "calm", with an optional accent colour (#rrggbb). Writes src/theme.css on each side. Use it when the person asks for a different look; for a finer change, edit values in theme.css.',
+      inputSchema: {
+        type: 'object',
+        properties: { direction: { type: 'string', enum: [...LOOK_DIRECTIONS] }, accent: { type: 'string', description: 'A colour as #rrggbb, in place of the direction’s own' } },
+        required: ['direction'],
+        additionalProperties: false,
+      },
+      running: () => 'Changing the look',
+      run: async (input) => {
+        const direction = str(input, 'direction');
+        if (!isDirection(direction)) return refused(`Give "direction": one of ${LOOK_DIRECTIONS.join(', ')}.`, 'Look not changed');
+        if (hasOwnBuild(deps.root, appKey)) return refused('This app is a copy of a published one and keeps its own styles in src/: change them there.', 'Look not changed');
+        if (sidesWithScreens(deps.root, appKey).length === 0) return refused('The app has no screens of its own yet: call add_side first.', 'Look not changed');
+        const accent = str(input, 'accent');
+        if (accent !== null && !/^#[0-9a-f]{6}$/i.test(accent)) return refused('Give "accent" as #rrggbb, or leave it out.', 'Look not changed');
+        const look = cleanLook({ direction, accent: accent ?? undefined, words: readLook(deps.root, appKey)?.words });
+        applyLook(deps.root, appKey, look);
+        return text(`The look is now "${direction}". ${DIRECTIONS[direction].line} theme.css was written on each side; build_sides shows it.`, `Changed the look to ${direction}`, { facts: { look: direction } });
       },
     },
     {
@@ -763,15 +927,19 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         if (!EXACT_VERSION.test(version)) {
           return { ...refused(`"${version}" is not an exact version. Give one like 1.2.3, not a range or a tag.`, 'No package added'), facts: { outcome: 'refused' } };
         }
+        // Already there (a project made by `design` starts with what screens need): nothing to ask.
+        try {
+          const listed = JSON.parse(readFileSync(join(deps.root, 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown>; devDependencies?: Record<string, unknown> };
+          if (listed.dependencies?.[name] !== undefined || listed.devDependencies?.[name] !== undefined) {
+            return text(`${name} is already in the project: import it. If the build could not find it, the fault is elsewhere: read the build's own words.`, `${name} is already there`, { facts: { outcome: 'added' } });
+          }
+        } catch {
+          // No package.json to read: ask, and let the install say what is wrong.
+        }
         const answer = await ctx.ask({ type: 'package', name, version, why });
         if (answer.type !== 'package' || !answer.accept) return text(`The person said no to ${name}@${version}. Do without it.`, `Did without ${name}`, { facts: { outcome: 'declined' } });
-        const manager = projectPackageManager(deps.root, {});
-        const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
-        const args = [manager === 'npm' ? 'install' : 'add', `${name}@${version}`, '--ignore-scripts', exact];
-        const result = await runChild(manager, args, { cwd: deps.root, timeoutMs: INSTALL_TIMEOUT_MS, signal: ctx.signal });
-        if (result.code !== 0) {
-          return { ...refused(`${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`, `Could not add ${name}`), facts: { outcome: 'failed' } };
-        }
+        const failed = await installPackages([{ name, version }], ctx.signal);
+        if (failed !== null) return { ...refused(failed, `Could not add ${name}`), facts: { outcome: 'failed' } };
         return text(`Added ${name}@${version} to the project.`, `Added ${name}@${version}`, { facts: { outcome: 'added' } });
       },
     },
@@ -793,6 +961,7 @@ export const DESIGNER_TOOL_NAMES = [
   'read_reference',
   'list_add_ons',
   'add_side',
+  'set_look',
   'build_on_shape',
   'ask_person',
   'request_package',

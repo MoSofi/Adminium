@@ -20,7 +20,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -61,6 +61,7 @@ interface Call {
 
 let calls: Call[];
 let yourApps: YourApp[];
+let look: { direction: 'clean' | 'warm' | 'bold' | 'calm' } | null;
 let stored: DesignerEvent[];
 let versions: DesignerVersion[];
 let seq: number;
@@ -88,6 +89,7 @@ const SESSION = {
 beforeEach(() => {
   calls = [];
   yourApps = [];
+  look = null;
   seq = 0;
   stored = [];
   versions = [
@@ -109,7 +111,8 @@ beforeEach(() => {
       if (url === '/api/v1/system/info') {
         return Promise.resolve(jsonResponse(200, { runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, designer: { mode: 'local', link: true } }));
       }
-      if (url === `/api/v1/designer/sessions/${ID}` && method === 'GET') return Promise.resolve(jsonResponse(200, { session: SESSION, waiting: [], active: false }));
+      if (url === `/api/v1/designer/sessions/${ID}` && method === 'GET') return Promise.resolve(jsonResponse(200, { session: SESSION, waiting: [], active: false, look }));
+      if (url === `/api/v1/designer/sessions/${ID}/look`) return Promise.resolve(jsonResponse(200, { look: { direction: body?.['direction'] }, version: { n: 2, name: 'v2' }, applied: true }));
       if (url === `/api/v1/designer/sessions/${ID}` && method === 'PATCH') return Promise.resolve(jsonResponse(200, { session: { ...SESSION, ...body }, waiting: [], active: false }));
       if (url.startsWith(`/api/v1/designer/sessions/${ID}/events-since`)) {
         const after = Number(new URL(url, 'http://x').searchParams.get('after'));
@@ -275,6 +278,78 @@ describe('the build page', () => {
     await userEvent.type(box, 'Only the owner.{Enter}');
     expect(posted('/answers').at(-1)).toEqual({ cardId: 'q1', value: { text: 'Only the owner.' } });
     expect(posted('/turns')).toEqual([]);
+  });
+
+  it('asks how it should look in the page’s own words, with a swatch for each direction, and sends the direction back', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A bakery.' }),
+      ev(1, { kind: 'card', card: { id: 'l1', type: 'question', question: 'How should it look?', choices: ['clean', 'warm', 'bold', 'calm', 'surprise'], look: true } }),
+    ];
+    await open();
+    const card = await screen.findByRole('group', { name: 'How should it look?' });
+    expect(within(card).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'CleanNeutral greys, a clear blue, crisp corners',
+      'WarmCream and brown, a serif for headings, round corners',
+      'BoldBlack on white, one strong colour, heavy type',
+      'CalmSoft green-grey, light type, room to breathe',
+      'Surprise me',
+      'Describe it in my own words',
+    ]);
+    await userEvent.click(within(card).getByRole('button', { name: /^Warm/ }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Surprise me' }));
+    expect(posted('/answers')).toEqual([
+      { cardId: 'l1', value: { text: 'warm' } },
+      { cardId: 'l1', value: { text: 'surprise' } },
+    ]);
+    // Answered, it says the direction by its name, not its id.
+    live(ev(1, { kind: 'card-answered', id: 'l1', value: { type: 'question', text: 'warm' } }));
+    await waitFor(() => expect(card.textContent).toContain('You answered: Warm'));
+  });
+
+  it('asks for the packages a screen needs on one card', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A bakery.' }),
+      ev(1, { kind: 'card', card: { id: 'p3', type: 'package', name: 'react', version: '19.2.0', why: 'The app’s own screens are built with these.', also: [{ name: 'react-dom', version: '19.2.0' }, { name: '@adminiumjs/public-client', version: '0.3.16' }] } }),
+    ];
+    await open();
+    const pkg = await screen.findByRole('group', { name: /Packages are needed/ });
+    expect(document.getElementById(pkg.getAttribute('aria-labelledby') ?? '')?.textContent).toBe('Packages are needed: react (19.2.0), react-dom (19.2.0), @adminiumjs/public-client (0.3.16). Add them?');
+    await userEvent.click(within(pkg).getByRole('button', { name: 'Add them' }));
+    expect(posted('/answers')).toEqual([{ cardId: 'p3', value: { accept: true } }]);
+  });
+
+  it('changes the look from under the last turn with no turn started, and says what it was changed to', async () => {
+    look = { direction: 'clean' };
+    stored = finishedTurn();
+    await open();
+    await userEvent.click(await screen.findByRole('button', { name: 'Change the look' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent?.slice(0, 5))).toEqual(['Clean', 'WarmC', 'BoldB', 'CalmS']);
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /^Warm/ }));
+    await waitFor(() => expect(calls.filter((call) => call.url === `/api/v1/designer/sessions/${ID}/look`).map((call) => call.body)).toEqual([{ direction: 'warm' }]));
+    expect(posted('/turns')).toEqual([]);
+    live(ev(1, { kind: 'look', direction: 'warm' }), ev(1, { kind: 'version', n: 2, name: 'v2' }));
+    expect(await screen.findByText('Look changed to Warm')).toBeTruthy();
+
+    // An app with no screens of its own (or a copy of a published one) is offered no look.
+    cleanup();
+    look = null;
+    await open();
+    await screen.findByText('I built Repair Desk.');
+    expect(screen.queryByRole('button', { name: 'Change the look' })).toBeNull();
+  });
+
+  it('says a provider’s own reason when it refused, as text', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A bakery.' }),
+      ev(1, { kind: 'error', code: 'http', message: 'ollama: HTTP 402 — {"error":"this model is not included in your free usage, add usage credits: https://ollama.com/settings"}', provider: 'ollama', status: 402 }),
+      ev(1, { kind: 'turn-finished', outcome: 'failed' }),
+    ];
+    await open();
+    const note = await screen.findByRole('alert');
+    expect(note.textContent).toContain('The model stopped answering (ollama, 402). Nothing was lost.');
+    expect(note.textContent).toContain('this model is not included in your free usage, add usage credits: https://ollama.com/settings');
+    expect(note.querySelector('a')).toBeNull();
   });
 
   it('asks before data is removed, and before a package is added', async () => {

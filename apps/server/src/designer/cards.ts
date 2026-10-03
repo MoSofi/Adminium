@@ -8,8 +8,23 @@
  * answers it); the Designer only shows it where the person is looking.
  */
 export type DesignerCard =
-  | { id: string; type: 'question'; question: string; choices: string[] }
-  | { id: string; type: 'package'; name: string; version: string; why: string }
+  | {
+      id: string;
+      type: 'question';
+      question: string;
+      choices: string[];
+      /** The look of the app's screens: the choices are directions (and `surprise`), which the page words in the person's language and shows a swatch for. */
+      look?: true;
+    }
+  | {
+      id: string;
+      type: 'package';
+      name: string;
+      version: string;
+      why: string;
+      /** More packages asked for on the same card, and added with the same yes. */
+      also?: { name: string; version: string }[];
+    }
   | {
       id: string;
       type: 'removal';

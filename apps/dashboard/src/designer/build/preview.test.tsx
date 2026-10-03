@@ -12,9 +12,9 @@ import { ThemeProvider } from '@adminium/ui';
 
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
-import type { DesignerSession } from '../api.js';
+import type { DesignerEvent, DesignerEventBody, DesignerSession } from '../api.js';
 import { Preview, previewState, sideNamed } from './Preview.js';
-import type { TurnView } from './turns.js';
+import { foldTurns, type TurnView } from './turns.js';
 
 class FakeSocket {
   static all: FakeSocket[] = [];
@@ -112,6 +112,8 @@ function turn(over: Partial<TurnView>): TurnView {
     spend: [],
     cards: [],
     version: null,
+    look: null,
+    buildFailed: null,
     limit: null,
     error: null,
     notApplied: null,
@@ -190,7 +192,7 @@ describe('the preview', () => {
   });
 
   it('shows a side that did not build with its first error, and asks the Designer to fix it', async () => {
-    const { onFix } = mount([turn({ steps: [{ id: 'b', tool: 'build_sides', label: 'x', state: 'failed', ms: 10, detail: 'src/Today.tsx: Cannot find name "jobs".\nmore', folded: 1 }] })]);
+    const { onFix } = mount([turn({ buildFailed: 'src/Today.tsx: Cannot find name "jobs".\nmore', steps: [{ id: 'b', tool: 'build_sides', label: 'x', state: 'failed', ms: 10, detail: 'src/Today.tsx: Cannot find name "jobs".\nmore', folded: 1 }] })]);
     await screen.findByRole('button', { name: 'Staff' });
     const card = await screen.findByRole('alert');
     expect(card.textContent).toContain('The staff side did not build.');
@@ -201,10 +203,17 @@ describe('the preview', () => {
   });
 
   it('goes by the turn’s last build: one that failed and was then fixed is not shown, and the error names its own side', () => {
-    const row = (state: 'done' | 'failed', detail: string | null) => ({ id: `b${state}`, tool: 'build_sides', label: 'x', state, ms: 10, detail, folded: 1 });
     const broke = 'Could not build the customer side of "cakes":\napps/cakes/customer/src/App.tsx:5:80: Could not resolve "react"\nmore';
-    expect(previewState([turn({ steps: [row('failed', broke), row('done', null)] })])).toEqual({ building: false, failed: null });
-    const stuck = previewState([turn({ steps: [row('done', null), row('failed', broke)] })]);
+    let seq = 0;
+    const event = (body: DesignerEventBody): DesignerEvent => ({ ...body, seq: (seq += 1), turn: 1, at: seq }) as DesignerEvent;
+    const step = (id: string, state: 'done' | 'failed'): DesignerEvent =>
+      event({ kind: 'step', id, tool: 'build_sides', label: 'x', state, ms: 10, ...(state === 'failed' ? { detail: broke, ended: 'error' as const } : {}) });
+    const ended = event({ kind: 'turn-finished', outcome: 'done' });
+    // Fixed by a later build of the tool's, or by the engine's own build at the end of the turn (or after "Change the look").
+    expect(previewState(foldTurns([step('a', 'failed'), step('b', 'done'), ended]))).toEqual({ building: false, failed: null });
+    expect(previewState(foldTurns([step('a', 'failed'), event({ kind: 'build', ok: true, problems: [] }), ended]))).toEqual({ building: false, failed: null });
+    expect(previewState(foldTurns([step('a', 'done'), event({ kind: 'build', ok: false, problems: ['staff: x is not defined'] }), ended])).failed).toBe('staff: x is not defined');
+    const stuck = previewState(foldTurns([step('a', 'done'), step('b', 'failed'), ended]));
     expect(stuck.failed).toBe('Could not build the customer side of "cakes":\napps/cakes/customer/src/App.tsx:5:80: Could not resolve "react"');
     expect(sideNamed(stuck.failed ?? '')).toBe('customer');
     expect(sideNamed('src/Today.tsx: Cannot find name "jobs".')).toBeNull();

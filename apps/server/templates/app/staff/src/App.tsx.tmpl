@@ -9,7 +9,7 @@
  * on the sample rows in seeds/sample.json, held in memory, with no Adminium.
  */
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { en, sampleRows, useStaff, type Row, type StaffSession } from '@adminiumjs/adminium/side';
+import { APP_NAME, en, sampleRows, useStaff, type Row, type StaffSession } from '@adminiumjs/adminium/side';
 
 import sample from '../../seeds/sample.json';
 
@@ -18,8 +18,8 @@ const ITEMS = 'items';
 
 export function App() {
   const loaded = useStaff({ demo: sampleRows(sample) });
-  if (loaded.state === 'loading') return <p className="note">{en('Loading…')}</p>;
-  if (loaded.state === 'error') return <p className="note error">{loaded.message}</p>;
+  if (loaded.state === 'loading') return <p className="page muted">{en('Loading…')}</p>;
+  if (loaded.state === 'error') return <p className="page notice error">{loaded.message}</p>;
   return <Items staff={loaded.value} />;
 }
 
@@ -62,39 +62,71 @@ function Items({ staff }: { staff: StaffSession }) {
     }
   }
 
+  // The operator's own name for the app when they set one, else the name in the app's manifest.
+  const name = staff.appName ?? (APP_NAME || en('__NAME__'));
+  const open = rows.filter((row) => row['status'] !== 'done').length;
+
+  // The parts (page, toolbar, list, badge, empty) are in app.css; the colours and type in theme.css.
   return (
-    <main>
-      <header>
-        <h1>{staff.appName ?? en('__NAME__')}</h1>
-        {staff.mode === 'demo' ? <p className="note">{en('Sample data. Nothing here is saved.')}</p> : null}
-        {staff.timezoneIsFallback && staff.mode === 'hosted' ? (
-          <p className="note">{en('This database has no time zone set, so times are shown in UTC.')}</p>
-        ) : null}
+    <div className="page">
+      <header className="site-header">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            {name.slice(0, 1).toUpperCase()}
+          </span>
+          {name}
+        </div>
+        <span className="badge accent">
+          {open} {en('open')}
+        </span>
       </header>
 
-      {problem === null ? null : <p className="note error">{problem}</p>}
-
-      {staff.can(ITEMS, 'create') ? (
-        <form onSubmit={add}>
-          <label htmlFor="title">{en('New item')}</label>
-          <input id="title" value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} />
-          <button type="submit">{en('Add')}</button>
-        </form>
+      {staff.mode === 'demo' ? <p className="notice">{en('Sample data. Nothing here is saved.')}</p> : null}
+      {staff.timezoneIsFallback && staff.mode === 'hosted' ? (
+        <p className="notice">{en('This database has no time zone set, so times are shown in UTC.')}</p>
       ) : null}
+      {problem === null ? null : (
+        <p className="notice error" role="alert">
+          {problem}
+        </p>
+      )}
 
-      <ul>
-        {rows.map((row) => (
-          <li key={String(row['id'])}>
-            <span className={row['status'] === 'done' ? 'done' : undefined}>{String(row['title'] ?? '')}</span>
-            {staff.can(ITEMS, 'update') ? (
-              <button type="button" onClick={() => void setStatus(row, row['status'] === 'done' ? 'open' : 'done')}>
-                {row['status'] === 'done' ? en('Reopen') : en('Done')}
-              </button>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      {rows.length === 0 ? <p className="note">{en('Nothing here yet.')}</p> : null}
-    </main>
+      <main>
+        {staff.can(ITEMS, 'create') ? (
+          <form className="toolbar" onSubmit={add}>
+            <div className="field">
+              <label htmlFor="title">{en('New item')}</label>
+              <input id="title" value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} />
+            </div>
+            <button type="submit" className="btn btn-primary">
+              {en('Add')}
+            </button>
+          </form>
+        ) : null}
+
+        {rows.length === 0 ? (
+          <div className="empty">
+            <strong>{en('Nothing here yet')}</strong>
+            <span>{en('What comes in shows here.')}</span>
+          </div>
+        ) : (
+          <ul className="list">
+            {rows.map((row) => (
+              <li className="list-row" key={String(row['id'])}>
+                <div className="row">
+                  <span className={row['status'] === 'done' ? 'badge good' : 'badge accent'}>{row['status'] === 'done' ? en('Done') : en('Open')}</span>
+                  <span className={row['status'] === 'done' ? 'done' : undefined}>{String(row['title'] ?? '')}</span>
+                </div>
+                {staff.can(ITEMS, 'update') ? (
+                  <button type="button" className="btn btn-small" onClick={() => void setStatus(row, row['status'] === 'done' ? 'open' : 'done')}>
+                    {row['status'] === 'done' ? en('Reopen') : en('Mark done')}
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </div>
   );
 }

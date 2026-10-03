@@ -187,6 +187,26 @@ function filesUnder(dir: string, prefix = ''): string[] {
   return out.sort();
 }
 
+/** The app's name as its manifest spells it (part files, or one manifest.json); empty when it does not read as one. */
+function manifestName(root: string, key: string): string {
+  for (const file of [join(appDir(root, key), 'manifest', 'app.json'), join(appDir(root, key), 'manifest.json')]) {
+    if (!existsSync(file)) continue;
+    try {
+      const name = (JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown }).name;
+      if (typeof name === 'string') return name;
+      // A name per language: the English one.
+      if (name !== null && typeof name === 'object') {
+        const english = (name as Record<string, unknown>)['en-US'] ?? (name as Record<string, unknown>)['fallback'];
+        if (typeof english === 'string') return english;
+      }
+    } catch {
+      // The check says what is wrong with the file; the build goes on without a name.
+    }
+    return '';
+  }
+  return '';
+}
+
 /** Build one side, replacing what was built before only once the new build is whole. */
 export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
   const { root, key, side } = opts;
@@ -221,6 +241,8 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
       define: {
         'process.env.NODE_ENV': JSON.stringify(opts.dev === true ? 'development' : 'production'),
         __ADMINIUM_APP_KEY__: JSON.stringify(key),
+        // The name in the manifest now: a screen's header follows a rename at the next build.
+        __ADMINIUM_APP_NAME__: JSON.stringify(manifestName(root, key)),
         __ADMINIUM_SIDE__: JSON.stringify(side),
         // A bundle `adminium dev` built asks the server whether it was rebuilt, and reloads.
         __ADMINIUM_DEV__: JSON.stringify(opts.dev === true),

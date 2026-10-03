@@ -8659,6 +8659,10 @@
     "status": "mt",
     "srcHash": "90c75b6d9022"
   },
+  "designer.card.addThem": {
+    "status": "mt",
+    "srcHash": "254c14a35735"
+  },
   "designer.card.doWithout": {
     "status": "mt",
     "srcHash": "d399dba4c617"
@@ -8718,6 +8722,10 @@
   "designer.card.packageYes": {
     "status": "mt",
     "srcHash": "452a849b4249"
+  },
+  "designer.card.packages": {
+    "status": "mt",
+    "srcHash": "02d612be4471"
   },
   "designer.card.removalTitle": {
     "status": "mt",
@@ -8890,6 +8898,82 @@
   "designer.home.title": {
     "status": "mt",
     "srcHash": "68f23190f79d"
+  },
+  "designer.look.bold": {
+    "status": "mt",
+    "srcHash": "19e07430eed6"
+  },
+  "designer.look.boldLine": {
+    "status": "mt",
+    "srcHash": "91837e056f0c"
+  },
+  "designer.look.calm": {
+    "status": "mt",
+    "srcHash": "7930bf9fc20b"
+  },
+  "designer.look.calmLine": {
+    "status": "mt",
+    "srcHash": "3d371a5b4712"
+  },
+  "designer.look.change": {
+    "status": "mt",
+    "srcHash": "bbc0aaea1889"
+  },
+  "designer.look.changed": {
+    "status": "mt",
+    "srcHash": "f994af2b2db2"
+  },
+  "designer.look.changing": {
+    "status": "mt",
+    "srcHash": "253da693556d"
+  },
+  "designer.look.clean": {
+    "status": "mt",
+    "srcHash": "fa893d87e1fa"
+  },
+  "designer.look.cleanLine": {
+    "status": "mt",
+    "srcHash": "4b65fd99c9d0"
+  },
+  "designer.look.failed": {
+    "status": "mt",
+    "srcHash": "3ff0a16f0d26"
+  },
+  "designer.look.finer": {
+    "status": "mt",
+    "srcHash": "aff2ec971336"
+  },
+  "designer.look.lead": {
+    "status": "mt",
+    "srcHash": "8f80754a80dc"
+  },
+  "designer.look.menu": {
+    "status": "mt",
+    "srcHash": "0740dfe62514"
+  },
+  "designer.look.notApplied": {
+    "status": "mt",
+    "srcHash": "1dd06c8539cc"
+  },
+  "designer.look.ownWords": {
+    "status": "mt",
+    "srcHash": "0e96b0d78aad"
+  },
+  "designer.look.question": {
+    "status": "mt",
+    "srcHash": "512e3fb0863a"
+  },
+  "designer.look.surprise": {
+    "status": "mt",
+    "srcHash": "92898d554d3a"
+  },
+  "designer.look.warm": {
+    "status": "mt",
+    "srcHash": "63e49827e493"
+  },
+  "designer.look.warmLine": {
+    "status": "mt",
+    "srcHash": "8cdaaf95efd8"
   },
   "designer.model.add": {
     "status": "mt",
@@ -9446,6 +9530,18 @@
   "designer.step.listing": {
     "status": "mt",
     "srcHash": "0ba2472f2439"
+  },
+  "designer.step.look": {
+    "status": "mt",
+    "srcHash": "876fe8cd0825"
+  },
+  "designer.step.lookDone": {
+    "status": "mt",
+    "srcHash": "0be7080e622f"
+  },
+  "designer.step.lookFailed": {
+    "status": "mt",
+    "srcHash": "efff4c265955"
   },
   "designer.step.missed": {
     "status": "mt",

@@ -7,7 +7,7 @@ file. Every file is 8 KB or less.
 
 | Area | Files | Its index |
 |---|---|---|
-| guides | 89 | `references/guides/INDEX.md` |
+| guides | 90 | `references/guides/INDEX.md` |
 | public-api | 7 | `references/public-api/INDEX.md` |
 | errors | 21 | `references/errors/INDEX.md` |
 | projects | 10 | `references/projects/INDEX.md` |

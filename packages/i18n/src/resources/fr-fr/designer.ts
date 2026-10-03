@@ -231,7 +231,9 @@ export default {
     "removeIt": "La supprimer avec ses données",
     "removeTable": "Supprimer la table {table} efface {rows, plural, one {sa # ligne} other {ses # lignes}}.",
     "removed": "Supprimé.",
-    "youAnswered": "Votre réponse : {answer}"
+    "youAnswered": "Votre réponse : {answer}",
+    "packages": "Des paquets sont nécessaires : {list}. Les ajouter ?",
+    "addThem": "Les ajouter"
   },
   "step": {
     "addOns": "Examine les extensions",
@@ -279,7 +281,10 @@ export default {
     "readFailed": "Impossible de lire {subject}",
     "writeFailed": "Impossible d’écrire {subject}",
     "editFailed": "Impossible de modifier {subject}",
-    "deleteFailed": "Impossible de supprimer {subject}"
+    "deleteFailed": "Impossible de supprimer {subject}",
+    "look": "Changement du style",
+    "lookDone": "Style changé",
+    "lookFailed": "Le style n’a pas été changé"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -451,5 +456,26 @@ export default {
     "stepGet": "Récupération de l’application",
     "stepMake": "Elle devient la vôtre",
     "stepBuild": "Construction et application"
+  },
+  "look": {
+    "question": "Quel style voulez-vous ?",
+    "lead": "Choisissez une direction pour les écrans que les gens verront. Vous pourrez la changer ensuite.",
+    "surprise": "Surprenez-moi",
+    "ownWords": "Le décrire avec mes mots",
+    "clean": "Épuré",
+    "warm": "Chaleureux",
+    "bold": "Audacieux",
+    "calm": "Apaisé",
+    "cleanLine": "Gris neutres, un bleu franc, des angles nets",
+    "warmLine": "Crème et brun, des titres à empattements, des angles ronds",
+    "boldLine": "Noir sur blanc, une couleur forte, des caractères gras",
+    "calmLine": "Vert-gris doux, des caractères légers, de l’air",
+    "changed": "Style changé en {look}",
+    "change": "Changer le style",
+    "changing": "Changement du style…",
+    "menu": "Le style des écrans",
+    "finer": "Pour plus de finesse, dites-le dans la discussion : « plus sombre, avec de l’or ».",
+    "notApplied": "Le style a été écrit, mais l’application n’a pas été appliquée. Le prochain tour dira pourquoi.",
+    "failed": "Le style n’a pas pu être changé"
   }
 } as const;

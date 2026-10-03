@@ -365,6 +365,16 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     // Only now is it applied in full: a stop above is tried again, and loses nothing.
     await repo.setApplied(app.key, markOf(app.key, app.hash));
     await publicApiFor(app.key, reply.manifest.kind === 'app' && (reply.manifest.publicAccess ?? []).length > 0, access.allowed);
+    // Sample rows the app did not bring at its first install (they were written afterwards) are added when it first names them.
+    const hadSample = (reply.previous as { sampleData?: unknown } | null | undefined)?.sampleData !== undefined;
+    if (opts.mode === 'dev' && reply.manifest.kind === 'app' && reply.manifest.sampleData !== undefined && !hadSample && opts.apps?.[app.key]?.sampleData !== false && opts.addSampleData !== undefined) {
+      try {
+        await opts.addSampleData(app.key);
+        say('its sample data was added.');
+      } catch (error) {
+        opts.warn(`App "${app.key}": its sample data was not added (${error instanceof Error ? error.message : String(error)}).`);
+      }
+    }
     if (removed.pages.removed.length > 0) say(`removed the page${removed.pages.removed.length === 1 ? '' : 's'} ${removed.pages.removed.join(', ')}.`);
     if (removed.pages.kept.length > 0) {
       say(`kept ${removed.pages.kept.join(', ')} as ${removed.pages.kept.length === 1 ? 'an ordinary page' : 'ordinary pages'}: somebody edited ${removed.pages.kept.length === 1 ? 'it' : 'them'}.`);

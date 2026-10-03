@@ -18,6 +18,7 @@ import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.j
 import type { AiConnections, ConnectionId } from '../llm/connections.js';
 import { rebuildApps } from '../project/build.js';
 import { checkApp } from '../project/apps/check-app.js';
+import { applyLook, cleanLook, readLook, sidesWithScreens, type Look, type LookDirection } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { appKeyProblem, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
@@ -76,6 +77,13 @@ export interface Designer {
    * the files back" after a stopped turn (O3).
    */
   restore(sessionId: string, n: number, opts: { record: boolean; by: Actor }): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
+  /** The look of the app's own screens, when it has screens whose look can be changed here; else null. */
+  lookOf(appKey: string): Look | null;
+  /**
+   * "Change the look": write a direction to every side, build, apply and save
+   * a version. No model is called.
+   */
+  setLook(sessionId: string, look: { direction: LookDirection; accent?: string | undefined }, by: Actor): Promise<{ look: Look; version: { n: number; name: string } | null; applied: boolean }>;
   /**
    * Build the folder's apps and apply them, with no turn behind it: what the
    * check, the build or the apply says is wrong with `key`, or nothing.
@@ -136,6 +144,21 @@ export function unopenedTables(manifest: unknown): string[] {
   return out;
 }
 
+/**
+ * What customers read with nothing in it: a first preview that opens on an
+ * empty list. Said only before the app's first version, since sample rows
+ * are added once, at the first install.
+ */
+export function emptyFirstPreview(manifest: unknown): string[] {
+  const app = manifest as { kind?: string; publicAccess?: { table?: string; methods?: string[] }[]; sampleData?: unknown } | null;
+  if (app === null || app.kind !== 'app' || app.sampleData !== undefined) return [];
+  const read = [...new Set((app.publicAccess ?? []).filter((entry) => (entry.methods ?? []).includes('GET') && typeof entry.table === 'string').map((entry) => entry.table as string))];
+  if (read.length === 0) return [];
+  return [
+    `- Customers read ${read.map((table) => `"${table}"`).join(', ')} and the app brings no sample rows, so their page opens empty: write manifest/sample.json ({ "sampleData": { "file": "seeds/sample.json" } }) and seeds/sample.json with 4 to 8 believable rows for ${read.length === 1 ? 'it' : 'each'}.`,
+  ];
+}
+
 /** The text of every source file under a side's `src/`, a few dozen at most. */
 function sourcesOf(dir: string): string[] {
   const out: string[] = [];
@@ -168,6 +191,12 @@ export function placeholderScreens(root: string, appKey: string, tables: readonl
     const calls = /\.(list|create|get|update|remove)\(|createPublicClient|fetch\(/.test(all);
     if (starter) out.push(`- apps/${appKey}/${side}/src/App.tsx is still the starter's screen, over tables this app does not have: write it for this app's tables.`);
     else if (!calls) out.push(`- apps/${appKey}/${side}/src/ shows nothing real yet (it reads no table): write the screen the person asked for.`);
+    // A screen that left the starter's parts behind is the browser's default look: bare.
+    else if (existsSync(join(root, APPS_DIR, appKey, side, 'src', 'theme.css')) && !/className="[^"]*\b(page|card|btn|form|field|grid|list|board)\b/.test(all)) {
+      out.push(`- apps/${appKey}/${side}/src/App.tsx uses none of the starter's parts, so it has no look: use the classes of app.css (page, site-header, hero, grid, card, form, field, btn btn-primary, notice, empty).`);
+    }
+    // en() takes the English text itself; a language tag inside it is shown to people as written.
+    if (/\ben\(\s*['"`]en-[A-Z]{2}\s*:/.test(all)) out.push(`- apps/${appKey}/${side}/src/ calls en('en-US: …'): en() takes the English text alone, so people see "en-US:" on the page. Take the tag out.`);
   }
   return out;
 }
@@ -178,6 +207,25 @@ export function createDesigner(host: DesignerHost): Designer {
     const found = findProject(host.root, {});
     if (found === null) throw new ConflictError('The project folder has no adminium.config file any more.', 'CONFLICT', { reason: 'NOT_A_PROJECT' });
     return found;
+  };
+
+  /** A copy of a published app keeps its authors' styles; an app with no side has nothing to restyle. */
+  const lookOf = (appKey: string): Look | null => {
+    if (hasOwnBuild(host.root, appKey)) return null;
+    const themed = sidesWithScreens(host.root, appKey).filter((side) => existsSync(join(host.root, APPS_DIR, appKey, side, 'src', 'theme.css')));
+    return themed.length === 0 ? null : (readLook(host.root, appKey) ?? { direction: 'clean' });
+  };
+
+  /**
+   * A session's title follows the name its app was given, while the title is
+   * still the one made from the first words of the request and the session
+   * made the app. A person who renamed the session keeps their name.
+   */
+  const followName = (session: DesignerSession): void => {
+    if (!session.createdApp || session.titled === true) return;
+    const manifest = checkApp(host.root, session.appKey, { version: host.version }).manifest;
+    const name = manifest !== null && typeof manifest.name === 'string' ? manifest.name.trim() : '';
+    if (name !== '' && name !== session.title && name.length <= 80) store.update(session.id, { title: name });
   };
 
   /** What the last install or apply of each app said about its pages. */
@@ -232,6 +280,7 @@ export function createDesigner(host: DesignerHost): Designer {
     if (result?.state === 'installed' || result?.state === 'applied') pageWarnings.set(key, result.pageWarnings ?? []);
     const kept = pageWarnings.get(key) ?? [];
     const warnings = kept.length === 0 ? {} : { warnings: kept };
+    followName(session);
     if (opts.version === false || host.versions == null) return { ok: true, version: null, ...warnings };
     const version = await host.versions.commit(session);
     if (version !== null) {
@@ -262,7 +311,13 @@ export function createDesigner(host: DesignerHost): Designer {
       const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []).map((table) => table.ref) : [];
       // A copy of a published app is as its authors laid it out: its tables without pages and its screens are theirs.
       if (hasOwnBuild(host.root, session.appKey)) return [];
-      return [...unopenedTables(manifest), ...placeholderScreens(host.root, session.appKey, tables)];
+      // A name of four words or more is the first words of the request, not a name: it is what customers read in the page's header.
+      const named = manifest !== null && typeof manifest.name === 'string' ? manifest.name : '';
+      const unnamed =
+        session.createdApp && session.titled !== true && session.version === null && named === session.title && named.trim().split(/\s+/).length > 3
+          ? [`- The app is still named after the request ("${named}"), and that is what its pages show as the business's name: set "name" in manifest/app.json to what the business would call it, two or three words.`]
+          : [];
+      return [...unopenedTables(manifest), ...placeholderScreens(host.root, session.appKey, tables), ...(session.version === null ? emptyFirstPreview(manifest) : []), ...unnamed];
     },
     limits: () => host.limits(),
     publish: (event) => {
@@ -349,6 +404,27 @@ export function createDesigner(host: DesignerHost): Designer {
       );
       await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
       return { version, applied: applied.ok };
+    },
+    lookOf,
+    async setLook(sessionId, input, by) {
+      const session = store.read(sessionId);
+      if (runner.active() !== null) {
+        throw new ConflictError('The Designer is working. Stop it, or wait for it to finish, before changing the look.', 'CONFLICT', { reason: 'TURN_RUNNING' });
+      }
+      if (lookOf(session.appKey) === null) {
+        throw new ConflictError('This app has no screens whose look can be changed here.', 'CONFLICT', { reason: 'NO_LOOK' });
+      }
+      const look = cleanLook({ direction: input.direction, accent: input.accent, words: readLook(host.root, session.appKey)?.words });
+      applyLook(host.root, session.appKey, look);
+      const events = runner.events(session.id);
+      events.emit(session.turns, { kind: 'look', direction: look.direction });
+      const applied = await pipeline(
+        store.read(session.id),
+        { turn: session.turns, by, events, signal: new AbortController().signal, ask: () => Promise.reject(new Error('nothing is asked outside a turn')) },
+        { askRemovals: false },
+      );
+      await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, direction: look.direction });
+      return { look, version: applied.version, applied: applied.ok };
     },
     async buildAndApply(key) {
       const built = await rebuildApps(project(), { version: host.version, dev: true });

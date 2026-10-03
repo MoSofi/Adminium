@@ -44,6 +44,15 @@ export interface TurnView {
   spend: { which: SpendMark; mark: number }[];
   cards: CardView[];
   version: { n: number; name: string } | null;
+  /**
+   * How the newest build of the screens went, by a tool's step or by the
+   * engine's own build at the end: null when it built (or nothing was built),
+   * else what the build said. A build that failed and was then fixed is no
+   * longer a failure, whichever of the two fixed it.
+   */
+  buildFailed: string | null;
+  /** The look chosen from the page after this turn ("Change the look"), newest. */
+  look: string | null;
   limit: { which: LimitKind; value: number } | null;
   error: { code: string; message: string; provider?: string; status?: number } | null;
   /** The engine's last word, when it did not apply. */
@@ -69,6 +78,8 @@ function blank(turn: number, at: number): TurnView {
     spend: [],
     cards: [],
     version: null,
+    buildFailed: null,
+    look: null,
     limit: null,
     error: null,
     notApplied: null,
@@ -150,6 +161,7 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         if (at === -1) list.push(row);
         else list[at] = row;
         if (FILE_TOOLS.has(event.tool) && event.state === 'done') turn.changedFiles = true;
+        if (event.tool === 'build_sides' && event.state !== 'running') turn.buildFailed = event.state === 'failed' && event.ended !== 'stopped' ? (event.detail ?? '') : null;
         break;
       }
       case 'usage':
@@ -185,6 +197,7 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         }
         break;
       case 'build':
+        turn.buildFailed = event.ok ? null : event.problems.slice(0, 3).join('\n');
         if (!event.ok) list.push({ id: `build-${String(event.seq)}`, tool: 'build', label: 'Build', state: 'failed', ms: null, detail: event.problems.slice(0, 3).join('\n') || null, folded: 1 });
         break;
       case 'apply':
@@ -203,6 +216,9 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         break;
       case 'version':
         turn.version = { n: event.n, name: event.name };
+        break;
+      case 'look':
+        turn.look = event.direction;
         break;
       case 'limit':
         turn.limit = { which: event.which, value: event.value };

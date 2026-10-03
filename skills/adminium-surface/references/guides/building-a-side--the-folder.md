@@ -8,7 +8,8 @@ apps/repairs/
 ├── staff/
 │   ├── src/main.tsx            where the side starts
 │   ├── src/App.tsx             your screens
-│   ├── src/app.css             imported from main.tsx
+│   ├── src/theme.css           the look: colours, type, corners (imported from main.tsx)
+│   ├── src/app.css             the parts a screen is made of, drawn from theme.css
 │   ├── nav.json                its screens, for the dashboard's sidebar (optional)
 │   └── public/                 files served as they are (optional)
 └── customer/
@@ -21,6 +22,7 @@ apps/repairs/
 import { createRoot } from 'react-dom/client';
 
 import { App } from './App';
+import './theme.css';
 import './app.css';
 
 createRoot(document.getElementById('root')!).render(<App />);

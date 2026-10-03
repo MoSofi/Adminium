@@ -17,6 +17,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { addSide } from '../src/project/apps/scaffold-app.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -290,6 +291,46 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(listed?.sessionId).toBe(second.id);
     expect(listed?.sessions.map((entry) => [entry.id, entry.turns])).toEqual([[second.id, 1], [session.id, 1]]);
     expect(((await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=0`)).body['events'] as unknown[]).length).toBe(events.length);
+  });
+
+  it('change the look from the page with no model call, only where the app has screens, and never mid-turn', async () => {
+    const client = await server({ designer: true });
+    script = [writesStarter];
+    const created = await client.call('POST', '/api/v1/designer/sessions', createBody());
+    const session = created.body['session'] as { id: string };
+    await finishedTurn(client, session.id, 1);
+    // No screens of its own: nothing to restyle, and the page is told so (no button).
+    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toBeNull();
+    const none = await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'warm' });
+    expect(none.status).toBe(409);
+    expect(none.body).toMatchObject({ error: { details: { reason: 'NO_LOOK' } } });
+
+    addSide({ root: root!, key: 'repair-desk', name: 'Repair desk', side: 'customer' });
+    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toEqual({ direction: 'clean' });
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'neon' })).status).toBe(422);
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'warm', accent: 'red' })).status).toBe(422);
+
+    asked = [];
+    const done = await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'warm' });
+    expect(done.status, JSON.stringify(done.body)).toBe(200);
+    expect(done.body['look']).toEqual({ direction: 'warm' });
+    // No model was asked anything.
+    expect(asked).toEqual([]);
+    expect(JSON.parse(readFileSync(join(root!, 'apps', 'repair-desk', 'look.json'), 'utf8'))).toEqual({ direction: 'warm' });
+    expect(readFileSync(join(root!, 'apps', 'repair-desk', 'customer', 'src', 'theme.css'), 'utf8')).toContain('--accent: #a04e26;');
+    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toEqual({ direction: 'warm' });
+    const events = (await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=0`)).body['events'] as { kind: string; direction?: string; turn: number }[];
+    expect(events.filter((event) => event.kind === 'look')).toEqual([expect.objectContaining({ direction: 'warm', turn: 1 })]);
+
+    // Not while the Designer is working.
+    reply = { text: 'Done', wait: true };
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'More.' })).status).toBe(202);
+    await vi.waitFor(() => expect(held.length).toBeGreaterThan(0), { timeout: 15_000, interval: 25 });
+    const busy = await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'bold' });
+    expect(busy.status).toBe(409);
+    expect(busy.body).toMatchObject({ error: { details: { reason: 'TURN_RUNNING' } } });
+    await client.call('POST', `/api/v1/designer/sessions/${session.id}/stop`);
+    await finishedTurn(client, session.id, 2);
   });
 
   it('let one turn run at a time, and stop it', async () => {

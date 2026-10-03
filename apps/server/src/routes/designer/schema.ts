@@ -66,10 +66,21 @@ export const designerSessionCreateBody = z.object({
   text: z.string().min(1).max(20_000).optional(),
 });
 
+const lookDirection = z.enum(['clean', 'warm', 'bold', 'calm']);
+
 export const designerSessionReply = z.object({
   session: designerSession,
   waiting: z.array(designerCard),
   active: z.boolean(),
+  /** The look of the app's own screens, when it can be changed from the page; null for an app with no screens, or a copy of a published one. */
+  look: z.object({ direction: lookDirection, accent: z.string().optional() }).nullable(),
+});
+
+export const designerLookBody = z.object({ direction: lookDirection, accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() });
+export const designerLookReply = z.object({
+  look: z.object({ direction: lookDirection, accent: z.string().optional() }),
+  version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
+  applied: z.boolean(),
 });
 
 export const designerSessionCreateReply = z.object({ session: designerSession, turn: z.number().int().nullable() });

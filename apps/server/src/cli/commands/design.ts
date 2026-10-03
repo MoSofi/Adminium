@@ -24,12 +24,31 @@ import { dirname, resolve } from 'node:path';
 import { createLocalOwner, isBootstrapRequired, settingsRepo, usersRepo } from '@adminium/meta';
 import Database from 'better-sqlite3';
 
+import { runChild } from '../../designer/child.js';
+import { DESIGNER_REACT_VERSION } from '../../designer/tools.js';
+import { PUBLIC_CLIENT_PACKAGE } from '../../project/apps/scaffold-app.js';
 import { findProject } from '../../project/locate.js';
+import { projectPackageManager } from '../../project/package-manager.js';
+import { APP_VERSION } from '../../version.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
 import { CliUsageError, EXIT_OK } from '../exit.js';
 import { newCommand } from './new.js';
 import { runStart } from './start.js';
+
+/**
+ * What an app's own screens are built with, added to a project the Designer
+ * was asked to make: React and Adminium's public client. A first build then
+ * shows its screens without first asking for three packages. It is tried
+ * once and quietly: where it does not work (no network), the Designer asks
+ * for them on one card when a side is first added.
+ */
+async function addScreenPackages(root: string, env: NodeJS.ProcessEnv): Promise<void> {
+  const manager = projectPackageManager(root, env);
+  const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
+  const specs = [`react@${DESIGNER_REACT_VERSION}`, `react-dom@${DESIGNER_REACT_VERSION}`, `${PUBLIC_CLIENT_PACKAGE}@${APP_VERSION}`];
+  await runChild(manager, [manager === 'npm' ? 'install' : 'add', ...specs, '--ignore-scripts', exact], { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal }).catch(() => undefined);
+}
 
 /** The ports `design` tries, in order, when none is named. */
 export const DESIGN_PORTS = { first: 4700, last: 4799 } as const;
@@ -92,6 +111,7 @@ export const designCommand: Command = {
       cwd = resolve(cwd, folder);
       if (!existsSync(cwd)) throw new CliUsageError(`${folder}/ was not made.`, designCommand.name);
       makeDesignDatabase(cwd);
+      await addScreenPackages(cwd, deps.env);
     } else if (positionals.length > 0) {
       throw new CliUsageError(`This folder is already in a project (${project.root}); run \`adminium design\` without a folder name.`, designCommand.name);
     }

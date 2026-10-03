@@ -84,11 +84,10 @@ export function previewState(turns: readonly TurnView[]): { building: boolean; f
     const running = last.steps.some((row) => row.state === 'running' && (row.tool === 'build_sides' || row.tool === 'apply_app'));
     return { building: running, failed: null };
   }
-  // The turn's LAST build decides: one that failed and was then fixed is no longer what the preview shows.
-  const final = [...last.steps].reverse().find((row) => row.tool === 'build' || row.tool === 'build_sides');
-  if (final === undefined || final.state !== 'failed') return { building: false, failed: null };
+  // The turn's LAST build decides, a tool's or the engine's own at the end: one that failed and was then fixed is no longer what the preview shows.
+  if (last.buildFailed === null) return { building: false, failed: null };
   // The first line names the side; the next says what is wrong with it.
-  const lines = (final.detail ?? '').split('\n').filter((line) => line.trim() !== '');
+  const lines = last.buildFailed.split('\n').filter((line) => line.trim() !== '');
   const named = /^Could not build the /.test(lines[0] ?? '');
   return { building: false, failed: lines.slice(0, named ? 2 : 1).join('\n') };
 }

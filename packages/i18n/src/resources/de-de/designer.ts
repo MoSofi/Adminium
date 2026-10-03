@@ -231,7 +231,9 @@ export default {
     "removeIt": "Entfernen, samt Daten",
     "removeTable": "Wenn die Tabelle {table} entfernt wird, werden ihre {rows, plural, one {# Zeile} other {# Zeilen}} gelöscht.",
     "removed": "Entfernt.",
-    "youAnswered": "Ihre Antwort: {answer}"
+    "youAnswered": "Ihre Antwort: {answer}",
+    "packages": "Es werden Pakete benötigt: {list}. Hinzufügen?",
+    "addThem": "Hinzufügen"
   },
   "step": {
     "addOns": "Sieht sich die Add-ons an",
@@ -279,7 +281,10 @@ export default {
     "readFailed": "{subject} konnte nicht gelesen werden",
     "writeFailed": "{subject} konnte nicht geschrieben werden",
     "editFailed": "{subject} konnte nicht bearbeitet werden",
-    "deleteFailed": "{subject} konnte nicht gelöscht werden"
+    "deleteFailed": "{subject} konnte nicht gelöscht werden",
+    "look": "Aussehen wird geändert",
+    "lookDone": "Aussehen geändert",
+    "lookFailed": "Das Aussehen wurde nicht geändert"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -451,5 +456,26 @@ export default {
     "stepGet": "App wird geholt",
     "stepMake": "Wird zu Ihrer eigenen gemacht",
     "stepBuild": "Wird gebaut und angewendet"
+  },
+  "look": {
+    "question": "Wie soll es aussehen?",
+    "lead": "Wähle eine Richtung für die Bildschirme, die Menschen sehen. Du kannst sie später ändern.",
+    "surprise": "Überrasch mich",
+    "ownWords": "In eigenen Worten beschreiben",
+    "clean": "Klar",
+    "warm": "Warm",
+    "bold": "Kräftig",
+    "calm": "Ruhig",
+    "cleanLine": "Neutrale Grautöne, ein klares Blau, scharfe Ecken",
+    "warmLine": "Creme und Braun, Serifen für Überschriften, runde Ecken",
+    "boldLine": "Schwarz auf Weiß, eine starke Farbe, fette Schrift",
+    "calmLine": "Sanftes Graugrün, leichte Schrift, Raum zum Atmen",
+    "changed": "Aussehen geändert zu {look}",
+    "change": "Aussehen ändern",
+    "changing": "Aussehen wird geändert…",
+    "menu": "Das Aussehen der Bildschirme",
+    "finer": "Für Feineres schreib es in den Chat: „dunkler, mit Gold“.",
+    "notApplied": "Das Aussehen wurde geschrieben, die App aber nicht angewendet. Die nächste Runde sagt, warum.",
+    "failed": "Das Aussehen konnte nicht geändert werden"
   }
 } as const;

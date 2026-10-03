@@ -60,10 +60,29 @@ starts an empty conversation on the same app: the Designer is told the app as it
 nothing of the earlier chat. The earlier sessions stay in the menu beside the button; each can still
 be read and gone on with.
 
+### How it looks
+
+The first time the Designer gives the app screens of its own, it asks how they should look: four
+directions (clean, warm, bold, calm), **Surprise me**, or your own words. It does not ask when your
+request already said ("modern, cozy, in brown"). The screens then start from made parts in that
+look (a header with the business's name, cards, a form, buttons, an empty state), and the app
+brings a few sample rows for what customers read, so the first preview is not an empty page. The
+Designer also gives the app a short name of its own; the session takes that name unless you named
+it yourself.
+
+**Change the look**, under the last turn, switches direction without a turn: no model is called,
+nothing is spent, and it is saved as a version like any other change. For something finer, say it
+in the chat ("darker, with gold").
+
+A project made by `adminium design` already has what screens are built with (React and Adminium's
+public client). In a project without them, the Designer asks for all of them on one card.
+
 A new app starts with nothing in it but its name and a role. The Designer writes the tables, the
 pages and the role's grants. It is kept on course in four ways:
 
-- A file that would not read as JSON is refused when it is written, not at the next check.
+- A file that would not read as JSON is refused when it is written, not at the next check, with
+  the lines around the fault and what is still open there.
+- Sample rows written after the app was first applied are added when it first names them.
 - If the Designer stops with errors left in the check, it is told them and goes on.
 - If it finishes with a table nobody can open (no page, or no grant), it is told once.
 - If the model's server fails in passing (a 5xx, a 429, a dropped connection), it is asked again.

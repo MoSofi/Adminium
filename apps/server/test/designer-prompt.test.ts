@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createPrompt, MENTIONS_SCREENS, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
-import { placeholderScreens, unopenedTables } from '../src/designer/service.js';
+import { emptyFirstPreview, placeholderScreens, unopenedTables } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import { createSkills } from '../src/designer/skills.js';
 import { closeDangling } from '../src/designer/transcript.js';
@@ -163,7 +163,20 @@ describe('a screen that shows nothing', () => {
     expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('customer/src/ shows nothing real yet')]);
     // Its calls may live beside App.tsx.
     writeFileSync(`${root}/apps/repairs/customer/src/menu.ts`, 'export const load = (client) => client.list("cakes");');
+    // It reads a table now, and still has no look: none of the starter's parts are in it.
+    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('uses none of the starter’s parts'.replace('’', "'"))]);
+    writeFileSync(`${root}/apps/repairs/customer/src/App.tsx`, `export function App() { return <div className="page"><label>{en('en-US: Email')}</label></div>; }`);
+    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('en() takes the English text alone')]);
+    writeFileSync(`${root}/apps/repairs/customer/src/App.tsx`, `export function App() { return <div className="page hero">{en('Email')}</div>; }`);
     expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([]);
+  });
+
+  it('names what customers read with no sample rows, before the app has a version', () => {
+    const app = { kind: 'app', publicAccess: [{ table: 'cakes', methods: ['GET'] }, { table: 'orders', methods: ['POST'] }] };
+    expect(emptyFirstPreview(app)).toEqual([expect.stringContaining('Customers read "cakes"')]);
+    expect(emptyFirstPreview({ ...app, sampleData: { file: 'seeds/sample.json' } })).toEqual([]);
+    expect(emptyFirstPreview({ kind: 'app', publicAccess: [{ table: 'orders', methods: ['POST'] }] })).toEqual([]);
+    expect(emptyFirstPreview(null)).toEqual([]);
   });
 });
 

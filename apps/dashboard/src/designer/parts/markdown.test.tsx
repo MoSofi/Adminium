@@ -100,6 +100,8 @@ describe('Markdown', () => {
 
   it('keeps a line break inside a paragraph and survives a very long or odd reply', () => {
     expect(draw('one\ntwo').querySelectorAll('br')).toHaveLength(1);
+    // A sign written as TeX in a sentence is the sign; a price in dollars is left alone.
+    expect(draw('New $\\rightarrow$ Done, 2 $\\times$ $5').textContent).toBe('New → Done, 2 × $5');
     expect(() => draw(`${'- a\n'.repeat(3000)}${'  '.repeat(40)}- deep\n| a |\n|---|\n${'*'.repeat(500)}${'['.repeat(500)}`)).not.toThrow();
     const long = draw('x'.repeat(70_000));
     expect(long.textContent).toHaveLength(70_000);

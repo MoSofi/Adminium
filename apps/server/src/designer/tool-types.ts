@@ -36,7 +36,7 @@ export interface ToolOutcome {
   /** More for the page, never for the model: a check's findings, the first error. */
   detail?: string;
   /** What the page words the line from, in its own language. */
-  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed' };
+  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string };
 }
 
 export interface ToolContext {

@@ -231,7 +231,9 @@ export default {
     "removeIt": "احذفه مع بياناته",
     "removeTable": "حذف الجدول {table} يمحو {rows, plural, zero {صفوفه} one {صفه الوحيد} two {صفيه} few {صفوفه الـ#} many {صفوفه الـ#} other {صفوفه الـ#}}.",
     "removed": "تم الحذف.",
-    "youAnswered": "إجابتك: {answer}"
+    "youAnswered": "إجابتك: {answer}",
+    "packages": "هناك حزم مطلوبة: {list}. هل تريد إضافتها؟",
+    "addThem": "أضِفها"
   },
   "step": {
     "addOns": "يطّلع على الإضافات",
@@ -279,7 +281,10 @@ export default {
     "readFailed": "تعذّرت قراءة {subject}",
     "writeFailed": "تعذّرت كتابة {subject}",
     "editFailed": "تعذّر تعديل {subject}",
-    "deleteFailed": "تعذّر حذف {subject}"
+    "deleteFailed": "تعذّر حذف {subject}",
+    "look": "جارٍ تغيير المظهر",
+    "lookDone": "تم تغيير المظهر",
+    "lookFailed": "لم يتغيّر المظهر"
   },
   "steps": {
     "count": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
@@ -451,5 +456,26 @@ export default {
     "stepGet": "جارٍ جلب التطبيق",
     "stepMake": "جارٍ جعله تطبيقك",
     "stepBuild": "جارٍ البناء والتطبيق"
+  },
+  "look": {
+    "question": "كيف تريد أن يبدو؟",
+    "lead": "اختر اتجاهًا للشاشات التي سيراها الناس. يمكنك تغييره لاحقًا.",
+    "surprise": "فاجئني",
+    "ownWords": "سأصفه بكلماتي",
+    "clean": "نظيف",
+    "warm": "دافئ",
+    "bold": "جريء",
+    "calm": "هادئ",
+    "cleanLine": "رماديات محايدة، أزرق صافٍ، زوايا حادة",
+    "warmLine": "كريمي وبني، خط بزوائد للعناوين، زوايا مستديرة",
+    "boldLine": "أسود على أبيض، لون واحد قوي، خط ثقيل",
+    "calmLine": "أخضر رمادي ناعم، خط خفيف، مساحة للتنفس",
+    "changed": "تغيّر المظهر إلى {look}",
+    "change": "تغيير المظهر",
+    "changing": "جارٍ تغيير المظهر…",
+    "menu": "مظهر الشاشات",
+    "finer": "لأي تعديل أدق، اكتبه في المحادثة: «أغمق، مع لمسة ذهبية».",
+    "notApplied": "تمت كتابة المظهر، ولم يُطبَّق التطبيق. ستوضح الدورة التالية السبب.",
+    "failed": "تعذّر تغيير المظهر"
   }
 } as const;

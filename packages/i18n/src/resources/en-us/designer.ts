@@ -231,7 +231,9 @@ export default {
     "removeIt": "Remove it and its data",
     "removeTable": "Removing the table {table} deletes its {rows, plural, one {# row} other {# rows}}.",
     "removed": "Removed.",
-    "youAnswered": "You answered: {answer}"
+    "youAnswered": "You answered: {answer}",
+    "packages": "Packages are needed: {list}. Add them?",
+    "addThem": "Add them"
   },
   "step": {
     "addOns": "Looking at the add-ons",
@@ -279,7 +281,10 @@ export default {
     "readFailed": "Could not read {subject}",
     "writeFailed": "Could not write {subject}",
     "editFailed": "Could not edit {subject}",
-    "deleteFailed": "Could not delete {subject}"
+    "deleteFailed": "Could not delete {subject}",
+    "look": "Changing the look",
+    "lookDone": "Changed the look",
+    "lookFailed": "The look was not changed"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -451,5 +456,26 @@ export default {
     "stepGet": "Getting the app",
     "stepMake": "Making it yours",
     "stepBuild": "Building and applying"
+  },
+  "look": {
+    "question": "How should it look?",
+    "lead": "Pick a direction for the screens people will see. You can change it afterwards.",
+    "surprise": "Surprise me",
+    "ownWords": "Describe it in my own words",
+    "clean": "Clean",
+    "warm": "Warm",
+    "bold": "Bold",
+    "calm": "Calm",
+    "cleanLine": "Neutral greys, a clear blue, crisp corners",
+    "warmLine": "Cream and brown, a serif for headings, round corners",
+    "boldLine": "Black on white, one strong colour, heavy type",
+    "calmLine": "Soft green-grey, light type, room to breathe",
+    "changed": "Look changed to {look}",
+    "change": "Change the look",
+    "changing": "Changing the look…",
+    "menu": "The look of the screens",
+    "finer": "For anything finer, say it in the chat: “darker, with gold”.",
+    "notApplied": "The look was written, and the app was not applied. The next turn will say why.",
+    "failed": "The look could not be changed"
   }
 } as const;
