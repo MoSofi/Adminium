@@ -353,7 +353,12 @@
     "refusedStaff": "員工畫面請求了 Adminium 拒絕的內容。",
     "refusedCustomer": "顧客畫面請求了 Adminium 拒絕的內容。",
     "fixRefusedMessage": "{side} 畫面向 Adminium 請求了它拒絕的內容，因此人們會在那裡看到錯誤：{error} 請修正該畫面。",
-    "keepLooking": "繼續查看頁面"
+    "keepLooking": "繼續查看頁面",
+    "seenAs": "檢視身分：{who} — 預覽",
+    "seenAsStaff": "檢視身分：員工 — 預覽",
+    "seenAsNoRole": "檢視身分：尚無角色的人 — 預覽",
+    "seenAsVisitor": "檢視身分：訪客，未登入",
+    "seenAsHint": "預覽不是你自己的登入。它依應用程式使用者將看到的樣子顯示應用程式。"
   },
   "arch": {
     "access": "客戶存取",
@@ -471,5 +476,22 @@
     "finer": "想要更細的調整，請在對話中說明：「更深一些，帶點金色」。",
     "notApplied": "外觀已寫入，但應用程式未套用。下一輪會說明原因。",
     "failed": "無法變更外觀"
+  },
+  "banner": {
+    "preview": "這是應用程式的預覽，以其員工（{roles}）的身分檢視。這不是你自己的登入：在這裡無法進入 Studio、人員或設定。",
+    "previewNoRole": "這是應用程式的預覽，以沒有角色的人的身分檢視。這不是你自己的登入：在這裡無法進入 Studio、人員或設定。",
+    "openOwn": "以你自己的身分開啟儀表板",
+    "owner": "你是此專案的擁有者，透過 Adminium Designer 印出的連結登入。在專案於其他地方執行之前，請設定電子郵件與密碼。",
+    "ownerLabel": "你的擁有者帳戶",
+    "ownerSet": "設定密碼",
+    "ownerLater": "暫不",
+    "ownerEmail": "你的電子郵件地址",
+    "ownerPassword": "密碼",
+    "ownerAgain": "再次輸入相同的密碼",
+    "ownerMismatch": "兩次輸入的密碼不一致。",
+    "ownerAfter": "此後你將用它們登入，無論在這裡還是專案執行的任何地方。Adminium Designer 也會要求它們：它的一次性連結僅用於沒有密碼的擁有者。",
+    "ownerSave": "儲存",
+    "ownerCancel": "取消",
+    "ownerDone": "你現在以 {email} 和你的密碼登入。"
   }
 }

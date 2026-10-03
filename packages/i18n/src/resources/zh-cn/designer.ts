@@ -363,7 +363,12 @@ export default {
     "refusedStaff": "员工界面请求了 Adminium 拒绝的内容。",
     "refusedCustomer": "客户界面请求了 Adminium 拒绝的内容。",
     "fixRefusedMessage": "{side} 界面向 Adminium 请求了它拒绝的内容，因此人们会在那里看到错误：{error} 请修复该界面。",
-    "keepLooking": "继续查看页面"
+    "keepLooking": "继续查看页面",
+    "seenAs": "查看身份：{who} — 预览",
+    "seenAsStaff": "查看身份：员工 — 预览",
+    "seenAsNoRole": "查看身份：尚无角色的人 — 预览",
+    "seenAsVisitor": "查看身份：访客，未登录",
+    "seenAsHint": "预览不是你自己的登录。它按应用使用者将看到的样子显示应用。"
   },
   "arch": {
     "access": "客户访问",
@@ -481,5 +486,22 @@ export default {
     "finer": "想要更细的调整，请在对话中说明：“更深一些，带点金色”。",
     "notApplied": "外观已写入，但应用未被应用。下一轮会说明原因。",
     "failed": "无法更改外观"
+  },
+  "banner": {
+    "preview": "这是应用的预览，以其员工（{roles}）的身份查看。这不是你自己的登录：在这里无法进入 Studio、人员或设置。",
+    "previewNoRole": "这是应用的预览，以没有角色的人的身份查看。这不是你自己的登录：在这里无法进入 Studio、人员或设置。",
+    "openOwn": "以你自己的身份打开仪表盘",
+    "owner": "你是此项目的所有者，通过 Adminium Designer 打印的链接登录。在项目运行到其他地方之前，请设置邮箱和密码。",
+    "ownerLabel": "你的所有者账户",
+    "ownerSet": "设置密码",
+    "ownerLater": "暂不",
+    "ownerEmail": "你的邮箱地址",
+    "ownerPassword": "密码",
+    "ownerAgain": "再次输入相同的密码",
+    "ownerMismatch": "两次输入的密码不一致。",
+    "ownerAfter": "此后你将用它们登录，无论在这里还是项目运行的任何地方。Adminium Designer 也会要求它们：它的一次性链接仅用于没有密码的所有者。",
+    "ownerSave": "保存",
+    "ownerCancel": "取消",
+    "ownerDone": "你现在以 {email} 和你的密码登录。"
   }
 } as const;

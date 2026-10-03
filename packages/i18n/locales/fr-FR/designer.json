@@ -353,7 +353,12 @@
     "refusedStaff": "L’écran du personnel a demandé quelque chose qu’Adminium refuse.",
     "refusedCustomer": "L’écran client a demandé quelque chose qu’Adminium refuse.",
     "fixRefusedMessage": "L’écran {side} demande à Adminium quelque chose qu’il refuse, et les gens y voient donc une erreur : {error} Merci de corriger l’écran.",
-    "keepLooking": "Continuer à regarder la page"
+    "keepLooking": "Continuer à regarder la page",
+    "seenAs": "Vu en tant que : {who} — un aperçu",
+    "seenAsStaff": "Vu en tant que : personnel — un aperçu",
+    "seenAsNoRole": "Vu en tant que : une personne sans rôle pour l’instant — un aperçu",
+    "seenAsVisitor": "Vu en tant que : un visiteur, non connecté",
+    "seenAsHint": "L’aperçu n’est pas votre propre connexion. Il montre l’application telle que ses utilisateurs la verront."
   },
   "arch": {
     "access": "Accès client",
@@ -471,5 +476,22 @@
     "finer": "Pour plus de finesse, dites-le dans la discussion : « plus sombre, avec de l’or ».",
     "notApplied": "Le style a été écrit, mais l’application n’a pas été appliquée. Le prochain tour dira pourquoi.",
     "failed": "Le style n’a pas pu être changé"
+  },
+  "banner": {
+    "preview": "Ceci est un aperçu de l’application, vue par son personnel ({roles}). Ce n’est pas votre propre connexion : Studio, les personnes et les réglages ne sont pas accessibles ici.",
+    "previewNoRole": "Ceci est un aperçu de l’application, vue par une personne sans rôle. Ce n’est pas votre propre connexion : Studio, les personnes et les réglages ne sont pas accessibles ici.",
+    "openOwn": "Ouvrir le tableau de bord en tant que vous-même",
+    "owner": "Vous êtes le propriétaire de ce projet, connecté par le lien qu’Adminium Designer a affiché. Définissez une adresse et un mot de passe avant que le projet ne tourne ailleurs.",
+    "ownerLabel": "Votre compte propriétaire",
+    "ownerSet": "Définir votre mot de passe",
+    "ownerLater": "Pas maintenant",
+    "ownerEmail": "Votre adresse e-mail",
+    "ownerPassword": "Un mot de passe",
+    "ownerAgain": "Le même mot de passe à nouveau",
+    "ownerMismatch": "Les deux mots de passe ne sont pas identiques.",
+    "ownerAfter": "Dès lors, vous vous connectez avec eux, ici et partout où le projet tourne. Adminium Designer les demandera aussi : son lien à usage unique ne sert qu’à un propriétaire sans mot de passe.",
+    "ownerSave": "Enregistrer",
+    "ownerCancel": "Annuler",
+    "ownerDone": "Vous vous connectez désormais en tant que {email}, avec votre mot de passe."
   }
 }

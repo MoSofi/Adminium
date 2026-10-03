@@ -8543,6 +8543,66 @@
     "status": "mt",
     "srcHash": "e8f3675e62a7"
   },
+  "designer.banner.openOwn": {
+    "status": "mt",
+    "srcHash": "05fd9e064c6a"
+  },
+  "designer.banner.owner": {
+    "status": "mt",
+    "srcHash": "56939492c3a2"
+  },
+  "designer.banner.ownerAfter": {
+    "status": "mt",
+    "srcHash": "4fd9a4fd3cdc"
+  },
+  "designer.banner.ownerAgain": {
+    "status": "mt",
+    "srcHash": "e2fefcf49a07"
+  },
+  "designer.banner.ownerCancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.banner.ownerDone": {
+    "status": "mt",
+    "srcHash": "502acd84b189"
+  },
+  "designer.banner.ownerEmail": {
+    "status": "mt",
+    "srcHash": "e1b1790da9f9"
+  },
+  "designer.banner.ownerLabel": {
+    "status": "mt",
+    "srcHash": "f80de119a5ff"
+  },
+  "designer.banner.ownerLater": {
+    "status": "mt",
+    "srcHash": "e45714907316"
+  },
+  "designer.banner.ownerMismatch": {
+    "status": "mt",
+    "srcHash": "83838bde4bea"
+  },
+  "designer.banner.ownerPassword": {
+    "status": "mt",
+    "srcHash": "c7210c40d59e"
+  },
+  "designer.banner.ownerSave": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "designer.banner.ownerSet": {
+    "status": "mt",
+    "srcHash": "4f9f9c131024"
+  },
+  "designer.banner.preview": {
+    "status": "mt",
+    "srcHash": "bdf5ef30f425"
+  },
+  "designer.banner.previewNoRole": {
+    "status": "mt",
+    "srcHash": "cb06f7b19fe9"
+  },
   "designer.brand": {
     "status": "src",
     "srcHash": "c7b22145f13e"
@@ -9234,6 +9294,26 @@
   "designer.preview.reload": {
     "status": "mt",
     "srcHash": "cce7155371fc"
+  },
+  "designer.preview.seenAs": {
+    "status": "mt",
+    "srcHash": "7df4a1d9e2cb"
+  },
+  "designer.preview.seenAsHint": {
+    "status": "mt",
+    "srcHash": "2c09ab8172aa"
+  },
+  "designer.preview.seenAsNoRole": {
+    "status": "mt",
+    "srcHash": "e62606117829"
+  },
+  "designer.preview.seenAsStaff": {
+    "status": "mt",
+    "srcHash": "29da8f70ac4a"
+  },
+  "designer.preview.seenAsVisitor": {
+    "status": "mt",
+    "srcHash": "59c9f1bc798b"
   },
   "designer.preview.side": {
     "status": "mt",

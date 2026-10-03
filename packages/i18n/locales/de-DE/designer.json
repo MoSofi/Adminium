@@ -353,7 +353,12 @@
     "refusedStaff": "Der Mitarbeiterbildschirm hat etwas angefragt, das Adminium ablehnt.",
     "refusedCustomer": "Der Kundenbildschirm hat etwas angefragt, das Adminium ablehnt.",
     "fixRefusedMessage": "Der Bildschirm {side} fragt Adminium nach etwas, das es ablehnt, sodass Menschen dort einen Fehler sehen: {error} Bitte korrigiere den Bildschirm.",
-    "keepLooking": "Seite weiter ansehen"
+    "keepLooking": "Seite weiter ansehen",
+    "seenAs": "Gesehen als: {who} — eine Vorschau",
+    "seenAsStaff": "Gesehen als: Mitarbeitende — eine Vorschau",
+    "seenAsNoRole": "Gesehen als: eine Person noch ohne Rolle — eine Vorschau",
+    "seenAsVisitor": "Gesehen als: Besucher, nicht angemeldet",
+    "seenAsHint": "Die Vorschau ist nicht deine eigene Anmeldung. Sie zeigt die App so, wie ihre Menschen sie sehen werden."
   },
   "arch": {
     "access": "Kundenzugriff",
@@ -471,5 +476,22 @@
     "finer": "Für Feineres schreib es in den Chat: „dunkler, mit Gold“.",
     "notApplied": "Das Aussehen wurde geschrieben, die App aber nicht angewendet. Die nächste Runde sagt, warum.",
     "failed": "Das Aussehen konnte nicht geändert werden"
+  },
+  "banner": {
+    "preview": "Das ist eine Vorschau der App aus Sicht ihrer Mitarbeitenden ({roles}). Es ist nicht deine eigene Anmeldung: Studio, Personen und Einstellungen erreichst du hier nicht.",
+    "previewNoRole": "Das ist eine Vorschau der App aus Sicht einer Person ohne Rolle. Es ist nicht deine eigene Anmeldung: Studio, Personen und Einstellungen erreichst du hier nicht.",
+    "openOwn": "Dashboard als du selbst öffnen",
+    "owner": "Du bist Eigentümer dieses Projekts, angemeldet über den Link, den Adminium Designer ausgegeben hat. Lege eine Adresse und ein Passwort fest, bevor das Projekt woanders läuft.",
+    "ownerLabel": "Dein Eigentümerkonto",
+    "ownerSet": "Passwort festlegen",
+    "ownerLater": "Nicht jetzt",
+    "ownerEmail": "Deine E-Mail-Adresse",
+    "ownerPassword": "Ein Passwort",
+    "ownerAgain": "Dasselbe Passwort noch einmal",
+    "ownerMismatch": "Die beiden Passwörter stimmen nicht überein.",
+    "ownerAfter": "Von da an meldest du dich damit an, hier und überall, wo das Projekt läuft. Auch Adminium Designer fragt danach: sein Einmal-Link gilt nur für Eigentümer ohne Passwort.",
+    "ownerSave": "Speichern",
+    "ownerCancel": "Abbrechen",
+    "ownerDone": "Du meldest dich jetzt als {email} mit deinem Passwort an."
   }
 }

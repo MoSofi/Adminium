@@ -33,7 +33,12 @@ export interface DesignerState {
   project: string;
   limits: { maxSteps: number; turnTokens: number; sessionTokens: number };
   active: { sessionId: string; turn: number } | null;
+  /** The person asking is the owner `design` made, still with no password. */
+  ownerNeedsPassword?: boolean;
 }
+
+/** Who the preview signs in as: the dashboard says so when it is opened as them outside the Designer's frame. */
+export const PREVIEW_USER_EMAIL = 'preview@adminium.localhost';
 
 export interface YourApp {
   key: string;
@@ -219,7 +224,8 @@ export const designerApi = {
   restore: (id: string, n: number, record: boolean) =>
     api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/versions/${String(n)}/restore`, { record }),
   architecture: (id: string) => api.get<ArchitectureDoc>(`${BASE}/sessions/${id}/architecture`),
-  previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
+  previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
+  setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
   createSession: (input: { appKey?: string; name?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
 };

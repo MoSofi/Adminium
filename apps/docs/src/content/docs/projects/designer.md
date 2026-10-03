@@ -152,11 +152,23 @@ version, changes included.
 
 - **Preview** shows the app as a person with the app's own role sees it: the dashboard pages, and
   the staff and customer screens when the app has them, at desktop, tablet and phone width.
+  The bar says whose eyes it is ("Seen as: Baker — a preview"; "a visitor, not signed in" for the
+  customer side). **Open in a new tab** opens the staff side inside the dashboard, as staff meet
+  it, signed in as that same preview person: the dashboard there has no Studio, no people and no
+  settings, and a bar across its top says so and links to **Open the dashboard as yourself**.
 - **Architecture** draws what the server applied: who uses the app, what they use, the tables and
   how they link, the emails and add-ons. Anything written to the folder and not applied yet is
   marked.
 - The version menu lists every version. Going back to one makes a new version on top, so nothing
   is lost.
+
+### You, the owner
+
+`adminium design` makes you the project's owner with no password: the link it prints signs you in,
+on this machine only. **Open the dashboard** and **Open in the dashboard** open it as you. There a
+banner offers **Set your password**: an address and a password, on the page (the same as
+`adminium owner set` in a terminal). Do it before the project runs anywhere else. From then on you
+sign in with them, here too: the Designer's one-time link is only for an owner with no password.
 
 ## What it may touch
 

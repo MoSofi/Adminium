@@ -353,7 +353,12 @@
     "refusedStaff": "Personaleskærmen bad om noget, Adminium afviser.",
     "refusedCustomer": "Kundeskærmen bad om noget, Adminium afviser.",
     "fixRefusedMessage": "Skærmen {side} beder Adminium om noget, den afviser, så folk ser en fejl der: {error} Ret venligst skærmen.",
-    "keepLooking": "Bliv ved med at se på siden"
+    "keepLooking": "Bliv ved med at se på siden",
+    "seenAs": "Set som: {who} — en forhåndsvisning",
+    "seenAsStaff": "Set som: personale — en forhåndsvisning",
+    "seenAsNoRole": "Set som: en person uden rolle endnu — en forhåndsvisning",
+    "seenAsVisitor": "Set som: en besøgende, ikke logget ind",
+    "seenAsHint": "Forhåndsvisningen er ikke dit eget login. Den viser appen, som dens folk vil se den."
   },
   "arch": {
     "access": "Kundeadgang",
@@ -471,5 +476,22 @@
     "finer": "Vil du have noget finere, så skriv det i chatten: “mørkere, med guld”.",
     "notApplied": "Udseendet blev skrevet, men appen blev ikke anvendt. Næste tur siger hvorfor.",
     "failed": "Udseendet kunne ikke ændres"
+  },
+  "banner": {
+    "preview": "Dette er en forhåndsvisning af appen, set som dens personale ({roles}). Det er ikke dit eget login: du kan ikke nå Studio, personer eller indstillinger her.",
+    "previewNoRole": "Dette er en forhåndsvisning af appen, set som en person uden rolle. Det er ikke dit eget login: du kan ikke nå Studio, personer eller indstillinger her.",
+    "openOwn": "Åbn dashboardet som dig selv",
+    "owner": "Du er ejer af dette projekt, logget ind med det link, Adminium Designer udskrev. Angiv en adresse og en adgangskode, før projektet kører andre steder.",
+    "ownerLabel": "Din ejerkonto",
+    "ownerSet": "Angiv din adgangskode",
+    "ownerLater": "Ikke nu",
+    "ownerEmail": "Din e-mailadresse",
+    "ownerPassword": "En adgangskode",
+    "ownerAgain": "Den samme adgangskode igen",
+    "ownerMismatch": "De to adgangskoder er ikke ens.",
+    "ownerAfter": "Fra da af logger du ind med dem, her og hvor projektet end kører. Adminium Designer beder også om dem: dets engangslink er kun til en ejer uden adgangskode.",
+    "ownerSave": "Gem",
+    "ownerCancel": "Annuller",
+    "ownerDone": "Du logger nu ind som {email} med din adgangskode."
   }
 }

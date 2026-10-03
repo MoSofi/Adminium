@@ -14,7 +14,7 @@ import { createInterface } from 'node:readline';
 
 import { settingsRepo, usersRepo } from '@adminium/meta';
 
-import { hashPassword } from '../../auth/passwords.js';
+import { LocalOwnerError, setLocalOwnerCredentials } from '../../auth/local-owner.js';
 import { openMetaStore } from '../../meta/store.js';
 import { prepareProject } from '../../project/boot.js';
 import { APP_VERSION } from '../../version.js';
@@ -93,9 +93,12 @@ export const ownerCommand: Command = {
       }
       if (password.length < minLength) throw new CliError(`A password has at least ${String(minLength)} characters. Nothing was changed.`);
 
-      await users.updateProfile(owner.id, { email });
-      await users.updatePassword(owner.id, await hashPassword(password));
-      await settings.set('designer.localOwnerId', null, { updatedBy: owner.id });
+      try {
+        await setLocalOwnerCredentials(store.meta, { email, password });
+      } catch (error) {
+        if (error instanceof LocalOwnerError) throw new CliError(`${error.message} Nothing was changed.`);
+        throw error;
+      }
       io.out(`The owner is now ${email}, with a password. Sign in with them wherever this project runs.`);
       return EXIT_OK;
     } finally {

@@ -205,6 +205,7 @@ import { bridgeRoutes } from './routes/bridge/index.js';
 import { metaRoutes } from './routes/meta/index.js';
 import { setupStoreRoutes } from './routes/setup/store.js';
 import { createSetupService } from './setup/service.js';
+import { appRoleNames, needsPassword, setLocalOwnerCredentials } from './auth/local-owner.js';
 import { hashPassword } from './auth/passwords.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
@@ -2064,6 +2065,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             // A preview needs a second name for this server, which only `adminium design` has: off on a live server.
             preview: previewTickets === null || opts.designer === undefined ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
             appCatalog,
+            previewRoles: (appKey) => appRoleNames(meta, appKey),
+            // The first password of the owner `design` made: offered where the server is that person's own machine only.
+            ...(designerOpts.mode === 'local'
+              ? {
+                  owner: {
+                    needsPassword: (userId: string | null) => needsPassword(meta, userId),
+                    set: async (input: { email: string; password: string }, by: { id: string | null; label: string }) => {
+                      const owner = await setLocalOwnerCredentials(meta, input);
+                      await designerAudit('designer.owner.password-set', by, { email: owner.email });
+                      return owner.email;
+                    },
+                  },
+                }
+              : {}),
             starter: createStarter({
               root,
               log: (message, error) => app.log.warn({ err: error }, message),

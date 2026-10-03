@@ -39,7 +39,12 @@ export const designerStateReply = z.object({
   project: z.string(),
   limits: z.object({ maxSteps: z.number().int(), turnTokens: z.number().int(), sessionTokens: z.number().int() }),
   active: z.object({ sessionId: z.string(), turn: z.number().int() }).nullable(),
+  /** Whether the person asking is the owner `design` made, still with no password: the dashboard then offers to set one. */
+  ownerNeedsPassword: z.boolean(),
 });
+
+export const designerOwnerPasswordBody = z.object({ email: z.string().min(3).max(254), password: z.string().min(1).max(1024) });
+export const designerOwnerPasswordReply = z.object({ email: z.string() });
 
 export const designerAppsReply = z.object({
   apps: z.array(
@@ -179,7 +184,12 @@ export const designerModelCheckBody = z.object({ connectionId: z.string().max(64
 export const designerModelCheckReply = z.object({ canBuild: z.boolean().nullable(), message: z.string().nullable() });
 
 export const designerPreviewBody = z.object({ to: z.string().min(1).max(500) });
-export const designerPreviewReply = z.object({ url: z.string(), origin: z.string() });
+export const designerPreviewReply = z.object({
+  url: z.string(),
+  origin: z.string(),
+  /** The names of the roles the preview's user holds: whom the preview is seen as. */
+  seenAs: z.array(z.string()),
+});
 
 export const designerEventsQuery = z.object({ after: z.coerce.number().int().min(0).default(0) });
 export const designerEventsReply = z.object({ events: z.array(designerEvent), last: z.number().int(), more: z.boolean() });

@@ -363,7 +363,12 @@ export default {
     "refusedStaff": "Obrazovka pro personál žádala o něco, co Adminium odmítá.",
     "refusedCustomer": "Obrazovka pro zákazníky žádala o něco, co Adminium odmítá.",
     "fixRefusedMessage": "Obrazovka {side} žádá Adminium o něco, co odmítá, takže lidé tam vidí chybu: {error} Opravte prosím obrazovku.",
-    "keepLooking": "Dál si stránku prohlížet"
+    "keepLooking": "Dál si stránku prohlížet",
+    "seenAs": "Viděno jako: {who} — náhled",
+    "seenAsStaff": "Viděno jako: personál — náhled",
+    "seenAsNoRole": "Viděno jako: osoba zatím bez role — náhled",
+    "seenAsVisitor": "Viděno jako: návštěvník, nepřihlášený",
+    "seenAsHint": "Náhled není vaše vlastní přihlášení. Ukazuje aplikaci tak, jak ji uvidí její lidé."
   },
   "arch": {
     "access": "Přístup zákazníků",
@@ -481,5 +486,22 @@ export default {
     "finer": "Cokoli jemnějšího napište do chatu: „tmavší, se zlatou“.",
     "notApplied": "Vzhled byl zapsán, ale aplikace nebyla použita. Další tah řekne proč.",
     "failed": "Vzhled se nepodařilo změnit"
+  },
+  "banner": {
+    "preview": "Toto je náhled aplikace očima jejího personálu ({roles}). Není to vaše vlastní přihlášení: do Studia, k lidem ani k nastavení se tu nedostanete.",
+    "previewNoRole": "Toto je náhled aplikace očima osoby bez role. Není to vaše vlastní přihlášení: do Studia, k lidem ani k nastavení se tu nedostanete.",
+    "openOwn": "Otevřít dashboard jako vy",
+    "owner": "Jste vlastníkem tohoto projektu, přihlášeni odkazem, který vypsal Adminium Designer. Než projekt poběží jinde, nastavte adresu a heslo.",
+    "ownerLabel": "Váš účet vlastníka",
+    "ownerSet": "Nastavit heslo",
+    "ownerLater": "Teď ne",
+    "ownerEmail": "Váš e-mail",
+    "ownerPassword": "Heslo",
+    "ownerAgain": "Stejné heslo znovu",
+    "ownerMismatch": "Hesla nejsou stejná.",
+    "ownerAfter": "Od té chvíle se jimi přihlašujete, zde i všude, kde projekt běží. Bude je chtít i Adminium Designer: jeho jednorázový odkaz je jen pro vlastníka bez hesla.",
+    "ownerSave": "Uložit",
+    "ownerCancel": "Zrušit",
+    "ownerDone": "Nyní se přihlašujete jako {email}, svým heslem."
   }
 } as const;

@@ -18,7 +18,8 @@ import type { Designer } from '../../designer/service.js';
 import type { Starter } from '../../designer/start-with-app.js';
 import { sourceArchiveUrl } from '../../project/apps/source-archive.js';
 import type { Actor } from '../../designer/runner.js';
-import { ForbiddenError, NotFoundError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { LocalOwnerError } from '../../auth/local-owner.js';
 import type { Live } from '../../designer/live.js';
 import type { Versions } from '../../designer/versions.js';
 import type { ArchitectureDocument } from '../../designer/architecture.js';
@@ -54,6 +55,8 @@ import {
   designerSessionPatchBody,
   designerSessionReply,
   designerStateReply,
+  designerOwnerPasswordBody,
+  designerOwnerPasswordReply,
   designerRestoreBody,
   designerRestoreReply,
   designerLookBody,
@@ -86,6 +89,10 @@ export interface DesignerRoutesDeps {
   starter?: Starter | undefined;
   /** The preview's tickets and its address; null where the server has no preview name. */
   preview: { tickets: PreviewTickets; origin: string } | null;
+  /** The names of the roles an app brings: whom its preview is seen as. */
+  previewRoles?: ((appKey: string) => Promise<string[]>) | undefined;
+  /** The owner `design` made, and their first password. Present only on a `design` server. */
+  owner?: { needsPassword(userId: string | null): Promise<boolean>; set(input: { email: string; password: string }, by: Actor): Promise<string> } | undefined;
   /** How an app fits together, from what the engine applied. */
   architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
@@ -142,12 +149,40 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       if (onLive) throw new ForbiddenError('On a live server, model connections are set in Settings → AI.', 'FORBIDDEN', { reason: 'LIVE' });
     };
 
-    app.get('/designer/state', { preHandler: guard, config: RATE, schema: { response: { 200: designerStateReply } } }, async () => ({
+    app.get('/designer/state', { preHandler: guard, config: RATE, schema: { response: { 200: designerStateReply } } }, async (request) => ({
       mode: deps.mode,
       project: basename(deps.root),
       limits: await deps.limits(),
       active: runner.active(),
+      ownerNeedsPassword: deps.owner === undefined ? false : await deps.owner.needsPassword(request.user?.id ?? null),
     }));
+
+    // The owner `design` made, given an address and a password on the page (as `adminium owner set` does in the terminal).
+    // Only on a `design` server, only for that owner, only while they have none: it never changes a password that exists.
+    if (deps.owner !== undefined) {
+      const owner = deps.owner;
+      app.post(
+        '/designer/owner-password',
+        {
+          preHandler: guard,
+          config: { ...RATE, audit: auditExempt('setting the local owner’s first password is audited by the route itself, without the password') },
+          schema: { body: designerOwnerPasswordBody, response: { 200: designerOwnerPasswordReply } },
+        },
+        async (request) => {
+          const by = actorOf(request);
+          if (!(await owner.needsPassword(by.id))) {
+            throw new ConflictError('Only the owner this project was made with, while they have no password, sets one here. Change a password under your account.', 'CONFLICT', { reason: 'NOT_THE_LOCAL_OWNER' });
+          }
+          try {
+            return { email: await owner.set(request.body, by) };
+          } catch (error) {
+            if (!(error instanceof LocalOwnerError)) throw error;
+            if (error.reason === 'not-local' || error.reason === 'has-password') throw new ConflictError(error.message, 'CONFLICT', { reason: 'NOT_THE_LOCAL_OWNER' });
+            throw new ValidationFailedError(error.message, { reason: error.reason === 'password-short' ? 'PASSWORD' : 'EMAIL' });
+          }
+        },
+      );
+    }
 
     // "Your apps": every app of the folder, with the newest session that built it.
     /** The look as the page is told it: the direction and the accent, never the person's words. */
@@ -324,7 +359,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         if (to === null) throw new NotFoundError('That is not a page of this app.', { to: request.body.to });
         const ticket = deps.preview.tickets.issue(session.appKey);
         const url = `${deps.preview.origin}/designer-preview/enter?ticket=${ticket}&to=${encodeURIComponent(to)}`;
-        return { url, origin: deps.preview.origin };
+        return { url, origin: deps.preview.origin, seenAs: (await deps.previewRoles?.(session.appKey)) ?? [] };
       },
     );
 

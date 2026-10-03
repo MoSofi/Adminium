@@ -15,7 +15,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
+import { ExternalLink, Eye, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
 
 import { api } from '../../app/api.js';
 import { systemInfoQuery } from '../../app/capabilities.js';
@@ -68,6 +68,14 @@ function crashedTitle(side: PreviewSide): string {
   return side === 'staff'
     ? t('designer:preview.crashedStaff', 'The staff screen stopped with an error.')
     : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
+}
+
+/** Whose eyes the preview is: the app's own roles for the dashboard and the staff side, nobody for the customer side. */
+export function seenAs(side: PreviewSide, roles: readonly string[] | null): string {
+  if (side === 'customer') return t('designer:preview.seenAsVisitor', 'Seen as: a visitor, not signed in');
+  if (roles === null) return t('designer:preview.seenAsStaff', 'Seen as: staff — a preview');
+  if (roles.length === 0) return t('designer:preview.seenAsNoRole', 'Seen as: a person with no role yet — a preview');
+  return t('designer:preview.seenAs', 'Seen as: {who} — a preview', { who: roles.join(', ') });
 }
 
 function refusedTitle(side: PreviewSide): string {
@@ -168,8 +176,14 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
     const tab = window.open('', '_blank');
     if (tab === null) return;
     tab.opener = null;
+    // A customer page is public: it opens as it is, with nobody signed in, and makes no preview session in the tab.
+    if (side === 'customer' && previewOrigin !== null) {
+      tab.location.href = `${previewOrigin}${to}`;
+      return;
+    }
+    // The staff side opens inside the dashboard, as staff meet it: there the bar says whose eyes this is.
     void designerApi
-      .previewTicket(session.id, to)
+      .previewTicket(session.id, side === 'staff' ? `/a/${session.appKey}` : to)
       .then((reply) => {
         tab.location.href = reply.url;
       })
@@ -250,6 +264,12 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
               </button>
             ))}
           </div>
+        )}
+        {app === null ? null : (
+          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold text-fg-muted" title={t('designer:preview.seenAsHint', 'The preview is not your own sign-in. It shows the app as its people will see it.')}>
+            <Eye aria-hidden="true" className="size-3 shrink-0" />
+            <span className="truncate">{seenAs(side, ticket.data?.seenAs ?? null)}</span>
+          </span>
         )}
         <div className="ms-auto flex items-center gap-1.5">
           <button

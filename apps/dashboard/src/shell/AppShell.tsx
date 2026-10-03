@@ -10,7 +10,7 @@
  * `['bootstrap']` + `['page', *]` so nav edits and regeneration propagate
  * live without reload.
  */
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { WifiOff } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
@@ -18,6 +18,7 @@ import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { invalidateForRealtimeEvent, resyncConfigOnConnect } from '../api/realtime.js';
 import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction } from '../app/bootstrap.js';
+import { systemInfoQuery } from '../app/capabilities.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
@@ -32,6 +33,7 @@ import { PageActionsProvider } from './PageActionsProvider.js';
    entry-chunk ratchet (scripts/check-entry-budget.mjs) is the right place to
    pay for that. Rendered only once opened, so no Suspense fallback is needed —
    there is nothing on screen to replace while the chunk loads. */
+const DesignBanners = lazy(async () => ({ default: (await import('../designer/DesignBanners.js')).DesignBanners }));
 const ShortcutsPanel = lazy(async () => ({
   default: (await import('./ShortcutsPanel.js')).ShortcutsPanel,
 }));
@@ -63,6 +65,8 @@ export function AppShell() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // A cached read the capabilities provider already made: no second request.
+  const designMode = useQuery(systemInfoQuery()).data?.designer?.mode === 'local';
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
   const manager = useShortcutManager();
@@ -318,6 +322,12 @@ export function AppShell() {
             onOpenHelp={() => void navigate({ to: '/help' })}
             onOpenChangelog={() => void navigate({ to: '/changelog' })}
           />
+          {/* Only a server run by `adminium design` says these: the file is asked for there and nowhere else. */}
+          {designMode ? (
+            <Suspense fallback={null}>
+              <DesignBanners email={bootstrap.user.email} roles={bootstrap.roles} />
+            </Suspense>
+          ) : null}
           <main className="min-h-0 flex-1">
             <Outlet />
           </main>

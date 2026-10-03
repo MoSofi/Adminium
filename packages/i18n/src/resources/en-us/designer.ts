@@ -363,7 +363,12 @@ export default {
     "refusedStaff": "The staff screen asked for something Adminium refuses.",
     "refusedCustomer": "The customer screen asked for something Adminium refuses.",
     "fixRefusedMessage": "The {side} screen asks Adminium for something it refuses, so people see an error there: {error} Please fix the screen.",
-    "keepLooking": "Keep looking at the page"
+    "keepLooking": "Keep looking at the page",
+    "seenAs": "Seen as: {who} — a preview",
+    "seenAsStaff": "Seen as: staff — a preview",
+    "seenAsNoRole": "Seen as: a person with no role yet — a preview",
+    "seenAsVisitor": "Seen as: a visitor, not signed in",
+    "seenAsHint": "The preview is not your own sign-in. It shows the app as its people will see it."
   },
   "arch": {
     "access": "Customer access",
@@ -481,5 +486,22 @@ export default {
     "finer": "For anything finer, say it in the chat: “darker, with gold”.",
     "notApplied": "The look was written, and the app was not applied. The next turn will say why.",
     "failed": "The look could not be changed"
+  },
+  "banner": {
+    "preview": "This is a preview of the app, seen as its staff ({roles}). It is not your own sign-in: you cannot reach Studio, people or settings here.",
+    "previewNoRole": "This is a preview of the app, seen as a person with no role. It is not your own sign-in: you cannot reach Studio, people or settings here.",
+    "openOwn": "Open the dashboard as yourself",
+    "owner": "You are this project’s owner, signed in by the link Adminium Designer printed. Set an address and a password before the project runs anywhere else.",
+    "ownerLabel": "Your owner account",
+    "ownerSet": "Set your password",
+    "ownerLater": "Not now",
+    "ownerEmail": "Your email address",
+    "ownerPassword": "A password",
+    "ownerAgain": "The same password again",
+    "ownerMismatch": "The two passwords are not the same.",
+    "ownerAfter": "From then on you sign in with them, here and wherever the project runs. Adminium Designer will ask for them too: its one-time link is only for an owner with no password.",
+    "ownerSave": "Save",
+    "ownerCancel": "Cancel",
+    "ownerDone": "You now sign in as {email}, with your password."
   }
 } as const;
