@@ -16,8 +16,8 @@ it into `apps/<key>/` while Adminium checks it, applies it and shows it.
   `localhost:<port>` and `[::1]:<port>` and nothing else; the preview of what is built is served on
   `localhost`, the Designer itself on `127.0.0.1`.
 - The first time, it makes the project's owner with no password. The link it opens signs that
-  owner in, once; a second tab or a copied link shows "This link has been used", and running the
-  command again makes a new one. Give the owner an address and a password with
+  owner in, once, within fifteen minutes; a second tab or a copied link shows "This link has been
+  used", and running the command again makes a new one. Give the owner an address and a password with
   [`owner set`](https://docs.adminium.dev/reference/cli/#owner) before the project runs anywhere else. A project whose owner has a
   password gets no link: sign in as usual.
 - The folder is the master copy, as under [`dev`](https://docs.adminium.dev/reference/cli/#dev). Files you change by hand are picked up at

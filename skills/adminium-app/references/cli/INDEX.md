@@ -11,7 +11,7 @@
 | `references/cli/project-files.md` | Project files | 1899 |
 | `references/cli/new.md` | `new` | 3070 |
 | `references/cli/dev.md` | `dev` | 2619 |
-| `references/cli/design.md` | `design` | 1545 |
+| `references/cli/design.md` | `design` | 1569 |
 | `references/cli/owner.md` | `owner` | 645 |
 | `references/cli/build.md` | `build` | 1221 |
 | `references/cli/check.md` | `check` | 1558 |
