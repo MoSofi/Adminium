@@ -759,7 +759,9 @@
         "manyDatabases": "Denne server har mere end én database, og appen lægges i én af dem. Flere valg åbner trinnene, hvor du vælger.",
         "noDatabase": "Denne server har endnu ingen database tilsluttet. Flere valg åbner trinnene, hvor én vælges.",
         "reading": "Læser, hvad den vil tilføje…",
-        "more": "Flere valg"
+        "more": "Flere valg",
+        "tables": "{count, plural, one {Den tilføjer # ny tabel til {database}. Vis den} other {Den tilføjer # nye tabeller til {database}. Vis dem}}",
+        "getting": "Henter {addOn}, som {app} har brug for…"
       }
     },
     "installed": {

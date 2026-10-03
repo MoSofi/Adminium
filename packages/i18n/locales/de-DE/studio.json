@@ -759,7 +759,9 @@
         "manyDatabases": "Dieser Server hat mehr als eine Datenbank, und die App kommt in eine davon. Weitere Optionen öffnet die Schritte, in denen du wählst.",
         "noDatabase": "Dieser Server hat noch keine Datenbank verbunden. Weitere Optionen öffnet die Schritte, in denen eine gewählt wird.",
         "reading": "Es wird gelesen, was sie hinzufügen würde…",
-        "more": "Weitere Optionen"
+        "more": "Weitere Optionen",
+        "tables": "{count, plural, one {Sie fügt # neue Tabelle zu {database} hinzu. Anzeigen} other {Sie fügt # neue Tabellen zu {database} hinzu. Anzeigen}}",
+        "getting": "{addOn} wird geholt, das {app} braucht…"
       }
     },
     "installed": {

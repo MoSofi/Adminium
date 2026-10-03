@@ -145,7 +145,8 @@ export function HostedAppsPage() {
           size="lg"
         >
           <ModalHeader title={t('studio:hostedApps.install.quick.title', 'Install {app}', { app: chosen.name })} closeLabel={t('studio:hostedApps.install.cancel', 'Cancel')} />
-          <ModalBody>
+          {/* No padding under the body: the wizard's footer sticks to its end, and a gap there shows the list under it. */}
+          <ModalBody className="pb-0">
             <InstallAppWizard
               quick
               preselected={chosen}

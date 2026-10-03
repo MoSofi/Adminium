@@ -759,7 +759,9 @@
         "manyDatabases": "This server has more than one database, and the app goes into one of them. More choices opens the steps, where you choose.",
         "noDatabase": "This server has no database connected yet. More choices opens the steps, where one is chosen.",
         "reading": "Reading what it would add…",
-        "more": "More choices"
+        "more": "More choices",
+        "tables": "{count, plural, one {It adds # new table to {database}. Show it} other {It adds # new tables to {database}. Show them}}",
+        "getting": "Getting {addOn}, which {app} needs…"
       }
     },
     "installed": {

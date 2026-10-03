@@ -769,7 +769,9 @@ export default {
         "manyDatabases": "Ce serveur a plusieurs bases de données, et l’application va dans l’une d’elles. Plus de choix ouvre les étapes, où vous choisissez.",
         "noDatabase": "Ce serveur n’a pas encore de base de données connectée. Plus de choix ouvre les étapes, où l’on en choisit une.",
         "reading": "Lecture de ce qu’elle ajouterait…",
-        "more": "Plus de choix"
+        "more": "Plus de choix",
+        "tables": "{count, plural, one {Elle ajoute # nouvelle table à {database}. L’afficher} other {Elle ajoute # nouvelles tables à {database}. Les afficher}}",
+        "getting": "Obtention de {addOn}, dont {app} a besoin…"
       }
     },
     "installed": {

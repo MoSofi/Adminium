@@ -18711,6 +18711,10 @@
     "status": "mt",
     "srcHash": "b30df64744a8"
   },
+  "studio.hostedApps.install.quick.getting": {
+    "status": "mt",
+    "srcHash": "52e7144ec32e"
+  },
   "studio.hostedApps.install.quick.into": {
     "status": "mt",
     "srcHash": "a89fa5a04106"
@@ -18730,6 +18734,10 @@
   "studio.hostedApps.install.quick.reading": {
     "status": "mt",
     "srcHash": "7fa93d3614d5"
+  },
+  "studio.hostedApps.install.quick.tables": {
+    "status": "mt",
+    "srcHash": "a807f456d53b"
   },
   "studio.hostedApps.install.quick.title": {
     "status": "mt",

@@ -65,6 +65,7 @@ import {
   Spinner,
   Stepper,
   type Step,
+  cn,
 } from '@adminium/ui';
 import {
   Check,
@@ -455,6 +456,59 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
     // `preview` is a new object each render; the ref makes this run once.
   }, [quick, staged, onlyDatabase, connectionId]);
   const quickNeedsChoice = quick && onlyDatabase === '';
+  /*
+   * The one dialog: an add-on the app requires comes with it (D98). It is
+   * fetched as the app was, by the press that opened this dialog, so Install
+   * is one press; nothing is installed before that press. Once per add-on: a
+   * download that failed is said, and left to the person.
+   */
+  const fetched = useRef(new Set<string>());
+  const toFetch = !quick || step !== 'plan' || busy
+    ? undefined
+    : addOnRows.find(
+        (row) =>
+          row.need === 'requires' &&
+          row.state !== 'unavailable' &&
+          (row.action === 'install' || row.action === 'update') &&
+          !row.staged &&
+          row.offeredVersion !== null &&
+          !fetched.current.has(row.key),
+      );
+  useEffect(() => {
+    if (toFetch === undefined) return;
+    fetched.current.add(toFetch.key);
+    download.mutate(toFetch);
+    // `download` is a new object each render; the set makes this run once per add-on.
+  }, [toFetch]);
+
+  /** What comes with the app: public access, the add-ons it brings, sample data. */
+  const cardsOfPlan =
+    plan === null
+      ? null
+      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 ? (
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
+        {plan.publicAccess === undefined ? null : (
+          <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
+        )}
+        {/* An app that names no add-on has no card, and installs as before. */}
+        {addOnRows.length === 0 ? null : (
+          <AddOnsInstallCard
+            appName={appName}
+            connectionName={connectionName}
+            rows={addOnRows}
+            picks={addOnPicks}
+            onTick={(key, next) => setAddOnPicks((picks) => ({ ...picks, ticked: { ...picks.ticked, [key]: next } }))}
+            onUpdate={(key, next) => setAddOnPicks((picks) => ({ ...picks, update: { ...picks.update, [key]: next } }))}
+            catalogueOn={catalogue.data?.onlineEnabled ?? null}
+            downloading={downloading}
+            onDownload={(row) => download.mutate(row)}
+            busy={busy}
+            grants={plan.addOnGrants}
+          />
+        )}
+        {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} /> : null}
+      </div>
+    ) : null;
 
   return (
     <section className={quick ? 'flex flex-col gap-5' : 'flex min-h-full flex-col gap-6'}>
@@ -724,53 +778,68 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       {checking && !install.isPending && stopped === null && plan !== null && hasTables(plan) ? (
         <div className="flex flex-col gap-4">
           <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} />
-          <TableCheck
-            plan={plan}
-            appName={staged?.name ?? ''}
-            connectionName={connectionName}
-            open={openRows}
-            onToggle={(ref) => setOpenRows((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
-            picks={picks}
-            onPick={onPick}
-            onShare={onShare}
-            renameTo={renameTo}
-            onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
-            prefix={prefix}
-            onPrefix={setPrefix}
-            altPrefixInUse={checked.altPrefix ?? null}
-            onUsualPrefix={() => {
-              const nextPicks = Object.fromEntries(
-                Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
-              );
-              setPicks(nextPicks);
-              preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks));
-            }}
-            busy={busy}
-          />
-          {plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 ? (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
-              {plan.publicAccess === undefined ? null : (
-                <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
-              )}
-              {/* An app that names no add-on has no card, and installs as before. */}
-              {addOnRows.length === 0 ? null : (
-                <AddOnsInstallCard
-                  appName={appName}
-                  connectionName={connectionName}
-                  rows={addOnRows}
-                  picks={addOnPicks}
-                  onTick={(key, next) => setAddOnPicks((picks) => ({ ...picks, ticked: { ...picks.ticked, [key]: next } }))}
-                  onUpdate={(key, next) => setAddOnPicks((picks) => ({ ...picks, update: { ...picks.update, [key]: next } }))}
-                  catalogueOn={catalogue.data?.onlineEnabled ?? null}
-                  downloading={downloading}
-                  onDownload={(row) => download.mutate(row)}
-                  busy={busy}
-                  grants={plan.addOnGrants}
-                />
-              )}
-              {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} /> : null}
-            </div>
-          ) : null}
+          {/* The one dialog leads with what comes with the app; the tables fold while there is nothing to answer about them. */}
+          {quick ? cardsOfPlan : null}
+          {quick && plan.tables.every((table) => table.class === 'new') && !dirty ? (
+            <details data-part="quick-tables" className="rounded-lg border border-border bg-surface">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+                {t('studio:hostedApps.install.quick.tables', '{count, plural, one {It adds # new table to {database}. Show it} other {It adds # new tables to {database}. Show them}}', {
+                  count: plan.tables.length,
+                  database: connectionName,
+                })}
+              </summary>
+              <div className="border-t border-border p-4">
+              <TableCheck
+                plan={plan}
+                appName={staged?.name ?? ''}
+                connectionName={connectionName}
+                open={openRows}
+                onToggle={(ref) => setOpenRows((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
+                picks={picks}
+                onPick={onPick}
+                onShare={onShare}
+                renameTo={renameTo}
+                onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
+                prefix={prefix}
+                onPrefix={setPrefix}
+                altPrefixInUse={checked.altPrefix ?? null}
+                onUsualPrefix={() => {
+                  const nextPicks = Object.fromEntries(
+                    Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
+                  );
+                  setPicks(nextPicks);
+                  preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks));
+                }}
+                busy={busy}
+              />
+              </div>
+            </details>
+          ) : (
+            <TableCheck
+              plan={plan}
+              appName={staged?.name ?? ''}
+              connectionName={connectionName}
+              open={openRows}
+              onToggle={(ref) => setOpenRows((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
+              picks={picks}
+              onPick={onPick}
+              onShare={onShare}
+              renameTo={renameTo}
+              onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
+              prefix={prefix}
+              onPrefix={setPrefix}
+              altPrefixInUse={checked.altPrefix ?? null}
+              onUsualPrefix={() => {
+                const nextPicks = Object.fromEntries(
+                  Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
+                );
+                setPicks(nextPicks);
+                preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks));
+              }}
+              busy={busy}
+            />
+          )}
+          {quick ? null : cardsOfPlan}
         </div>
       ) : null}
 
@@ -957,7 +1026,13 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         </div>
       ) : null}
 
-      <footer className="sticky bottom-0 -mx-6 mt-auto flex items-center gap-3 border-t border-border bg-surface px-6 py-3.5">
+      <footer
+        className={cn(
+          'sticky bottom-0 mt-auto flex items-center gap-3 border-t border-border bg-surface py-3.5',
+          // In the dialog the body has no padding under it (the page gives it none), so the footer is the last thing in view.
+          quick ? '-mx-5 px-5' : '-mx-6 px-6',
+        )}
+      >
         {/*
           * G4 — the comp's footer-left is a step counter on EVERY step, and
           * this slot was blank on three of four.
@@ -972,7 +1047,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
           * from the marketplace card it was opened from, and an upload learns
           * it from the bundle's manifest once the file has gone up.
           */}
-        {checking && stopped === null && !install.isPending && plan !== null && addOnHint !== null ? (
+        {quick && downloading !== null ? (
+          <span data-part="quick-getting" role="status" className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-fg-muted">
+            <Spinner size="sm" />
+            {t('studio:hostedApps.install.quick.getting', 'Getting {addOn}, which {app} needs…', {
+              addOn: addOnRows.find((row) => row.key === downloading.key)?.name ?? downloading.key,
+              app: appName,
+            })}
+          </span>
+        ) : checking && stopped === null && !install.isPending && plan !== null && addOnHint !== null ? (
           // The add-ons' refusal wins over the table hint: it is the one that holds Install.
           <span
             data-part="add-on-hint"

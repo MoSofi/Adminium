@@ -769,7 +769,9 @@ export default {
         "manyDatabases": "此伺服器有多個資料庫，應用程式將安裝到其中之一。「更多選項」會開啟各個步驟供你選擇。",
         "noDatabase": "此伺服器尚未連接資料庫。「更多選項」會開啟各個步驟，在其中選擇一個。",
         "reading": "正在讀取它將加入的內容…",
-        "more": "更多選項"
+        "more": "更多選項",
+        "tables": "{count, plural, other {它會向 {database} 加入 # 個新資料表。顯示它們}}",
+        "getting": "正在取得 {app} 所需的 {addOn}…"
       }
     },
     "installed": {

@@ -397,6 +397,25 @@ describe('the Add-ons card', () => {
     await waitFor(() => expect(installButton().hasAttribute('disabled')).toBe(false));
   });
 
+  it('the one dialog fetches an add-on the app requires by itself, once, and Install is then one press', async () => {
+    plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }, { ...HOLIDAYS, source: 'catalog', staged: false, plan: null }]), planWith([INVOICES, HOLIDAYS])];
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <InstallAppWizard quick preselected={{ key: 'clients', version: '1.0.0', name: 'Client Portal', downloaded: true }} onClose={() => {}} onMoreChoices={() => {}} />
+      </QueryClientProvider>,
+    );
+    // Nobody pressed "Download it": the required add-on came with the app, and the check was made again.
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2));
+    const downloads = calls.filter((call) => call.url === '/api/v1/add-ons/download');
+    // The required one only: a suggestion is left for the person to tick.
+    expect(downloads.map((call) => call.body)).toEqual([{ key: 'invoices', version: '1.1.0' }]);
+    await waitFor(() => expect(installButton().hasAttribute('disabled')).toBe(false));
+    // The tables fold while there is nothing to answer about them.
+    expect(document.querySelector('[data-part="quick-tables"]')?.textContent).toContain('new table');
+    // Nothing was installed by the dialog opening.
+    expect(calls.some((call) => call.url === '/api/v1/apps/install')).toBe(false);
+  });
+
   it('holds a ticked suggestion whose own plan is refused, and lets it be unticked', async () => {
     plans = [
       planWith([
