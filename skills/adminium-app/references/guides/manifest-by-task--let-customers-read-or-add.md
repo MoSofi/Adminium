@@ -40,6 +40,8 @@ entry here is out of its reach, whatever the screens try. The app needs a custom
 
 - **Add or read, not both.** A table anyone may add a row to may not also be one anyone may read:
   every row could be read by guessing ids. Put `GET` and `POST` on different tables, as here.
+  Two entries on one table, one with `POST` and one with `GET`, are refused the same. To show a
+  person their own row, see [Let a customer find their own row](https://docs.adminium.dev/guides/apps/manifest-by-task/#let-a-customer-find-their-own-row).
 - `PATCH` is refused without a `claim`, a `claimedBy` or a `visibleWith`: nobody changes a row
   without proving it is theirs.
 - `writable` never names a column Adminium fills (a `sequence`, a `code`, a `stamp`, a total).

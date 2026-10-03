@@ -30,6 +30,7 @@ import { addSide, nameFromKey, PUBLIC_CLIENT_PACKAGE } from '../project/apps/sca
 import type { AppSide } from '../project/apps/read-app.js';
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
+import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { projectPackageManager } from '../project/package-manager.js';
@@ -574,6 +575,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             `These are the same errors as the last ${String(sameErrors)} checks: what you changed did not touch them. Do not check again yet. Read the file the error names, read the reference for that field, and write the whole file again; or ask the person.`,
           );
         }
+        // What the screens ask of Adminium that it will refuse: said here, before a person meets it on the page.
+        const calls = hasOwnBuild(deps.root, appKey) ? [] : sideCallLines(sideCallIssues(deps.root, appKey, check.manifest));
+        if (calls.length > 0) lines.push('', 'The screens build, and these calls will be refused when a person uses the page. Fix them:', ...calls);
         return {
           content: [head, ...lines].join('\n'),
           label: errors === 0 ? 'Checked: no errors' : `Checked: ${String(errors)} error${errors === 1 ? '' : 's'}`,

@@ -349,7 +349,11 @@
     "staff": "員工",
     "tablet": "平板",
     "unavailable": "無法開啟預覽：{message}",
-    "width": "寬度"
+    "width": "寬度",
+    "refusedStaff": "員工畫面請求了 Adminium 拒絕的內容。",
+    "refusedCustomer": "顧客畫面請求了 Adminium 拒絕的內容。",
+    "fixRefusedMessage": "{side} 畫面向 Adminium 請求了它拒絕的內容，因此人們會在那裡看到錯誤：{error} 請修正該畫面。",
+    "keepLooking": "繼續查看頁面"
   },
   "arch": {
     "access": "客戶存取",

@@ -349,7 +349,11 @@
     "staff": "الموظفون",
     "tablet": "الجهاز اللوحي",
     "unavailable": "تعذّر فتح المعاينة: {message}",
-    "width": "العرض"
+    "width": "العرض",
+    "refusedStaff": "طلبت شاشة الموظفين شيئًا يرفضه Adminium.",
+    "refusedCustomer": "طلبت شاشة العملاء شيئًا يرفضه Adminium.",
+    "fixRefusedMessage": "تطلب شاشة {side} من Adminium شيئًا يرفضه، فيرى الناس خطأً هناك: {error} من فضلك أصلح الشاشة.",
+    "keepLooking": "متابعة تصفّح الصفحة"
   },
   "arch": {
     "access": "وصول العملاء",

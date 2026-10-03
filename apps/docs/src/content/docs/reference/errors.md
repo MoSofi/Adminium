@@ -241,6 +241,11 @@ The reasons:
 - a malformed request: an unknown parameter, a value out of bounds, a cursor this list never gave;
 - U+0000 in a path or query parameter, which `params.parameter` names.
 
+When it is a list's own `where`, `order` or `q` that was refused, `params.parameter` names which,
+and the message says what a page does instead: read with `limit`, `offset` or `cursor` and sort or
+narrow the rows itself. The app decides what a list holds (`filters` in its public access), and a
+person reaches their own row by a [claim](/guides/apps/manifest-by-task/#let-a-customer-find-their-own-row).
+
 ### Limits reached
 
 `409` `PUBLIC_LIMIT_REACHED` carries no params. The page offers the phone instead. It is said

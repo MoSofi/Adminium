@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, reportErrorsToFrame, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
+import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, reportErrorsToFrame, reportRefusalsToFrame, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
 
 interface Call {
   url: string;
@@ -347,5 +347,42 @@ describe('a screen that stops with an error', () => {
     reportErrorsToFrame(packed.target, false);
     expect(packed.listeners.size).toBe(0);
     expect(() => reportErrorsToFrame(undefined, true)).not.toThrow();
+  });
+
+  it('tells the framing page of a call Adminium refused as wrongly asked, once, and of nothing else', async () => {
+    const posted: unknown[] = [];
+    const reply = (status: number, body: unknown): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    const answers: Record<string, Response> = {
+      '/api/v1/public/records/cakes?order=name.asc': reply(400, { error: { code: 'PUBLIC_QUERY_REFUSED', message: 'That sort is not permitted here.' } }),
+      '/api/v1/public/records/cakes': reply(200, { data: [{ id: 1, name: 'A secret row' }] }),
+      '/api/v1/public/records/orders': reply(400, { error: { code: 'PUBLIC_WRITE_REFUSED', message: 'A value is missing.' } }),
+      '/api/v1/data/main/orders?where=x': reply(400, { error: { code: 'VALIDATION_FAILED', message: '`where` does not match the filter grammar.' } }),
+      'https://elsewhere.test/x': reply(400, { error: { code: 'PUBLIC_QUERY_REFUSED', message: 'x' } }),
+    };
+    const target = {
+      fetch: (async (url: string) => (answers[url] as Response).clone()) as unknown as typeof fetch,
+      parent: { postMessage: (message: unknown) => void posted.push(message) },
+    };
+    reportRefusalsToFrame(target, true);
+    // The page's own call is answered as it was, body and all.
+    const refused = await target.fetch('/api/v1/public/records/cakes?order=name.asc');
+    expect(((await refused.json()) as { error: { code: string } }).error.code).toBe('PUBLIC_QUERY_REFUSED');
+    await target.fetch('/api/v1/public/records/cakes?order=name.asc');
+    await target.fetch('/api/v1/public/records/cakes');
+    // A person's own mistake in a form is theirs to see, not a fault of the screen.
+    await target.fetch('/api/v1/public/records/orders', { method: 'POST' });
+    await target.fetch('/api/v1/data/main/orders?where=x');
+    await target.fetch('https://elsewhere.test/x');
+    expect(posted).toEqual([
+      { type: 'adminium:side-error', refused: true, app: '', side: 'staff', message: 'PUBLIC_QUERY_REFUSED on /api/v1/public/records/cakes: That sort is not permitted here.' },
+      { type: 'adminium:side-error', refused: true, app: '', side: 'staff', message: 'VALIDATION_FAILED on /api/v1/data/main/orders: `where` does not match the filter grammar.' },
+    ]);
+    expect(JSON.stringify(posted)).not.toContain('A secret row');
+
+    // A packed app never looks.
+    const packed = { fetch: (async () => reply(400, {})) as unknown as typeof fetch, parent: { postMessage: () => void posted.push('x') } };
+    const before = packed.fetch;
+    reportRefusalsToFrame(packed, false);
+    expect(packed.fetch).toBe(before);
   });
 });

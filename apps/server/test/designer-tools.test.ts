@@ -266,6 +266,33 @@ describe('the Designer’s tools', () => {
     expect(fixed.isError).toBeUndefined();
   });
 
+  it('refuse an app that lets anyone add to a table and anyone read it, written as two entries, and name a call the page makes that will be refused', async () => {
+    answers.push({ type: 'question', text: 'clean' }, { type: 'package', accept: false });
+    await run('add_side', { side: 'customer' });
+    writeFileSync(
+      join(root, 'apps/repairs/manifest/access.json'),
+      JSON.stringify({
+        publicAccess: [
+          { table: 'requests', methods: ['POST'], select: ['id'], writable: ['message'] },
+          { table: 'requests', methods: ['GET'], select: ['id', 'message'] },
+        ],
+      }),
+    );
+    const refused = await run('check_app');
+    expect(refused.isError).toBe(true);
+    expect(refused.content).toContain('"requests" lets anyone add a row (another entry grants POST), so it may not also let anyone read its rows');
+    expect(refused.content).toContain('"claim": { "match"');
+
+    // Granted properly, and the page still sorts the list from the browser: the check passes, and says what a person will meet.
+    writeFileSync(join(root, 'apps/repairs/manifest/access.json'), JSON.stringify({ publicAccess: [{ table: 'items', methods: ['GET'], select: ['id', 'title', 'status'] }] }));
+    const file = join(root, 'apps/repairs/customer/src/App.tsx');
+    writeFileSync(file, readFileSync(file, 'utf8').replace('client.list(items, { limit: 50 })', "client.list(items, { limit: 50, order: 'id.desc' })"));
+    const told = await run('check_app');
+    expect(told.isError).toBeUndefined();
+    expect(told.content).toContain('these calls will be refused when a person uses the page');
+    expect(told.content).toContain('apps/repairs/customer/src/App.tsx asks the public API for a list with "order"');
+  });
+
   it('say a package already in the project is there, with no card', async () => {
     writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'x', dependencies: { react: '19.2.0' } }));
     expect(await run('request_package', { name: 'react', version: '19.2.0', why: 'screens' })).toMatchObject({ label: 'react is already there' });

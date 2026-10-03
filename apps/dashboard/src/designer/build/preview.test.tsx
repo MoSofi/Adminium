@@ -241,4 +241,27 @@ describe('the preview', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ask the Designer to fix it' }));
     expect(onFix).toHaveBeenCalledWith('The screen builds, and stops with an error when it opens: the staff screen reported “Rendered more hooks than during the previous render.” Please fix it.');
   });
+
+  it('shows a call the screen made that Adminium refused, asks for the fix, and lets the page be looked at', async () => {
+    const { onFix } = mount([turn({})]);
+    await screen.findByRole('button', { name: 'Staff' });
+    await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: 'http://localhost:4731',
+          data: { type: 'adminium:side-error', refused: true, app: SESSION.appKey, side: 'staff', message: 'VALIDATION_FAILED on /api/v1/data/main/orders: `where` does not match the filter grammar.' },
+          source: document.querySelector('iframe')?.contentWindow ?? null,
+        }),
+      );
+    });
+    const card = await screen.findByRole('alert');
+    expect(card.textContent).toContain('The staff screen asked for something Adminium refuses.');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask the Designer to fix it' }));
+    expect(onFix).toHaveBeenCalledWith(
+      'The staff screen asks Adminium for something it refuses, so people see an error there: VALIDATION_FAILED on /api/v1/data/main/orders: `where` does not match the filter grammar. Please fix the screen.',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Keep looking at the page' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

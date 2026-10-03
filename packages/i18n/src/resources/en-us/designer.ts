@@ -359,7 +359,11 @@ export default {
     "staff": "Staff",
     "tablet": "Tablet",
     "unavailable": "The preview could not be opened: {message}",
-    "width": "Width"
+    "width": "Width",
+    "refusedStaff": "The staff screen asked for something Adminium refuses.",
+    "refusedCustomer": "The customer screen asked for something Adminium refuses.",
+    "fixRefusedMessage": "The {side} screen asks Adminium for something it refuses, so people see an error there: {error} Please fix the screen.",
+    "keepLooking": "Keep looking at the page"
   },
   "arch": {
     "access": "Customer access",

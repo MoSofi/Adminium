@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createPrompt, MENTIONS_SCREENS, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { createPrompt, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -51,6 +51,28 @@ describe('what the Designer’s model is told', () => {
     expect(MENTIONS_SCREENS.test('Customers need a public page where they can see our cake menu')).toBe(true);
     expect(MENTIONS_SCREENS.test('I track customers, their bikes and repair jobs')).toBe(false);
     expect(skillsFor(session(), { hasSides: true, mentionsAddOn: true })).toEqual(expect.arrayContaining(['adminium-surface/SKILL.md', 'adminium-add-ons/SKILL.md']));
+  });
+
+  it('puts the tested recipe in front of the model when the last request is about a person’s own row, and only then', async () => {
+    for (const asked of [
+      'Add a page where a customer can track their order: they enter the email they ordered with.',
+      'Customers should be able to check the status of their booking.',
+      'Let people look up their own ticket.',
+      'an order tracking page',
+    ]) {
+      expect(MENTIONS_OWN_ROW.test(asked), asked).toBe(true);
+    }
+    for (const asked of ['A bakery takes cake orders. Staff need a screen to see the orders.', 'I track customers, their bikes and repair jobs', 'Make the page darker.']) {
+      expect(MENTIONS_OWN_ROW.test(asked), asked).toBe(false);
+    }
+    const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'openai-compatible' });
+    const about = await prompt(session({ target: 'web' }), [say('user', 'A bakery.'), say('assistant', 'Built.'), say('user', 'Add a page where a customer can track their order.')]);
+    expect(about.system).toContain(`===== ${OWN_ROW_GUIDE} =====`);
+    expect(about.system).toContain('"claim": { "match": ["code", "customer_email"] }');
+    expect(about.system).toContain('`${orders}_claimed`');
+    // The next turn is about something else: the page is not carried again.
+    const after = await prompt(session({ target: 'web' }), [say('user', 'Add a page where a customer can track their order.'), say('assistant', 'Done.'), say('user', 'Make the buttons bigger.')]);
+    expect(after.system).not.toContain(OWN_ROW_GUIDE.concat(' ====='));
   });
 
   it('fits the smallest window with every skill a request can pull in, and leaves room to talk', async () => {

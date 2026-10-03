@@ -9195,6 +9195,14 @@
     "status": "mt",
     "srcHash": "29b6149c2496"
   },
+  "designer.preview.fixRefusedMessage": {
+    "status": "mt",
+    "srcHash": "09f0136a4dc9"
+  },
+  "designer.preview.keepLooking": {
+    "status": "mt",
+    "srcHash": "66a75711c7c3"
+  },
   "designer.preview.loading": {
     "status": "mt",
     "srcHash": "db093d7a6f00"
@@ -9214,6 +9222,14 @@
   "designer.preview.phone": {
     "status": "mt",
     "srcHash": "77064d526523"
+  },
+  "designer.preview.refusedCustomer": {
+    "status": "mt",
+    "srcHash": "e9a71f895336"
+  },
+  "designer.preview.refusedStaff": {
+    "status": "mt",
+    "srcHash": "80305976f71d"
   },
   "designer.preview.reload": {
     "status": "mt",

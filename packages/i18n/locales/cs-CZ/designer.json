@@ -349,7 +349,11 @@
     "staff": "Personál",
     "tablet": "Tablet",
     "unavailable": "Náhled se nepodařilo otevřít: {message}",
-    "width": "Šířka"
+    "width": "Šířka",
+    "refusedStaff": "Obrazovka pro personál žádala o něco, co Adminium odmítá.",
+    "refusedCustomer": "Obrazovka pro zákazníky žádala o něco, co Adminium odmítá.",
+    "fixRefusedMessage": "Obrazovka {side} žádá Adminium o něco, co odmítá, takže lidé tam vidí chybu: {error} Opravte prosím obrazovku.",
+    "keepLooking": "Dál si stránku prohlížet"
   },
   "arch": {
     "access": "Přístup zákazníků",

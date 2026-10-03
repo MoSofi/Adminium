@@ -58,3 +58,9 @@ started on it warns the same way.
 `adminium dev` switches the public API on by itself for an app that declares public access, and
 records it in the audit log. It listens on every address of the machine unless told otherwise, so on
 a shared network start it with `--host 127.0.0.1`; the terminal says so when it applies.
+
+While you work on the folder (`adminium dev`, Adminium Designer on your machine), a change to
+`access.json` takes effect when the app is applied: an entry may show one more column, or be reached
+by a claim instead of by anyone. A server (`adminium start`) keeps what its key was allowed, as it
+does for an update of a published app: an entry that would show more is left as it was, and the
+start log says which and why.

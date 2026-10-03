@@ -85,6 +85,13 @@ pages and the role's grants. It is kept on course in four ways:
 - Sample rows written after the app was first applied are added when it first names them.
 - If the Designer stops with errors left in the check, it is told them and goes on.
 - If it finishes with a table nobody can open (no page, or no grant), it is told once.
+- Its screens' calls are read before you meet them: a customer page that asks the public API to
+  sort or filter a list, names a table by its short name, or reads a person's own row without
+  claiming it, is told so and fixed. If such a call still gets through, the preview shows the
+  refusal with **Ask the Designer to fix it**.
+- An app may not let anyone add to a table and anyone read it. A page where a customer finds their
+  own row ("track my order") is built with a claim: see
+  [Let a customer find their own row](/guides/apps/manifest-by-task/#let-a-customer-find-their-own-row).
 - If the model's server fails in passing (a 5xx, a 429, a dropped connection), it is asked again.
 
 ### Building on an add-on

@@ -51,6 +51,8 @@ How it works:
 - A screen needs react and react-dom in the project, and a customer screen needs @adminiumjs/public-client. When the build says one cannot be found, ask for it with request_package, all of them in one reply. The server fills in the right version for these three: do not guess one, and never ask the person which version.
 - Keep the app's key as it is. Never put a build command in app.json.
 - To build on an add-on (invoices, quotes, receipts), call list_add_ons, then build_on_shape: it writes the shape's tables, emails and requirement exactly. Never write a shape's tables or columns by hand. Write the app's own tables first (the people the emails go to), then the pages and grants.
+- A person seeing their own row with no sign-in ("track my order", "my booking") is done with a claim, never by letting everyone read the table (the check refuses that, and it would publish every customer's details). Read adminium-app/references/guides/manifest-by-task--let-a-customer-find-their-own-row.md first and follow it exactly: a code column, a claim entry, client.claim(…), then the list of the "_claimed" endpoint.
+- A public list takes only limit, offset and cursor from a page: never pass where, order or q to client.list on a customer screen. Sort and narrow in the page.
 - Every table a person works with gets a dashboard page of its own, and the role gets each table's grants and each page's page:@<ref>:view grant.
 - The person sees the app in the preview beside this chat, and the server applies it for them. Never tell them to run a command or open a file.
 - Work in few steps. Put every tool call that does not wait on another into ONE reply: all the table files at once, then all the pages and the roles at once. Do not read a file you have just written.
@@ -76,6 +78,12 @@ const skill = (skills: Skills, name: string): string => {
 
 /** Words that say the person wants screens of the app's own, not dashboard pages alone. */
 export const MENTIONS_SCREENS = /\b(screens?|public (page|site|form)|customers? (can|need|see|should|page|side)|staff (screen|side|app)|portal|website|storefront|booking page|order online|kiosk|tablet|phone)\b/i;
+
+/** Words that say a person is to see their own row without signing in: an order tracked, a booking looked up. */
+export const MENTIONS_OWN_ROW =
+  /\b(track(s|ing)?|look(s|ing)? up|find(s|ing)?|check(s|ing)?|see(s|ing)?|view(s|ing)?|status of|cancel(s|ling)?|manage)\b[^.?!\n]{0,60}\b(their|his|her|my|own|your)\b[^.?!\n]{0,30}\b(orders?|bookings?|reservations?|appointments?|tickets?|requests?|rows?|status)\b|\b(order|booking|reservation|ticket) (status|tracking|lookup)\b|\btrack(ing)? (an? |the )?(order|booking|parcel|request)/i;
+/** The tested recipe for it, put in front of the model whole: left to find it, a model guessed, and published every order. */
+export const OWN_ROW_GUIDE = 'adminium-app/references/guides/manifest-by-task--let-a-customer-find-their-own-row.md';
 
 /** The skills a request needs: always the entry and the app skill; screens and add-ons when they are in play. */
 export function skillsFor(session: DesignerSession, opts: { hasSides: boolean; mentionsAddOn: boolean; mentionsScreens?: boolean }): string[] {
@@ -255,7 +263,10 @@ export function createPrompt(deps: PromptDeps) {
         : session.target === 'web'
           ? 'The person asked for screens on the web: a staff side, a customer side, or both, as the request needs.'
           : 'The person left the kind of app to you: pick the lowest rung that answers the request.';
-    const system = `${PREAMBLE}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
+    // What the person last asked for decides: the recipe is a page of text, and only a turn about it carries it.
+    const lastSaid = [...messages].reverse().find((message) => message.role === 'user' && message.content.some((block) => block.type === 'text') && !message.content.some((block) => block.type === 'tool_result'));
+    const ownRow = MENTIONS_OWN_ROW.test(firstText(lastSaid)) ? skill(deps.skills, OWN_ROW_GUIDE) : '';
+    const system = `${PREAMBLE}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 
     // The limit is what a request may carry; the reply has its own room beyond it.
     const limit = ASSISTANT_INPUT_TOKEN_LIMIT[provider];

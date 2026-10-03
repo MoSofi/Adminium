@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/undo-a-status-move--columns-the-move-back-empties.md` | Columns the move back empties | 1875 |
 | `references/guides/undo-a-status-move--an-email-that-waits.md` | An email that waits | 1627 |
 | `references/guides/undo-a-status-move--the-undo-button.md` | The Undo button | 1926 |
 | `references/guides/undo-a-status-move--doors-that-never-make-an-undo.md` | Doors that never make an undo | 1099 |

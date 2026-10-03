@@ -349,7 +349,11 @@
     "staff": "Mitarbeiter",
     "tablet": "Tablet",
     "unavailable": "Die Vorschau konnte nicht geöffnet werden: {message}",
-    "width": "Breite"
+    "width": "Breite",
+    "refusedStaff": "Der Mitarbeiterbildschirm hat etwas angefragt, das Adminium ablehnt.",
+    "refusedCustomer": "Der Kundenbildschirm hat etwas angefragt, das Adminium ablehnt.",
+    "fixRefusedMessage": "Der Bildschirm {side} fragt Adminium nach etwas, das es ablehnt, sodass Menschen dort einen Fehler sehen: {error} Bitte korrigiere den Bildschirm.",
+    "keepLooking": "Seite weiter ansehen"
   },
   "arch": {
     "access": "Kundenzugriff",

@@ -161,6 +161,53 @@ function framed(): Window | undefined {
 reportErrorsToFrame();
 
 /**
+ * A call the screen made that Adminium refused as wrongly asked, said to the
+ * page that frames it.
+ *
+ * A page that sorts a public list from the browser, or filters it, builds and
+ * opens; every visitor is then told "That did not work" and nobody who could
+ * fix it hears of it. In a bundle `adminium dev` built, and only inside a
+ * frame, a reply that refuses the REQUEST ITSELF (`PUBLIC_QUERY_REFUSED`, or a
+ * staff read's 400) is posted to the framing page, which is the Designer's
+ * preview: the refusal's own sentence and the address asked, nothing of the
+ * rows, the key or the session. A packed app never looks (`DEV` is false).
+ */
+export function reportRefusalsToFrame(
+  target: { fetch: typeof fetch; parent: { postMessage(message: unknown, origin: string): void } } | undefined = framed() as never,
+  dev: boolean = DEV,
+): void {
+  if (!dev || target === undefined || typeof target.fetch !== 'function') return;
+  const original = target.fetch.bind(target);
+  const said = new Set<string>();
+  target.fetch = (async (...args: Parameters<typeof fetch>): Promise<Response> => {
+    const response = await original(...args);
+    try {
+      if (response.status === 400) {
+        const first = args[0];
+        const url = typeof first === 'string' ? first : first instanceof URL ? first.href : first.url;
+        const path = (/\/api\/v1\/(public\/records|data)\/[^?#]*/.exec(url)?.[0] ?? '').slice(0, 200);
+        if (path !== '') {
+          const body = (await response.clone().json().catch(() => null)) as { error?: { code?: unknown; message?: unknown } } | null;
+          const code = typeof body?.error?.code === 'string' ? body.error.code : '';
+          const message = typeof body?.error?.message === 'string' ? body.error.message : '';
+          // The request was wrong, not the person's input: a refused query on the public API, a refused read by staff.
+          const wrongly = code === 'PUBLIC_QUERY_REFUSED' || (path.startsWith('/api/v1/data/') && (args[1]?.method ?? 'GET').toUpperCase() === 'GET');
+          if (wrongly && !said.has(`${code} ${path}`)) {
+            said.add(`${code} ${path}`);
+            target.parent.postMessage({ type: 'adminium:side-error', refused: true, app: APP_KEY, side: SIDE, message: `${code === '' ? 'Refused' : code} on ${path}: ${message}`.slice(0, 600) }, '*');
+          }
+        }
+      }
+    } catch {
+      // Reporting never breaks the page's own call.
+    }
+    return response;
+  }) as typeof fetch;
+}
+
+reportRefusalsToFrame();
+
+/**
  * Under `adminium dev`: call `listener` when the app was applied again or its
  * screens were rebuilt. With no listener the page reloads, which is what a
  * screen wants while its code is being written.

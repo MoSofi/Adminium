@@ -359,7 +359,11 @@ export default {
     "staff": "Medarbejdere",
     "tablet": "Tablet",
     "unavailable": "Forhåndsvisningen kunne ikke åbnes: {message}",
-    "width": "Bredde"
+    "width": "Bredde",
+    "refusedStaff": "Personaleskærmen bad om noget, Adminium afviser.",
+    "refusedCustomer": "Kundeskærmen bad om noget, Adminium afviser.",
+    "fixRefusedMessage": "Skærmen {side} beder Adminium om noget, den afviser, så folk ser en fejl der: {error} Ret venligst skærmen.",
+    "keepLooking": "Bliv ved med at se på siden"
   },
   "arch": {
     "access": "Kundeadgang",

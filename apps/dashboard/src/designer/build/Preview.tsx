@@ -70,6 +70,12 @@ function crashedTitle(side: PreviewSide): string {
     : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
 }
 
+function refusedTitle(side: PreviewSide): string {
+  return side === 'staff'
+    ? t('designer:preview.refusedStaff', 'The staff screen asked for something Adminium refuses.')
+    : t('designer:preview.refusedCustomer', 'The customer screen asked for something Adminium refuses.');
+}
+
 /** The side a build's own words name ("Could not build the customer side of …"), whichever one is being looked at. */
 export function sideNamed(problem: string): PreviewSide | null {
   const found = /\bthe (staff|customer) side\b/.exec(problem);
@@ -139,17 +145,18 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
 
   const built = previewState(turns);
   // A screen that built and then stopped as it opened says so from inside its frame (dev bundles only).
-  const [crashed, setCrashed] = useState<{ side: PreviewSide; message: string; round: number } | null>(null);
+  /** `refused`: the screen goes on working, and a call it made was refused as wrongly asked. */
+  const [crashed, setCrashed] = useState<{ side: PreviewSide; message: string; round: number; refused: boolean } | null>(null);
   const previewOrigin = ticket.data?.origin ?? null;
   useEffect(() => {
     const heard = (event: MessageEvent): void => {
       if (previewOrigin === null || event.origin !== previewOrigin) return;
       // From a frame of this page, not from any window that happens to share the preview's address.
       if (!Array.from(document.querySelectorAll('iframe')).some((frame) => frame.contentWindow === event.source)) return;
-      const data = event.data as { type?: unknown; app?: unknown; side?: unknown; message?: unknown } | null;
+      const data = event.data as { type?: unknown; app?: unknown; side?: unknown; message?: unknown; refused?: unknown } | null;
       if (data?.type !== 'adminium:side-error' || data.app !== session.appKey) return;
       if (data.side !== 'staff' && data.side !== 'customer') return;
-      setCrashed({ side: data.side, message: typeof data.message === 'string' ? data.message.slice(0, 400) : '', round });
+      setCrashed({ side: data.side, message: typeof data.message === 'string' ? data.message.slice(0, 600) : '', round, refused: data.refused === true });
     };
     window.addEventListener('message', heard);
     return () => window.removeEventListener('message', heard);
@@ -301,7 +308,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
                 <span aria-hidden="true" className="flex size-[34px] items-center justify-center rounded-[10px] bg-danger-soft text-danger">
                   <Hammer className="size-[17px]" />
                 </span>
-                <span className="text-[15px] font-extrabold tracking-tight">{built.failed === null && crash !== null ? crashedTitle(crash.side) : failedTitle(sideNamed(state.failed) ?? side)}</span>
+                <span className="text-[15px] font-extrabold tracking-tight">{built.failed === null && crash !== null ? (crash.refused ? refusedTitle(crash.side) : crashedTitle(crash.side)) : failedTitle(sideNamed(state.failed) ?? side)}</span>
               </div>
               {state.failed === '' ? null : (
                 <code dir="ltr" className="adm-always-dark block whitespace-pre-wrap break-words rounded-[10px] bg-bg px-3 py-2.5 text-start font-mono text-xs leading-normal text-danger">
@@ -312,7 +319,9 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
                 type="button"
                 onClick={() =>
                   onFix(
-                    built.failed === null && crash !== null
+                    built.failed === null && crash !== null && crash.refused
+                      ? t('designer:preview.fixRefusedMessage', 'The {side} screen asks Adminium for something it refuses, so people see an error there: {error} Please fix the screen.', { side: crash.side, error: crash.message })
+                      : built.failed === null && crash !== null
                       ? t('designer:preview.fixCrashMessage', 'The screen builds, and stops with an error when it opens: {error} Please fix it.', { error: `the ${crash.side} screen reported “${crash.message}”` })
                       : t('designer:preview.fixMessage', 'The screens did not build: {error} Please fix it.', { error: state.failed ?? '' }),
                   )
@@ -322,6 +331,11 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
                 <WandSparkles aria-hidden="true" className="size-3.5" />
                 {t('designer:preview.fix', 'Ask the Designer to fix it')}
               </button>
+              {built.failed === null && crash !== null && crash.refused ? (
+                <button type="button" onClick={() => setCrashed(null)} className="self-start text-[12.5px] font-bold text-accent hover:underline">
+                  {t('designer:preview.keepLooking', 'Keep looking at the page')}
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

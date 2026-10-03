@@ -21,6 +21,7 @@ import { checkApp } from '../project/apps/check-app.js';
 import { applyLook, cleanLook, readLook, sidesWithScreens, type Look, type LookDirection } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
+import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { appKeyProblem, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { findProject } from '../project/locate.js';
@@ -230,6 +231,8 @@ export function createDesigner(host: DesignerHost): Designer {
 
   /** What the last install or apply of each app said about its pages. */
   const pageWarnings = new Map<string, string[]>();
+  /** Public access the last apply left as it was: the screens are refused what the manifest grants until it is settled. */
+  const accessWarnings = new Map<string, string[]>();
 
   async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
@@ -277,7 +280,10 @@ export function createDesigner(host: DesignerHost): Designer {
     }
 
     // An apply that changes nothing says nothing about its pages: what the last real one said still holds.
-    if (result?.state === 'installed' || result?.state === 'applied') pageWarnings.set(key, result.pageWarnings ?? []);
+    if (result?.state === 'installed' || result?.state === 'applied') {
+      pageWarnings.set(key, result.pageWarnings ?? []);
+      accessWarnings.set(key, result.accessWarnings ?? []);
+    }
     const kept = pageWarnings.get(key) ?? [];
     const warnings = kept.length === 0 ? {} : { warnings: kept };
     followName(session);
@@ -305,6 +311,7 @@ export function createDesigner(host: DesignerHost): Designer {
         .map((finding) => `- ${finding.file} · ${finding.path} · ${finding.message}`),
       // A page the server wrote with nothing in it is as unfinished as an error.
       ...(pageWarnings.get(session.appKey) ?? []).map((warning) => `- ${warning} (the page was made empty: fix it or make it a "page-crud")`),
+      ...(accessWarnings.get(session.appKey) ?? []).map((warning) => `- ${warning} The customer screen is refused what access.json now grants there: change the entry so the server takes it, or tell the person what is left for them.`),
     ],
     advice: (session) => {
       const manifest = checkApp(host.root, session.appKey, { version: host.version }).manifest;
@@ -317,7 +324,14 @@ export function createDesigner(host: DesignerHost): Designer {
         session.createdApp && session.titled !== true && session.version === null && named === session.title && named.trim().split(/\s+/).length > 3
           ? [`- The app is still named after the request ("${named}"), and that is what its pages show as the business's name: set "name" in manifest/app.json to what the business would call it, two or three words.`]
           : [];
-      return [...unopenedTables(manifest), ...placeholderScreens(host.root, session.appKey, tables), ...(session.version === null ? emptyFirstPreview(manifest) : []), ...unnamed];
+      return [
+        ...unopenedTables(manifest),
+        ...placeholderScreens(host.root, session.appKey, tables),
+        // A call the page makes that Adminium refuses: the person would meet it as "That did not work".
+        ...sideCallLines(sideCallIssues(host.root, session.appKey, manifest)),
+        ...(session.version === null ? emptyFirstPreview(manifest) : []),
+        ...unnamed,
+      ];
     },
     limits: () => host.limits(),
     publish: (event) => {

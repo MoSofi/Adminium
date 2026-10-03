@@ -12,7 +12,7 @@
 | `references/errors/public-api-codes--too-early-and-too-late.md` | Public API codes — Too early and too late | 1481 |
 | `references/errors/public-api-codes--price-changed.md` | Public API codes — Price changed | 926 |
 | `references/errors/public-api-codes--a-refused-write.md` | Public API codes — A refused write | 3230 |
-| `references/errors/public-api-codes--a-refused-query.md` | Public API codes — A refused query | 1285 |
+| `references/errors/public-api-codes--a-refused-query.md` | Public API codes — A refused query | 1715 |
 | `references/errors/public-api-codes--limits-reached.md` | Public API codes — Limits reached | 1121 |
 | `references/errors/public-api-codes--switched-off.md` | Public API codes — Switched off | 445 |
 | `references/errors/public-api-codes--no-email-can-go.md` | Public API codes — No email can go | 488 |

@@ -359,7 +359,11 @@ export default {
     "staff": "员工",
     "tablet": "平板",
     "unavailable": "无法打开预览：{message}",
-    "width": "宽度"
+    "width": "宽度",
+    "refusedStaff": "员工界面请求了 Adminium 拒绝的内容。",
+    "refusedCustomer": "客户界面请求了 Adminium 拒绝的内容。",
+    "fixRefusedMessage": "{side} 界面向 Adminium 请求了它拒绝的内容，因此人们会在那里看到错误：{error} 请修复该界面。",
+    "keepLooking": "继续查看页面"
   },
   "arch": {
     "access": "客户访问",

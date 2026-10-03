@@ -349,7 +349,11 @@
     "staff": "Équipe",
     "tablet": "Tablette",
     "unavailable": "L’aperçu n’a pas pu être ouvert : {message}",
-    "width": "Largeur"
+    "width": "Largeur",
+    "refusedStaff": "L’écran du personnel a demandé quelque chose qu’Adminium refuse.",
+    "refusedCustomer": "L’écran client a demandé quelque chose qu’Adminium refuse.",
+    "fixRefusedMessage": "L’écran {side} demande à Adminium quelque chose qu’il refuse, et les gens y voient donc une erreur : {error} Merci de corriger l’écran.",
+    "keepLooking": "Continuer à regarder la page"
   },
   "arch": {
     "access": "Accès client",
