@@ -24,7 +24,7 @@ import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
 import { resyncOverrides } from '../i18n/setup.js';
 import { t } from '../i18n/t.js';
-import { DesktopUpdateToaster } from '../desktop/updates.js';
+import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { PageActionsProvider } from './PageActionsProvider.js';
@@ -55,6 +55,9 @@ const SidebarDrawer = lazy(async () => ({
   default: (await import('./SidebarDrawer.js')).SidebarDrawer,
 }));
 import { Topbar } from './Topbar.js';
+
+/** Desktop only: the update toaster's module is loaded only where the desktop bridge is. */
+const DesktopUpdateToaster = lazy(async () => ({ default: (await import('../desktop/updates.js')).DesktopUpdateToaster }));
 
 export function AppShell() {
   const queryClient = useQueryClient();
@@ -349,7 +352,11 @@ export function AppShell() {
           desktop-only, guarded no-op elsewhere. Without a subscriber here the
           main process's broadcast update events fall off the end (green-but-
           broken); with it, a new version is heard app-wide, not only on /about. */}
-      <DesktopUpdateToaster />
+      {getDesktopApi() === null ? null : (
+        <Suspense fallback={null}>
+          <DesktopUpdateToaster />
+        </Suspense>
+      )}
     </div>
     </AppToastProvider>
   );

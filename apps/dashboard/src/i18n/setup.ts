@@ -25,9 +25,18 @@ import {
 import { STORAGE_KEYS } from '@adminium/tokens';
 import { subscribeTheme } from '@adminium/ui';
 
-import { pushDesktopMenuLabels } from '../desktop/menuLabels.js';
+import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { cachedOverrides } from './overrideCache.js';
 import { getI18nInstance, setI18nInstance } from './t.js';
+
+/**
+ * The desktop menu bar in the current language. Its module is loaded only
+ * where the desktop bridge is: a browser never downloads it.
+ */
+function pushDesktopMenuLabels(): void {
+  if (getDesktopApi() === null) return;
+  void import('../desktop/menuLabels.js').then((module) => module.pushDesktopMenuLabels());
+}
 
 /** The locale the pre-hydration script painted with (localStorage cache). */
 function cachedLocale(): LocaleId {
