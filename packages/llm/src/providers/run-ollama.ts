@@ -49,7 +49,8 @@ export function ollamaMessages(system: string, messages: readonly RunMessage[]):
       const name = names.get(block.callId);
       out.push({ role: 'tool', content: block.content, ...(name === undefined ? {} : { tool_name: name }) });
     }
-    if (text.length > 0) out.push({ role: 'user', content: text });
+    const images = message.content.flatMap((block) => (block.type === 'image' && block.data.length > 0 ? [block.data] : []));
+    if (text.length > 0 || images.length > 0) out.push({ role: 'user', content: text, ...(images.length > 0 ? { images } : {}) });
   }
   return out;
 }

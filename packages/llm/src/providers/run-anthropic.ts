@@ -29,9 +29,11 @@ const DEFAULT_BASE_URL = 'https://api.anthropic.com';
 export function anthropicMessages(messages: readonly RunMessage[]): { role: string; content: unknown[] }[] {
   return messages.map((message) => ({
     role: message.role,
-    content: message.content.map((block) => {
+    // A picture with no bytes (kept elsewhere, not filled in) is not sent.
+    content: message.content.filter((block) => block.type !== 'image' || block.data.length > 0).map((block) => {
       if (block.type === 'text') return { type: 'text', text: block.text };
       if (block.type === 'tool_call') return { type: 'tool_use', id: block.id, name: block.name, input: block.input };
+      if (block.type === 'image') return { type: 'image', source: { type: 'base64', media_type: block.mediaType, data: block.data } };
       return {
         type: 'tool_result',
         tool_use_id: block.callId,

@@ -68,7 +68,12 @@ export function openAiMessages(system: string, messages: readonly RunMessage[]):
     for (const block of message.content) {
       if (block.type === 'tool_result') out.push({ role: 'tool', tool_call_id: block.callId, content: block.content });
     }
-    if (text.length > 0) out.push({ role: 'user', content: text });
+    // Pictures make the message a list of parts; without one it stays the plain string every compatible server reads.
+    const images = message.content.flatMap((block) =>
+      block.type === 'image' && block.data.length > 0 ? [{ type: 'image_url', image_url: { url: `data:${block.mediaType};base64,${block.data}` } }] : [],
+    );
+    if (images.length > 0) out.push({ role: 'user', content: [...(text.length > 0 ? [{ type: 'text', text }] : []), ...images] });
+    else if (text.length > 0) out.push({ role: 'user', content: text });
   }
   return out;
 }

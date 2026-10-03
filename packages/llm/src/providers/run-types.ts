@@ -19,7 +19,14 @@ export type RunBlock =
   /** The model asks for a tool. Only ever in an assistant message. */
   | { type: 'tool_call'; id: string; name: string; input: Record<string, unknown> }
   /** What the tool answered. Only ever in a user message, after the call it answers. */
-  | { type: 'tool_result'; callId: string; content: string; isError?: boolean };
+  | { type: 'tool_result'; callId: string; content: string; isError?: boolean }
+  /**
+   * A picture the person attached. Only ever in a user message. `data` is
+   * base64. A caller that keeps pictures elsewhere stores the block with
+   * `data` empty and a `ref` of its own, and fills `data` before a run: a
+   * block whose `data` is empty is not sent.
+   */
+  | { type: 'image'; mediaType: string; data: string; ref?: string; name?: string };
 
 export interface RunMessage {
   role: 'user' | 'assistant';

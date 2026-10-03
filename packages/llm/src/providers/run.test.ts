@@ -15,7 +15,10 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { canBuild, createProviderRunner } from './run-factory.js';
+import { anthropicMessages } from './run-anthropic.js';
+import { canBuild, createProviderRunner, PROBE_PICTURE, readsImages } from './run-factory.js';
+import { ollamaMessages } from './run-ollama.js';
+import { openAiMessages } from './run-openai.js';
 import { streamRequest } from './run-http.js';
 import type { ProviderRunner, RunEvent, RunMessage, RunRequest, RunResult, RunTool } from './run-types.js';
 import { ProviderError, type ProviderConfig } from './types.js';
@@ -253,6 +256,66 @@ describe('the streamed request', () => {
 });
 
 // ── Anthropic ────────────────────────────────────────────────────────────────
+
+// ── Pictures ─────────────────────────────────────────────────────────────────
+
+describe('a picture in a message', () => {
+  const PIXEL = 'iVBORw0KGgo=';
+  const withPicture: RunMessage[] = [
+    { role: 'user', content: [{ type: 'text', text: 'Make it look like this.' }, { type: 'image', mediaType: 'image/png', data: PIXEL, ref: 'att_1', name: 'shot.png' }] },
+  ];
+  const kept: RunMessage[] = [{ role: 'user', content: [{ type: 'text', text: 'Like this.' }, { type: 'image', mediaType: 'image/png', data: '', ref: 'att_1' }] }];
+
+  it('Anthropic: a base64 image block, and nothing of our own bookkeeping', () => {
+    expect(anthropicMessages(withPicture)).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'Make it look like this.' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PIXEL } }] },
+    ]);
+    expect(anthropicMessages(kept)).toEqual([{ role: 'user', content: [{ type: 'text', text: 'Like this.' }] }]);
+  });
+
+  it('OpenAI and compatible: the message becomes parts, with the picture as a data URL', () => {
+    expect(openAiMessages('', withPicture)).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'Make it look like this.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PIXEL}` } }] },
+    ]);
+    // No bytes, no parts: the plain string every compatible server reads.
+    expect(openAiMessages('', kept)).toEqual([{ role: 'user', content: 'Like this.' }]);
+  });
+
+  it('Ollama: the bytes beside the words', () => {
+    expect(ollamaMessages('', withPicture)).toEqual([{ role: 'user', content: 'Make it look like this.', images: [PIXEL] }]);
+    expect(ollamaMessages('', kept)).toEqual([{ role: 'user', content: 'Like this.' }]);
+    expect(ollamaMessages('', [{ role: 'user', content: [{ type: 'image', mediaType: 'image/png', data: PIXEL }] }])).toEqual([{ role: 'user', content: '', images: [PIXEL] }]);
+  });
+});
+
+describe('whether a model reads pictures', () => {
+  const answering = (reply: string | Error): ProviderRunner => ({
+    id: 'ollama',
+    run: async (req) => {
+      if (reply instanceof Error) throw reply;
+      // The picture went with the question, and no tool.
+      expect(req.tools).toEqual([]);
+      expect(req.messages[0]?.content[1]).toEqual({ type: 'image', mediaType: 'image/png', data: PROBE_PICTURE });
+      return { blocks: [{ type: 'text', text: reply }], stop: 'end', malformed: [] };
+    },
+  });
+
+  it('is asked: the two colours, in their order', async () => {
+    expect(await readsImages(answering('Yellow, blue.'), 'm')).toBe(true);
+    expect(await readsImages(answering('yellow\nBlue'), 'm')).toBe(true);
+    // A guess, the wrong order, or "I cannot see it".
+    expect(await readsImages(answering('Red and green'), 'm')).toBe(false);
+    expect(await readsImages(answering('Blue, yellow'), 'm')).toBe(false);
+    expect(await readsImages(answering('I cannot see any picture.'), 'm')).toBe(false);
+  });
+
+  it('a request refused for its picture is a no; a server that could not be asked is no verdict', async () => {
+    expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'http', status: 400, message: 'this model does not support images' })), 'm')).toBe(false);
+    expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'network', message: 'offline' })), 'm')).toBeNull();
+    expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'rate_limit', status: 429, message: 'slow down' })), 'm')).toBeNull();
+    await expect(readsImages(answering(new ProviderError({ provider: 'ollama', code: 'aborted', message: 'stopped' })), 'm')).rejects.toMatchObject({ code: 'aborted' });
+  });
+});
 
 describe('a run against Anthropic', () => {
   it('sends blocks, tools and no temperature, with a cache mark after the system text and on the last block', async () => {

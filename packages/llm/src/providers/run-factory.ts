@@ -111,3 +111,42 @@ export async function canBuild(runner: ProviderRunner, model: string, opts: { si
   }
   return { canBuild: true, reportsUsage: first.usage !== undefined && second.usage !== undefined };
 }
+
+/** A 32×32 picture, yellow above blue: what a model that reads pictures can name and one that does not cannot guess. */
+export const PROBE_PICTURE = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALklEQVR42u3NMQ0AAAgDsAnDvwqUcKGCg6RJ/2Y6pyIQCASCF0GqbwkEAoHgQ7BAmNxMGPuLHwAAAABJRU5ErkJggg==';
+
+/**
+ * Whether a model reads pictures: asked, not guessed from its name.
+ *
+ * True when it names both colours in their order; false when it answers
+ * anything else, or the provider refuses a request that carries a picture;
+ * null when the model could not be asked at all (the network, the key, a
+ * busy server), which says nothing about the model.
+ */
+export async function readsImages(runner: ProviderRunner, model: string, opts: { signal?: AbortSignal } = {}): Promise<boolean | null> {
+  try {
+    const result = await runner.run({
+      system: 'You are being checked. Follow the instruction exactly.',
+      model,
+      tools: [],
+      maxTokens: CAN_BUILD_TOKENS,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'This picture has two colours, one above the other. Answer with two words: the colour on top, then the colour below.' },
+            { type: 'image', mediaType: 'image/png', data: PROBE_PICTURE },
+          ],
+        },
+      ],
+      ...(opts.signal === undefined ? {} : { signal: opts.signal }),
+    });
+    const said = result.blocks.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join(' ');
+    return /yellow[\s\S]*blue/i.test(said);
+  } catch (error) {
+    if (error instanceof ProviderError && error.code === 'aborted') throw error;
+    // The request itself was refused: this model, or this server, takes no picture.
+    if (error instanceof ProviderError && (error.code === 'http' || error.code === 'bad_response' || error.code === 'empty_response')) return false;
+    return null;
+  }
+}
