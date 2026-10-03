@@ -59,12 +59,20 @@ export interface AppliedApp {
   message?: string;
   /** For `installed` and `applied`: pages that were written with nothing to show, or without what the manifest gave them, and why. */
   pageWarnings?: string[];
+  /** Public access the server left as it was, each with why. */
+  accessWarnings?: string[];
 }
 
 /** What an install or an apply said about the pages it wrote, as sentences. */
 function pageWarningsOf(reply: { pages?: { warnings: readonly { page: string; message: string }[] } | undefined }): { pageWarnings?: string[] } {
   const warnings = reply.pages?.warnings ?? [];
   return warnings.length === 0 ? {} : { pageWarnings: warnings.map((warning) => `Page ${warning.page}: ${warning.message}`) };
+}
+
+/** Public access the server left as it was, as sentences: a screen would go on being refused what the manifest grants. */
+function accessWarningsOf(reply: { publicAccess?: { skipped: readonly { ref: string; reason: string }[] } | undefined }): { accessWarnings?: string[] } {
+  const skipped = reply.publicAccess?.skipped ?? [];
+  return skipped.length === 0 ? {} : { accessWarnings: skipped.map((entry) => `The public access of "${entry.ref}" was left as it was: ${entry.reason}`) };
 }
 
 export interface ProjectApps {
@@ -320,7 +328,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
         opts.warn(`App "${app.key}": its sample data was not added (${error instanceof Error ? error.message : String(error)}).`);
       }
     }
-    return { key: app.key, state: 'installed', hash: app.hash, ...pageWarningsOf(reply) };
+    return { key: app.key, state: 'installed', hash: app.hash, ...pageWarningsOf(reply), ...accessWarningsOf(reply) };
   }
 
   async function applyChanged(
@@ -333,10 +341,14 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       version: app.version,
       publicAccess: access.allowed,
       publicAccessRefusal: access.refusal,
+      // While the folder is worked on, its access.json is the say: `adminium start` only runs it.
+      editing: opts.mode === 'dev',
       unattended,
     });
     const made = reply.schema?.created ?? [];
     opts.log(`App "${app.key}" applied from apps/${app.key}${made.length === 0 ? '' : ` (new tables: ${made.join(', ')})`}.`);
+    // Public access the server did not take: never in silence, or a screen goes on being refused what its manifest grants.
+    for (const skipped of reply.publicAccess?.skipped ?? []) opts.warn(`App "${app.key}": the public access of "${skipped.ref}" was left as it was (${skipped.reason}).`);
     sayAddOns(app.key, reply.addOns);
 
     // What the manifest no longer declares: gone where nothing is lost, asked about where data is.
@@ -390,7 +402,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
           'Nothing was dropped. Answer it in Studio → Apps: "Remove them" drops the data, "Keep the data" leaves it in the database and out of the app.',
       );
     }
-    return { key: app.key, state: 'applied', hash: app.hash, ...pageWarningsOf(reply) };
+    return { key: app.key, state: 'applied', hash: app.hash, ...pageWarningsOf(reply), ...accessWarningsOf(reply) };
   }
 
   async function one(app: BuiltProjectApp): Promise<AppliedApp> {

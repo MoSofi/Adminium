@@ -223,6 +223,14 @@ export interface SaveEndpointInput {
   actorId?: string | null;
   /** The installed app the endpoint belongs to; set only when the save creates the row. */
   managedBy?: string | null;
+  /**
+   * The endpoint belongs to an app in the operator's own project folder, and
+   * they are editing its manifest there. An edit that shows its own key more,
+   * or changes how guests reach it, is then theirs to make. What an app's own
+   * key may never hold (`managedGrantIssues`) is checked all the same. An
+   * update of a published app never sets this.
+   */
+  operatorAllowed?: boolean;
 }
 
 export interface SaveCheck {
@@ -439,7 +447,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         const held = (key.access[endpointId] ?? []).filter((m) => definition.methods.includes(m));
         const unsafe = [
           ...managedGrantIssues(ref, definition, held, decided),
-          ...managedEditIssues(ref, priorDefinition?.ok === true ? priorDefinition.definition : null, definition, gains),
+          ...(input.operatorAllowed === true ? [] : managedEditIssues(ref, priorDefinition?.ok === true ? priorDefinition.definition : null, definition, gains)),
         ];
         if (unsafe.length > 0) {
           introduced.push(...unsafe);

@@ -459,6 +459,12 @@ export interface ApplyInPlaceInput {
   publicAccess: boolean;
   /** Why not, for the reply and the log, when it is withheld. */
   publicAccessRefusal?: string | undefined;
+  /**
+   * The folder is being worked on (`adminium dev`, the Designer): a change to
+   * what an entry shows or how it is reached takes effect. A server that only
+   * runs the folder (`adminium start`) keeps what was allowed, as an update does.
+   */
+  editing?: boolean | undefined;
   unattended: Unattended;
 }
 
@@ -1306,6 +1312,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * key is made), else the reason it is left out.
      */
     grant: true | { refusal: string } = true,
+    /**
+     * The manifest is the operator's own, edited in their project folder under
+     * `adminium dev` or the Designer: an entry that now shows more, or is
+     * reached another way, takes effect. An update of a published app never
+     * passes this: there a widening is not the operator's to allow.
+     */
+    ownFolder = false,
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -1429,6 +1442,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               liveKeys,
               grant: grant === true,
               ...(grant === true ? {} : { refusal: grant.refusal }),
+              ...(ownFolder && grant === true ? { ownFolder: true } : {}),
               onCommitted: record,
             });
             made = reply;
@@ -1946,6 +1960,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       names,
       keepsPublicAccess || input.publicAccess,
       input.publicAccess ? true : { refusal: input.publicAccessRefusal ?? 'not allowed for this app' },
+      input.editing === true,
     );
     if (written === undefined) {
       const failure = stopped(caught.error ?? new Error('its pages could not be written'));

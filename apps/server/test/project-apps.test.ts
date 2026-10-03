@@ -230,6 +230,32 @@ for (const [dialect, available] of ENGINES) {
       expect(h.lines.log.join('\n')).toContain('App "repairs": switched the public API on (Settings → API)');
     });
 
+    it('takes a change to what an entry shows while the folder is worked on, and keeps what was allowed on a server, saying so', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await h.newApp('repairs');
+      h.put('apps/repairs/manifest/access.json', ACCESS);
+      await h.sync();
+      const shown = async (): Promise<unknown> =>
+        (await publicEndpointsRepo(h.harness.meta).listByConnection(h.harness.connectionId)).filter((endpoint) => endpoint.managedBy === 'repairs').map((endpoint) => [endpoint.ref, (JSON.parse(endpoint.definition) as { select: string[] }).select]);
+      const before = (await shown()) as [string, string[]][];
+      const requests = before.find(([, select]) => select.length === 1)?.[0] as string;
+
+      // The person edits access.json: a create now answers with one more column. Under dev it is theirs to say.
+      h.put('apps/repairs/manifest/access.json', { publicAccess: [ACCESS.publicAccess[0], { ...ACCESS.publicAccess[1], select: ['id', 'message'] }] });
+      expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+      expect(((await shown()) as [string, string[]][]).find(([ref]) => ref === requests)?.[1]).toEqual(['id', 'message']);
+      expect(h.lines.warn.join('\n')).not.toContain('was left as it was');
+
+      // A server only runs the folder: it keeps what was allowed, as an update of a published app does, and says so.
+      h.restart({ mode: 'server', apps: { repairs: { publicAccess: true } } });
+      h.put('apps/repairs/manifest/access.json', { publicAccess: [{ ...ACCESS.publicAccess[0], select: ['id', 'title', 'status', 'notes'] }, { ...ACCESS.publicAccess[1], select: ['id', 'message'] }] });
+      const kept = (await h.sync())[0];
+      expect(kept).toMatchObject({ state: 'applied' });
+      expect(kept?.accessWarnings).toEqual([expect.stringMatching(/^The public access of "[a-z_]+" was left as it was: /)]);
+      expect(h.lines.warn.join('\n')).toContain('was left as it was');
+      expect(((await shown()) as [string, string[]][]).find(([, select]) => select.includes('title'))?.[1]).toEqual(['id', 'title', 'status']);
+    });
+
     it('leaves the public API alone for an app that grants nothing to the public', async () => {
       h = await folderHarness(dialect, { mode: 'dev' });
       await h.newApp('repairs');
