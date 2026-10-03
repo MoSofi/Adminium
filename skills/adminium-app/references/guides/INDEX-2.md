@@ -15,7 +15,7 @@
 | `references/guides/shared-menu--installing-the-second-app.md` | Installing the second app | 1763 |
 | `references/guides/shared-menu--while-both-are-installed.md` | While both are installed | 1124 |
 | `references/guides/shared-menu--when-one-app-leaves.md` | When one app leaves | 1312 |
-| `references/guides/shared-menu--sample-data-on-a-shared-menu.md` | Sample data on a shared menu | 1732 |
+| `references/guides/shared-menu--sample-data-on-a-shared-menu.md` | Sample data on a shared menu | 1978 |
 | `references/guides/shared-menu--upgrading.md` | Upgrading | 366 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |

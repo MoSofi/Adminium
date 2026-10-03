@@ -125,6 +125,10 @@ again, recommended, exactly as the first time. It can still choose **Keep a sepa
 
 ## Sample data on a shared menu
 
+Two apps that share a menu and ship the same sample dishes do not double them: the second app's
+sample takes the rows already there as its own, where they are the same rows. See
+[Sample data](/guides/apps/sample-data/).
+
 Each app may ship sample dishes. A venue's real menu should never gain them, nor sample orders of
 them. `sampleData.skipWhenShared` keeps an app's sample rows off a shared table that already holds
 real rows:

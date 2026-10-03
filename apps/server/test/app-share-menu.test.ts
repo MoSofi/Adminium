@@ -467,6 +467,85 @@ for (const [dialect, available] of ENGINES) {
     );
 
     it(
+      'takes the till’s sample menu as the shop’s own instead of doubling it, and neither removal empties the other’s menu',
+      async () => {
+        const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
+        await install(h, pointOfSale(), {}, { 'seeds/pos.sample.json': POS_SAMPLE });
+        await install(h, orderingSharingMenu({ sampleData: { file: 'seeds/ordering.sample.json' } }), {}, { 'seeds/ordering.sample.json': JSON.stringify(twinSample()) });
+        const samples = h.samples!;
+        const till = (await findSampleApp(h.meta, 'pos'))!;
+        const shop = (await findSampleApp(h.meta, 'ordering'))!;
+        const who = { locale: 'en-US', userId: null, userLabel: 'test' } as const;
+        const menu = async (): Promise<number[]> => Promise.all(MENU.map(async (ref) => (await h.rows(`SELECT id FROM pos_${ref}`)).length));
+
+        await samples.add(till, who);
+        const before = await menu();
+        expect(before.every((count) => count > 0)).toBe(true);
+        const [espresso] = await h.rows(`SELECT id FROM pos_menu_items WHERE slug = 'espresso'`);
+
+        // The shop's sample names the same dishes: none is written twice, and each is the shop's sample row too.
+        const added = await samples.add(shop, who);
+        expect(await menu()).toEqual(before);
+        expect(MENU.map((ref) => added.counts[ref])).toEqual(before);
+        // Its sample order is of the dish already there.
+        const lines = await h.rows(`SELECT menu_item_id FROM ordering_order_items`);
+        expect(lines.map((line) => String(line['menu_item_id']))).toEqual([String(espresso!['id'])]);
+        expect((await samples.status(shop)).loaded).toBe(true);
+
+        // Removing the shop's sample takes its order and leaves the menu: the till's sample lists those rows too.
+        const preview = await samples.removePreview(shop);
+        expect(preview.tables.map((table) => table.ref).sort()).toEqual(['order_items', 'orders']);
+        expect(preview.kept).toEqual([]);
+        const gone = await samples.remove(shop, { keepChanged: false, userId: null, userLabel: 'test' });
+        expect(gone.byTable).toEqual({ orders: 1, order_items: 1 });
+        expect(await menu()).toEqual(before);
+        expect((await h.rows(`SELECT id FROM ordering_orders`)).length).toBe(0);
+        expect((await samples.status(shop)).loaded).toBe(false);
+        // The till's sample is whole: its own count is what it was.
+        expect((await samples.status(till)).tables.find((table) => table.ref === 'menu_items')?.count).toBe(before[1]);
+
+        // The other way round: the shop takes the menu again, then the TILL removes its sample. The menu stays, as the shop's.
+        await samples.add(shop, who);
+        expect(await menu()).toEqual(before);
+        await samples.remove(till, { keepChanged: false, userId: null, userLabel: 'test' });
+        expect(await menu()).toEqual(before);
+        expect((await h.rows(`SELECT id FROM pos_tickets`)).length).toBe(0);
+        expect((await h.rows(`SELECT menu_item_id FROM ordering_order_items`)).length).toBe(1);
+        // The last app that lists the rows removes them.
+        await samples.remove(shop, { keepChanged: false, userId: null, userLabel: 'test' });
+        expect(await menu()).toEqual([0, 0, 0, 0]);
+      },
+      SLOW,
+    );
+
+    it(
+      'writes its own dish beside the till’s when the two samples differ, or when the till’s dish was changed since',
+      async () => {
+        const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
+        await install(h, pointOfSale(), {}, { 'seeds/pos.sample.json': POS_SAMPLE });
+        // A copy whose sample was made its own: the same label, another price for the espresso.
+        const edited = twinSample((rows) => rows.map((row) => (row['@label'] === 'item:espresso' ? { ...row, price: '9.99' } : row)));
+        await install(h, orderingSharingMenu({ sampleData: { file: 'seeds/ordering.sample.json' } }), {}, { 'seeds/ordering.sample.json': JSON.stringify(edited) });
+        const samples = h.samples!;
+        const who = { locale: 'en-US', userId: null, userLabel: 'test' } as const;
+        await samples.add((await findSampleApp(h.meta, 'pos'))!, who);
+        const dishes = (await h.rows(`SELECT id FROM pos_menu_items`)).length;
+        // The operator renames the till's latte: it is theirs now, not the sample's.
+        await h.run(`UPDATE pos_menu_items SET slug = 'house-latte' WHERE slug = 'latte'`);
+
+        await samples.add((await findSampleApp(h.meta, 'ordering'))!, who);
+        // Two written beside the till's (the edited espresso, the latte the operator changed); every other dish taken.
+        expect((await h.rows(`SELECT id FROM pos_menu_items`)).length).toBe(dishes + 2);
+        expect((await h.rows(`SELECT id FROM pos_menu_items WHERE slug = 'espresso'`)).length).toBe(2);
+        // The shop's order is of ITS espresso, the one at its price.
+        const [line] = await h.rows(`SELECT menu_item_id FROM ordering_order_items`);
+        const [ordered] = await h.rows(`SELECT price FROM pos_menu_items WHERE id = ${String(line!['menu_item_id'])}`);
+        expect(Number(ordered!['price'])).toBeCloseTo(9.99);
+      },
+      SLOW,
+    );
+
+    it(
       'keeps the till’s sample dish a shop order uses, and leaves the shop’s sample menu out of a menu with real dishes',
       async () => {
         const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
@@ -591,6 +670,26 @@ for (const [dialect, available] of ENGINES) {
 }
 
 /** The shop's sample: two dishes in a category, and an order of one. */
+/**
+ * A shop whose sample menu is the till's own, row for row and label for label
+ * (a copy of an app beside its original; two apps of one publisher on one
+ * menu), with one order of the till's espresso.
+ */
+const twinSample = (over: (rows: Record<string, unknown>[]) => Record<string, unknown>[] = (rows) => rows) => {
+  const till = JSON.parse(POS_SAMPLE) as { assets: Record<string, unknown>; tables: { ref: string; rows: Record<string, unknown>[] }[] };
+  const menu = till.tables.filter((table) => MENU.includes(table.ref));
+  return {
+    format: 'adminium.sample/1',
+    app: 'ordering',
+    assets: till.assets,
+    tables: [
+      ...menu.map((table) => (table.ref === 'menu_items' ? { ...table, rows: over(table.rows) } : table)),
+      { ref: 'orders', rows: [{ '@label': 'order:1', customer_name: 'Sample guest', status: 'placed' }] },
+      { ref: 'order_items', rows: [{ order_id: { '@ref': 'order:1' }, menu_item_id: { '@ref': 'item:espresso' }, qty: 2 }] },
+    ],
+  };
+};
+
 const SHOP_SAMPLE = {
   format: 'adminium.sample/1',
   app: 'ordering',

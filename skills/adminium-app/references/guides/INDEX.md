@@ -19,7 +19,7 @@
 | `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2450 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
-| `references/guides/sample-data--adding-it.md` | Adding it | 3115 |
+| `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1435 |

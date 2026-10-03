@@ -37,6 +37,13 @@ What happens when you confirm:
   write, but no hooks or automations run, so a sample booking sends no email.
 - **Images go to Files.** A picture the sample uses is stored in the **Files** library under the
   app's connection, like any other upload. See [Attaching files to records](https://docs.adminium.dev/guides/files/).
+- **Two apps' samples do not double a shared table.** When another installed app's sample already
+  put the same row in a table the two apps share (the same `@label`, the same values, still as that
+  sample wrote it), the row is taken as this app's sample row too and not written again: a copy of
+  an app beside its original shows one menu, and the copy's sample orders are of the dishes already
+  there. Removing one app's sample leaves such a row in place for the other; it goes when the last
+  app that lists it removes its sample. A row that differs (a dish at another price), or that you
+  changed since, is left alone and the app writes its own beside it.
 - **A shared menu keeps its real dishes.** An app that shares a table with another app can leave
   its sample rows out once that table holds real ones. See
   [A menu two apps share](https://docs.adminium.dev/guides/apps/shared-menu/#sample-data-on-a-shared-menu).

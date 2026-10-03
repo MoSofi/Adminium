@@ -651,6 +651,52 @@ interface LedgerRow {
 const isSampleRow = (row: LedgerRow): boolean => !row.table_ref.startsWith('@');
 
 /**
+ * A row's key as one string, the same whichever ledger it was read from and
+ * whichever engine handed it back (a number, a string of digits, a bigint):
+ * what tells that two apps' ledgers list the same row. Null for a key that
+ * does not read as one.
+ */
+function keyIdOf(table: ResolvedTable, key: Row | null): string | null {
+  if (key === null || table.primaryKey.length === 0) return null;
+  const normal: Record<string, string | null> = {};
+  for (const column of table.primaryKey) {
+    if (key[column] === undefined || key[column] === null) return null;
+    const logicalType = table.columns.get(column)?.logicalType ?? 'text';
+    const value = normaliseValue(key[column], logicalType);
+    normal[column] = logicalType === 'uuid' ? (value?.toLowerCase() ?? null) : value;
+  }
+  return canonicalJson(normal);
+}
+
+/** A ledger entry's key, read; null when it does not parse. */
+function entryKey(entry: LedgerRow): Row | null {
+  try {
+    const key: unknown = JSON.parse(entry.pk);
+    return typeof key === 'object' && key !== null ? (key as Row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether the row in the table holds what a bundle row would write: every
+ * column the bundle gives, bar the key (the table decides it) and a file (each
+ * add uploads its own copy). What tells the SAME sample row of another app
+ * from one that only shares its label: a copy whose sample was edited to other
+ * dishes or other prices writes its own.
+ */
+function holdsWhat(values: Row, current: Row, table: ResolvedTable): boolean {
+  for (const [column, value] of Object.entries(values)) {
+    if (ROW_DIRECTIVES.has(column) || table.primaryKey.includes(column)) continue;
+    const logicalType = table.columns.get(column)?.logicalType;
+    if (logicalType === undefined) return false;
+    if (isId(value, 'file') || isId(current[column], 'file')) continue;
+    if (normaliseValue(value, logicalType) !== normaliseValue(current[column], logicalType)) return false;
+  }
+  return true;
+}
+
+/**
  * A sample row's identity across adds: its `@label`, or else the key it names
  * itself, spelled one way whatever the engine hands back; null when it has
  * neither, and so cannot be recognised.
@@ -903,6 +949,46 @@ export function createSampleDataService(deps: SampleDataDeps) {
   }
 
   /**
+   * The sample rows OTHER installed apps hold on this connection, by the real
+   * table each is in: what an add may take as its own rather than write again
+   * (two apps on one menu), and what a removal must leave where it is.
+   */
+  async function othersSampleRows(app: SampleApp, connectionId: string, handle: DataHandle): Promise<Map<string, LedgerRow[]>> {
+    const out = new Map<string, LedgerRow[]>();
+    const everyRecord = await records.forConnection(connectionId);
+    for (const ledger of everyRecord.filter((r) => r.role === 'sample-ledger' && r.state === 'created' && r.appKey !== app.key)) {
+      const theirs = await records.realNames(connectionId, ledger.appKey);
+      for (const row of await ledgerRows(handle, ledger.tableName)) {
+        const real = isSampleRow(row) ? theirs[row.table_ref] : undefined;
+        if (real !== undefined) out.set(real, [...(out.get(real) ?? []), row]);
+      }
+    }
+    return out;
+  }
+
+  /** The ledger rows of `rows` that another installed app's sample lists too: the same row of the same table. */
+  async function alsoAnothers(app: SampleApp, connectionId: string, handle: DataHandle, view: SnapshotView, names: Readonly<Record<string, string>>, rows: readonly LedgerRow[]): Promise<Set<number>> {
+    const others = await othersSampleRows(app, connectionId, handle);
+    const shared = new Set<number>();
+    if (others.size === 0) return shared;
+    const listed = new Map<string, Set<string>>();
+    for (const row of rows) {
+      const real = names[row.table_ref] ?? row.table_ref;
+      const theirs = others.get(real);
+      const table = theirs === undefined ? null : safeTable(view, real);
+      if (theirs === undefined || table === null) continue;
+      let keys = listed.get(real);
+      if (keys === undefined) {
+        keys = new Set(theirs.flatMap((entry) => keyIdOf(table, entryKey(entry)) ?? []));
+        listed.set(real, keys);
+      }
+      const mine = keyIdOf(table, entryKey(row));
+      if (mine !== null && keys.has(mine)) shared.add(row.seq);
+    }
+    return shared;
+  }
+
+  /**
    * The tables a bundle marks `onlyIfEmpty` that already hold a row: the
    * operator set them (their opening hours), so the sample's rows stay out.
    */
@@ -1017,6 +1103,22 @@ export function createSampleDataService(deps: SampleDataDeps) {
 
         const ledger = await ensureLedger(app, connectionId, handle);
         const view = await viewFor(connectionId);
+        /*
+         * What another installed app's sample already put in a table this app
+         * shares with it (two apps on one menu; a copy beside its original),
+         * by the identity this bundle would name it by. A bundle row that is
+         * the same row is taken as this app's own instead of written again.
+         */
+        const lentBy = new Map<string, LedgerRow>();
+        for (const [real, theirs] of await othersSampleRows(app, connectionId, handle)) {
+          const ref = Object.entries(names).find(([, name]) => name === real)?.[0];
+          const table = ref === undefined ? null : safeTable(view, real);
+          if (ref === undefined || table === null) continue;
+          for (const entry of theirs) {
+            const identity = entry.label === null ? null : identityOf(ref, entry.label, null, table);
+            if (identity !== null && !lentBy.has(identity)) lentBy.set(identity, entry);
+          }
+        }
         const writes = createWriteService(writeStores(deps.meta));
         const context: WriteContext = {
           origin: 'import',
@@ -1028,6 +1130,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
         const counts: Record<string, number> = {};
         const explicitKeys = new Set<string>();
         let reused = 0;
+        /** Rows taken from another app's sample rather than written. */
+        let takenShared = 0;
 
         await handle.db.transaction().execute(async (trx) => {
           const db = asDb(trx);
@@ -1136,6 +1240,50 @@ export function createSampleDataService(deps: SampleDataDeps) {
           };
           // Kept entries hold their seq; new ones count on from the last.
           let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
+          /** The rows taken from another app's sample (`<table id>\u0000<key>`): their parts are taken with them, or left out. */
+          const sharedIn = new Set<string>();
+          /*
+           * Another app's sample row, taken as this app's own: entered in this
+           * ledger as it reads now, and named by its label for the rows after
+           * it. The row is not written to, and its files stay the other app's.
+           * Whether it is the same row was decided by the caller.
+           */
+          const takeShared = async (current: Row, ref: string, resolved: ResolvedTable, label: string): Promise<void> => {
+            const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+            const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
+            labels.set(label, single ?? key);
+            const { rowHash, colHashes } = hashRow(current, resolved);
+            seq += 1;
+            await db
+              .insertInto(ledger as never)
+              .values({
+                seq,
+                table_ref: ref,
+                pk: canonicalJson(key),
+                label,
+                row_hash: rowHash,
+                col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
+                created_at: now,
+              } as never)
+              .execute();
+            counts[ref] = (counts[ref] ?? 0) + 1;
+            if (single === undefined || single === null) return;
+            const at = `${resolved.id}\u0000${String(single)}`;
+            sharedIn.add(at);
+            // As a record taken back: the sample writes no part under it. Its parts are taken with it, below.
+            takenBack.set(at, lockTied(resolved, current));
+          };
+          /** The other app's row a bundle row names, when it is the same row: still as that sample wrote it, and holding what this one would write. */
+          const sameRowOf = async (identity: string | null, values: Row, resolved: ResolvedTable, asPart: boolean): Promise<Row | null> => {
+            const lent = identity === null ? undefined : lentBy.get(identity);
+            const key = lent === undefined ? null : entryKey(lent);
+            if (lent === undefined || key === null) return null;
+            const current = await fetchByPk(db, resolved, key);
+            if (current === undefined || !unchangedSince(lent, current, resolved, handle.dialect) || !holdsWhat(values, current, resolved)) return null;
+            // A part comes only with its record.
+            if (!asPart && isPart(view, resolved, current)) return null;
+            return current;
+          };
           let done = 0;
           for (const table of bundle.tables) {
             // A shared table already holding real rows keeps these tables' sample rows out.
@@ -1212,7 +1360,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 return parentIsPart !== undefined && (!link.ofParts || parentIsPart);
               });
               if (underTakenBack) {
-                if (label !== null && !labels.has(label)) leftOut.add(label);
+                // Under a record taken from another app's sample, its part is taken the same way when it is the same row.
+                const underShared = partLinks(view, resolved).some((link) => values[link.via] !== null && values[link.via] !== undefined && sharedIn.has(`${link.parent}\u0000${String(values[link.via])}`));
+                const part = underShared && label !== null && !labels.has(label) ? await sameRowOf(identityOf(table.ref, label, values, resolved), values, resolved, true) : null;
+                if (part !== null && label !== null) await takeShared(part, table.ref, resolved, label);
+                else if (label !== null && !labels.has(label)) leftOut.add(label);
                 done += 1;
                 continue;
               }
@@ -1236,6 +1388,20 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
                 if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect) && !isPart(view, resolved, current)) {
                   await takeBack(keptEntry, current, table.ref, resolved, label);
+                  done += 1;
+                  continue;
+                }
+              }
+              /*
+               * The same row, already put there by another installed app's
+               * sample (a menu two apps share; a copy beside its original):
+               * taken as this app's own, never written twice.
+               */
+              if (label !== null && !labels.has(label)) {
+                const same = await sameRowOf(identity, values, resolved, false);
+                if (same !== null) {
+                  await takeShared(same, table.ref, resolved, label);
+                  takenShared += 1;
                   done += 1;
                   continue;
                 }
@@ -1372,7 +1538,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               .where('seq' as never, 'in', forgotten.slice(i, i + 500) as never)
               .execute();
           }
-          reused = adopted.size;
+          reused = adopted.size + takenShared;
           for (const id of adoptedFiles) {
             const file = await files.findById(id);
             if (file === null || file.deletedAt !== null || file.entityConnectionId !== connectionId) continue;
@@ -1450,7 +1616,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const handle = await deps.manager.data(connectionId);
       const view = await viewFor(connectionId);
       const names = await records.realNames(connectionId, app.key);
-      const rows = (await ledgerRows(handle, ledger.tableName)).filter(isSampleRow);
+      const every = (await ledgerRows(handle, ledger.tableName)).filter(isSampleRow);
+      // A row another installed app's sample lists too stays where it is, as that app's: not removed, not "kept".
+      const shared = await alsoAnothers(app, connectionId, handle, view, names, every);
+      const rows = every.filter((row) => !shared.has(row.seq));
       const analysis = await analyse(handle, view, names, rows);
       const counts = new Map<string, number>();
       for (const row of rows) counts.set(row.table_ref, (counts.get(row.table_ref) ?? 0) + 1);
@@ -1491,7 +1660,9 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const view = await viewFor(connectionId);
       const names = await records.realNames(connectionId, app.key);
       const all = await ledgerRows(handle, ledger.tableName);
-      const rows = all.filter(isSampleRow);
+      // A row another installed app's sample lists too is not this app's alone to delete: it leaves this ledger and stays.
+      const shared = await alsoAnothers(app, connectionId, handle, view, names, all.filter(isSampleRow));
+      const rows = all.filter((row) => isSampleRow(row) && !shared.has(row.seq));
       const analysis = await analyse(handle, view, names, rows, opts.keepChanged);
       const byTable: Record<string, number> = {};
       const removedSeqs: number[] = [];
@@ -1539,6 +1710,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
         }
         // The files' entries go too; a file a kept row still names stays in the library.
         for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);
+        // What another app's sample lists too: out of this ledger, never out of the table.
+        for (const seq of shared) removedSeqs.push(seq);
         /*
          * A kept row's entry stays, marked, so it no longer counts as sample
          * data anywhere. A ref too long to mark is forgotten, as every kept
@@ -1566,6 +1739,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
 
       const files = filesRepo(deps.meta);
       const keptValues = new Set(analysis.keptValues);
+      // A picture a shared row still shows stays in the library with it: the row is the other app's now.
+      for (const entry of all.filter((row) => shared.has(row.seq))) {
+        const table = safeTable(view, names[entry.table_ref] ?? entry.table_ref);
+        const key = entryKey(entry);
+        const current = table === null || key === null ? undefined : await fetchByPk(asDb(handle.db), table, key);
+        for (const value of Object.values(current ?? {})) if (isId(value, 'file')) keptValues.add(value as string);
+      }
       for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) {
         const id = (JSON.parse(row.pk) as { id: string }).id;
         if (!keptValues.has(id)) await files.markDeleted(id).catch(() => undefined);
