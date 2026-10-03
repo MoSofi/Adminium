@@ -29,6 +29,7 @@ import { BUILD_DIR } from '../build-shared.js';
 import type { ClientBundler as Bundler } from '../client-build.js';
 import { checkApp, type AppFinding } from './check-app.js';
 import { APPS_DIR, MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appDir, listAppKeys, type AppSide } from './read-app.js';
+import { hasOwnBuild, isBuildApproved, readAppBuild, runOwnBuild, unapprovedProblem, type StepRunner } from './own-build.js';
 import { buildAppSides } from './side-build.js';
 
 /** The composed manifest of a built app, beside its sides. */
@@ -88,6 +89,15 @@ function builtFrom(root: string, key: string): string[] {
   for (const folder of [MANIFEST_PARTS_DIR, ...SIDES]) {
     files.push(...filesUnder(join(dir, folder)).map((file) => `${folder}/${file}`));
   }
+  // An app with a build of its own is built from its whole source, wherever its build reads it.
+  if (hasOwnBuild(root, key)) {
+    const output = readAppBuild(root, key);
+    const made = output !== null && 'output' in output ? `${output.output.split('/')[0] ?? ''}/` : null;
+    for (const file of filesUnder(dir)) {
+      if (files.includes(file) || (made !== null && file.startsWith(made)) || file.startsWith('seeds/')) continue;
+      files.push(file);
+    }
+  }
   return files;
 }
 
@@ -113,11 +123,19 @@ export function appSourcesHash(root: string): string {
 export function appWatchedPaths(root: string): string[] {
   const top = join(root, APPS_DIR);
   const out: string[] = [top];
+  // What an app's own build writes is not watched: a build would wake itself.
+  const made = new Set(
+    listAppKeys(root).flatMap((key) => {
+      const own = readAppBuild(root, key);
+      return own !== null && 'output' in own ? [join(appDir(root, key), own.output.split('/')[0] ?? '')] : [];
+    }),
+  );
   const walk = (dir: string): void => {
     if (!existsSync(dir)) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       const path = join(dir, entry.name);
+      if (made.has(path)) continue;
       if (entry.isDirectory()) {
         out.push(path);
         walk(path);
@@ -157,6 +175,8 @@ export interface BuildAppsOptions {
   dev?: boolean;
   /** The engine's side module; tests pass their own. */
   sideModule?: string;
+  /** How an app's own build command is run; tests pass their own. */
+  runBuild?: StepRunner;
 }
 
 /** Build one app, or say why not. Never throws for what is in the app's files. */
@@ -177,13 +197,20 @@ async function buildOne(root: string, key: string, opts: BuildAppsOptions): Prom
   if (errors.length > 0 || check.manifest === null || check.folder.document === null) return failed(errors);
 
   const inputs: Record<string, string> = {};
-  if (check.sides.length > 0 && opts.bundler === null) {
+  const own = readAppBuild(root, key);
+  if (own !== null) {
+    if ('problem' in own) return failed([own.problem]);
+    // A command runs only once a person approved its exact words.
+    if (!isBuildApproved(root, key, own)) return failed([unapprovedProblem(key, own)]);
+    const ran = await runOwnBuild(root, key, own, { sides: check.sides, ...(opts.runBuild === undefined ? {} : { run: opts.runBuild }) });
+    if ('problems' in ran) return failed(ran.problems);
+  } else if (check.sides.length > 0 && opts.bundler === null) {
     return failed([`apps/${key} — its screens need esbuild to build, and this project does not have it. Install it:  npm install --save-dev esbuild`]);
   }
   try {
     // The sides first: a side that does not build leaves the last whole build as it was.
     const built =
-      opts.bundler === null
+      opts.bundler === null || own !== null
         ? []
         : await buildAppSides({
             root,

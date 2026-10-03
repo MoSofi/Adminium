@@ -15,6 +15,8 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import type { Designer } from '../../designer/service.js';
+import type { Starter } from '../../designer/start-with-app.js';
+import { sourceArchiveUrl } from '../../project/apps/source-archive.js';
 import type { Actor } from '../../designer/runner.js';
 import { NotFoundError } from '../../errors.js';
 import type { Versions } from '../../designer/versions.js';
@@ -59,6 +61,11 @@ import {
   designerTurnBody,
   designerTurnReply,
   designerArchitectureReply,
+  designerStartBody,
+  designerStartCheckQuery,
+  designerStartCheckReply,
+  designerStartJob,
+  designerStartParams,
 } from './schema.js';
 
 export interface DesignerRoutesDeps {
@@ -70,6 +77,8 @@ export interface DesignerRoutesDeps {
   limits: () => Promise<{ maxSteps: number; turnTokens: number; sessionTokens: number }>;
   /** The adminium.dev app list, for "Start with an app". */
   appCatalog?: { isEnabled(): Promise<boolean>; fetchCatalog(signal?: AbortSignal): Promise<AppCatalog> } | undefined;
+  /** "Start with an app": copying one of the list into the project. Absent where the server cannot. */
+  starter?: Starter | undefined;
   /** The preview's tickets and its address; null where the server has no preview name. */
   preview: { tickets: PreviewTickets; origin: string } | null;
   /** How an app fits together, from what the engine applied. */
@@ -298,6 +307,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           tagline: pickLocalized(entry.tagline, 'en-US') ?? '',
           category: entry.categories[0] ?? null,
           sides: entry.sides,
+          copyable: typeof entry.repo === 'string' && sourceArchiveUrl(entry.repo, entry.version) !== null,
           iconTint: entry.iconTint ?? null,
           iconPaths: entry.iconPaths ?? [],
           monogram: entry.monogram ?? null,
@@ -308,6 +318,38 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         return { state: 'unreachable' as const, apps: [] };
       }
     });
+
+    // "Start with an app": the copy's key as it is typed, then the copy itself as a job the sheet watches.
+    app.get(
+      '/designer/start-check',
+      { preHandler: guard, config: RATE, schema: { querystring: designerStartCheckQuery, response: { 200: designerStartCheckReply } } },
+      async (request) => {
+        if (deps.starter === undefined) throw new NotFoundError('This server cannot copy an app.', { reason: 'NO_STARTER' });
+        const problem = await deps.starter.keyProblem(request.query.newKey);
+        return { problem, build: problem === null ? deps.starter.buildFor(request.query.newKey) : null };
+      },
+    );
+    app.post(
+      '/designer/start',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('a copy is audited by the Designer itself, once it is applied') },
+        schema: { body: designerStartBody, response: { 202: designerStartJob } },
+      },
+      async (request, reply) => {
+        if (deps.starter === undefined) throw new NotFoundError('This server cannot copy an app.', { reason: 'NO_STARTER' });
+        const job = await deps.starter.start({ ...request.body, by: actorOf(request) });
+        return reply.code(202).send(job);
+      },
+    );
+    app.get(
+      '/designer/start-status/:jobId',
+      { preHandler: guard, config: RATE, schema: { params: designerStartParams, response: { 200: designerStartJob } } },
+      async (request) => {
+        if (deps.starter === undefined) throw new NotFoundError('This server cannot copy an app.', { reason: 'NO_STARTER' });
+        return deps.starter.job(request.params.jobId);
+      },
+    );
 
     // The models the picker lists: every connection with its models, the selected one, what is known to build.
     app.get('/designer/models', { preHandler: guard, config: RATE, schema: { response: { 200: designerModelsReply } } }, async () => {

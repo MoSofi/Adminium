@@ -107,6 +107,8 @@ import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createDesigner, type Designer } from './designer/service.js';
+import { createStarter } from './designer/start-with-app.js';
+import { pickLocalized } from './add-ons/catalog.js';
 import { designerRoutes } from './routes/designer/index.js';
 import { designSessionRoutes } from './routes/auth/design-session.js';
 import { registerPreview } from './designer/preview.js';
@@ -1901,6 +1903,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const designerSkills = createSkills();
         const designerVersions = createVersions(root);
         const designerService = createAppInstallService(appDeps);
+        const designerAudit = async (action: string, actor: { id: string | null; label: string } | null, detail: Record<string, unknown>): Promise<void> => {
+            await auditRepo(meta).append({
+              actorKind: actor === null ? 'system' : 'user',
+              actorId: actor?.id ?? null,
+              actorLabel: actor?.label ?? 'Adminium Designer',
+              category: 'app',
+              action,
+              changes: { after: detail },
+            });
+        };
         designer = createDesigner({
           root,
           version: APP_VERSION,
@@ -1938,16 +1950,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             if (app.hasDecorator('realtime')) app.realtime.publish(designerChannel(event.sessionId), 'designer', event);
           },
           limits,
-          audit: async (action, actor, detail) => {
-            await auditRepo(meta).append({
-              actorKind: actor === null ? 'system' : 'user',
-              actorId: actor?.id ?? null,
-              actorLabel: actor?.label ?? 'Adminium Designer',
-              category: 'app',
-              action,
-              changes: { after: detail },
-            });
-          },
+          audit: designerAudit,
           log: (message, error) => {
             app.log.warn({ err: error }, message);
           },
@@ -1990,6 +1993,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             limits,
             preview: previewTickets === null ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
             appCatalog,
+            starter: createStarter({
+              root,
+              log: (message, error) => app.log.warn({ err: error }, message),
+              // The list, only where the person switched it on: a copy is fetched from the network.
+              listed: async (key) => {
+                if (!(await appCatalog.isEnabled())) return null;
+                const entry = (await appCatalog.fetchCatalog(AbortSignal.timeout(10_000))).apps.find((candidate) => candidate.key === key);
+                if (entry === undefined || typeof entry.repo !== 'string') return null;
+                return { key: entry.key, version: entry.version, name: pickLocalized(entry.name, 'en-US') ?? entry.key, repo: entry.repo };
+              },
+              installedKeys: async () => (await designerService.manifests.list('app')).map((installed) => installed.row.manifestKey),
+              buildAndApply: (key) => (designer as Designer).buildAndApply(key),
+              openSession: async (appKey, input) =>
+                (await (designer as Designer).createSession({ appKey, target: 'web', connectionId: input.connectionId, model: input.model }, input.by)).id,
+              audit: (action, by, detail) => designerAudit(action, by, detail),
+            }),
             architecture: (appKey) =>
               architectureOf(
                 {

@@ -75,6 +75,11 @@ export interface Designer {
    * the files back" after a stopped turn (O3).
    */
   restore(sessionId: string, n: number, opts: { record: boolean; by: Actor }): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
+  /**
+   * Build the folder's apps and apply them, with no turn behind it: what the
+   * check, the build or the apply says is wrong with `key`, or nothing.
+   */
+  buildAndApply(key: string): Promise<string[]>;
   shutdown(): Promise<void>;
 }
 
@@ -340,6 +345,17 @@ export function createDesigner(host: DesignerHost): Designer {
       );
       await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
       return { version, applied: applied.ok };
+    },
+    async buildAndApply(key) {
+      const built = await rebuildApps(project(), { version: host.version, dev: true });
+      const app = built.apps.find((candidate) => candidate.key === key);
+      if (app === undefined) return [`apps/${key} was not built.`];
+      if ((app.problems ?? []).length > 0) return app.problems ?? [];
+      const apps = host.projectApps();
+      if (apps === null) return ['This server runs no project apps.'];
+      const result = (await apps.reconcile()).find((candidate) => candidate.key === key);
+      const applied = result !== undefined && (result.state === 'installed' || result.state === 'applied' || result.state === 'unchanged');
+      return applied ? [] : [`It was not applied${result?.stage === undefined ? '' : ` (${result.stage})`}: ${result?.message ?? 'the server did not say why.'}`];
     },
     shutdown: () => runner.shutdown(),
   };

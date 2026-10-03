@@ -97,7 +97,8 @@ const itemBase = {
       monogram: z.string().optional(),
     })
     .default({}),
-  links: z.object({ page: z.string() }),
+  // `repo` is where an app's source is; an entry without one cannot be copied, and installs as before.
+  links: z.object({ page: z.string(), repo: z.string().optional() }),
   lastUpdatedAt: z.string(),
   file: z.object({ size: z.number().int().nonnegative(), publishedAt: z.string().nullable() }).nullable().default(null),
   newerRelease: z.object({ version, minAdminiumVersion: version }).optional(),

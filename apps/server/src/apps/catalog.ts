@@ -90,6 +90,8 @@ export const appCatalogEntrySchema = z
     /** The minimum the release manifest declares; this server refuses one above its version. */
     minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN),
     ...displayFields,
+    /** Where the app's source is (`https://github.com/<owner>/<repo>`), when the list says. "Make it yours" copies from its release tag. */
+    repo: z.string().max(300).optional(),
     /** The add-ons the release needs and suggests, by key — the card's "Needs Invoices". */
     addOns: z.object({ requires: z.array(z.string()), suggests: z.array(z.string()) }).strict().optional(),
     newerRelease: z
@@ -167,6 +169,7 @@ export function appCatalogFromShelf(shelf: ParsedShelf<AppItemWire>): AppCatalog
           suggests: release.addOns.suggests.map((need) => need.key),
         },
         ...(item.newerRelease === undefined ? {} : { newerRelease: item.newerRelease }),
+        ...(typeof item.links.repo === 'string' && item.links.repo !== '' ? { repo: item.links.repo } : {}),
       });
       continue;
     }

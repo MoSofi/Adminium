@@ -107,7 +107,35 @@ export const designerCatalogApp = z.object({
   iconTint: z.string().nullable(),
   iconPaths: z.array(z.string()),
   monogram: z.string().nullable(),
+  /** Whether the list says where its source is: only then can it be copied. */
+  copyable: z.boolean(),
 });
+/** "Start with an app": the key a copy would take, checked as it is typed, with the build it would be given. */
+export const designerStartCheckQuery = z.object({ newKey: z.string().max(80) });
+export const designerStartCheckReply = z.object({
+  problem: z.string().nullable(),
+  build: z.object({ install: z.string(), command: z.string(), output: z.string(), fingerprint: z.string() }).nullable(),
+});
+export const designerStartBody = z.object({
+  key: z.string().max(80),
+  newKey: z.string().max(80),
+  name: z.string().min(1).max(80),
+  /** The fingerprint of the build the person read and approved. */
+  approve: z.string().max(100),
+  connectionId: z.string().max(64),
+  model: z.string().min(1).max(200),
+});
+export const designerStartJob = z.object({
+  id: z.string(),
+  key: z.string(),
+  newKey: z.string(),
+  name: z.string(),
+  state: z.enum(['running', 'done', 'failed']),
+  steps: z.array(z.object({ id: z.enum(['get', 'make', 'build']), state: z.enum(['waiting', 'running', 'done', 'failed']), detail: z.string().optional() })),
+  sessionId: z.string().nullable(),
+});
+export const designerStartParams = z.object({ jobId: z.string().max(80) });
+
 export const designerAppsListReply = z.object({
   /** `off`: network features or the online app list are switched off. `unreachable`: adminium.dev did not answer. */
   state: z.enum(['ok', 'off', 'unreachable']),

@@ -25,6 +25,7 @@ import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
 import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
+import { hasOwnBuild } from './own-build.js';
 
 export interface AppFinding extends AppProblem {
   level: 'error' | 'warn' | 'note';
@@ -71,7 +72,9 @@ const error = (file: string, path: string, message: string): AppFinding => ({ le
 export function checkApp(root: string, key: string, opts: { version: string }): AppCheck {
   const folder = readAppFolder(root, key);
   const findings: AppFinding[] = folder.problems.map((problem) => ({ ...problem, level: 'error' as const }));
-  const sides = SIDES.filter((side) => sideEntry(root, key, side) !== null);
+  // An app with a build of its own keeps its screens where its build wants them: the manifest says which sides it has.
+  const ownBuild = hasOwnBuild(root, key);
+  let sides = SIDES.filter((side) => sideEntry(root, key, side) !== null);
   const result = (manifest: AppManifest | null, access: string[] = []): AppCheck => ({ key, folder, manifest, findings, access, sides });
   if (folder.document === null) return result(null);
 
@@ -104,8 +107,9 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
     );
   }
 
+  if (ownBuild) sides = SIDES.filter((side) => manifest.frontends.some((frontend) => frontend.side === side && frontend.kind === 'spa'));
   // Every screen the manifest declares has its code, and the reverse.
-  for (const [index, frontend] of manifest.frontends.entries()) {
+  for (const [index, frontend] of ownBuild ? [] : manifest.frontends.entries()) {
     const built = sides.includes(frontend.side);
     if (frontend.kind === 'spa' && !built) {
       findings.push(
@@ -122,7 +126,7 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
       );
     }
   }
-  for (const side of sides) {
+  for (const side of ownBuild ? [] : sides) {
     if (!manifest.frontends.some((frontend) => frontend.side === side)) {
       findings.push(error(appPath(key, side), '', `has code, and the manifest's frontends do not list a ${side} side.`));
     }
