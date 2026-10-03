@@ -32,7 +32,13 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade"
+      "upgradeAction": "Upgrade",
+      "getting": "جارٍ إحضاره…",
+      "onlineList": "ما يقدّمه adminium.dev، وما هو موجود بالفعل على هذا الخادم. «تثبيت» يجلب الإضافة ويسأل قبل أن يضيف أي شيء.",
+      "offLine": "قائمة adminium.dev متوقفة على هذا الخادم. عرضها يطلب القائمة من adminium.dev، فيعرف عنوان هذا الخادم والوقت وإصدار Adminium. وتثبيت إضافة يذكر اسم تلك الإضافة.",
+      "showAvailable": "اعرض ما هو متاح",
+      "fetchingTitle": "جارٍ جلب القائمة",
+      "fetchingBody": "نسأل adminium.dev عمّا هو متاح. يستغرق ذلك لحظة."
     },
     "card": {
       "needsApiKey": "يتطلب مفتاح API",

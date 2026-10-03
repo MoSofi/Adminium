@@ -22,7 +22,13 @@
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade"
+      "upgradeAction": "Upgrade",
+      "getting": "Stahuji…",
+      "onlineList": "Co nabízí adminium.dev a co už na tomto serveru je. Instalace doplněk stáhne a zeptá se, než cokoli přidá.",
+      "offLine": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zobrazení požádá adminium.dev o seznam, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Instalace doplňku ten doplněk jmenuje.",
+      "showAvailable": "Zobrazit, co je k dispozici",
+      "fetchingTitle": "Načítám seznam",
+      "fetchingBody": "Ptám se adminium.dev, co je k dispozici. Chvíli to potrvá."
     },
     "card": {
       "needsApiKey": "Vyžaduje API klíč",

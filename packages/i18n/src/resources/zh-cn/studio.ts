@@ -32,7 +32,13 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade"
+      "upgradeAction": "Upgrade",
+      "getting": "正在获取…",
+      "onlineList": "adminium.dev 提供的内容，以及此服务器上已有的内容。“安装”会获取扩展，并在添加任何内容之前先询问。",
+      "offLine": "此服务器上已关闭 adminium.dev 的列表。显示它会向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。安装扩展会说明是哪个扩展。",
+      "showAvailable": "显示可用内容",
+      "fetchingTitle": "正在获取列表",
+      "fetchingBody": "正在向 adminium.dev 询问可用内容。请稍候。"
     },
     "card": {
       "needsApiKey": "需要 API 密钥",

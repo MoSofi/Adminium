@@ -15039,6 +15039,18 @@
     "status": "mt",
     "srcHash": "0a8528aa1fa9"
   },
+  "studio.addOns.browse.fetchingBody": {
+    "status": "mt",
+    "srcHash": "6ea01d1b3dec"
+  },
+  "studio.addOns.browse.fetchingTitle": {
+    "status": "mt",
+    "srcHash": "eb2b329aad0a"
+  },
+  "studio.addOns.browse.getting": {
+    "status": "mt",
+    "srcHash": "7939cea41d0e"
+  },
   "studio.addOns.browse.install": {
     "status": "mt",
     "srcHash": "fd6c3ebf7bef"
@@ -15063,6 +15075,10 @@
     "status": "mt",
     "srcHash": "17e7aebf9715"
   },
+  "studio.addOns.browse.offLine": {
+    "status": "mt",
+    "srcHash": "029469d4f596"
+  },
   "studio.addOns.browse.offline": {
     "status": "mt",
     "srcHash": "2288394540e0"
@@ -15071,6 +15087,10 @@
     "status": "mt",
     "srcHash": "37fde49b8f34"
   },
+  "studio.addOns.browse.onlineList": {
+    "status": "mt",
+    "srcHash": "bf15f5453baf"
+  },
   "studio.addOns.browse.refresh": {
     "status": "mt",
     "srcHash": "10c2f9845adb"
@@ -15078,6 +15098,10 @@
   "studio.addOns.browse.search": {
     "status": "mt",
     "srcHash": "cd9aa5bf5000"
+  },
+  "studio.addOns.browse.showAvailable": {
+    "status": "mt",
+    "srcHash": "23a583ce1824"
   },
   "studio.addOns.browse.title": {
     "status": "mt",

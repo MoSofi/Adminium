@@ -32,7 +32,13 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade"
+      "upgradeAction": "Upgrade",
+      "getting": "Henter den…",
+      "onlineList": "Hvad adminium.dev tilbyder, og hvad der allerede er på denne server. Installér henter en tilføjelse og spørger, før den tilføjer noget.",
+      "offLine": "Listen fra adminium.dev er slået fra på denne server. At vise den beder adminium.dev om listen, hvilket fortæller den serverens adresse, tidspunktet og dens Adminium-version. Installation af en tilføjelse nævner den tilføjelse.",
+      "showAvailable": "Vis, hvad der er tilgængeligt",
+      "fetchingTitle": "Henter listen",
+      "fetchingBody": "Spørger adminium.dev, hvad der er tilgængeligt. Det tager et øjeblik."
     },
     "card": {
       "needsApiKey": "Kræver en API-nøgle",

@@ -366,7 +366,8 @@ describe('AddOnsPage', () => {
         entries: [makeEntry({ state: 'available' })],
         onlineEnabled: true,
       });
-      await user.click(await screen.findByRole('button', { name: 'Download' }));
+      // One click: Install on a row the list offers fetches it…
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
       await waitFor(() => {
         expect(calls.some((c) => c.url.startsWith('/api/v1/jobs/'))).toBe(true);
       });
@@ -374,6 +375,11 @@ describe('AddOnsPage', () => {
       await waitFor(() => {
         expect(calls.filter((c) => c.url.startsWith('/api/v1/jobs/')).length).toBeGreaterThan(1);
       });
+      // …and then the confirmation opens on its plan. Nothing is installed before the dialog's own yes.
+      const dialog = await screen.findByRole('dialog');
+      await waitFor(() => expect(calls.some((c) => c.url === '/api/v1/add-ons/holiday-calendars/plan')).toBe(true));
+      expect(calls.some((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')).toBe(false);
+      expect(within(dialog).getByRole('button', { name: /Install/ })).toBeTruthy();
     });
 
     it('marks a gone add-on in the Installed list, which shows it as Connected', async () => {
@@ -421,8 +427,25 @@ describe('AddOnsPage', () => {
       const user = userEvent.setup();
       jobSteps = [{ status: 'failed', progress: null, lastError: 'the hash did not match' }];
       await renderPage({ entries: [makeEntry({ state: 'available' })], onlineEnabled: true });
-      await user.click(await screen.findByRole('button', { name: 'Download' }));
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
       expect(await screen.findByText(/the hash did not match/)).toBeTruthy();
+      // A fetch that failed asks nothing: no confirmation over a package that is not there.
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('offers one button on a server whose list is off, says what it sends, and asks for the list when pressed', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ onlineEnabled: false });
+      expect(await screen.findByText(/The list of adminium\.dev is off on this server\. Showing it asks adminium\.dev for the list, which tells it this server’s address, the time and its Adminium version\./)).toBeTruthy();
+      // Off: the page asks adminium.dev for nothing by itself.
+      expect(calls.some((c) => c.url === '/api/v1/add-ons/catalog/refresh')).toBe(false);
+      await user.click(screen.getByRole('button', { name: 'Show what is available' }));
+      await waitFor(() => expect(calls.some((c) => c.method === 'PUT' && c.url === '/api/v1/add-ons/catalog')).toBe(true));
+    });
+
+    it('asks for a list that was never fetched when the page opens, once, and only while the list is on', async () => {
+      const { calls } = await renderPage({ entries: [], onlineEnabled: true });
+      await waitFor(() => expect(calls.filter((c) => c.url === '/api/v1/add-ons/catalog/refresh')).toHaveLength(1));
     });
 
     it('switches the online catalogue on from the page that uses it', async () => {
@@ -557,7 +580,7 @@ describe('AddOnsPage', () => {
       expect(within(holidays).getByText('Hc')).toBeTruthy();
       expect(within(holidays).getByText('by Adminium')).toBeTruthy();
       expect(within(holidays).getByText(/^Updated .*2026/)).toBeTruthy();
-      expect(within(holidays).getByRole('button', { name: 'Download' })).toBeTruthy();
+      expect(within(holidays).getByRole('button', { name: 'Install' })).toBeTruthy();
 
       const payroll = screen.getByText('Payroll').closest('li') as HTMLElement;
       expect(within(payroll).getByText('Coming soon')).toBeTruthy();

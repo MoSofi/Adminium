@@ -22,7 +22,13 @@
       "title": "Disponibles",
       "toggle": "Parcourir le catalogue en ligne",
       "upgrade": "v{version} disponible",
-      "upgradeAction": "Mettre à jour"
+      "upgradeAction": "Mettre à jour",
+      "getting": "Récupération…",
+      "onlineList": "Ce que propose adminium.dev, et ce qui est déjà sur ce serveur. Installer récupère une extension et demande avant d’ajouter quoi que ce soit.",
+      "offLine": "La liste d’adminium.dev est désactivée sur ce serveur. L’afficher demande la liste à adminium.dev, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Installer une extension nomme cette extension.",
+      "showAvailable": "Afficher ce qui est disponible",
+      "fetchingTitle": "Récupération de la liste",
+      "fetchingBody": "On demande à adminium.dev ce qui est disponible. Cela prend un instant."
     },
     "card": {
       "needsApiKey": "Nécessite une clé API",

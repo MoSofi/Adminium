@@ -22,7 +22,13 @@
       "title": "Verfügbar",
       "toggle": "Online-Katalog durchsuchen",
       "upgrade": "v{version} verfügbar",
-      "upgradeAction": "Aktualisieren"
+      "upgradeAction": "Aktualisieren",
+      "getting": "Wird geholt…",
+      "onlineList": "Was adminium.dev anbietet und was schon auf diesem Server liegt. Installieren holt ein Add-on und fragt, bevor es etwas hinzufügt.",
+      "offLine": "Die Liste von adminium.dev ist auf diesem Server aus. Sie anzuzeigen fragt adminium.dev nach der Liste; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Eine Installation nennt das jeweilige Add-on.",
+      "showAvailable": "Verfügbares anzeigen",
+      "fetchingTitle": "Liste wird geholt",
+      "fetchingBody": "adminium.dev wird gefragt, was verfügbar ist. Das dauert einen Moment."
     },
     "card": {
       "needsApiKey": "Benötigt einen API-Schlüssel",

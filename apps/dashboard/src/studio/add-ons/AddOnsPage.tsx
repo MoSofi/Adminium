@@ -32,7 +32,7 @@
  * disabled button, and certainly not a "create them" action that would fail.
  */
 import { useMutation, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
 import {
   Alert,
@@ -572,6 +572,10 @@ function SideloadCard({
  * the timer rather than by threading a seam through `studioRoutes`.
  */
 const jobPollMs = 400;
+/** How often the page reads the list again while the server is fetching it. */
+const CATALOG_POLL_MS = 1500;
+/** A list older than this is asked for again when the page opens. */
+const CATALOG_STALE_MS = 24 * 60 * 60 * 1000;
 
 export function AddOnsPage() {
   const queryClient = useQueryClient();
@@ -707,7 +711,7 @@ export function AddOnsPage() {
    * down when the page unmounts mid-download, and it keeps this surface
    * testable without a socket.
    */
-  const runJob = async (start: () => Promise<{ jobId: string }>): Promise<void> => {
+  const runJob = async (start: () => Promise<{ jobId: string }>): Promise<boolean> => {
     setBusy(true);
     setError(null);
     setProgress({ pct: 0, message: null });
@@ -726,8 +730,10 @@ export function AddOnsPage() {
         await new Promise((resolve) => setTimeout(resolve, jobPollMs));
       }
       await refresh();
+      return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
+      return false;
     } finally {
       setProgress(null);
       setBusy(false);
@@ -746,6 +752,45 @@ export function AddOnsPage() {
       }
     })();
   };
+
+  /*
+   * ONE CLICK. Install on a row the list offers: the package is fetched and
+   * verified, and then the confirmation opens on what it would add. The plan
+   * is read from the package, so it cannot be shown before the fetch; nothing
+   * is installed before the dialog's own yes, and a Cancel there leaves the
+   * package on this server (its row then reads Install, which opens the
+   * dialog at once).
+   */
+  const [gettingKey, setGettingKey] = useState<string | null>(null);
+  const getAndConfirm = async (entry: CatalogEntry): Promise<void> => {
+    setGettingKey(entry.key);
+    try {
+      if (await runJob(() => downloadAddOn(entry.key, entry.version))) openConsent({ ...entry, state: 'staged' });
+    } finally {
+      setGettingKey(null);
+    }
+  };
+
+  /*
+   * The list, without being asked for: while the server is fetching it (it
+   * just started, or somebody pressed "Check for newer" elsewhere) the page
+   * reads again; and a list older than a day is asked for once when the page
+   * opens. Never while the list is off.
+   */
+  useEffect(() => {
+    if (catalog.refreshing !== true) return;
+    const timer = setInterval(() => void queryClient.invalidateQueries({ queryKey: ADD_ON_CATALOG_QUERY_KEY }), CATALOG_POLL_MS);
+    return () => clearInterval(timer);
+  }, [catalog.refreshing, queryClient]);
+  const askedForStale = useRef(false);
+  useEffect(() => {
+    if (askedForStale.current || !catalog.onlineEnabled || catalog.refreshing === true) return;
+    if (catalog.catalogFetchedAt !== null && Date.now() - catalog.catalogFetchedAt < CATALOG_STALE_MS) return;
+    askedForStale.current = true;
+    void refreshCatalog()
+      .then(() => queryClient.invalidateQueries({ queryKey: ADD_ON_CATALOG_QUERY_KEY }))
+      .catch(() => undefined);
+  }, [catalog.onlineEnabled, catalog.refreshing, catalog.catalogFetchedAt, queryClient]);
 
   const byKey = new Map(installed.map((addOn) => [addOn.key, addOn]));
 
@@ -800,6 +845,16 @@ export function AddOnsPage() {
             setVetoed(state.vetoed);
           });
         }}
+        gettingKey={gettingKey}
+        onShowAvailable={() => {
+          void (async () => {
+            const state = await run(() => setCatalogEnabled(true));
+            if (state === undefined) return;
+            setVetoed(state.vetoed);
+            if (state.onlineEnabled) await runJob(refreshCatalog);
+          })();
+        }}
+        onGet={(entry) => void getAndConfirm(entry)}
         onDownload={(entry) => {
           void runJob(() => downloadAddOn(entry.key, entry.version));
         }}

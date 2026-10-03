@@ -136,6 +136,8 @@ export interface CatalogBrowse {
   addOns: CatalogEntry[];
   catalogFetchedAt: number | null;
   onlineEnabled: boolean;
+  /** The list is being fetched right now: the page reads again until it is not. */
+  refreshing?: boolean;
 }
 
 /** Mirrors `installPlanDto` — the consent dialog's document. */

@@ -32,7 +32,13 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade"
+      "upgradeAction": "Upgrade",
+      "getting": "Getting it…",
+      "onlineList": "What adminium.dev offers, and what is already on this server. Install fetches an add-on and asks before it adds anything.",
+      "offLine": "The list of adminium.dev is off on this server. Showing it asks adminium.dev for the list, which tells it this server’s address, the time and its Adminium version. Installing an add-on names that add-on.",
+      "showAvailable": "Show what is available",
+      "fetchingTitle": "Fetching the list",
+      "fetchingBody": "Asking adminium.dev what is available. This takes a moment."
     },
     "card": {
       "needsApiKey": "Needs an API key",

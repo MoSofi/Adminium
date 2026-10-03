@@ -104,6 +104,8 @@ function ConnectLine({ kind }: { kind: CatalogEntry['connectKind'] }) {
 function AddOnCard({
   entry,
   busy,
+  getting,
+  onGet,
   onDownload,
   onInstall,
   onDiscard,
@@ -111,6 +113,10 @@ function AddOnCard({
 }: {
   entry: CatalogEntry;
   busy: boolean;
+  /** This row is being fetched for an install. */
+  getting: boolean;
+  /** Install from the list: fetch it, then confirm. */
+  onGet: (entry: CatalogEntry) => void;
   onDownload: (entry: CatalogEntry) => void;
   onInstall: (entry: CatalogEntry) => void;
   onDiscard: (entry: CatalogEntry) => void;
@@ -194,15 +200,10 @@ function AddOnCard({
             {t('studio:addOns.card.notYet', 'Not available yet')}
           </p>
         )}
+        {/* One click: it is fetched and verified, then the confirmation says what it adds. Nothing is installed before that yes. */}
         {entry.state === 'available' && !comingSoon && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="flex-1"
-            disabled={busy || blocked !== null}
-            onClick={() => onDownload(entry)}
-          >
-            {t('studio:addOns.browse.download', 'Download')}
+          <Button size="sm" className="flex-1" disabled={busy || blocked !== null} onClick={() => onGet(entry)}>
+            {getting ? t('studio:addOns.browse.getting', 'Getting it…') : t('studio:addOns.browse.install', 'Install')}
           </Button>
         )}
         {entry.state === 'staged' && (
@@ -242,8 +243,13 @@ function AddOnCard({
 export interface AddOnBrowserProps {
   catalog: CatalogBrowse;
   busy: boolean;
+  /** The key of the row being fetched for an install, or null. */
+  gettingKey: string | null;
   onRefreshCatalog: () => void;
   onToggleOnline: (next: boolean) => void;
+  /** "Show what is available" on a server whose list is off: switch it on and ask for the list. */
+  onShowAvailable: () => void;
+  onGet: (entry: CatalogEntry) => void;
   onDownload: (entry: CatalogEntry) => void;
   onInstall: (entry: CatalogEntry) => void;
   onDiscard: (entry: CatalogEntry) => void;
@@ -253,8 +259,11 @@ export interface AddOnBrowserProps {
 export function AddOnBrowser({
   catalog,
   busy,
+  gettingKey,
   onRefreshCatalog,
   onToggleOnline,
+  onShowAvailable,
+  onGet,
   onDownload,
   onInstall,
   onDiscard,
@@ -306,8 +315,8 @@ export function AddOnBrowser({
             <span className="text-sm text-fg-muted">
               {catalog.onlineEnabled
                 ? t(
-                    'studio:addOns.browse.online',
-                    'Includes add-ons from the online catalogue. Checking for newer versions is a separate action.',
+                    'studio:addOns.browse.onlineList',
+                    'What adminium.dev offers, and what is already on this server. Install fetches an add-on and asks before it adds anything.',
                   )
                 : t(
                     'studio:addOns.browse.offline',
@@ -337,7 +346,27 @@ export function AddOnBrowser({
         </span>
       </CardHeader>
       <CardBody>
-        {catalog.addOns.length === 0 ? (
+        {/* A server from before 0.3.16, or one whose list was switched off: one button, and what pressing it sends. */}
+        {!catalog.onlineEnabled && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-2 px-3.5 py-3">
+            <p className="min-w-0 flex-1 text-sm text-fg-muted">
+              {t(
+                'studio:addOns.browse.offLine',
+                'The list of adminium.dev is off on this server. Showing it asks adminium.dev for the list, which tells it this server’s address, the time and its Adminium version. Installing an add-on names that add-on.',
+              )}
+            </p>
+            <Button size="sm" disabled={busy} onClick={onShowAvailable}>
+              {t('studio:addOns.browse.showAvailable', 'Show what is available')}
+            </Button>
+          </div>
+        )}
+        {catalog.addOns.length === 0 && catalog.refreshing === true ? (
+          <EmptyState
+            icon={<CloudDownload />}
+            title={t('studio:addOns.browse.fetchingTitle', 'Fetching the list')}
+            body={t('studio:addOns.browse.fetchingBody', 'Asking adminium.dev what is available. This takes a moment.')}
+          />
+        ) : catalog.addOns.length === 0 ? (
           /* D8's first nothing: a CONFIGURATION answer. Nothing is wrong; this
              build shipped no bundled set and online browsing is off. */
           <EmptyState
@@ -423,6 +452,8 @@ export function AddOnBrowser({
                       key={entry.key}
                       entry={entry}
                       busy={busy}
+                      getting={gettingKey === entry.key}
+                      onGet={onGet}
                       onDownload={onDownload}
                       onInstall={onInstall}
                       onDiscard={onDiscard}
