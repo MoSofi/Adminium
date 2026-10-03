@@ -1,5 +1,15 @@
 # @adminium/llm
 
+## 0.3.14
+
+### Patch Changes
+
+- 100163b: Adminium Designer, tuned on real models. A new app starts bare, named from what was asked. The Designer builds on an add-on's shape from the add-on's own manifest (`build_on_shape`), is sent back to check errors it left and told once about a table nobody can open, asks a model's server again after a passing failure, and asks for a screen's packages at the version this server knows. A turn may use 1,500,000 tokens and a session 15,000,000 (`designer.turnTokens`, `designer.sessionTokens`). A screen that stops with an error when it opens says so in the preview. The app's tests, and any file in `hooks/` or `actions/`, wait for the person's yes; an app's own screens are served only on the preview's address while the Designer runs; a connection test sends a saved key only to the address it was saved for; and the link `adminium design` prints is good for fifteen minutes.
+- 7976459: Adminium Designer's model picker and "Add a model" dialog. The picker lists every model by connection, finds one as you type, marks a model that cannot build apps, and says when a connection could not be reached. The dialog adds Anthropic, OpenAI, an OpenAI-compatible service or Ollama: test the key or address, see whether the chosen model can build, and save it to the project's `.env` (the key never comes back to the browser). A model that could not be asked — a refused key, no answer — now fails the test and the start of a session with that reason, instead of being reported as unable to build. The design link opened in a tab already showing the Designer is now taken out of the address and spent.
+- 9e34726: A model can now be given to the server by its environment, with nothing saved in Settings → AI: `ADMINIUM_AI_ANTHROPIC_API_KEY`, `ADMINIUM_AI_OPENAI_API_KEY`, `ADMINIUM_AI_COMPATIBLE_BASE_URL` (with `ADMINIUM_AI_COMPATIBLE_API_KEY`), `ADMINIUM_AI_OLLAMA_BASE_URL`, and `ADMINIUM_AI_MODEL` as `<provider>/<model>`. The page assistant and the AI assist use the saved provider when there is one and the environment's model when there is none. In a project folder the same names go in `.env`, and they are the one part of that file the server does not copy into its environment. Every path that calls a model now checks its address first, and calls only a local model when `ADMINIUM_NETWORK_FEATURES` is off. New: `GET /llm/connections` and `GET /llm/connections/:id/models`.
+- @adminium/widgets@0.3.14
+  - @adminium/engine@0.3.14
+
 ## 0.3.13
 
 ### Patch Changes

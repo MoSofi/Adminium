@@ -1,5 +1,12 @@
 # @adminium/meta
 
+## 0.3.14
+
+### Patch Changes
+
+- 3dc3c74: New: `adminium design` opens Adminium Designer in the browser, signed in, on this machine only. Outside a project it makes one first. The server runs in the same process, answers only to `127.0.0.1`, `localhost` and `[::1]` on its port, serves the preview of what is built on `localhost` (a different site, so the preview's code cannot act for the person), names its session cookie for its port, and signs in the owner it made with a one-use link carried after `#`. The owner has no password until `adminium owner set` gives one; `start` says so. The plain `npx @adminiumjs/adminium` flow now asks what to start with: describe an app, connect a database, or sample data. New permission `system:designer:use` (Super Admin only by default).
+- 100163b: Adminium Designer, tuned on real models. A new app starts bare, named from what was asked. The Designer builds on an add-on's shape from the add-on's own manifest (`build_on_shape`), is sent back to check errors it left and told once about a table nobody can open, asks a model's server again after a passing failure, and asks for a screen's packages at the version this server knows. A turn may use 1,500,000 tokens and a session 15,000,000 (`designer.turnTokens`, `designer.sessionTokens`). A screen that stops with an error when it opens says so in the preview. The app's tests, and any file in `hooks/` or `actions/`, wait for the person's yes; an app's own screens are served only on the preview's address while the Designer runs; a connection test sends a saved key only to the address it was saved for; and the link `adminium design` prints is good for fifteen minutes.
+
 ## 0.3.13
 
 ### Patch Changes

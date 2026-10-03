@@ -1,5 +1,33 @@
 # @adminium/dashboard
 
+## 0.3.14
+
+### Patch Changes
+
+- 3dc3c74: New: `adminium design` opens Adminium Designer in the browser, signed in, on this machine only. Outside a project it makes one first. The server runs in the same process, answers only to `127.0.0.1`, `localhost` and `[::1]` on its port, serves the preview of what is built on `localhost` (a different site, so the preview's code cannot act for the person), names its session cookie for its port, and signs in the owner it made with a one-use link carried after `#`. The owner has no password until `adminium owner set` gives one; `start` says so. The plain `npx @adminiumjs/adminium` flow now asks what to start with: describe an app, connect a database, or sample data. New permission `system:designer:use` (Super Admin only by default).
+- c55d717: Adminium Designer's Architecture tab: how the app being built fits together, read from what the engine applied — its people (roles, customers), what they use (the dashboard, the staff and customer sides), its tables with their row counts and relations, its emails, its add-ons and what comes with Adminium — as a diagram or as a list. Selecting a part names its lines and opens it in the dashboard. Seven lists follow: tables, pages, roles (what each may read and write, from their real grants), customer access, emails, add-ons and the sides' screens. Changes in the project folder that are not applied yet are named and marked.
+- eeefc52: Adminium Designer's build page: the chat with the Designer, drawn from the session's events as they stream (and read again after a gap or a reconnect, so a reload shows the same thing). Each turn shows the person's message, the Designer's answer, its steps (files written one after another folded into one line, the time it took), the tokens used while it works, and "Saved as" a version. Questions, a data loss and a package wait for an answer on cards; a stopped turn offers Continue and Put the files back; a limit offers Keep going; a failed model says which and offers Try again. The top bar renames the app and lists its versions; going back to one asks first and adds a version on top. The chat's width can be dragged or moved with the arrow keys; on a phone, chat and preview are tabs. Step lines are now worded on the page in each language from facts the server sends with every step.
+- 3d628f1: Adminium Designer: a step the turn applied is said once in the chat, and the preview finds an app the turn has just applied even when its live notice was missed.
+- 100163b: Adminium Designer, tuned on real models. A new app starts bare, named from what was asked. The Designer builds on an add-on's shape from the add-on's own manifest (`build_on_shape`), is sent back to check errors it left and told once about a table nobody can open, asks a model's server again after a passing failure, and asks for a screen's packages at the version this server knows. A turn may use 1,500,000 tokens and a session 15,000,000 (`designer.turnTokens`, `designer.sessionTokens`). A screen that stops with an error when it opens says so in the preview. The app's tests, and any file in `hooks/` or `actions/`, wait for the person's yes; an app's own screens are served only on the preview's address while the Designer runs; a connection test sends a saved key only to the address it was saved for; and the link `adminium design` prints is good for fifteen minutes.
+- cc8c326: Adminium Designer's home page: describe an app and choose what to build for (Auto, Dashboard only, Web), start from one of twelve examples, and continue any app of the project. Enter sends; Shift+Enter makes a new line. With no model, or a model that cannot call tools, the page says so before anything is made. A project `adminium design` makes now starts with its database file in place. Installed Apps says "Made on this install" and names the folder an app runs from, and the install wizard adds: "Install it only if you trust where it came from." New in the UI kit: radio items for dropdown menus.
+- 7976459: Adminium Designer's model picker and "Add a model" dialog. The picker lists every model by connection, finds one as you type, marks a model that cannot build apps, and says when a connection could not be reached. The dialog adds Anthropic, OpenAI, an OpenAI-compatible service or Ollama: test the key or address, see whether the chosen model can build, and save it to the project's `.env` (the key never comes back to the browser). A model that could not be asked — a refused key, no answer — now fails the test and the start of a session with that reason, instead of being reported as unable to build. The design link opened in a tab already showing the Designer is now taken out of the address and spent.
+- b240a4f: Adminium Designer's preview: the app being built, beside the chat, as its people will see it — the dashboard with the app's own pages, the staff side and the customer side (a side the app does not have is not offered), at desktop, tablet or phone width. It is served on the preview's own host name and signed in as a user that holds only the app's roles; its session cookie is made for a frame on another site. It reloads when the app is applied again, says when a side is building, and when a side did not build shows the first error with "Ask the Designer to fix it". "Open in a new tab" opens it on its own. The dashboard's app frame can now be pointed at another address and speaks only to that address's origin.
+- bf6003b: The dashboard's first download is smaller in a browser: the desktop app's update notice and menu-bar wording are loaded only inside the desktop app.
+- Updated dependencies [3dc3c74]
+- Updated dependencies [c55d717]
+- Updated dependencies [eeefc52]
+- Updated dependencies [100163b]
+- Updated dependencies [cc8c326]
+- Updated dependencies [7976459]
+- Updated dependencies [b240a4f]
+  - @adminium/i18n@0.3.14
+  - @adminium/ui@0.3.14
+  - @adminium/charts@0.3.14
+  - @adminium/widgets@0.3.14
+  - @adminium/engine@0.3.14
+  - @adminium/add-on-contracts@0.3.14
+  - @adminium/tokens@0.3.14
+
 ## 0.3.13
 
 ### Patch Changes
