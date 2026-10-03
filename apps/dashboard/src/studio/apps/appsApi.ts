@@ -142,6 +142,8 @@ export interface AppCatalogReply {
   catalogFetchedAt: number | null;
   /** Network features AND the app catalog switch. */
   onlineEnabled: boolean;
+  /** The list is being fetched right now: the page reads again until it is not. */
+  refreshing?: boolean;
 }
 
 export const APP_CATALOG_QUERY_KEY = ['app-catalog'] as const;

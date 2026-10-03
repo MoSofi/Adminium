@@ -584,7 +584,10 @@ export default {
       "comingSoon": "Coming soon",
       "notYet": "Not available yet",
       "updated": "Updated {date}",
-      "needsAddOns": "Needs {names}"
+      "needsAddOns": "Needs {names}",
+      "fetching": "Asking adminium.dev what is available. This takes a moment.",
+      "offLine": "The list of adminium.dev is off on this server. Showing it asks adminium.dev for the list, which tells it this server’s address, the time and its Adminium version. Installing an app names that app.",
+      "showAvailable": "Show what is available"
     },
     "domains": {
       "add": "Attach a domain",
@@ -759,7 +762,15 @@ export default {
         "retry": "Try again",
         "back": "Back to Schema plan"
       },
-      "madeHere": "Made on this install. It does not come from adminium.dev, and nobody else has checked it. Install it only if you trust where it came from."
+      "madeHere": "Made on this install. It does not come from adminium.dev, and nobody else has checked it. Install it only if you trust where it came from.",
+      "quick": {
+        "title": "Install {app}",
+        "into": "It is installed into your database “{database}”. Nothing is added until you press Install.",
+        "manyDatabases": "This server has more than one database, and the app goes into one of them. More choices opens the steps, where you choose.",
+        "noDatabase": "This server has no database connected yet. More choices opens the steps, where one is chosen.",
+        "reading": "Reading what it would add…",
+        "more": "More choices"
+      }
     },
     "installed": {
       "title": "Installed apps",

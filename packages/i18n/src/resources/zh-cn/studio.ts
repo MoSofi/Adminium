@@ -584,7 +584,10 @@ export default {
       "comingSoon": "即将推出",
       "notYet": "暂不可用",
       "updated": "更新于 {date}",
-      "needsAddOns": "需要 {names}"
+      "needsAddOns": "需要 {names}",
+      "fetching": "正在向 adminium.dev 询问可用内容。请稍候。",
+      "offLine": "此服务器上已关闭 adminium.dev 的列表。显示它会向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。安装应用会说明是哪个应用。",
+      "showAvailable": "显示可用内容"
     },
     "domains": {
       "add": "附加域名",
@@ -759,7 +762,15 @@ export default {
         "retry": "重试",
         "back": "返回架构计划"
       },
-      "madeHere": "在此安装上制作。它并非来自 adminium.dev，也没有其他人检查过它。只有在你信任其来源时才安装它。"
+      "madeHere": "在此安装上制作。它并非来自 adminium.dev，也没有其他人检查过它。只有在你信任其来源时才安装它。",
+      "quick": {
+        "title": "安装 {app}",
+        "into": "它将安装到你的数据库“{database}”。在你按下“安装”之前不会添加任何内容。",
+        "manyDatabases": "此服务器有多个数据库，应用将安装到其中之一。“更多选项”会打开各个步骤供你选择。",
+        "noDatabase": "此服务器尚未连接数据库。“更多选项”会打开各个步骤，在其中选择一个。",
+        "reading": "正在读取它将添加的内容…",
+        "more": "更多选项"
+      }
     },
     "installed": {
       "title": "已安装的应用",

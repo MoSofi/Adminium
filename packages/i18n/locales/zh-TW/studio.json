@@ -574,7 +574,10 @@
       "comingSoon": "即將推出",
       "notYet": "尚未提供",
       "updated": "更新於 {date}",
-      "needsAddOns": "需要 {names}"
+      "needsAddOns": "需要 {names}",
+      "fetching": "正在向 adminium.dev 詢問可用內容。請稍候。",
+      "offLine": "此伺服器上已關閉 adminium.dev 的清單。顯示它會向 adminium.dev 請求清單，對方會得知此伺服器的位址、時間及其 Adminium 版本。安裝應用程式會說明是哪個應用程式。",
+      "showAvailable": "顯示可用內容"
     },
     "domains": {
       "add": "附加網域",
@@ -749,7 +752,15 @@
         "retry": "重試",
         "back": "返回結構計畫"
       },
-      "madeHere": "在此安裝上製作。它並非來自 adminium.dev，也沒有其他人檢查過它。只有在你信任其來源時才安裝它。"
+      "madeHere": "在此安裝上製作。它並非來自 adminium.dev，也沒有其他人檢查過它。只有在你信任其來源時才安裝它。",
+      "quick": {
+        "title": "安裝 {app}",
+        "into": "它將安裝到你的資料庫「{database}」。在你按下「安裝」之前不會加入任何內容。",
+        "manyDatabases": "此伺服器有多個資料庫，應用程式將安裝到其中之一。「更多選項」會開啟各個步驟供你選擇。",
+        "noDatabase": "此伺服器尚未連接資料庫。「更多選項」會開啟各個步驟，在其中選擇一個。",
+        "reading": "正在讀取它將加入的內容…",
+        "more": "更多選項"
+      }
     },
     "installed": {
       "title": "已安裝的應用程式",

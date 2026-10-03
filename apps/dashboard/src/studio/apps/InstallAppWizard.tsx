@@ -46,7 +46,7 @@
  *  wizard on it. "Install an app" is the upload tile. A source step here would
  *  be a second copy of the shelf, asking a question the click already answered.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import {
@@ -180,9 +180,20 @@ export interface InstallAppWizardProps {
         downloaded?: boolean | undefined;
       }
     | undefined;
+  /**
+   * ONE DIALOG (plan 65, C2). The app came off adminium.dev's list by one
+   * click: instead of four steps, the person is shown what it would add, the
+   * database it goes to and the add-ons it brings, with Install, Cancel and
+   * "More choices", which opens the steps. It installs with what the steps
+   * would start with. Where that cannot be decided for them (more than one
+   * database, or none), the dialog says so and "More choices" is its button.
+   */
+  quick?: boolean | undefined;
+  /** "More choices": open the steps on the same app. */
+  onMoreChoices?: (() => void) | undefined;
 }
 
-export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps) {
+export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices }: InstallAppWizardProps) {
   const queryClient = useQueryClient();
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
@@ -425,9 +436,46 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   const busy = upload.isPending || preview.isPending || install.isPending || download.isPending;
   const checking = step === 'plan' && plan !== null && hasTables(plan);
 
+  /*
+   * The one dialog: the only database is taken, and the app is checked
+   * against it at once, so what opens is the plan. With more than one
+   * database (or none) there is a choice the dialog does not make.
+   */
+  const onlyDatabase = connections.length === 1 ? (connections[0]?.id ?? '') : '';
+  const quickAsked = useRef(false);
+  useEffect(() => {
+    if (!quick || staged === null || onlyDatabase === '') return;
+    if (connectionId === '') {
+      setConnectionId(onlyDatabase);
+      return;
+    }
+    if (quickAsked.current) return;
+    quickAsked.current = true;
+    preview.mutate({});
+    // `preview` is a new object each render; the ref makes this run once.
+  }, [quick, staged, onlyDatabase, connectionId]);
+  const quickNeedsChoice = quick && onlyDatabase === '';
+
   return (
-    <section className="flex min-h-full flex-col gap-6">
-      <header>
+    <section className={quick ? 'flex flex-col gap-5' : 'flex min-h-full flex-col gap-6'}>
+      {quick && step !== 'done' ? (
+        <div data-part="quick-intro" className="flex flex-col gap-1">
+          <p className="text-sm text-fg-muted">
+            {quickNeedsChoice
+              ? connections.length === 0
+                ? t('studio:hostedApps.install.quick.noDatabase', 'This server has no database connected yet. More choices opens the steps, where one is chosen.')
+                : t('studio:hostedApps.install.quick.manyDatabases', 'This server has more than one database, and the app goes into one of them. More choices opens the steps, where you choose.')
+              : t('studio:hostedApps.install.quick.into', 'It is installed into your database “{database}”. Nothing is added until you press Install.', { database: connectionName })}
+          </p>
+          {!quickNeedsChoice && step !== 'plan' && error === null ? (
+            <p className="flex items-center gap-2 text-sm text-fg-muted">
+              <Spinner size="sm" />
+              {t('studio:hostedApps.install.quick.reading', 'Reading what it would add…')}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <header className={quick ? 'hidden' : undefined}>
         <Stepper
           steps={steps}
           activeIndex={stepIndex}
@@ -464,7 +512,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         * upload). The comp's marketplace tile draws this row — name, then the
         * version in mono — so an upload confirms itself the same way.
         */}
-      {step === 'bundle' && staged !== null ? (
+      {step === 'bundle' && staged !== null && !quick ? (
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
@@ -955,7 +1003,13 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
               {t('studio:hostedApps.install.cancel', 'Cancel')}
             </Button>
           )}
-          {stepIndex > 0 &&
+          {quick && step !== 'done' && onMoreChoices !== undefined ? (
+            <Button variant={quickNeedsChoice ? 'primary' : 'secondary'} disabled={busy} onClick={onMoreChoices}>
+              {t('studio:hostedApps.install.quick.more', 'More choices')}
+            </Button>
+          ) : null}
+          {!quick &&
+          stepIndex > 0 &&
           step !== 'done' &&
           !(checking && (stopped !== null || install.isPending)) ? (
             <Button
@@ -970,7 +1024,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             </Button>
           ) : null}
 
-          {step === 'bundle' && staged !== null ? (
+          {step === 'bundle' && staged !== null && !quick ? (
             <Button disabled={busy} onClick={() => setStep('database')}>
               {t('studio:hostedApps.install.continue', 'Continue')}
             </Button>

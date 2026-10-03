@@ -574,7 +574,10 @@
       "comingSoon": "Kommer snart",
       "notYet": "Ikke tilgængelig endnu",
       "updated": "Opdateret {date}",
-      "needsAddOns": "Kræver {names}"
+      "needsAddOns": "Kræver {names}",
+      "fetching": "Spørger adminium.dev, hvad der er tilgængeligt. Det tager et øjeblik.",
+      "offLine": "Listen fra adminium.dev er slået fra på denne server. At vise den beder adminium.dev om listen, hvilket fortæller den serverens adresse, tidspunktet og dens Adminium-version. Installation af en app nævner den app.",
+      "showAvailable": "Vis, hvad der er tilgængeligt"
     },
     "domains": {
       "add": "Tilknyt et domæne",
@@ -749,7 +752,15 @@
         "retry": "Prøv igen",
         "back": "Tilbage til skemaplan"
       },
-      "madeHere": "Lavet på denne installation. Den kommer ikke fra adminium.dev, og ingen andre har kontrolleret den. Installér den kun, hvis du stoler på, hvor den kommer fra."
+      "madeHere": "Lavet på denne installation. Den kommer ikke fra adminium.dev, og ingen andre har kontrolleret den. Installér den kun, hvis du stoler på, hvor den kommer fra.",
+      "quick": {
+        "title": "Installér {app}",
+        "into": "Den installeres i din database “{database}”. Intet tilføjes, før du trykker Installér.",
+        "manyDatabases": "Denne server har mere end én database, og appen lægges i én af dem. Flere valg åbner trinnene, hvor du vælger.",
+        "noDatabase": "Denne server har endnu ingen database tilsluttet. Flere valg åbner trinnene, hvor én vælges.",
+        "reading": "Læser, hvad den vil tilføje…",
+        "more": "Flere valg"
+      }
     },
     "installed": {
       "title": "Installerede apps",

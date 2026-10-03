@@ -574,7 +574,10 @@
       "comingSoon": "Demnächst",
       "notYet": "Noch nicht verfügbar",
       "updated": "Aktualisiert am {date}",
-      "needsAddOns": "Benötigt {names}"
+      "needsAddOns": "Benötigt {names}",
+      "fetching": "adminium.dev wird gefragt, was verfügbar ist. Das dauert einen Moment.",
+      "offLine": "Die Liste von adminium.dev ist auf diesem Server aus. Sie anzuzeigen fragt adminium.dev nach der Liste; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Eine Installation nennt die jeweilige App.",
+      "showAvailable": "Verfügbares anzeigen"
     },
     "domains": {
       "add": "Domain anhängen",
@@ -749,7 +752,15 @@
         "retry": "Erneut versuchen",
         "back": "Zurück zum Schemaplan"
       },
-      "madeHere": "Auf dieser Installation erstellt. Sie stammt nicht von adminium.dev, und niemand sonst hat sie geprüft. Installieren Sie sie nur, wenn Sie ihrer Herkunft vertrauen."
+      "madeHere": "Auf dieser Installation erstellt. Sie stammt nicht von adminium.dev, und niemand sonst hat sie geprüft. Installieren Sie sie nur, wenn Sie ihrer Herkunft vertrauen.",
+      "quick": {
+        "title": "{app} installieren",
+        "into": "Sie wird in deine Datenbank „{database}“ installiert. Es wird nichts hinzugefügt, bevor du Installieren drückst.",
+        "manyDatabases": "Dieser Server hat mehr als eine Datenbank, und die App kommt in eine davon. Weitere Optionen öffnet die Schritte, in denen du wählst.",
+        "noDatabase": "Dieser Server hat noch keine Datenbank verbunden. Weitere Optionen öffnet die Schritte, in denen eine gewählt wird.",
+        "reading": "Es wird gelesen, was sie hinzufügen würde…",
+        "more": "Weitere Optionen"
+      }
     },
     "installed": {
       "title": "Installierte Apps",

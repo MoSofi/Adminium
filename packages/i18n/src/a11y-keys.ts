@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2698 entries. */
+/** `namespace:key` — 2700 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1608,6 +1608,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.error',
   'studio:hostedApps.install.bundle.file',
   'studio:hostedApps.install.bundle.integrity',
+  'studio:hostedApps.install.cancel',
   'studio:hostedApps.install.check.badgeEarlier',
   'studio:hostedApps.install.check.badgeNew',
   'studio:hostedApps.install.check.badgeShared',
@@ -1633,6 +1634,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.install.plan.refused',
   'studio:hostedApps.install.plan.ruleWarnings',
   'studio:hostedApps.install.progress',
+  'studio:hostedApps.install.quick.title',
   'studio:hostedApps.install.running.pages',
   'studio:hostedApps.install.running.tables',
   'studio:hostedApps.install.steps.bundle',

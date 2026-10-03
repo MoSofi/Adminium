@@ -574,7 +574,10 @@
       "comingSoon": "Již brzy",
       "notYet": "Zatím není k dispozici",
       "updated": "Aktualizováno {date}",
-      "needsAddOns": "Vyžaduje {names}"
+      "needsAddOns": "Vyžaduje {names}",
+      "fetching": "Ptám se adminium.dev, co je k dispozici. Chvíli to potrvá.",
+      "offLine": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zobrazení požádá adminium.dev o seznam, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Instalace aplikace tu aplikaci jmenuje.",
+      "showAvailable": "Zobrazit, co je k dispozici"
     },
     "domains": {
       "add": "Připojit doménu",
@@ -749,7 +752,15 @@
         "retry": "Zkusit znovu",
         "back": "Zpět na plán schématu"
       },
-      "madeHere": "Vytvořeno na této instalaci. Nepochází z adminium.dev a nikdo jiný ji nezkontroloval. Instalujte ji, jen pokud důvěřujete jejímu původu."
+      "madeHere": "Vytvořeno na této instalaci. Nepochází z adminium.dev a nikdo jiný ji nezkontroloval. Instalujte ji, jen pokud důvěřujete jejímu původu.",
+      "quick": {
+        "title": "Nainstalovat {app}",
+        "into": "Nainstaluje se do vaší databáze „{database}“. Nic se nepřidá, dokud nestisknete Nainstalovat.",
+        "manyDatabases": "Tento server má více databází a aplikace jde do jedné z nich. Další volby otevřou kroky, kde si vyberete.",
+        "noDatabase": "Tento server zatím nemá připojenou žádnou databázi. Další volby otevřou kroky, kde se vybere.",
+        "reading": "Zjišťuji, co by přidala…",
+        "more": "Další volby"
+      }
     },
     "installed": {
       "title": "Nainstalované aplikace",

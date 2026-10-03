@@ -1359,7 +1359,7 @@ describe('the app shelf (47 step 4b)', () => {
     installed = CATALOG as never;
     return render(
       <QueryClientProvider client={createQueryClient()}>
-        <AppBrowser onInstall={onInstall} onToggleOnline={() => {}} onRefresh={() => {}} />
+        <AppBrowser onInstall={onInstall} onToggleOnline={() => {}} onShowAvailable={() => {}} onRefresh={() => {}} />
       </QueryClientProvider>,
     );
   }
@@ -1419,7 +1419,7 @@ describe('the app shelf (47 step 4b)', () => {
     } as never;
     render(
       <QueryClientProvider client={createQueryClient()}>
-        <AppBrowser onInstall={() => {}} onToggleOnline={() => {}} onRefresh={() => {}} />
+        <AppBrowser onInstall={() => {}} onToggleOnline={() => {}} onShowAvailable={() => {}} onRefresh={() => {}} />
       </QueryClientProvider>,
     );
     const portal = (await screen.findByText('Client Portal')).closest('article') as HTMLElement;

@@ -43,8 +43,8 @@
  * chips are the manifest's own `capabilities` — a shipped app really does
  * declare `payments`, `email-delivery`, `realtime`.
  */
-import { useMemo, useState } from 'react';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
   Badge,
   Button,
@@ -58,7 +58,7 @@ import {
 import { Download, Package, SearchX } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
-import { appCatalogQuery, type CatalogApp } from './appsApi.js';
+import { APP_CATALOG_QUERY_KEY, appCatalogQuery, followAppJob, refreshAppCatalog, type CatalogApp } from './appsApi.js';
 import { CatalogTile, addOnNameOf, catalogDate } from '../marketplace-card.js';
 
 export interface AppBrowserProps {
@@ -67,6 +67,8 @@ export interface AppBrowserProps {
    * when it is a catalog-only row.
    */
   onInstall: (app: CatalogApp) => void;
+  /** "Show what is available" on a server whose list is off: switch it on and ask for the list. */
+  onShowAvailable: () => void;
   /** The online app catalog switch. The page reports a veto. */
   onToggleOnline: (next: boolean) => void;
   /** Fetch the online app catalog again (a job the page follows). */
@@ -77,8 +79,34 @@ export interface AppBrowserProps {
 
 const ALL = '*';
 
-export function AppBrowser({ onInstall, onToggleOnline, onRefresh, busy = false }: AppBrowserProps) {
+/** A list older than this is asked for again when the page opens. */
+const STALE_MS = 24 * 60 * 60 * 1000;
+
+export function AppBrowser({ onInstall, onToggleOnline, onShowAvailable, onRefresh, busy = false }: AppBrowserProps) {
   const { data } = useSuspenseQuery(appCatalogQuery());
+  const queryClient = useQueryClient();
+  /*
+   * The list, without being asked for: while the server is fetching it (it
+   * just started, or the add-on list is being refreshed with it) the page
+   * reads again; and a list older than a day is asked for once when the page
+   * opens. Never while the list is off.
+   */
+  useEffect(() => {
+    if (data.refreshing !== true) return;
+    const timer = setInterval(() => void queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY }), 1500);
+    return () => clearInterval(timer);
+  }, [data.refreshing, queryClient]);
+  const askedForStale = useRef(false);
+  useEffect(() => {
+    if (askedForStale.current || !data.onlineEnabled || data.refreshing === true) return;
+    if (data.catalogFetchedAt !== null && Date.now() - data.catalogFetchedAt < STALE_MS) return;
+    askedForStale.current = true;
+    void refreshAppCatalog()
+      // The request only queues the fetch: the list is read again when the job ends.
+      .then(({ jobId }) => followAppJob(jobId, { onProgress: () => undefined, failed: '' }))
+      .then(() => queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY }))
+      .catch(() => undefined);
+  }, [data.onlineEnabled, data.refreshing, data.catalogFetchedAt, queryClient]);
   // Opened on one app (`/studio/apps#app=<key>`, as the Designer's sheet does): its key is in the search to begin with.
   const [query, setQuery] = useState(() => {
     try {
@@ -129,13 +157,29 @@ export function AppBrowser({ onInstall, onToggleOnline, onRefresh, busy = false 
                 'Ready-made apps that came with this build. Installing one creates the tables it needs and serves its screens — nothing happens until you confirm the plan.',
               )}
         </p>
-        {data.onlineEnabled && data.catalogFetchedAt === null ? (
+        {data.onlineEnabled && data.refreshing === true ? (
+          <p className="text-sm text-fg-subtle">{t('studio:hostedApps.browse.fetching', 'Asking adminium.dev what is available. This takes a moment.')}</p>
+        ) : data.onlineEnabled && data.catalogFetchedAt === null ? (
           <p className="text-sm text-fg-subtle">
             {t(
               'studio:hostedApps.browse.neverChecked',
               'The online catalogue is on but has not been checked yet. Check for newer to list its apps.',
             )}
           </p>
+        ) : null}
+        {/* A server from before 0.3.16, or one whose list was switched off: one button, and what pressing it sends. */}
+        {!data.onlineEnabled ? (
+          <div className="mt-1 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-2 px-3.5 py-3">
+            <p className="min-w-0 flex-1 text-sm text-fg-muted">
+              {t(
+                'studio:hostedApps.browse.offLine',
+                'The list of adminium.dev is off on this server. Showing it asks adminium.dev for the list, which tells it this server’s address, the time and its Adminium version. Installing an app names that app.',
+              )}
+            </p>
+            <Button size="sm" disabled={busy} onClick={onShowAvailable}>
+              {t('studio:hostedApps.browse.showAvailable', 'Show what is available')}
+            </Button>
+          </div>
         ) : null}
       </div>
       <div className="flex items-center gap-3">

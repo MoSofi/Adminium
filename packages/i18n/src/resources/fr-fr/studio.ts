@@ -584,7 +584,10 @@ export default {
       "comingSoon": "Bientôt disponible",
       "notYet": "Pas encore disponible",
       "updated": "Mis à jour le {date}",
-      "needsAddOns": "Nécessite {names}"
+      "needsAddOns": "Nécessite {names}",
+      "fetching": "On demande à adminium.dev ce qui est disponible. Cela prend un instant.",
+      "offLine": "La liste d’adminium.dev est désactivée sur ce serveur. L’afficher demande la liste à adminium.dev, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Installer une application nomme cette application.",
+      "showAvailable": "Afficher ce qui est disponible"
     },
     "domains": {
       "add": "Attacher un domaine",
@@ -759,7 +762,15 @@ export default {
         "retry": "Réessayer",
         "back": "Retour au plan de schéma"
       },
-      "madeHere": "Créée sur cette installation. Elle ne vient pas d’adminium.dev et personne d’autre ne l’a vérifiée. Ne l’installez que si vous faites confiance à sa provenance."
+      "madeHere": "Créée sur cette installation. Elle ne vient pas d’adminium.dev et personne d’autre ne l’a vérifiée. Ne l’installez que si vous faites confiance à sa provenance.",
+      "quick": {
+        "title": "Installer {app}",
+        "into": "Elle est installée dans votre base de données « {database} ». Rien n’est ajouté tant que vous n’appuyez pas sur Installer.",
+        "manyDatabases": "Ce serveur a plusieurs bases de données, et l’application va dans l’une d’elles. Plus de choix ouvre les étapes, où vous choisissez.",
+        "noDatabase": "Ce serveur n’a pas encore de base de données connectée. Plus de choix ouvre les étapes, où l’on en choisit une.",
+        "reading": "Lecture de ce qu’elle ajouterait…",
+        "more": "Plus de choix"
+      }
     },
     "installed": {
       "title": "Applications installées",

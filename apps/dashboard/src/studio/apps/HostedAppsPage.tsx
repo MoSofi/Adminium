@@ -36,6 +36,9 @@ import {
   IconTile,
   Input,
   Select,
+  Modal,
+  ModalBody,
+  ModalHeader,
 } from '@adminium/ui';
 
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -90,6 +93,8 @@ export function HostedAppsPage() {
   const [chosen, setChosen] = useState<
     { key: string; version: string; name: string; downloaded?: boolean } | undefined
   >(undefined);
+  /** The one dialog: an app that came off adminium.dev's list by one click is confirmed in place, not walked through the steps. */
+  const [quick, setQuick] = useState(false);
   /** The online app catalog: switch, check for newer, download, update (48 G8-D7). */
   const acquisition = useAppAcquisition();
   const [busy, setBusy] = useState(false);
@@ -129,6 +134,35 @@ export function HostedAppsPage() {
         )}
       />
 
+      {quick && chosen !== undefined ? (
+        <Modal
+          open
+          onOpenChange={(next) => {
+            if (next) return;
+            setQuick(false);
+            setChosen(undefined);
+          }}
+          size="lg"
+        >
+          <ModalHeader title={t('studio:hostedApps.install.quick.title', 'Install {app}', { app: chosen.name })} closeLabel={t('studio:hostedApps.install.cancel', 'Cancel')} />
+          <ModalBody>
+            <InstallAppWizard
+              quick
+              preselected={chosen}
+              onClose={() => {
+                setQuick(false);
+                setChosen(undefined);
+              }}
+              onMoreChoices={() => {
+                // The same app, in the steps: the database, the names, the add-ons, the sample data.
+                setQuick(false);
+                setInstalling(true);
+              }}
+            />
+          </ModalBody>
+        </Modal>
+      ) : null}
+
       {installing ? (
         <InstallAppWizard
           preselected={chosen}
@@ -157,12 +191,13 @@ export function HostedAppsPage() {
         busy={acquisition.busy}
         onToggleOnline={(next) => void acquisition.toggleOnline(next)}
         onRefresh={() => void acquisition.refreshCatalog()}
+        onShowAvailable={() => void acquisition.toggleOnline(true).then(() => acquisition.refreshCatalog())}
         onInstall={(app) => {
           if (app.source === 'catalog') {
             // Not on disk yet: download it, then open the wizard on what landed.
             void acquisition.installFromCatalog(app, (downloaded) => {
               setChosen(downloaded);
-              setInstalling(true);
+              setQuick(true);
             });
             return;
           }

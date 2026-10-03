@@ -18055,6 +18055,10 @@
     "status": "mt",
     "srcHash": "10eb0021d37e"
   },
+  "studio.hostedApps.browse.fetching": {
+    "status": "mt",
+    "srcHash": "6ea01d1b3dec"
+  },
   "studio.hostedApps.browse.fromCatalog": {
     "status": "mt",
     "srcHash": "c3e839df6084"
@@ -18095,6 +18099,10 @@
     "status": "mt",
     "srcHash": "a1db9d598b40"
   },
+  "studio.hostedApps.browse.offLine": {
+    "status": "mt",
+    "srcHash": "371f2efe2427"
+  },
   "studio.hostedApps.browse.refresh": {
     "status": "mt",
     "srcHash": "10c2f9845adb"
@@ -18102,6 +18110,10 @@
   "studio.hostedApps.browse.search": {
     "status": "mt",
     "srcHash": "5d1c8a02c611"
+  },
+  "studio.hostedApps.browse.showAvailable": {
+    "status": "mt",
+    "srcHash": "23a583ce1824"
   },
   "studio.hostedApps.browse.subtitle": {
     "status": "mt",
@@ -18642,6 +18654,30 @@
   "studio.hostedApps.install.progress": {
     "status": "mt",
     "srcHash": "b30df64744a8"
+  },
+  "studio.hostedApps.install.quick.into": {
+    "status": "mt",
+    "srcHash": "a89fa5a04106"
+  },
+  "studio.hostedApps.install.quick.manyDatabases": {
+    "status": "mt",
+    "srcHash": "c652af80fb07"
+  },
+  "studio.hostedApps.install.quick.more": {
+    "status": "mt",
+    "srcHash": "89637b102927"
+  },
+  "studio.hostedApps.install.quick.noDatabase": {
+    "status": "mt",
+    "srcHash": "502de127a736"
+  },
+  "studio.hostedApps.install.quick.reading": {
+    "status": "mt",
+    "srcHash": "7fa93d3614d5"
+  },
+  "studio.hostedApps.install.quick.title": {
+    "status": "mt",
+    "srcHash": "0ae3233e0e20"
   },
   "studio.hostedApps.install.running.hint": {
     "status": "mt",

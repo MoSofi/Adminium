@@ -296,20 +296,35 @@ describe('the online app catalogue switch', () => {
     expect(calls.some((c) => c.url.startsWith('/api/v1/add-ons'))).toBe(false);
   });
 
-  it('once on and never checked, asks for a check, and follows the refresh job to the end', async () => {
+  it('once on and never checked, asks for the list itself, once, and follows the job to the end', async () => {
     catalog = { apps: [], catalogFetchedAt: null, onlineEnabled: true };
     await renderPage();
-    expect(screen.getByText(/has not been checked yet/)).toBeTruthy();
-    const readsBefore = calls.filter((c) => c.url === '/api/v1/apps/catalog').length;
-
-    await userEvent.click(screen.getByRole('button', { name: 'Check for newer' }));
+    // Nobody pressed anything: a list that was never fetched is asked for when the page opens.
     await waitFor(() => {
       expect(calls.some((c) => c.url === '/api/v1/jobs/job_refresh')).toBe(true);
     });
     expect(posted('/api/v1/apps/catalog/refresh')).toHaveLength(1);
     // The shelf is re-read after the job, not after the request.
     await waitFor(() => {
-      expect(calls.filter((c) => c.url === '/api/v1/apps/catalog').length).toBeGreaterThan(readsBefore);
+      const order = calls.map((c) => c.url);
+      expect(order.lastIndexOf('/api/v1/apps/catalog')).toBeGreaterThan(order.lastIndexOf('/api/v1/jobs/job_refresh'));
+    });
+  });
+
+  it('a list fetched within the day is not asked for again by opening the page', async () => {
+    catalog = { apps: [], catalogFetchedAt: Date.now() - 60_000, onlineEnabled: true };
+    await renderPage();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(posted('/api/v1/apps/catalog/refresh')).toHaveLength(0);
+  });
+
+  it('off: says what showing the list sends, and asks for nothing until the button is pressed', async () => {
+    await renderPage();
+    expect(screen.getByText(/tells it this server’s address, the time and its Adminium version/)).toBeTruthy();
+    expect(posted('/api/v1/apps/catalog/refresh')).toHaveLength(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Show what is available' }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === 'PUT')).toEqual({ method: 'PUT', url: '/api/v1/apps/catalog', body: { enabled: true } });
     });
   });
 });
@@ -324,11 +339,25 @@ describe('installing an app only the catalogue offers', () => {
     expect(screen.getByText('Online')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Install' }));
 
-    expect(await screen.findByText('Install Clinic Desk')).toBeTruthy();
-    expect(screen.getByText(/Downloaded from the online app catalogue/)).toBeTruthy();
+    // One dialog: the only database is taken, and what the app would add is read without a step.
+    expect(await screen.findByRole('dialog', { name: 'Install Clinic Desk' })).toBeTruthy();
+    expect(await screen.findByText(/installed into your database “Practice”/)).toBeTruthy();
     expect(posted('/api/v1/apps/download')[0]?.body).toEqual({ key: 'clinic', version: '0.1.2' });
     expect(calls.some((c) => c.url === '/api/v1/jobs/job_download')).toBe(true);
-    // The wizard starts at its first step: nothing is installed by a download.
+    await waitFor(() => {
+      expect(posted('/api/v1/apps/plan')[0]?.body).toMatchObject({ key: 'clinic', connectionId: 'con_1' });
+    });
+    // Nothing is installed by a download, nor by the dialog opening.
+    expect(posted('/api/v1/apps/install')).toHaveLength(0);
+  });
+
+  it('"More choices" opens the wizard on the same app, at its first step', async () => {
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Install' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'More choices' }));
+
+    expect(await screen.findByText(/Downloaded from the online app catalogue/)).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(posted('/api/v1/apps/install')).toHaveLength(0);
   });
 
