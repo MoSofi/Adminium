@@ -97,8 +97,9 @@ beforeAll(async () => {
       };
       if (reply.wait === true) {
         line({ model: 'fake', done: false, message: { role: 'assistant', content: 'Thinking…' } });
+        // Held until the test lets it go. (A request's own 'close' fires as soon as its body is read: destroying
+        // the reply there ended the turn as a failure a moment later, and the test only passed when it was quicker.)
         held.push(finish);
-        request.on('close', () => response.destroy());
         return;
       }
       finish();
@@ -274,8 +275,11 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     const session = created.body['session'] as { id: string };
     await vi.waitFor(async () => expect((await client.call('GET', '/api/v1/designer/state')).body['active']).toMatchObject({ sessionId: session.id }));
 
+    // The first turn's request has reached the model before anything else is asked of it: a request still on its
+    // way when the turn is stopped would take the next turn's scripted reply.
+    await vi.waitFor(() => expect(held.length).toBeGreaterThan(0), { timeout: 15_000, interval: 25 });
     const second = await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'And another thing.' });
-    expect(second.status).toBe(409);
+    expect(second.status, JSON.stringify((await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=0`)).body)).toBe(409);
     expect(second.body).toMatchObject({ error: { details: { reason: 'TURN_RUNNING' } } });
 
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/stop`)).body).toEqual({ stopped: true });
@@ -286,7 +290,8 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     reply = { text: 'Carried on.' };
     script = [writesStarter];
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Continue.' })).status).toBe(202);
-    expect((await finishedTurn(client, session.id, 2)).at(-1)).toMatchObject({ outcome: 'done' });
+    const second2 = await finishedTurn(client, session.id, 2);
+    expect(second2.at(-1), JSON.stringify(second2.map((event) => [event.seq, event.kind, (event as { tool?: string }).tool ?? (event as { message?: string }).message ?? '']))).toMatchObject({ outcome: 'done' });
   });
 
   it('refuse a model that cannot build, and a connection that is not there', async () => {
