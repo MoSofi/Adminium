@@ -255,7 +255,7 @@ describe('the streamed request', () => {
 // ── Anthropic ────────────────────────────────────────────────────────────────
 
 describe('a run against Anthropic', () => {
-  it('sends blocks, tools and no temperature', async () => {
+  it('sends blocks, tools and no temperature, with a cache mark after the system text and on the last block', async () => {
     const sent = serve(fixture('anthropic-text'));
     await ANTHROPIC().run(request());
     expect(sent[0]?.url).toBe('https://api.anthropic.com/v1/messages');
@@ -264,7 +264,7 @@ describe('a run against Anthropic', () => {
       model: 'the-model',
       max_tokens: 4000,
       stream: true,
-      system: 'You build apps.',
+      system: [{ type: 'text', text: 'You build apps.', cache_control: { type: 'ephemeral' } }],
       messages: [
         { role: 'user', content: [{ type: 'text', text: 'Make a jobs table.' }] },
         {
@@ -274,10 +274,16 @@ describe('a run against Anthropic', () => {
             { type: 'tool_use', id: 'c1', name: 'read_file', input: { path: 'a.json' } },
           ],
         },
-        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'c1', content: '{}' }] },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'c1', content: '{}', cache_control: { type: 'ephemeral' } }] },
       ],
       tools: TOOLS.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.inputSchema })),
     });
+  });
+
+  it('counts what the cache read or wrote as tokens sent', async () => {
+    serve(fixture('anthropic-text').replace('"input_tokens":25', '"input_tokens":25,"cache_creation_input_tokens":100,"cache_read_input_tokens":9000'));
+    const { result } = await collect(ANTHROPIC());
+    expect(result.usage).toEqual({ inputTokens: 9125, outputTokens: 12 });
   });
 
   it('reads text as it comes', async () => {

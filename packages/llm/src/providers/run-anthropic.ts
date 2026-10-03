@@ -42,13 +42,30 @@ export function anthropicMessages(messages: readonly RunMessage[]): { role: stri
   }));
 }
 
+/** Marks the end of what the API may keep from one call to the next. */
+const CACHE = { cache_control: { type: 'ephemeral' } } as const;
+
+/**
+ * The request. A turn sends the same tools, the same system text and a
+ * conversation that only grows, sixty times over: two cache marks let the API
+ * read what it already has instead of being paid for it again. One after the
+ * system text (the tools come before it in the API's order, so they are
+ * covered), one on the conversation's last block. A prompt too short to cache
+ * is answered as before; the marks are then ignored.
+ */
 export function anthropicRunBody(req: RunRequest): Record<string, unknown> {
+  const messages = anthropicMessages(req.messages);
+  const last = messages[messages.length - 1];
+  if (last !== undefined && last.content.length > 0) {
+    const tail = last.content[last.content.length - 1] as Record<string, unknown>;
+    last.content[last.content.length - 1] = { ...tail, ...CACHE };
+  }
   return {
     model: req.model,
     max_tokens: req.maxTokens,
     stream: true,
-    ...(req.system.length > 0 ? { system: req.system } : {}),
-    messages: anthropicMessages(req.messages),
+    ...(req.system.length > 0 ? { system: [{ type: 'text', text: req.system, ...CACHE }] } : {}),
+    messages,
     ...(req.tools.length > 0
       ? { tools: req.tools.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.inputSchema })) }
       : {}),
@@ -106,8 +123,14 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
         const event = parseItem('anthropic', item, apiKey);
         const type = event['type'];
         if (type === 'message_start') {
-          const usage = (event['message'] as { usage?: { input_tokens?: unknown } } | undefined)?.usage;
-          if (typeof usage?.input_tokens === 'number') inputTokens = usage.input_tokens;
+          const usage = (event['message'] as { usage?: { input_tokens?: unknown; cache_creation_input_tokens?: unknown; cache_read_input_tokens?: unknown } } | undefined)?.usage;
+          // What was read from the cache, or written to it, is still what the call was sent: `input_tokens` alone leaves it out.
+          if (typeof usage?.input_tokens === 'number') {
+            inputTokens =
+              usage.input_tokens +
+              (typeof usage.cache_creation_input_tokens === 'number' ? usage.cache_creation_input_tokens : 0) +
+              (typeof usage.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : 0);
+          }
         } else if (type === 'content_block_start') {
           const index = Number(event['index']);
           const block = event['content_block'] as { type?: unknown; id?: unknown; name?: unknown; text?: unknown } | undefined;
