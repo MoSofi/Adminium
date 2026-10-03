@@ -130,10 +130,13 @@ in that turn.
 
 - The card's words are the server's own, from the list adminium.dev gave it. The model names an
   add-on by its key and nothing else: never an address, a version or a file.
-- Where the list from adminium.dev is off on your server, the card says so, and says what
+- Where the list from adminium.dev is off on your server, a first card says so, and says what
   switching it on sends (your server's address, the time and its Adminium version, now and once a
-  day). **Switch it on and get it** does both; it is the same switch as the one on the Add-ons
-  page, and you can switch it off there again.
+  day). **Switch the list on** downloads nothing: if the add-on is in the list, a second card asks
+  for it by its name and version. It is the same switch as the one on the Add-ons page, and you
+  can switch it off there again.
+- What is got is the version the card showed. If the list moved in between, the Designer asks
+  again.
 - You are asked only if you may add an add-on to this server (on a live server, a Super Admin).
   Otherwise the Designer tells you who can, and builds the rest.
 - A server set to ask nothing of adminium.dev (`ADMINIUM_NETWORK_FEATURES=off`) shows no card;

@@ -46,6 +46,9 @@ adds there, and the add-ons it brings, with **Cancel**, **Install** and **More c
 - **More choices** opens the full wizard on the same downloaded app: another database, a table
   prefix, sharing tables with an app you already have, sample data. Where the dialog cannot decide
   for you (more than one database, or none yet), More choices is its main button and it says why.
+- An add-on the app requires is listed in the dialog, and is downloaded by the dialog's own
+  **Install** (the dialog says so before you press it): then the app is checked once more and
+  installed. If that check no longer stands, the dialog says why and installs nothing.
 - Cancel leaves the downloaded file on the server; the next Install opens the dialog at once.
 
 **On a new install the list is on.** The server asks adminium.dev for it once when it starts (when
