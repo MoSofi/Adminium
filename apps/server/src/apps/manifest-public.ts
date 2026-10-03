@@ -48,6 +48,7 @@ import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../
 import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
 import { guestBase } from '../public-api/guest-base.js';
+import { addAndReadRefusal, anonymousAddAndRead } from './anonymous-access.js';
 import { roleSlugFor } from './manifest-roles.js';
 import { mapTableRefs } from './real-refs.js';
 
@@ -491,7 +492,7 @@ export function planPublicEndpoints(
   /** The table the key's person is claimed on: what a child's denormalised copy points at. */
   const identityTableOf = (entry: PublicAccessEntry) =>
     entries.find((other) => other.claim !== undefined && (other.key ?? 'customer') === (entry.key ?? 'customer'))?.table;
-  return entries.map((entry, index) => {
+  const plan = entries.map((entry, index): PlannedPublicEndpoint => {
     const real = names[entry.table] ?? entry.table;
     const ref = refs[index] as string;
     const parent = parentOf(entry);
@@ -570,6 +571,9 @@ export function planPublicEndpoints(
     ];
     return { ...planned, select: definition.select, issues, definition };
   });
+  // Across entries: anyone adds through one, anyone reads through another.
+  const split = new Set(anonymousAddAndRead(entries));
+  return split.size === 0 ? plan : plan.map((planned, index) => (split.has(index) ? { ...planned, issues: [...planned.issues, addAndReadRefusal(planned.table)] } : planned));
 }
 
 /** Whether an app signs its people in by an emailed link. */
@@ -680,6 +684,12 @@ export async function installPublicAccess(input: {
   grant?: boolean | undefined;
   refusal?: string | undefined;
   /**
+   * The manifest is the operator's own, in their project folder, and is being
+   * edited there: with `grant`, an endpoint its key already holds may show
+   * more or be reached another way. Never set for a published app's update.
+   */
+  ownFolder?: boolean | undefined;
+  /**
    * Told of each change the moment it is written — an endpoint saved, a key
    * made, a live key's grants changed — so it is audited and the resolver
    * forgets the key even when a later step of this call throws.
@@ -714,6 +724,8 @@ export async function installPublicAccess(input: {
         origin: 'custom',
         actorId: input.actorId,
         managedBy: input.manifest.key,
+        // The operator's own folder, being edited: the endpoint changes with the manifest.
+        ...(input.ownFolder === true && input.grant !== false ? { operatorAllowed: true } : {}),
       });
       saved.push(entry.ref);
       await input.onCommitted?.({ kind: 'endpoint', ref: entry.ref });

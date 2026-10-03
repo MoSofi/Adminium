@@ -21,6 +21,7 @@ import {
   type AppManifest,
 } from '@adminium/manifest';
 
+import { addAndReadRefusal, anonymousAddAndRead, openToAnyone } from '../../apps/anonymous-access.js';
 import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
 import { serverCodeSources } from '../build-shared.js';
@@ -162,13 +163,14 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
    * than part way through an install. The validator does not know this one:
    * it is a rule about the key the install makes, not about the manifest's shape.
    */
+  // The same hole written as two entries: POST in one, GET in the next.
+  for (const index of anonymousAddAndRead(manifest.publicAccess ?? [])) {
+    const where = at(`publicAccess.${String(index)}.methods`);
+    findings.push(error(where.file, where.path, addAndReadRefusal((manifest.publicAccess ?? [])[index]?.table ?? '')));
+  }
   (manifest.publicAccess ?? []).forEach((entry, index) => {
-    if (entry.kind === 'availability') return;
-    // Anyone at all: no claim, no sign-in, no person found or made by the write, and no row reached only through
-    // one the caller may already see (`visibleWith`) or by a signed-in guest (`level`). The install decides the same
-    // way (`manifest-public.ts`): a published app that installs must not be refused here once it is a folder's.
-    const anyone = entry.claim === undefined && entry.claimedBy === undefined && entry.identity === undefined && entry.visibleWith === undefined && entry.level === undefined;
-    if (anyone && entry.methods.includes('POST') && entry.methods.includes('GET')) {
+    // The install decides the same way (`manifest-public.ts`): a published app that installs must not be refused here once it is a folder's.
+    if (openToAnyone(entry) && entry.methods.includes('POST') && entry.methods.includes('GET')) {
       const where = at(`publicAccess.${String(index)}.methods`);
       findings.push(
         error(
