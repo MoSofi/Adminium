@@ -37,6 +37,8 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_META_URL: undefined,
       ADMINIUM_DATA_DIR: './data',
       ADMINIUM_LOG_LEVEL: 'info',
+      // Off: the Designer on a server people reach is the operator's to allow.
+      ADMINIUM_DESIGNER: 'off',
       // UNDEFINED, not `false`. This variable overrides the `telemetry.enabled`
       // consent answer, so "unset" has to stay distinguishable from "off" —
       // collapsing it to `false` would make the override veto every consenting

@@ -94,10 +94,14 @@ runs those files on your machine each time it builds. Before the Designer change
 asks, naming the file or the folder; a yes is for what was named, for that turn. A screen the
 config does not import needs no question.
 
-The build is not a sandbox: it runs as you, and can read what you can. So a source file that
-names a path outside the app's own folder (an import of `../../../.env`, say) stops the build
-before it starts, and says which file. The Designer does not read back what a build left. A copy
-is taken only from the repositories of publishers Adminium vouches for.
+A bundler puts whatever a source file imports into the screens it builds, wherever that file is.
+So a copied app's build reads its own folder and nothing else: its Node processes are started
+unable to read a file outside `apps/<key>/` (an import of `../../../.env` finds no such file),
+and a source file that plainly names such a path stops the build before it starts, and says which
+file. The Designer does not read back what a build left. This guards what the build reads, not
+what the code it runs may do: that code is the config and what the config imports, which is why
+those wait for your yes. A copy is taken only from the repositories of publishers Adminium vouches
+for.
 
 **The licence.** The apps are AGPL-3.0, and a copy keeps that licence. If people use your copy over
 a network (your customers, on your site), the licence asks you to offer them the source of your

@@ -160,7 +160,7 @@ export function StartSheet({
               <div key={step.id} className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0">
                 <span aria-hidden="true" className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
                   {step.state === 'done' ? (
-                    <Check className="size-4 text-success" />
+                    <Check className="size-4 text-pos" />
                   ) : step.state === 'running' ? (
                     <LoaderCircle className="size-4 animate-spin text-accent motion-reduce:animate-none" />
                   ) : step.state === 'failed' ? (

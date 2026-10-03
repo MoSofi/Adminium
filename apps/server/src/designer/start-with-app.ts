@@ -104,7 +104,11 @@ export function createStarter(host: StarterHost): Starter {
     const shape = appKeyProblem(newKey);
     if (shape !== null) return `A key is ${shape}.`;
     if (newKey.length > KEY_MAX) return `A key is at most ${String(KEY_MAX)} characters.`;
-    if (unfinished.has(newKey)) return null;
+    // A copy left unfinished is finished by "Try again", while its folder is still there.
+    if (unfinished.has(newKey)) {
+      if (existsSync(folder(newKey))) return null;
+      unfinished.delete(newKey);
+    }
     if (existsSync(folder(newKey))) return `There is already an app "${newKey}" in this project.`;
     if ((await host.installedKeys()).includes(newKey)) return `An app with the key "${newKey}" is installed here already.`;
     return null;
@@ -122,7 +126,7 @@ export function createStarter(host: StarterHost): Starter {
       step(id).detail = detail.slice(0, 2000);
       job.state = 'failed';
     };
-    const resumed = unfinished.get(job.newKey) === app.key;
+    const resumed = unfinished.get(job.newKey) === app.key && existsSync(folder(job.newKey));
     try {
       if (resumed) {
         // The copy is written: only the last step is left.

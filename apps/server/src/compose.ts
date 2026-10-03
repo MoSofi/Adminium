@@ -1930,7 +1930,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               log: (message) => app.log.warn(message),
             });
       // The switch going off by itself is in the audit log beside a person's own on and off.
-      if ((await live?.checkAtBoot()) === true) {
+      const wentOff = await (live?.checkAtBoot() ?? Promise.resolve(false)).catch((error: unknown) => {
+        // A meta store that is not migrated yet has no settings to read: nothing was on.
+        app.log.warn({ err: error }, 'the Designer’s switch could not be read at boot');
+        return false;
+      });
+      if (wentOff) {
         await auditRepo(meta)
           .append({
             actorKind: 'system',

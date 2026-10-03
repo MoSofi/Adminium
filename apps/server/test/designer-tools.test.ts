@@ -309,7 +309,7 @@ describe('the Designer’s tools', () => {
     put('src/screens/Home.tsx', 'export {};\n');
 
     // A config the build's tools find by name is never the model's.
-    for (const path of ['postcss.config.mjs', 'tailwind.config.ts', 'vite.config.js']) {
+    for (const path of ['postcss.config.mjs', 'tailwind.config.ts', 'vite.config.js', 'npm-shrinkwrap.json', 'src/jsconfig.json']) {
       expect(await run('write_file', { path: `apps/repairs/${path}`, content: 'export default {};' }), path).toMatchObject({ isError: true, label: 'Not yours to change' });
     }
 

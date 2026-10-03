@@ -190,7 +190,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     const guarded =
       // At any depth: a folder's own package.json says which file an import of the folder runs.
       name === 'package.json' ||
-      inside === 'package-lock.json' ||
+      name === 'package-lock.json' ||
+      name === 'npm-shrinkwrap.json' ||
+      name === 'pnpm-lock.yaml' ||
+      name === 'yarn.lock' ||
       // Every config the build's tools look for and run: Vite's own, and the ones its plugins find by name.
       /^(vite|vitest|postcss|tailwind|babel|rollup|svgo|uno|windi)\.config\.[a-z]+$/.test(inside) ||
       /^[jt]sconfig[a-z.]*\.json$/.test(name) ||
@@ -284,6 +287,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
               for (const entry of readdirSync(folder, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
                 if (lines.length >= MAX_LIST) return;
                 if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.isSymbolicLink()) continue;
+                // What a build left at the app's top is not read here, so it is not listed either.
+                if (/^dist(-|$)/i.test(entry.name) && relative(deps.root, folder).split(sep).join('/') === `apps/${appKey}`) continue;
                 const path = join(folder, entry.name);
                 const shownPath = relative(deps.root, path).split(sep).join('/');
                 if (entry.isDirectory()) walk(path);

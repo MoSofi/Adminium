@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProjectApps } from '../src/project/apps/build-apps.js';
 import { checkApp } from '../src/project/apps/check-app.js';
 import { copyBuildFor } from '../src/project/apps/copy-app.js';
-import { approveBuild, buildFingerprint, isBuildApproved, readAppBuild, type AppBuildFile, type StepRunner } from '../src/project/apps/own-build.js';
+import { approveBuild, buildCodeStems, buildFingerprint, guardEnvironment, isBuildApproved, readAppBuild, runLine, type AppBuildFile, type StepRunner } from '../src/project/apps/own-build.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
 import { tempProject } from './app-project-helpers.js';
@@ -124,6 +124,70 @@ describe('an app with a build of its own', () => {
     write('src/deep/a.ts', "import { b } from '../../src/b';\nexport const here = join(dir, '../../..');\nexport default b;\n");
     write('src/b.ts', 'export const b = 1;\n');
     expect((await build(fake.run)).apps[0]?.problems).toBeUndefined();
+  });
+
+  it('runs the build’s own Node processes unable to read a file outside the app', async () => {
+    writeFileSync(join(root, '.env'), 'ADMINIUM_SECRET=not-for-a-bundle\n');
+    write('src/inside.txt', 'the app’s own');
+    const env = guardEnvironment(root, app('.'));
+    const node = JSON.stringify(process.execPath);
+    const reads = async (script: string, how = '-e'): Promise<{ ok: boolean; output: string }> => {
+      write('probe.mjs', script);
+      return runLine(how === '-e' ? `${node} -e ${JSON.stringify(script)}` : `${node} probe.mjs`, app('.'), undefined, env);
+    };
+    // Its own files, by every door.
+    expect(await reads("process.stdout.write(require('fs').readFileSync('src/inside.txt','utf8'))")).toMatchObject({ ok: true, output: 'the app’s own' });
+    expect(await reads("import { readFile } from 'node:fs/promises'; process.stdout.write(await readFile('src/inside.txt','utf8'));", 'file')).toMatchObject({ ok: true, output: 'the app’s own' });
+    // Nothing outside it, by any of them: the project's .env is not there to be read.
+    for (const script of [
+      "process.stdout.write(require('fs').readFileSync('../../.env','utf8'))",
+      "process.stdout.write(require('fs').readFileSync(require('path').resolve('./a b/../../../.env'),'utf8'))",
+      "const fs=require('fs');const fd=fs.openSync('../../.env','r');process.stdout.write(fs.readFileSync(fd,'utf8'))",
+      "require('fs').readFile('../../.env','utf8',(e,t)=>{if(e)throw e;process.stdout.write(t)})",
+      "require('fs').createReadStream('../../.env').pipe(process.stdout)",
+      "require('fs').copyFileSync('../../.env','src/copied.txt')",
+      "require('fs').symlinkSync('../../../.env','src/link.txt');process.stdout.write(require('fs').readFileSync('src/link.txt','utf8'))",
+    ]) {
+      const got = await reads(script);
+      expect(got.ok, script).toBe(false);
+      expect(got.output, script).not.toContain('not-for-a-bundle');
+      expect(got.output, script).toContain('outside the app');
+    }
+    for (const script of [
+      "import { readFileSync } from 'node:fs'; process.stdout.write(readFileSync('../../.env','utf8'));",
+      "import { readFile } from 'node:fs/promises'; process.stdout.write(await readFile(new URL('../../.env', import.meta.url),'utf8'));",
+      "import fs from 'node:fs'; const h = await fs.promises.open('../../.env'); process.stdout.write(String(await h.readFile()));",
+    ]) {
+      const got = await reads(script, 'file');
+      expect(got.ok, script).toBe(false);
+      expect(got.output, script).not.toContain('not-for-a-bundle');
+    }
+    expect(existsSync(app('src/copied.txt'))).toBe(false);
+    // Asking whether something is there, and writing, are left alone: a tool that looks upward still looks.
+    expect(await reads("process.stdout.write(String(require('fs').existsSync('../../.env')))")).toMatchObject({ ok: true, output: 'true' });
+    // Without the guard's environment the same line reads it: the guard is what stands in the way.
+    expect((await runLine(`${node} -e "process.stdout.write(require('fs').readFileSync('../../.env','utf8'))"`, app('.'))).output).toContain('not-for-a-bundle');
+  });
+
+  it('reads what the config imports as the bundler reads it', () => {
+    write(
+      'vite.config.ts',
+      [
+        "import type from './a';", // a default import that is named "type"
+        'export type T = number',
+        "import { run } from './b'",
+        "import type { X } from './types';",
+        "import c from /* a comment */ './c';",
+        "import d from '\\x2e/d';",
+        "const e = await import(`./e`);",
+        "export * from './f';",
+        "import { type Y, g } from './g';",
+      ].join('\n'),
+    );
+    const stems = buildCodeStems(root, 'shop');
+    for (const stem of ['vite.config', 'a', 'b', 'c', 'd', 'e', 'f', 'g']) expect(stems.has(stem), stem).toBe(true);
+    // Types are gone before anything runs.
+    expect(stems.has('types')).toBe(false);
   });
 
   it('gives a copy a build line the machine’s own shell reads', () => {

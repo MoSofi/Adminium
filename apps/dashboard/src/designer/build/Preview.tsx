@@ -95,7 +95,7 @@ export function previewState(turns: readonly TurnView[]): { building: boolean; f
 
 export function Preview({ session, turns, onFix, compact }: { session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void; compact: boolean }): ReactNode {
   const queryClient = useQueryClient();
-  // A live server has one name, so model-written screens have no second one to be shown on (D74).
+  // A live server has one name, so model-written screens have no second one to be shown on.
   const info = useQuery(systemInfoQuery());
   const noPreview = info.data?.designer?.mode === 'live';
   const installed = useQuery({ queryKey: installedKey, queryFn: () => api.get<{ apps: InstalledApp[] }>('/api/v1/apps') });
@@ -116,7 +116,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   const ticket = useQuery({
     queryKey: ['designer', 'preview', session.id, side, round] as const,
     queryFn: () => designerApi.previewTicket(session.id, to),
-    enabled: app !== null && info.isSuccess && !noPreview,
+    enabled: app !== null && !info.isPending && !noPreview,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0,
     retry: false,

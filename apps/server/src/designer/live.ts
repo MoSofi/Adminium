@@ -84,6 +84,8 @@ export function createLive(deps: LiveDeps): Live {
       return { mode: 'live', allowed: deps.allowed, on: deps.allowed && project && stored.on, project, reason };
     },
     async checkAtBoot() {
+      // Not allowed: it is off whatever the settings hold, and they are not read (a server may boot before its tables exist).
+      if (!deps.allowed) return false;
       const stored = await deps.settings.get();
       if (!stored.on || deps.root === null) return false;
       if (stored.id !== null && idInFolder() === stored.id) return false;

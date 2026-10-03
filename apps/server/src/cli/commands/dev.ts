@@ -20,6 +20,7 @@ import {
   rebuildServerCode,
 } from '../../project/build.js';
 import { appWatchedPaths } from '../../project/apps/build-apps.js';
+import { stopOwnBuilds } from '../../project/apps/own-build.js';
 import { CLIENT_CODE_FOLDERS } from '../../project/client-build.js';
 import { createDevSupervisor, fingerprint, type DevChild } from '../../project/dev.js';
 import { DOTENV_FILE } from '../../project/dotenv.js';
@@ -209,6 +210,8 @@ export const devCommand: Command = {
     });
 
     const stop = (): void => {
+      // A copied app's build is in a process group of its own: Ctrl-C does not reach it by itself.
+      stopOwnBuilds();
       void supervisor.stop();
     };
     process.once('SIGINT', stop);
