@@ -8243,9 +8243,185 @@
     "status": "mt",
     "srcHash": "1d32ac6df79b"
   },
+  "designer.apps.continue": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "designer.apps.continueApp": {
+    "status": "mt",
+    "srcHash": "392d0a2f4dc7"
+  },
+  "designer.apps.edited": {
+    "status": "mt",
+    "srcHash": "15ba47e0d2c0"
+  },
+  "designer.apps.noVersions": {
+    "status": "mt",
+    "srcHash": "0cf5a5fb34a9"
+  },
+  "designer.apps.title": {
+    "status": "mt",
+    "srcHash": "b9f7a812c8ce"
+  },
+  "designer.apps.versions": {
+    "status": "mt",
+    "srcHash": "7366aaf954c1"
+  },
   "designer.brand": {
     "status": "src",
     "srcHash": "c7b22145f13e"
+  },
+  "designer.examples.bikes.label": {
+    "status": "mt",
+    "srcHash": "380183d16d5a"
+  },
+  "designer.examples.bikes.text": {
+    "status": "mt",
+    "srcHash": "9e1830e46518"
+  },
+  "designer.examples.catering.label": {
+    "status": "mt",
+    "srcHash": "c3f92fca13db"
+  },
+  "designer.examples.catering.text": {
+    "status": "mt",
+    "srcHash": "50f6501a893e"
+  },
+  "designer.examples.classes.label": {
+    "status": "mt",
+    "srcHash": "ccd95f0dadcc"
+  },
+  "designer.examples.classes.text": {
+    "status": "mt",
+    "srcHash": "6bc764c0bf12"
+  },
+  "designer.examples.foodbank.label": {
+    "status": "mt",
+    "srcHash": "22c8d6796309"
+  },
+  "designer.examples.foodbank.text": {
+    "status": "mt",
+    "srcHash": "b61a83950c95"
+  },
+  "designer.examples.grooming.label": {
+    "status": "mt",
+    "srcHash": "a6bdefbda406"
+  },
+  "designer.examples.grooming.text": {
+    "status": "mt",
+    "srcHash": "d281b80add54"
+  },
+  "designer.examples.label": {
+    "status": "mt",
+    "srcHash": "eb01bf04c9a0"
+  },
+  "designer.examples.loans.label": {
+    "status": "mt",
+    "srcHash": "2f4de56b82c0"
+  },
+  "designer.examples.loans.text": {
+    "status": "mt",
+    "srcHash": "191862ce84fe"
+  },
+  "designer.examples.lost.label": {
+    "status": "mt",
+    "srcHash": "6ab868ba1c34"
+  },
+  "designer.examples.lost.text": {
+    "status": "mt",
+    "srcHash": "1de826ab3bad"
+  },
+  "designer.examples.nursery.label": {
+    "status": "mt",
+    "srcHash": "c5bc5b03d3d5"
+  },
+  "designer.examples.nursery.text": {
+    "status": "mt",
+    "srcHash": "ea314a25105c"
+  },
+  "designer.examples.refresh": {
+    "status": "mt",
+    "srcHash": "d2a21e064b9e"
+  },
+  "designer.examples.repair.label": {
+    "status": "mt",
+    "srcHash": "ba4f9707712e"
+  },
+  "designer.examples.repair.text": {
+    "status": "mt",
+    "srcHash": "cc53a4cbb456"
+  },
+  "designer.examples.rooms.label": {
+    "status": "mt",
+    "srcHash": "b33192dbc675"
+  },
+  "designer.examples.rooms.text": {
+    "status": "mt",
+    "srcHash": "3f10c1ca4537"
+  },
+  "designer.examples.tutoring.label": {
+    "status": "mt",
+    "srcHash": "042780a885ca"
+  },
+  "designer.examples.tutoring.text": {
+    "status": "mt",
+    "srcHash": "04b62b921f5f"
+  },
+  "designer.examples.volunteers.label": {
+    "status": "mt",
+    "srcHash": "15ce57887fb8"
+  },
+  "designer.examples.volunteers.text": {
+    "status": "mt",
+    "srcHash": "8019a4b2614e"
+  },
+  "designer.home.cannotBuild": {
+    "status": "mt",
+    "srcHash": "5681f9769a5a"
+  },
+  "designer.home.failed": {
+    "status": "mt",
+    "srcHash": "0c1088882713"
+  },
+  "designer.home.lead": {
+    "status": "mt",
+    "srcHash": "f11fc4a62007"
+  },
+  "designer.home.noModel": {
+    "status": "mt",
+    "srcHash": "c7b095797aaa"
+  },
+  "designer.home.placeholder": {
+    "status": "mt",
+    "srcHash": "041f10ae607f"
+  },
+  "designer.home.placeholderNoModel": {
+    "status": "mt",
+    "srcHash": "d787a15483a0"
+  },
+  "designer.home.promptLabel": {
+    "status": "mt",
+    "srcHash": "8adf1c65c2b7"
+  },
+  "designer.home.send": {
+    "status": "mt",
+    "srcHash": "9bc2575c3930"
+  },
+  "designer.home.title": {
+    "status": "mt",
+    "srcHash": "68f23190f79d"
+  },
+  "designer.model.add": {
+    "status": "mt",
+    "srcHash": "5dd98dadf960"
+  },
+  "designer.model.button": {
+    "status": "mt",
+    "srcHash": "e60d2adb303f"
+  },
+  "designer.model.buttonCannot": {
+    "status": "mt",
+    "srcHash": "f5f34994e222"
   },
   "designer.spent.body": {
     "status": "mt",
@@ -8262,6 +8438,110 @@
   "designer.spent.title": {
     "status": "mt",
     "srcHash": "dbba8005eba0"
+  },
+  "designer.start.all": {
+    "status": "mt",
+    "srcHash": "6a72085653e4"
+  },
+  "designer.start.browse": {
+    "status": "mt",
+    "srcHash": "3d5d84ec665b"
+  },
+  "designer.start.customerSide": {
+    "status": "mt",
+    "srcHash": "bddd0ade3d15"
+  },
+  "designer.start.failed": {
+    "status": "mt",
+    "srcHash": "c0d164307950"
+  },
+  "designer.start.filters": {
+    "status": "mt",
+    "srcHash": "18e5ff28e25e"
+  },
+  "designer.start.loading": {
+    "status": "mt",
+    "srcHash": "6ce682b293d1"
+  },
+  "designer.start.off": {
+    "status": "mt",
+    "srcHash": "faeb480b7f4e"
+  },
+  "designer.start.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.start.staffSide": {
+    "status": "mt",
+    "srcHash": "a22df641b6e5"
+  },
+  "designer.start.startApp": {
+    "status": "mt",
+    "srcHash": "a3c713668c6b"
+  },
+  "designer.start.startThis": {
+    "status": "mt",
+    "srcHash": "bbfe80215a4f"
+  },
+  "designer.start.stillDescribe": {
+    "status": "mt",
+    "srcHash": "892caac0d874"
+  },
+  "designer.start.title": {
+    "status": "mt",
+    "srcHash": "e675e5757cb9"
+  },
+  "designer.target.auto": {
+    "status": "mt",
+    "srcHash": "c614ba7c453c"
+  },
+  "designer.target.autoLine": {
+    "status": "mt",
+    "srcHash": "8f359e227434"
+  },
+  "designer.target.dashboard": {
+    "status": "mt",
+    "srcHash": "de4d369d9f32"
+  },
+  "designer.target.dashboardLine": {
+    "status": "mt",
+    "srcHash": "a4f775162156"
+  },
+  "designer.target.label": {
+    "status": "mt",
+    "srcHash": "fa851b8934de"
+  },
+  "designer.target.menu": {
+    "status": "mt",
+    "srcHash": "0513a8afaa4d"
+  },
+  "designer.target.web": {
+    "status": "src",
+    "srcHash": "a8323a2a9b34"
+  },
+  "designer.target.webLine": {
+    "status": "mt",
+    "srcHash": "0e96f1e82105"
+  },
+  "designer.topbar.dashboard": {
+    "status": "mt",
+    "srcHash": "9088df9d25c3"
+  },
+  "designer.topbar.home": {
+    "status": "mt",
+    "srcHash": "a3fa610f4b3c"
+  },
+  "designer.topbar.language": {
+    "status": "mt",
+    "srcHash": "89b86ab0e66f"
+  },
+  "designer.topbar.toDark": {
+    "status": "mt",
+    "srcHash": "5ec71e472de4"
+  },
+  "designer.topbar.toLight": {
+    "status": "mt",
+    "srcHash": "f90085feb032"
   },
   "email.actions.archived": {
     "status": "mt",

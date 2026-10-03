@@ -1986,6 +1986,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             root,
             limits,
             preview: previewTickets === null ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
+            appCatalog,
           }),
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.

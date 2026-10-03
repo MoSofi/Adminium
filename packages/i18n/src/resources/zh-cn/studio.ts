@@ -753,7 +753,7 @@ export default {
         "retry": "重试",
         "back": "返回架构计划"
       },
-      "madeHere": "在此安装上制作。它并非来自 adminium.dev，也没有其他人检查过它。"
+      "madeHere": "在此安装上制作。它并非来自 adminium.dev，也没有其他人检查过它。只有在你信任其来源时才安装它。"
     },
     "installed": {
       "title": "已安装的应用",
@@ -777,8 +777,8 @@ export default {
       "oldNames": "此安装使用的是旧的表名。",
       "oldNamesWhy": "这些表创建于前缀功能之前。",
       "renameTo": "重命名为 {prefix}…",
-      "madeHere": "本机制作",
-      "fromFolder": "来自此项目的文件夹",
+      "madeHere": "在此安装上制作",
+      "fromFolder": "来自文件夹 {folder}",
       "folderGone": "文件夹已不存在",
       "folderGoneBody": "apps/{key}/ 已不在此项目中。应用连同其数据表和页面保持安装，直到你将其卸载。",
       "notApplied": "未应用",

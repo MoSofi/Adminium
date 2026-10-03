@@ -17,11 +17,12 @@
  * log could hold.
  */
 import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 import { createLocalOwner, isBootstrapRequired, settingsRepo, usersRepo } from '@adminium/meta';
+import Database from 'better-sqlite3';
 
 import { findProject } from '../../project/locate.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
@@ -48,6 +49,18 @@ export async function freePort(from: number, to: number, host = '127.0.0.1'): Pr
 
 /** The database a project `design` makes keeps its tables in: a file in the project. */
 export const DESIGN_DATABASE = 'sqlite:./data/app.sqlite';
+
+/**
+ * Make that file, empty. A SQLite connection opens only a file that exists (a
+ * mistyped path must not quietly become a new, empty database), so the
+ * project `design` makes would otherwise start with its database refused.
+ */
+export function makeDesignDatabase(root: string): void {
+  const file = resolve(root, DESIGN_DATABASE.slice('sqlite:'.length));
+  if (existsSync(file)) return;
+  mkdirSync(dirname(file), { recursive: true });
+  new Database(file).close();
+}
 
 export const designCommand: Command = {
   name: 'design',
@@ -78,6 +91,7 @@ export const designCommand: Command = {
       if (made !== EXIT_OK) return made;
       cwd = resolve(cwd, folder);
       if (!existsSync(cwd)) throw new CliUsageError(`${folder}/ was not made.`, designCommand.name);
+      makeDesignDatabase(cwd);
     } else if (positionals.length > 0) {
       throw new CliUsageError(`This folder is already in a project (${project.root}); run \`adminium design\` without a folder name.`, designCommand.name);
     }

@@ -753,7 +753,7 @@ export default {
         "retry": "Zkusit znovu",
         "back": "Zpět na plán schématu"
       },
-      "madeHere": "Vytvořeno na této instalaci. Nepochází z adminium.dev a nikdo jiný ji nezkontroloval."
+      "madeHere": "Vytvořeno na této instalaci. Nepochází z adminium.dev a nikdo jiný ji nezkontroloval. Instalujte ji, jen pokud důvěřujete jejímu původu."
     },
     "installed": {
       "title": "Nainstalované aplikace",
@@ -777,8 +777,8 @@ export default {
       "oldNames": "Tato instalace používá staré názvy tabulek.",
       "oldNamesWhy": "Vznikly před zavedením předpon.",
       "renameTo": "Přejmenovat na {prefix}…",
-      "madeHere": "Vytvořeno zde",
-      "fromFolder": "Ze složky tohoto projektu",
+      "madeHere": "Vytvořeno na této instalaci",
+      "fromFolder": "Ze složky {folder}",
       "folderGone": "Složka chybí",
       "folderGoneBody": "apps/{key}/ už v tomto projektu není. Aplikace zůstane nainstalovaná se svými tabulkami a stránkami, dokud ji neodinstalujete.",
       "notApplied": "Nepoužito",

@@ -453,7 +453,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         <p data-part="made-here" className="rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-xs text-fg-subtle">
           {t(
             'studio:hostedApps.install.madeHere',
-            'Made on this install. It does not come from adminium.dev, and nobody else has checked it.',
+            'Made on this install. It does not come from adminium.dev, and nobody else has checked it. Install it only if you trust where it came from.',
           )}
         </p>
       ) : null}

@@ -9,7 +9,7 @@
  * succeeds the owner signs in like anyone and the design link no longer
  * applies to them.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,10 +18,17 @@ import { createFirstSuperAdmin, createLocalOwner, firstRun, settingsRepo, usersR
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { verifyPassword } from '../src/auth/passwords.js';
+import { runStart } from '../src/cli/commands/start.js';
 import { designCommand, freePort } from '../src/cli/commands/design.js';
 import { runCli } from '../src/cli/run.js';
 import { openMetaStore } from '../src/meta/store.js';
 import { fakeDeps, fakeIo, TEST_SECRET } from './cli-helpers.js';
+
+// The server itself is not started here: what `design` does before it is.
+vi.mock('../src/cli/commands/start.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/cli/commands/start.js')>()),
+  runStart: vi.fn(async () => Promise.resolve(0)),
+}));
 
 let root: string;
 beforeEach(() => {
@@ -107,6 +114,26 @@ describe('adminium design', () => {
     expect(await runCli(['design', 'other'], { io, deps: fakeDeps({ cwd: root, env: {} }) })).not.toBe(0);
     expect(io.stderr()).toContain('already in a project');
     expect(await runCli(['design', 'a', 'b'], { io: fakeIo({ interactive: false }), deps: fakeDeps({ cwd: root, env: {} }) })).not.toBe(0);
+  });
+
+  it('makes a project with its own database file, then starts on this machine only', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'adminium-design-'));
+    try {
+      const io = fakeIo({ interactive: false });
+      // No install, no git: what `new` runs is not what this checks.
+      const runProcess = vi.fn(() => ({ status: 0, stdout: '' }));
+      expect(await runCli(['design', 'shop', '--port', '4793', '--no-open'], { io, deps: { ...fakeDeps({ cwd: outside, env: {} }), runProcess } }), io.stderr()).toBe(0);
+      const made = join(outside, 'shop');
+      expect(readFileSync(join(made, '.env'), 'utf8')).toContain('sqlite:./data/app.sqlite');
+      // A SQLite connection opens only a file that exists: `design` makes it.
+      expect(existsSync(join(made, 'data', 'app.sqlite'))).toBe(true);
+      expect(vi.mocked(runStart)).toHaveBeenCalledWith(
+        expect.objectContaining({ deps: expect.objectContaining({ cwd: made }), argv: expect.arrayContaining(['--port', '4793']) }),
+        expect.anything(),
+      );
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   it('is listed among the commands, after dev', async () => {

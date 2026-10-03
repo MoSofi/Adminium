@@ -5,5 +5,113 @@
     "body": "Kør design-kommandoen igen for at åbne Adminium Designer.",
     "copy": "Kopiér kommandoen",
     "copied": "Kopieret"
+  },
+  "topbar": {
+    "home": "Forside for Adminium Designer",
+    "toDark": "Skift til mørkt tema",
+    "toLight": "Skift til lyst tema",
+    "dashboard": "Åbn dashboardet",
+    "language": "Sprog"
+  },
+  "home": {
+    "title": "Hvad vil du bygge?",
+    "lead": "Beskriv det. Adminium leverer databasen, dashboardet, login og API’et.",
+    "promptLabel": "Beskriv din app",
+    "placeholder": "Beskriv din app…",
+    "placeholderNoModel": "Tilføj en model for at begynde",
+    "send": "Send",
+    "noModel": "Adminium Designer bruger din egen AI-model. Tilføj en for at begynde.",
+    "cannotBuild": "Denne model kan ikke bygge apps: den understøtter ikke værktøjer. Vælg en anden model.",
+    "failed": "Designeren kunne ikke starte"
+  },
+  "target": {
+    "label": "Hvad der skal bygges: {target}",
+    "menu": "Hvad der skal bygges",
+    "auto": "Auto",
+    "autoLine": "Adminium bestemmer",
+    "dashboard": "Kun dashboard",
+    "dashboardLine": "tabeller og administrationssider",
+    "web": "Web",
+    "webLine": "en medarbejder- eller kundeside"
+  },
+  "examples": {
+    "label": "Eksempler",
+    "refresh": "Vis andre eksempler",
+    "repair": {
+      "label": "Reparationsværksted",
+      "text": "Et reparationsværksted: kunder afleverer en ting, personalet registrerer opgaven og delene, og kunden får besked, når den er klar til afhentning."
+    },
+    "classes": {
+      "label": "Holdtilmeldinger",
+      "text": "Holdtilmeldinger til et lille studie: et ugeskema, pladser pr. hold, en venteliste og en påmindelse dagen før."
+    },
+    "loans": {
+      "label": "Udlån af udstyr",
+      "text": "Udlån af udstyr til et team: hvem har hvilken ting, hvornår den skal afleveres, og en påmindelse, når den er forsinket."
+    },
+    "catering": {
+      "label": "Cateringordrer",
+      "text": "Cateringordrer: kunder vælger en menu og en dato, personalet bekræfter, og køkkenet kan se, hvad der skal laves hver dag."
+    },
+    "volunteers": {
+      "label": "Frivilligvagtplan",
+      "text": "En frivilligvagtplan til et fælleskøkken: vagter hver uge, hvem der har meldt sig til hvilke, og en liste over de ledige vagter."
+    },
+    "nursery": {
+      "label": "Planteskolens lager",
+      "text": "Lager til en planteskole: planter, deres størrelser og priser, hvor mange der står på hvert bord, og hvad der skal omplantes denne uge."
+    },
+    "grooming": {
+      "label": "Hundefrisør",
+      "text": "Bookinger hos en hundefrisør: ejere booker en tid online til deres hund, personalet ser dagen, og hvert besøg gemmer sine noter."
+    },
+    "tutoring": {
+      "label": "Lektiehjælp",
+      "text": "Lektiehjælp: elever, undervisere og fag, de timer der er booket hver uge, og hvad der blev gennemgået i hver."
+    },
+    "bikes": {
+      "label": "Cykeludlejning",
+      "text": "Cykeludlejning: cyklerne og deres stand, udlejning pr. time eller dag, og hvilke cykler der er ude lige nu."
+    },
+    "lost": {
+      "label": "Hittegods",
+      "text": "Et hittegodskontor: indleverede ting med sted og tidspunkt og en offentlig side, hvor folk kan beskrive, hvad de har mistet."
+    },
+    "foodbank": {
+      "label": "Afhentning i fødevarebanken",
+      "text": "Afhentning i fødevarebanken: husstande tilmelder sig, booker et afhentningstidspunkt, og personalet markerer hver pakke som udleveret."
+    },
+    "rooms": {
+      "label": "Lokalebooking",
+      "text": "Lokalebooking til et delt studie: lokaler, hvem der har booket hvilket og hvornår, og aldrig to bookinger på samme tid."
+    }
+  },
+  "start": {
+    "title": "Start med en app",
+    "filters": "Filtrér apps",
+    "all": "Alle",
+    "browse": "Gennemse alle",
+    "loading": "Indlæser applisten",
+    "off": "Onlinelisten over apps er slået fra for denne installation.",
+    "failed": "Listen over apps kunne ikke indlæses.",
+    "stillDescribe": "Du kan stadig beskrive en app ovenfor.",
+    "retry": "Prøv igen",
+    "startThis": "Start med denne",
+    "startApp": "Start med denne: {name}",
+    "staffSide": "Medarbejderside",
+    "customerSide": "Kundeside"
+  },
+  "apps": {
+    "title": "Dine apps",
+    "noVersions": "Ingen versioner endnu",
+    "versions": "{count, plural, one {# version} other {# versioner}}",
+    "edited": "Redigeret {when}",
+    "continue": "Fortsæt",
+    "continueApp": "Fortsæt {name}"
+  },
+  "model": {
+    "add": "Tilføj en model",
+    "button": "Model: {model}",
+    "buttonCannot": "Model: {model}. Den kan ikke bygge apps."
   }
 }

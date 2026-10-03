@@ -6,6 +6,8 @@ export {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './DropdownMenu.js';
@@ -14,5 +16,6 @@ export type {
   DropdownMenuContentProps,
   DropdownMenuItemProps,
   DropdownMenuLabelProps,
+  DropdownMenuRadioItemProps,
   DropdownMenuSeparatorProps,
 } from './DropdownMenu.js';

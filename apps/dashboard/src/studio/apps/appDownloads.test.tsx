@@ -360,13 +360,13 @@ describe('an app made on this install', () => {
   it('carries a badge saying so, and one from adminium does not', async () => {
     installed = { apps: [{ ...INSTALLED, publisher: { id: 'local', name: 'Local' } }], staged: [] };
     await renderPage();
-    expect(screen.getByText('Made here')).toBeTruthy();
+    expect(screen.getByText('Made on this install')).toBeTruthy();
   });
 
   it('is not marked on an app from adminium', async () => {
     installed = { apps: [{ ...INSTALLED, publisher: { id: 'adminium', name: 'Adminium' } }], staged: [] };
     await renderPage();
-    expect(screen.queryByText('Made here')).toBeNull();
+    expect(screen.queryByText('Made on this install')).toBeNull();
   });
 });
 
@@ -374,7 +374,7 @@ describe('an app that runs from the project folder', () => {
   it('says where it comes from', async () => {
     installed = { apps: [{ ...INSTALLED, source: 'folder', folder: { state: 'here' }, publisher: { id: 'local', name: 'Local' } }], staged: [] };
     await renderPage();
-    expect(screen.getByText('From this project’s folder')).toBeTruthy();
+    expect(screen.getByText(`apps/${INSTALLED.key}`).parentElement?.textContent).toBe(`From the folder apps/${INSTALLED.key}`);
     expect(screen.queryByText('Folder gone')).toBeNull();
     // It is removed from the folder, so Studio does not offer what the server would refuse.
     expect(screen.queryByRole('button', { name: 'Uninstall' })).toBeNull();
@@ -465,7 +465,7 @@ describe('an app that runs from the project folder', () => {
   it('is not marked on a package', async () => {
     installed = { apps: [INSTALLED], staged: [] };
     await renderPage();
-    expect(screen.queryByText('From this project’s folder')).toBeNull();
+    expect(screen.queryByText(`apps/${INSTALLED.key}`)).toBeNull();
   });
 });
 

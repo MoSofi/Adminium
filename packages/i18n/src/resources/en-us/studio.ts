@@ -753,7 +753,7 @@ export default {
         "retry": "Try again",
         "back": "Back to Schema plan"
       },
-      "madeHere": "Made on this install. It does not come from adminium.dev, and nobody else has checked it."
+      "madeHere": "Made on this install. It does not come from adminium.dev, and nobody else has checked it. Install it only if you trust where it came from."
     },
     "installed": {
       "title": "Installed apps",
@@ -777,8 +777,8 @@ export default {
       "oldNames": "This install uses the old table names.",
       "oldNamesWhy": "They were made before prefixes.",
       "renameTo": "Rename to {prefix}…",
-      "madeHere": "Made here",
-      "fromFolder": "From this project’s folder",
+      "madeHere": "Made on this install",
+      "fromFolder": "From the folder {folder}",
       "folderGone": "Folder gone",
       "folderGoneBody": "apps/{key}/ is no longer in this project. The app stays installed, with its tables and pages, until you uninstall it.",
       "notApplied": "Not applied",

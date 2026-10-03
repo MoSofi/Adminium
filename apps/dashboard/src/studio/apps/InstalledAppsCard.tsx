@@ -64,6 +64,19 @@ import {
 import { RenameTablesDialog } from './RenameTablesDialog.js';
 import { UninstallAppDialog } from './UninstallAppDialog.js';
 
+/** "From the folder `apps/<key>`": the folder in mono, wherever the language puts it. */
+function FromFolder({ appKey }: { appKey: string }) {
+  const MARK = '\u0001';
+  const [before = '', after = ''] = t('studio:hostedApps.installed.fromFolder', 'From the folder {folder}', { folder: MARK }).split(MARK);
+  return (
+    <>
+      {before}
+      <MonoText>{`apps/${appKey}`}</MonoText>
+      {after}
+    </>
+  );
+}
+
 export interface InstalledAppsCardProps {
   onInstall: () => void;
   /**
@@ -176,10 +189,12 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                       <MonoText>{app.version}</MonoText>
                     </Badge>
                     {app.publisher?.id === LOCAL_PUBLISHER_ID ? (
-                      <Badge>{t('studio:hostedApps.installed.madeHere', 'Made here')}</Badge>
+                      <Badge>{t('studio:hostedApps.installed.madeHere', 'Made on this install')}</Badge>
                     ) : null}
                     {app.folder === undefined ? null : app.folder.state === 'here' ? (
-                      <Badge>{t('studio:hostedApps.installed.fromFolder', 'From this project’s folder')}</Badge>
+                      <Badge>
+                        <FromFolder appKey={app.key} />
+                      </Badge>
                     ) : (
                       <Badge tone="danger">{t('studio:hostedApps.installed.folderGone', 'Folder gone')}</Badge>
                     )}

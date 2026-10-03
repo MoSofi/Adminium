@@ -19,7 +19,10 @@ import type { Actor } from '../../designer/runner.js';
 import { NotFoundError } from '../../errors.js';
 import type { Versions } from '../../designer/versions.js';
 import { safeTarget, type PreviewTickets } from '../../designer/preview.js';
-import type { AiConnections } from '../../llm/connections.js';
+import { parseSelected, type AiConnections, type ConnectionId } from '../../llm/connections.js';
+import { pickLocalized } from '../../add-ons/catalog.js';
+import type { AppCatalog } from '../../apps/catalog.js';
+import type { z } from 'zod';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -32,7 +35,12 @@ import {
   designerConnectionReply,
   designerConnectionSaveBody,
   designerConnectionTestReply,
+  designerAppsListReply,
+  designerCatalogApp,
   designerEventsQuery,
+  designerModelCheckBody,
+  designerModelCheckReply,
+  designerModelsReply,
   designerPreviewBody,
   designerPreviewReply,
   designerEventsReply,
@@ -58,9 +66,14 @@ export interface DesignerRoutesDeps {
   mode: 'local' | 'live';
   root: string;
   limits: () => Promise<{ maxSteps: number; turnTokens: number; sessionTokens: number }>;
+  /** The adminium.dev app list, for "Start with an app". */
+  appCatalog?: { isEnabled(): Promise<boolean>; fetchCatalog(signal?: AbortSignal): Promise<AppCatalog> } | undefined;
   /** The preview's tickets and its address; null where the server has no preview name. */
   preview: { tickets: PreviewTickets; origin: string } | null;
 }
+
+/** How long the adminium.dev list is kept. */
+const CATALOG_CACHE_MS = 60 * 60 * 1000;
 
 /** How many events one catch-up read gives. */
 export const EVENTS_PAGE = 2000;
@@ -129,7 +142,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const by = actorOf(request);
         const { text, ...input } = request.body;
         const session = await designer.createSession(input, by);
-        const { turn } = await runner.start(session.id, { text, by });
+        const turn = text === undefined ? null : (await runner.start(session.id, { text, by })).turn;
         return reply.code(201).send({ session: store.read(session.id), turn });
       },
     );
@@ -253,6 +266,75 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const ticket = deps.preview.tickets.issue(session.appKey);
         const url = `${deps.preview.origin}/designer-preview/enter?ticket=${ticket}&to=${encodeURIComponent(to)}`;
         return { url, origin: deps.preview.origin };
+      },
+    );
+
+    // "Start with an app": the adminium.dev list, installable apps only, read on the server and kept an hour.
+    let listed: { at: number; apps: z.infer<typeof designerCatalogApp>[] } | null = null;
+    app.get('/designer/apps', { preHandler: guard, config: RATE, schema: { response: { 200: designerAppsListReply } } }, async () => {
+      if (deps.appCatalog === undefined || !(await deps.appCatalog.isEnabled())) return { state: 'off' as const, apps: [] };
+      if (listed !== null && Date.now() - listed.at < CATALOG_CACHE_MS) return { state: 'ok' as const, apps: listed.apps };
+      try {
+        const catalog = await deps.appCatalog.fetchCatalog(AbortSignal.timeout(10_000));
+        const apps = catalog.apps.map((entry) => ({
+          key: entry.key,
+          version: entry.version,
+          name: pickLocalized(entry.name, 'en-US') ?? entry.key,
+          tagline: pickLocalized(entry.tagline, 'en-US') ?? '',
+          category: entry.categories[0] ?? null,
+          sides: entry.sides,
+          iconTint: entry.iconTint ?? null,
+          iconPaths: entry.iconPaths ?? [],
+          monogram: entry.monogram ?? null,
+        }));
+        listed = { at: Date.now(), apps };
+        return { state: 'ok' as const, apps };
+      } catch {
+        return { state: 'unreachable' as const, apps: [] };
+      }
+    });
+
+    // The models the picker lists: every connection with its models, the selected one, what is known to build.
+    app.get('/designer/models', { preHandler: guard, config: RATE, schema: { response: { 200: designerModelsReply } } }, async () => {
+      const all = await connections.list();
+      const listedModels = await Promise.all(
+        all.map(async (connection) => {
+          try {
+            const { models, source } = await connections.models(connection.id);
+            const withSelected = connection.model !== null && !models.some((model) => model.id === connection.model) ? [{ id: connection.model, label: connection.model }, ...models] : models;
+            return { id: connection.id, provider: connection.provider, source: connection.source, state: source === 'live' || withSelected.length > 0 ? ('ok' as const) : ('unreachable' as const), models: withSelected };
+          } catch {
+            return { id: connection.id, provider: connection.provider, source: connection.source, state: 'unreachable' as const, models: connection.model === null ? [] : [{ id: connection.model, label: connection.model }] };
+          }
+        }),
+      );
+      const chosen = await connections.default();
+      const selected = (() => {
+        const env = parseSelected(connections.selected() ?? undefined);
+        if (env !== null && all.some((connection) => connection.id === `env:${env.provider}`)) return { connectionId: `env:${env.provider}`, model: env.model };
+        return chosen === null || chosen.model === null ? null : { connectionId: chosen.connection.id, model: chosen.model };
+      })();
+      const verdicts = listedModels.flatMap((connection) =>
+        connection.models.flatMap((model) => {
+          const verdict = connections.verdict(connection.id as ConnectionId, model.id);
+          return verdict === null ? [] : [{ connectionId: connection.id, model: model.id, canBuild: verdict.canBuild, message: verdict.canBuild ? null : verdict.message }];
+        }),
+      );
+      return { connections: listedModels, selected, verdicts, canAdd: connections.envWritable };
+    });
+
+    // Whether one model can build: a round trip, kept for the process (Q15).
+    app.post(
+      '/designer/models/check',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('a check calls the model and saves nothing') },
+        schema: { body: designerModelCheckBody, response: { 200: designerModelCheckReply } },
+      },
+      async (request) => {
+        if ((await connections.find(request.body.connectionId)) === null) throw new NotFoundError('There is no such model connection.', { connectionId: request.body.connectionId });
+        const verdict = await connections.canBuildWith(request.body.connectionId as ConnectionId, request.body.model);
+        return verdict.canBuild ? { canBuild: true, message: null } : { canBuild: false, message: verdict.message };
       },
     );
 

@@ -743,7 +743,7 @@
         "retry": "Réessayer",
         "back": "Retour au plan de schéma"
       },
-      "madeHere": "Créée sur cette installation. Elle ne vient pas d’adminium.dev et personne d’autre ne l’a vérifiée."
+      "madeHere": "Créée sur cette installation. Elle ne vient pas d’adminium.dev et personne d’autre ne l’a vérifiée. Ne l’installez que si vous faites confiance à sa provenance."
     },
     "installed": {
       "title": "Applications installées",
@@ -767,8 +767,8 @@
       "oldNames": "Cette installation utilise les anciens noms de tables.",
       "oldNamesWhy": "Elles ont été créées avant les préfixes.",
       "renameTo": "Renommer en {prefix}…",
-      "madeHere": "Créée ici",
-      "fromFolder": "Depuis le dossier de ce projet",
+      "madeHere": "Créée sur cette installation",
+      "fromFolder": "Depuis le dossier {folder}",
       "folderGone": "Dossier absent",
       "folderGoneBody": "apps/{key}/ n’est plus dans ce projet. L’application reste installée, avec ses tables et ses pages, jusqu’à ce que vous la désinstalliez.",
       "notApplied": "Non appliqué",

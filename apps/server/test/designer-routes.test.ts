@@ -53,14 +53,16 @@ beforeAll(async () => {
         response.end(JSON.stringify({ models: [{ name: 'fake', model: 'fake' }] }));
         return;
       }
-      const sent = JSON.parse(body) as { messages: { role: string }[]; tools?: { function: { name: string } }[] };
+      const sent = JSON.parse(body) as { model: string; messages: { role: string }[]; tools?: { function: { name: string } }[] };
       const line = (value: unknown): void => {
         response.write(`${JSON.stringify(value)}\n`);
       };
       const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 50, eval_count: 5, message: { role: 'assistant', content: '' } };
-      // The build check: call `echo`, then answer once the result is back.
+      // The build check: call `echo`, then answer once the result is back. `plain` never calls a tool.
       if (sent.tools?.some((tool) => tool.function.name === 'echo') === true) {
-        if (sent.messages.at(-1)?.role === 'tool' || sent.messages.some((message) => message.role === 'tool')) {
+        if (sent.model === 'plain') {
+          line({ model: 'plain', done: false, message: { role: 'assistant', content: 'The word is adminium.' } });
+        } else if (sent.messages.at(-1)?.role === 'tool' || sent.messages.some((message) => message.role === 'tool')) {
           line({ model: 'fake', done: false, message: { role: 'assistant', content: 'done' } });
         } else {
           line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'echo', arguments: { word: 'adminium' } } }] } });
@@ -271,6 +273,52 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect((await client.call('POST', '/api/v1/designer/sessions', createBody({ target: 'mobile' }))).status).toBe(422);
     expect((await client.call('GET', '/api/v1/designer/sessions/ds_000000000000000000000000')).status).toBe(404);
     expect((await client.call('GET', '/api/v1/designer/sessions/..%2F..%2Fetc')).status).toBe(422);
+  });
+
+  it('list the models with what is known to build, and check one', async () => {
+    const client = await server({ designer: true });
+    const before = await client.call('GET', '/api/v1/designer/models');
+    expect(before.status, JSON.stringify(before.body)).toBe(200);
+    expect(before.body).toEqual({
+      connections: [{ id: 'env:ollama', provider: 'ollama', source: 'environment', state: 'ok', models: [{ id: 'fake', label: 'fake' }] }],
+      selected: { connectionId: 'env:ollama', model: 'fake' },
+      verdicts: [],
+      canAdd: true,
+    });
+
+    expect((await client.call('POST', '/api/v1/designer/models/check', { connectionId: 'env:ollama', model: 'fake' })).body).toEqual({ canBuild: true, message: null });
+    const plain = await client.call('POST', '/api/v1/designer/models/check', { connectionId: 'env:ollama', model: 'plain' });
+    expect(plain.body).toMatchObject({ canBuild: false });
+    expect((await client.call('POST', '/api/v1/designer/models/check', { connectionId: 'env:anthropic', model: 'x' })).status).toBe(404);
+
+    // What was found is kept for the process, and the picker says so.
+    const after = await client.call('GET', '/api/v1/designer/models');
+    expect(after.body['verdicts']).toEqual([{ connectionId: 'env:ollama', model: 'fake', canBuild: true, message: null }]);
+    // A model that cannot build makes nothing.
+    const refused = await client.call('POST', '/api/v1/designer/sessions', createBody({ model: 'plain' }));
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ error: { details: { reason: 'MODEL_CANNOT_BUILD' } } });
+    expect(existsSync(join(root!, 'apps', 'repair-desk'))).toBe(false);
+  });
+
+  it('open a session on an app no session built, with no first message', async () => {
+    const client = await server({ designer: true });
+    const first = await client.call('POST', '/api/v1/designer/sessions', createBody());
+    const key = (first.body['session'] as { appKey: string }).appKey;
+    await finishedTurn(client, (first.body['session'] as { id: string }).id, 1);
+
+    const opened = await client.call('POST', '/api/v1/designer/sessions', { appKey: key, target: 'auto', connectionId: 'env:ollama', model: 'fake' });
+    expect(opened.status, JSON.stringify(opened.body)).toBe(201);
+    expect(opened.body['turn']).toBeNull();
+    expect(opened.body['session']).toMatchObject({ appKey: key, createdApp: false, turns: 0 });
+    const events = (await client.call('GET', `/api/v1/designer/sessions/${(opened.body['session'] as { id: string }).id}/events-since?after=0`)).body['events'];
+    expect(events).toEqual([]);
+    expect((await client.call('GET', '/api/v1/designer/state')).body['active']).toBeNull();
+  });
+
+  it('say the online app list is off on an install that has not switched it on', async () => {
+    const client = await server({ designer: true });
+    expect((await client.call('GET', '/api/v1/designer/apps')).body).toEqual({ state: 'off', apps: [] });
   });
 
   it('test a model without saving it, and save one to the project’s .env', async () => {

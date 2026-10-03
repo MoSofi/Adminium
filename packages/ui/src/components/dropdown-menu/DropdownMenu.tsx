@@ -112,6 +112,43 @@ export function DropdownMenuCheckboxItem({ className, children, ...props }: Drop
   );
 }
 
+/** A set of radio items: one of them is the value (`value`/`onValueChange`). */
+export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+
+export type DropdownMenuRadioItemProps = Omit<
+  React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.RadioItem>,
+  'style'
+> & {
+  /** Leading icon (decorative). */
+  icon?: React.ReactNode | undefined;
+  /** A second, quieter line under the label. */
+  description?: React.ReactNode | undefined;
+};
+
+/**
+ * One choice of a radio group — `menuitemradio`, checked when it is the
+ * group's value. The check sits at the END, after an optional leading icon
+ * and a second line, as a menu of named choices reads.
+ */
+export function DropdownMenuRadioItem({ className, children, icon, description, ...props }: DropdownMenuRadioItemProps) {
+  return (
+    <DropdownMenuPrimitive.RadioItem className={cn(itemClasses, 'items-start py-2', className)} {...props}>
+      {icon ? (
+        <span aria-hidden="true" className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-surface-3 text-fg-muted">
+          {icon}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-bold">{children}</span>
+        {description ? <span className="mt-0.5 block text-[12px] leading-snug text-fg-muted">{description}</span> : null}
+      </span>
+      <DropdownMenuPrimitive.ItemIndicator aria-hidden="true" className="mt-0.5 flex items-center text-accent">
+        <Check strokeWidth={3} />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </DropdownMenuPrimitive.RadioItem>
+  );
+}
+
 export type DropdownMenuLabelProps = Omit<
   React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Label>,
   'style'

@@ -743,7 +743,7 @@
         "retry": "重試",
         "back": "返回結構計畫"
       },
-      "madeHere": "在此安裝上製作。它並非來自 adminium.dev，也沒有其他人檢查過它。"
+      "madeHere": "在此安裝上製作。它並非來自 adminium.dev，也沒有其他人檢查過它。只有在你信任其來源時才安裝它。"
     },
     "installed": {
       "title": "已安裝的應用程式",
@@ -767,8 +767,8 @@
       "oldNames": "此安裝使用的是舊的資料表名稱。",
       "oldNamesWhy": "這些資料表建立於前綴功能之前。",
       "renameTo": "重新命名為 {prefix}…",
-      "madeHere": "本機製作",
-      "fromFolder": "來自此專案的資料夾",
+      "madeHere": "在此安裝上製作",
+      "fromFolder": "來自資料夾 {folder}",
       "folderGone": "資料夾已不存在",
       "folderGoneBody": "apps/{key}/ 已不在此專案中。應用程式連同其資料表和頁面維持安裝，直到你將其解除安裝。",
       "notApplied": "未套用",

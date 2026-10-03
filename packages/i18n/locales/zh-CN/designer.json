@@ -5,5 +5,113 @@
     "body": "再次运行 design 命令以打开 Adminium Designer。",
     "copy": "复制命令",
     "copied": "已复制"
+  },
+  "topbar": {
+    "home": "Adminium Designer 首页",
+    "toDark": "切换到深色主题",
+    "toLight": "切换到浅色主题",
+    "dashboard": "打开仪表板",
+    "language": "语言"
+  },
+  "home": {
+    "title": "你想构建什么？",
+    "lead": "描述它。Adminium 提供数据库、仪表板、登录和 API。",
+    "promptLabel": "描述你的应用",
+    "placeholder": "描述你的应用…",
+    "placeholderNoModel": "添加一个模型即可开始",
+    "send": "发送",
+    "noModel": "Adminium Designer 使用你自己的 AI 模型。添加一个即可开始。",
+    "cannotBuild": "此模型无法构建应用：它不支持工具。请选择其他模型。",
+    "failed": "Designer 无法启动"
+  },
+  "target": {
+    "label": "构建内容：{target}",
+    "menu": "构建内容",
+    "auto": "自动",
+    "autoLine": "由 Adminium 决定",
+    "dashboard": "仅仪表板",
+    "dashboardLine": "数据表和管理页面",
+    "web": "网页",
+    "webLine": "员工端或客户端"
+  },
+  "examples": {
+    "label": "示例",
+    "refresh": "显示其他示例",
+    "repair": {
+      "label": "维修店",
+      "text": "一家维修店：顾客送来物品，员工记录工单和配件，物品可取时顾客会收到消息。"
+    },
+    "classes": {
+      "label": "课程报名",
+      "text": "小工作室的课程报名：每周课表、每节课的名额、候补名单以及前一天的提醒。"
+    },
+    "loans": {
+      "label": "设备借用",
+      "text": "团队设备借用：谁借了哪件物品、何时归还，逾期时发送提醒。"
+    },
+    "catering": {
+      "label": "餐饮订单",
+      "text": "餐饮订单：顾客选择菜单和日期，员工确认，厨房每天都能看到要准备什么。"
+    },
+    "volunteers": {
+      "label": "志愿者排班",
+      "text": "社区厨房的志愿者排班：每周的班次、谁报名了哪个班次，以及仍空缺的班次列表。"
+    },
+    "nursery": {
+      "label": "苗圃库存",
+      "text": "苗圃的库存：植物及其规格和价格、每个苗床上的数量，以及本周需要换盆的植物。"
+    },
+    "grooming": {
+      "label": "宠物狗美容",
+      "text": "宠物狗美容预约：主人在线为狗狗预约时段，员工查看当天安排，每次到访都保留备注。"
+    },
+    "tutoring": {
+      "label": "辅导课程",
+      "text": "辅导课程：学生、导师和科目，每周预约的课程，以及每节课讲了什么。"
+    },
+    "bikes": {
+      "label": "自行车租赁",
+      "text": "自行车租赁：车辆及其状况、按小时或按天出租，以及目前已租出的车辆。"
+    },
+    "lost": {
+      "label": "失物招领",
+      "text": "失物招领处：登记交来的物品及其拾获地点和时间，并提供一个公开页面让人们描述遗失的物品。"
+    },
+    "foodbank": {
+      "label": "食物银行领取",
+      "text": "食物银行领取：家庭登记并预约领取时间，员工将每个包裹标记为已发放。"
+    },
+    "rooms": {
+      "label": "房间预订",
+      "text": "共享工作室的房间预订：房间、谁在何时预订了哪一间，并且不会有两个预订时间重叠。"
+    }
+  },
+  "start": {
+    "title": "从一个应用开始",
+    "filters": "筛选应用",
+    "all": "全部",
+    "browse": "浏览全部",
+    "loading": "正在加载应用列表",
+    "off": "此安装已关闭在线应用列表。",
+    "failed": "无法加载应用列表。",
+    "stillDescribe": "你仍然可以在上方描述一个应用。",
+    "retry": "重试",
+    "startThis": "从这个开始",
+    "startApp": "从这个开始：{name}",
+    "staffSide": "员工端",
+    "customerSide": "客户端"
+  },
+  "apps": {
+    "title": "你的应用",
+    "noVersions": "暂无版本",
+    "versions": "{count, plural, other {# 个版本}}",
+    "edited": "{when}编辑",
+    "continue": "继续",
+    "continueApp": "继续 {name}"
+  },
+  "model": {
+    "add": "添加模型",
+    "button": "模型：{model}",
+    "buttonCannot": "模型：{model}。它无法构建应用。"
   }
 }

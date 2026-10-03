@@ -60,7 +60,8 @@ export const designerSessionCreateBody = z.object({
   target: target.default('auto'),
   connectionId: z.string().max(64),
   model: z.string().min(1).max(200),
-  text: z.string().min(1).max(20_000),
+  /** The first message. Without it the session opens with no turn: "Continue" on an app no session built. */
+  text: z.string().min(1).max(20_000).optional(),
 });
 
 export const designerSessionReply = z.object({
@@ -69,7 +70,7 @@ export const designerSessionReply = z.object({
   active: z.boolean(),
 });
 
-export const designerSessionCreateReply = z.object({ session: designerSession, turn: z.number().int() });
+export const designerSessionCreateReply = z.object({ session: designerSession, turn: z.number().int().nullable() });
 
 export const designerSessionPatchBody = z.object({
   title: z.string().min(1).max(80).optional(),
@@ -94,6 +95,46 @@ export const designerRestoreReply = z.object({
   version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
   applied: z.boolean(),
 });
+
+/** One app of the adminium.dev list, as a card draws it. */
+export const designerCatalogApp = z.object({
+  key: z.string(),
+  version: z.string(),
+  name: z.string(),
+  tagline: z.string(),
+  category: z.string().nullable(),
+  sides: z.array(z.enum(['staff', 'customer'])),
+  iconTint: z.string().nullable(),
+  iconPaths: z.array(z.string()),
+  monogram: z.string().nullable(),
+});
+export const designerAppsListReply = z.object({
+  /** `off`: network features or the online app list are switched off. `unreachable`: adminium.dev did not answer. */
+  state: z.enum(['ok', 'off', 'unreachable']),
+  apps: z.array(designerCatalogApp),
+});
+
+export const designerModelsReply = z.object({
+  connections: z.array(
+    z.object({
+      id: z.string(),
+      provider: z.string(),
+      source: z.enum(['database', 'environment']),
+      /** `unreachable`: listing its models failed; the other connections still list. */
+      state: z.enum(['ok', 'unreachable']),
+      models: z.array(z.object({ id: z.string(), label: z.string() })),
+    }),
+  ),
+  /** The model a new session uses: the environment's selected one, else the saved setting's. */
+  selected: z.object({ connectionId: z.string(), model: z.string() }).nullable(),
+  /** What this process knows about which models can build. A model not listed was not tested yet. */
+  verdicts: z.array(z.object({ connectionId: z.string(), model: z.string(), canBuild: z.boolean(), message: z.string().nullable() })),
+  /** Whether a model can be added here (a project .env to keep it in). */
+  canAdd: z.boolean(),
+});
+
+export const designerModelCheckBody = z.object({ connectionId: z.string().max(64), model: z.string().min(1).max(200) });
+export const designerModelCheckReply = z.object({ canBuild: z.boolean(), message: z.string().nullable() });
 
 export const designerPreviewBody = z.object({ to: z.string().min(1).max(500) });
 export const designerPreviewReply = z.object({ url: z.string(), origin: z.string() });

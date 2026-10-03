@@ -743,7 +743,7 @@
         "retry": "Prøv igen",
         "back": "Tilbage til skemaplan"
       },
-      "madeHere": "Lavet på denne installation. Den kommer ikke fra adminium.dev, og ingen andre har kontrolleret den."
+      "madeHere": "Lavet på denne installation. Den kommer ikke fra adminium.dev, og ingen andre har kontrolleret den. Installér den kun, hvis du stoler på, hvor den kommer fra."
     },
     "installed": {
       "title": "Installerede apps",
@@ -767,8 +767,8 @@
       "oldNames": "Denne installation bruger de gamle tabelnavne.",
       "oldNamesWhy": "De blev lavet før præfikser.",
       "renameTo": "Omdøb til {prefix}…",
-      "madeHere": "Lavet her",
-      "fromFolder": "Fra dette projekts mappe",
+      "madeHere": "Lavet på denne installation",
+      "fromFolder": "Fra mappen {folder}",
       "folderGone": "Mappen er væk",
       "folderGoneBody": "apps/{key}/ er ikke længere i dette projekt. Appen forbliver installeret med sine tabeller og sider, indtil du afinstallerer den.",
       "notApplied": "Ikke anvendt",

@@ -15,5 +15,113 @@ export default {
     "body": "再次執行 design 指令以開啟 Adminium Designer。",
     "copy": "複製指令",
     "copied": "已複製"
+  },
+  "topbar": {
+    "home": "Adminium Designer 首頁",
+    "toDark": "切換到深色主題",
+    "toLight": "切換到淺色主題",
+    "dashboard": "開啟儀表板",
+    "language": "語言"
+  },
+  "home": {
+    "title": "你想建立什麼？",
+    "lead": "描述它。Adminium 提供資料庫、儀表板、登入和 API。",
+    "promptLabel": "描述你的應用程式",
+    "placeholder": "描述你的應用程式…",
+    "placeholderNoModel": "新增一個模型即可開始",
+    "send": "傳送",
+    "noModel": "Adminium Designer 使用你自己的 AI 模型。新增一個即可開始。",
+    "cannotBuild": "此模型無法建立應用程式：它不支援工具。請選擇其他模型。",
+    "failed": "Designer 無法啟動"
+  },
+  "target": {
+    "label": "建立內容：{target}",
+    "menu": "建立內容",
+    "auto": "自動",
+    "autoLine": "由 Adminium 決定",
+    "dashboard": "僅儀表板",
+    "dashboardLine": "資料表和管理頁面",
+    "web": "網頁",
+    "webLine": "員工端或客戶端"
+  },
+  "examples": {
+    "label": "範例",
+    "refresh": "顯示其他範例",
+    "repair": {
+      "label": "維修店",
+      "text": "一家維修店：顧客送來物品，員工記錄工單和零件，物品可取時顧客會收到訊息。"
+    },
+    "classes": {
+      "label": "課程報名",
+      "text": "小工作室的課程報名：每週課表、每堂課的名額、候補名單以及前一天的提醒。"
+    },
+    "loans": {
+      "label": "設備借用",
+      "text": "團隊設備借用：誰借了哪件物品、何時歸還，逾期時發送提醒。"
+    },
+    "catering": {
+      "label": "外燴訂單",
+      "text": "外燴訂單：顧客選擇菜單和日期，員工確認，廚房每天都能看到要準備什麼。"
+    },
+    "volunteers": {
+      "label": "志工排班",
+      "text": "社區廚房的志工排班：每週的班次、誰報名了哪個班次，以及仍空缺的班次清單。"
+    },
+    "nursery": {
+      "label": "苗圃庫存",
+      "text": "苗圃的庫存：植物及其規格和價格、每個苗床上的數量，以及本週需要換盆的植物。"
+    },
+    "grooming": {
+      "label": "寵物狗美容",
+      "text": "寵物狗美容預約：飼主在線上為狗狗預約時段，員工查看當天安排，每次到訪都保留備註。"
+    },
+    "tutoring": {
+      "label": "家教課程",
+      "text": "家教課程：學生、家教老師和科目，每週預約的課程，以及每堂課教了什麼。"
+    },
+    "bikes": {
+      "label": "自行車租賃",
+      "text": "自行車租賃：車輛及其狀況、按小時或按天出租，以及目前已租出的車輛。"
+    },
+    "lost": {
+      "label": "失物招領",
+      "text": "失物招領處：登記交來的物品及其拾獲地點和時間，並提供一個公開頁面讓人們描述遺失的物品。"
+    },
+    "foodbank": {
+      "label": "食物銀行領取",
+      "text": "食物銀行領取：家庭登記並預約領取時間，員工將每個包裹標記為已發放。"
+    },
+    "rooms": {
+      "label": "房間預訂",
+      "text": "共享工作室的房間預訂：房間、誰在何時預訂了哪一間，並且不會有兩個預訂時間重疊。"
+    }
+  },
+  "start": {
+    "title": "從一個應用程式開始",
+    "filters": "篩選應用程式",
+    "all": "全部",
+    "browse": "瀏覽全部",
+    "loading": "正在載入應用程式清單",
+    "off": "此安裝已關閉線上應用程式清單。",
+    "failed": "無法載入應用程式清單。",
+    "stillDescribe": "你仍然可以在上方描述一個應用程式。",
+    "retry": "重試",
+    "startThis": "從這個開始",
+    "startApp": "從這個開始：{name}",
+    "staffSide": "員工端",
+    "customerSide": "客戶端"
+  },
+  "apps": {
+    "title": "你的應用程式",
+    "noVersions": "尚無版本",
+    "versions": "{count, plural, other {# 個版本}}",
+    "edited": "{when}編輯",
+    "continue": "繼續",
+    "continueApp": "繼續 {name}"
+  },
+  "model": {
+    "add": "新增模型",
+    "button": "模型：{model}",
+    "buttonCannot": "模型：{model}。它無法建立應用程式。"
   }
 } as const;

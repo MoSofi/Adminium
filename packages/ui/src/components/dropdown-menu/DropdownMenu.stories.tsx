@@ -11,6 +11,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './DropdownMenu.js';
@@ -81,6 +83,29 @@ export const Matrix: Story = {
           <DropdownMenuItem destructive icon={<Trash2 />}>
             Delete record
           </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ),
+};
+
+/** A radio group: one of the choices is the value, with an icon and a second line each. */
+export const RadioChoices: Story = {
+  render: () => (
+    <div className="h-[320px]">
+      <DropdownMenu defaultOpen modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary">What to build</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[268px]">
+          <DropdownMenuRadioGroup value="auto">
+            <DropdownMenuRadioItem value="auto" icon={<Pencil />} description="Adminium decides">
+              Auto
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dashboard" icon={<Copy />} description="tables and admin pages">
+              Dashboard only
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

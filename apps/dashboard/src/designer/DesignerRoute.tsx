@@ -8,8 +8,9 @@
  * again. The pages mount what the shell would have given them: toasts, and
  * the `designer` messages.
  */
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useSyncExternalStore, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { getI18nRevision, subscribeI18nRevision } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { AppToastProvider } from '../pages/toasts.js';
@@ -19,6 +20,8 @@ import { DesignerHome } from './home/DesignerHome.js';
 
 function Signed({ sessionId }: { sessionId: string | null }): ReactNode {
   useDesignerMessages();
+  // A language picked in the top bar lands after its messages load; the router's outlet would not re-render for it.
+  useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
   return <AppToastProvider>{sessionId === null ? <DesignerHome /> : <DesignerHome />}</AppToastProvider>;
 }
 

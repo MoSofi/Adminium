@@ -753,7 +753,7 @@ export default {
         "retry": "Erneut versuchen",
         "back": "Zurück zum Schemaplan"
       },
-      "madeHere": "Auf dieser Installation erstellt. Sie stammt nicht von adminium.dev, und niemand sonst hat sie geprüft."
+      "madeHere": "Auf dieser Installation erstellt. Sie stammt nicht von adminium.dev, und niemand sonst hat sie geprüft. Installieren Sie sie nur, wenn Sie ihrer Herkunft vertrauen."
     },
     "installed": {
       "title": "Installierte Apps",
@@ -777,8 +777,8 @@ export default {
       "oldNames": "Diese Installation verwendet die alten Tabellennamen.",
       "oldNamesWhy": "Sie wurden vor den Präfixen angelegt.",
       "renameTo": "In {prefix}… umbenennen",
-      "madeHere": "Hier erstellt",
-      "fromFolder": "Aus dem Ordner dieses Projekts",
+      "madeHere": "Auf dieser Installation erstellt",
+      "fromFolder": "Aus dem Ordner {folder}",
       "folderGone": "Ordner fehlt",
       "folderGoneBody": "apps/{key}/ ist nicht mehr in diesem Projekt. Die App bleibt mit ihren Tabellen und Seiten installiert, bis Sie sie deinstallieren.",
       "notApplied": "Nicht angewendet",
