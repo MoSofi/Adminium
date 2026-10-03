@@ -751,6 +751,18 @@ function hostForOf(app: FastifyInstance): ((appKey: string) => Promise<string | 
   return async (appKey) => customerHostIn((await cache.read()).domains, appKey);
 }
 
+/*
+ * What a refused list is told. A refusal names the parameter the caller sent
+ * (never a column of the table, nor which columns would have been taken) and
+ * what works instead: a page whose every try is answered "not permitted
+ * here" is rewritten five times and still refused (plan 65, R4).
+ */
+const REFUSED_WHERE =
+  'That filter is not permitted here. This endpoint does not take that `where` from a caller: list with limit, offset or cursor and narrow the rows in the page. What is listed is decided by the app (filters in its public access), and a person reaches their own row by a claim.';
+const REFUSED_ORDER =
+  'That sort is not permitted here. This endpoint does not take that `order` from a caller: rows come in the order the endpoint itself gives, so sort them in the page.';
+const REFUSED_SEARCH = 'Search is not enabled for this resource. It takes no `q` from a caller: narrow the rows in the page.';
+
 function fail(
   reply: FastifyReply,
   status: number,
@@ -1875,7 +1887,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource), ok.key.purpose);
         const searchable = resource.searchable.filter((column) => !withheld.columns.has(column));
         if (q.q !== undefined && q.q.length > 0 && searchable.length === 0) {
-          return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Search is not enabled for this resource.');
+          return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_SEARCH, { parameter: 'q' });
         }
         let where: string | undefined;
         if (q.where !== undefined) {
@@ -1884,11 +1896,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const named = collectFilterColumns(parsed);
             const outside = named.filter((c) => !resource.filterable.has(c) || withheld.columns.has(c));
             if (outside.length > 0) {
-              return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That filter is not permitted here.');
+              return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_WHERE, { parameter: 'where' });
             }
             where = q.where;
           } catch {
-            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That filter is not permitted here.');
+            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_WHERE, { parameter: 'where' });
           }
         }
         if (q.order !== undefined) {
@@ -1898,7 +1910,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             .filter((c) => c.length > 0);
           const outside = named.filter((c) => !resource.orderable.has(c) || withheld.columns.has(c));
           if (outside.length > 0) {
-            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That sort is not permitted here.');
+            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_ORDER, { parameter: 'order' });
           }
         }
         // The endpoint's own order by a withheld column is left for the key's: an order says what the column holds.
