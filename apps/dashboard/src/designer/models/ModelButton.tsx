@@ -33,11 +33,11 @@ export function ModelButton({ model, onAdd, ...props }: ButtonProps & { model: D
         type="button"
         onClick={onAdd}
         disabled={onAdd === undefined}
-        aria-haspopup="dialog"
+        aria-haspopup={onAdd === undefined ? undefined : 'dialog'}
         className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-[10px] bg-accent-soft px-2.5 text-[12.5px] font-bold text-accent hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <Plus aria-hidden="true" className="size-3.5" />
-        {t('designer:model.add', 'Add a model')}
+        {onAdd === undefined ? null : <Plus aria-hidden="true" className="size-3.5" />}
+        {onAdd === undefined ? t('designer:model.none', 'No model') : t('designer:model.add', 'Add a model')}
       </button>
     );
   }

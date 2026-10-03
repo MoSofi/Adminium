@@ -174,6 +174,28 @@ describe('the model picker', () => {
   });
 });
 
+describe('where a model cannot be added (a live server)', () => {
+  it('offers no "Add a model": not in the list, and not on the button with no model', async () => {
+    models = { ...TWO, canAdd: false };
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Model: Claude Sonnet 5.5' }));
+    const list = await screen.findByRole('listbox', { name: 'Models' });
+    expect(within(list).getAllByRole('option').map((option) => option.textContent)).not.toContain('Add a model');
+    // The keyboard does not reach an option that is not there: End lands on the last model.
+    await userEvent.keyboard('{End}{Enter}');
+    expect(screen.getByTestId('picked').textContent).toBe('env:ollama/qwen-coder:32b');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('says there is no model, and opens nothing', async () => {
+    models = { ...NONE, canAdd: false };
+    mount();
+    const button = await screen.findByRole('button', { name: 'No model' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Add a model' })).toBeNull();
+  });
+});
+
 describe('Add a model', () => {
   it('opens from the button with no model, tests a key, saves it, says so and selects it', async () => {
     models = NONE;
@@ -273,7 +295,7 @@ describe('Add a model', () => {
 describe('the model button', () => {
   it('is a skeleton while the models load', () => {
     const { container } = render(
-      <ModelButton model={{ loading: true, hasModels: false, models: undefined, picked: null, canBuild: null, cannotBuildMessage: null, pick: () => undefined }} />,
+      <ModelButton model={{ loading: true, hasModels: false, models: undefined, canAdd: true, picked: null, canBuild: null, cannotBuildMessage: null, pick: () => undefined }} />,
     );
     expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
   });

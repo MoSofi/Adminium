@@ -66,7 +66,9 @@ export function ModelPicker({
       rows: connection.models.filter((entry) => q === '' || entry.label.toLowerCase().includes(q) || entry.id.toLowerCase().includes(q)),
     }))
     .filter((group) => group.rows.length > 0 || group.connection.state === 'unreachable');
-  const nav = [...groups.flatMap((group) => group.rows.map((row) => keyOf(group.connection.id, row.id))), ADD];
+  // Where a model cannot be added (a live server), the list does not offer it.
+  const canAdd = model.canAdd;
+  const nav = [...groups.flatMap((group) => group.rows.map((row) => keyOf(group.connection.id, row.id))), ...(canAdd ? [ADD] : [])];
   const active = highlight !== null && nav.includes(highlight) ? highlight : (nav[0] ?? ADD);
   const optionId = (key: string): string => `${base}-opt-${String(nav.indexOf(key))}`;
   const cannot = (connectionId: string, id: string): boolean =>
@@ -118,7 +120,7 @@ export function ModelPicker({
   };
 
   // No model at all: the button opens the dialog itself.
-  if (model.loading || (model.picked === null && !model.hasModels)) return <ModelButton model={model} onAdd={onAdd} />;
+  if (model.loading || (model.picked === null && !model.hasModels)) return <ModelButton model={model} onAdd={canAdd ? onAdd : undefined} />;
 
   const empty = connections.length === 0;
   return (
@@ -148,10 +150,12 @@ export function ModelPicker({
         {empty ? (
           <div className="flex flex-col items-center gap-3 px-5 py-6 text-center">
             <p className="m-0 text-[13px] text-fg-muted">{t('designer:model.empty', 'No models yet.')}</p>
-            <button type="button" onClick={() => pick(ADD)} className="inline-flex items-center gap-1.5 rounded-[10px] bg-accent px-3 py-2 text-[12.5px] font-bold text-accent-fg">
-              <Plus aria-hidden="true" className="size-3.5" />
-              {t('designer:model.add', 'Add a model')}
-            </button>
+            {canAdd ? (
+              <button type="button" onClick={() => pick(ADD)} className="inline-flex items-center gap-1.5 rounded-[10px] bg-accent px-3 py-2 text-[12.5px] font-bold text-accent-fg">
+                <Plus aria-hidden="true" className="size-3.5" />
+                {t('designer:model.add', 'Add a model')}
+              </button>
+            ) : null}
           </div>
         ) : (
           <>
@@ -241,20 +245,22 @@ export function ModelPicker({
                   </div>
                 );
               })}
-              <div className="mt-1 border-t border-border pt-1.5">
-                <div
-                  id={optionId(ADD)}
-                  role="option"
-                  aria-selected={false}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => pick(ADD)}
-                  onMouseEnter={() => setHighlight(ADD)}
-                  className={`mx-1.5 flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-[13px] font-bold text-accent ${active === ADD ? 'bg-accent-soft' : ''}`}
-                >
-                  <Plus aria-hidden="true" className="size-4" />
-                  {t('designer:model.add', 'Add a model')}
+              {canAdd ? (
+                <div className="mt-1 border-t border-border pt-1.5">
+                  <div
+                    id={optionId(ADD)}
+                    role="option"
+                    aria-selected={false}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => pick(ADD)}
+                    onMouseEnter={() => setHighlight(ADD)}
+                    className={`mx-1.5 flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-[13px] font-bold text-accent ${active === ADD ? 'bg-accent-soft' : ''}`}
+                  >
+                    <Plus aria-hidden="true" className="size-4" />
+                    {t('designer:model.add', 'Add a model')}
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           </>
         )}

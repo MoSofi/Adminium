@@ -133,7 +133,7 @@ export function DesignerHome(): ReactNode {
                 onKeyDown={onKey}
                 aria-label={t('designer:home.promptLabel', 'Describe your app')}
                 aria-describedby={noModel || cannotBuild ? noteId : undefined}
-                placeholder={noModel ? t('designer:home.placeholderNoModel', 'Add a model to start') : t('designer:home.placeholder', 'Describe your app…')}
+                placeholder={noModel ? (model.canAdd ? t('designer:home.placeholderNoModel', 'Add a model to start') : t('designer:model.none', 'No model')) : t('designer:home.placeholder', 'Describe your app…')}
                 className="block max-h-[216px] min-h-[72px] w-full resize-none rounded-t-[20px] bg-transparent px-[18px] pt-4 text-[15px] leading-normal text-fg outline-none placeholder:text-fg-subtle disabled:cursor-not-allowed"
               />
               <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-2">
@@ -172,12 +172,16 @@ export function DesignerHome(): ReactNode {
             {noModel ? (
               <p id={noteId} className="mt-3 flex items-start justify-center gap-2 px-2 text-center text-[13px] leading-normal text-fg-muted">
                 <Sparkles aria-hidden="true" className="mt-0.5 size-[15px] shrink-0" />
-                <span>
-                  {t('designer:home.noModel', 'Adminium Designer uses your own AI model. Add one to begin.')}{' '}
-                  <button type="button" onClick={control.openAdd} className="whitespace-nowrap font-bold text-accent hover:underline">
-                    {t('designer:model.add', 'Add a model')}
-                  </button>
-                </span>
+                {model.canAdd ? (
+                  <span>
+                    {t('designer:home.noModel', 'Adminium Designer uses your own AI model. Add one to begin.')}{' '}
+                    <button type="button" onClick={control.openAdd} className="whitespace-nowrap font-bold text-accent hover:underline">
+                      {t('designer:model.add', 'Add a model')}
+                    </button>
+                  </span>
+                ) : (
+                  <span>{t('designer:home.noModelSet', 'No model is set for the Designer on this server. One is added in Settings → AI.')}</span>
+                )}
               </p>
             ) : null}
             {cannotBuild ? (

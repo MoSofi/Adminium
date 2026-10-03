@@ -67,6 +67,8 @@ export function useDesignerModel(session?: { picked: PickedModel; onPick: (next:
     /** Some connection lists at least one model: there is something to pick. */
     hasModels: data?.connections.some((connection) => connection.models.length > 0) ?? false,
     models: data,
+    /** Whether a model can be added from here. Not on a live server: its models are the server's own (Settings → AI). */
+    canAdd: data?.canAdd ?? true,
     picked,
     /** `false`: it cannot build, with why. `true`: it can. `null`: not known yet. */
     canBuild: verdict === undefined ? null : verdict.canBuild,
