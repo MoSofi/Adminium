@@ -137,6 +137,16 @@ export function renameSource(path: string, text: string, from: string, to: strin
   if (path === 'package.json') {
     swap('the screens’ address', new RegExp(`/apps/${K}/`, 'g'), () => `/apps/${to}/`);
     swap('the build’s folder', new RegExp(`dist-surface/${K}/`, 'g'), () => `dist-surface/${to}/`);
+    // The copy is its own package (spec 16): the package's own `name`, found by its value, however the file is laid out.
+    let named: unknown;
+    try {
+      named = (JSON.parse(text) as { name?: unknown }).name;
+    } catch {
+      named = undefined;
+    }
+    if (typeof named === 'string') {
+      swap('the package’s name', new RegExp(`("name"\\s*:\\s*)${escape(JSON.stringify(named))}`), (_all, lead) => `${lead as string}${JSON.stringify(to)}`);
+    }
     return { text: out, changes };
   }
   if (/^seeds\/.*\.sample\.json$/.test(path)) {
@@ -251,6 +261,8 @@ export function planCopy(source: ReadonlyMap<string, Buffer>, opts: { to: string
     files.set(target, Buffer.from(done.text, 'utf8'));
   }
   files.set(APP_BUILD_JSON, Buffer.from(`${JSON.stringify(build, null, 2)}\n`, 'utf8'));
+  // The original's releases are the original's: the copy's list starts empty (spec 16).
+  files.set('RELEASES.json', Buffer.from(`${JSON.stringify({ schemaVersion: 1, releases: [] }, null, 2)}\n`, 'utf8'));
 
   // The places every one of these apps has. One that is missing means this is not the app the rules were written for.
   const count = (what: string): number => changes.filter((change) => change.what === what).reduce((sum, change) => sum + change.count, 0);

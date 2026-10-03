@@ -50,6 +50,7 @@ describe.skipIf(REPOS === '' || !existsSync(REPOS))('the six apps, made one’s 
       // The four places in package.json, the key constant, and the sample's app.
       expect(what('the screens’ address')).toBe(2);
       expect(what('the build’s folder')).toBe(2);
+      expect(what('the package’s name')).toBe(1);
       expect(what('the key constant')).toBeGreaterThanOrEqual(1);
       expect(what('the sample’s app')).toBe(1);
     });
@@ -66,6 +67,9 @@ describe.skipIf(REPOS === '' || BUILD === '')('a copy, built with its own build'
       const source = new Map(names.map((file) => [file, execFileSync('git', ['-C', join(REPOS, repo), 'show', `${tag}:${file}`], { maxBuffer: 256 * 1024 * 1024 })]));
       const plan = planCopy(source, { to: 'my-shop', name: 'My shop' });
       expect(plan.problems).toEqual([]);
+      // Its own package and an empty list of releases, not the original's (spec 16).
+      expect((JSON.parse(plan.files.get('package.json')?.toString('utf8') ?? '{}') as { name?: string }).name).toBe('my-shop');
+      expect(JSON.parse(plan.files.get('RELEASES.json')?.toString('utf8') ?? 'null')).toEqual({ schemaVersion: 1, releases: [] });
       const dir = join(BUILD, key);
       rmSync(dir, { recursive: true, force: true });
       for (const [file, bytes] of plan.files) {

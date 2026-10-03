@@ -157,7 +157,10 @@ describe('the copy', () => {
     expect(readFileSync(at('package.json'), 'utf8')).toContain('/apps/my-desk/staff/');
     expect(existsSync(at('LICENSE'))).toBe(true);
     // Left behind: the original's chores and tests.
-    for (const gone of ['.github', 'RELEASES.json', 'src/App.test.tsx']) expect(existsSync(at(gone)), gone).toBe(false);
+    for (const gone of ['.github', 'src/App.test.tsx']) expect(existsSync(at(gone)), gone).toBe(false);
+    // Its own package, and a list of releases that starts empty: not the original's (spec 16).
+    expect(JSON.parse(readFileSync(at('RELEASES.json'), 'utf8'))).toEqual({ schemaVersion: 1, releases: [] });
+    expect((JSON.parse(readFileSync(at('package.json'), 'utf8')) as { name?: string }).name).toBe('my-desk');
     // The build the person approved is the one in the folder.
     const build = readAppBuild(root, 'my-desk');
     expect(build !== null && !('problem' in build) && isBuildApproved(root, 'my-desk', build)).toBe(true);
