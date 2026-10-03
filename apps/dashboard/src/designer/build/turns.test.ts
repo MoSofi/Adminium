@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DesignerEvent, DesignerEventBody } from '../api.js';
-import { foldTurns, isWorking, waitingCards } from './turns.js';
+import { foldTurns, isWorking, spendWarnings, waitingCards } from './turns.js';
 
 let seq = 0;
 const at = (turn: number, body: DesignerEventBody, time = seq * 100): DesignerEvent => {
@@ -96,5 +96,32 @@ describe('foldTurns', () => {
     ]);
     expect(turn?.steps[0]?.detail).toBe('tables/jobs.json · no such column');
     expect(turn).toMatchObject({ notApplied: 'The check found errors.', limit: { which: 'steps', value: 60 }, error: { provider: 'anthropic', status: 529 }, changedFiles: false, stepCount: 0 });
+  });
+});
+
+describe('spendWarnings', () => {
+  it('keeps the session’s mark for good and the turn’s mark only while that turn is working', () => {
+    seq = 0;
+    const first = [
+      at(1, { kind: 'turn-started', text: 'Build it.' }),
+      at(1, { kind: 'usage', step: 1, tokensIn: 1_600_000, tokensOut: 10, estimated: false, turnTokens: 1_600_010 }),
+      at(1, { kind: 'spend', which: 'turn-tokens', mark: 1_500_000, used: 1_600_010 }),
+      at(1, { kind: 'spend', which: 'turn-tokens', mark: 1_500_000, used: 1_700_000 }),
+    ];
+    expect(foldTurns(first)[0]?.spend).toEqual([{ which: 'turn-tokens', mark: 1_500_000 }]);
+    expect(spendWarnings(foldTurns(first))).toEqual([{ which: 'turn-tokens', mark: 1_500_000 }]);
+    // It ended nothing: the turn is still running.
+    expect(isWorking(foldTurns(first))).toBe(true);
+
+    const later = [
+      ...first,
+      at(1, { kind: 'spend', which: 'session-tokens', mark: 15_000_000, used: 15_000_001 }),
+      at(1, { kind: 'turn-finished', outcome: 'done' }),
+      at(2, { kind: 'turn-started', text: 'And a list.' }),
+    ];
+    // The turn ended: its own mark is no longer said. The session's stays.
+    expect(spendWarnings(foldTurns(later.slice(0, -1)))).toEqual([{ which: 'session-tokens', mark: 15_000_000 }]);
+    expect(spendWarnings(foldTurns(later))).toEqual([{ which: 'session-tokens', mark: 15_000_000 }]);
+    expect(spendWarnings([])).toEqual([]);
   });
 });

@@ -16,6 +16,10 @@ export default {
     "copy": "Befehl kopieren",
     "copied": "Kopiert"
   },
+  "spend": {
+    "turn": "Dieser Durchgang hat mehr als {value} Tokens verbraucht und arbeitet weiter. Halten Sie ihn an, wenn das mehr ist, als Sie ausgeben wollten.",
+    "session": "Diese Sitzung hat mehr als {value} Tokens verbraucht. Nichts wurde angehalten. Eine neue Sitzung beginnt die Zählung von vorn."
+  },
   "topbar": {
     "home": "Startseite von Adminium Designer",
     "toDark": "Zum dunklen Design wechseln",
@@ -32,7 +36,8 @@ export default {
     "send": "Senden",
     "noModel": "Adminium Designer nutzt Ihr eigenes KI-Modell. Fügen Sie eines hinzu, um zu beginnen.",
     "cannotBuild": "Dieses Modell kann keine Apps bauen: Es unterstützt keine Werkzeuge. Wählen Sie ein anderes Modell.",
-    "failed": "Der Designer konnte nicht starten"
+    "failed": "Der Designer konnte nicht starten",
+    "noModelSet": "Auf diesem Server ist für den Designer kein Modell eingerichtet. Eines wird unter Einstellungen → KI hinzugefügt."
   },
   "target": {
     "label": "Was gebaut wird: {target}",
@@ -159,7 +164,8 @@ export default {
     "testing": "Wird getestet…",
     "save": "Speichern",
     "saving": "Wird gespeichert…",
-    "addedToast": "Modell hinzugefügt."
+    "addedToast": "Modell hinzugefügt.",
+    "none": "Kein Modell"
   },
   "provider": {
     "anthropic": "Anthropic",

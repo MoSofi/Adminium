@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import type { DesignerCard, LimitKind } from '../api.js';
+import type { DesignerCard, LimitKind, SpendMark } from '../api.js';
 import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
 import type { StepRow } from '../build/turns.js';
 
@@ -419,6 +419,28 @@ export function LimitNote({ which, value, version, onKeepGoing, busy }: { which:
           {t('designer:turn.keepGoing', 'Keep going')}
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Above the message box, for as long as a spending mark is passed. It stops
+ * nothing (D92): the person reads it, hears it once, and decides.
+ */
+export function SpendNotice({ warnings }: { warnings: readonly { which: SpendMark; mark: number }[] }): ReactNode {
+  if (warnings.length === 0) return null;
+  return (
+    <div role="alert" className="mx-3.5 mt-2.5 flex shrink-0 flex-col gap-1 rounded-xl border border-danger/30 bg-danger-soft px-3.5 py-2.5">
+      {warnings.map(({ which, mark }) => (
+        <p key={which} className="m-0 flex items-start gap-[9px] text-[12.5px] font-semibold leading-normal text-danger">
+          <TriangleAlert aria-hidden="true" className="mt-0.5 size-[15px] shrink-0" />
+          <span>
+            {which === 'turn-tokens'
+              ? withMono(t('designer:spend.turn', 'This turn has used more than {value} tokens and is still working. Stop it if that is more than you meant to spend.', { value: M1 }), [M1], [number(mark)])
+              : withMono(t('designer:spend.session', 'This session has used more than {value} tokens. Nothing is stopped. A new session starts the count again.', { value: M1 }), [M1], [number(mark)])}
+          </span>
+        </p>
+      ))}
     </div>
   );
 }

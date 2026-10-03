@@ -12,6 +12,8 @@
  *     data loss kept or removed, a package added.
  *  5. How a turn ended: stopped (Continue, put the files back), a limit
  *     (keep going), a failed model (try again).
+ *  5b. A spending mark passed ends nothing: a red notice above the message
+ *     box, a sound once when it happens while the page is open.
  *  6. The top bar: rename, the versions, going back with a dialog that says
  *     the list keeps the later ones.
  *  7. The chat's width moves with the arrow keys, within its bounds.
@@ -27,6 +29,9 @@ import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerVersion } from '../api.js';
+
+const spendSound = vi.hoisted(() => ({ playSpendSound: vi.fn() }));
+vi.mock('./spendSound.js', () => spendSound);
 
 const ID = 'ds_000000000000000000000007';
 
@@ -314,6 +319,34 @@ describe('the build page', () => {
     expect(failed.textContent).toContain('The model stopped answering (Anthropic, 529). Nothing was lost.');
     await userEvent.click(within(failed).getByRole('button', { name: 'Try again' }));
     expect(posted('/turns')).toEqual([{ text: 'Go on.' }]);
+  });
+
+  it('warns above the message box past a spending mark, with a sound once, and stops nothing', async () => {
+    spendSound.playSpendSound.mockClear();
+    // A session read from its file: the session's mark was passed earlier. It is said, not sounded.
+    const history = [
+      ev(1, { kind: 'turn-started', text: 'Build it all.' }),
+      ev(1, { kind: 'spend', which: 'session-tokens', mark: 15_000_000, used: 15_000_400 }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }),
+    ];
+    stored = history;
+    await open();
+    const chat = screen.getByRole('complementary', { name: 'Chat' });
+    expect((await within(chat).findByRole('alert')).textContent).toBe('This session has used more than 15,000,000 tokens. Nothing is stopped. A new session starts the count again.');
+    expect(spendSound.playSpendSound).not.toHaveBeenCalled();
+
+    // A turn passes its own mark while the page is open: heard once, and the turn goes on.
+    const begun = ev(2, { kind: 'turn-started', text: 'More.' });
+    const over = ev(2, { kind: 'spend', which: 'turn-tokens', mark: 1_500_000, used: 1_500_900 });
+    const after = ev(2, { kind: 'text', delta: 'Still at it.' });
+    stored = [...history, begun, over, after];
+    live(begun, over, after);
+    expect(await screen.findByText('Still at it.')).toBeTruthy();
+    expect(within(chat).getByRole('alert').textContent).toContain('This turn has used more than 1,500,000 tokens and is still working.');
+    expect(within(chat).getByRole('alert').textContent).toContain('This session has used more than 15,000,000 tokens.');
+    expect(spendSound.playSpendSound).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+    expect(screen.queryByText(/reached its limit/)).toBeNull();
   });
 
   it('renames the app, lists the versions and goes back with a word on what stays', async () => {

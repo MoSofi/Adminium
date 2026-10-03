@@ -16,6 +16,10 @@ export default {
     "copy": "Kopiér kommandoen",
     "copied": "Kopieret"
   },
+  "spend": {
+    "turn": "Denne runde har brugt mere end {value} tokens og arbejder stadig. Stop den, hvis det er mere, end du ville bruge.",
+    "session": "Denne session har brugt mere end {value} tokens. Intet er stoppet. En ny session begynder optællingen forfra."
+  },
   "topbar": {
     "home": "Forside for Adminium Designer",
     "toDark": "Skift til mørkt tema",
@@ -32,7 +36,8 @@ export default {
     "send": "Send",
     "noModel": "Adminium Designer bruger din egen AI-model. Tilføj en for at begynde.",
     "cannotBuild": "Denne model kan ikke bygge apps: den understøtter ikke værktøjer. Vælg en anden model.",
-    "failed": "Designeren kunne ikke starte"
+    "failed": "Designeren kunne ikke starte",
+    "noModelSet": "Der er ikke valgt en model til Designeren på denne server. En tilføjes i Indstillinger → AI."
   },
   "target": {
     "label": "Hvad der skal bygges: {target}",
@@ -159,7 +164,8 @@ export default {
     "testing": "Tester…",
     "save": "Gem",
     "saving": "Gemmer…",
-    "addedToast": "Model tilføjet."
+    "addedToast": "Model tilføjet.",
+    "none": "Ingen model"
   },
   "provider": {
     "anthropic": "Anthropic",

@@ -16,6 +16,10 @@ export default {
     "copy": "Copier la commande",
     "copied": "Copié"
   },
+  "spend": {
+    "turn": "Ce tour a utilisé plus de {value} jetons et travaille encore. Arrêtez-le si c’est plus que ce que vous vouliez dépenser.",
+    "session": "Cette session a utilisé plus de {value} jetons. Rien n’est arrêté. Une nouvelle session reprend le compte à zéro."
+  },
   "topbar": {
     "home": "Accueil d’Adminium Designer",
     "toDark": "Passer au thème sombre",
@@ -32,7 +36,8 @@ export default {
     "send": "Envoyer",
     "noModel": "Adminium Designer utilise votre propre modèle d’IA. Ajoutez-en un pour commencer.",
     "cannotBuild": "Ce modèle ne peut pas créer d’applications : il ne prend pas en charge les outils. Choisissez un autre modèle.",
-    "failed": "Le Designer n’a pas pu démarrer"
+    "failed": "Le Designer n’a pas pu démarrer",
+    "noModelSet": "Aucun modèle n’est défini pour le Designer sur ce serveur. On en ajoute un dans Paramètres → IA."
   },
   "target": {
     "label": "Ce qu’il faut créer : {target}",
@@ -159,7 +164,8 @@ export default {
     "testing": "Test en cours…",
     "save": "Enregistrer",
     "saving": "Enregistrement…",
-    "addedToast": "Modèle ajouté."
+    "addedToast": "Modèle ajouté.",
+    "none": "Aucun modèle"
   },
   "provider": {
     "anthropic": "Anthropic",

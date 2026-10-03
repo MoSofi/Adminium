@@ -432,8 +432,8 @@ export const SETTINGS_REGISTRY = {
   // as the provider reports them (estimated when it reports none). The
   // session's ceiling is what keeps a long session from spending without end.
   'designer.maxSteps': def(z.number().int().min(5).max(500), 60, 'Model calls one Designer turn may make', P),
-  'designer.turnTokens': def(z.number().int().min(10_000).max(5_000_000), 1_500_000, 'Tokens one Designer turn may use', P),
-  'designer.sessionTokens': def(z.number().int().min(100_000).max(50_000_000), 15_000_000, 'Tokens one Designer session may use in all', P),
+  'designer.turnTokens': def(z.number().int().min(10_000).max(5_000_000), 1_500_000, 'Tokens after which a Designer turn warns the person (it ends nothing)', P),
+  'designer.sessionTokens': def(z.number().int().min(100_000).max(50_000_000), 15_000_000, 'Tokens after which a Designer session warns the person (it ends nothing)', P),
   // The owner `adminium design` made with no password; null once `adminium owner set` gave them one.
   // Not portable: it is this instance's own user id, and it is what lets the design link sign them in.
   // The live Designer's switch (a Super Admin's, in Settings → AI), and the id written into the project folder when

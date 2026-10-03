@@ -369,26 +369,30 @@ describe('a Designer turn', () => {
     expect(h.model.requests).toHaveLength(2);
   });
 
-  it('ends at the turn’s token ceiling, counting what a provider reports', async () => {
+  it('ends no turn for tokens: past the turn’s mark it warns once, counting what a provider reports, and goes on', async () => {
     const session = newSession();
-    const h = harness([calls('read_file'), calls('read_file'), says('x')], { limits: { turnTokens: 10_000 } });
-    // 110 tokens a step: well under. Then make the provider report a big step.
+    const h = harness([], { limits: { turnTokens: 10_000, maxSteps: 3 } });
     h.model.run = (async (req: RunRequest) => {
       h.model.requests.push(req);
       return { ...calls('read_file'), usage: { inputTokens: 9_000, outputTokens: 2_000 } };
     }) as ProviderRunner['run'];
     await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
     await h.runner.settled();
-    expect(h.published.find((event) => event.kind === 'limit')).toMatchObject({ which: 'turn-tokens' });
+    // Three steps, each over the mark: one warning, and the steps are what end it.
+    expect(h.model.requests).toHaveLength(3);
+    expect(h.published.filter((event) => event.kind === 'spend')).toEqual([expect.objectContaining({ which: 'turn-tokens', mark: 10_000, used: 11_000 })]);
+    expect(h.published.find((event) => event.kind === 'limit')).toMatchObject({ which: 'steps' });
   });
 
-  it('ends at the session’s ceiling across turns, estimating tokens a provider does not report', async () => {
+  it('warns past the session’s mark across turns, estimating tokens a provider does not report, and finishes', async () => {
     const session = newSession();
     store.update(session.id, { tokens: { in: 99_000, out: 900 } });
     const h = harness([calls('read_file'), says('x', false)], { limits: { sessionTokens: 100_000 } });
     await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
     await h.runner.settled();
-    expect(h.published.find((event) => event.kind === 'limit')).toMatchObject({ which: 'session-tokens' });
+    expect(h.published.filter((event) => event.kind === 'spend')).toEqual([expect.objectContaining({ which: 'session-tokens', mark: 100_000 })]);
+    expect(kinds(h)).not.toContain('limit');
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
   });
 
   it('answers a call it cannot read with an error, and gives up after the model keeps sending them', async () => {
@@ -501,15 +505,30 @@ describe('a Designer turn', () => {
     expect(h.model.requests).toHaveLength(5);
   });
 
-  it('asks nothing more at the token ceiling, and ends the turn as a limit with nothing left unsent', async () => {
+  it('still sends the check’s errors back past the token mark', async () => {
     const session = newSession();
-    const h = harness([calls('write_file'), says('Done.'), says('Never reached.')], { problems: () => ['- still wrong'], limits: { turnTokens: 150 }, pipeline: async () => ({ ok: false, version: null }) });
+    const h = harness([calls('write_file'), says('Done.'), says('Still done.'), says('Really.')], { problems: () => ['- still wrong'], limits: { turnTokens: 150 }, pipeline: async () => ({ ok: false, version: null }) });
     await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
     await h.runner.settled();
-    expect(h.model.requests).toHaveLength(2);
-    expect(kinds(h)).toContain('limit');
-    expect(finished(h)).toMatchObject({ outcome: 'limit' });
-    expect(JSON.stringify(store.messages(session.id))).not.toContain('does not pass the check yet');
+    expect(h.model.requests).toHaveLength(4);
+    expect(kinds(h)).toContain('spend');
+    expect(kinds(h)).not.toContain('limit');
+    expect(finished(h)).toMatchObject({ outcome: 'not-applied' });
+    expect(JSON.stringify(store.messages(session.id))).toContain('does not pass the check yet');
+  });
+
+  it('says a turn stopped during its last build as stopped, not as a build that failed', async () => {
+    const session = newSession();
+    const h: Harness = harness([says('Done.')], {
+      pipeline: async () => {
+        // Stop arrives while the build runs; the build ends and reports nothing built.
+        h.runner.stop(session.id);
+        return { ok: false, version: null };
+      },
+    });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(finished(h)).toMatchObject({ outcome: 'stopped' });
   });
 
   it('reports a turn the engine refused as not applied', async () => {

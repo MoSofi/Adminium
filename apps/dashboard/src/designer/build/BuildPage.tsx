@@ -31,13 +31,15 @@ import {
   QuestionCard,
   RemovalCard,
   SavedChip,
+  SpendNotice,
   StepsBlock,
   StoppedNote,
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
 import { SessionTitle } from './SessionTitle.js';
-import { foldTurns, isWorking, waitingCards, type TurnView } from './turns.js';
+import { playSpendSound } from './spendSound.js';
+import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
 import { useSessionEvents } from './useSessionEvents.js';
 import { WorkArea } from './WorkArea.js';
 
@@ -59,6 +61,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const { events, loaded } = useSessionEvents(sessionId);
   const turns = useMemo(() => foldTurns(events), [events]);
   const working = isWorking(turns);
+  const spend = useMemo(() => spendWarnings(turns), [turns]);
   const waiting = waitingCards(turns);
   const question = waiting.find((card): card is Extract<DesignerCard, { type: 'question' }> => card.type === 'question') ?? null;
 
@@ -85,6 +88,16 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   useEffect(() => {
     if (lastKind === 'turn-finished' || lastKind === 'version') refresh();
   }, [events.length, lastKind]);
+
+  // A spending mark passed while the page is open is heard once. One read from the session's file (a reload) is not.
+  const heard = useRef({ count: 0, live: false });
+  useEffect(() => {
+    const fresh = events.slice(heard.current.count);
+    // The first read and its `loaded` can land in one render: what came with it is history, not news.
+    const news = heard.current.live;
+    heard.current = { count: events.length, live: loaded };
+    if (news && fresh.some((event) => event.kind === 'spend')) playSpendSound();
+  }, [events, loaded]);
 
   // Follow the end of the chat unless the person scrolled up to read.
   useEffect(() => {
@@ -342,6 +355,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             {turns.map((turn, index) => turnBlock(turn, index === turns.length - 1))}
             {loaded && turns.length === 0 ? <p className="m-0 text-center text-[13px] text-fg-muted">{t('designer:build.empty', 'Describe what to build or change, and the Designer starts.')}</p> : null}
           </div>
+          <SpendNotice warnings={spend} />
           <BuildComposer
             value={text}
             onChange={setText}

@@ -16,6 +16,10 @@ export default {
     "copy": "Copy the command",
     "copied": "Copied"
   },
+  "spend": {
+    "turn": "This turn has used more than {value} tokens and is still working. Stop it if that is more than you meant to spend.",
+    "session": "This session has used more than {value} tokens. Nothing is stopped. A new session starts the count again."
+  },
   "topbar": {
     "home": "Adminium Designer home",
     "toDark": "Switch to dark theme",
@@ -32,7 +36,8 @@ export default {
     "send": "Send",
     "noModel": "Adminium Designer uses your own AI model. Add one to begin.",
     "cannotBuild": "This model cannot build apps: it does not support tools. Pick another model.",
-    "failed": "The Designer could not start"
+    "failed": "The Designer could not start",
+    "noModelSet": "No model is set for the Designer on this server. One is added in Settings → AI."
   },
   "target": {
     "label": "What to build: {target}",
@@ -159,7 +164,8 @@ export default {
     "testing": "Testing…",
     "save": "Save",
     "saving": "Saving…",
-    "addedToast": "Model added."
+    "addedToast": "Model added.",
+    "none": "No model"
   },
   "provider": {
     "anthropic": "Anthropic",

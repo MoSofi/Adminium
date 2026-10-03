@@ -10,6 +10,7 @@ import { ModelButton, type DesignerModelState } from '../models/ModelButton.js';
 const base: DesignerModelState = {
   loading: false,
   hasModels: true,
+  canAdd: true,
   models: {
     connections: [{ id: 'env:anthropic', provider: 'anthropic', source: 'environment', state: 'ok', models: [{ id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' }] }],
     selected: { connectionId: 'env:anthropic', model: 'claude-sonnet-5-5' },

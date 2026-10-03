@@ -10,7 +10,7 @@
  * files"); the header still counts every step. The end-of-turn check, build
  * and apply join the list as rows of their own.
  */
-import type { DesignerCard, DesignerEvent, LimitKind, StepFacts, TurnOutcome } from '../api.js';
+import type { DesignerCard, DesignerEvent, LimitKind, SpendMark, StepFacts, TurnOutcome } from '../api.js';
 
 export interface StepRow extends StepFacts {
   id: string;
@@ -39,6 +39,8 @@ export interface TurnView {
   /** Every step, before folding: what the header counts. */
   stepCount: number;
   usage: { step: number; tokens: number } | null;
+  /** The spending marks this turn passed. Nothing ends at one; the person is told. */
+  spend: { which: SpendMark; mark: number }[];
   cards: CardView[];
   version: { n: number; name: string } | null;
   limit: { which: LimitKind; value: number } | null;
@@ -63,6 +65,7 @@ function blank(turn: number, at: number): TurnView {
     steps: [],
     stepCount: 0,
     usage: null,
+    spend: [],
     cards: [],
     version: null,
     limit: null,
@@ -136,6 +139,9 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
       }
       case 'usage':
         turn.usage = { step: event.step, tokens: event.turnTokens };
+        break;
+      case 'spend':
+        if (!turn.spend.some((entry) => entry.which === event.which)) turn.spend.push({ which: event.which, mark: event.mark });
         break;
       case 'card':
         turn.cards.push({ card: event.card, answer: undefined, answered: false });
@@ -223,4 +229,16 @@ export function waitingCards(turns: readonly TurnView[]): DesignerCard[] {
 export function isWorking(turns: readonly TurnView[]): boolean {
   const last = turns.at(-1);
   return last !== undefined && last.outcome === null;
+}
+
+/**
+ * The marks to warn about above the message box: the session's, once any turn
+ * passed it (it stays passed), and the turn's for as long as that turn is
+ * still working — a turn that ended has nothing left to stop.
+ */
+export function spendWarnings(turns: readonly TurnView[]): { which: SpendMark; mark: number }[] {
+  const session = turns.flatMap((turn) => turn.spend).findLast((entry) => entry.which === 'session-tokens');
+  const last = turns.at(-1);
+  const turn = last === undefined || last.outcome !== null ? undefined : last.spend.find((entry) => entry.which === 'turn-tokens');
+  return [...(turn === undefined ? [] : [turn]), ...(session === undefined ? [] : [session])];
 }

@@ -16,6 +16,10 @@ export default {
     "copy": "Zkopírovat příkaz",
     "copied": "Zkopírováno"
   },
+  "spend": {
+    "turn": "Toto kolo už spotřebovalo více než {value} tokenů a stále pracuje. Zastavte ho, pokud je to víc, než jste chtěli utratit.",
+    "session": "Tato relace už spotřebovala více než {value} tokenů. Nic se nezastavilo. Nová relace začne počítat znovu."
+  },
   "topbar": {
     "home": "Úvod Adminium Designer",
     "toDark": "Přepnout na tmavý motiv",
@@ -32,7 +36,8 @@ export default {
     "send": "Odeslat",
     "noModel": "Adminium Designer používá váš vlastní model AI. Začněte jeho přidáním.",
     "cannotBuild": "Tento model neumí vytvářet aplikace: nepodporuje nástroje. Vyberte jiný model.",
-    "failed": "Designer se nepodařilo spustit"
+    "failed": "Designer se nepodařilo spustit",
+    "noModelSet": "Pro Designer není na tomto serveru nastaven žádný model. Přidává se v Nastavení → AI."
   },
   "target": {
     "label": "Co vytvořit: {target}",
@@ -159,7 +164,8 @@ export default {
     "testing": "Testuje se…",
     "save": "Uložit",
     "saving": "Ukládá se…",
-    "addedToast": "Model přidán."
+    "addedToast": "Model přidán.",
+    "none": "Žádný model"
   },
   "provider": {
     "anthropic": "Anthropic",

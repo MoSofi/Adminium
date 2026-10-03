@@ -15,7 +15,10 @@
 import type { DesignerCard } from './cards.js';
 
 export type TurnOutcome = 'done' | 'stopped' | 'limit' | 'failed' | 'not-applied';
+/** `turn-tokens` and `session-tokens` end no turn since D92; a session written before it may still hold them. */
 export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
+/** A spending mark: passing one warns the person and ends nothing. */
+export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerEventBody =
   | { kind: 'turn-started'; text: string }
@@ -39,6 +42,7 @@ export type DesignerEventBody =
       ended?: 'stopped' | 'error';
     }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
+  | { kind: 'spend'; which: SpendMark; mark: number; used: number }
   | { kind: 'card'; card: DesignerCard }
   | { kind: 'card-answered'; id: string; value: unknown }
   | { kind: 'check'; ok: boolean; findings: { file: string; path: string; message: string; level: string }[] }

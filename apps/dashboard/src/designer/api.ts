@@ -99,6 +99,8 @@ export interface ConnectionTest {
 
 export type TurnOutcome = 'done' | 'stopped' | 'limit' | 'failed' | 'not-applied';
 export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
+/** A spending mark: passing one warns the person and ends nothing. */
+export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerCard =
   | { id: string; type: 'question'; question: string; choices: string[] }
@@ -122,6 +124,7 @@ export type DesignerEventBody =
   | { kind: 'text'; delta: string }
   | ({ kind: 'step'; id: string; tool: string; label: string; state: 'running' | 'done' | 'failed'; ms?: number; detail?: string } & StepFacts)
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
+  | { kind: 'spend'; which: SpendMark; mark: number; used: number }
   | { kind: 'card'; card: DesignerCard }
   | { kind: 'card-answered'; id: string; value: unknown }
   | { kind: 'check'; ok: boolean; findings: { file: string; path: string; message: string; level: string }[] }

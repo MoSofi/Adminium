@@ -143,14 +143,21 @@ from anyone else.
 
 ## Limits
 
-Each turn and each session has a ceiling, so a model that goes round in circles stops by itself.
+A turn stops by itself after a number of steps, so a model that goes round in circles ends. The page
+then offers **Keep going**.
+
+Tokens stop nothing. When a turn or a session passes its mark, a red notice appears above the message
+box and a sound plays once; the work goes on, and **Stop** is yours to press. With a paid model a long
+turn costs money, and each step sends the conversation again: a new session starts the count from
+nothing.
+
 They are settings of the install:
 
-| Setting | Default | What it limits |
+| Setting | Default | What it does |
 |---|---|---|
-| `designer.maxSteps` | 60 | Model calls in one turn |
-| `designer.turnTokens` | 1,500,000 | Tokens one turn may use, counting what is sent again at each step |
-| `designer.sessionTokens` | 15,000,000 | Tokens one session may use in all |
+| `designer.maxSteps` | 60 | Model calls in one turn, then the turn stops |
+| `designer.turnTokens` | 1,500,000 | Tokens after which a turn warns you, counting what is sent again at each step |
+| `designer.sessionTokens` | 15,000,000 | Tokens after which a session warns you |
 
 ## On a server people reach
 

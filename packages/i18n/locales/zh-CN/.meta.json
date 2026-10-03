@@ -8835,6 +8835,10 @@
     "status": "mt",
     "srcHash": "c7b095797aaa"
   },
+  "designer.home.noModelSet": {
+    "status": "mt",
+    "srcHash": "cd79b4051da1"
+  },
   "designer.home.placeholder": {
     "status": "mt",
     "srcHash": "041f10ae607f"
@@ -8970,6 +8974,10 @@
   "designer.model.model": {
     "status": "mt",
     "srcHash": "68c2cc7f0cea"
+  },
+  "designer.model.none": {
+    "status": "mt",
+    "srcHash": "8cae61b2d3c4"
   },
   "designer.model.optional": {
     "status": "mt",
@@ -9242,6 +9250,14 @@
   "designer.sheet.yoursNoSource": {
     "status": "mt",
     "srcHash": "1cbf2d754df2"
+  },
+  "designer.spend.session": {
+    "status": "mt",
+    "srcHash": "3d087a5e0de5"
+  },
+  "designer.spend.turn": {
+    "status": "mt",
+    "srcHash": "1be7c7ef9998"
   },
   "designer.spent.body": {
     "status": "mt",

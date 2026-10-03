@@ -38,7 +38,7 @@ import {
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
-import type { DesignerEvent, EventLog, LimitKind, TurnOutcome } from './events.js';
+import type { DesignerEvent, EventLog, LimitKind, SpendMark, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
 import type { Actor, DesignerTool, ToolContext, TurnHandle } from './tool-types.js';
@@ -47,6 +47,7 @@ import { closeDangling, joinUserMessages } from './transcript.js';
 
 export interface DesignerLimits {
   maxSteps: number;
+  /** Marks, not ceilings (D92): a turn or a session that passes one is warned about and goes on. */
   turnTokens: number;
   sessionTokens: number;
 }
@@ -231,6 +232,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let acted = false;
     const waits = deps.retryWaitsMs ?? RETRY_WAITS_MS;
     let limit: { which: LimitKind; value: number } | null = null;
+    const warned = new Set<SpendMark>();
 
     try {
       const { runner, maxTokens } = await deps.runnerFor(session);
@@ -282,6 +284,15 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         turnTokens += usedIn + usedOut;
         sessionTokens += usedIn + usedOut;
         log.emit(turn, { kind: 'usage', step: steps, tokensIn: usedIn, tokensOut: usedOut, estimated, turnTokens });
+        // Tokens end nothing (D92): past a mark the person is told, once a turn for each mark, and the work goes on.
+        if (!warned.has('turn-tokens') && turnTokens >= limits.turnTokens) {
+          warned.add('turn-tokens');
+          log.emit(turn, { kind: 'spend', which: 'turn-tokens', mark: limits.turnTokens, used: turnTokens });
+        }
+        if (!warned.has('session-tokens') && sessionTokens >= limits.sessionTokens) {
+          warned.add('session-tokens');
+          log.emit(turn, { kind: 'spend', which: 'session-tokens', mark: limits.sessionTokens, used: sessionTokens });
+        }
 
         const assistant: RunMessage = { role: 'assistant', content: result.blocks.length > 0 ? result.blocks : [{ type: 'text', text: '' }] };
         deps.store.appendMessage(session.id, turn, assistant);
@@ -312,15 +323,6 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
                 ? `Before you finish:\n${missing.slice(0, 12).join('\n')}\nAdd what is missing, then check_app and apply_app. If one of these is left out on purpose, say so in a sentence and finish.`
                 : null;
           if (sendBack === null) break;
-          // At a ceiling nothing more is asked: the turn ends as a limit, and nothing is left unsent in the transcript.
-          if (turnTokens >= limits.turnTokens) {
-            limit = { which: 'turn-tokens', value: limits.turnTokens };
-            break;
-          }
-          if (sessionTokens >= limits.sessionTokens) {
-            limit = { which: 'session-tokens', value: limits.sessionTokens };
-            break;
-          }
           if (errors.length > 0) nudges += 1;
           deps.store.appendMessage(session.id, turn, { role: 'user', content: [{ type: 'text', text: sendBack }] });
           continue;
@@ -381,14 +383,6 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           outcome = 'failed';
           break;
         }
-        if (turnTokens >= limits.turnTokens) {
-          limit = { which: 'turn-tokens', value: limits.turnTokens };
-          break;
-        }
-        if (sessionTokens >= limits.sessionTokens) {
-          limit = { which: 'session-tokens', value: limits.sessionTokens };
-          break;
-        }
       }
 
       if (limit !== null) {
@@ -398,6 +392,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       if (outcome !== 'failed') {
         // The engine has the last word, also on a limit: what was made so far is kept as a version.
         const verdict = await deps.pipeline(session, handle);
+        // Stop during the last build ends that build: said as a stop, not as a build that failed.
+        if (!verdict.ok && signal.aborted) throw new TurnStoppedError();
         if (!verdict.ok && outcome === 'done') outcome = 'not-applied';
       }
     } catch (error) {

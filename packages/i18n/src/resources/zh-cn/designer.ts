@@ -16,6 +16,10 @@ export default {
     "copy": "复制命令",
     "copied": "已复制"
   },
+  "spend": {
+    "turn": "本轮已使用超过 {value} 个令牌，仍在继续工作。如果超出了你想花费的用量，请将其停止。",
+    "session": "本会话已使用超过 {value} 个令牌。没有任何内容被停止。新会话会重新开始计数。"
+  },
   "topbar": {
     "home": "Adminium Designer 首页",
     "toDark": "切换到深色主题",
@@ -32,7 +36,8 @@ export default {
     "send": "发送",
     "noModel": "Adminium Designer 使用你自己的 AI 模型。添加一个即可开始。",
     "cannotBuild": "此模型无法构建应用：它不支持工具。请选择其他模型。",
-    "failed": "Designer 无法启动"
+    "failed": "Designer 无法启动",
+    "noModelSet": "此服务器尚未为 Designer 设置模型。请在“设置 → AI”中添加。"
   },
   "target": {
     "label": "构建内容：{target}",
@@ -159,7 +164,8 @@ export default {
     "testing": "正在测试…",
     "save": "保存",
     "saving": "正在保存…",
-    "addedToast": "已添加模型。"
+    "addedToast": "已添加模型。",
+    "none": "没有模型"
   },
   "provider": {
     "anthropic": "Anthropic",

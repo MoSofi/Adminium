@@ -109,6 +109,7 @@ function turn(over: Partial<TurnView>): TurnView {
     steps: [],
     stepCount: 0,
     usage: null,
+    spend: [],
     cards: [],
     version: null,
     limit: null,
