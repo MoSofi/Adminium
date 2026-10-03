@@ -8,12 +8,15 @@
  * conversation; and when the conversation grows, what is cut must never
  * leave a provider a transcript it refuses.
  */
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createPrompt, skillsFor, trimTranscript } from '../src/designer/prompt.js';
+import { createPrompt, MENTIONS_SCREENS, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
+import { placeholderScreens, unopenedTables } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import { createSkills } from '../src/designer/skills.js';
 import { closeDangling } from '../src/designer/transcript.js';
@@ -42,6 +45,11 @@ describe('what the Designer’s model is told', () => {
   it('carries the entry and app skills always, the screens skill for screens, the add-ons skill when one is named', () => {
     expect(skillsFor(session(), { hasSides: false, mentionsAddOn: false })).toEqual(['adminium/SKILL.md', 'adminium-app/SKILL.md', 'adminium-app/references/INDEX.md']);
     expect(skillsFor(session({ target: 'web' }), { hasSides: false, mentionsAddOn: false })).toContain('adminium-surface/SKILL.md');
+    // Asked for in words, on Auto: the screens skill is carried from the first turn. Never for "dashboard only".
+    expect(skillsFor(session(), { hasSides: false, mentionsAddOn: false, mentionsScreens: true })).toContain('adminium-surface/SKILL.md');
+    expect(skillsFor(session({ target: 'dashboard' }), { hasSides: false, mentionsAddOn: false, mentionsScreens: true })).not.toContain('adminium-surface/SKILL.md');
+    expect(MENTIONS_SCREENS.test('Customers need a public page where they can see our cake menu')).toBe(true);
+    expect(MENTIONS_SCREENS.test('I track customers, their bikes and repair jobs')).toBe(false);
     expect(skillsFor(session(), { hasSides: true, mentionsAddOn: true })).toEqual(expect.arrayContaining(['adminium-surface/SKILL.md', 'adminium-add-ons/SKILL.md']));
   });
 
@@ -64,6 +72,82 @@ describe('what the Designer’s model is told', () => {
     const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
     const { system } = await prompt(session(), [say('user', 'go')]);
     expect(estimateTokens(system)).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.ollama - 6000);
+  });
+});
+
+describe('an app that is new', () => {
+  it('starts bare, and its model is shown what a table, a page and a role look like', async () => {
+    scaffoldApp({ root, key: 'bikes', name: 'Bike shop', sides: [], version: APP_VERSION, bare: true });
+    expect(existsSync(join(root, 'apps/bikes/manifest/app.json'))).toBe(true);
+    expect(existsSync(join(root, 'apps/bikes/manifest/tables'))).toBe(false);
+    expect(existsSync(join(root, 'apps/bikes/seeds'))).toBe(false);
+
+    const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
+    const { system } = await prompt(session({ appKey: 'bikes' }), [say('user', 'A bike shop.')]);
+    expect(system).toContain('The app has no table and no page yet');
+    expect(system).toContain('apps/bikes/manifest/tables/items.json\n{"ref":"items"');
+    expect(system).toContain('apps/bikes/manifest/pages/bikes-items.json\n{"ref":"bikes-items","template":"page-crud"');
+    expect(system).toContain('"page:@bikes-items:view"');
+    // Only the one example table: nothing of the starter's second one.
+    expect(system).not.toContain('table:@requests');
+    expect(system).not.toContain('bikes-requests');
+    expect(estimateTokens(system)).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.ollama / 2);
+
+    // An app with tables is not shown the example again.
+    expect((await prompt(session(), [say('user', 'Add a column.')])).system).not.toContain('The app has no table and no page yet');
+  });
+
+  it('names the references a build opens most, as read_reference takes them', () => {
+    const skills = createSkills();
+    const guides = taskGuides(skills);
+    const names = [...guides.matchAll(/^- (\S+): /gm)].map((found) => found[1] as string);
+    expect(names).toContain('adminium-app/references/guides/manifest-by-task--add-a-dashboard-page.md');
+    expect(names.length).toBeGreaterThan(8);
+    for (const name of names) expect(skills.read(name), name).not.toBeNull();
+  });
+});
+
+describe('tables nobody can open', () => {
+  const column = (ref: string, references?: string) => ({ ref, type: references === undefined ? 'text' : 'fk', ...(references === undefined ? {} : { references }) });
+  it('are named: no page, or no grant; a child of a shown table and the outbox are not', () => {
+    const manifest = {
+      requiredSchema: {
+        tables: [
+          { ref: 'customers', columns: [column('name')] },
+          { ref: 'bikes', columns: [column('customer_id', 'customers')] },
+          { ref: 'invoices', part: 'document', columns: [column('number')] },
+          { ref: 'invoice_lines', part: 'lines', columns: [column('document_id', 'invoices')] },
+          { ref: 'messages', columns: [column('kind')] },
+        ],
+      },
+      pages: [{ bindings: { rows: 'customers' } }, { bindings: { rows: 'invoices' } }],
+      roles: [{ permissions: ['table:@customers:read', 'table:@invoices:read', 'table:@invoice_lines:read', 'page:@x:view'] }],
+      outbox: { table: 'messages' },
+    };
+    // `bikes` hangs off `customers`, which has a page: it is reached from there, and still has no grant.
+    expect(unopenedTables(manifest)).toEqual(['- No role is granted the table "bikes": staff cannot read it.']);
+    // Nothing leads to `parts`.
+    const alone = { ...manifest, requiredSchema: { tables: [...manifest.requiredSchema.tables, { ref: 'parts', columns: [column('name')] }] } };
+    expect(unopenedTables(alone)).toContain('- The table "parts" has no dashboard page: nobody can open it.');
+    expect(unopenedTables(null)).toEqual([]);
+    // A way in for customers, and no screen to come in by.
+    const open = { requiredSchema: { tables: [{ ref: 'cakes', columns: [column('name')] }] }, pages: [{ bindings: { rows: 'cakes' } }], roles: [{ permissions: ['table:@cakes:read'] }], publicAccess: [{ table: 'cakes' }] };
+    expect(unopenedTables({ ...open, frontends: [{ side: 'staff', kind: 'none' }] })).toEqual([expect.stringContaining('no customer screen')]);
+    expect(unopenedTables({ ...open, frontends: [{ side: 'customer', kind: 'spa' }] })).toEqual([]);
+  });
+});
+
+describe('a screen that shows nothing', () => {
+  it('is named: the starter’s screen over tables the app lacks, or a few empty lines', () => {
+    // The fixture app is the starter with both sides and its own `items`: nothing to say.
+    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([]);
+    // The same screen in an app with no `items` is the starter's, left as it came.
+    expect(placeholderScreens(root, 'repairs', ['cakes'])).toEqual([expect.stringContaining('staff/src/App.tsx is still the starter'), expect.stringContaining('customer/src/App.tsx is still the starter')]);
+    writeFileSync(`${root}/apps/repairs/customer/src/App.tsx`, 'export function App() { return <div>Bakery</div>; }');
+    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('customer/src/ shows nothing real yet')]);
+    // Its calls may live beside App.tsx.
+    writeFileSync(`${root}/apps/repairs/customer/src/menu.ts`, 'export const load = (client) => client.list("cakes");');
+    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([]);
   });
 });
 

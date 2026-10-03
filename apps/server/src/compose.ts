@@ -101,7 +101,7 @@ import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
-import { addOnLines } from './designer/add-on-lines.js';
+import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
@@ -1975,6 +1975,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                     store: addOnStore,
                     networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
                   }),
+                readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
               },
               session.appKey,
             ),

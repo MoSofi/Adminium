@@ -278,8 +278,13 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     const values = aiEnv.read();
     const keyName = KEY_NAME[draft.provider];
     const urlName = URL_NAME[draft.provider];
-    const apiKey = draft.apiKey !== undefined && draft.apiKey !== '' ? draft.apiKey : keyName === null ? undefined : values[keyName];
-    const baseUrl = draft.baseUrl !== undefined && draft.baseUrl !== '' ? draft.baseUrl : urlName === null ? undefined : values[urlName];
+    const typedKey = draft.apiKey !== undefined && draft.apiKey !== '';
+    const saved = urlName === null ? undefined : values[urlName];
+    // An address is taken only from a provider that has one: Anthropic and OpenAI are called where they live.
+    const baseUrl = urlName === null ? undefined : draft.baseUrl !== undefined && draft.baseUrl !== '' ? draft.baseUrl : saved;
+    // A saved key goes only to the address it was saved for: a new address is tested with a key typed for it.
+    const sameAddress = baseUrl === saved;
+    const apiKey = typedKey ? draft.apiKey : keyName === null || !sameAddress ? undefined : values[keyName];
     return {
       baseUrl: baseUrl ?? null,
       config: {

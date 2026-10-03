@@ -57,6 +57,14 @@ export interface AppliedApp {
   /** For `not-applied` and `not-built`: where it stopped and why. */
   stage?: string;
   message?: string;
+  /** For `installed` and `applied`: pages that were written with nothing to show, or without what the manifest gave them, and why. */
+  pageWarnings?: string[];
+}
+
+/** What an install or an apply said about the pages it wrote, as sentences. */
+function pageWarningsOf(reply: { pages?: { warnings: readonly { page: string; message: string }[] } | undefined }): { pageWarnings?: string[] } {
+  const warnings = reply.pages?.warnings ?? [];
+  return warnings.length === 0 ? {} : { pageWarnings: warnings.map((warning) => `Page ${warning.page}: ${warning.message}`) };
 }
 
 export interface ProjectApps {
@@ -312,7 +320,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
         opts.warn(`App "${app.key}": its sample data was not added (${error instanceof Error ? error.message : String(error)}).`);
       }
     }
-    return { key: app.key, state: 'installed', hash: app.hash };
+    return { key: app.key, state: 'installed', hash: app.hash, ...pageWarningsOf(reply) };
   }
 
   async function applyChanged(
@@ -372,7 +380,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
           'Nothing was dropped. Answer it in Studio → Apps: "Remove them" drops the data, "Keep the data" leaves it in the database and out of the app.',
       );
     }
-    return { key: app.key, state: 'applied', hash: app.hash };
+    return { key: app.key, state: 'applied', hash: app.hash, ...pageWarningsOf(reply) };
   }
 
   async function one(app: BuiltProjectApp): Promise<AppliedApp> {

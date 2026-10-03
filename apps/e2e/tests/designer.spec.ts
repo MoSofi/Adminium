@@ -4,7 +4,7 @@
  *
  * `adminium design` in a project folder; its one-use link opens the Designer
  * signed in (no sign-in form); a request from Home starts a session; the
- * model writes a table, checks the app and applies it; the turn is saved as
+ * model writes a table, its page and its role, checks the app and applies it; the turn is saved as
  * v1; the preview frames the app on the preview's own host name, signed in
  * as the low preview user; the Architecture tab draws the new table. Each
  * page is swept by axe, in the light and the dark theme.
@@ -37,12 +37,31 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeAll(async ({}, testInfo) => {
   testInfo.setTimeout(240_000);
   project = await ProjectHarness.create({}, ['react', 'react-dom']);
-  // The table the model writes: the starter's own part, renamed, so it is one this build accepts.
-  const tablePart = (ref: string): string => {
-    const items = project.readJson(`apps/${APP_KEY}/manifest/tables/items.json`);
-    return JSON.stringify({ ...items, ref, label: { 'en-US': 'Job' }, labelPlural: { 'en-US': 'Jobs' } }, null, 2);
+  // What the model writes into the bare app: one table, its page, and the role that may use them.
+  const files = {
+    'manifest/tables/jobs.json': {
+      ref: 'jobs',
+      label: { 'en-US': 'Job' },
+      labelPlural: { 'en-US': 'Jobs' },
+      keyField: 'title',
+      columns: [
+        { ref: 'id', type: 'int', role: 'pk' },
+        { ref: 'title', type: 'text', maxLength: 120, default: 'Untitled', label: { 'en-US': 'Title' } },
+        { ref: 'status', type: 'enum', enum: ['open', 'done'], default: 'open', label: { 'en-US': 'Status' } },
+      ],
+    },
+    [`manifest/pages/${APP_KEY}-jobs.json`]: {
+      ref: `${APP_KEY}-jobs`,
+      template: 'page-crud',
+      title: { key: `${APP_KEY}.jobs`, fallback: 'Jobs' },
+      nav: { group: 'main', icon: 'list-checks', order: 1 },
+      bindings: { rows: 'jobs' },
+    },
+    'manifest/roles.json': [
+      { key: 'staff', name: 'Repair desk staff', permissions: ['table:@jobs:read', 'table:@jobs:create', 'table:@jobs:update', `page:@${APP_KEY}-jobs:view`] },
+    ],
   };
-  model = createDesignerModelServer({ appKey: APP_KEY, tablePart });
+  model = createDesignerModelServer({ appKey: APP_KEY, files: Object.fromEntries(Object.entries(files).map(([file, value]) => [file, JSON.stringify(value, null, 2)])) });
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
   const modelUrl = `http://127.0.0.1:${String((model.address() as AddressInfo).port)}`;
   link = await project.design({ ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' });
@@ -111,7 +130,7 @@ test('design opens signed in; a request builds, applies, previews and draws an a
 
   // The preview: the dashboard, on the preview's own host name, signed in as the preview user.
   const frame = page.frameLocator('iframe[title="Dashboard"]');
-  await expect(frame.getByRole('heading', { name: 'Items' })).toBeVisible({ timeout: 60_000 });
+  await expect(frame.getByRole('heading', { name: 'Jobs', exact: true })).toBeVisible({ timeout: 60_000 });
   expect(await page.locator('iframe[title="Dashboard"]').getAttribute('src')).toMatch(/^http:\/\/localhost:\d+\/designer-preview\/enter\?ticket=/);
 
   // The architecture: the table the turn applied, with its real name.

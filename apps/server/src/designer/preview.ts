@@ -51,7 +51,9 @@ const enterQuery = z.object({ ticket: z.string().regex(/^[0-9a-f]{48}$/), to: z.
 
 /** Where a preview may be sent: a path of this server, under the app's own address or the dashboard's. */
 export function safeTarget(to: string, appKey: string): string | null {
-  if (!to.startsWith('/') || to.startsWith('//') || to.includes('\\') || to.includes('..') || /[\r\n]/.test(to)) return null;
+  if (!to.startsWith('/') || to.startsWith('//') || to.includes('\\') || to.includes('..')) return null;
+  // No space, tab, line end or other control character: a browser drops a tab, and `/\t/host` becomes `//host`.
+  if ([...to].some((mark) => mark.charCodeAt(0) <= 0x20 || mark.charCodeAt(0) === 0x7f)) return null;
   if (to.startsWith('/api/') || to.startsWith('/designer-preview/')) return null;
   if (to.startsWith('/apps/') && !to.startsWith(`/apps/${appKey}/`)) return null;
   return to;

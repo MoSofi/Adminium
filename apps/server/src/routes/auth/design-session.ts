@@ -39,6 +39,7 @@ export interface DesignSessionRoutesDeps {
   meta: MetaDb;
   /** This run's token. Never written anywhere. */
   token: string;
+  now?: () => number;
   port: number;
 }
 
@@ -47,12 +48,17 @@ export const DESIGN_SESSION_MS = 12 * 60 * 60 * 1000;
 
 export const designSessionBody = z.object({ designToken: z.string().regex(/^[0-9a-f]{64}$/, 'must be 64 hex characters') });
 
+/** How long the link `design` prints can be opened. */
+export const DESIGN_LINK_MS = 15 * 60_000;
+
 const spent = (): AppError => new AppError(401, 'INVALID_CREDENTIALS', 'This link has been used.', { reason: 'DESIGN_LINK_USED' });
 
 export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
   return async (app) => {
     const guard = createBootTokenGuard(deps.token);
+    // A link nobody opened does not stay good for as long as the server runs: the command's arguments are readable by other users of the machine.
+    const goodUntil = (deps.now ?? Date.now)() + DESIGN_LINK_MS;
 
     app.post(
       '/auth/design-session',
@@ -65,6 +71,10 @@ export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPlugi
         if (hostRole(request.headers.host, deps.port) !== 'designer' || !isLoopbackPeer(request.raw.socket)) {
           await auditAuth(meta, request, { action: 'design_session_rejected', actorId: null, actorLabel: 'design-link' });
           throw new AppError(403, 'FORBIDDEN', 'The Designer is signed into from its own address on this machine only.');
+        }
+        if ((deps.now ?? Date.now)() > goodUntil) {
+          await auditAuth(meta, request, { action: 'design_session_failed', actorId: null, actorLabel: 'design-link' });
+          throw new AppError(401, 'INVALID_CREDENTIALS', 'This link is too old. Run `adminium design` again for a new one.', { reason: 'DESIGN_LINK_OLD' });
         }
         // Spent before anything else is looked at: a failure after this costs a restart, never a second try.
         if (guard.claim(request.body.designToken) !== 'ok') {

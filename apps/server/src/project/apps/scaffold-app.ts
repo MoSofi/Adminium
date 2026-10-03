@@ -38,6 +38,12 @@ export interface ScaffoldAppOptions {
   /** The Adminium writing it: the oldest version the app says it runs on. */
   version: string;
   templates?: string;
+  /**
+   * Only what every app has: `app.json` and a role that may do nothing yet.
+   * No sample table, page or data. The Designer starts an app this way: a
+   * model asked for a bike shop would spend its first steps deleting `items`.
+   */
+  bare?: boolean;
 }
 
 /** Why a key cannot be an app's, or null. */
@@ -167,6 +173,15 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
   return parts;
 }
 
+/** The parts of an app with nothing in it yet: the starter's `app.json`, and its role with no grants. */
+export function bareParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'version'>): Record<string, unknown> {
+  const starter = starterParts(opts);
+  return {
+    'manifest/app.json': starter['manifest/app.json'],
+    'manifest/roles.json': [{ key: 'staff', name: `${opts.name} staff`, permissions: [] }],
+  };
+}
+
 function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides'>): string {
   const { key, name, sides } = opts;
   const run = (command: string): string => `npx @adminiumjs/adminium app ${command} ${key}`;
@@ -232,7 +247,7 @@ export function scaffoldApp(opts: ScaffoldAppOptions): string[] {
   };
   const fill = (text: string): string => text.split('__KEY__').join(opts.key).split('__NAME__').join(opts.name);
 
-  for (const [file, value] of Object.entries(starterParts(opts))) write(file, `${JSON.stringify(value, null, 2)}\n`);
+  for (const [file, value] of Object.entries(opts.bare === true ? bareParts(opts) : starterParts(opts))) write(file, `${JSON.stringify(value, null, 2)}\n`);
   for (const file of templateFiles(templates)) {
     const [top] = file.split('/');
     if ((top === 'staff' || top === 'customer') && !opts.sides.includes(top)) continue;
@@ -240,6 +255,66 @@ export function scaffoldApp(opts: ScaffoldAppOptions): string[] {
     write(file.replace(/\.tmpl$/, ''), fill(readFileSync(join(templates, file), 'utf8')));
   }
   write('README.md', readme(opts));
+  return created.sort();
+}
+
+/**
+ * Give an app that has none the starter's screens for one side: the files
+ * under `staff/` or `customer/`, and the side declared in `app.json`. The
+ * screens are the starter's own (a working list and a form over tables named
+ * `items` and `requests`): a pattern to rewrite for the app's tables. Returns
+ * the files written, relative to the project; none when the side is there.
+ */
+export function addSide(opts: { root: string; key: string; name: string; side: AppSide; templates?: string }): string[] {
+  const templates = opts.templates ?? appTemplateDir();
+  const dir = appDir(opts.root, opts.key);
+  // Read first: an app whose manifest is one file, or does not read, is told so before anything is written.
+  const manifestFile = join(dir, 'manifest', 'app.json');
+  if (!existsSync(manifestFile)) throw new CliError(`${appPath(opts.key, 'manifest', 'app.json')} is not there: a side is added to an app whose manifest is written as part files.`);
+  let app: { frontends?: { side: string; kind: string }[] };
+  try {
+    app = JSON.parse(readFileSync(manifestFile, 'utf8')) as typeof app;
+  } catch (error) {
+    throw new CliError(`${appPath(opts.key, 'manifest', 'app.json')} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const created: string[] = [];
+  if (!existsSync(join(dir, opts.side, 'src'))) {
+    const fill = (text: string): string => text.split('__KEY__').join(opts.key).split('__NAME__').join(opts.name);
+    for (const file of templateFiles(join(templates, opts.side))) {
+      const target = join(dir, opts.side, file.replace(/\.tmpl$/, ''));
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, fill(readFileSync(join(templates, opts.side, file), 'utf8')));
+      created.push(appPath(opts.key, opts.side, file.replace(/\.tmpl$/, '')));
+    }
+    // The staff starter reads the app's sample rows for its demo: an app with none gets an empty file to read.
+    const sample = join(dir, 'seeds', 'sample.json');
+    if (opts.side === 'staff' && !existsSync(sample)) {
+      mkdirSync(dirname(sample), { recursive: true });
+      writeFileSync(sample, `${JSON.stringify({ format: 'adminium.sample/1', app: opts.key, tables: [] }, null, 2)}\n`);
+      created.push(appPath(opts.key, 'seeds', 'sample.json'));
+    }
+  }
+  // The side, declared: in place of "no side" for it, beside any other. Also for screens written by hand.
+  if (!(app.frontends ?? []).some((entry) => entry.side === opts.side && entry.kind !== 'none')) {
+    const others = (app.frontends ?? []).filter((entry) => entry.side !== opts.side && entry.kind !== 'none');
+    app.frontends = [...others, { side: opts.side, kind: 'spa' }];
+    writeFileSync(manifestFile, `${JSON.stringify(app, null, 2)}\n`);
+    created.push(appPath(opts.key, 'manifest', 'app.json'));
+  }
+  // A role opens the staff screens only with `app:@:staff`: every role the app brings gets it.
+  const rolesFile = join(dir, 'manifest', 'roles.json');
+  if (opts.side === 'staff' && existsSync(rolesFile)) {
+    try {
+      const roles = JSON.parse(readFileSync(rolesFile, 'utf8')) as { permissions?: string[] }[];
+      if (Array.isArray(roles) && roles.some((role) => !(role.permissions ?? []).includes('app:@:staff'))) {
+        for (const role of roles) role.permissions = [...new Set(['app:@:staff', ...(role.permissions ?? [])])];
+        writeFileSync(rolesFile, `${JSON.stringify(roles, null, 2)}\n`);
+        created.push(appPath(opts.key, 'manifest', 'roles.json'));
+      }
+    } catch {
+      // A roles file that does not read is the check's to report.
+    }
+  }
   return created.sort();
 }
 

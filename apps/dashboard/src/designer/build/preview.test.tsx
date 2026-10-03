@@ -13,7 +13,7 @@ import { ThemeProvider } from '@adminium/ui';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { DesignerSession } from '../api.js';
-import { Preview } from './Preview.js';
+import { Preview, previewState, sideNamed } from './Preview.js';
 import type { TurnView } from './turns.js';
 
 class FakeSocket {
@@ -186,5 +186,38 @@ describe('the preview', () => {
     expect(card.textContent).not.toContain('more');
     await userEvent.click(screen.getByRole('button', { name: 'Ask the Designer to fix it' }));
     expect(onFix).toHaveBeenCalledWith('The screens did not build: src/Today.tsx: Cannot find name "jobs". Please fix it.');
+  });
+
+  it('goes by the turn’s last build: one that failed and was then fixed is not shown, and the error names its own side', () => {
+    const row = (state: 'done' | 'failed', detail: string | null) => ({ id: `b${state}`, tool: 'build_sides', label: 'x', state, ms: 10, detail, folded: 1 });
+    const broke = 'Could not build the customer side of "cakes":\napps/cakes/customer/src/App.tsx:5:80: Could not resolve "react"\nmore';
+    expect(previewState([turn({ steps: [row('failed', broke), row('done', null)] })])).toEqual({ building: false, failed: null });
+    const stuck = previewState([turn({ steps: [row('done', null), row('failed', broke)] })]);
+    expect(stuck.failed).toBe('Could not build the customer side of "cakes":\napps/cakes/customer/src/App.tsx:5:80: Could not resolve "react"');
+    expect(sideNamed(stuck.failed ?? '')).toBe('customer');
+    expect(sideNamed('src/Today.tsx: Cannot find name "jobs".')).toBeNull();
+  });
+
+  it('shows a screen that built and then stopped as it opened, heard from its own frame, and asks for the fix', async () => {
+    const { onFix } = mount([turn({})]);
+    await screen.findByRole('button', { name: 'Staff' });
+    await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
+    const say = (origin: string, data: unknown, source?: Window): void => {
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', { origin, data, source: source ?? document.querySelector('iframe')?.contentWindow ?? null }));
+      });
+    };
+    // Another page's word, or another app's, is not taken.
+    say('http://evil.test', { type: 'adminium:side-error', app: SESSION.appKey, side: 'staff', message: 'x' });
+    say('http://localhost:4731', { type: 'adminium:side-error', app: 'another', side: 'staff', message: 'x' });
+    // Nor a window that is not this page's frame, whatever address it says it has.
+    say('http://localhost:4731', { type: 'adminium:side-error', app: SESSION.appKey, side: 'staff', message: 'x' }, window);
+    expect(screen.queryByRole('alert')).toBeNull();
+    say('http://localhost:4731', { type: 'adminium:side-error', app: SESSION.appKey, side: 'staff', message: 'Rendered more hooks than during the previous render.' });
+    const card = await screen.findByRole('alert');
+    expect(card.textContent).toContain('The staff screen stopped with an error.');
+    expect(card.textContent).toContain('Rendered more hooks than during the previous render.');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask the Designer to fix it' }));
+    expect(onFix).toHaveBeenCalledWith('The screen builds, and stops with an error when it opens: the staff screen reported “Rendered more hooks than during the previous render.” Please fix it.');
   });
 });

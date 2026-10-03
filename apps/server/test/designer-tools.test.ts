@@ -66,6 +66,10 @@ beforeEach(async () => {
       },
       skills: createSkills(),
       listAddOns: async () => [{ key: 'invoices', name: 'Invoices & Receipts', version: '1.0.7', line: 'Invoices and receipts for an app.', state: 'available' }],
+      readAddOn: async (key) =>
+        key === 'invoices'
+          ? (JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'packages', 'manifest', 'test', 'fixtures', 'released', 'invoices-1.0.6.manifest.json'), 'utf8')) as unknown)
+          : null,
     },
     'repairs',
   );
@@ -112,6 +116,20 @@ describe('the Designer’s tools', () => {
     expect((await run('edit_file', { path: 'apps/repairs/manifest/tables/jobs.json', old: 'nothing like it', new: 'x' })).content).toContain('is not in');
     writeFileSync(join(root, 'apps/repairs/twice.md'), 'a a');
     expect((await run('edit_file', { path: 'apps/repairs/twice.md', old: 'a', new: 'b' })).content).toContain('2 times');
+    // The same words with other spacing are found; a miss shows the file as it is.
+    writeFileSync(join(root, 'apps/repairs/spaced.json'), '{\n  "a": [\n    1,\n    2\n  ]\n}');
+    expect(await run('edit_file', { path: 'apps/repairs/spaced.json', old: '"a": [1, 2]', new: '"a": [1, 2, 3]' })).toMatchObject({ label: 'Edited spaced.json' });
+    expect(readFileSync(join(root, 'apps/repairs/spaced.json'), 'utf8')).toBe('{\n  "a": [1, 2, 3]\n}');
+    expect((await run('edit_file', { path: 'apps/repairs/spaced.json', old: '"b": 1', new: '"c"' })).content).toContain('The file is now:\n{\n  "a": [1, 2, 3]');
+    // A JSON file that would not read is refused at the write, and the file stays as it was.
+    const cut = await run('write_file', { path: 'apps/repairs/manifest/tables/parts.json', content: '{"ref": "parts", "columns": [' });
+    expect(cut).toMatchObject({ isError: true });
+    expect(cut.content).toContain('not valid JSON');
+    expect(existsSync(join(root, 'apps/repairs/manifest/tables/parts.json'))).toBe(false);
+    const comma = await run('edit_file', { path: 'apps/repairs/manifest/tables/jobs.json', old: '"work"', new: '"work" "more"' });
+    expect(comma).toMatchObject({ isError: true });
+    expect(comma.content).toContain('left as it was');
+    expect(readFileSync(join(root, 'apps/repairs/manifest/tables/jobs.json'), 'utf8')).toBe('{"ref": "work"}');
     expect(await run('delete_file', { path: 'apps/repairs/manifest/tables/jobs.json' })).toMatchObject({ label: 'Deleted manifest/tables/jobs.json' });
     expect(existsSync(join(root, 'apps/repairs/manifest/tables/jobs.json'))).toBe(false);
   });
@@ -135,12 +153,72 @@ describe('the Designer’s tools', () => {
     expect(broken.content.split('\n')[1]).toMatch(/^error · apps\/repairs\/manifest\/tables\/broken\.json/);
   });
 
+  it('say so when the same errors come back check after check', async () => {
+    writeFileSync(join(root, 'apps/repairs/manifest/tables/broken.json'), '{"ref": "broken"}');
+    expect((await run('check_app')).content).not.toContain('same errors');
+    expect((await run('check_app')).content).not.toContain('same errors');
+    expect((await run('check_app')).content).toContain('These are the same errors as the last 2 checks');
+    rmSync(join(root, 'apps/repairs/manifest/tables/broken.json'));
+    expect(await run('check_app')).toMatchObject({ label: 'Checked: no errors' });
+  });
+
+  it('add a side with the starter’s screen, declared in app.json, and only once', async () => {
+    rmSync(join(root, 'apps/repairs/customer'), { recursive: true, force: true });
+    const added = await run('add_side', { side: 'customer' });
+    expect(added, added.content).toMatchObject({ label: 'Added the customer side' });
+    expect(added.content).toContain('apps/repairs/customer/src/App.tsx');
+    expect(readFileSync(join(root, 'apps/repairs/customer/src/App.tsx'), 'utf8')).toContain('createPublicClient');
+    const app = JSON.parse(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')) as { frontends: { side: string; kind: string }[] };
+    expect(app.frontends).toContainEqual({ side: 'customer', kind: 'spa' });
+    expect(app.frontends.filter((entry) => entry.side === 'customer')).toHaveLength(1);
+    expect(await run('add_side', { side: 'customer' })).toMatchObject({ label: 'The customer side is there' });
+    expect(await run('add_side', { side: 'kiosk' })).toMatchObject({ isError: true });
+  });
+
+  it('build on an add-on’s shape from the add-on’s own manifest, and never over what the app has', async () => {
+    // Not on this server: said, with what the person can do about it.
+    expect((await run('build_on_shape', { add_on: 'nope', shape: 'invoice@1' })).content).toContain('is not on this server');
+    // A shape that sends email needs to know who it writes to, and that table has to be there.
+    expect((await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1' })).content).toContain('who it writes to');
+    const recipient = { table: 'clients', email: 'email', name: 'name' };
+    expect((await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1', recipient })).content).toContain('There is no table "clients" yet');
+
+    writeFileSync(
+      join(root, 'apps/repairs/manifest/tables/clients.json'),
+      JSON.stringify({
+        ref: 'clients',
+        label: { 'en-US': 'Client' },
+        labelPlural: { 'en-US': 'Clients' },
+        keyField: 'name',
+        columns: [
+          { ref: 'id', type: 'int', role: 'pk' },
+          { ref: 'name', type: 'text', maxLength: 120, default: '' },
+          { ref: 'email', type: 'text', maxLength: 320, nullable: true },
+        ],
+      }),
+    );
+    const built = await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1', recipient, tables: { 'invoice@1/payments': 'payments' } });
+    expect(built, built.content).toMatchObject({ label: 'Built on invoice@1', facts: { count: 5 } });
+    expect(built.content).toContain('apps/repairs/manifest/tables/payments.json: built on invoices/invoice@1, part payments');
+    expect(built.content).toContain('requires invoices >=1.0.6');
+    expect(JSON.parse(readFileSync(join(root, 'apps/repairs/manifest/add-ons.json'), 'utf8'))).toMatchObject({ requires: [{ key: 'invoices', range: '>=1.0.6' }] });
+    // The engine accepts what was written.
+    expect(await run('check_app')).toMatchObject({ label: 'Checked: no errors' });
+    // A second time, the tables are there: left alone.
+    expect((await run('build_on_shape', { add_on: 'invoices', shape: 'invoice@1', recipient, tables: { 'invoice@1/payments': 'payments' } })).content).toContain('already there and were left alone');
+  });
+
   it('read a skill file by its name, and suggest one for a near miss', async () => {
     expect(skillsDir()).not.toBeNull();
     const read = await run('read_reference', { name: 'adminium-app/SKILL.md' });
     expect(read.content).toContain('adminium');
     expect(await run('read_reference', { name: '../../.env' })).toMatchObject({ isError: true });
-    expect((await run('read_reference', { name: 'nope/SKILL.md' })).content).toContain('Did you mean');
+    expect((await run('read_reference', { name: 'nope/SKILL.md' })).content).toContain('references/INDEX.md');
+    // A guessed name is answered with the index of the folder it guessed in.
+    const guessed = await run('read_reference', { name: 'adminium-app/references/guides/manifest-by-task--page-crud.md' });
+    expect(guessed.isError).toBe(true);
+    expect(guessed.content).toContain('`references/guides/manifest-by-task--add-a-dashboard-page.md`');
+    expect(guessed.content).toContain('"adminium-app/" in front');
   });
 
   it('list the add-ons', async () => {
@@ -170,10 +248,39 @@ describe('the Designer’s tools', () => {
     expect((await run('request_package', { name: 'date-fns', version: '4.1.0', why: 'Dates' })).content).toContain('said no');
     expect(asked).toEqual([{ type: 'package', name: 'date-fns', version: '4.1.0', why: 'Dates' }]);
     expect(readFileSync(join(root, 'package.json'), 'utf8')).not.toContain('date-fns');
+
+    // A screen's own packages are asked for at the version this server knows, whatever the model guessed.
+    answers.push({ type: 'package', accept: false }, { type: 'package', accept: false });
+    await run('request_package', { name: '@adminiumjs/public-client', version: '0.7.0', why: 'The customer screen' });
+    await run('request_package', { name: 'react', version: 'latest', why: 'The screens' });
+    expect(asked.slice(1)).toEqual([
+      { type: 'package', name: '@adminiumjs/public-client', version: APP_VERSION, why: 'The customer screen' },
+      { type: 'package', name: 'react', version: '19.2.0', why: 'The screens' },
+    ]);
+  });
+
+  it('write server code only once the person allows it, asked once', async () => {
+    answers.push({ type: 'question', text: 'Do not allow it' });
+    const refusedWrite = await run('write_file', { path: 'hooks/orders.ts', content: 'export default {};' });
+    expect(refusedWrite).toMatchObject({ isError: true, label: 'Server code not allowed' });
+    expect(existsSync(join(root, 'hooks/orders.ts'))).toBe(false);
+    expect(asked.at(-1)).toMatchObject({ type: 'question', question: expect.stringContaining('run inside your server') });
+    // The answer holds for the turn: no second card, and still no.
+    const before = asked.length;
+    expect(await run('write_file', { path: 'actions/send.ts', content: 'export default {};' })).toMatchObject({ isError: true });
+    expect(asked).toHaveLength(before);
+    // The app's own folder is never asked about.
+    expect(await run('write_file', { path: 'apps/repairs/notes.md', content: 'x' })).toMatchObject({ label: 'Wrote notes.md' });
+    expect(asked).toHaveLength(before);
   });
 
   it('run the app’s own tests, and say when there are none', async () => {
-    // The starter's own test, with its CLI step left to check_app.
+    // Tests are code the model wrote: nothing runs until the person says so, and a no is taken.
+    answers.push({ type: 'question', text: 'Do not run them' });
+    expect(await run('run_tests')).toMatchObject({ label: 'Tests not run' });
+    expect(asked.at(-1)).toMatchObject({ type: 'question', choices: ['Run them', 'Do not run them'] });
+    // The starter's own test, with its CLI step left to check_app. One yes holds for the turn.
+    answers.push({ type: 'question', text: 'Run them' });
     expect(await run('run_tests')).toMatchObject({ label: 'Tests passed' });
     rmSync(join(root, 'apps/repairs/tests'), { recursive: true });
     expect((await run('run_tests')).content).toContain('no tests');

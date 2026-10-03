@@ -63,7 +63,7 @@ test('dev installs the app from its folder: its page is in the dashboard and its
 
   // Studio says where it comes from, and offers nothing the folder decides.
   await page.goto('/studio/apps');
-  await expect(page.getByText('From this project’s folder')).toBeVisible();
+  await expect(page.getByText('From the folder')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Uninstall' })).toHaveCount(0);
 });
 

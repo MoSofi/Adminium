@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
+import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, reportErrorsToFrame, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
 
 interface Call {
   url: string;
@@ -317,3 +317,35 @@ describe('reloading when the app was applied or rebuilt', () => {
   });
 });
 
+describe('a screen that stops with an error', () => {
+  const frame = () => {
+    const listeners = new Map<string, (event: unknown) => void>();
+    const posted: { message: unknown; origin: string }[] = [];
+    const target = {
+      addEventListener: ((type: string, listener: (event: unknown) => void) => listeners.set(type, listener)) as never,
+      parent: { postMessage: (message: unknown, origin: string) => posted.push({ message, origin }) },
+    };
+    return { target, listeners, posted };
+  };
+
+  it('tells the page that frames it the error’s first line, in a dev bundle only', () => {
+    const dev = frame();
+    reportErrorsToFrame(dev.target, true, () => true, (run) => run());
+    dev.listeners.get('error')?.({ error: new Error('Rendered more hooks than during the previous render.\n    at App') });
+    dev.listeners.get('unhandledrejection')?.({ reason: 'x'.repeat(900) });
+    expect(dev.posted[0]).toEqual({ message: { type: 'adminium:side-error', app: '', side: 'staff', message: 'Rendered more hooks than during the previous render.' }, origin: '*' });
+    expect((dev.posted[1]?.message as { message: string }).message).toHaveLength(400);
+
+    // A screen that still shows something goes on working: nothing is said.
+    const working = frame();
+    reportErrorsToFrame(working.target, true, () => false, (run) => run());
+    working.listeners.get('error')?.({ error: new Error('ResizeObserver loop completed with undelivered notifications.') });
+    expect(working.posted).toEqual([]);
+
+    // A packed app, or a page nobody frames, says nothing.
+    const packed = frame();
+    reportErrorsToFrame(packed.target, false);
+    expect(packed.listeners.size).toBe(0);
+    expect(() => reportErrorsToFrame(undefined, true)).not.toThrow();
+  });
+});

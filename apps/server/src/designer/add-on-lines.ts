@@ -9,6 +9,28 @@ import type { AddOnStore } from '../add-ons/store.js';
 import { catalogSchema, isCurrentCatalogFormat, pickLocalized } from '../add-ons/catalog.js';
 import type { AddOnLine } from './tools.js';
 
+/** The shapes a manifest document defines, as an app names them: `invoice@1`. */
+function shapesOf(document: unknown): string[] {
+  const shapes = (document as { addOn?: { shapes?: { name?: unknown; version?: unknown }[] } } | null)?.addOn?.shapes ?? [];
+  return shapes.flatMap((shape) => (typeof shape.name === 'string' && typeof shape.version === 'number' ? [`${shape.name}@${String(shape.version)}`] : []));
+}
+
+/** An add-on's manifest: the installed one, else the newest in this server's store. Null when it is neither. */
+export async function readAddOnManifest(
+  deps: { meta: MetaDb; credentialCrypto: { encrypt(value: string): string; decrypt(value: string): string }; store: AddOnStore },
+  key: string,
+): Promise<unknown> {
+  if (!/^[a-z][a-z0-9-]{0,79}$/.test(key)) return null;
+  const installed = await manifestsRepo(deps.meta, deps.credentialCrypto).findByKey(key);
+  if (installed !== null && installed.row.kind === 'add-on') return installed.document;
+  try {
+    const version = (await deps.store.versions(key)).at(-1);
+    return version === undefined ? null : (JSON.parse((await deps.store.readFile(key, version, 'manifest.json')).toString('utf8')) as unknown);
+  } catch {
+    return null;
+  }
+}
+
 export async function addOnLines(deps: {
   meta: MetaDb;
   credentialCrypto: { encrypt(value: string): string; decrypt(value: string): string };
@@ -24,6 +46,7 @@ export async function addOnLines(deps: {
       version: installed.row.version,
       line: typeof document.description?.fallback === 'string' ? document.description.fallback : '',
       state: 'installed',
+      shapes: shapesOf(installed.document),
     });
   }
   // On disk and not installed: bundled with this server, or downloaded, or uploaded.
@@ -33,14 +56,16 @@ export async function addOnLines(deps: {
     if (version === undefined) continue;
     let name = key;
     let line = '';
+    let shapes: string[] = [];
     try {
       const document = JSON.parse((await deps.store.readFile(key, version, 'manifest.json')).toString('utf8')) as { name?: unknown; description?: { fallback?: unknown } };
+      shapes = shapesOf(document);
       if (typeof document.name === 'string') name = document.name;
       if (typeof document.description?.fallback === 'string') line = document.description.fallback;
     } catch {
       // Listed by its key.
     }
-    out.set(key, { key, name, version, line, state: 'available' });
+    out.set(key, { key, name, version, line, state: 'available', shapes });
   }
   // What the catalogue listed when it was last read. Only offered where it can be downloaded.
   if (deps.networkFeatures) {

@@ -24,6 +24,7 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { hashPassword } from '../src/auth/passwords.js';
+import { starterParts } from '../src/project/apps/scaffold-app.js';
 import { buildProject } from '../src/project/build.js';
 import { authorizeChannel, designerChannel } from '../src/realtime/hub.js';
 import { APP_VERSION } from '../src/version.js';
@@ -182,6 +183,17 @@ async function server(opts: { designer: boolean; environment?: Record<string, st
 
 const createBody = (over: Record<string, unknown> = {}) => ({ name: 'Repair desk', target: 'auto', connectionId: 'env:ollama', model: 'fake', text: 'Make me a repair desk.', ...over });
 
+/** A new app is bare. This is the starter's own table, page and grants, as the files a model would write. */
+const starter = (): Record<string, unknown> => starterParts({ key: 'repair-desk', name: 'Repair desk', sides: [], version: APP_VERSION });
+/** A model's first step that writes the starter into the bare app, all in one reply. */
+const writesStarter: ScriptStep = () => ({
+  calls: Object.entries(starter())
+    .filter(([file]) => file !== 'manifest/app.json')
+    .map(([file, value]) => ({ name: 'write_file', arguments: { path: `apps/repair-desk/${file}`, content: JSON.stringify(value, null, 2) } })),
+});
+/** One of the starter's tables under another name. */
+const tableAs = (ref: string, label = 'Item'): string => JSON.stringify({ ...(starter()['manifest/tables/items.json'] as object), ref, label: { 'en-US': label }, labelPlural: { 'en-US': `${label}s` } }, null, 2);
+
 type EventRow = { seq: number; kind: string; outcome?: string; ok?: boolean; state?: string };
 async function finishedTurn(client: Client, sessionId: string, turn: number): Promise<EventRow[]> {
   let events: EventRow[] = [];
@@ -218,7 +230,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
 
     const ok = await client.call('GET', '/api/v1/designer/state');
     expect(ok.status, JSON.stringify(ok.body)).toBe(200);
-    expect(ok.body).toMatchObject({ mode: 'local', limits: { maxSteps: 60, turnTokens: 400_000, sessionTokens: 4_000_000 }, active: null });
+    expect(ok.body).toMatchObject({ mode: 'local', limits: { maxSteps: 60, turnTokens: 1_500_000, sessionTokens: 15_000_000 }, active: null });
 
     const user = { id: admin.id, roles: [] as string[] };
     const can = (_who: unknown, permission: string) => permission !== 'system:designer:use';
@@ -229,16 +241,19 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
 
   it('make an app from a name, run the first turn, and have the engine apply it', async () => {
     const client = await server({ designer: true });
+    script = [writesStarter];
     const created = await client.call('POST', '/api/v1/designer/sessions', createBody());
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     const session = created.body['session'] as { id: string; appKey: string; createdApp: boolean };
     expect(session).toMatchObject({ appKey: 'repair-desk', createdApp: true });
     expect(created.body['turn']).toBe(1);
     expect(existsSync(join(root!, 'apps', 'repair-desk', 'manifest', 'app.json'))).toBe(true);
+    // Bare: the starter's sample table is not written for a model to clear away.
+    expect(readFileSync(join(root!, 'apps', 'repair-desk', 'manifest', 'roles.json'), 'utf8')).toContain('"permissions": []');
 
     const events = await finishedTurn(client, session.id, 1);
     expect(events.map((event) => event.seq)).toEqual(events.map((_event, index) => index + 1));
-    expect(events.map((event) => event.kind)).toEqual(['turn-started', 'text', 'usage', 'check', 'build', 'apply', 'version', 'turn-finished']);
+    expect(events.map((event) => event.kind).filter((kind) => kind !== 'step' && kind !== 'usage')).toEqual(['turn-started', 'text', 'check', 'build', 'apply', 'version', 'turn-finished']);
     expect(events.find((event) => event.kind === 'apply'), JSON.stringify(events.find((event) => event.kind === 'apply'))).toMatchObject({ ok: true, state: 'installed' });
     expect(events.at(-1)).toMatchObject({ outcome: 'done' });
 
@@ -269,6 +284,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/stop`)).body).toEqual({ stopped: false });
 
     reply = { text: 'Carried on.' };
+    script = [writesStarter];
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Continue.' })).status).toBe(202);
     expect((await finishedTurn(client, session.id, 2)).at(-1)).toMatchObject({ outcome: 'done' });
   });
@@ -341,6 +357,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     const bareId = (bare.body['session'] as { id: string }).id;
     expect((await client.call('GET', `/api/v1/designer/sessions/${bareId}/architecture`)).body).toMatchObject({ name: 'Repair desk', applied: false, tables: [], people: [] });
 
+    script = [writesStarter];
     const first = await client.call('POST', '/api/v1/designer/sessions', { ...createBody(), appKey: 'repair-desk', name: undefined });
     await finishedTurn(client, (first.body['session'] as { id: string }).id, 1);
     const drawn = await client.call('GET', `/api/v1/designer/sessions/${bareId}/architecture`);
@@ -377,8 +394,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(doc.pending).toEqual([]);
 
     // A table written to the folder and not applied: waiting.
-    const items = JSON.parse(readFileSync(join(root!, 'apps/repair-desk/manifest/tables/items.json'), 'utf8')) as Record<string, unknown>;
-    writeFileSync(join(root!, 'apps/repair-desk/manifest/tables/parts.json'), JSON.stringify({ ...items, ref: 'parts' }));
+    writeFileSync(join(root!, 'apps/repair-desk/manifest/tables/parts.json'), tableAs('parts'));
     const later = (await client.call('GET', `/api/v1/designer/sessions/${bareId}/architecture`)).body as { pending: unknown[]; tables: unknown[] };
     expect(later.pending).toEqual([{ part: 'Table parts', node: 't_parts' }]);
     expect(later.tables).toHaveLength(2);
@@ -415,11 +431,9 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
 
   it('run a turn in which the model writes a table, checks and applies it, and keep it as a version; then go back', async () => {
     const client = await server({ designer: true });
-    const table = (ref: string): string => {
-      const items = JSON.parse(readFileSync(join(root!, 'apps/repair-desk/manifest/tables/items.json'), 'utf8')) as Record<string, unknown>;
-      return JSON.stringify({ ...items, ref, label: { 'en-US': 'Job' }, labelPlural: { 'en-US': 'Jobs' } }, null, 2);
-    };
+    const table = (ref: string): string => tableAs(ref, 'Job');
     script = [
+      writesStarter,
       () => ({ calls: [{ name: 'write_file', arguments: { path: 'apps/repair-desk/manifest/tables/jobs.json', content: table('jobs') } }] }),
       () => ({ calls: [{ name: 'check_app', arguments: {} }] }),
       () => ({ calls: [{ name: 'apply_app', arguments: {} }] }),
@@ -429,7 +443,10 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     const session = created.body['session'] as { id: string };
     const events = await finishedTurn(client, session.id, 1);
     expect(events.at(-1)).toMatchObject({ outcome: 'done' });
-    const steps = events.filter((event) => event.kind === 'step') as unknown as { state: string; label: string }[];
+    // The first reply wrote the starter; the steps looked at here are the ones after it.
+    const steps = (events.filter((event) => event.kind === 'step') as unknown as { state: string; label: string; subject?: string }[]).filter(
+      (step) => !/(items|requests|roles|sample)\.json$/.test(step.subject ?? ''),
+    );
     expect(steps.filter((step) => step.state !== 'running').map((step) => step.label)).toEqual([
       'Wrote manifest/tables/jobs.json',
       'Checked: no errors',

@@ -118,6 +118,43 @@ async function readConfig(base: string, doFetch: Fetch): Promise<{ status: numbe
 // ── running from the project folder ──────────────────────────────────────────
 
 /**
+ * A screen that stops with an error, said to the page that frames it.
+ *
+ * A screen can build and still fail the moment it opens (a hook called after
+ * an early return, a row read as the wrong type): the frame goes blank and
+ * nobody is told. In a bundle `adminium dev` built, and only inside a frame,
+ * the error's first line is posted to the framing page, which is the
+ * Designer's preview: it shows it, and can ask for it to be fixed. A packed
+ * app never posts (`DEV` is false).
+ */
+export function reportErrorsToFrame(target: { addEventListener: Window['addEventListener']; parent: { postMessage(message: unknown, origin: string): void } } | undefined = framed(),
+  dev: boolean = DEV,
+  /** Whether the page shows nothing: only a screen an error left blank is reported, not one that goes on working. */
+  blank: () => boolean = () => (typeof document === 'undefined' ? true : (document.body?.innerText ?? '').trim() === ''),
+  later: (run: () => void) => void = (run) => void setTimeout(run, 150),
+): void {
+  if (!dev || target === undefined) return;
+  const say = (message: unknown): void =>
+    later(() => {
+      if (blank()) post(message);
+    });
+  const post = (message: unknown): void => {
+    const text = (message instanceof Error ? message.message : typeof message === 'string' ? message : 'The screen stopped with an error.').split('\n')[0] ?? '';
+    // The message alone, to whoever frames this page: no row, no key, nothing of the session.
+    target.parent.postMessage({ type: 'adminium:side-error', app: APP_KEY, side: SIDE, message: text.slice(0, 400) }, '*');
+  };
+  target.addEventListener('error', (event) => say((event as ErrorEvent).error ?? (event as ErrorEvent).message));
+  target.addEventListener('unhandledrejection', (event) => say((event as PromiseRejectionEvent).reason));
+}
+
+/** This window, when it is a page inside another's frame. */
+function framed(): Window | undefined {
+  return typeof window !== 'undefined' && window.parent !== window ? window : undefined;
+}
+
+reportErrorsToFrame();
+
+/**
  * Under `adminium dev`: call `listener` when the app was applied again or its
  * screens were rebuilt. With no listener the page reloads, which is what a
  * screen wants while its code is being written.

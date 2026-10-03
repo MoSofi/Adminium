@@ -178,6 +178,8 @@ const echo: DesignerTool = {
   running: (input) => `Reading ${String(input['path'])}`,
   run: async (input) => ({ content: `contents of ${String(input['path'])}`, label: `Read ${String(input['path'])}` }),
 };
+/** A tool that changes the app: a turn that called it is held to the check. */
+const writing: DesignerTool = { ...echo, name: 'write_file', description: 'Write a file.', running: () => 'Writing', run: async () => ({ content: 'Made it.', label: 'Wrote it' }) };
 const asking: DesignerTool = {
   name: 'ask_person',
   description: 'Ask.',
@@ -197,7 +199,10 @@ interface Harness {
   audits: string[];
 }
 
-function harness(steps: Step[], opts: { limits?: Partial<DesignerLimits>; pipeline?: (handle: TurnHandle) => Promise<PipelineResult>; tools?: DesignerTool[] } = {}): Harness {
+function harness(
+  steps: Step[],
+  opts: { limits?: Partial<DesignerLimits>; pipeline?: (handle: TurnHandle) => Promise<PipelineResult>; tools?: DesignerTool[]; problems?: () => string[]; advice?: () => string[] } = {},
+): Harness {
   const model = scripted(steps);
   const h: Harness = {
     model,
@@ -209,7 +214,7 @@ function harness(steps: Step[], opts: { limits?: Partial<DesignerLimits>; pipeli
   h.runner = createDesignerRunner({
     store,
     runnerFor: async () => ({ runner: model }),
-    tools: () => opts.tools ?? [echo, asking],
+    tools: () => opts.tools ?? [echo, writing, asking],
     prompt: async (_session, messages) => ({ system: 'You build apps.', messages }),
     pipeline: async (_session, handle) => {
       h.pipelineRuns += 1;
@@ -218,6 +223,9 @@ function harness(steps: Step[], opts: { limits?: Partial<DesignerLimits>; pipeli
       return { ok: true, version: { n: 1, name: 'v1' } };
     },
     limits: async () => ({ maxSteps: 60, turnTokens: 400_000, sessionTokens: 4_000_000, ...opts.limits }),
+    ...(opts.problems === undefined ? {} : { problems: opts.problems }),
+    ...(opts.advice === undefined ? {} : { advice: opts.advice }),
+    retryWaitsMs: [0, 0],
     publish: (event) => h.published.push(event),
     audit: async (action) => {
       h.audits.push(action);
@@ -411,6 +419,92 @@ describe('a Designer turn', () => {
     await h.runner.settled();
     expect(h.published.find((event) => event.kind === 'error')).toMatchObject({ code: 'auth', provider: 'anthropic', status: 401 });
     expect(finished(h)).toMatchObject({ outcome: 'failed' });
+  });
+
+  it('asks a provider again after a failure in passing, and gives up after the last wait', async () => {
+    const busy = (): ProviderError => new ProviderError({ provider: 'anthropic', code: 'server', status: 500, message: 'anthropic: HTTP 500' });
+    const session = newSession();
+    const h = harness([busy(), busy(), says('Done.')]);
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(3);
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+    expect(kinds(h)).not.toContain('error');
+
+    const second = newSession();
+    const down = harness([busy(), busy(), busy(), says('Never reached.')]);
+    await down.runner.start(second.id, { text: 'go', by: { id: null, label: 'x' } });
+    await down.runner.settled();
+    expect(down.model.requests).toHaveLength(3);
+    expect(down.published.find((event) => event.kind === 'error')).toMatchObject({ code: 'server', status: 500 });
+    expect(finished(down)).toMatchObject({ outcome: 'failed' });
+  });
+
+  it('sends a model that stops with errors left back to them, twice at most', async () => {
+    const session = newSession();
+    let left = ['- apps/repairs/manifest/pages/jobs.json · nav.order · expected number'];
+    const h = harness([calls('write_file'), says('All done!'), calls('read_file'), says('Fixed now.')], {
+      problems: () => {
+        const now = left;
+        // Fixed by the time it is asked again.
+        left = [];
+        return now;
+      },
+    });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(4);
+    expect(h.model.requests[2]?.messages.at(-1)?.content).toEqual([
+      { type: 'text', text: expect.stringMatching(/does not pass the check yet[\s\S]*nav\.order · expected number[\s\S]*check_app and apply_app/) },
+    ]);
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+
+    // Errors that never go away: two reminders, then the engine's verdict. What is merely missing is not brought up while errors stand.
+    const stuck = newSession();
+    const never = harness([calls('write_file'), says('Done.'), says('Done.'), says('Done.'), says('Never reached.')], {
+      problems: () => ['- still wrong'],
+      advice: () => ['- The table "bikes" has no dashboard page: nobody can open it.'],
+      pipeline: async () => ({ ok: false, version: null }),
+    });
+    await never.runner.start(stuck.id, { text: 'go', by: { id: null, label: 'x' } });
+    await never.runner.settled();
+    expect(never.model.requests).toHaveLength(4);
+    expect(JSON.stringify(never.model.requests.at(-1)?.messages)).not.toContain('Before you finish');
+    expect(finished(never)).toMatchObject({ outcome: 'not-applied' });
+  });
+
+  it('leaves a turn that only talked to its words', async () => {
+    const session = newSession();
+    const h = harness([says('Which of the two do you mean?'), says('Never reached.')], { problems: () => ['- apps/repairs/manifest/tables/ · tables · Too small'], pipeline: async () => ({ ok: false, version: null }) });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(1);
+  });
+
+  it('says what the app is short of once in a session, when nothing is wrong with it', async () => {
+    const session = newSession();
+    const advice = () => ['- The table "bikes" has no dashboard page: nobody can open it.'];
+    const h = harness([calls('write_file'), says('Done.'), says('Left out on purpose.'), calls('write_file'), says('Changed.'), says('Never reached.')], { advice });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(3);
+    expect(h.model.requests[2]?.messages.at(-1)?.content).toEqual([{ type: 'text', text: expect.stringMatching(/^Before you finish:\n- The table "bikes" has no dashboard page/) }]);
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+    // The next turn: the same line is not said again.
+    await h.runner.start(session.id, { text: 'rename a label', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(5);
+  });
+
+  it('asks nothing more at the token ceiling, and ends the turn as a limit with nothing left unsent', async () => {
+    const session = newSession();
+    const h = harness([calls('write_file'), says('Done.'), says('Never reached.')], { problems: () => ['- still wrong'], limits: { turnTokens: 150 }, pipeline: async () => ({ ok: false, version: null }) });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(2);
+    expect(kinds(h)).toContain('limit');
+    expect(finished(h)).toMatchObject({ outcome: 'limit' });
+    expect(JSON.stringify(store.messages(session.id))).not.toContain('does not pass the check yet');
   });
 
   it('reports a turn the engine refused as not applied', async () => {

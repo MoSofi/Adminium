@@ -54,6 +54,8 @@ export interface PipelineResult {
   ok: boolean;
   /** The version saved, or null (versions off, or not applied). */
   version: { n: number; name: string } | null;
+  /** Applied, and something is not as the files asked: a page written with nothing to show. */
+  warnings?: string[];
 }
 
 export interface RunnerDeps {
@@ -64,6 +66,20 @@ export interface RunnerDeps {
   tools(session: DesignerSession): DesignerTool[];
   /** What the model is told, and the transcript as it fits the model's window. */
   prompt(session: DesignerSession, messages: RunMessage[]): Promise<{ system: string; messages: RunMessage[] }>;
+  /**
+   * What the check says is wrong with the app now, one line per error. Asked
+   * when the model says it is finished: a model that stops with errors left
+   * is told them and goes on, instead of the turn ending "not applied".
+   */
+  problems?(session: DesignerSession): string[];
+  /**
+   * What the app is short of that the check does not count as an error (a
+   * table nobody can open). Said once, when the model says it is finished
+   * and the check has nothing left.
+   */
+  advice?(session: DesignerSession): string[];
+  /** How long to wait before asking a provider again after it failed in passing; one entry per try. */
+  retryWaitsMs?: readonly number[];
   /** The engine's last word: check, build, apply, and save a version. Emits its own events. */
   pipeline(session: DesignerSession, turn: TurnHandle): Promise<PipelineResult>;
   limits(): Promise<DesignerLimits>;
@@ -98,6 +114,30 @@ export interface DesignerRunner {
 
 /** Calls in a row whose arguments could not be read, before the turn gives up. */
 export const MAX_REPAIRS = 2;
+/** How many times a turn's model is sent back to errors it left behind. */
+export const MAX_NUDGES = 2;
+/** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
+export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
+/** The tools that change, check or apply the app. */
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape']);
+const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
+
+/** Wait, unless the turn is stopped first. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal.aborted || ms <= 0) {
+      resolve();
+      return;
+    }
+    const done = (): void => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal.addEventListener('abort', done, { once: true });
+  });
+}
 
 interface Running {
   sessionId: string;
@@ -179,6 +219,10 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let tokensOut = 0;
     let unreadable = 0;
     let continued = false;
+    let nudges = 0;
+    /** Whether this turn changed, checked or applied anything: only then is it held to the check. */
+    let acted = false;
+    const waits = deps.retryWaitsMs ?? RETRY_WAITS_MS;
     let limit: { which: LimitKind; value: number } | null = null;
 
     try {
@@ -193,21 +237,32 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         const transcript = joinUserMessages(closeDangling(deps.store.messages(session.id).map((entry) => entry.message)));
         const request = await deps.prompt(session, transcript);
         let result: RunResult;
-        try {
-          result = await runner.run({
-            system: request.system,
-            messages: request.messages,
-            tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
-            model: session.model,
-            maxTokens: maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-            signal,
-            onEvent: (event) => {
-              if (event.type === 'text') log.text(turn, event.delta);
-            },
-          });
-        } catch (error) {
-          if (error instanceof ProviderError && error.code === 'aborted') throw new TurnStoppedError();
-          throw error;
+        for (let attempt = 0; ; attempt += 1) {
+          let said = false;
+          try {
+            result = await runner.run({
+              system: request.system,
+              messages: request.messages,
+              tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
+              model: session.model,
+              maxTokens: maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+              signal,
+              onEvent: (event) => {
+                if (event.type !== 'text') return;
+                said = true;
+                log.text(turn, event.delta);
+              },
+            });
+            break;
+          } catch (error) {
+            if (error instanceof ProviderError && error.code === 'aborted') throw new TurnStoppedError();
+            // A provider that failed in passing is asked again, as long as nothing of this reply reached the page.
+            const wait = waits[attempt];
+            if (!(error instanceof ProviderError) || !PASSING.has(error.code) || said || wait === undefined) throw error;
+            deps.log?.(`the Designer's model failed in passing (${error.code}); asking again`);
+            await pause(wait, signal);
+            if (signal.aborted) throw new TurnStoppedError();
+          }
         }
         steps += 1;
 
@@ -235,8 +290,33 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           if (result.stop === 'refused') {
             log.emit(turn, { kind: 'error', code: 'refused', message: 'The model declined to answer this.' });
             outcome = 'failed';
+            break;
           }
-          break;
+          // It says it is finished. A turn that only talked (a question, "this needs no app") is left to its words.
+          if (!acted) break;
+          const errors = deps.problems?.(session) ?? [];
+          // What it was already told, this turn or an earlier one, is not said again.
+          const told = deps.store.messages(session.id).flatMap((entry) => (entry.message.role === 'user' ? entry.message.content.flatMap((block) => (block.type === 'text' ? block.text.split('\n') : [])) : []));
+          const missing = errors.length > 0 ? [] : (deps.advice?.(session) ?? []).filter((line) => !told.includes(line));
+          const sendBack =
+            errors.length > 0 && nudges < MAX_NUDGES
+              ? `The app does not pass the check yet, so nothing is applied:\n${errors.slice(0, 12).join('\n')}\nFix these, then check_app and apply_app.`
+              : missing.length > 0
+                ? `Before you finish:\n${missing.slice(0, 12).join('\n')}\nAdd what is missing, then check_app and apply_app. If one of these is left out on purpose, say so in a sentence and finish.`
+                : null;
+          if (sendBack === null) break;
+          // At a ceiling nothing more is asked: the turn ends as a limit, and nothing is left unsent in the transcript.
+          if (turnTokens >= limits.turnTokens) {
+            limit = { which: 'turn-tokens', value: limits.turnTokens };
+            break;
+          }
+          if (sessionTokens >= limits.sessionTokens) {
+            limit = { which: 'session-tokens', value: limits.sessionTokens };
+            break;
+          }
+          if (errors.length > 0) nudges += 1;
+          deps.store.appendMessage(session.id, turn, { role: 'user', content: [{ type: 'text', text: sendBack }] });
+          continue;
         }
 
         const malformed = new Map(result.malformed.map((entry) => [entry.id, entry]));
@@ -253,6 +333,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `There is no tool "${call.name}". The tools are: ${tools.map((candidate) => candidate.name).join(', ')}.` });
             continue;
           }
+          if (ACTING.has(tool.name)) acted = true;
           const stepId = `${String(turn)}.${String(steps)}.${call.id}`;
           const started = now();
           const subject = stepSubject(call.input);

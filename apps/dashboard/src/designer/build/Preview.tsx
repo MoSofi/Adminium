@@ -63,6 +63,18 @@ function failedTitle(side: PreviewSide): string {
   }
 }
 
+function crashedTitle(side: PreviewSide): string {
+  return side === 'staff'
+    ? t('designer:preview.crashedStaff', 'The staff screen stopped with an error.')
+    : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
+}
+
+/** The side a build's own words name ("Could not build the customer side of …"), whichever one is being looked at. */
+export function sideNamed(problem: string): PreviewSide | null {
+  const found = /\bthe (staff|customer) side\b/.exec(problem);
+  return found === null ? null : (found[1] as PreviewSide);
+}
+
 /** The last turn's state for the preview: still building, or a build that failed with its first line. */
 export function previewState(turns: readonly TurnView[]): { building: boolean; failed: string | null } {
   const last = turns.at(-1);
@@ -71,8 +83,13 @@ export function previewState(turns: readonly TurnView[]): { building: boolean; f
     const running = last.steps.some((row) => row.state === 'running' && (row.tool === 'build_sides' || row.tool === 'apply_app'));
     return { building: running, failed: null };
   }
-  const broken = [...last.steps].reverse().find((row) => row.state === 'failed' && (row.tool === 'build' || row.tool === 'build_sides'));
-  return { building: false, failed: broken === undefined ? null : (broken.detail?.split('\n')[0] ?? '') };
+  // The turn's LAST build decides: one that failed and was then fixed is no longer what the preview shows.
+  const final = [...last.steps].reverse().find((row) => row.tool === 'build' || row.tool === 'build_sides');
+  if (final === undefined || final.state !== 'failed') return { building: false, failed: null };
+  // The first line names the side; the next says what is wrong with it.
+  const lines = (final.detail ?? '').split('\n').filter((line) => line.trim() !== '');
+  const named = /^Could not build the /.test(lines[0] ?? '');
+  return { building: false, failed: lines.slice(0, named ? 2 : 1).join('\n') };
 }
 
 export function Preview({ session, turns, onFix, compact }: { session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void; compact: boolean }): ReactNode {
@@ -117,7 +134,25 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
     return () => client.stop();
   }, [queryClient, session.appKey]);
 
-  const state = previewState(turns);
+  const built = previewState(turns);
+  // A screen that built and then stopped as it opened says so from inside its frame (dev bundles only).
+  const [crashed, setCrashed] = useState<{ side: PreviewSide; message: string; round: number } | null>(null);
+  const previewOrigin = ticket.data?.origin ?? null;
+  useEffect(() => {
+    const heard = (event: MessageEvent): void => {
+      if (previewOrigin === null || event.origin !== previewOrigin) return;
+      // From a frame of this page, not from any window that happens to share the preview's address.
+      if (!Array.from(document.querySelectorAll('iframe')).some((frame) => frame.contentWindow === event.source)) return;
+      const data = event.data as { type?: unknown; app?: unknown; side?: unknown; message?: unknown } | null;
+      if (data?.type !== 'adminium:side-error' || data.app !== session.appKey) return;
+      if (data.side !== 'staff' && data.side !== 'customer') return;
+      setCrashed({ side: data.side, message: typeof data.message === 'string' ? data.message.slice(0, 400) : '', round });
+    };
+    window.addEventListener('message', heard);
+    return () => window.removeEventListener('message', heard);
+  }, [previewOrigin, session.appKey, round]);
+  const crash = crashed !== null && crashed.round === round && crashed.side === side ? crashed : null;
+  const state = { building: built.building, failed: built.failed ?? (crash === null ? null : crash.message) };
   const openTab = (): void => {
     // Opened now, filled when the ticket arrives: a window opened after a wait is a blocked pop-up.
     const tab = window.open('', '_blank');
@@ -253,7 +288,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
                 <span aria-hidden="true" className="flex size-[34px] items-center justify-center rounded-[10px] bg-danger-soft text-danger">
                   <Hammer className="size-[17px]" />
                 </span>
-                <span className="text-[15px] font-extrabold tracking-tight">{failedTitle(side)}</span>
+                <span className="text-[15px] font-extrabold tracking-tight">{built.failed === null && crash !== null ? crashedTitle(crash.side) : failedTitle(sideNamed(state.failed) ?? side)}</span>
               </div>
               {state.failed === '' ? null : (
                 <code dir="ltr" className="adm-always-dark block whitespace-pre-wrap break-words rounded-[10px] bg-bg px-3 py-2.5 text-start font-mono text-xs leading-normal text-danger">
@@ -262,7 +297,13 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
               )}
               <button
                 type="button"
-                onClick={() => onFix(t('designer:preview.fixMessage', 'The screens did not build: {error} Please fix it.', { error: state.failed ?? '' }))}
+                onClick={() =>
+                  onFix(
+                    built.failed === null && crash !== null
+                      ? t('designer:preview.fixCrashMessage', 'The screen builds, and stops with an error when it opens: {error} Please fix it.', { error: `the ${crash.side} screen reported “${crash.message}”` })
+                      : t('designer:preview.fixMessage', 'The screens did not build: {error} Please fix it.', { error: state.failed ?? '' }),
+                  )
+                }
                 className="inline-flex items-center gap-1.5 self-start rounded-[10px] bg-accent px-3 py-2 text-[12.5px] font-bold text-accent-fg hover:brightness-105"
               >
                 <WandSparkles aria-hidden="true" className="size-3.5" />

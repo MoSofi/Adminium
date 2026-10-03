@@ -203,6 +203,8 @@ export { addOnsSchema, namedAddOns, requiresAddOn, type AddOnNeeds } from './add
 export { appDocumentSchema, slotMappingSchema, type AppDocument, type SlotMapping } from './documents.js';
 
 export {
+  mapRules as mapShapeRules,
+  mapStates as mapShapeStates,
   shapeConformanceIssues,
   shapeKey,
   type ShapeColumn,

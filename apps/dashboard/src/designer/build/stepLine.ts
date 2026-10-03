@@ -49,6 +49,11 @@ export function stepLine(row: StepRow): string {
       return running ? t('designer:step.reading', 'Reading {subject}', S) : t('designer:step.read', 'Read {subject}', S);
     case 'list_add_ons':
       return running ? t('designer:step.addOns', 'Looking at the add-ons') : t('designer:step.addOnsDone', 'Looked at the add-ons');
+    case 'add_side':
+      return running ? t('designer:step.side', 'Adding screens') : t('designer:step.sideDone', 'Added screens');
+    case 'build_on_shape':
+      if (running) return t('designer:step.shape', 'Building on an add-on');
+      return row.state === 'failed' ? t('designer:step.shapeFailed', 'Could not build on the add-on') : t('designer:step.shapeDone', 'Built on an add-on');
     case 'ask_person':
       return running ? t('designer:step.asking', 'Asking you') : t('designer:step.answered', 'You answered');
     case 'request_package':

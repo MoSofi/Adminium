@@ -482,17 +482,18 @@ export function createFakeLlmServer() {
  *
  * Stateless like the rest of this file: the step is the number of tool
  * results since the person's last message. The build check (a request that
- * offers the `echo` tool) calls it once and then answers. A turn writes one
- * table part, checks the app, applies it and says so.
+ * offers the `echo` tool) calls it once and then answers. A turn writes the
+ * app's files in one reply, checks the app, applies it and says so.
  *
- * `tablePart(ref)` gives the table file's text: the spec reads it from the
- * starter app, so the part is always one this build accepts.
+ * `files` is what it writes, by path inside the app's folder: a new app is
+ * bare, so the spec gives a table, its page and the role's grants.
  */
-export function createDesignerModelServer({ appKey, tablePart }) {
+export function createDesignerModelServer({ appKey, files }) {
   const line = (res, value) => res.write(`${JSON.stringify(value)}\n`);
   const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 900, eval_count: 40, message: { role: 'assistant', content: '' } };
   const say = (res, content) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content } });
-  const call = (res, name, args) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name, arguments: args } }] } });
+  const calls = (res, made) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: made.map(([name, args]) => ({ function: { name, arguments: args } })) } });
+  const call = (res, name, args) => calls(res, [[name, args]]);
   return createServer((req, res) => {
     const url = String(req.url ?? '');
     if (req.method === 'GET' && url.startsWith('/api/tags')) {
@@ -523,9 +524,11 @@ export function createDesignerModelServer({ appKey, tablePart }) {
         if (message.role === 'user') lastUser = index;
       });
       const step = messages.slice(lastUser + 1).filter((message) => message.role === 'tool').length;
-      if (step === 0) call(res, 'write_file', { path: `apps/${appKey}/manifest/tables/jobs.json`, content: tablePart('jobs') });
-      else if (step === 1) call(res, 'check_app', {});
-      else if (step === 2) call(res, 'apply_app', {});
+      // A new app is bare: the first reply writes its files, all at once.
+      const written = Object.keys(files).length;
+      if (step === 0) calls(res, Object.entries(files).map(([file, content]) => ['write_file', { path: `apps/${appKey}/${file}`, content }]));
+      else if (step === written) call(res, 'check_app', {});
+      else if (step === written + 1) call(res, 'apply_app', {});
       else say(res, 'The app has a jobs table now. It is applied and saved.');
       line(res, done);
       res.end();

@@ -52,16 +52,35 @@ export function examplesAt(turn: number): Example[] {
   return Array.from({ length: SHOWN }, (_value, index) => EXAMPLES[(turn * SHOWN + index) % EXAMPLES.length] as Example);
 }
 
-/** A name for a new app, from what was asked: "A repair shop: …" → "Repair shop". */
+/** How a request opens: the asking, which says nothing about the app. "Design" only where it is the verb. */
+const ASKING = /^(please|can you|could you|i want|i need|i would like|i'd like|we want|we need|make|build|create|give|design(?=\s+(me|us|a|an|the)\b)|me|us)\s+/i;
+/** Then the words between the asking and the thing itself: an article, "an app for", "a small". */
+const FILLER = /^(a|an|the|my|our|small|simple|little|adminium|(app|application|system|tool)\s+(for|to|that|which))\s+/i;
+/** Words a name cannot end on. */
+const DANGLING = /\s+(a|an|the|for|of|my|our|with|and|to|in|on|at|that|where|which|who)$/i;
+
+/** Take `pattern` off the front until it no longer matches. */
+function strip(text: string, pattern: RegExp): string {
+  for (let before = ''; before !== text; ) {
+    before = text;
+    text = text.replace(pattern, '');
+  }
+  return text;
+}
+
+/** A name for a new app, from what was asked: "Create an app for a small bike repair shop. …" → "Bike repair shop". */
 export function nameFromRequest(text: string): string {
-  const head = (text.split(/[:.!?\n]/)[0] ?? '').trim();
-  const words = head
-    .replace(/^(a|an|the|i want|i need|make|build|create)\s+/i, '')
-    .replace(/^(a|an|the)\s+/i, '')
+  const head = strip(strip((text.split(/[:!?\n(—–，。！？：]|\.(\s|$)| - /)[0] ?? '').trim(), ASKING), FILLER);
+  let name = head
     .split(/\s+/)
     .filter((word) => word !== '')
-    .slice(0, 4);
-  const name = words.join(' ').replace(/[^\p{L}\p{N} &'-]/gu, '').trim();
-  if (name === '') return 'My app';
-  return (name.charAt(0).toUpperCase() + name.slice(1)).slice(0, 60);
+    .slice(0, 5)
+    .join(' ')
+    .replace(/[^\p{L}\p{N} &'’-]/gu, '')
+    .trim();
+  name = strip(name, DANGLING);
+  if (name === '' || /^(app|application|system|tool)$/i.test(name) || FILLER.test(`${name} `)) return 'My app';
+  // By whole characters: a name is never cut through one.
+  const marks = [...name];
+  return [(marks[0] ?? '').toUpperCase(), ...marks.slice(1)].join('').slice(0, 60).replace(/[\uD800-\uDBFF]$/, '');
 }

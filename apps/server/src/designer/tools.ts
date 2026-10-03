@@ -7,20 +7,26 @@
  *   check_app         the engine's check of the app, as `adminium app check`
  *   build_sides       the app's screens, built
  *   apply_app         check, build and apply, as `adminium dev` does on a save
- *   run_tests         the app's own tests, if it has any
+ *   run_tests         the app's own tests, if it has any, once the person says yes
  *   read_reference    one file of the skills
  *   list_add_ons      the add-ons this server has or can get
+ *   add_side          the starter's screen for a side, to rewrite
+ *   build_on_shape    the tables and emails of an add-on's shape, from its manifest
  *   ask_person        a question for the person, and their answer
  *   request_package   an npm package, installed only when the person says yes
  *
- * No shell, no network, no web. A bad input is an answer the model can read
- * and fix, never a crash of the turn.
+ * No shell and no web. What the model writes is still code: the app's tests,
+ * and the project's hooks/ and actions/, run as the person. So tests run, and
+ * server code is written, only after the person said yes in that turn. A bad
+ * input is an answer the model can read and fix, never a crash of the turn.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 import { checkApp } from '../project/apps/check-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
+import { addSide, nameFromKey, PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
+import { shapeParts } from '../project/apps/shape-parts.js';
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { projectPackageManager } from '../project/package-manager.js';
@@ -46,6 +52,8 @@ export interface AddOnLine {
   version: string;
   line: string;
   state: 'installed' | 'available';
+  /** The shapes an app can build tables on: `invoice@1`. */
+  shapes?: string[];
 }
 
 export interface ToolsDeps {
@@ -54,6 +62,8 @@ export interface ToolsDeps {
   designer: () => Designer;
   skills: Skills;
   listAddOns: () => Promise<AddOnLine[]>;
+  /** An add-on's manifest, installed or in this server's store; null when it is neither. */
+  readAddOn?: (key: string) => Promise<unknown>;
 }
 
 const text = (content: string, label: string, extra: Partial<ToolOutcome> = {}): ToolOutcome => ({ content, label, ...extra });
@@ -68,10 +78,25 @@ const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 /** An exact version: no range, no tag, no URL. */
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
+/** The React an app's screens are built with here. */
+export const DESIGNER_REACT_VERSION = '19.2.0';
+
+/**
+ * The packages a screen needs, at the one version this server knows is right.
+ * A model guesses versions (the evaluation saw six for the public client); for
+ * these the guess is replaced, so the person is asked once, for the right one.
+ */
+export function knownPackageVersion(name: string, serverVersion: string): string | null {
+  if (name === PUBLIC_CLIENT_PACKAGE) return serverVersion;
+  if (name === 'react' || name === 'react-dom') return DESIGNER_REACT_VERSION;
+  return null;
+}
+
 /** An app manifest's own build command is set by a person (D33): refused when the model writes one. */
 function addsBuildCommand(path: string, content: string, appKey: string): boolean {
   const manifestFiles = [`apps/${appKey}/manifest/app.json`, `apps/${appKey}/manifest.json`];
-  if (!manifestFiles.includes(path)) return false;
+  // Folded: on a disk that ignores case, APP.JSON is app.json.
+  if (!manifestFiles.includes(path.normalize('NFC').toLowerCase())) return false;
   try {
     const parsed = JSON.parse(content) as Record<string, unknown>;
     return parsed !== null && typeof parsed === 'object' && 'build' in parsed;
@@ -79,6 +104,42 @@ function addsBuildCommand(path: string, content: string, appKey: string): boolea
     // Not JSON: the check will say so.
     return false;
   }
+}
+
+/** Why a `.json` file's text does not read, or null. Said at the write, a step before the check would. */
+function jsonProblem(path: string, content: string): string | null {
+  if (!path.endsWith('.json')) return null;
+  try {
+    JSON.parse(content);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/** A file this small is shown whole when an edit misses it. */
+const SHOWN_ON_MISS = 4000;
+
+/** The pieces of `text` that are `piece` but for their spacing: spaces and line ends may differ anywhere. */
+export function looseMatches(text: string, piece: string): string[] {
+  const marks = [...piece].filter((mark) => !/\s/.test(mark));
+  if (marks.length < 4 || marks.length > 4000) return [];
+  const pattern = new RegExp(marks.map((mark) => mark.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*'), 'g');
+  return [...text.matchAll(pattern)].map((found) => found[0]);
+}
+
+/** How much of an index is handed back for a name that is not there. */
+const INDEX_ANSWER_BYTES = 4500;
+
+/** The index of the nearest folder a missing name sits in: `…/references/<area>/INDEX.md`, then the skill's own. */
+function nearestIndex(skills: Skills, name: string): { skill: string; text: string } | null {
+  const parts = name.split('/').filter((part) => part !== '');
+  const skill = parts[0] ?? '';
+  for (let depth = parts.length - 1; depth >= 1; depth -= 1) {
+    const text = skills.read([...parts.slice(0, depth), 'INDEX.md'].join('/'));
+    if (text !== null) return { skill, text: text.slice(0, INDEX_ANSWER_BYTES) };
+  }
+  return null;
 }
 
 export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTool[] {
@@ -99,6 +160,37 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       throw error;
     }
   };
+
+  let lastErrors = '';
+  let sameErrors = 0;
+  let testsAllowed = false;
+  let serverCode: 'unasked' | 'allowed' | 'refused' = 'unasked';
+  const RUN_THEM = 'Run them';
+  const ALLOW_IT = 'Allow it';
+
+  /**
+   * `hooks/` and `actions/` are code the server itself runs. The model may
+   * write there only once the person said so, asked once a turn; the answer
+   * to a refusal is a sentence the model can act on.
+   */
+  async function serverCodeRefusal(path: string, ctx: ToolContext): Promise<ToolOutcome | null> {
+    let normal: string;
+    try {
+      normal = jail.normalise(path);
+    } catch {
+      return null; // The jail says what is wrong with the path.
+    }
+    if (!/^(hooks|actions)\//i.test(normal)) return null;
+    if (serverCode === 'unasked') {
+      const answer = await ctx.ask({
+        type: 'question',
+        question: `Let the Designer write server code (${normal})? Files in hooks/ and actions/ run inside your server, with everything it can reach.`,
+        choices: [ALLOW_IT, 'Do not allow it'],
+      });
+      serverCode = answer.type === 'question' && answer.text === ALLOW_IT ? 'allowed' : 'refused';
+    }
+    return serverCode === 'allowed' ? null : refused('The person did not allow server code (hooks/, actions/) in this turn. Do it with the manifest, or say what cannot be done without it.', 'Server code not allowed');
+  }
 
   const tools: DesignerTool[] = [
     {
@@ -169,15 +261,19 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       description: 'Write a whole text file (made if it does not exist, replaced if it does).',
       inputSchema: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'], additionalProperties: false },
       running: (input) => `Writing ${shown(String(input['path'] ?? ''))}`,
-      run: async (input) => {
+      run: async (input, ctx) => {
         const path = str(input, 'path');
         const content = str(input, 'content');
         if (path === null || content === null) return refused('Give "path" and "content".', 'Wrote nothing');
+        const notAllowed = await serverCodeRefusal(path, ctx);
+        if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
           if (addsBuildCommand(normal, content, appKey)) {
             return refused('An app’s own build command is set by a person, never written here. Leave "build" out of app.json.', `Refused ${shown(path)}`);
           }
+          const unread = jsonProblem(normal, content);
+          if (unread !== null) return refused(`That is not valid JSON, and nothing was written: ${unread}. Send the whole file again.`, `Could not write ${shown(path)}`);
           const existed = existsSync(jail.resolve(path, 'write'));
           jail.write(path, content);
           return text(`${existed ? 'Replaced' : 'Made'} ${normal} (${String(Buffer.byteLength(content, 'utf8'))} bytes).`, `Wrote ${shown(path)}`);
@@ -194,24 +290,41 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         additionalProperties: false,
       },
       running: (input) => `Editing ${shown(String(input['path'] ?? ''))}`,
-      run: async (input) => {
+      run: async (input, ctx) => {
         const path = str(input, 'path');
         const before = str(input, 'old');
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
+        const notAllowed = await serverCodeRefusal(path, ctx);
+        if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
-          const count = current.split(before).length - 1;
+          let piece = before;
+          let count = current.split(piece).length - 1;
+          if (count === 0) {
+            // A model rarely copies spaces and line ends exactly: the same words with other spacing are the same piece.
+            const loose = looseMatches(current, before);
+            if (loose.length === 1) piece = loose[0] as string;
+            count = loose.length;
+          }
           if (count !== 1) {
+            // With the file in the answer, the next call can be right without a read in between.
+            const now = current.length <= SHOWN_ON_MISS ? ` The file is now:\n${current}` : ' Read the file and copy the piece exactly.';
             return refused(
-              count === 0 ? `"old" is not in ${path}. Read the file and copy the piece exactly.` : `"old" is in ${path} ${String(count)} times. Give more of it, so it is there once.`,
+              count === 0 ? `"old" is not in ${path}.${now}` : `"old" is in ${path} ${String(count)} times. Give more of it, so it is there once.`,
               `Could not edit ${shown(path)}`,
             );
           }
-          const next = current.replace(before, () => after);
+          // A piece found by its words keeps the spacing it has in the file: what was not matched is not written twice.
+          const fitted = piece === before ? after : after.trim();
+          const next = current.replace(piece, () => fitted);
           const normal = jail.normalise(path);
           if (addsBuildCommand(normal, next, appKey)) {
             return refused('An app’s own build command is set by a person, never written here. Leave "build" out of app.json.', `Refused ${shown(path)}`);
+          }
+          const unread = jsonProblem(normal, next);
+          if (unread !== null) {
+            return refused(`With that change the file is not valid JSON, so it was left as it was: ${unread}. Mind the commas around what you add.`, `Could not edit ${shown(path)}`);
           }
           jail.write(path, next);
           return text(`Edited ${normal}.`, `Edited ${shown(path)}`);
@@ -223,9 +336,11 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       description: 'Delete one file.',
       inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false },
       running: (input) => `Deleting ${shown(String(input['path'] ?? ''))}`,
-      run: async (input) => {
+      run: async (input, ctx) => {
         const path = str(input, 'path');
         if (path === null) return refused('Give the "path" to delete.', 'Deleted nothing');
+        const notAllowed = await serverCodeRefusal(path, ctx);
+        if (notAllowed !== null) return notAllowed;
         return jailed(`Could not delete ${shown(path)}`, () => {
           jail.delete(path);
           return text(`Deleted ${jail.normalise(path)}.`, `Deleted ${shown(path)}`);
@@ -245,6 +360,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const lines = findings.slice(0, 40).map((finding) => `${finding.level} · ${finding.file}${finding.path === '' ? '' : ` · ${finding.path}`} · ${finding.message}`);
         if (findings.length > 40) lines.push(`… and ${String(findings.length - 40)} more.`);
         const head = errors === 0 ? 'No errors.' : `${String(errors)} error${errors === 1 ? '' : 's'}.`;
+        // The same errors, check after check: the model is going round, and is told to stop.
+        const said = errors === 0 ? '' : lines.filter((line) => line.startsWith('error')).join('\n');
+        sameErrors = said !== '' && said === lastErrors ? sameErrors + 1 : 0;
+        lastErrors = said;
+        if (sameErrors >= 2) {
+          lines.push(
+            `These are the same errors as the last ${String(sameErrors)} checks: what you changed did not touch them. Do not check again yet. Read the file the error names, read the reference for that field, and write the whole file again; or ask the person.`,
+          );
+        }
         return {
           content: [head, ...lines].join('\n'),
           label: errors === 0 ? 'Checked: no errors' : `Checked: ${String(errors)} error${errors === 1 ? '' : 's'}`,
@@ -294,6 +418,22 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           },
         };
         const result = await deps.designer().pipeline(ctx.session, watching, { version: false });
+        if (result.ok && (result.warnings ?? []).length > 0) {
+          // Applied, and a page of it shows nothing: said as a failure, so it is fixed before the turn ends.
+          const lines = (result.warnings ?? []).join('\n');
+          const rules = [
+            /page-board/.test(lines)
+              ? 'A page-board needs a choice column (enum) of two to six values, at least two of them words Adminium knows as steps: todo, backlog, open, new, draft, in_progress, doing, review, blocked, on_hold, done, completed, closed, cancelled, archived, active, paused, shipped. Use those as the values and say your own words in rules.enumLabels ({"labels": {"in_progress": "Baking"}}).'
+              : '',
+            /page-calendar/.test(lines) ? 'A page-calendar needs a date or timestamptz column.' : '',
+          ].filter((rule) => rule !== '');
+          return {
+            content: `Applied, but not all of it is as the files ask:\n${lines}\n${rules.join(' ')} Fix the page or its table (or make the page a "page-crud"), then apply again. Applying again without a change does not fix it.`,
+            label: 'Applied, with a page that shows nothing',
+            isError: true,
+            detail: lines,
+          };
+        }
         return result.ok
           ? text('Applied. The app on this server is what the folder says.', 'Applied the app')
           : { content: said || 'It was not applied.', label: 'Not applied', isError: true, detail: said.split('\n').slice(0, 3).join('\n') };
@@ -308,6 +448,16 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const folder = join(deps.root, APPS_DIR, appKey, 'tests');
         const files = existsSync(folder) ? readdirSync(folder).filter((name) => /\.test\.m?js$/.test(name)).sort() : [];
         if (files.length === 0) return text(`This app has no tests (files named *.test.mjs under apps/${appKey}/tests/).`, 'No tests to run');
+        // The tests are code the model wrote, and they run as the person: nothing runs without a yes, asked once a turn.
+        if (!testsAllowed) {
+          const answer = await ctx.ask({
+            type: 'question',
+            question: `Run this app’s tests? They are code the Designer wrote (apps/${appKey}/tests/), and they run on this machine with your access.`,
+            choices: [RUN_THEM, 'Do not run them'],
+          });
+          if (answer.type !== 'question' || answer.text !== RUN_THEM) return text('The person said not to run the tests. Go on without them.', 'Tests not run');
+          testsAllowed = true;
+        }
         const result = await runChild(process.execPath, ['--test', ...files.map((name) => `apps/${appKey}/tests/${name}`)], {
           cwd: deps.root,
           timeoutMs: TESTS_TIMEOUT_MS,
@@ -329,8 +479,12 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const name = (str(input, 'name') ?? '').replace(/^skills\//, '').replace(/^references\//, '');
         const found = deps.skills.read(name);
         if (found === null) {
-          const near = deps.skills.names().filter((candidate) => candidate.endsWith(name.split('/').pop() ?? '\0')).slice(0, 5);
-          return refused(`There is no skill file "${name}".${near.length > 0 ? ` Did you mean: ${near.join(', ')}?` : ' Read a skill’s references/INDEX.md for the names.'}`, 'No such reference');
+          // A guessed name: answer with the index of the folder it guessed in, so the next call is right.
+          const index = nearestIndex(deps.skills, name);
+          return refused(
+            `There is no skill file "${name}".${index === null ? ' Read a skill’s references/INDEX.md for the names.' : ` The files there are listed below; give read_reference one of these names, with "${index.skill}/" in front.\n\n${index.text}`}`,
+            'No such reference',
+          );
         }
         return text(found, `Read ${name}`);
       },
@@ -342,8 +496,152 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       running: () => 'Looking at the add-ons',
       run: async () => {
         const all = await deps.listAddOns();
-        if (all.length === 0) return text('This server has no add-ons, and none it can get without the network.', 'No add-ons here');
-        return text(all.map((addOn) => `${addOn.key} ${addOn.version} (${addOn.state}) — ${addOn.name}: ${addOn.line}`).join('\n'), `Found ${String(all.length)} add-ons`);
+        if (all.length === 0) {
+          return text(
+            'This server has no add-ons, and its online add-on catalogue is off. An app that requires an add-on is not applied here until the person switches the catalogue on (Studio → Add-ons) or uploads the add-on there. Say that before you build on one; if they asked for one by name, build the app to require it and tell them this is the one step left to them.',
+            'No add-ons here',
+          );
+        }
+        return text(
+          all
+            .map(
+              (addOn) =>
+                `${addOn.key} ${addOn.version} (${addOn.state}) — ${addOn.name}: ${addOn.line}${(addOn.shapes ?? []).length === 0 ? '' : ` Shapes to build tables on with build_on_shape: ${(addOn.shapes ?? []).join(', ')}.`}`,
+            )
+            .join('\n'),
+          `Found ${String(all.length)} add-ons`,
+        );
+      },
+    },
+    {
+      name: 'add_side',
+      description:
+        'Give the app screens of its own for one side: "staff" (people who sign in) or "customer" (public, nobody signed in). Writes a working starter screen (src/main.tsx, src/App.tsx, src/app.css) and declares the side in app.json. The starter screen lists and adds rows of tables named "items" and "requests": rewrite src/App.tsx for this app’s own tables, keeping the way it loads, lists, sends and reports errors. A customer screen reaches only what manifest/access.json grants: write that file too.',
+      inputSchema: { type: 'object', properties: { side: { type: 'string', enum: ['staff', 'customer'] } }, required: ['side'], additionalProperties: false },
+      running: (input) => `Adding the ${String(input['side'] ?? '')} side`,
+      run: async (input) => {
+        const side = str(input, 'side');
+        if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff" or "customer".', 'Added no side');
+        return jailed(`Could not add the ${side} side`, () => {
+          // Through the jail's own door, so the folder is one the Designer may write.
+          jail.resolve(`apps/${appKey}/${side}/src/App.tsx`, 'write');
+          // The app's own name, as app.json has it: a key loses what a name had ("Bakery's").
+          let name = nameFromKey(appKey);
+          try {
+            const app = JSON.parse(readFileSync(jail.resolve(`apps/${appKey}/manifest/app.json`, 'read'), 'utf8')) as { name?: unknown };
+            if (typeof app.name === 'string' && app.name.trim() !== '') name = app.name;
+          } catch {
+            // The key's words will do.
+          }
+          let written: string[];
+          try {
+            written = addSide({ root: deps.root, key: appKey, name, side });
+          } catch (error) {
+            return refused(error instanceof Error ? error.message : String(error), `Could not add the ${side} side`);
+          }
+          if (written.length === 0) return text(`The ${side} side is already there: edit apps/${appKey}/${side}/src/App.tsx.`, `The ${side} side is there`);
+          return text(
+            `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json${side === 'staff' ? ', and each role may open it (app:@:staff)' : ''}. Now read apps/${appKey}/${side}/src/App.tsx and write it again for this app’s tables${side === 'customer' ? ', and write manifest/access.json with what customers may read and add' : ''}. Then build_sides.`,
+            `Added the ${side} side`,
+          );
+        });
+      },
+    },
+    {
+      name: 'build_on_shape',
+      description:
+        'Write the tables an app builds on an add-on’s shape (e.g. add_on "invoices", shape "invoice@1"): every part’s table with its exact columns, rules and states, the tables of other shapes it points at, the outbox table and emails.json when the shape sends email, and add-ons.json. Never write these by hand: the install refuses any difference. When the shape sends email, first write the app’s own table of people (with an email column) and give it as "recipient". Afterwards add your own columns, the pages and the role’s grants.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          add_on: { type: 'string', description: 'The add-on’s key, as list_add_ons gives it.' },
+          shape: { type: 'string', description: 'The shape and its version: invoice@1' },
+          recipient: {
+            type: 'object',
+            description: 'Who the shape’s emails go to: a table of this app, its email column, and its name column.',
+            properties: { table: { type: 'string' }, email: { type: 'string' }, name: { type: 'string' } },
+            required: ['table', 'email'],
+            additionalProperties: false,
+          },
+          tables: { type: 'object', description: 'Optional table names by part, e.g. {"invoice@1/payments": "payments"}. The rest are named for you.', additionalProperties: { type: 'string' } },
+          outbox_table: { type: 'string', description: 'The name of the table the emails are kept in, when "messages" is taken.' },
+        },
+        required: ['add_on', 'shape'],
+        additionalProperties: false,
+      },
+      running: (input) => `Building on ${String(input['shape'] ?? 'a shape')}`,
+      run: async (input) => {
+        const addOn = str(input, 'add_on');
+        const shape = str(input, 'shape');
+        if (addOn === null || shape === null) return refused('Give "add_on" and "shape".', 'Built on nothing');
+        const document = (await deps.readAddOn?.(addOn)) ?? null;
+        if (document === null) {
+          return refused(
+            `The add-on "${addOn}" is not on this server, so its shape cannot be read. The person can switch the add-on catalogue on, or upload the add-on, in Studio → Add-ons; say so, and build the rest of the app meanwhile.`,
+            `Could not build on ${shape}`,
+          );
+        }
+        const given = input['recipient'] as Record<string, unknown> | undefined;
+        const recipient =
+          given !== undefined && typeof given === 'object' && typeof given['table'] === 'string' && typeof given['email'] === 'string'
+            ? { table: given['table'], email: given['email'], ...(typeof given['name'] === 'string' ? { name: given['name'] } : {}) }
+            : undefined;
+        const names = input['tables'];
+        const tablesGiven = names !== null && typeof names === 'object' && !Array.isArray(names) ? Object.fromEntries(Object.entries(names).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) : undefined;
+        const made = shapeParts({ appKey, addOn, document, shape, recipient, tables: tablesGiven, outboxTable: str(input, 'outbox_table') ?? undefined });
+        if (!made.ok) return refused(made.problem, `Could not build on ${shape}`);
+        return jailed(`Could not build on ${shape}`, () => {
+          const base = `apps/${appKey}/manifest`;
+          const read = (file: string): string | null => {
+            // Resolved as a write is: a file that is not there yet is no error here.
+            const absolute = jail.resolve(`${base}/${file}`, 'write');
+            return existsSync(absolute) ? readFileSync(absolute, 'utf8') : null;
+          };
+          if (recipient !== undefined && read(`tables/${recipient.table}.json`) === null) {
+            return refused(`There is no table "${recipient.table}" yet. Write ${base}/tables/${recipient.table}.json first, with an "${recipient.email}" column, then call this again.`, `Could not build on ${shape}`);
+          }
+          // What the app already requires is read before anything is written: a file that does not read stops it here.
+          let had: { requires?: { key?: string }[] } = {};
+          const requiresNow = read('add-ons.json');
+          if (requiresNow !== null) {
+            try {
+              const parsed = JSON.parse(requiresNow) as unknown;
+              if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('it is not an object');
+              had = parsed as typeof had;
+              if (had.requires !== undefined && !Array.isArray(had.requires)) throw new Error('"requires" is not a list');
+            } catch (error) {
+              return refused(`${base}/add-ons.json does not read (${error instanceof Error ? error.message : String(error)}). Write it again as {"requires": []}, then call this again.`, `Could not build on ${shape}`);
+            }
+          }
+          // Nothing the app already has is replaced: a table it wrote, or emails of its own.
+          const taken = Object.keys(made.files).filter((file) => file !== 'add-ons.json' && read(file) !== null);
+          if (taken.length > 0) {
+            return refused(
+              `These files are already there and were left alone: ${taken.map((file) => `${base}/${file}`).join(', ')}. Delete them first if they should be made again, or name other tables in "tables" (and the emails' table in "outbox_table").`,
+              `Could not build on ${shape}`,
+            );
+          }
+          for (const [file, value] of Object.entries(made.files)) {
+            if (file === 'add-ons.json') {
+              // Added to what the app already requires, never in its place.
+              const requires = [...(had.requires ?? []).filter((entry) => entry.key !== made.addOn.key), ...((value as { requires: { key: string }[] }).requires ?? [])];
+              jail.write(`${base}/${file}`, `${JSON.stringify({ ...had, requires }, null, 2)}\n`);
+            } else {
+              jail.write(`${base}/${file}`, `${JSON.stringify(value, null, 2)}\n`);
+            }
+          }
+          const lines = made.tables.map((table) => `- ${base}/tables/${table.ref}.json: built on ${table.builtOn}, part ${table.part} (${String(table.columns)} columns)`);
+          if (made.outbox !== null) {
+            lines.push(`- ${base}/tables/${made.outbox.table}.json: the outbox, where each message is a row`);
+            lines.push(`- ${base}/emails.json: sends ${made.outbox.kinds.join(', ')}. The words are plain: reword the templates for this app.`);
+          }
+          lines.push(`- ${base}/add-ons.json: requires ${made.addOn.key} ${made.addOn.range}`);
+          return text(
+            `Written:\n${lines.join('\n')}\nLeft to you: a page for each table people work with, the role’s table and page grants for them, and any column of your own (add it to the table’s file; never change a column that is already there).`,
+            `Built on ${shape}`,
+            { facts: { count: made.tables.length } },
+          );
+        });
       },
     },
     {
@@ -376,7 +674,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       running: (input) => `Asking to add ${String(input['name'] ?? '')}`,
       run: async (input, ctx) => {
         const name = str(input, 'name') ?? '';
-        const version = str(input, 'version') ?? '';
+        const version = knownPackageVersion(name, deps.version) ?? str(input, 'version') ?? '';
         const why = (str(input, 'why') ?? '').slice(0, 300);
         if (!PACKAGE_NAME.test(name) || name.length > 214) return { ...refused(`"${name}" is not an npm package name.`, 'No package added'), facts: { outcome: 'refused' } };
         if (!EXACT_VERSION.test(version)) {
@@ -411,6 +709,8 @@ export const DESIGNER_TOOL_NAMES = [
   'run_tests',
   'read_reference',
   'list_add_ons',
+  'add_side',
+  'build_on_shape',
   'ask_person',
   'request_package',
 ] as const;

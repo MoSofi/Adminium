@@ -9027,6 +9027,14 @@
     "status": "mt",
     "srcHash": "749f12f03ac2"
   },
+  "designer.preview.crashedCustomer": {
+    "status": "mt",
+    "srcHash": "e9e28a1dee1a"
+  },
+  "designer.preview.crashedStaff": {
+    "status": "mt",
+    "srcHash": "656cc2212852"
+  },
   "designer.preview.customer": {
     "status": "mt",
     "srcHash": "0e85749a6f40"
@@ -9054,6 +9062,10 @@
   "designer.preview.fix": {
     "status": "mt",
     "srcHash": "bf4f1e5d8013"
+  },
+  "designer.preview.fixCrashMessage": {
+    "status": "mt",
+    "srcHash": "f6ba54339fcc"
   },
   "designer.preview.fixMessage": {
     "status": "mt",
@@ -9310,6 +9322,26 @@
   "designer.step.reading": {
     "status": "mt",
     "srcHash": "18be9daaeb9b"
+  },
+  "designer.step.shape": {
+    "status": "mt",
+    "srcHash": "e2958dd065d3"
+  },
+  "designer.step.shapeDone": {
+    "status": "mt",
+    "srcHash": "45bffb670b4d"
+  },
+  "designer.step.shapeFailed": {
+    "status": "mt",
+    "srcHash": "6a112a52acfd"
+  },
+  "designer.step.side": {
+    "status": "mt",
+    "srcHash": "87ff0ab9dc31"
+  },
+  "designer.step.sideDone": {
+    "status": "mt",
+    "srcHash": "1751bee8a1ee"
   },
   "designer.step.stopped": {
     "status": "mt",

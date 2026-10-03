@@ -8,7 +8,7 @@
  * made. The model never applies anything itself; it writes files, and this
  * decides what becomes of them.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { MetaDb } from '@adminium/meta';
@@ -97,6 +97,75 @@ export function keyFromName(root: string, name: string): string {
   throw new ConflictError('No free key could be made for that name.', 'CONFLICT', { reason: 'NO_FREE_KEY' });
 }
 
+/**
+ * The tables nobody can open: no dashboard page shows them, and no role is
+ * granted them. A child table (lines, payments) is opened through its
+ * parent's page, and an outbox is the engine's own, so neither is named.
+ */
+export function unopenedTables(manifest: unknown): string[] {
+  const app = manifest as {
+    requiredSchema?: { tables?: { ref: string; part?: string; columns: { type: string; references?: string }[] }[] };
+    pages?: { bindings?: Record<string, string> }[];
+    roles?: { permissions?: string[] }[];
+    outbox?: { table?: string };
+    publicAccess?: unknown[];
+    frontends?: { side?: string; kind?: string }[];
+  } | null;
+  const tables = app?.requiredSchema?.tables ?? [];
+  if (tables.length === 0) return [];
+  const shown = new Set((app?.pages ?? []).flatMap((page) => Object.values(page.bindings ?? {})));
+  const granted = new Set((app?.roles ?? []).flatMap((role) => role.permissions ?? []).flatMap((permission) => /^table:@([a-z0-9_]+):/.exec(permission)?.[1] ?? []));
+  const out: string[] = [];
+  for (const table of tables) {
+    if (table.ref === app?.outbox?.table) continue;
+    // A table that hangs off one that has a page is reached from there.
+    const parentShown = table.columns.some((column) => column.type === 'fk' && column.references !== undefined && column.references !== table.ref && shown.has(column.references));
+    if (!shown.has(table.ref) && !parentShown) out.push(`- The table "${table.ref}" has no dashboard page: nobody can open it.`);
+    if (!granted.has(table.ref)) out.push(`- No role is granted the table "${table.ref}": staff cannot read it.`);
+  }
+  // Customers were given a way in, and no screen to come in by.
+  if ((app?.publicAccess ?? []).length > 0 && !(app?.frontends ?? []).some((side) => side.side === 'customer' && side.kind !== 'none')) {
+    out.push('- Customers may reach the app’s data (access.json), and the app has no customer screen: if the person asked for a page their customers use, build the customer side.');
+  }
+  return out;
+}
+
+/** The text of every source file under a side's `src/`, a few dozen at most. */
+function sourcesOf(dir: string): string[] {
+  const out: string[] = [];
+  const walk = (folder: string): void => {
+    if (!existsSync(folder) || out.length >= 60) return;
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue;
+      const path = join(folder, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile() && /\.(tsx?|jsx?|mjs)$/.test(entry.name) && out.length < 60) out.push(readFileSync(path, 'utf8'));
+    }
+  };
+  walk(dir);
+  return out;
+}
+
+/**
+ * A side whose screen is still a placeholder: a few lines that show nothing,
+ * or the starter's own screen over tables this app does not have.
+ */
+export function placeholderScreens(root: string, appKey: string, tables: readonly string[] = []): string[] {
+  const out: string[] = [];
+  for (const side of ['staff', 'customer'] as const) {
+    const file = join(root, APPS_DIR, appKey, side, 'src', 'App.tsx');
+    if (!existsSync(file)) continue;
+    const source = readFileSync(file, 'utf8');
+    const starter = /const ITEMS = 'items'/.test(source) && !tables.includes('items');
+    // The whole side is read: a screen may keep its calls in a file beside App.tsx.
+    const all = sourcesOf(join(root, APPS_DIR, appKey, side, 'src')).join('\n');
+    const calls = /\.(list|create|get|update|remove)\(|createPublicClient|fetch\(/.test(all);
+    if (starter) out.push(`- apps/${appKey}/${side}/src/App.tsx is still the starter's screen, over tables this app does not have: write it for this app's tables.`);
+    else if (!calls) out.push(`- apps/${appKey}/${side}/src/ shows nothing real yet (it reads no table): write the screen the person asked for.`);
+  }
+  return out;
+}
+
 export function createDesigner(host: DesignerHost): Designer {
   const store = createSessionStore(host.root);
   const project = (): { root: string; configFile: string } => {
@@ -104,6 +173,9 @@ export function createDesigner(host: DesignerHost): Designer {
     if (found === null) throw new ConflictError('The project folder has no adminium.config file any more.', 'CONFLICT', { reason: 'NOT_A_PROJECT' });
     return found;
   };
+
+  /** What the last install or apply of each app said about its pages. */
+  const pageWarnings = new Map<string, string[]>();
 
   async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
@@ -150,13 +222,17 @@ export function createDesigner(host: DesignerHost): Designer {
       }
     }
 
-    if (opts.version === false || host.versions == null) return { ok: true, version: null };
+    // An apply that changes nothing says nothing about its pages: what the last real one said still holds.
+    if (result?.state === 'installed' || result?.state === 'applied') pageWarnings.set(key, result.pageWarnings ?? []);
+    const kept = pageWarnings.get(key) ?? [];
+    const warnings = kept.length === 0 ? {} : { warnings: kept };
+    if (opts.version === false || host.versions == null) return { ok: true, version: null, ...warnings };
     const version = await host.versions.commit(session);
     if (version !== null) {
       store.update(session.id, { version: version.n });
       events.emit(turn, { kind: 'version', n: version.n, name: version.name });
     }
-    return { ok: true, version };
+    return { ok: true, version, ...warnings };
   }
 
   const runner = createDesignerRunner({
@@ -168,6 +244,18 @@ export function createDesigner(host: DesignerHost): Designer {
     tools: (session) => host.tools?.(session) ?? [],
     prompt: async (session, messages) => host.prompt?.(session, messages) ?? { system: 'You are Adminium Designer.', messages },
     pipeline: (session, handle) => pipeline(session, handle),
+    problems: (session) => [
+      ...checkApp(host.root, session.appKey, { version: host.version })
+        .findings.filter((finding) => finding.level === 'error')
+        .map((finding) => `- ${finding.file} · ${finding.path} · ${finding.message}`),
+      // A page the server wrote with nothing in it is as unfinished as an error.
+      ...(pageWarnings.get(session.appKey) ?? []).map((warning) => `- ${warning} (the page was made empty: fix it or make it a "page-crud")`),
+    ],
+    advice: (session) => {
+      const manifest = checkApp(host.root, session.appKey, { version: host.version }).manifest;
+      const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []).map((table) => table.ref) : [];
+      return [...unopenedTables(manifest), ...placeholderScreens(host.root, session.appKey, tables)];
+    },
     limits: () => host.limits(),
     publish: (event) => {
       host.publish(event);
@@ -202,7 +290,8 @@ export function createDesigner(host: DesignerHost): Designer {
         const name = (input.name ?? '').trim() || 'My app';
         if (name.length > 80) throw new ValidationFailedError('An app’s name is at most 80 characters.', { reason: 'NAME' });
         appKey = keyFromName(host.root, name);
-        scaffoldApp({ root: host.root, key: appKey, name, sides: [], version: host.version });
+        // Bare: the model writes this app's own tables, with nothing of the starter's to clear away first.
+        scaffoldApp({ root: host.root, key: appKey, name, sides: [], version: host.version, bare: true });
         createdApp = true;
       } else {
         const problem = appKeyProblem(appKey);

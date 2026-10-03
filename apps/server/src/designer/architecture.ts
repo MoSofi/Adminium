@@ -21,6 +21,7 @@ import { appTablesRepo, permissionsRepo, rolesRepo, snapshotsRepo, type Installe
 import type { AppAddOnRow } from '../apps/add-ons.js';
 import { accessInWords, checkApp } from '../project/apps/check-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
+import { nameFromKey } from '../project/apps/scaffold-app.js';
 import { readSideNav } from '../project/apps/side-build.js';
 
 /** How long one table's row count may take before it is left out. */
@@ -194,7 +195,8 @@ export async function architectureOf(deps: ArchitectureDeps, appKey: string): Pr
   const installed = (await deps.manifests()).find((entry) => entry.row.manifestKey === appKey);
   const folderCheck = existsSync(join(deps.root, APPS_DIR, appKey)) ? checkApp(deps.root, appKey, { version: deps.version }) : null;
   const empty: ArchitectureDocument = {
-    name: folderCheck?.manifest?.name === undefined ? appKey : label(folderCheck.manifest.name, appKey),
+    // An app with no table yet has no manifest to read a name from: its key, worded, is the name.
+    name: folderCheck?.manifest?.name === undefined ? nameFromKey(appKey) : label(folderCheck.manifest.name, appKey),
     applied: false,
     people: [],
     uses: [],

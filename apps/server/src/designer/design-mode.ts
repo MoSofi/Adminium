@@ -49,7 +49,25 @@ export function hostRole(host: string | undefined, port: number): 'designer' | '
 }
 
 /** What the preview's name may never reach: everything that acts for the person. */
-const DESIGNER_ONLY = /^\/api\/v1\/(designer|auth\/design-session|llm|setup|users|roles|permissions|api-keys|settings)(\/|$|\?)/;
+const DESIGNER_ONLY = /^\/api\/v1\/(designer|auth\/design-session|auth\/login|llm|setup|users|roles|permissions|api-keys|settings)(\/|$|\?)/i;
+
+/**
+ * An app's own screens: code a model wrote. On the Designer's name they would
+ * run beside the owner's session, with everything the owner may do; they are
+ * served on the preview's name only, where the session is the preview user's.
+ */
+const APP_SCREENS = /^\/apps\/[^/]+\/(staff|customer)(\/|$|\?)/i;
+
+/** The path as the router will read it: decoded once, so `%64esigner` is `designer`. */
+function pathsOf(url: string): string[] {
+  const raw = url.split('?')[0] ?? url;
+  try {
+    const decoded = decodeURIComponent(raw);
+    return decoded === raw ? [raw] : [raw, decoded];
+  } catch {
+    return [raw];
+  }
+}
 
 export function designSessionCookie(port: number): string {
   return `adminium_session_${String(port)}`;
@@ -65,8 +83,16 @@ export function registerDesignMode(app: FastifyInstance, opts: DesignModeOptions
       // 421: this server does not answer to that name. No body worth reading for a page that should not be here.
       return reply.code(421).header('content-type', 'text/plain; charset=utf-8').header('cache-control', 'no-store').send('This Adminium answers on this machine only.');
     }
-    if (role === 'preview' && DESIGNER_ONLY.test(request.url)) {
+    const paths = pathsOf(request.url);
+    if (role === 'preview' && paths.some((path) => DESIGNER_ONLY.test(path))) {
       return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'The preview cannot reach the Designer.', details: { reason: 'PREVIEW_HOST' } } });
+    }
+    if (role === 'designer' && paths.some((path) => APP_SCREENS.test(path))) {
+      return reply
+        .code(403)
+        .header('content-type', 'text/plain; charset=utf-8')
+        .header('cache-control', 'no-store')
+        .send('While the Designer runs, an app’s own screens open in the Designer’s preview, not here.');
     }
     return undefined;
   });
