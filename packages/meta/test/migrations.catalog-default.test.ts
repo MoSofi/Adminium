@@ -77,6 +77,13 @@ for (const dialect of TEST_DIALECTS) {
       expect(await settingsRepo(t.meta).get('addOns.catalogEnabled')).toBe(false);
     });
 
+    it('an older version installed a few minutes ago and upgraded now is an upgrade: off', async () => {
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: PRE_0050 });
+      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 4 * 60_000}`.execute(t.meta.db);
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+      expect(await stored()).toEqual({ 'addOns.catalogEnabled': false, 'apps.catalogEnabled': false });
+    });
+
     it('keeps a store from the very first version off', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS.slice(0, 3) });
       await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 300 * DAY}`.execute(t.meta.db);
@@ -84,10 +91,10 @@ for (const dialect of TEST_DIALECTS) {
       expect(await stored()).toEqual({ 'addOns.catalogEnabled': false, 'apps.catalogEnabled': false });
     });
 
-    it('reads a first pass that began a few minutes ago as the same run', async () => {
+    it('reads a first pass that began half a minute ago as the same run', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: PRE_0050 });
-      // A slow first pass on a far database, five minutes in: still a new store.
-      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 5 * 60_000}`.execute(t.meta.db);
+      // A slow first pass on a far database, half a minute in: still a new store.
+      await sql`UPDATE adminium_migrations SET applied_at = ${Date.now() - 30_000}`.execute(t.meta.db);
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
       expect(await stored()).toEqual({});
     });

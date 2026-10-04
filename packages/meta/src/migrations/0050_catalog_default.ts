@@ -19,8 +19,12 @@
  * migrated and never set up all hold an old first row, whichever version they
  * come from. (The row of the migration just before this one is not the test:
  * a store on 0.3.12 or older applies that one in this same pass, and would
- * have read as new.) The margin is ten minutes. A new install whose first
- * pass takes longer lands on off, which is the safe side.
+ * have read as new.) The margin is one minute: a first pass takes a couple of
+ * seconds, and a person who installs an older version and upgrades it a few
+ * minutes later is an upgrade, not a new install (a wider margin read exactly
+ * that as new, in a real try). A new install whose first pass takes longer
+ * than the margin lands on off, with one button to switch it on: the mild
+ * side to be wrong on.
  */
 
 import { sql, type Kysely } from 'kysely';
@@ -29,7 +33,7 @@ import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
 
 /** A store whose first migration is older than this was there before this run. */
-const SAME_RUN_MS = 10 * 60_000;
+const SAME_RUN_MS = 60_000;
 
 export const CATALOG_SWITCHES = ['addOns.catalogEnabled', 'apps.catalogEnabled'] as const;
 
