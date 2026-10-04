@@ -26,6 +26,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
+import { previewShows } from './sight.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, YourApp } from '../api.js';
@@ -112,6 +113,8 @@ beforeEach(() => {
   ];
   FakeSocket.all = [];
   window.localStorage.clear();
+  // The page's look at what it builds is switched off here, so each turn's body is what the test wrote; one test switches it on.
+  window.localStorage.setItem('adminium.designer.sees', 'off');
   vi.stubGlobal('WebSocket', FakeSocket);
   vi.stubGlobal(
     'fetch',
@@ -541,6 +544,37 @@ describe('the build page', () => {
     const card = await screen.findByRole('group', { name: 'Pictures for the page. Use them?' });
     expect(card.textContent).toContain('they are copied into your app, with their credits.');
     expect(card.textContent).not.toContain('shown straight from');
+  });
+
+  it('reads the session again the moment the app is named mid-turn, so the preview goes by the new key and not only once the turn ends', async () => {
+    stored = [ev(1, { kind: 'turn-started', text: 'A bike repair shop.' })];
+    await open();
+    const reads = (): number => calls.filter((call) => call.method === 'GET' && call.url === `/api/v1/designer/sessions/${ID}`).length;
+    const installed = (): number => calls.filter((call) => call.url === '/api/v1/apps').length;
+    await waitFor(() => expect(reads()).toBeGreaterThan(0));
+    const before = { session: reads(), installed: installed() };
+    // A step that is still running names nothing yet.
+    live(ev(1, { kind: 'step', id: 's1', tool: 'name_app', label: 'Naming the app', state: 'running' }));
+    expect(reads()).toBe(before.session);
+    live(ev(1, { kind: 'step', id: 's1', tool: 'name_app', label: 'Named the app Spoke & Chain', state: 'done', ms: 4 }));
+    await waitFor(() => expect(reads()).toBe(before.session + 1));
+    await waitFor(() => expect(installed()).toBeGreaterThan(before.installed));
+    // Another step of the same turn reads nothing again.
+    live(ev(1, { kind: 'step', id: 's2', tool: 'write_file', label: 'Wrote a file', state: 'done', ms: 4 }));
+    expect(reads()).toBe(before.session + 1);
+  });
+
+  it('tells the server it is watching the preview when a turn starts: only while the preview shows one of the app’s own screens, and not once a person switched the look off', async () => {
+    window.localStorage.removeItem('adminium.designer.sees');
+    await open();
+    // No preview on one of the app's screens (nothing applied yet, or the Dashboard tab): a turn told "watching" would wait for a picture that never comes.
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Add a notes field.{Enter}');
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Add a notes field.' }]));
+    calls = [];
+    previewShows('customer');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Make the hero taller.{Enter}');
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Make the hero taller.', sees: true }]));
+    previewShows(null);
   });
 
   it('attaches files to a message: they go up first, the turn names them, and one can be taken off', async () => {

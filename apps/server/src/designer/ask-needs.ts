@@ -133,7 +133,8 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
       for (const item of left) if (isKnownNeed(item)) without.add(item.kind === 'font' ? item.family : needName(item));
       for (const item of added) without.delete(item.kind === 'font' ? item.family : needName(item));
       const { without: _before, ...rest } = look;
-      applyLook(deps.root, appKey, without.size === 0 ? rest : { ...rest, without: [...without].sort() }, places);
+      // A look kept before styles names no font and carries no package: its sides are left exactly as they are, edits of a person's included.
+      if (look.direction === undefined) applyLook(deps.root, appKey, without.size === 0 ? rest : { ...rest, without: [...without].sort() }, places);
     }
 
     if (failed !== null) lines.push(`These could not be added:\n${failed}`);

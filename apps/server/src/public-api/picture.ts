@@ -42,6 +42,9 @@ export const PICTURE_MAX_SIDE = 8192;
 
 /** How many pictures are cleaned at once, at most. */
 export const PICTURE_CLEANING_AT_ONCE = 2;
+/** How long a picture waits for its turn to be cleaned before its visitor is told to come back, and how many of one address may wait. */
+export const PICTURE_WAIT_MS = 4000;
+export const PICTURE_WAITING_PER_ADDRESS = 24;
 
 export type PictureMime = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
 
@@ -436,7 +439,10 @@ export async function readCapped(stream: Readable, max: number): Promise<Buffer>
  * at a time, and at most one for any one address (its IPv6 /64), so one
  * visitor naming picture after picture never holds every place and turns
  * the real visitors away. A picture already being cleaned is waited for,
- * not cleaned twice. The tags of pictures cleaned or read back are kept in
+ * not cleaned twice. A picture whose place is taken waits a few seconds for
+ * it (a page of six new pictures is six requests from one address, and a
+ * browser asks for a picture once: told "come back", it shows an empty frame
+ * for good); only so many of one address wait, and none for long. The tags of pictures cleaned or read back are kept in
  * memory, so a browser asking "still this one?" is answered without opening
  * anything; the bytes are kept beside the file (`picture-store.ts`), not
  * here.
@@ -444,14 +450,15 @@ export async function readCapped(stream: Readable, max: number): Promise<Buffer>
 export interface PictureCache {
   tagOf(fileId: string): string | undefined;
   remember(fileId: string, etag: string): void;
-  /** Clean one picture; null when every place is taken, or this address already holds one. */
+  /** Clean one picture; null when no place came free in time for it, or too many of this address already wait. */
   clean(fileId: string, address: string, load: () => Promise<{ bytes: Buffer; mime: string }>): Promise<CleanPicture | null>;
 }
 
-export function createPictureCache(maxTags = 10_000): PictureCache {
+export function createPictureCache(maxTags = 10_000, waitMs = PICTURE_WAIT_MS): PictureCache {
   const tags = new Map<string, string>();
   const pending = new Map<string, Promise<CleanPicture>>();
   const cleaningFor = new Set<string>();
+  const waiting = new Map<string, number>();
   const keyOf = (fileId: string) => `${fileId}|${PICTURE_PIPELINE}`;
   const remember = (fileId: string, etag: string) => {
     const key = keyOf(fileId);
@@ -469,7 +476,25 @@ export function createPictureCache(maxTags = 10_000): PictureCache {
       const already = pending.get(key);
       if (already !== undefined) return already;
       const who = rateAddress(address);
-      if (cleaningFor.size >= PICTURE_CLEANING_AT_ONCE || cleaningFor.has(who)) return null;
+      if (cleaningFor.size >= PICTURE_CLEANING_AT_ONCE || cleaningFor.has(who)) {
+        // Its turn is waited for, in a line that is bounded for each address: the places themselves are never more.
+        const inLine = waiting.get(who) ?? 0;
+        if (inLine >= PICTURE_WAITING_PER_ADDRESS) return null;
+        waiting.set(who, inLine + 1);
+        try {
+          for (const until = Date.now() + waitMs; cleaningFor.size >= PICTURE_CLEANING_AT_ONCE || cleaningFor.has(who); ) {
+            if (Date.now() >= until) return null;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            // Someone else began this very picture meanwhile: theirs is waited for.
+            const begun = pending.get(key);
+            if (begun !== undefined) return await begun;
+          }
+        } finally {
+          const left = (waiting.get(who) ?? 1) - 1;
+          if (left <= 0) waiting.delete(who);
+          else waiting.set(who, left);
+        }
+      }
       cleaningFor.add(who);
       const work = (async () => {
         const source = await load();

@@ -9583,6 +9583,18 @@
     "status": "mt",
     "srcHash": "59c9f1bc798b"
   },
+  "designer.preview.sees": {
+    "status": "mt",
+    "srcHash": "9e5cb4e0c77d"
+  },
+  "designer.preview.seesOff": {
+    "status": "mt",
+    "srcHash": "9cbc78db648d"
+  },
+  "designer.preview.seesOn": {
+    "status": "mt",
+    "srcHash": "ffa4023527b5"
+  },
   "designer.preview.side": {
     "status": "mt",
     "srcHash": "26528381ea05"

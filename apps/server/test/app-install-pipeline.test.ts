@@ -4964,6 +4964,10 @@ for (const [dialect, available] of legs) {
       await service.add(app, user);
       const first = (await h.rows(`SELECT id, receipt FROM pos_tenders WHERE receipt IS NOT NULL`))[0]!;
       const receipt = String(first.receipt);
+      // The picture is its row's own: a customer page is shown a row's picture only when the file is attached to that very row.
+      const attached = await h.meta.db.selectFrom('adminium_files').select(['entityTable', 'entityId']).where('id', '=', receipt).executeTakeFirstOrThrow();
+      expect(String(attached.entityTable)).toMatch(/pos_tenders$/);
+      expect(String(attached.entityId).toLowerCase()).toBe(tender);
       // Your own refund uses the first tender, so the removal keeps it.
       await h.run(`INSERT INTO pos_refunds (tender_id) VALUES ('${String(first.id)}')`);
       expect(await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' })).toMatchObject({ removed: 1, kept: 1 });

@@ -111,6 +111,7 @@ describe('a style of a person’s own', () => {
       [{ 'design.css': u8('.a { background: url(../../.env) }') }, /design\.css cannot be used: it loads/],
       [{ 'preview.svg': u8('<svg xmlns="http://www.w3.org/2000/svg"><script>fetch("/api")</script></svg>') }, /preview\.svg has a script in it/],
       [{ 'preview.svg': u8('<svg xmlns="http://www.w3.org/2000/svg" onload="x()"></svg>') }, /event handler/],
+      [{ 'preview.svg': u8('<svg xmlns="http://www.w3.org/2000/svg"><s:script xmlns:s="http://www.w3.org/2000/svg">fetch("/api")</s:script></svg>') }, /preview\.svg has a script in it/],
       [{ 'preview.svg': u8('<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><iframe/></foreignObject></svg>') }, /foreignObject/],
       [{ 'preview.svg': u8('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://evil.example/t.png"/></svg>') }, /points at another file or site/],
       [{ 'preview.svg': u8('<svg xmlns="http://www.w3.org/2000/svg"><use href="other.svg#x"/></svg>') }, /points at another file or site/],

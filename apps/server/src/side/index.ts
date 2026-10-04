@@ -141,7 +141,9 @@ export function reportErrorsToFrame(target: { addEventListener: Window['addEvent
   later: (run: () => void) => void = (run) => void setTimeout(run, 150),
 ): void {
   if (!dev || target === undefined) return;
-  const say = (message: unknown): void =>
+  const say = (message: unknown): void => {
+    // Kept for the look at the page: a screen that stopped is said with what stopped it.
+    lastError = (message instanceof Error ? message.message : typeof message === 'string' ? message : '').split('\n')[0]?.slice(0, 200) ?? '';
     later(() => {
       if (blank()) post(message, false);
       // The screen still shows something. A thing its own code threw (a TypeError in a load nobody awaited) left a part of
@@ -149,6 +151,7 @@ export function reportErrorsToFrame(target: { addEventListener: Window['addEvent
       // (a ResizeObserver loop, a string with no error behind it) are not the screen's fault and are not said.
       else if (message instanceof Error && !/ResizeObserver/i.test(message.message)) post(message, true);
     });
+  };
   const post = (message: unknown, went: boolean): void => {
     const text = (message instanceof Error ? message.message : typeof message === 'string' ? message : 'The screen stopped with an error.').split('\n')[0] ?? '';
     // The message alone, to whoever frames this page: no row, no key, nothing of the session.
@@ -164,6 +167,12 @@ function framed(): Window | undefined {
 }
 
 reportErrorsToFrame();
+
+/** The last error this page's own code threw, first line (dev bundles only). */
+let lastError = '';
+
+/** How often this page has read each list since it opened (dev bundles only). */
+const sameReads = new Map<string, number>();
 
 /**
  * A call the screen made that Adminium refused as wrongly asked, said to the
@@ -185,6 +194,16 @@ export function reportRefusalsToFrame(
   const original = target.fetch.bind(target);
   const said = new Set<string>();
   target.fetch = (async (...args: Parameters<typeof fetch>): Promise<Response> => {
+    try {
+      // The same read asked over and over is counted: a screen that asks without end shows an empty list and nobody knows why.
+      const first = args[0];
+      const url = typeof first === 'string' ? first : first instanceof URL ? first.href : first.url;
+      // By its whole address: the same table read with another filter or page is another read.
+      const read = /\/api\/v1\/(?:public\/records|data)\/[^#]*/.exec(url)?.[0];
+      if (read !== undefined && (args[1]?.method ?? 'GET').toUpperCase() === 'GET') sameReads.set(read, (sameReads.get(read) ?? 0) + 1);
+    } catch {
+      // Counting never breaks the page's own call.
+    }
     const response = await original(...args);
     try {
       if (response.status === 400) {
@@ -211,6 +230,205 @@ export function reportRefusalsToFrame(
 }
 
 reportRefusalsToFrame();
+
+/** One thing measured on the page as it shows. Facts only: the words are the server's. */
+export type PageFault =
+  | { kind: 'blank'; error?: string }
+  | { kind: 'error'; error: string }
+  | { kind: 'wide'; width: number; part: string }
+  | { kind: 'overlap'; first: string; second: string }
+  | { kind: 'broken'; count: number }
+  | { kind: 'no-address'; count: number }
+  | { kind: 'loop'; count: number; path: string }
+  | { kind: 'edge' };
+
+/**
+ * What a person would call broken on the page as it shows now, measured:
+ * a part wider than the window, controls that lie over each other, a picture
+ * that did not load, a list read over and over, a first heading against the
+ * window's edge, a page with nothing on it. A reading of the page as drawn,
+ * so only what is certain is said; and said as facts (a kind, a count, an
+ * element's tag and classes), never as sentences: what a page says of itself
+ * is put in front of a model, and a page may have been written by one.
+ */
+export function pageFaults(
+  doc: Document = document,
+  view: { innerWidth: number; getComputedStyle(el: Element): CSSStyleDeclaration } = window,
+  /** The last error the page's own code threw; the page's own record of it when left out. */
+  thrown: string = lastError,
+): PageFault[] {
+  const out: PageFault[] = [];
+  const body = doc.body;
+  if (body === null) return out;
+  const width = doc.documentElement.clientWidth || view.innerWidth;
+  /** An element as its tag and its first classes: letters, digits and the marks a class name has. */
+  const said = (el: Element): string => {
+    const classes = (typeof el.className === 'string' ? el.className : '').trim().split(/\s+/).filter((word) => /^[\w:./[\]%-]{1,40}$/.test(word)).slice(0, 3).join(' ');
+    return `${el.tagName.toLowerCase().replace(/[^a-z0-9-]/g, '')}${classes === '' ? '' : ` ${classes}`}`;
+  };
+  if ((body.innerText ?? '').trim() === '' && body.querySelectorAll('img, svg, canvas, video').length === 0) return [{ kind: 'blank', ...(thrown === '' ? {} : { error: thrown }) }];
+  // The page went on after an error of its own: a part of it is likely empty.
+  if (thrown !== '' && !/ResizeObserver/i.test(thrown)) out.push({ kind: 'error', error: thrown });
+  // A part that reaches past the window: the page scrolls sideways, or a part is cut off.
+  if (doc.documentElement.scrollWidth > width + 4) {
+    const past = [...body.querySelectorAll('*')].find((el) => {
+      const box = el.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && box.right > width + 4 && el.children.length < 12;
+    });
+    out.push({ kind: 'wide', width, part: past === undefined ? '' : said(past) });
+  }
+  // Controls that lie over each other.
+  const controls = [...body.querySelectorAll('input, select, textarea, button')]
+    .map((el) => ({ el, box: el.getBoundingClientRect() }))
+    .filter((entry) => entry.box.width > 0 && entry.box.height > 0)
+    .slice(0, 60);
+  overlap: for (let first = 0; first < controls.length; first += 1) {
+    for (let second = first + 1; second < controls.length; second += 1) {
+      const a = controls[first] as (typeof controls)[number];
+      const b = controls[second] as (typeof controls)[number];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      if (a.box.left < b.box.right - 3 && b.box.left < a.box.right - 3 && a.box.top < b.box.bottom - 3 && b.box.top < a.box.bottom - 3) {
+        out.push({ kind: 'overlap', first: said(a.el), second: said(b.el) });
+        break overlap;
+      }
+    }
+  }
+  // Pictures that did not load, and pictures with no address at all.
+  const broken = [...doc.images].filter((img) => img.complete && img.naturalWidth === 0 && (img.getAttribute('src') ?? '') !== '').length;
+  const empty = [...doc.images].filter((img) => (img.getAttribute('src') ?? '') === '').length;
+  if (broken > 0) out.push({ kind: 'broken', count: broken });
+  if (empty > 0) out.push({ kind: 'no-address', count: empty });
+  // A list read again and again: an effect that runs after every render.
+  const most = [...sameReads.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (most !== undefined && most[1] >= 8) out.push({ kind: 'loop', count: most[1], path: (most[0].split('?')[0] as string).slice(0, 90) });
+  // The first heading against the window's edge: its part has no room at the sides.
+  const heading = body.querySelector('h1');
+  if (heading !== null && width >= 480) {
+    const box = heading.getBoundingClientRect();
+    if (box.width > 0 && box.left < 8 && view.getComputedStyle(heading).textAlign !== 'center') out.push({ kind: 'edge' });
+  }
+  return out.slice(0, 8);
+}
+
+/**
+ * A picture of the page as it shows, drawn in the page itself: its own
+ * markup and styles laid into an SVG and painted on a canvas. Nothing is
+ * asked of any server for it and nothing leaves the page but through the
+ * caller. Pictures are drawn in small; web fonts are left out (the system's
+ * stand in). Null where a browser will not paint it.
+ */
+export async function pagePicture(doc: Document = document, view: Window = window): Promise<string | null> {
+  try {
+    const width = Math.min(1440, doc.documentElement.clientWidth);
+    const height = Math.min(Math.max(doc.documentElement.scrollHeight, view.innerHeight), 3200);
+    if (width < 200 || height < 100) return null;
+    const copy = doc.documentElement.cloneNode(true) as HTMLElement;
+    for (const el of [...copy.querySelectorAll('script, noscript, iframe, object, embed, video, audio, link, style, base')]) el.remove();
+    // The styles as the page has them, with nothing in them that would be fetched.
+    let css = '';
+    for (const sheet of [...doc.styleSheets]) {
+      try {
+        for (const rule of [...sheet.cssRules]) if (!rule.cssText.startsWith('@font-face') && !rule.cssText.startsWith('@import')) css += `${rule.cssText}\n`;
+      } catch {
+        // A stylesheet of another site: not read.
+      }
+    }
+    css = css
+      .replace(/url\(\s*(?!["']?data:)[^)]*\)/g, 'none')
+      // A share of the window's height means the window's, not this picture's.
+      .replace(/(-?\d*\.?\d+)[dsl]?vh\b/g, (_all, share: string) => `${String(Math.round((Number(share) * view.innerHeight) / 100))}px`);
+    const style = doc.createElement('style');
+    style.textContent = css;
+    copy.querySelector('head')?.appendChild(style);
+    // Each picture as a small copy of itself; one that cannot be read (another site's) is left as an empty frame.
+    const pictures = [...doc.images];
+    [...copy.querySelectorAll('img')].forEach((img, index) => {
+      const shown = pictures[index];
+      img.removeAttribute('srcset');
+      img.removeAttribute('loading');
+      img.removeAttribute('src');
+      if (shown === undefined || !shown.complete || shown.naturalWidth === 0) return;
+      try {
+        const scale = Math.min(1, 480 / shown.naturalWidth);
+        const canvas = doc.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(shown.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(shown.naturalHeight * scale));
+        canvas.getContext('2d')?.drawImage(shown, 0, 0, canvas.width, canvas.height);
+        img.setAttribute('src', canvas.toDataURL('image/jpeg', 0.6));
+      } catch {
+        // Left empty.
+      }
+    });
+    // What was typed into a control is not part of the picture.
+    for (const el of [...copy.querySelectorAll('input, textarea')]) el.removeAttribute('value');
+    const markup = new XMLSerializer().serializeToString(copy);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}"><foreignObject x="0" y="0" width="100%" height="100%">${markup}</foreignObject></svg>`;
+    const drawn = doc.createElement('img');
+    await new Promise<void>((resolve, reject) => {
+      drawn.onload = () => resolve();
+      drawn.onerror = () => reject(new Error('not drawn'));
+      drawn.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    });
+    const scale = Math.min(1, 900 / width);
+    const canvas = doc.createElement('canvas');
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    const context = canvas.getContext('2d');
+    if (context === null) return null;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(drawn, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.72, 0.5, 0.35]) {
+      const picture = canvas.toDataURL('image/jpeg', quality);
+      if (picture.length <= 900_000) return picture;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The page as it shows, said to the page that frames it: what is measurably
+ * broken on it, and a picture of it. In a bundle `adminium dev` built, and
+ * only inside a frame, once the page has loaded and has stopped changing. The
+ * framing page is the Designer's preview: with it the Designer looks at what
+ * it built. A packed app never looks (`DEV` is false).
+ */
+export function reportSightToFrame(target: Window | undefined = framed(), dev: boolean = DEV): void {
+  if (!dev || target === undefined || typeof target.document === 'undefined') return;
+  const doc = target.document;
+  let sent = false;
+  const send = async (): Promise<void> => {
+    if (sent) return;
+    sent = true;
+    try {
+      await (doc.fonts?.ready ?? Promise.resolve());
+      const faults = pageFaults(doc, target);
+      // The picture is worth a few seconds and no more: what was measured goes whether or not the browser draws it.
+      const picture = await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
+      target.parent.postMessage({ type: 'adminium:side-sight', app: APP_KEY, side: SIDE, width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) }, '*');
+    } catch {
+      // Looking never breaks the page.
+    }
+  };
+  // Once the page has been still for a moment (its rows and pictures are in), or after a few seconds whatever it does.
+  let quiet: ReturnType<typeof setTimeout> | undefined;
+  const settle = (): void => {
+    if (quiet !== undefined) clearTimeout(quiet);
+    quiet = setTimeout(() => void send(), 1500);
+  };
+  const begin = (): void => {
+    if (typeof MutationObserver !== 'undefined' && doc.body !== null) new MutationObserver(settle).observe(doc.body, { childList: true, subtree: true, attributes: true });
+    doc.addEventListener('load', settle, true);
+    settle();
+    setTimeout(() => void send(), 7000);
+  };
+  if (doc.readyState === 'complete') begin();
+  else target.addEventListener('load', begin);
+}
+
+reportSightToFrame();
 
 /**
  * Under `adminium dev`: call `listener` when the app was applied again or its

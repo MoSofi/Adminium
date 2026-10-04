@@ -347,8 +347,11 @@ export const designerApi = {
   removeStyle: (key: string) => api.delete<{ removed: true }>(`${BASE}/styles/${encodeURIComponent(key)}`),
   stylePreviewUrl: (key: string) => `${BASE}/styles/${encodeURIComponent(key)}/preview`,
   setLook: (id: string, skill: string) => api.post<{ look: AppLook; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { skill }),
-  startTurn: (id: string, text: string, attachments: readonly string[] = []) =>
-    api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }) }),
+  /** `sees`: this page shows the preview and will say what it sees of each build. */
+  startTurn: (id: string, text: string, attachments: readonly string[] = [], sees = false) =>
+    api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }), ...(sees ? { sees: true } : {}) }),
+  /** What the preview saw of the app's screen, for the turn that built it. */
+  sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
   pictureThumbUrl: (id: string, shelf: string, picture: string) => `${BASE}/sessions/${id}/picture-thumb/${shelf}/${picture}`,
@@ -362,7 +365,7 @@ export const designerApi = {
   architecture: (id: string) => api.get<ArchitectureDoc>(`${BASE}/sessions/${id}/architecture`),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
-  createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
+  createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; text?: string; /** With `text`: this page will show the preview and say what it sees. */ sees?: boolean }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
 };
 

@@ -91,6 +91,13 @@ export interface RunnerDeps {
    * one finding in the same words each time.
    */
   design?(session: DesignerSession): string[] | Promise<string[]>;
+  /**
+   * The page as it shows, once the checks have nothing left: what was measured
+   * on it and, for a model that reads pictures, a picture of it. Asked once a
+   * turn, and only in a turn whose page said it is watching (`sees`). `since`
+   * is when this turn last built or applied. Null when there is nothing to say.
+   */
+  sight?(session: DesignerSession, opts: { since: number; signal: AbortSignal; /** Looked at once already this turn: said again only when the page has stopped (blank, or an error). */ again: boolean }): Promise<{ text: string; image?: { ref: string; mediaType: string; name: string } } | null>;
   /** Before the model is first asked in a turn: what the server itself settles with the person (a card), and files it makes sure are there. */
   opening?(session: DesignerSession, turn: TurnHandle): Promise<void>;
   /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
@@ -116,7 +123,7 @@ export type { Actor, TurnHandle } from './tool-types.js';
 
 export interface DesignerRunner {
   /** Start a turn. 409 (reason `TURN_RUNNING`) while another turn runs in this folder. */
-  start(sessionId: string, input: { text: string; by: Actor; attachments?: readonly string[] }): Promise<{ turn: number }>;
+  start(sessionId: string, input: { text: string; by: Actor; attachments?: readonly string[]; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean }): Promise<{ turn: number }>;
   /** Stop the session's turn. False when none runs. */
   stop(sessionId: string): boolean;
   /** Answer a waiting card. */
@@ -139,6 +146,8 @@ export const MAX_REPAIRS = 2;
 export const MAX_NUDGES = 2;
 /** How many times a turn's model is sent back to what its screens lack as a design. */
 export const MAX_DESIGN_ROUNDS = 2;
+/** How often a turn looks at the page it built: once, and then only for a page that stopped (blank, or an error) after what was built since. */
+export const MAX_LOOKS = 3;
 /** A tool an older session called by another name: a transcript that names it still runs. */
 export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_style' };
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
@@ -172,6 +181,8 @@ interface Running {
   by: Actor;
   cards: Map<string, { card: DesignerCard; resolve: (answer: CardAnswer) => void; reject: (error: Error) => void }>;
   done: Promise<void>;
+  /** Whether the page that started the turn will say what it sees of a build. */
+  sees: boolean;
 }
 
 /** The first line of a refusal, short enough for a step's line on the page. */
@@ -258,6 +269,12 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let continued = false;
     let nudges = 0;
     let designRounds = 0;
+    /** When this turn last built or applied the app, and whether the page was already looked at. */
+    let builtAt = 0;
+    /** How often it built or applied, how often the page was looked at, and how many builds the last look had behind it. */
+    let builds = 0;
+    let looks = 0;
+    let lookedAfter = 0;
     /** Whether this turn changed, checked or applied anything: only then is it held to the check. */
     let acted = false;
     const waits = deps.retryWaitsMs ?? RETRY_WAITS_MS;
@@ -403,6 +420,21 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               continue;
             }
           }
+          if (sendBack === null && looks < MAX_LOOKS && builds > lookedAfter && run.sees && deps.sight !== undefined) {
+            // Last of all: the page as it shows. What the checks cannot read from the files is seen here. Once; and once
+            // more only if what was built after that left the page blank or stopped, which no person should be handed.
+            looks += 1;
+            lookedAfter = builds;
+            const seen = await deps.sight(session, { since: builtAt, signal, again: looks > 1 }).catch(() => null);
+            if (signal.aborted) throw new TurnStoppedError();
+            if (seen !== null) {
+              deps.store.appendMessage(session.id, turn, {
+                role: 'user',
+                content: [{ type: 'text', text: seen.text }, ...(seen.image === undefined ? [] : [{ type: 'image' as const, mediaType: seen.image.mediaType, data: '', ref: seen.image.ref, name: seen.image.name }])],
+              });
+              continue;
+            }
+          }
           if (sendBack === null) {
             // Left undone and unsaid: said to the person by the Designer itself, as the last words of the turn.
             const notes = deps.closing?.(session) ?? [];
@@ -450,6 +482,10 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
+            if (done.isError !== true && (call.name === 'apply_app' || call.name === 'build_sides')) {
+              builtAt = now();
+              builds += 1;
+            }
             // A tool that named the app moved its folder: the tools after it in this reply, and every later step, work in the new one.
             const stored = deps.store.read(session.id);
             if (stored.appKey !== session.appKey) {
@@ -539,7 +575,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       const files = attached.filter((entry): entry is Attachment => entry !== null);
       const turn = session.turns + 1;
       // Claimed before anything is awaited, so two starts cannot both pass the check above.
-      const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve() };
+      const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve(), sees: input.sees === true };
       running = claim;
       try {
         const updated = deps.store.update(sessionId, { turns: turn });

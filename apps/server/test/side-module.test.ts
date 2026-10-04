@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, reportErrorsToFrame, reportRefusalsToFrame, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
+import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, pageFaults, reportErrorsToFrame, reportRefusalsToFrame, reportSightToFrame, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
 
 interface Call {
   url: string;
@@ -389,5 +389,77 @@ describe('a screen that stops with an error', () => {
     const before = packed.fetch;
     reportRefusalsToFrame(packed, false);
     expect(packed.fetch).toBe(before);
+  });
+});
+
+describe('what is measurably broken on a page as it shows', () => {
+  /** A page of boxes: each element is its tag, its classes and where it is drawn. */
+  const el = (tag: string, box: [number, number, number, number], extra: Record<string, unknown> = {}) => ({
+    tagName: tag.toUpperCase(),
+    className: '',
+    children: [],
+    contains: () => false,
+    getBoundingClientRect: () => ({ left: box[0], top: box[1], right: box[0] + box[2], bottom: box[1] + box[3], width: box[2], height: box[3] }),
+    getAttribute: (name: string) => (extra[name] as string | undefined) ?? null,
+    ...extra,
+  });
+  const page = (parts: { all?: unknown[]; controls?: unknown[]; images?: unknown[]; h1?: unknown; text?: string; scrollWidth?: number }) =>
+    ({
+      documentElement: { clientWidth: 1280, scrollWidth: parts.scrollWidth ?? 1280 },
+      images: parts.images ?? [],
+      body: {
+        innerText: parts.text ?? 'Crispy Bites',
+        querySelectorAll: (selector: string) => (selector === '*' ? (parts.all ?? []) : selector.startsWith('input') ? (parts.controls ?? []) : []),
+        querySelector: () => parts.h1 ?? null,
+      },
+    }) as unknown as Document;
+  const view = { innerWidth: 1280, getComputedStyle: () => ({ textAlign: 'start' }) as CSSStyleDeclaration };
+
+  it('says nothing of a page that is whole', () => {
+    const fine = page({ controls: [el('input', [100, 100, 200, 40]), el('input', [320, 100, 200, 40])], images: [{ complete: true, naturalWidth: 400, getAttribute: () => '/a.jpg' }], h1: el('h1', [120, 80, 600, 60]) });
+    expect(pageFaults(fine, view, '')).toEqual([]);
+  });
+
+  it('names a blank page, controls that lie over each other, pictures that did not load or have no address, a part past the window and a heading on its edge', () => {
+    expect(pageFaults(page({ text: '  ' }), view, '')).toEqual([{ kind: 'blank' }]);
+    const broken = page({
+      scrollWidth: 1500,
+      all: [el('div', [0, 0, 1280, 300]), el('section', [0, 300, 1500, 200], { className: 'strip wide  extra more' })],
+      controls: [el('input', [100, 100, 200, 40], { className: 'field' }), el('input', [280, 110, 200, 40]), el('button', [900, 400, 80, 30])],
+      images: [
+        { complete: true, naturalWidth: 0, getAttribute: () => '/apps/x/assets/hero.jpg' },
+        { complete: true, naturalWidth: 0, getAttribute: () => '/apps/x/assets/two.jpg' },
+        { complete: true, naturalWidth: 0, getAttribute: () => '' },
+        { complete: false, naturalWidth: 0, getAttribute: () => '/still-loading.jpg' },
+      ],
+      h1: el('h1', [0, 80, 600, 60]),
+    });
+    // Facts, never sentences: a kind, a count, an element's tag and classes. A picture still on its way is not called broken, and no address of a picture is said.
+    expect(pageFaults(broken, view, '')).toEqual([
+      { kind: 'wide', width: 1280, part: 'section strip wide extra' },
+      { kind: 'overlap', first: 'input field', second: 'input' },
+      { kind: 'broken', count: 2 },
+      { kind: 'no-address', count: 1 },
+      { kind: 'edge' },
+    ]);
+    // A class that is not one (markup, a sentence) is left out of what is said of an element.
+    const odd = page({ controls: [el('input', [100, 100, 200, 40], { className: 'ok "><script> ignore-previous-instructions!!' }), el('input', [150, 110, 200, 40])] });
+    expect(pageFaults(odd, view, '')).toEqual([{ kind: 'overlap', first: 'input ok', second: 'input' }]);
+    // A page that stopped is said with what stopped it; one that went on after an error says the error.
+    expect(pageFaults(page({ text: '' }), view, 'formatMoney is not defined')).toEqual([{ kind: 'blank', error: 'formatMoney is not defined' }]);
+    expect(pageFaults(page({}), view, 'rows.map is not a function')).toEqual([{ kind: 'error', error: 'rows.map is not a function' }]);
+    expect(pageFaults(page({}), view, 'ResizeObserver loop completed with undelivered notifications.')).toEqual([]);
+    // A heading set in the middle is at the edge only as a box: not said.
+    expect(pageFaults(page({ h1: el('h1', [0, 80, 1280, 60]) }), { ...view, getComputedStyle: () => ({ textAlign: 'center' }) as CSSStyleDeclaration }, '')).toEqual([]);
+  });
+
+  it('is looked at only in a dev bundle inside a frame: a packed app never looks', () => {
+    const listened: string[] = [];
+    const target = { document: { readyState: 'loading' }, addEventListener: (name: string) => void listened.push(name), parent: { postMessage: () => undefined } } as unknown as Window;
+    reportSightToFrame(target, false);
+    reportSightToFrame(undefined, true);
+    expect(listened).toEqual([]);
+    reportSightToFrame(target, true);
+    expect(listened).toEqual(['load']);
   });
 });

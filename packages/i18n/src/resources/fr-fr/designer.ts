@@ -427,7 +427,10 @@ export default {
     "seenAsHint": "L’aperçu n’est pas votre propre connexion. Il montre l’application telle que ses utilisateurs la verront.",
     "wentOnCustomer": "L’écran client a rencontré une erreur et a continué. Une partie peut être vide.",
     "wentOnStaff": "L’écran du personnel a rencontré une erreur et a continué. Une partie peut être vide.",
-    "fixWentOnMessage": "L’écran {side} s’ouvre, et quelque chose y échoue avec une erreur, si bien qu’une partie reste vide : {error} Corrigez l’écran, s’il vous plaît."
+    "fixWentOnMessage": "L’écran {side} s’ouvre, et quelque chose y échoue avec une erreur, si bien qu’une partie reste vide : {error} Corrigez l’écran, s’il vous plaît.",
+    "sees": "Le Designer regarde la page après l’avoir construite",
+    "seesOn": "Après une construction, le Designer voit cette page et ce qui y est cassé, et corrige ce qu’il voit. Appuyez pour désactiver.",
+    "seesOff": "Le Designer ne regarde pas la page qu’il construit. Appuyez pour l’y autoriser."
   },
   "arch": {
     "access": "Accès client",

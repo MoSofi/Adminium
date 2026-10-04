@@ -10,7 +10,7 @@
  * font is known by its first four bytes and is never parsed at all.
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { cleanPalette, type PaletteColour } from '../project/apps/theme.js';
@@ -119,6 +119,8 @@ export interface Attachments {
   find(sessionId: string, id: string): Attachment | null;
   /** The file's bytes; null when there is no such attachment in this session. */
   read(sessionId: string, id: string): Buffer | null;
+  /** Take a file out of the session. False when there is none of that id. */
+  remove(sessionId: string, id: string): boolean;
 }
 
 export function createAttachments(root: string, opts: { now?: () => number } = {}): Attachments {
@@ -150,6 +152,18 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       } catch {
         return null;
       }
+    },
+    remove(sessionId, id) {
+      if (!ATTACHMENT_ID.test(id)) return false;
+      const all = list(sessionId);
+      const entry = all.find((candidate) => candidate.id === id);
+      if (entry === undefined) return false;
+      const dir = dirOf(sessionId);
+      const index = join(dir, 'attachments.json');
+      writeFileSync(`${index}.tmp`, JSON.stringify(all.filter((candidate) => candidate.id !== id), null, 2), { mode: 0o600 });
+      renameSync(`${index}.tmp`, index);
+      rmSync(join(dir, `${entry.id}.${EXT[entry.mediaType]}`), { force: true });
+      return true;
     },
     add(sessionId, input) {
       const { bytes } = input;

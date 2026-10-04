@@ -108,6 +108,8 @@ export interface ProjectAppsOptions {
   changed?: ((key: string, hash: string) => void) | undefined;
   /** Add an app's sample data. Dev calls it once, after the first install. */
   addSampleData?: ((key: string) => Promise<void>) | undefined;
+  /** Whether an app's sample data was ever added on this server (a person may have removed it since). Taken as "yes" when left out. */
+  sampleEverAdded?: ((key: string) => Promise<boolean>) | undefined;
   /**
    * The public API of this server: whether its routes exist at all (they are
    * registered at boot, and only when `ADMINIUM_PUBLIC_API_ORIGINS` is set),
@@ -378,7 +380,9 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     await repo.setApplied(app.key, markOf(app.key, app.hash));
     await publicApiFor(app.key, reply.manifest.kind === 'app' && (reply.manifest.publicAccess ?? []).length > 0, access.allowed);
     // Sample rows the app did not bring at its first install (they were written afterwards) are added when it first names them.
-    const hadSample = (reply.previous as { sampleData?: unknown } | null | undefined)?.sampleData !== undefined;
+    // An apply that stopped half-way (its pages, its public access) already keeps the manifest that names them, and added no row: so
+    // "it named them before" is not "they were added". What decides is whether they ever were.
+    const hadSample = (reply.previous as { sampleData?: unknown } | null | undefined)?.sampleData !== undefined && (opts.sampleEverAdded === undefined || (await opts.sampleEverAdded(app.key).catch(() => true)));
     if (opts.mode === 'dev' && reply.manifest.kind === 'app' && reply.manifest.sampleData !== undefined && !hadSample && opts.apps?.[app.key]?.sampleData !== false && opts.addSampleData !== undefined) {
       try {
         await opts.addSampleData(app.key);

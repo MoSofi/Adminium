@@ -279,6 +279,16 @@ describe('pictures, made ready to send', () => {
     expect(sent(withPictures(merged, { reads: true, bytesOf: bytesOf(), turnOf: () => 2, turn: 4 }))).toEqual([]);
   });
 
+  it('says a picture the server took of the page, since replaced, as that: nobody attached it, and the person is not asked to describe it', () => {
+    const page: RunMessage = { role: 'user', content: [{ type: 'text', text: 'This picture is the customer page as it shows now.' }, { type: 'image', mediaType: 'image/jpeg', data: '', ref: 'gone', name: 'the customer page as it shows.jpg' }] };
+    // Its file was taken out when a newer picture of the page came: there are no bytes for it.
+    const told = withPictures([page], { reads: true, bytesOf: () => null, turnOf: () => 1, turn: 2 });
+    expect(sent(told)).toEqual([]);
+    expect(lines(told)).toContain('(A picture of the page as it showed then. It is not sent again.)');
+    expect(lines(told)).not.toContain('attached');
+    expect(lines(withPictures([page], { reads: false, bytesOf: () => null, turnOf: () => 1, turn: 2 }))).not.toContain('attached');
+  });
+
   it('sends none to a model that reads none, or once a request with pictures was refused', () => {
     const blind = withPictures([user('Like this.', 'a')], { reads: false, bytesOf: bytesOf(), turnOf: () => 1, turn: 1 });
     expect(sent(blind)).toEqual([]);

@@ -73,6 +73,8 @@ export const designerSessionCreateBody = z.object({
   style: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/).optional(),
   /** The first message. Without it the session opens with no turn: "Continue" on an app no session built. */
   text: z.string().min(1).max(20_000).optional(),
+  /** With a first message: the page that sends it will show the preview, and say what it sees of each build. */
+  sees: z.boolean().optional(),
 });
 
 const styleKey = z.string().regex(/^[a-z][a-z0-9-]{1,39}$/);
@@ -131,7 +133,19 @@ export const designerTurnBody = z.object({
   text: z.string().min(1).max(20_000),
   /** Files already uploaded to this session, by the ids the upload answered with. */
   attachments: z.array(z.string().regex(/^att_[0-9a-f]{20}$/)).max(4).optional(),
+  /** The page that sends this shows the preview, and will say what it sees of each build. */
+  sees: z.boolean().optional(),
 });
+
+/** What the preview saw of the app's screen: what is measurably broken on it, and a picture of it as a JPEG data address. */
+export const designerSightBody = z.object({
+  side: z.enum(['staff', 'customer']),
+  width: z.number().int().min(200).max(6000),
+  /** What was measured: each a kind from a closed list with a few values. Anything else is left out by the server. */
+  faults: z.array(z.record(z.string(), z.union([z.string().max(200), z.number()]))).max(40),
+  picture: z.string().max(1_000_000).optional(),
+});
+export const designerSightReply = z.object({ kept: z.boolean() });
 
 export const designerAttachment = z.object({
   id: z.string(),

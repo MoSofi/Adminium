@@ -12,7 +12,7 @@ import { Readable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { cleanPicture, createPictureCache, matchesTag, pictureHeaders, PictureRefused, PICTURE_CLEANING_AT_ONCE, PICTURE_MAX_FRAMES, PICTURE_PIPELINE, readCapped } from '../src/public-api/picture.js';
+import { cleanPicture, createPictureCache, matchesTag, pictureHeaders, PictureRefused, PICTURE_CLEANING_AT_ONCE, PICTURE_MAX_FRAMES, PICTURE_WAITING_PER_ADDRESS, PICTURE_PIPELINE, readCapped } from '../src/public-api/picture.js';
 import { gif, gifFrame, jpeg, jpegSegment, png, pngChunk, riffChunk, webp, webpFile } from './picture-images.js';
 
 describe('a picture, cleaned', () => {
@@ -149,7 +149,8 @@ describe('a picture, cleaned', () => {
   });
 
   it('is cleaned once, two at a time at most and one per address, and its tag kept', async () => {
-    const cache = createPictureCache();
+    // A place that does not come free within the wait is told to come back.
+    const cache = createPictureCache(10_000, 40);
     const opened: string[] = [];
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -178,5 +179,44 @@ describe('a picture, cleaned', () => {
     expect(cache.tagOf('file_a')).toBe(a!.etag);
     expect(await cache.clean('file_c', '10.0.0.1', load('file_c'))).not.toBeNull();
     expect(opened).toEqual(['file_a', 'file_b', 'file_c']);
+  });
+
+  it('lets a page of new pictures from one visitor wait their turn: each is cleaned, one at a time, and none is turned away', async () => {
+    const cache = createPictureCache();
+    let atOnce = 0;
+    let most = 0;
+    const load = async () => {
+      atOnce += 1;
+      most = Math.max(most, atOnce);
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      atOnce -= 1;
+      return { bytes: png().bytes, mime: 'image/png' };
+    };
+    // Six pictures of one page, asked for together by one browser.
+    const six = await Promise.all(['a', 'b', 'c', 'd', 'e', 'f'].map((id) => cache.clean(`file_${id}`, '10.0.0.9', load)));
+    expect(six.every((picture) => picture !== null)).toBe(true);
+    // The bound held throughout: this address never had two cleaned at once.
+    expect(most).toBe(1);
+    // The line itself is bounded: past it, an address is told to come back at once.
+    const slow = createPictureCache(10_000, 200);
+    let free!: () => void;
+    const held = new Promise<void>((resolve) => {
+      free = resolve;
+    });
+    const stuck = async () => {
+      await held;
+      return { bytes: png().bytes, mime: 'image/png' };
+    };
+    const first = slow.clean('file_0', '10.0.0.9', stuck);
+    const line = Array.from({ length: PICTURE_WAITING_PER_ADDRESS }, (_unused, index) => slow.clean(`file_w${String(index)}`, '10.0.0.9', stuck));
+    const started = Date.now();
+    expect(await slow.clean('file_over', '10.0.0.9', stuck)).toBeNull();
+    expect(Date.now() - started).toBeLessThan(100);
+    // Another address is not held up by that line.
+    const other = slow.clean('file_other', '10.0.0.10', stuck);
+    free();
+    expect(await first).not.toBeNull();
+    expect(await other).not.toBeNull();
+    await Promise.all(line);
   });
 });

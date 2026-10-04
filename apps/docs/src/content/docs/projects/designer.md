@@ -342,6 +342,30 @@ version, changes included.
 - The version menu lists every version. Going back to one makes a new version on top, so nothing
   is lost.
 
+### The Designer looks too
+
+A screen can pass every check and still look wrong: a list that came up empty, two fields lying
+over each other, a first heading against the window's edge. So once a turn has built the app's
+own screen, and the checks have nothing left to say, the Designer is shown the page:
+
+- The previewed screen measures what is measurably broken on it (a part wider than the window,
+  controls that overlap, a picture that did not load, the same list asked for over and over, a
+  blank page) and the model is told, in plain sentences.
+- For a model that reads pictures, the screen also draws a picture of itself, and the model is
+  asked to compare it with the brief and fix the three worst things it sees.
+
+What the screen reports is a short list of facts (a kind, a count, an element's tag and classes),
+never sentences of its own: the words the model reads are written by the server. If what the
+Designer builds after looking leaves the page blank, it is told again, with the browser's own
+error when it is one a browser words ("formatMoney is not defined").
+
+This happens once in a turn, and only while this page is open on the preview: the picture is
+drawn in your browser, from the page as it stands, and sent with your turn to the model you
+chose. It holds what the page shows, which while you build is sample data. The camera button in
+the preview's bar switches it off; the choice is kept in your browser. In the picture the
+system's fonts stand in for web fonts, and a picture from another site shows as an empty frame.
+A browser that cannot draw the picture sends the measured lines alone.
+
 ### You, the owner
 
 `adminium design` makes you the project's owner with no password: the link it prints signs you in,

@@ -16,7 +16,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Eye, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
+import { Camera, ExternalLink, Eye, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
 
 import { api } from '../../app/api.js';
 import { systemInfoQuery } from '../../app/capabilities.js';
@@ -25,6 +25,7 @@ import { AppFrame } from '../../apps/AppFrame.js';
 import { t } from '../../i18n/t.js';
 import type { InstalledApp } from '../../studio/apps/appsApi.js';
 import { designerApi, type DesignerSession } from '../api.js';
+import { previewShows, seesPage, setSeesPage, sightFrom } from './sight.js';
 import type { TurnView } from './turns.js';
 
 export type PreviewSide = 'dashboard' | 'staff' | 'customer';
@@ -167,12 +168,23 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   // Rows loaded from an attached file: the app did not change, what its pages show did.
   const loads = turns.reduce((sum, turn) => sum + turn.steps.filter((step) => step.tool === 'load_rows' && step.outcome === 'added' && step.state !== 'running').length, 0);
   const seenLoads = useRef(loads);
+  const [sees, setSees] = useState(seesPage);
   // Only a load that finishes while its turn runs: a session opened later already shows those rows, and its past loads arriving with the first read of events are no reason to spend a ticket.
   const running = turns.length > 0 && turns[turns.length - 1]?.outcome === null;
   useEffect(() => {
     if (loads > seenLoads.current && running) setRound((value) => value + 1);
     seenLoads.current = loads;
   }, [loads, running]);
+  const runningNow = useRef(running);
+  runningNow.current = running;
+  // What this preview shows, for a turn about to start: only a side of the app's own can be looked at.
+  const showing = noPreview || app === null ? null : side;
+  useEffect(() => {
+    previewShows(showing);
+    return () => previewShows(null);
+  }, [showing]);
+  /** The sights sent on for the frame as it is open now: which opening, when the last went, how many. */
+  const sentSight = useRef({ round: -1, at: 0, count: 0 });
 
   const built = previewState(turns);
   // A screen that built and then stopped as it opened says so from inside its frame (dev bundles only).
@@ -185,6 +197,17 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
       // From a frame of this page, not from any window that happens to share the preview's address.
       if (!Array.from(document.querySelectorAll('iframe')).some((frame) => frame.contentWindow === event.source)) return;
       const data = event.data as { type?: unknown; app?: unknown; side?: unknown; message?: unknown; refused?: unknown; went?: unknown } | null;
+      // What the screen saw of itself, once it stood still: sent on for the turn that built it, while that turn runs and the person lets it look.
+      const sight = sightFrom(event.data, session.appKey);
+      if (sight !== null) {
+        // Once for each time the frame was opened, and never twice within two seconds: a screen that posts without end sends nothing more.
+        const due = sentSight.current.round !== round || Date.now() - sentSight.current.at > 2000;
+        if (runningNow.current && seesPage() && due && sentSight.current.count < 3) {
+          sentSight.current = { round, at: Date.now(), count: sentSight.current.round === round ? sentSight.current.count + 1 : 1 };
+          void designerApi.sendSight(session.id, sight).catch(() => undefined);
+        }
+        return;
+      }
       if (data?.type !== 'adminium:side-error' || data.app !== session.appKey) return;
       if (data.side !== 'staff' && data.side !== 'customer') return;
       setCrashed({ side: data.side, message: typeof data.message === 'string' ? data.message.slice(0, 600) : '', round, refused: data.refused === true, went: data.went === true });
@@ -306,6 +329,23 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
           </span>
         )}
         <div className="ms-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-pressed={sees}
+            onClick={() => {
+              setSeesPage(!sees);
+              setSees(!sees);
+            }}
+            aria-label={t('designer:preview.sees', 'The Designer looks at the page after it builds')}
+            title={
+              sees
+                ? t('designer:preview.seesOn', 'After a build, the Designer is shown this page and what is broken on it, and fixes what it sees. Press to switch that off.')
+                : t('designer:preview.seesOff', 'The Designer does not look at the page it builds. Press to let it.')
+            }
+            className="flex size-8 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-subtle hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
+          >
+            <Camera aria-hidden="true" className="size-3.5" />
+          </button>
           <button
             type="button"
             onClick={() => setRound((value) => value + 1)}

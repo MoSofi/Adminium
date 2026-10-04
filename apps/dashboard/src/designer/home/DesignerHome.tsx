@@ -35,6 +35,7 @@ import { StartWithAnApp } from './StartWithAnApp.js';
 import { YourApps } from './YourApps.js';
 import { examplesAt, nameFromRequest } from './examples.js';
 import { StylePicker } from '../parts/styles.js';
+import { seesPage } from '../build/sight.js';
 
 /** "Start with an app" shows once the sheet it opens exists: a card that opens nothing is worse than no card. */
 export const SHOW_START_WITH_AN_APP = true;
@@ -90,7 +91,7 @@ export function DesignerHome(): ReactNode {
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
       const base = { title: nameFromRequest(text), ...(style === null ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
-      if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim() });
+      if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
       // in the box, and the next send goes to the session already made instead of making another.
@@ -98,7 +99,7 @@ export function DesignerHome(): ReactNode {
       const key = JSON.stringify([base.connectionId, base.model, base.target]);
       if (made.current === null || made.current.key !== key) made.current = { key, reply: await designerApi.createSession(base) };
       const { reply } = made.current;
-      await designerApi.startTurn(reply.session.id, text.trim(), await attach.upload(reply.session.id));
+      await designerApi.startTurn(reply.session.id, text.trim(), await attach.upload(reply.session.id), seesPage());
       return reply;
     },
     onSuccess: async ({ session }) => {

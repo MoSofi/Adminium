@@ -81,6 +81,10 @@ export async function folderHarness(
         const target = await findSampleApp(harness.meta, key);
         if (target !== null) await harness.samples?.add(target, { locale: 'en-US', userId: null, userLabel: 'project folder' });
       },
+      sampleEverAdded: async (key) => {
+        const target = await findSampleApp(harness.meta, key);
+        return target === null || harness.samples === undefined ? true : harness.samples.everAdded(target);
+      },
       refreshServed: () => harness.deps.installed.refresh(),
       publicApi: {
         get registered() {

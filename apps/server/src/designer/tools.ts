@@ -30,7 +30,7 @@ import { join, relative, sep } from 'node:path';
 
 import { checkApp } from '../project/apps/check-app.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
-import { applyLook, cleanLook, directionFromWords, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { applyLook, cleanLook, directionFromWords, lookInUse, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { cleanThemePatch, isPublicFontName, mergePatches, OWN_FONTS_MAX, themeFromPalette } from '../project/apps/theme.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
@@ -388,6 +388,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
 
   /** The last text refused as invalid JSON, by file: the same text again is said to be the same. */
   const refusedJson = new Map<string, string>();
+  /** write_file calls in a row that came with no path or no content. */
+  let emptyWrites = 0;
 
   let lastErrors = '';
   let sameErrors = 0;
@@ -640,7 +642,17 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       run: async (input, ctx) => {
         const path = str(input, 'path');
         const content = str(input, 'content');
-        if (path === null || content === null) return refused('Give "path" and "content".', 'Wrote nothing');
+        if (path === null || content === null) {
+          // A whole file that is too long for one answer arrives with no content, and arrives so again: said once plainly, then with the way out.
+          emptyWrites += 1;
+          return refused(
+            emptyWrites < 2
+              ? 'Give "path" and "content".'
+              : `This is call ${String(emptyWrites)} to write_file that came with no "${path === null ? 'path' : 'content'}": the file is too long to send whole in one call. Do NOT call write_file for it again. Change only the piece that is wrong with edit_file ("old": a few lines copied from the file exactly, "new": the same lines put right); a build error names the line.`,
+            'Wrote nothing',
+          );
+        }
+        emptyWrites = 0;
         // An earlier step of this conversation, shown cut short, copied back as if it were the file.
         if (FOLDED_MARK.test(content)) return refused('That is a shortened copy of an earlier step, not the file: it ends in "… (N more characters …)". read_file gives the whole file; then write all of it.', 'Wrote nothing');
         const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
@@ -660,9 +672,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             );
           }
           refusedJson.delete(normal);
-          const existed = existsSync(jail.resolve(path, 'write'));
-          jail.write(path, content);
-          return text(`${existed ? 'Replaced' : 'Made'} ${normal} (${String(Buffer.byteLength(content, 'utf8'))} bytes).`, `Wrote ${shown(path)}`);
+          const target = jail.resolve(path, 'write');
+          const existed = existsSync(target);
+          // The sample rows' pictures are in this file as the server put them: a rewrite of the rows keeps them.
+          const kept = existed && /(^|\/)seeds\/sample\.json$/.test(normal) ? keepSamplePictures(readFileSync(target, 'utf8'), content) : null;
+          jail.write(path, kept?.text ?? content);
+          return text(
+            `${existed ? 'Replaced' : 'Made'} ${normal} (${String(Buffer.byteLength(kept?.text ?? content, 'utf8'))} bytes).${kept === null ? '' : ` ${kept.said}`}`,
+            `Wrote ${shown(path)}`,
+          );
         });
       },
     },
@@ -713,8 +731,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           if (unread !== null) {
             return refused(`With that change the file is not valid JSON, so it was left as it was: ${unread}. Mind the commas around what you add.`, `Could not edit ${shown(path)}`);
           }
-          jail.write(path, next);
-          return text(`Edited ${normal}.`, `Edited ${shown(path)}`);
+          const kept = /(^|\/)seeds\/sample\.json$/.test(normal) ? keepSamplePictures(current, next) : null;
+          jail.write(path, kept?.text ?? next);
+          return text(`Edited ${normal}.${kept === null ? '' : ` ${kept.said}`}`, `Edited ${shown(path)}`);
         });
       },
     },
@@ -1056,7 +1075,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const key = str(input, 'style') ?? str(input, 'direction');
         const accent = str(input, 'accent');
         if (accent !== null && !/^#[0-9a-f]{6}$/i.test(accent)) return refused('Give "accent" as #rrggbb, or leave it out.', 'Style not changed');
-        const now = readLook(deps.root, appKey) ?? DEFAULT_LOOK;
+        const now = lookInUse(deps.root, appKey, DEFAULT_LOOK);
         const skill = key === null ? null : findDesignSkill(deps.root, stylesDir, key);
         if (key !== null && (skill === null || skill.problem !== undefined)) {
           return { ...refused(`There is no style "${key.slice(0, 40)}". The styles: ${styles().map((entry) => entry.key).join(', ')}.`, 'Style not changed'), miss: true };
@@ -1122,7 +1141,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         if (use === null) return none('Give "use": "heading" or "body".');
         const weight = int(input, 'weight') ?? (use === 'heading' ? 700 : 400);
         if (weight < 100 || weight > 900 || weight % 100 !== 0) return none('Give "weight" as one of 100, 200, … 900, or leave it out.');
-        const now = readLook(deps.root, appKey) ?? DEFAULT_LOOK;
+        const now = lookInUse(deps.root, appKey, DEFAULT_LOOK);
         const others = (now.ownFonts ?? []).filter((font) => !(font.family.toLowerCase() === family.toLowerCase() && font.weight === weight));
         if (others.length >= OWN_FONTS_MAX) return none(`The app already carries ${String(OWN_FONTS_MAX)} font files of its own, which is the most it may.`);
         // A name of this server's making: the person's file name is a label and never a path.
@@ -1387,9 +1406,12 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           rows: { table: string; column: string } | null;
           count: number;
           shape: PictureShape;
+          /** The table's file, when its picture column is still to be added to it. */
+          addColumn?: string;
         }
         const needs: Need[] = [];
         const problems: string[] = [];
+        const addedColumns: { table: string; column: string }[] = [];
         for (const raw of Array.isArray(input['needs']) ? (input['needs'] as unknown[]).slice(0, 6) : []) {
           const need = (raw ?? {}) as Record<string, unknown>;
           const words = typeof need['words'] === 'string' ? need['words'].replace(/\s+/g, ' ').trim().slice(0, 80) : '';
@@ -1404,11 +1426,27 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           const shape = (PICTURE_SHAPES as readonly unknown[]).includes(need['shape']) ? (need['shape'] as PictureShape) : need['for'] === 'rows' ? 'square' : 'wide';
           const count = Math.min(PICTURES_PER_NEED, Math.max(1, int(need, 'count') ?? (need['for'] === 'rows' ? 6 : 1)));
           if (need['for'] === 'rows') {
-            const table = tables.find((candidate) => candidate.ref === need['table']);
-            const column = table?.columns.find((candidate) => candidate.ref === need['column']);
-            if (table === undefined || column === undefined || column.type !== 'text' || !('semantic' in column) || column.semantic !== 'image') {
+            // The table by its ref; a model that wrote the table's name in the database (the app's key before it) means the same table.
+            const asked = typeof need['table'] === 'string' ? need['table'] : '';
+            const table = tables.find((candidate) => candidate.ref === asked) ?? tables.find((candidate) => asked.endsWith(`_${candidate.ref}`) && asked.slice(0, -candidate.ref.length - 1) === appKey.replace(/-/g, '_'));
+            const isPicture = (candidate: (typeof tables)[number]['columns'][number] | undefined): boolean => candidate !== undefined && candidate.type === 'text' && 'semantic' in candidate && candidate.semantic === 'image';
+            // The column named, when it is a picture column; else the table's own picture column, whatever it was called.
+            let column = table?.columns.find((candidate) => candidate.ref === need['column']);
+            if (!isPicture(column)) column = table?.columns.find((candidate) => isPicture(candidate));
+            if (table !== undefined && column === undefined) {
+              // The table has no picture column: one is added by this tool, rather than sending the model round for it.
+              // Not yet: only once pictures were found, chosen and copied, so a search that ends with none changes no table.
+              const file = join(deps.root, APPS_DIR, appKey, 'manifest', 'tables', `${table.ref}.json`);
+              if (existsSync(file) && !table.columns.some((candidate) => candidate.ref === 'picture')) {
+                needs.push({ id, words, rows: { table: table.ref, column: 'picture' }, count, shape, addColumn: file });
+                continue;
+              }
+            }
+            if (table === undefined || column === undefined) {
               problems.push(
-                `"${id}": for rows, give "table" and "column", and the column must be a picture column: { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } in the table's file. Add it, check_app, then call find_pictures again.`,
+                table === undefined
+                  ? `"${id}": there is no table "${asked.slice(0, 60)}" in this app${tables.length === 0 ? ' yet: write its file and check_app first' : ` (its tables: ${tables.map((candidate) => candidate.ref).join(', ')})`}. Call find_pictures again with "table" as one of those.`
+                  : `"${id}": for rows, give "table" and "column", and the column must be a picture column: { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } in the table's file. Add it, check_app, then call find_pictures again.`,
               );
               continue;
             }
@@ -1424,7 +1462,14 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         let left = PICTURES_PER_CALL;
         for (const need of needs) {
           try {
-            const pictures = (await (need.rows === null && showsFrom !== null ? showsFrom : source).search(need.words, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).slice(0, Math.min(need.count + 2, left));
+            // A source matches every word: a long phrase finds nothing where its first words find plenty. Fewer words are tried before giving up.
+            const said = need.words.split(' ');
+            const phrases = [...new Set([need.words, said.slice(0, 3).join(' '), said.slice(0, 2).join(' ')])];
+            let pictures: FoundPicture[] = [];
+            for (const phrase of phrases) {
+              pictures = (await (need.rows === null && showsFrom !== null ? showsFrom : source).search(phrase, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).slice(0, Math.min(need.count + 2, left));
+              if (pictures.length > 0) break;
+            }
             if (pictures.length === 0) problems.push(`"${need.id}": no picture was found for "${need.words}". Try plainer words, or do without.`);
             else found.set(need.id, pictures);
             left -= pictures.length;
@@ -1448,6 +1493,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           }),
         });
         const ticked = new Set(answer.type === 'pictures' ? answer.accept : []);
+        // The small copy the card showed is on the shelf already: it stands in when a picture's own file is too large or gone, and costs the source no second call.
+        const shelved = deps.pictures.shelf;
+        const smallCopies = new Map<string, { bytes: Buffer; ext: 'jpg' | 'png' | 'webp' }>();
+        for (const picture of [...found.values()].flat()) {
+          if (!ticked.has(picture.id) || picture.shown !== undefined) continue;
+          const small = await shelved.thumb(ctx.session.id, shelf, picture.id).catch(() => null);
+          const ext = small === null ? null : small.mime === 'image/png' ? 'png' : small.mime === 'image/webp' ? 'webp' : small.mime === 'image/jpeg' ? 'jpg' : null;
+          if (small !== null && ext !== null) smallCopies.set(picture.id, { bytes: small.bytes, ext });
+        }
         deps.pictures.shelf.drop(shelf);
         if (ticked.size === 0) return none(`The person chose none of the pictures. Do not look again in this turn. ${instead}`, 'declined');
 
@@ -1474,7 +1528,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
               credits.push(creditOf(picture, picture.shown));
               continue;
             }
-            const got = await download(picture, { signal: ctx.signal });
+            const got = (await download(picture.files.length > 1 ? { ...picture, files: picture.files.slice(0, -1) } : picture, { signal: ctx.signal })) ?? smallCopies.get(picture.id) ?? (picture.files.length > 1 ? await download({ ...picture, files: picture.files.slice(-1) }, { signal: ctx.signal }) : null);
             if (got === null) continue;
             const name = `${need.id}-${String(files.length + 1)}.${got.ext}`;
             const path = need.rows === null ? `assets/pictures/${name}` : `seeds/pictures/${name}`;
@@ -1487,7 +1541,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             if (chosen.length > 0) problems.push(`"${need.id}": the pictures chosen could not be copied (too large, or gone).`);
             continue;
           }
-          added += files.length + links.length;
+          // A page's pictures are in the app now; a table's rows are counted once they hold them.
+          if (need.rows === null) added += files.length + links.length;
           if (links.length > 0) {
             shownFrom = showsFrom?.showsFrom ?? null;
             lines.push(
@@ -1514,6 +1569,14 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             problems.push(`"${need.id}": "${need.rows.table}" has no sample rows in seeds/sample.json. Write them first, then call find_pictures again.`);
             continue;
           }
+          if (need.addColumn !== undefined) {
+            if (addPictureColumn(need.addColumn) === null) {
+              problems.push(`"${need.id}": the table "${need.rows.table}" has no picture column and its file does not read, so its rows got no pictures. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } to its columns, then call find_pictures again.`);
+              continue;
+            }
+            addedColumns.push({ table: need.rows.table, column: need.rows.column });
+          }
+          added += Math.min(files.length, rows.length);
           bundle.assets = { ...(bundle.assets ?? {}) };
           files.forEach((file, index) => {
             const row = rows[index];
@@ -1541,6 +1604,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         mkdirSync(join(dir, 'assets', 'pictures'), { recursive: true });
         writeFileSync(creditsFile, `${JSON.stringify([...before.filter((credit) => !credits.some((fresh) => fresh.file === credit.file)), ...credits], null, 2)}\n`);
         if (seeded) deps.pictures.reseed?.(appKey);
+        for (const made of addedColumns) {
+          lines.push(`The table "${made.table}" had no picture column, so "${made.column}" was added to its file (text, "semantic": "image"): show it on the page with pictureUrl, and call check_app and apply_app so the table gets it.`);
+        }
         return text(
           `${shownFrom === null ? `${String(added)} pictures were copied into the app.` : `${String(added)} pictures were added. Pictures from ${shownFrom} are allowed now and show in the page.`}\n${lines.join('\n')}${problems.length === 0 ? '' : `\n${problems.join('\n')}`}\nGive every picture a fixed shape (the "media" part with "wide", "square" or "tall", or aspect-ratio with object-fit: cover). Their credits are in apps/${appKey}/assets/pictures/CREDITS.json: show them at the foot of the page under "Picture credits" (import credits from '../../assets/pictures/CREDITS.json'; each has creator, licence, page).`,
           `Added ${String(added)} pictures`,
@@ -1628,6 +1694,76 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     },
   ];
   return tools;
+}
+
+/**
+ * A sample file written again, with the pictures the server had put in it
+ * kept: its `assets`, and each row's `{ "@asset": … }` where the new text has
+ * a file's name, nothing, or the same thing in other words. A model that
+ * rewrites the rows tends to write a picture as a file name, which is no
+ * picture: the row would show a broken image. Null when nothing was lost, or
+ * either text is not a sample file.
+ */
+export function keepSamplePictures(before: string, after: string): { text: string; said: string } | null {
+  interface Bundle {
+    assets?: Record<string, unknown>;
+    tables?: { ref?: unknown; rows?: Record<string, unknown>[] }[];
+  }
+  let old: Bundle;
+  let next: Bundle;
+  try {
+    old = JSON.parse(before) as Bundle;
+    next = JSON.parse(after) as Bundle;
+  } catch {
+    return null;
+  }
+  const isAsset = (value: unknown): value is { '@asset': string } => value !== null && typeof value === 'object' && typeof (value as Record<string, unknown>)['@asset'] === 'string';
+  const assets = old.assets ?? {};
+  if (Object.keys(assets).length === 0 || !Array.isArray(old.tables) || !Array.isArray(next.tables)) return null;
+  let restored = 0;
+  for (const table of old.tables) {
+    const target = next.tables.find((candidate) => candidate.ref === table.ref);
+    if (!Array.isArray(table.rows) || target === undefined || !Array.isArray(target.rows)) continue;
+    table.rows.forEach((row, index) => {
+      const into = target.rows?.[index];
+      if (into === undefined || into === null || typeof into !== 'object') return;
+      for (const [column, value] of Object.entries(row)) {
+        // Only a picture the server put there, and only where the new row has no picture of its own.
+        if (!isAsset(value) || assets[value['@asset']] === undefined || isAsset(into[column])) continue;
+        into[column] = value;
+        restored += 1;
+      }
+    });
+  }
+  const lostAssets = Object.keys(assets).filter((label) => next.assets?.[label] === undefined);
+  // An asset no row names any more is left out: the file must not name a picture nothing shows.
+  const named = new Set(next.tables.flatMap((table) => (table.rows ?? []).flatMap((row) => Object.values(row ?? {}).flatMap((value) => (isAsset(value) ? [value['@asset']] : [])))));
+  const back = lostAssets.filter((label) => named.has(label));
+  if (restored === 0 && back.length === 0) return null;
+  next.assets = { ...(next.assets ?? {}), ...Object.fromEntries(back.map((label) => [label, assets[label]])) };
+  return {
+    text: `${JSON.stringify(next, null, 2)}\n`,
+    said: `The rows' pictures were kept as they were ({ "@asset": … } and the file's "assets"): a picture column takes that, never a file's name. Leave them as they are.`,
+  };
+}
+
+/**
+ * Give a table's file a picture column, when it has none of that name: the
+ * column's ref, or null when the file does not read as a table or the name
+ * is taken by something else.
+ */
+function addPictureColumn(file: string): string | null {
+  try {
+    const table = JSON.parse(readFileSync(file, 'utf8')) as { columns?: unknown };
+    if (!Array.isArray(table.columns)) return null;
+    const ref = 'picture';
+    if (table.columns.some((column) => (column as { ref?: unknown } | null)?.ref === ref)) return null;
+    table.columns.push({ ref, type: 'text', semantic: 'image', nullable: true });
+    writeFileSync(file, `${JSON.stringify(table, null, 2)}\n`);
+    return ref;
+  } catch {
+    return null;
+  }
 }
 
 /** The names of the tools, in the order the model is told them. */

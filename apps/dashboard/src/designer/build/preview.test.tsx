@@ -14,6 +14,7 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerSession } from '../api.js';
 import { Preview, previewState, sideNamed } from './Preview.js';
+import { sightFrom } from './sight.js';
 import { foldTurns, type TurnView } from './turns.js';
 
 class FakeSocket {
@@ -253,6 +254,62 @@ describe('the preview', () => {
     expect(stuck.failed).toBe('Could not build the customer side of "cakes":\napps/cakes/customer/src/App.tsx:5:80: Could not resolve "react"');
     expect(sideNamed(stuck.failed ?? '')).toBe('customer');
     expect(sideNamed('src/Today.tsx: Cannot find name "jobs".')).toBeNull();
+  });
+
+  it('sends on what the screen saw of itself while its turn runs, from its own frame only, and not once a person switched the look off', async () => {
+    window.localStorage.removeItem('adminium.designer.sees');
+    const sent = (): unknown[] =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).endsWith(`/sessions/${SESSION.id}/sight`))
+        .map(([, init]) => JSON.parse(String((init as RequestInit).body)) as unknown);
+    const sight = { type: 'adminium:side-sight', app: SESSION.appKey, side: 'customer', width: 1280, faults: [{ kind: 'overlap', first: 'input', second: 'input' }], picture: 'data:image/jpeg;base64,/9j/4AAQ' };
+    // The turn is still running: the Designer is waiting to see what it built.
+    mount([turn({ outcome: null })]);
+    await screen.findByRole('button', { name: 'Staff' });
+    await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
+    const say = (origin: string, data: unknown, source?: Window): void => {
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', { origin, data, source: source ?? document.querySelector('iframe')?.contentWindow ?? null }));
+      });
+    };
+    say('http://evil.test', sight);
+    say('http://localhost:4731', { ...sight, app: 'another' });
+    say('http://localhost:4731', sight, window);
+    say('http://localhost:4731', { ...sight, side: 'dashboard' });
+    expect(sent()).toEqual([]);
+    say('http://localhost:4731', sight);
+    expect(sent()).toEqual([{ side: 'customer', width: 1280, faults: [{ kind: 'overlap', first: 'input', second: 'input' }], picture: 'data:image/jpeg;base64,/9j/4AAQ' }]);
+    // A screen that posts again and again sends nothing more for the frame as it is open.
+    for (let again = 0; again < 20; again += 1) say('http://localhost:4731', sight);
+    expect(sent()).toHaveLength(1);
+    // A picture that is not a JPEG's data address is left out, and so is anything of a fault that is not a plain value; the rest still goes.
+    expect(sightFrom({ ...sight, picture: 'https://evil.test/x.jpg', faults: [{ kind: 'broken', count: 2, extra: { deep: true } }, 'a sentence', null] }, SESSION.appKey)).toEqual({
+      side: 'customer',
+      width: 1280,
+      faults: [{ kind: 'broken', count: 2 }],
+    });
+    expect(sightFrom(sight, 'another-app')).toBeNull();
+    // It is no error of the screen: nothing is shown for it.
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Switched off from the preview's own bar: nothing more is sent, and the choice is kept for the next turn.
+    const look = screen.getByRole('button', { name: 'The Designer looks at the page after it builds' });
+    expect(look.getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(look);
+    expect(look.getAttribute('aria-pressed')).toBe('false');
+    expect(window.localStorage.getItem('adminium.designer.sees')).toBe('off');
+    say('http://localhost:4731', sight);
+    expect(sent()).toHaveLength(1);
+    window.localStorage.removeItem('adminium.designer.sees');
+
+    // No turn runs: nobody is waiting for it, and nothing is sent.
+    cleanup();
+    mount([turn({})]);
+    await screen.findByRole('button', { name: 'Staff' });
+    await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
+    say('http://localhost:4731', sight);
+    expect(sent()).toHaveLength(1);
   });
 
   it('shows a screen that built and then stopped as it opened, heard from its own frame, and asks for the fix', async () => {

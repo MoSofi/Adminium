@@ -200,6 +200,19 @@ export function readLook(root: string, key: string): Look | null {
   }
 }
 
+/**
+ * The look an app goes by: the one it kept, else the one its sides were made
+ * with. A side made before styles has a `theme.css` and no `fonts.css`: it is
+ * drawn as the plain look it always was, never as a style it did not choose.
+ * `fresh` is what a side with nothing before it starts as.
+ */
+export function lookInUse(root: string, key: string, fresh: Look): Look {
+  const kept = readLook(root, key);
+  if (kept !== null) return kept;
+  const before = sidesWithScreens(root, key).some((side) => existsSync(join(appDir(root, key), side, 'src', 'theme.css')) && !existsSync(join(appDir(root, key), side, 'src', 'fonts.css')));
+  return before ? cleanLook({ direction: 'clean' }) : fresh;
+}
+
 /** A style's key, as a folder may be named. */
 const SKILL_KEY = /^[a-z][a-z0-9-]{1,39}$/;
 

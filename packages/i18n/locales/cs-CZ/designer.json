@@ -417,7 +417,10 @@
     "seenAsHint": "Náhled není vaše vlastní přihlášení. Ukazuje aplikaci tak, jak ji uvidí její lidé.",
     "wentOnCustomer": "Zákaznická obrazovka narazila na chybu a pokračovala. Její část může být prázdná.",
     "wentOnStaff": "Obrazovka personálu narazila na chybu a pokračovala. Její část může být prázdná.",
-    "fixWentOnMessage": "Obrazovka {side} se otevře a něco v ní selže s chybou, takže její část zůstane prázdná: {error} Opravte prosím obrazovku."
+    "fixWentOnMessage": "Obrazovka {side} se otevře a něco v ní selže s chybou, takže její část zůstane prázdná: {error} Opravte prosím obrazovku.",
+    "sees": "Designer si po sestavení stránku prohlédne",
+    "seesOn": "Po sestavení se Designeru ukáže tato stránka a to, co je na ní rozbité, a opraví, co vidí. Stisknutím to vypnete.",
+    "seesOff": "Designer si stránku, kterou sestaví, neprohlíží. Stisknutím mu to povolíte."
   },
   "arch": {
     "access": "Přístup zákazníků",

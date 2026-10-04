@@ -86,7 +86,7 @@ import { isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
 import { createWriteService, deleteRows, insertRow, type WriteContext, type WriteTarget } from '../crud/write-service.js';
-import { fetchByPk } from '../crud/records.js';
+import { fetchByPk, pkLabel } from '../crud/records.js';
 import { writeStores } from '../crud/write-stores.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { FileStore } from '../files/store.js';
@@ -1003,6 +1003,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
   }
 
   return {
+    /** Whether this app's sample data was ever added here (and may since have been removed by a person). */
+    async everAdded(app: SampleApp): Promise<boolean> {
+      return app.connectionId !== null && (await ledgerRecord(app, app.connectionId)) !== undefined;
+    },
     /** What is loaded now: counts per table and when it was added. */
     async status(app: SampleApp) {
       const offered = sampleFileOf(app.manifest) !== undefined;
@@ -1100,6 +1104,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
           fileIds.set(label, id);
         }
         opts.progress?.(20, 'Added the images');
+        const sampleFileIds = new Set(fileIds.values());
 
         const ledger = await ensureLedger(app, connectionId, handle);
         const view = await viewFor(connectionId);
@@ -1481,6 +1486,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
               const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, stored[column]]));
               if (label !== null) {
                 labels.set(label, resolved.primaryKey.length === 1 ? stored[resolved.primaryKey[0]!] : key);
+              }
+              // A picture the row names is the row's own from here on: only a file attached to its row is shown to visitors.
+              for (const value of Object.values(values)) {
+                if (typeof value === 'string' && sampleFileIds.has(value)) {
+                  await files.attach(value, { connectionId, table: resolved.id, pk: key, label: pkLabel(resolved, key) }, now);
+                }
               }
               const { rowHash, colHashes } = hashRow(stored, resolved);
               seq += 1;

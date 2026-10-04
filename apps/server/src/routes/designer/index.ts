@@ -77,6 +77,8 @@ import {
   designerStopReply,
   designerVersionParams,
   designerVersionsReply,
+  designerSightBody,
+  designerSightReply,
   designerTurnBody,
   designerTurnReply,
   designerArchitectureReply,
@@ -254,9 +256,9 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request, reply) => {
         const by = actorOf(request);
-        const { text, ...input } = request.body;
+        const { text, sees, ...input } = request.body;
         const session = await designer.createSession(input, by);
-        const turn = text === undefined ? null : (await runner.start(session.id, { text, by })).turn;
+        const turn = text === undefined ? null : (await runner.start(session.id, { text, by, ...(sees === true ? { sees: true } : {}) })).turn;
         return reply.code(201).send({ session: store.read(session.id), turn });
       },
     );
@@ -303,9 +305,22 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           text: request.body.text,
           by: actorOf(request),
           ...(request.body.attachments === undefined ? {} : { attachments: request.body.attachments }),
+          ...(request.body.sees === true ? { sees: true } : {}),
         });
         return reply.code(202).send(started);
       },
+    );
+
+    // What the preview saw of the screen the turn built: kept for that turn to read, and nothing else is done with it.
+    app.post(
+      '/designer/sessions/:id/sight',
+      {
+        preHandler: guard,
+        bodyLimit: 1_200_000,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('what the preview saw of a page changes nothing by itself; the turn that reads it is audited') },
+        schema: { params: designerSessionParams, body: designerSightBody, response: { 200: designerSightReply } },
+      },
+      async (request) => ({ kept: designer.sawPage(store.read(request.params.id).id, request.body) }),
     );
 
     /*

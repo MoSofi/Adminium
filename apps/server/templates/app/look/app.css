@@ -105,10 +105,10 @@ a {
   font-weight: 800;
 }
 
+/* The first screen. It may be the page's own column or a band across the window, so it sets no width of its own. */
 .hero {
   display: grid;
   gap: 0.9rem;
-  max-width: 42rem;
   padding: clamp(2rem, 6vw, 4rem) 0 clamp(1.25rem, 3vw, 2rem);
 }
 
@@ -644,7 +644,6 @@ textarea::placeholder {
 
 /* The first screen with a picture beside the words; one column on a phone. */
 .hero.split {
-  max-width: none;
   align-items: center;
   gap: clamp(1.5rem, 4vw, 3rem);
 }
@@ -836,4 +835,23 @@ textarea::placeholder {
   height: 1.15em;
   flex: none;
   vertical-align: -0.2em;
+}
+
+/* A first screen that is a band across the window, not inside the page's column, keeps room at its sides. */
+.hero {
+  padding-inline: clamp(1rem, 4vw, 2rem);
+}
+
+.page .hero {
+  padding-inline: 0;
+}
+
+/* A part that is also the page's column (class="page hero", "page section") keeps the column's width and its room at the sides. */
+.page.hero,
+.page.hero.split,
+.page.section,
+.page.strip {
+  max-width: 68rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 2rem);
 }

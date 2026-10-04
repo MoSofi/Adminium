@@ -427,7 +427,10 @@ export default {
     "seenAsHint": "Die Vorschau ist nicht deine eigene Anmeldung. Sie zeigt die App so, wie ihre Menschen sie sehen werden.",
     "wentOnCustomer": "Der Kundenbildschirm ist auf einen Fehler gestoßen und lief weiter. Ein Teil davon kann leer sein.",
     "wentOnStaff": "Der Mitarbeiterbildschirm ist auf einen Fehler gestoßen und lief weiter. Ein Teil davon kann leer sein.",
-    "fixWentOnMessage": "Der Bildschirm {side} öffnet sich, und etwas darin schlägt mit einem Fehler fehl, sodass ein Teil leer bleibt: {error} Bitte korrigiere den Bildschirm."
+    "fixWentOnMessage": "Der Bildschirm {side} öffnet sich, und etwas darin schlägt mit einem Fehler fehl, sodass ein Teil leer bleibt: {error} Bitte korrigiere den Bildschirm.",
+    "sees": "Der Designer sieht sich die Seite nach dem Erstellen an",
+    "seesOn": "Nach dem Erstellen bekommt der Designer diese Seite und das, was daran fehlerhaft ist, gezeigt und behebt, was er sieht. Drücken, um das auszuschalten.",
+    "seesOff": "Der Designer sieht sich die Seite, die er erstellt, nicht an. Drücken, um es zu erlauben."
   },
   "arch": {
     "access": "Kundenzugriff",

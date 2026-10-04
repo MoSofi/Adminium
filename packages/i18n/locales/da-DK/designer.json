@@ -417,7 +417,10 @@
     "seenAsHint": "Forhåndsvisningen er ikke dit eget login. Den viser appen, som dens folk vil se den.",
     "wentOnCustomer": "Kundeskærmen stødte på en fejl og fortsatte. En del af den kan være tom.",
     "wentOnStaff": "Personaleskærmen stødte på en fejl og fortsatte. En del af den kan være tom.",
-    "fixWentOnMessage": "{side}-skærmen åbner, og noget i den fejler, så en del af den forbliver tom: {error} Ret venligst skærmen."
+    "fixWentOnMessage": "{side}-skærmen åbner, og noget i den fejler, så en del af den forbliver tom: {error} Ret venligst skærmen.",
+    "sees": "Designer ser på siden, når den er bygget",
+    "seesOn": "Efter en bygning får Designer vist denne side og det, der er i stykker på den, og retter det, den ser. Tryk for at slå det fra.",
+    "seesOff": "Designer ser ikke på den side, den bygger. Tryk for at lade den gøre det."
   },
   "arch": {
     "access": "Kundeadgang",

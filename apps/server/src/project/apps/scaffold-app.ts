@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { LOCAL_PUBLISHER_ID, RESERVED_KEYS } from '@adminium/manifest';
 
 import { CliError } from '../../cli/exit.js';
-import { DESIGN_CSS_START, readLook, sideLookFiles, type Look } from './look.js';
+import { DESIGN_CSS_START, lookInUse, sideLookFiles, type Look } from './look.js';
 import { APP_KEY_PATTERN, APPS_DIR, appDir, appPath, type AppSide } from './read-app.js';
 
 /** React, for the app's own screens. Its types follow the project's existing `@types/react`. */
@@ -339,7 +339,7 @@ export function addSide(opts: { root: string; key: string; name: string; side: A
       created.push(appPath(opts.key, opts.side, file.replace(/\.tmpl$/, '')));
     }
     // The look the app already chose (another side has it), or the default one.
-    for (const [file, text] of Object.entries(sideStyles(opts.root, templates, readLook(opts.root, opts.key) ?? DEFAULT_LOOK))) {
+    for (const [file, text] of Object.entries(sideStyles(opts.root, templates, lookInUse(opts.root, opts.key, DEFAULT_LOOK)))) {
       writeFileSync(join(dir, opts.side, file), text);
       created.push(appPath(opts.key, opts.side, file));
     }

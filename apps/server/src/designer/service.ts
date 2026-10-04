@@ -22,7 +22,7 @@ import { checkApp } from '../project/apps/check-app.js';
 import { dashboardPageLine, designIssues } from '../project/apps/design-check.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, type DesignSkill } from '../project/apps/design-skills.js';
 import { ICONS_PACKAGE, listedPackages } from './needs.js';
-import { applyLook, cleanLook, DESIGN_CSS_START, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { applyLook, cleanLook, DESIGN_CSS_START, lookInUse, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
@@ -31,6 +31,7 @@ import { appKeyProblem, DEFAULT_LOOK, nameFromKey, scaffoldApp } from '../projec
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { findProject } from '../project/locate.js';
 import type { DesignerEvent } from './events.js';
+import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
 import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type DesignerTarget, type SessionStore } from './session-store.js';
 import type { DesignerTool } from './tool-types.js';
@@ -115,6 +116,8 @@ export interface Designer {
   nameApp(sessionId: string, name: string): Promise<{ key: string; name: string }>;
   /** After the app is next applied, its sample rows are added again: they were given pictures after they went in. */
   reseedAfterApply(appKey: string): void;
+  /** What the preview saw of the app's screen (what is measurably broken on it, a picture of it). False when it is not a sight. */
+  sawPage(sessionId: string, input: unknown): boolean;
   /** The styles a person can pick here: built in, and the project's own. */
   styles(): DesignSkill[];
   /** A look as the page is told it: the style, its name and where it is from; never the person's words. */
@@ -307,7 +310,7 @@ export function createDesigner(host: DesignerHost): Designer {
   const lookOf = (appKey: string): Look | null => {
     if (hasOwnBuild(host.root, appKey)) return null;
     const themed = sidesWithScreens(host.root, appKey).filter((side) => existsSync(join(host.root, APPS_DIR, appKey, side, 'src', 'theme.css')));
-    return themed.length === 0 ? null : (readLook(host.root, appKey) ?? DEFAULT_LOOK);
+    return themed.length === 0 ? null : lookInUse(host.root, appKey, DEFAULT_LOOK);
   };
   const stylesDir = host.stylesDir === undefined ? builtInStylesDir() : host.stylesDir;
   const places = { builtInDir: stylesDir };
@@ -443,8 +446,34 @@ export function createDesigner(host: DesignerHost): Designer {
     });
   };
 
+  // What each session's preview last saw. Its picture is a file of the session, under a name of this server's.
+  const sights = createSights();
+  const SIGHT_FILE = /^the (staff|customer) page as it shows\.jpg$/;
+
   const runner = createDesignerRunner({
     store,
+    sight: async (session, opts) => {
+      // Nothing to look at: a copy of a published app is its authors', and a dashboard-only app has no screen of its own.
+      if (hasOwnBuild(host.root, session.appKey) || sidesWithScreens(host.root, session.appKey).length === 0) return null;
+      const sight = await sights.wait(session.id, opts.since, { signal: opts.signal });
+      if (sight === null) return null;
+      if (opts.again) return sight.stopped ? { text: sightText(sight, session.appKey, false, true) as string } : null;
+      // The picture goes only to a model that reads pictures, as a file of this session: one at a time, the last one replaced.
+      const reads = sight.picture !== null && host.attachments !== undefined && (await host.connections.readsImages(session.connectionId as ConnectionId, session.model).catch(() => null)) === true;
+      let image: { ref: string; mediaType: string; name: string } | undefined;
+      if (reads && sight.picture !== null && host.attachments !== undefined) {
+        // The last picture of the page gives way to this one: found by its name, so one kept before a restart goes too.
+        for (const old of host.attachments.list(session.id)) if (SIGHT_FILE.test(old.label)) host.attachments.remove(session.id, old.id);
+        try {
+          const kept = host.attachments.add(session.id, { filename: `the ${sight.side} page as it shows.jpg`, bytes: sight.picture });
+          image = { ref: kept.id, mediaType: kept.mediaType, name: kept.label };
+        } catch {
+          // The session holds as many files as it may: the measured lines go without the picture.
+        }
+      }
+      const text = sightText(sight, session.appKey, image !== undefined);
+      return text === null ? null : { text, ...(image === undefined ? {} : { image }) };
+    },
     runnerFor: async (session) => {
       const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model);
       return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS };
@@ -669,6 +698,12 @@ export function createDesigner(host: DesignerHost): Designer {
     lookOf,
     publicLook,
     reseedAfterApply: (appKey) => void reseeds.add(appKey),
+    sawPage(sessionId, input) {
+      const sight = cleanSight(input);
+      if (sight === null) return false;
+      sights.put(store.read(sessionId).id, sight);
+      return true;
+    },
     styles: () => listDesignSkills(host.root, stylesDir),
     async setLook(sessionId, input, by) {
       const session = store.read(sessionId);

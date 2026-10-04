@@ -317,6 +317,8 @@ export function withPictures(messages: readonly RunMessage[], opts: PictureOpts)
         }
         const data = block.ref !== undefined && sendable.has(block.ref) ? opts.bytesOf(block.ref) : null;
         if (data !== null) return { ...block, data: data.toString('base64') };
+        // A picture the server took of the page: nobody attached it, and a later one replaced it.
+        if (/^the (staff|customer) page as it shows\.jpg$/.test(block.name ?? '')) return { type: 'text', text: '\n(A picture of the page as it showed then. It is not sent again.)' };
         const attached = block.ref === undefined ? undefined : opts.turnOf(block.ref);
         if (opts.reads && attached !== undefined && attached <= opts.turn - PICTURE_TURNS) {
           return { type: 'text', text: `\n(A picture the person attached earlier: "${name}". It is not sent again.)` };

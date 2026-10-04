@@ -45,7 +45,8 @@ const KEPT: readonly { path: RegExp; max: number }[] = [
 /** Why a picture may not be a skill's preview, or null. It is only ever shown through `<img>`; this says so early. */
 export function previewProblem(svg: string): string | null {
   if (!/<svg[\s>]/i.test(svg)) return 'preview.svg is not an SVG picture';
-  if (/<script[\s>]/i.test(svg)) return 'preview.svg has a script in it';
+  // By any prefix: <s:script xmlns:s="…svg"> is a script too.
+  if (/<(?:[\w.-]+:)?script[\s>/]/i.test(svg)) return 'preview.svg has a script in it';
   if (/\son[a-z]+\s*=/i.test(svg)) return 'preview.svg has an event handler in it';
   if (/<foreignObject[\s>]/i.test(svg)) return 'preview.svg holds a page inside it (foreignObject)';
   if (/(?:href|src)\s*=\s*["']\s*(?!#|data:image\/(?:png|jpeg|webp);base64,)[^"']/i.test(svg) || /url\(\s*["']?\s*(?!#)[^)"']/i.test(svg)) return 'preview.svg points at another file or site';

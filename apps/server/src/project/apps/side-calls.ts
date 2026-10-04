@@ -26,7 +26,7 @@ export interface SideCallIssue {
 /** What of a manifest these checks read. */
 interface ManifestLike {
   requiredSchema?: { tables?: { ref: string; columns?: { ref?: string; role?: string }[] }[] } | undefined;
-  publicAccess?: { table?: string; claim?: unknown; kind?: string; select?: unknown; pictures?: unknown }[] | undefined;
+  publicAccess?: { table?: string; claim?: unknown; kind?: string; select?: unknown; pictures?: unknown; methods?: unknown }[] | undefined;
 }
 
 /** How a customer screen shows a picture a table keeps, said the same way in every finding. */
@@ -128,7 +128,30 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
   const out: SideCallIssue[] = [];
 
   const customer = sources(root, key, 'customer').map((source) => ({ ...source, text: code(source.text) }));
+  // Customers may read a table, and no screen reads anything at all: the page shows none of what it was made to show.
+  const read = (app.publicAccess ?? []).filter((entry) => typeof entry.table === 'string' && entry.claim === undefined && Array.isArray(entry.methods) && entry.methods.includes('GET')).map((entry) => entry.table as string);
+  const screens = customer.filter((source) => /\.(tsx|jsx)$/.test(source.file));
+  if (read.length > 0 && screens.length > 0 && !customer.some((source) => /\.\s*(?:list|get)\s*\(|\bfetch\s*\(/.test(source.text))) {
+    const first = read[0] as string;
+    out.push({
+      side: 'customer',
+      file: (screens.find((source) => /App\.(tsx|jsx)$/.test(source.file)) ?? (screens[0] as { file: string })).file,
+      message: `never reads "${first}", which customers are let read (access.json): no screen calls the public client's list, so the page shows none of them. Read them once the customer config is loaded, in a useEffect: const { data } = await client.list(loaded.value.tables['${first}'] ?? '${first}', { limit: 50 }); keep them in state and show each row. A customer config has no rows of its own.`,
+    });
+  }
   for (const { file, text } of customer) {
+    // The public client made anew at every render and named in an effect's list: the effect runs after every render, for ever.
+    // Inside a component (indented): one made at the top of a file is made once.
+    for (const made of text.matchAll(/^[ \t]+(?:const|let)\s+(\w+)\s*=\s*createPublicClient\s*\(/gm)) {
+      const name = made[1] as string;
+      if (!new RegExp(`\\},\\s*\\[[^\\]]*\\b${name}\\b[^\\]]*\\]\\s*\\)`).test(text)) continue;
+      out.push({
+        side: 'customer',
+        file,
+        message: `makes the public client at every render (const ${name} = createPublicClient(…)) and names "${name}" in a useEffect's list. A new client is a new value each time, so the effect runs again after every render: the page asks for the same rows without end, the server answers 429 "Too many requests", and the list stays empty. Make it once: const ${name} = useMemo(() => createPublicClient(loaded.value), [loaded.value]); or make it inside the effect and name only loaded.state in the list.`,
+      });
+      break;
+    }
     const query = LIST_WITH_QUERY.exec(text);
     if (query !== null) {
       out.push({

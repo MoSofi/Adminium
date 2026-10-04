@@ -427,7 +427,10 @@ export default {
     "seenAsHint": "預覽不是你自己的登入。它依應用程式使用者將看到的樣子顯示應用程式。",
     "wentOnCustomer": "客戶畫面遇到錯誤後繼續執行。其中一部分可能是空的。",
     "wentOnStaff": "員工畫面遇到錯誤後繼續執行。其中一部分可能是空的。",
-    "fixWentOnMessage": "{side} 畫面可以開啟，但其中某處出錯，導致一部分內容為空：{error} 請修正該畫面。"
+    "fixWentOnMessage": "{side} 畫面可以開啟，但其中某處出錯，導致一部分內容為空：{error} 請修正該畫面。",
+    "sees": "Designer 在建置後檢視頁面",
+    "seesOn": "建置之後，Designer 會看到此頁面以及其中損壞之處，並修復它所看到的問題。按下可關閉。",
+    "seesOff": "Designer 不檢視它建置的頁面。按下可允許。"
   },
   "arch": {
     "access": "客戶存取",

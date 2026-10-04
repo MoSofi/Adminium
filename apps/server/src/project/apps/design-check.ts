@@ -25,7 +25,7 @@ import { contrast, inkOn, type Theme, type ThemeColours } from './theme.js';
 
 export interface DesignIssue {
   /** What kind of finding it is: a test and the page tell them apart by this. */
-  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'contrast' | 'dashboard';
+  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'contrast' | 'dashboard' | 'component';
   /** One line for the model, the same each time. */
   line: string;
 }
@@ -132,6 +132,86 @@ export function rawColours(text: string): string[] {
   return [...new Set([...bare.matchAll(/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g)].map((found) => found[0].toLowerCase()))].filter((colour) => !PLAIN_HEX.has(colour));
 }
 
+/**
+ * The components a screen draws (`<Label …>`) that it neither imports nor
+ * declares: the build passes, and the page is blank with "Label is not
+ * defined". Only a tag where a tag can stand: a type's own `<T>` after a name
+ * (`useState<Item>`) is not one.
+ */
+export function unbroughtComponents(source: string): string[] {
+  // Quoted text is not code: 'Press <Enter> to send' draws nothing.
+  const text = code(source).replace(/'[^'\n]*'|"[^"\n]*"/g, (quoted) => quoted[0] + ' '.repeat(quoted.length - 2) + quoted[0]);
+  const drawn = new Set<string>();
+  for (const found of text.matchAll(/(^|[^\w$.)\]`])<([A-Z][\w$]*)(?=[\s/>.])/gm)) drawn.add(found[2] as string);
+  // A name that stands anywhere but in a tag was brought or made somewhere: imported, declared, an argument, taken out
+  // of a list or an object, a type's own letter. Only a name that is never anything but a tag is one nobody brought.
+  return [...drawn].filter((name) => !new RegExp(`(^|[^<\\w$/.])${name.replace(/\$/g, '\\$')}(?![\\w$])`, 'm').test(text) && name !== 'React' && name !== 'Fragment').sort();
+}
+
+/** What a browser gives a page without an import. */
+const BROWSER_GIVEN = new Set(
+  'parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent encodeURI decodeURI setTimeout clearTimeout setInterval clearInterval requestAnimationFrame cancelAnimationFrame structuredClone queueMicrotask getComputedStyle matchMedia addEventListener removeEventListener scrollTo scrollBy requestIdleCallback cancelIdleCallback createImageBitmap reportError'.split(
+    ' ',
+  ),
+);
+
+/**
+ * The helpers a screen calls (`formatMoney(price)`) that it neither imports
+ * nor declares: the build passes, and the page is blank with "formatMoney is
+ * not defined". Only a name in two words or more (camelCase), which no plain
+ * text is; a name that stands anywhere but before a `(`, or is defined where
+ * it stands (`loadRows() {`), was brought or made somewhere.
+ */
+export function unbroughtCalls(source: string): string[] {
+  const text = code(source).replace(/'[^'\n]*'|"[^"\n]*"/g, (quoted) => quoted[0] + ' '.repeat(quoted.length - 2) + quoted[0]);
+  const called = new Map<string, number[]>();
+  // Written as a call is: the name and its bracket with nothing between ("seeMore (soon)" is a sentence).
+  for (const found of text.matchAll(/(^|[^.\w$])([a-z][a-z0-9]*[A-Z][\w$]*)\(/gm)) {
+    const name = found[2] as string;
+    called.set(name, [...(called.get(name) ?? []), found.index + found[0].length - 1]);
+  }
+  const missing: string[] = [];
+  for (const [name, at] of called) {
+    if (BROWSER_GIVEN.has(name)) continue;
+    // Anywhere it is not called: an import, a declaration, an argument, a value handed on.
+    if (new RegExp(`(^|[^.\\w$])${name.replace(/\$/g, '\\$')}(?![\\w$]|\\s*\\()`, 'm').test(text)) continue;
+    if (new RegExp(`\\bfunction\\s*\\*?\\s*${name.replace(/\$/g, '\\$')}\\s*[(<]`).test(text)) continue;
+    // Defined where it stands: `name(…) {` in an object or a class.
+    const defined = at.some((open) => {
+      let depth = 0;
+      for (let i = open; i < text.length && i < open + 2000; i += 1) {
+        if (text[i] === '(') depth += 1;
+        else if (text[i] === ')') {
+          depth -= 1;
+          if (depth === 0) return /^\s*(?::[^{=;]{1,120})?\s*\{/.test(text.slice(i + 1, i + 160));
+        }
+      }
+      return true;
+    });
+    if (!defined) missing.push(name);
+  }
+  return missing.sort();
+}
+
+/**
+ * A picture a screen shows from an address it wrote out itself: a path on
+ * this server (`/apps/…/hero.jpg`, `./hero.jpg`) that no build brings there.
+ * A picture a screen imports, one a function gives (`pictureUrl(row.picture)`),
+ * one of another site (said elsewhere), an inline one and a file of the
+ * public API are none of these. The first such address, or null.
+ */
+export function unbroughtPicture(source: string): string | null {
+  const text = code(source);
+  for (const found of text.matchAll(/<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|\{\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)\s*\})/g)) {
+    const address = (found[1] ?? found[2] ?? found[3] ?? found[4] ?? '').trim();
+    if (address === '' || /^(?:https?:|data:|blob:|#|\$\{)/i.test(address) || address.startsWith('//') || address.startsWith('/api/')) continue;
+    // Only what is plainly a picture's file, or a path into the app's own folder: `/files/${id}` may be a route of the screen's own.
+    if (!/\.(?:jpe?g|png|webp|gif|avif|svg)(?:[?#'`$ ]|$)/i.test(address) && !address.startsWith('/apps/')) continue;
+    return address.slice(0, 80);
+  }
+  return null;
+}
+
 /** How many colour values a stylesheet of the app's own may hold before it is said: a shadow or a gradient needs one or two. */
 const COLOURS_ALLOWED = 3;
 
@@ -188,7 +268,8 @@ export function lowContrastRules(css: string, theme: Pick<Theme, 'light' | 'dark
   const out: { selector: string; text: string; on: string }[] = [];
   for (const rule of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selector = (rule[1] as string).trim().replace(/\s+/g, ' ');
-    if (selector.startsWith('@')) continue;
+    // A control that is switched off is meant to read faintly.
+    if (selector.startsWith('@') || /:disabled|\[disabled|aria-disabled/.test(selector)) continue;
     const text = value(rule[2] as string, /^color$/);
     const on = value(rule[2] as string, /^background(?:-color)?$/);
     if (text === null || on === null) continue;
@@ -265,7 +346,7 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
       const names = [...palette.keys()].sort();
       issues.push({
         kind: 'colour',
-        line: `- ${at(palette.get(names[0] as string) as string)} uses Tailwind's own colours (${names.slice(0, 3).join(', ')}${names.length > 3 ? ', …' : ''}): use the theme's in their place (bg-accent, text-muted, bg-surface, border-line, bg-band), and to change a colour call set_style with a "theme". Then the style menu and dark mode keep working.`,
+        line: `- ${at(palette.get(names[0] as string) as string)} uses Tailwind's own colours (${names.slice(0, 3).join(', ')}${names.length > 3 ? ', …' : ''}): use the theme's in their place (bg-accent, text-muted, bg-surface, border-line, bg-band; for an error or a state: text-bad, bg-good, text-warn), and to change a colour call set_style with a "theme". Then the style menu and dark mode keep working.`,
       });
     }
 
@@ -305,6 +386,36 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
         }
       }
     }
+    // A component drawn and never brought: the page would be blank.
+    for (const screen of screens) {
+      const names = unbroughtComponents(screen.text);
+      if (names.length === 0) continue;
+      issues.push({
+        kind: 'component',
+        line: `- ${at(screen.name)} draws ${names.slice(0, 4).map((name) => `<${name}>`).join(', ')} and neither imports nor declares ${names.length === 1 ? 'it' : 'them'}: the build passes and the whole page comes up blank ("${names[0] as string} is not defined"). Import ${names.length === 1 ? 'it' : 'each'} from where it is (a ready part: './ui/…'; an icon: 'lucide-react'), or use a plain element.`,
+      });
+    }
+
+    // A helper called and never brought: the same blank page.
+    for (const screen of screens) {
+      const names = unbroughtCalls(screen.text);
+      if (names.length === 0) continue;
+      issues.push({
+        kind: 'component',
+        line: `- ${at(screen.name)} calls ${names.slice(0, 4).map((name) => `${name}()`).join(', ')} and neither imports nor declares ${names.length === 1 ? 'it' : 'them'}: the build passes and the whole page comes up blank ("${names[0] as string} is not defined"). Import ${names.length === 1 ? 'it' : 'each'} from the package that has it, or write the few lines in this file (money: new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(amount), with the currency always given).`,
+      });
+    }
+
+    // A picture from an address the screen made up: nothing is there, and the page shows an empty frame.
+    for (const screen of screens) {
+      const address = unbroughtPicture(screen.text);
+      // A file the side brings as it is (its public/ folder) is there.
+      if (address === null || (!address.startsWith('/') && !address.includes('${') && existsSync(join(dir, side, 'public', address.replace(/^\.\//, ''))))) continue;
+      issues.push({
+        kind: 'pictures',
+        line: `- ${at(screen.name)} shows a picture from "${address}", an address nothing is at, so an empty frame shows. A page's picture is a file the screen imports (call find_pictures with "for": "page", then import hero1 from '../../assets/pictures/hero-1.jpg'); a row's picture comes from its picture column with pictureUrl. With no picture to show, take the <img> out and leave the tile plain.`,
+      });
+    }
     for (const screen of screens) {
       // A custom property passed down is not styling: `style={{ '--w': x }}` is left alone.
       const inline = [...code(screen.text).matchAll(/\bstyle\s*=\s*\{\{([^}]*)\}\}/g)].find((found) => /(^|,)\s*[a-zA-Z]+\s*:/.test(found[1] as string));
@@ -333,6 +444,21 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
       });
     } else if (existsSync(logo) && /<script|\son[a-z]+\s*=|<foreignObject|href\s*=\s*["']https?:/i.test(readFileSync(logo, 'utf8'))) {
       issues.push({ kind: 'logo', line: `- ${appPath(key, 'assets', 'logo.svg')} has a script or an address of another site in it: a logo is shapes and nothing else. Write it again.` });
+    }
+  }
+
+  // A public page with no picture on it at all, where pictures can be looked for: asked once, while the app is being made.
+  if (opts.fresh === true && opts.emptyPictureColumns !== undefined && sides.includes('customer' as AppSide)) {
+    const screens = sources(join(dir, 'customer', 'src'), /\.(?:tsx|jsx)$/).filter((screen) => !screen.name.startsWith('ui/'));
+    const pictured = screens.some((screen) => {
+      const text = code(screen.text);
+      return /assets\/pictures\/|pictureUrl\s*\(|<img\b(?![^>]*\blogo\b)[^>]*\bsrc\s*=\s*\{(?!\s*logo\b)|\bimport\s+\w+\s+from\s*['"][^'"]+\.(?:jpe?g|png|webp|avif)['"]/.test(text);
+    }) || sources(join(dir, 'customer', 'src'), /\.css$/).some((sheet) => sheet.name !== 'app.css' && /background(?:-image)?\s*:[^;]*url\(/.test(sheet.text));
+    if (screens.length > 0 && !pictured && opts.emptyPictureColumns.length === 0) {
+      issues.push({
+        kind: 'pictures',
+        line: `- The public page shows no picture at all, only words: a page for a business needs at least one of the place, the work or what is on offer. Call find_pictures once with what the first screen should show ("for": "page") and, where customers choose from a list, the list's rows ("for": "rows", with its "table"); then show them. If the person asked for a page without pictures, say so and leave it.`,
+      });
     }
   }
 

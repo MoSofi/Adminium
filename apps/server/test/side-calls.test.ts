@@ -73,7 +73,7 @@ describe('a side’s calls, read from its source', () => {
     // Built with pictureUrl, with the id in the rows: nothing to say.
     write(
       'customer/src/App.tsx',
-      `import { pictureUrl } from '@adminiumjs/public-client';\nconst shown = await client.config();\nconst src = pictureUrl(loaded.value.baseUrl, shown, table, cake.id, 'photo', cake.photo);`,
+      `import { pictureUrl } from '@adminiumjs/public-client';\nconst shown = await client.config();\nconst rows = (await client.list(table)).data;\nconst src = pictureUrl(loaded.value.baseUrl, shown, table, cake.id, 'photo', cake.photo);`,
     );
     expect(messages(pictured(['id', 'name', 'photo']))).toEqual([]);
     // A screen that never shows the picture is not told about it.
@@ -208,6 +208,50 @@ describe('a hook called after a component may already have returned', () => {
       expect(issues[0]?.message).toContain('Move every hook');
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('says when customers may read a table and no screen reads anything: the page would show none of it', () => {
+    // The rows are taken from the customer config, which has none: nothing is ever asked of the public API.
+    write('customer/src/App.tsx', `export function App() { const loaded = useCustomer();\n  return <ul>{loaded.value.cakes?.map((cake) => <li key={cake.id}>{cake.name}</li>)}</ul>; }`);
+    const found = messages();
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('customer: never reads "cakes", which customers are let read (access.json): no screen calls the public client\'s list');
+    expect(found[0]).toContain("client.list(loaded.value.tables['cakes'] ?? 'cakes', { limit: 50 })");
+    // One list call anywhere in the side, in a helper of its own or reading one row: nothing is said, whichever table it reads.
+    write('customer/src/data.ts', `export const load = (client, table) => client.list(table, { limit: 50 });`);
+    expect(messages()).toEqual([]);
+    write('customer/src/data.ts', `export const one = (client, table, id) => client.get(table, id);`);
+    expect(messages()).toEqual([]);
+    // A list call only in a comment is none.
+    write('customer/src/data.ts', `// client.list(table)\nexport const nothing = 1;`);
+    expect(messages()).toHaveLength(1);
+    // An app customers only write to, or whose rows are a person's own (claimed), is not told.
+    expect(messages({ ...MANIFEST, publicAccess: [{ table: 'orders', methods: ['POST'] }] })).toEqual([]);
+    // A side with no screens yet is not told.
+    rmSync(join(root, 'apps', 'cakes', 'customer'), { recursive: true });
+    expect(messages()).toEqual([]);
+  });
+
+  it('says when the public client is made at every render and named in an effect’s list: the page would ask for its rows without end', () => {
+    const looping = `export function App() {\n  const loaded = useCustomer();\n  const client = createPublicClient(loaded.value);\n  useEffect(() => {\n    client.list(table).then(setRows);\n  }, [client, table]);\n  return <ul />;\n}`;
+    write('customer/src/App.tsx', looping);
+    const found = messages();
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('makes the public client at every render (const client = createPublicClient(…)) and names "client" in a useEffect\'s list');
+    expect(found[0]).toContain('useMemo(() => createPublicClient(loaded.value), [loaded.value])');
+    // Made once, made inside the effect, or left out of the list: nothing is said.
+    for (const fine of [
+      looping.replace('const client = createPublicClient(loaded.value);', 'const client = useMemo(() => createPublicClient(loaded.value), [loaded.value]);'),
+      looping.replace('[client, table]', '[loaded.state, table]'),
+      `export function App() {\n  useEffect(() => {\n    const client = createPublicClient(loaded.value);\n    client.list(table).then(setRows);\n  }, [loaded.state]);\n  return <ul />;\n}`,
+      // Made once, at the top of the file: it is the same client at every render.
+      `const client = createPublicClient(window.__config);\nexport function App() {\n  useEffect(() => {\n    client.list(table).then(setRows);\n  }, [client, table]);\n  return <ul />;\n}`,
+      // Another name that only contains it.
+      looping.replace('[client, table]', '[clientReady, table]'),
+    ]) {
+      write('customer/src/App.tsx', fine);
+      expect(messages(), fine).toEqual([]);
     }
   });
 });

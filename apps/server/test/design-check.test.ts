@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { classesDefined, classesIn, dashboardPageLine, designIssues, emojiIn, isPaletteClass, lowContrastRules, rawColours } from '../src/project/apps/design-check.js';
+import { classesDefined, classesIn, dashboardPageLine, designIssues, emojiIn, isPaletteClass, lowContrastRules, rawColours, unbroughtCalls, unbroughtComponents, unbroughtPicture } from '../src/project/apps/design-check.js';
 import { applyLook, resolveLook } from '../src/project/apps/look.js';
 
 let root: string;
@@ -192,6 +192,9 @@ describe('text that does not read on its background', () => {
       '@media (min-width: 40rem) { .j { color: var(--text); background: var(--surface) } }',
       // The later value wins: the pair that fails was written and then replaced.
       '.k { color: var(--muted); background: var(--band); color: var(--band-ink) }',
+      // A control that is switched off is meant to read faintly.
+      '.btn:disabled { color: var(--muted); background: var(--band) }',
+      '.btn[disabled], .btn[aria-disabled="true"] { color: var(--muted); background: var(--band) }',
       // Another property that only ends in "color".
       '.l { border-color: var(--muted); background: var(--band) }',
     ];
@@ -214,5 +217,130 @@ describe('a turn asked only for a look that wrote a dashboard page', () => {
     expect(dashboardPageLine('Add a field for notes', ['apps/cakes/manifest/pages/cakes-orders.json'])).toBeNull();
     expect(dashboardPageLine('Make it warmer', ['apps/cakes/customer/src/App.tsx', 'apps/cakes/manifest/tables/orders.json', 'apps/cakes/customer/src/pages/Home.tsx'])).toBeNull();
     expect(dashboardPageLine('Make it warmer', [])).toBeNull();
+  });
+});
+
+describe('a picture shown from an address the screen made up', () => {
+  it('is found when the address is written out: a path on this server, in quotes, in braces or in a template', async () => {
+    expect(unbroughtPicture('<img src="/apps/cakes/assets/hero.jpg" alt="" />')).toBe('/apps/cakes/assets/hero.jpg');
+    expect(unbroughtPicture("<img alt='' className=\"x\" src={'./hero.jpg'} />")).toBe('./hero.jpg');
+    expect(unbroughtPicture('<img src={`/apps/cakes/assets/gallery${i}.jpg`} />')).toBe('/apps/cakes/assets/gallery${i}.jpg');
+    expect(unbroughtPicture("<img src={`/apps/cakes/assets/${item.picture || 'placeholder.jpg'}`} />")).toContain('/apps/cakes/assets/${item.picture');
+    write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" /><img src="/apps/cakes/assets/hero.jpg" alt="" /></div>'));
+    const issues = await designIssues(root, 'cakes');
+    expect(issues.map((issue) => issue.kind)).toEqual(['pictures']);
+    expect(issues[0]?.line).toContain('apps/cakes/customer/src/App.tsx shows a picture from "/apps/cakes/assets/hero.jpg", an address nothing is at');
+    // A file the side brings as it is, from its public/ folder, is there.
+    write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" /><img src="./badge.png" alt="" /></div>'));
+    expect(await kinds()).toEqual(['pictures']);
+    write('customer/public/badge.png', 'png');
+    expect(await kinds()).toEqual([]);
+  });
+
+  it('is not said of a picture that is brought: imported, given by a function, inline, of the public API, of another site, or in a comment', () => {
+    const fine = [
+      '<img src={logo} alt="" />',
+      '<img src={hero1} className="media" />',
+      '<img src={pictureUrl(row.picture)} />',
+      '<img src={row.picture ? pictureUrl(row.picture) : fallback} />',
+      '<img src={`${base}/hero.jpg`} />',
+      '<img src="data:image/png;base64,AAAA" />',
+      '<img src="https://images.example.com/a.jpg" />',
+      '<img src="/api/v1/public/files/abc" />',
+      '// <img src="/apps/cakes/assets/hero.jpg" />',
+      '{/* <img src="./hero.jpg" /> */}',
+      '<Image source="/apps/cakes/hero.jpg" />',
+      '<a href="/apps/cakes/menu">Menu</a>',
+      // A route of the screen's own, not a picture's file.
+      '<img src={`/files/${id}`} />',
+      '<img src="/qr" />',
+    ];
+    for (const source of fine) expect(unbroughtPicture(source), source).toBeNull();
+  });
+});
+
+describe('a component a screen draws and never brings', () => {
+  it('is named when it is neither imported nor declared, and the page would come up blank', async () => {
+    expect(unbroughtComponents("import { Input } from './ui/input';\nexport function App() { return <form><Label>Name</Label><Input /><Card.Body /></form>; }")).toEqual(['Card', 'Label']);
+    write('customer/src/App.tsx', "import logo from '../../assets/logo.svg';\nexport function App() { return <div className=\"page\"><img src={logo} alt=\"\" /><Label>Name</Label></div>; }");
+    const issues = await designIssues(root, 'cakes');
+    expect(issues.map((issue) => issue.kind)).toEqual(['component']);
+    expect(issues[0]?.line).toContain('apps/cakes/customer/src/App.tsx draws <Label> and neither imports nor declares it');
+  });
+
+  it('is not said of what is brought in any of the ways a screen brings a component, nor of a type between angle brackets', () => {
+    const fine = [
+      "import React, { useState } from 'react';\nimport { Calendar, Clock as ClockIcon } from 'lucide-react';\nimport Logo from './Logo';\nimport * as Ui from './ui';\nfunction App() { return <><Calendar /><ClockIcon /><Logo /><Ui.Card /><React.Fragment /></>; }",
+      "function Row({ item }: { item: Item }) { return <li>{item.name}</li>; }\nconst List = () => <ul><Row item={x} /></ul>;\nexport function App() { return <List />; }",
+      "const { Provider, Consumer: Reader } = Ctx;\nexport function App() { return <Provider><Reader /></Provider>; }",
+      "function Tile({ icon: Icon, as: Tag = 'div' }) { return <Tag><Icon size={16} /></Tag>; }",
+      "const items = rows.map((Icon) => <Icon key={1} />);",
+      // Names brought in ways that are neither an import nor a declaration: out of a list, as a later argument, as a type's own letter.
+      "const tiles = icons.map(([label, Icon]) => <li key={label}><Icon size={16} /></li>);",
+      "function row(label: string, Icon: LucideIcon) { return <p><Icon />{label}</p>; }",
+      "const pick = <T extends object>(row: T) => row;\nconst both = <A, B>(a: A, b: B) => [a, b];",
+      // A tag's name inside a quoted text draws nothing.
+      "export function App() { return <p title='Press <Enter> to send'>{\"<Tab> moves on\"}</p>; }",
+      // Types, not tags.
+      "const [rows, setRows] = useState<Item[]>([]);\nconst m = new Map<Key, Row>();\nfunction pick<T>(x: Array<T>): Promise<Item> { return x as unknown as Promise<Item>; }",
+      "export function App() { return <main><section className=\"page\" /></main>; }",
+      "// <Missing />\n/* <AlsoMissing /> */\nexport function App() { return <p>{'<NotATag>'}</p>; }",
+    ];
+    for (const source of fine) expect(unbroughtComponents(source), source).toEqual([]);
+  });
+});
+
+describe('a public page with no picture on it', () => {
+  it('is said once while the app is being made, where pictures can be looked for, and not of a page that shows one', async () => {
+    write('design.md', `# Brief\n${'A warm page for a bakery, with the menu first. '.repeat(3)}`);
+    write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" className="logo" /><h1>Cakes</h1></div>'));
+    // Pictures can be looked for here (the list of empty picture columns is given, and is empty).
+    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual(['pictures']);
+    // Not where this server looks for none, and not of an app that already has a version.
+    expect(await kinds({ fresh: true })).toEqual([]);
+    expect(await kinds({ emptyPictureColumns: [] })).toEqual([]);
+    // A picture of the page's own, or a row's, is a picture.
+    write('customer/src/App.tsx', `import hero1 from '../../assets/pictures/hero-1.jpg';\n${screen('<div className="page"><img src={logo} alt="" /><img src={hero1} alt="" /></div>')}`);
+    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
+    write('customer/src/App.tsx', `import { pictureUrl } from '@adminiumjs/public-client';\n${screen('<div className="page"><img src={logo} alt="" /><img src={pictureUrl(base, config, table, row.id, "picture", row.picture)} alt="" /></div>')}`);
+    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
+    // Any picture the screen imports, and one a stylesheet of the app's own draws behind a part, is a picture.
+    write('customer/src/App.tsx', `import shot from '../../assets/hero.jpg';\n${screen('<div className="page"><img src={logo} alt="" /><Hero image={shot} /></div>')}\nfunction Hero() { return null; }`);
+    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
+    write('customer/src/App.tsx', screen('<div className="page hero-photo"><img src={logo} alt="" className="logo" /></div>'));
+    write('customer/src/design.css', '.hero-photo { background-image: url("data:image/png;base64,AAAA"); }');
+    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
+    write('customer/src/design.css', '');
+    // A picture column that is empty is said by its own line, not twice.
+    write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" className="logo" /></div>'));
+    expect(await kinds({ fresh: true, emptyPictureColumns: [{ table: 'cakes', column: 'picture' }] })).toEqual(['pictures']);
+  });
+});
+
+describe('a helper a screen calls and never brings', () => {
+  it('is named when it is neither imported nor declared, and the page would come up blank', async () => {
+    expect(unbroughtCalls('export function App() { return <p>{formatTenantMoney(row.price)} {formatDate(row.day)}</p>; }')).toEqual(['formatDate', 'formatTenantMoney']);
+    write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" /><b>{formatTenantMoney(12)}</b></div>'));
+    const issues = await designIssues(root, 'cakes');
+    expect(issues.map((issue) => issue.kind)).toEqual(['component']);
+    expect(issues[0]?.line).toContain('apps/cakes/customer/src/App.tsx calls formatTenantMoney() and neither imports nor declares it');
+  });
+
+  it('is not said of what is brought or made in any of the ways a screen does, nor of what a browser gives, nor of plain words', () => {
+    const fine = [
+      "import { useState, useEffect } from 'react';\nimport { createPublicClient, pictureUrl as urlOf } from '@adminiumjs/public-client';\nexport function App() { const [a, setA] = useState(0); useEffect(() => { setA(1); }, []); return <p>{urlOf(a)}{createPublicClient(a)}</p>; }",
+      "function formatMoney(n: number) { return String(n); }\nconst toDay = (d: string) => d;\nasync function loadRows() {}\nexport function App() { loadRows(); return <p>{formatMoney(1)}{toDay('x')}</p>; }",
+      // Defined where it stands, in an object or a class; called through the object.
+      "const api = { loadRows(table: string): Promise<void> { return go(table); }, async saveRow() {} };\nclass Store { getAll() { return []; } }\nfunction go(t: string) { return Promise.resolve(); }",
+      // Handed in: an argument, a prop, taken out of an object.
+      "export function Row({ onPick, formatPrice }: Props) { return <button onClick={() => onPick(1)}>{formatPrice(2)}</button>; }",
+      "const { loadMore, hasMore } = usePager();\nimport { usePager } from './pager';\nloadMore();",
+      // What a browser gives, and a method of something.
+      "setTimeout(() => {}, 10); parseInt('1', 10); encodeURIComponent('a'); window.scrollTo(0, 0); rows.forEach((r) => r); data.toFixed(2); new Intl.NumberFormat().format(1);",
+      // Words, not code.
+      "export function App() { return <p title=\"callNow(5)\">Rooms(4), price(s), seeMore (soon)</p>; }",
+      "// formatMoney(1)\n/* loadRows() */\nexport const x = 1;",
+    ];
+    for (const source of fine) expect(unbroughtCalls(source), source).toEqual([]);
   });
 });

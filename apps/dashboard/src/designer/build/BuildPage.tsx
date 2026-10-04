@@ -46,6 +46,7 @@ import {
 import { TopBar } from '../parts/TopBar.js';
 import { StyleMenu } from './LookMenu.js';
 import { SessionMenu } from './SessionMenu.js';
+import { looksNow } from './sight.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
 import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
@@ -95,6 +96,13 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: ['designer', 'installed'] });
   };
 
+  // The app was named mid-turn: its key changed, and the preview, the title and the versions all go by the key.
+  // Without this the page keeps the old key until the turn ends, and the preview shows nothing for the whole first build.
+  const named = events.filter((event) => event.kind === 'step' && event.tool === 'name_app' && event.state === 'done').length;
+  useEffect(() => {
+    if (named > 0) refresh();
+  }, [named]);
+
   // A turn that ends, or a version that lands, changes what the top bar and Home show.
   const lastKind = events.at(-1)?.kind;
   useEffect(() => {
@@ -134,7 +142,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     // The files go up first; the turn names them. A file the server refuses stops here, with its words, and the message stays in the box.
     mutationFn: async (input: string | { message: string; attachments: readonly string[] }) =>
       // A message from the box takes the files waiting with it. One the page sends itself ("Continue.", a retry, a fix) names its own, or none.
-      typeof input === 'string' ? designerApi.startTurn(sessionId, input, await attach.upload(sessionId)) : designerApi.startTurn(sessionId, input.message, input.attachments),
+      typeof input === 'string' ? designerApi.startTurn(sessionId, input, await attach.upload(sessionId), looksNow()) : designerApi.startTurn(sessionId, input.message, input.attachments, looksNow()),
     onSuccess: (_reply, input) => {
       if (typeof input !== 'string') {
         follow.pin();

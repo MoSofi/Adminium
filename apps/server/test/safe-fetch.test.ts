@@ -84,6 +84,30 @@ describe('fetching', () => {
     expect(done.body.toString()).toBe('abc');
   });
 
+  it('sends the caller’s own headers (a key) to the origin the caller named, and to no host a redirect names', async () => {
+    const resolve = async () => [{ address: '8.8.8.8', family: 4 as const }];
+    const sent: { url: string; authorization: unknown }[] = [];
+    const body = await safeFetch('https://api.example/search', {
+      maxBytes: 10,
+      resolve,
+      headers: { authorization: 'Client-ID KEY-9', accept: 'application/json' },
+      connect: async (target, opts) => {
+        sent.push({ url: target.url.href, authorization: (opts.headers as Record<string, unknown>)['authorization'] });
+        if (target.url.href === 'https://api.example/search') return reply(302, { location: '/moved' });
+        if (target.url.href === 'https://api.example/moved') return reply(302, { location: 'https://elsewhere.example/collect' });
+        return reply(200, {}, Buffer.from('ok'));
+      },
+    });
+    expect(body.body.toString()).toBe('ok');
+    expect(sent).toEqual([
+      { url: 'https://api.example/search', authorization: 'Client-ID KEY-9' },
+      // The same origin again: the key goes with it.
+      { url: 'https://api.example/moved', authorization: 'Client-ID KEY-9' },
+      // Another host: nothing of the caller's.
+      { url: 'https://elsewhere.example/collect', authorization: undefined },
+    ]);
+  });
+
   it('follows a redirect by hand, a few times, and checks each step again', async () => {
     const hosts: Record<string, string> = { 'a.example': '8.8.8.8', 'b.example': '8.8.4.4', 'inside.example': '10.0.0.9' };
     const resolve = async (host: string) => [{ address: hosts[host] ?? '8.8.8.8', family: 4 as const }];

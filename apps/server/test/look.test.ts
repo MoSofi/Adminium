@@ -22,7 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { previewProblem } from '../src/designer/skill-upload.js';
 import { builtInStylesDir, designCssProblem, listDesignSkills, readFrontMatter, SKILL_LIMITS, styleForBusiness, styleNamed } from '../src/project/apps/design-skills.js';
-import { applyLook, cleanLook, directionForBusiness, directionFromWords, DIRECTIONS, inkOn, LOOK_DIRECTIONS, mentionsLook, missingFonts, readLook, resolveLook, themeCss } from '../src/project/apps/look.js';
+import { applyLook, cleanLook, directionForBusiness, directionFromWords, DIRECTIONS, inkOn, LOOK_DIRECTIONS, lookInUse, mentionsLook, missingFonts, readLook, resolveLook, themeCss } from '../src/project/apps/look.js';
 import { cleanPalette, cleanThemePatch, contrast as themeContrast, fontPackage, isPublicFontName, mergePatches, themeFrom, themeFromPalette } from '../src/project/apps/theme.js';
 import { appTemplateDir } from '../src/project/apps/scaffold-app.js';
 
@@ -250,10 +250,35 @@ describe('a style', () => {
     expect(designCssProblem('.a { color: var(--accent); background: url("data:image/png;base64,AAAA"); }')).toBeNull();
     expect(designCssProblem('@font-face { font-family: X; src: url(fonts/x.woff2); }')).toBeNull();
     expect(designCssProblem('@import url("https://evil.example/x.css");')).toMatch(/@import/);
+    // The same words spelled with an escape, and the other ways CSS loads a file.
+    expect(designCssProblem('@\\69mport "https://evil.example/x.css";')).toMatch(/escape/);
+    expect(designCssProblem('.a { background: u\\72l(https://evil.example/x.png); }')).toMatch(/escape/);
+    expect(designCssProblem('.a { background: image-set("https://evil.example/x.png" 1x); }')).toMatch(/image-set/);
+    // An escape inside a quoted text is a character, not a word of CSS.
+    expect(designCssProblem('.q::before { content: "\\201C"; }')).toBeNull();
     expect(designCssProblem('.a { background: url(https://evil.example/p.png) }')).toMatch(/loads/);
     expect(designCssProblem('.a { background: url(../../../../.env) }')).toMatch(/loads/);
     expect(designCssProblem('.a { background: url(data:text/html;base64,AAAA) }')).toMatch(/loads/);
     expect(designCssProblem('.a { width: expression(alert(1)) }')).toMatch(/runs code/);
+  });
+});
+
+describe('an app made before styles', () => {
+  it('goes by the look its sides were made with when it kept no look.json: a plain look as it was, never a style it did not choose', () => {
+    // A side as 0.3.16 made it: a theme.css, and no fonts.css.
+    writeFileSync(join(root, 'apps', 'cakes', 'customer', 'src', 'theme.css'), ':root { --accent: #2f5bea; }');
+    expect(lookInUse(root, 'cakes', { skill: 'clean' })).toEqual({ skill: 'clean', direction: 'clean' });
+    // So nothing is missing for it: no font is asked of the person at the start of a turn.
+    expect(missingFonts(root, lookInUse(root, 'cakes', { skill: 'clean' }))).toEqual([]);
+    // A look it kept is the look; a side made with a style (it has a fonts.css) starts as the style.
+    writeFileSync(join(root, 'apps', 'cakes', 'look.json'), JSON.stringify({ direction: 'warm' }));
+    expect(lookInUse(root, 'cakes', { skill: 'clean' })).toEqual({ skill: 'warm', direction: 'warm' });
+    rmSync(join(root, 'apps', 'cakes', 'look.json'));
+    writeFileSync(join(root, 'apps', 'cakes', 'customer', 'src', 'fonts.css'), '');
+    expect(lookInUse(root, 'cakes', { skill: 'clean' })).toEqual({ skill: 'clean' });
+    // An app with no side yet starts as the style.
+    rmSync(join(root, 'apps', 'cakes', 'customer'), { recursive: true });
+    expect(lookInUse(root, 'cakes', { skill: 'clean' })).toEqual({ skill: 'clean' });
   });
 });
 

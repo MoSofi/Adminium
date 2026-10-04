@@ -173,6 +173,8 @@ describe('sending from Designer Home', () => {
       connectionId: 'env:anthropic',
       model: 'claude-test',
       text: 'A repair shop: jobs and parts\nwith a message',
+      // The page that opens next shows the preview, and will say what it sees of each build.
+      sees: true,
     });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/design/${SESSION.id}`));
   });

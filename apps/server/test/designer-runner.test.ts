@@ -201,7 +201,7 @@ interface Harness {
 
 function harness(
   steps: Step[],
-  opts: { limits?: Partial<DesignerLimits>; pipeline?: (handle: TurnHandle) => Promise<PipelineResult>; tools?: DesignerTool[]; problems?: () => string[]; advice?: () => string[] } = {},
+  opts: { limits?: Partial<DesignerLimits>; pipeline?: (handle: TurnHandle) => Promise<PipelineResult>; tools?: DesignerTool[]; problems?: () => string[]; advice?: () => string[]; sight?: NonNullable<Parameters<typeof createDesignerRunner>[0]['sight']> } = {},
 ): Harness {
   const model = scripted(steps);
   const h: Harness = {
@@ -225,6 +225,7 @@ function harness(
     limits: async () => ({ maxSteps: 60, turnTokens: 400_000, sessionTokens: 4_000_000, ...opts.limits }),
     ...(opts.problems === undefined ? {} : { problems: opts.problems }),
     ...(opts.advice === undefined ? {} : { advice: opts.advice }),
+    ...(opts.sight === undefined ? {} : { sight: opts.sight }),
     retryWaitsMs: [0, 0],
     publish: (event) => h.published.push(event),
     audit: async (action) => {
@@ -519,6 +520,63 @@ describe('a Designer turn', () => {
     await h.runner.start(session.id, { text: 'rename a label', by: { id: null, label: 'x' } });
     await h.runner.settled();
     expect(h.model.requests).toHaveLength(5);
+  });
+
+  it('looks at the page once, last of all, in a turn whose page is watching and that built something; and not otherwise', async () => {
+    const applying: DesignerTool = { ...echo, name: 'apply_app', running: () => 'Applying', run: async () => ({ content: 'Applied.', label: 'Applied the app' }) };
+    const asked: number[] = [];
+    const again: boolean[] = [];
+    const sight = async (_session: DesignerSession, opts: { since: number; again: boolean }) => {
+      asked.push(opts.since);
+      again.push(opts.again);
+      // After the first look, only a page that stopped is said; this one did not.
+      return opts.again ? null : { text: 'This picture is the customer page as it shows now.', image: { ref: 'att_00000000000000000001', mediaType: 'image/jpeg', name: 'the page' } };
+    };
+    const session = newSession();
+    const h = harness([calls('apply_app'), says('Done.'), calls('apply_app'), says('Fixed the hero.'), says('Never reached.')], { tools: [echo, writing, asking, applying], sight });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' }, sees: true });
+    await h.runner.settled();
+    // Asked after the model said it was done, with when the turn last built; what was seen went to the model as a message with the picture.
+    // It built again after looking, so the page is asked after once more, and only for whether it stopped: it did not, and nothing more is said.
+    expect(again).toEqual([false, true]);
+    expect(asked[0]).toBeGreaterThan(0);
+    expect(asked[1]).toBeGreaterThanOrEqual(asked[0] as number);
+    expect(h.model.requests).toHaveLength(4);
+    expect(h.model.requests[2]?.messages.at(-1)?.content).toEqual([
+      { type: 'text', text: 'This picture is the customer page as it shows now.' },
+      { type: 'image', mediaType: 'image/jpeg', data: '', ref: 'att_00000000000000000001', name: 'the page' },
+    ]);
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+
+    // A page that stopped after the look is said again, and the model goes on; it is never asked more than three times a turn.
+    const stops: boolean[] = [];
+    const stopping = harness([calls('apply_app'), says('Done.'), calls('apply_app'), says('Fixed.'), calls('apply_app'), says('Fixed again.'), calls('apply_app'), says('And again.'), says('Never reached.')], {
+      tools: [echo, writing, asking, applying],
+      sight: async (_session, opts) => {
+        stops.push(opts.again);
+        return { text: opts.again ? 'After that change the customer page was opened again, and it does not show.' : 'This picture is the customer page.' };
+      },
+    });
+    await stopping.runner.start(newSession().id, { text: 'go', by: { id: null, label: 'x' }, sees: true });
+    await stopping.runner.settled();
+    expect(stops).toEqual([false, true, true]);
+    expect(finished(stopping)).toMatchObject({ outcome: 'done' });
+
+    // A page that is not watching (a turn from the command line, a test, the switch off): never asked.
+    const quiet = harness([calls('apply_app'), says('Done.')], { tools: [echo, writing, asking, applying], sight });
+    await quiet.runner.start(newSession().id, { text: 'go', by: { id: null, label: 'x' } });
+    await quiet.runner.settled();
+    // A turn that built nothing (it only wrote a file): there is no new page to look at.
+    const unbuilt = harness([calls('write_file'), says('Done.')], { sight });
+    await unbuilt.runner.start(newSession().id, { text: 'go', by: { id: null, label: 'x' }, sees: true });
+    await unbuilt.runner.settled();
+    expect(asked).toHaveLength(2);
+    // Nothing seen (no page answered in time): the turn ends as it would have.
+    const blind = harness([calls('apply_app'), says('Done.')], { tools: [echo, writing, asking, applying], sight: async () => null });
+    await blind.runner.start(newSession().id, { text: 'go', by: { id: null, label: 'x' }, sees: true });
+    await blind.runner.settled();
+    expect(blind.model.requests).toHaveLength(2);
+    expect(finished(blind)).toMatchObject({ outcome: 'done' });
   });
 
   it('still sends the check’s errors back past the token mark', async () => {

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { pagesRepo, publicEndpointsRepo } from '@adminium/meta';
 
 import { ENGINES } from './app-install-harness.js';
+import { findSampleApp } from '../src/apps/sample-data.js';
 import { folderHarness, type FolderHarness } from './folder-app-harness.js';
 
 let h: FolderHarness;
@@ -64,6 +65,40 @@ for (const [dialect, available] of ENGINES) {
       const listed = JSON.parse((await h.harness.inject({ method: 'GET', url: '/apps' })).body) as { apps: unknown[]; staged: unknown[] };
       expect(listed.apps).toEqual([expect.objectContaining({ key: 'repairs', source: 'folder', folder: { state: 'here' }, missing: false })]);
       expect(listed.staged).toEqual([]);
+    });
+
+    it('adds the sample rows on the first apply that goes through, when the apply that first named them stopped half-way', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await h.newApp('repairs', '--customer');
+      // The app as a first step leaves it: its tables, and no sample rows named yet.
+      let sample: Record<string, unknown> = {};
+      h.edit('apps/repairs/manifest/sample.json', (value) => {
+        sample = value;
+        return {};
+      });
+      expect((await h.sync())[0]).toMatchObject({ state: 'installed' });
+      expect(await count('repairs_items')).toBe(0);
+
+      // The sample rows are named in the same step as public access that cannot be made (a create with nothing a stranger may write).
+      h.put('apps/repairs/manifest/sample.json', sample);
+      h.put('apps/repairs/manifest/access.json', { publicAccess: [{ table: 'requests', methods: ['POST'], select: ['id'] }] });
+      const stopped = (await h.sync())[0];
+      expect(stopped?.state).not.toBe('applied');
+      expect(await count('repairs_items')).toBe(0);
+
+      // Put right: this apply goes through, and the rows are added now. "It named them before" was never "they were added".
+      h.put('apps/repairs/manifest/access.json', ACCESS);
+      expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+      expect(await count('repairs_items')).toBe(6);
+      expect(h.lines.log.join('\n')).toContain('its sample data was added');
+
+      // Rows a person removed on purpose do not come back with the next change.
+      const target = await findSampleApp(h.harness.meta, 'repairs');
+      await h.harness.samples?.remove(target as NonNullable<typeof target>, { keepChanged: false, userId: null, userLabel: 'test' });
+      expect(await count('repairs_items')).toBe(0);
+      h.edit('apps/repairs/manifest/tables/items.json', (table) => ({ ...table, columns: [...(table['columns'] as unknown[]), { ref: 'colour', type: 'text', maxLength: 40, nullable: true }] }));
+      expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
+      expect(await count('repairs_items')).toBe(0);
     });
 
     it('does nothing when nothing changed', async () => {

@@ -417,7 +417,10 @@
     "seenAsHint": "预览不是你自己的登录。它按应用使用者将看到的样子显示应用。",
     "wentOnCustomer": "客户界面遇到错误后继续运行。其中一部分可能是空的。",
     "wentOnStaff": "员工界面遇到错误后继续运行。其中一部分可能是空的。",
-    "fixWentOnMessage": "{side} 界面可以打开，但其中某处出错，导致一部分内容为空：{error} 请修复该界面。"
+    "fixWentOnMessage": "{side} 界面可以打开，但其中某处出错，导致一部分内容为空：{error} 请修复该界面。",
+    "sees": "Designer 在构建后查看页面",
+    "seesOn": "构建之后，Designer 会看到此页面以及其中损坏之处，并修复它所看到的问题。按下可关闭。",
+    "seesOff": "Designer 不查看它构建的页面。按下可允许。"
   },
   "arch": {
     "access": "客户访问",

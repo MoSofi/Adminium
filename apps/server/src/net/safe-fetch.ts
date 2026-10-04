@@ -161,12 +161,15 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
   const connect = opts.connect ?? defaultConnect;
   const maxRedirects = opts.maxRedirects ?? 3;
   let next = rawUrl;
+  const firstOrigin = new URL(rawUrl).origin;
   try {
     for (let hop = 0; ; hop += 1) {
       const target = await pin(next, opts.resolve);
+      // The caller's own headers (a key) go only to the origin the caller named: a redirect to another host carries none of them.
+      const own = new URL(next).origin === firstOrigin ? (opts.headers ?? {}) : {};
       const response = await connect(target, {
         // Uncompressed: the limit is on what is read, and a small body that unpacks to a large one is not read at all.
-        headers: { accept: '*/*', 'user-agent': 'Adminium (https://adminium.dev)', ...(opts.headers ?? {}), 'accept-encoding': 'identity' },
+        headers: { accept: '*/*', 'user-agent': 'Adminium (https://adminium.dev)', ...own, 'accept-encoding': 'identity' },
         signal,
       });
       if ([301, 302, 303, 307, 308].includes(response.status)) {

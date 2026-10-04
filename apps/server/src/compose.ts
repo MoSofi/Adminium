@@ -1894,6 +1894,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             if (target === null) return;
             await createSampleDataService(sampleDataDeps).add(target, { locale: 'en-US', userId: null, userLabel: 'project folder' });
           },
+          sampleEverAdded: async (key) => {
+            const target = await findSampleApp(meta, key);
+            return target === null ? true : createSampleDataService(sampleDataDeps).everAdded(target);
+          },
           refreshServed: () => installedApps.refresh(),
           publicApi: {
             registered: env.ADMINIUM_PUBLIC_API_ORIGINS !== undefined,

@@ -207,7 +207,10 @@ export function skillTheme(skill: DesignSkill): { patch: ThemePatch; notes: stri
  */
 export function designCssProblem(css: string): string | null {
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  // An escape spells a word this check looks for in another way (@\69mport, u\72l): a style's own rules need none.
+  if (bare.replace(/(["'])(?:\\.|(?!\1)[^\\\n])*\1/g, '""').includes('\\')) return 'it has an escape (a backslash) outside a quoted text';
   if (/@import\b/i.test(bare)) return 'it has an @import: a style brings its rules in one file';
+  if (/\b(?:image-set|src)\s*\(/i.test(bare)) return 'it loads a file by image-set() or src(): a style loads a file only with url(), from its own fonts/ folder or inline';
   if (/\b(expression|behavior)\s*[(:]|-moz-binding/i.test(bare)) return 'it has a rule that runs code';
   for (const found of bare.matchAll(/url\(\s*(["']?)([^)"']*)\1\s*\)/gi)) {
     const address = (found[2] as string).trim();

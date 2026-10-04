@@ -417,7 +417,10 @@
     "seenAsHint": "The preview is not your own sign-in. It shows the app as its people will see it.",
     "wentOnCustomer": "The customer screen hit an error and went on. A part of it may be empty.",
     "wentOnStaff": "The staff screen hit an error and went on. A part of it may be empty.",
-    "fixWentOnMessage": "The {side} screen opens, and something in it fails with an error, so a part of it stays empty: {error} Please fix the screen."
+    "fixWentOnMessage": "The {side} screen opens, and something in it fails with an error, so a part of it stays empty: {error} Please fix the screen.",
+    "sees": "The Designer looks at the page after it builds",
+    "seesOn": "After a build, the Designer is shown this page and what is broken on it, and fixes what it sees. Press to switch that off.",
+    "seesOff": "The Designer does not look at the page it builds. Press to let it."
   },
   "arch": {
     "access": "Customer access",
