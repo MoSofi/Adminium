@@ -336,7 +336,10 @@ export default {
     "picturesRefused": "未添加图片",
     "naming": "正在为应用命名",
     "named": "已将应用命名为 {subject}",
-    "notNamed": "应用未命名"
+    "notNamed": "应用未命名",
+    "partsAdding": "正在添加现成部件",
+    "partsAdded": "已添加现成部件",
+    "partsFailed": "未添加现成部件"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -617,7 +620,28 @@ export default {
     "problem": "无法使用：{why}",
     "finer": "想要更细致的调整，就在聊天中说：“更深一些，带点金色”。",
     "notApplied": "风格已写入，但应用未被应用。下一轮会说明原因。",
-    "failed": "无法更改风格"
+    "failed": "无法更改风格",
+    "pick": "风格：{style}",
+    "auto": "让 Designer 选择",
+    "autoLine": "它会挑选适合该业务的风格，之后你可以更改。",
+    "addOwn": "添加你自己的…",
+    "addTitle": "添加你自己的风格",
+    "addLead": "风格是一个文件夹，其中的 SKILL.md 文件描述一种外观。它还可以包含颜色和字体（theme.json）、样式表、预览图片和字体文件。",
+    "addDrop": "将文件夹的 .zip 或单个 SKILL.md 拖到这里",
+    "addChoose": "选择文件",
+    "addNote": "它会保存在你项目的 design-skills 文件夹中。其中的脚本永远不会运行。",
+    "addChecking": "正在检查…",
+    "added": "已添加。现在它在列表中了。",
+    "addLeft": "未包含（不属于风格的内容）：{list}",
+    "addDone": "完成",
+    "addAgain": "选择其他文件",
+    "addFailed": "风格未添加",
+    "remove": "移除 {style}…",
+    "removeTitle": "移除“{style}”？",
+    "removeBody": "它的文件夹会从项目中删除。使用它的应用会保持现有外观。",
+    "removeYes": "移除",
+    "removeNo": "保留",
+    "removeFailed": "无法移除风格"
   },
   "pictures": {
     "title": "页面用的图片。要使用吗？",

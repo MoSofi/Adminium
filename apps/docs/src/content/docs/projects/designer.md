@@ -41,7 +41,8 @@ sentences on what was built, and the result is saved as a version (`v1`, `v2`, �
 |---|---|
 | It asks a question | The turn waits. Choose an answer, or write your own |
 | A change would remove data | A card names the table or column and how many rows hold data. Nothing is removed until you accept |
-| It needs a package | A card names the package and version. Nothing is installed until you accept |
+| It needs something from outside the project | One card lists all of it, each with a checkbox: packages, fonts, a site to show pictures from. Nothing is added until you press **Send** |
+| It found pictures | A card shows them. The ones you tick are copied into the app |
 | You press **Stop** | The turn ends within a second. What it wrote stays in the folder; **Put the files back** returns to the last version |
 | It reaches a limit | The turn ends and says which limit. **Keep going** starts the next turn where it stopped |
 
@@ -62,20 +63,149 @@ be read and gone on with.
 
 ### How it looks
 
-The first time the Designer gives the app screens of its own, it asks how they should look: four
-directions (clean, warm, bold, calm), **Surprise me**, or your own words. It does not ask when your
-request already said ("modern, cozy, in brown"). The screens then start from made parts in that
-look (a header with the business's name, cards, a form, buttons, an empty state), and the app
-brings a few sample rows for what customers read, so the first preview is not an empty page. The
-Designer also gives the app a short name of its own; the session takes that name unless you named
-it yourself.
+On the staff and customer sides of an app, the Designer designs: it lays out the page for the
+business, writes its own stylesheet, and draws a logo. Dashboard pages are Adminium's own, and it
+leaves their look alone.
 
-**Change the look**, under the last turn, switches direction without a turn: no model is called,
-nothing is spent, and it is saved as a version like any other change. For something finer, say it
-in the chat ("darker, with gold").
+A design starts from a **style**. Ten are built in:
 
-A project made by `adminium design` already has what screens are built with (React and Adminium's
-public client). In a project without them, the Designer asks for all of them on one card.
+| Style | For |
+|---|---|
+| Clean service | Clinics, law and accounting offices |
+| Warm table | Restaurants, cafés, bakeries |
+| Bold poster | Events, gyms, clubs |
+| Soft care | Wellness, beauty, yoga |
+| Editorial | Studios, architects, photographers |
+| Craft market | Makers and small shops |
+| Night | Bars, cinema, late venues |
+| Bright start | Schools, clubs, community groups |
+| Sharp tech | Software, agencies, repair |
+| Classic hotel | Hotels, venues, weddings |
+
+Which one is taken is decided by the server, the same way on every model:
+
+1. The style you picked: in **Style** beside the model on the home page, or by its name in your
+   words ("in the Night style").
+2. Else the style for the kind of business your request names. The Designer says which it took.
+3. Else, when you described a look or attached a picture, the nearest plain style as a base.
+4. Else it asks, on one card: a few styles that fit, **Show all**, **Surprise me**, or your own words.
+
+When you attach a picture of a design, the page reads its colours (the page's background, its
+band, the colour of its buttons) and they are set before the model writes anything, so they are the
+same on a model that reads pictures and on one that does not.
+
+The Designer then writes a short brief, `apps/<key>/design.md`: who the page is for, the feeling,
+the sections in order, what the pictures show. Later turns and later sessions are given the brief,
+so the page stays one design. Edit it yourself to steer the next change.
+
+A side's look is in five stylesheets, loaded in this order:
+
+| File | Whose | What |
+|---|---|---|
+| `src/theme.css` | Written by Adminium from the style | The values: colours for light and dark, the two fonts, sizes, spacing, corners, shadows |
+| `src/fonts.css` | Written by Adminium | The fonts the project carries, served by the app itself |
+| `src/app.css` | The starter's | Made parts: a header, a first screen, cards, a list with prices, a band, a form, a footer |
+| `src/style.css` | Written by Adminium, when a style brings parts of its own | Those parts |
+| `src/design.css` | The Designer's, and yours | What this app adds |
+
+Text is made readable whatever colours were asked for: the server moves a text colour until it
+reaches a contrast of 4.5:1 on its background, and picks black or white for words on a colour.
+
+**Change the style**, under the last turn, switches style without a turn: no model is called,
+nothing is spent, and it is saved as a version like any other change. `design.css` and the screens
+are left as they are. If the new style names a font the project does not carry, the system's font
+stands in until your next message, which asks for it. For something finer, say it in the chat
+("darker, with gold").
+
+An app made before Adminium 0.3.17 keeps the look it has (Clean, Warm, Bold or Calm) exactly as
+it was, until you pick a style for it.
+
+### What a design needs
+
+Tailwind CSS, an icon set, fonts and pictures come from outside your project, so the Designer asks
+first. Everything a step needs is on **one card**, each thing with a checkbox, all ticked:
+
+| On the card | What it is |
+|---|---|
+| `react`, `react-dom`, `@adminiumjs/public-client` | What an app's own screens are built with |
+| Tailwind CSS | A styling toolkit. With it the Designer writes classes it knows well; without it, plain CSS |
+| `lucide-react` | A set of icons. Without it the Designer draws small SVG icons. It never uses an emoji as an icon |
+| `clsx`, `tailwind-merge` | Helpers for the ready-made parts (a dialog, tabs, form controls) the Designer can copy into `src/ui/` |
+| The style's two fonts | From Google's catalogue, as packages (`@fontsource/…`): the files are served by your own server, and no visitor's browser calls Google |
+| A site to show pictures from | See [What it may touch](#what-it-may-touch) |
+
+These are common, free and widely used. Untick what you do not want and press **Send**; the
+Designer does without it and does not ask again. The version of each package is found by the
+server from the registry your project installs from, never guessed by the model. A package only
+the model asked for is listed apart, not ticked, and said to be unknown to Adminium; a name one
+letter away from a known package is not offered at all.
+
+### Pictures
+
+A page about food, rooms or people needs pictures of them. The Designer searches a source of free
+pictures and shows what it found on a card, in groups. Tick the ones to use and press **Send**:
+they are copied into your app (`apps/<key>/assets/pictures/`), or into the sample rows of a table
+that has a picture column, each with its credit in `assets/pictures/CREDITS.json`. The page then
+shows them from your own server.
+
+| Source | When |
+|---|---|
+| [Openverse](https://openverse.org) | By default. Pictures under licences that allow use and change for any purpose; no key |
+| [Pexels](https://www.pexels.com) | When your project's `.env` has `PEXELS_API_KEY` |
+
+A picture you attach to a message is yours to use. With no picture, the Designer draws a tile in
+the style's colours. On a server set to call nothing outside itself, it looks for none.
+
+### Your own styles
+
+A style is a folder in the open agent-skill format:
+
+```
+my-style/
+  SKILL.md        name, description, then how the style lays out a page
+  theme.json      optional: colours (light and dark), fonts, corners, shadow, spacing
+  design.css      optional: parts the style adds
+  preview.svg     optional: a small picture for the list
+  fonts/          optional: .woff2 files of your own
+  references/     optional: longer pages
+```
+
+Put it in `design-skills/` at the top of your project (it is committed with the project), or use
+**Add your own…** in the style list and give it a `.zip` of the folder or a single `SKILL.md`. A
+style with no `theme.json` is words alone: applying it takes a turn, since the Designer writes the
+values from the words.
+
+```json
+{
+  "light": { "bg": "#faf4ea", "surface": "#fffdf8", "text": "#2c1d13", "accent": "#a04e26", "accent2": "#5f7a3a", "band": "#2c1d13" },
+  "fonts": {
+    "heading": { "family": "Playfair Display", "weights": [600, 700], "fallback": "serif" },
+    "body": { "family": "Inter", "weights": [400, 600], "fallback": "sans" }
+  },
+  "radius": 18,
+  "shadow": "soft",
+  "space": "roomy",
+  "typeScale": 1.25
+}
+```
+
+A style someone else wrote is data to the Designer: it describes a look, and gives no orders. An
+upload keeps only the files above, each under a size limit; a stylesheet that loads from another
+site, a preview with a script in it, or a file path that leaves the folder is refused, with the
+reason. Scripts in a skill are never kept and never run. A style may not take a built-in style's
+name.
+
+Design skills written for other tools often assume things that are not there, so they do not work
+as written:
+
+| A skill that says | Here |
+|---|---|
+| Load a font, script or stylesheet from a CDN | A page loads nothing from another site. Fonts come as packages, on the card |
+| Use pictures from a photo site by their address | Pictures are found on the card and copied in, or the site is allowed by you |
+| Run a command, install with a shell | There is no shell. Packages are asked for on the card |
+| Use an animation library | Asked for as a package, like any other; it is unknown to Adminium, so it is not ticked |
+
+Keep the words about layout, type and tone; drop the setup steps.
 
 A new app starts with nothing in it but its name and a role. The Designer writes the tables, the
 pages and the role's grants. It is kept on course in four ways:
@@ -220,7 +350,7 @@ What it writes is still code, so four things wait for your yes, each asked in th
 
 | It asks before | Why |
 |---|---|
-| Adding an npm package | Nothing is installed without a yes, and install scripts never run |
+| Adding an npm package or a font | Nothing is installed without a yes, and install scripts never run. Asked on [one card](#what-a-design-needs) |
 | Running the app's tests | The tests are code the model wrote, and they run on your machine with your access |
 | Writing in `hooks/` or `actions/` | Those files run inside your server, with everything it can reach |
 | Showing pictures from another site | Adminium shows pictures only from your own server unless a site is named. A yes names that one site: it is written to [`ADMINIUM_CSP_IMG_HOSTS`](/self-hosting/env-vars/#adminium_csp_img_hosts) in your project's `.env` and counts at once, with no restart |

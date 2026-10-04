@@ -59,6 +59,9 @@ export function stepLine(row: StepRow): string {
       return running ? t('designer:step.addOns', 'Looking at the add-ons') : t('designer:step.addOnsDone', 'Looked at the add-ons');
     case 'add_side':
       return running ? t('designer:step.side', 'Adding screens') : t('designer:step.sideDone', 'Added screens');
+    case 'add_ui_part':
+      if (running) return t('designer:step.partsAdding', 'Adding ready-made parts');
+      return row.state === 'failed' ? t('designer:step.partsFailed', 'No ready-made parts were added') : t('designer:step.partsAdded', 'Added ready-made parts');
     case 'name_app':
       if (running) return t('designer:step.naming', 'Naming the app');
       return row.state === 'failed' || row.subject === undefined ? t('designer:step.notNamed', 'The app was not named') : t('designer:step.named', 'Named the app {subject}', S);

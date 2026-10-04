@@ -326,7 +326,10 @@
     "picturesRefused": "Žádné obrázky nepřidány",
     "naming": "Pojmenovává aplikaci",
     "named": "Aplikace pojmenována {subject}",
-    "notNamed": "Aplikace nebyla pojmenována"
+    "notNamed": "Aplikace nebyla pojmenována",
+    "partsAdding": "Přidává hotové části",
+    "partsAdded": "Přidány hotové části",
+    "partsFailed": "Žádné hotové části nebyly přidány"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -607,7 +610,28 @@
     "problem": "Nelze použít: {why}",
     "finer": "Pro jemnější úpravy to řekněte v chatu: „tmavší, se zlatou“.",
     "notApplied": "Styl byl zapsán, ale aplikace nebyla použita. Další tah řekne proč.",
-    "failed": "Styl se nepodařilo změnit"
+    "failed": "Styl se nepodařilo změnit",
+    "pick": "Styl: {style}",
+    "auto": "Nechat výběr na Designeru",
+    "autoLine": "Vybere, co se k podnikání hodí, a později to můžete změnit.",
+    "addOwn": "Přidat vlastní…",
+    "addTitle": "Přidat vlastní styl",
+    "addLead": "Styl je složka se souborem SKILL.md, který popisuje vzhled. Může obsahovat také barvy a písma (theme.json), šablonu stylů, náhledový obrázek a soubory písem.",
+    "addDrop": "Přetáhněte sem .zip složky nebo jediný soubor SKILL.md",
+    "addChoose": "Vybrat soubor",
+    "addNote": "Uloží se do složky design-skills vašeho projektu. Skripty v něm se nikdy nespouštějí.",
+    "addChecking": "Kontroluje se…",
+    "added": "Přidáno. Teď je v seznamu.",
+    "addLeft": "Vynecháno, protože to není součást stylu: {list}",
+    "addDone": "Hotovo",
+    "addAgain": "Vybrat jiný soubor",
+    "addFailed": "Styl nebyl přidán",
+    "remove": "Odebrat {style}…",
+    "removeTitle": "Odebrat „{style}“?",
+    "removeBody": "Jeho složka se z projektu odstraní. Aplikace, které ho používají, si zachovají svůj vzhled.",
+    "removeYes": "Odebrat",
+    "removeNo": "Ponechat",
+    "removeFailed": "Styl se nepodařilo odebrat"
   },
   "pictures": {
     "title": "Obrázky pro stránku. Použít je?",

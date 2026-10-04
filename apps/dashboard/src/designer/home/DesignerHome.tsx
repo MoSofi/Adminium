@@ -34,6 +34,7 @@ import { StartSheet } from './StartSheet.js';
 import { StartWithAnApp } from './StartWithAnApp.js';
 import { YourApps } from './YourApps.js';
 import { examplesAt, nameFromRequest } from './examples.js';
+import { StylePicker } from '../parts/styles.js';
 
 /** "Start with an app" shows once the sheet it opens exists: a card that opens nothing is worse than no card. */
 export const SHOW_START_WITH_AN_APP = true;
@@ -56,6 +57,8 @@ export function DesignerHome(): ReactNode {
   const yourApps = useQuery(yourAppsQuery());
   const [text, setText] = useState('');
   const [target, setTarget] = useState<DesignerTarget>('auto');
+  // The style of the app's own screens: null leaves it to the Designer.
+  const [style, setStyle] = useState<string | null>(null);
   const [turn, setTurn] = useState(0);
   /** The app whose sheet is open. */
   const [starting, setStarting] = useState<CatalogApp | null>(null);
@@ -86,7 +89,7 @@ export function DesignerHome(): ReactNode {
   const start = useMutation({
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
-      const base = { title: nameFromRequest(text), target, connectionId: model.picked.connectionId, model: model.picked.model };
+      const base = { title: nameFromRequest(text), ...(style === null ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
       if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim() });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
@@ -179,6 +182,7 @@ export function DesignerHome(): ReactNode {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {target === 'dashboard' ? null : <StylePicker value={style} disabled={noModel} onChange={setStyle} />}
                 <button
                   type="submit"
                   disabled={!canSend || start.isPending}

@@ -336,7 +336,10 @@ export default {
     "picturesRefused": "未加入圖片",
     "naming": "正在為應用程式命名",
     "named": "已將應用程式命名為 {subject}",
-    "notNamed": "應用程式未命名"
+    "notNamed": "應用程式未命名",
+    "partsAdding": "正在加入現成元件",
+    "partsAdded": "已加入現成元件",
+    "partsFailed": "未加入現成元件"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -617,7 +620,28 @@ export default {
     "problem": "無法使用：{why}",
     "finer": "想要更細緻的調整，就在聊天中說：「更深一些，帶點金色」。",
     "notApplied": "風格已寫入，但應用程式未被套用。下一輪會說明原因。",
-    "failed": "無法變更風格"
+    "failed": "無法變更風格",
+    "pick": "風格：{style}",
+    "auto": "讓 Designer 選擇",
+    "autoLine": "它會挑選適合該業務的風格，之後你可以變更。",
+    "addOwn": "加入你自己的…",
+    "addTitle": "加入你自己的風格",
+    "addLead": "風格是一個資料夾，其中的 SKILL.md 檔案描述一種外觀。它還可以包含顏色和字型（theme.json）、樣式表、預覽圖片和字型檔。",
+    "addDrop": "將資料夾的 .zip 或單一 SKILL.md 拖到這裡",
+    "addChoose": "選擇檔案",
+    "addNote": "它會儲存在你專案的 design-skills 資料夾中。其中的指令碼永遠不會執行。",
+    "addChecking": "正在檢查…",
+    "added": "已加入。現在它在清單中了。",
+    "addLeft": "未包含（不屬於風格的內容）：{list}",
+    "addDone": "完成",
+    "addAgain": "選擇其他檔案",
+    "addFailed": "風格未加入",
+    "remove": "移除 {style}…",
+    "removeTitle": "移除「{style}」？",
+    "removeBody": "它的資料夾會從專案中刪除。使用它的應用程式會保持現有外觀。",
+    "removeYes": "移除",
+    "removeNo": "保留",
+    "removeFailed": "無法移除風格"
   },
   "pictures": {
     "title": "頁面用的圖片。要使用嗎？",

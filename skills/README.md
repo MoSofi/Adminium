@@ -10,6 +10,7 @@ an app on [Adminium](https://adminium.dev).
 | `adminium-surface` | Screens for staff and for customers |
 | `adminium-add-ons` | Building on an add-on such as Invoices & Receipts |
 | `adminium-project` | The project around the app: custom dashboard pages, widgets, hooks, actions |
+| `adminium-design` | Designing an app's screens: the first screen, type, space, colour, pictures, the logo, and ten ready styles |
 
 ## Install
 

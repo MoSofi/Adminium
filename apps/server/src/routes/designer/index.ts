@@ -8,7 +8,7 @@
  * server runs. Every route declares the `designer` rate bucket itself, so no
  * address pattern can take its limit away.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import type { FastifyRequest } from 'fastify';
@@ -33,6 +33,7 @@ import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { addDesignSkill, removeDesignSkill, SKILL_UPLOAD_MAX_BYTES, SkillUploadError } from '../../designer/skill-upload.js';
 import {
   designerAnswerBody,
   designerAnswerReply,
@@ -68,6 +69,10 @@ import {
   designerLookBody,
   designerLookReply,
   designerPictureThumbParams,
+  designerStyleAddedReply,
+  designerStyleParams,
+  designerStyleRemovedReply,
+  designerStyleUploadQuery,
   designerStylesReply,
   designerStopReply,
   designerVersionParams,
@@ -103,6 +108,8 @@ export interface DesignerRoutesDeps {
   owner?: { needsPassword(userId: string | null): Promise<boolean>; set(input: { email: string; password: string }, by: Actor): Promise<string> } | undefined;
   /** What people attach to a message. */
   attachments: Attachments;
+  /** A row in the audit log, for what the routes themselves change (a style added or removed). */
+  audit?: (action: string, actor: Actor, detail: Record<string, unknown>) => Promise<void>;
   /** The pictures a card is showing, to serve each one's small copy. Absent where the Designer looks for none. */
   pictures?: import('../../designer/pictures.js').PictureShelf;
   /** How an app fits together, from what the engine applied. */
@@ -433,6 +440,55 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         return done;
       },
     );
+
+    // "Add your own": a style's folder as a .zip, or one SKILL.md, checked and saved into the project's design-skills/.
+    app.post(
+      '/designer/styles',
+      {
+        preHandler: guard,
+        onRequest: app.requireAuth,
+        bodyLimit: SKILL_UPLOAD_MAX_BYTES + 64 * 1024,
+        config: { rateLimitBucket: 'designer-files' as const, audit: auditExempt('the Designer audits a style added to the project itself, with its name') },
+        schema: { querystring: designerStyleUploadQuery, response: { 201: designerStyleAddedReply } },
+      },
+      async (request, reply) => {
+        if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the file itself, as its bytes.', { reason: 'NOT_A_SKILL' });
+        try {
+          const added = addDesignSkill(deps.root, { filename: request.query.filename, bytes: request.body });
+          await deps.audit?.('designer.style.added', actorOf(request), { style: added.key });
+          return reply.code(201).send(added);
+        } catch (error) {
+          if (error instanceof SkillUploadError) throw new ValidationFailedError(error.message, { reason: error.reason });
+          throw error;
+        }
+      },
+    );
+
+    // A style of the project's own, removed: its folder is deleted. An app that uses it keeps the files it was given.
+    app.delete(
+      '/designer/styles/:key',
+      { preHandler: guard, config: { ...RATE, audit: auditExempt('the Designer audits a style removed from the project itself, with its name') }, schema: { params: designerStyleParams, response: { 200: designerStyleRemovedReply } } },
+      async (request) => {
+        const style = designer.styles().find((entry) => entry.key === request.params.key && entry.origin === 'project');
+        if (style === undefined || !removeDesignSkill(deps.root, style.key)) throw new NotFoundError('There is no style of this project by that name.', { style: request.params.key });
+        await deps.audit?.('designer.style.removed', actorOf(request), { style: style.key });
+        return { removed: true as const };
+      },
+    );
+
+    // A style's own small picture. Shown through <img> only, under headers that let it run nothing.
+    app.get('/designer/styles/:key/preview', { preHandler: guard, config: RATE, schema: { params: designerStyleParams } }, async (request, reply) => {
+      const style = designer.styles().find((entry) => entry.key === request.params.key);
+      const file = style === undefined || !style.hasPreview ? null : join(style.dir, 'preview.svg');
+      if (file === null || !existsSync(file) || statSync(file).size > 48 * 1024) throw new NotFoundError('That style has no picture.');
+      return reply
+        .header('content-type', 'image/svg+xml')
+        .header('x-content-type-options', 'nosniff')
+        .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+        .header('cache-control', 'private, max-age=600')
+        .header('content-disposition', 'inline')
+        .send(readFileSync(file));
+    });
 
     // The styles a person can pick: built in, and the project's own.
     app.get('/designer/styles', { preHandler: guard, config: RATE, schema: { response: { 200: designerStylesReply } } }, async () => ({

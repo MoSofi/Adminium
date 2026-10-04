@@ -336,7 +336,10 @@ export default {
     "picturesRefused": "Keine Bilder hinzugefügt",
     "naming": "Benennt die App",
     "named": "App {subject} genannt",
-    "notNamed": "Die App wurde nicht benannt"
+    "notNamed": "Die App wurde nicht benannt",
+    "partsAdding": "Fügt fertige Bausteine hinzu",
+    "partsAdded": "Fertige Bausteine hinzugefügt",
+    "partsFailed": "Keine fertigen Bausteine hinzugefügt"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -617,7 +620,28 @@ export default {
     "problem": "Kann nicht verwendet werden: {why}",
     "finer": "Für Feineres sag es im Chat: „dunkler, mit Gold“.",
     "notApplied": "Der Stil wurde geschrieben, aber die App wurde nicht angewendet. Der nächste Durchgang sagt, warum.",
-    "failed": "Der Stil konnte nicht geändert werden"
+    "failed": "Der Stil konnte nicht geändert werden",
+    "pick": "Stil: {style}",
+    "auto": "Den Designer wählen lassen",
+    "autoLine": "Er wählt, was zum Geschäft passt, und du kannst es später ändern.",
+    "addOwn": "Eigenen hinzufügen…",
+    "addTitle": "Einen eigenen Stil hinzufügen",
+    "addLead": "Ein Stil ist ein Ordner mit einer Datei SKILL.md, die ein Aussehen beschreibt. Er kann auch Farben und Schriften (theme.json), ein Stylesheet, ein Vorschaubild und Schriftdateien enthalten.",
+    "addDrop": "Ziehe eine .zip des Ordners oder eine einzelne SKILL.md hierher",
+    "addChoose": "Datei auswählen",
+    "addNote": "Er wird im Ordner design-skills deines Projekts gespeichert. Skripte darin werden nie ausgeführt.",
+    "addChecking": "Wird geprüft…",
+    "added": "Hinzugefügt. Er steht jetzt in der Liste.",
+    "addLeft": "Weggelassen, da kein Teil eines Stils: {list}",
+    "addDone": "Fertig",
+    "addAgain": "Andere Datei auswählen",
+    "addFailed": "Der Stil wurde nicht hinzugefügt",
+    "remove": "{style} entfernen…",
+    "removeTitle": "„{style}“ entfernen?",
+    "removeBody": "Sein Ordner wird aus dem Projekt gelöscht. Apps, die ihn verwenden, behalten ihr Aussehen.",
+    "removeYes": "Entfernen",
+    "removeNo": "Behalten",
+    "removeFailed": "Der Stil konnte nicht entfernt werden"
   },
   "pictures": {
     "title": "Bilder für die Seite. Verwenden?",

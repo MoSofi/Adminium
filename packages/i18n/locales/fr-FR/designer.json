@@ -326,7 +326,10 @@
     "picturesRefused": "Aucune image ajoutée",
     "naming": "Nomme l’application",
     "named": "A nommé l’application {subject}",
-    "notNamed": "L’application n’a pas été nommée"
+    "notNamed": "L’application n’a pas été nommée",
+    "partsAdding": "Ajoute des éléments prêts à l’emploi",
+    "partsAdded": "A ajouté des éléments prêts à l’emploi",
+    "partsFailed": "Aucun élément prêt à l’emploi ajouté"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -607,7 +610,28 @@
     "problem": "Inutilisable : {why}",
     "finer": "Pour plus de finesse, dites-le dans la conversation : « plus sombre, avec de l’or ».",
     "notApplied": "Le style a été écrit, mais l’application n’a pas été appliquée. Le prochain tour dira pourquoi.",
-    "failed": "Le style n’a pas pu être changé"
+    "failed": "Le style n’a pas pu être changé",
+    "pick": "Style : {style}",
+    "auto": "Laisser le Designer choisir",
+    "autoLine": "Il choisit ce qui convient à l’activité, et vous pourrez le changer ensuite.",
+    "addOwn": "Ajouter le vôtre…",
+    "addTitle": "Ajouter un style à vous",
+    "addLead": "Un style est un dossier avec un fichier SKILL.md qui décrit une apparence. Il peut aussi contenir des couleurs et des polices (theme.json), une feuille de style, une image d’aperçu et des fichiers de police.",
+    "addDrop": "Déposez ici un .zip du dossier ou un seul SKILL.md",
+    "addChoose": "Choisir un fichier",
+    "addNote": "Il est enregistré dans le dossier design-skills de votre projet. Les scripts qu’il contient ne sont jamais exécutés.",
+    "addChecking": "Vérification…",
+    "added": "Ajouté. Il est maintenant dans la liste.",
+    "addLeft": "Laissé de côté, car ne faisant pas partie d’un style : {list}",
+    "addDone": "Terminé",
+    "addAgain": "Choisir un autre fichier",
+    "addFailed": "Le style n’a pas été ajouté",
+    "remove": "Supprimer {style}…",
+    "removeTitle": "Supprimer « {style} » ?",
+    "removeBody": "Son dossier est supprimé du projet. Les applications qui l’utilisent gardent leur apparence.",
+    "removeYes": "Supprimer",
+    "removeNo": "Le garder",
+    "removeFailed": "Le style n’a pas pu être supprimé"
   },
   "pictures": {
     "title": "Des images pour la page. Les utiliser ?",

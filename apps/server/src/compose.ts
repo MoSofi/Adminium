@@ -2155,6 +2155,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             mode: designerOpts.mode,
             attachments: designerAttachments,
             pictures: designerShelf,
+            audit: designerAudit,
             ...(live === null ? {} : { live }),
             root,
             limits,

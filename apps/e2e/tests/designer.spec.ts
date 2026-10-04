@@ -64,7 +64,7 @@ test.beforeAll(async ({}, testInfo) => {
       { key: 'staff', name: 'Repair desk staff', permissions: ['table:@jobs:read', 'table:@jobs:create', 'table:@jobs:update', `page:@${APP_KEY}-jobs:view`] },
     ],
   };
-  model = createDesignerModelServer({ appKey: APP_KEY, files: Object.fromEntries(Object.entries(files).map(([file, value]) => [file, JSON.stringify(value, null, 2)])) });
+  model = createDesignerModelServer({ appKey: APP_KEY, appName: 'Repair desk', files: Object.fromEntries(Object.entries(files).map(([file, value]) => [file, JSON.stringify(value, null, 2)])) });
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
   const modelUrl = `http://127.0.0.1:${String((model.address() as AddressInfo).port)}`;
   designEnv = { ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' };
@@ -192,9 +192,14 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   expect(await policyOf()).not.toContain('images.example.com');
   await page.getByRole('textbox', { name: 'Message to Adminium Designer' }).fill('Use pictures from images.example.com on the page.');
   await page.keyboard.press('Enter');
-  await expect(page.getByText(/Let this project’s pages show pictures from images\.example\.com\?/)).toBeVisible({ timeout: 120_000 });
+  // Asked on the one card for what a design needs: a checkbox for the site, ticked, with what allowing it means; "Send" says yes.
+  const needs = page.getByRole('group', { name: 'The design needs a few things. Add them?' });
+  await expect(needs).toBeVisible({ timeout: 120_000 });
+  await expect(needs.getByRole('checkbox', { name: /Pictures from images\.example\.com — shown straight from that site/ })).toBeChecked();
+  await expect(needs).toContainText('That site then sees each visit to a page that shows its pictures.');
   expect(await policyOf()).not.toContain('images.example.com');
-  await page.getByRole('button', { name: 'Allow it', exact: true }).click();
+  await needs.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(needs).toContainText('Added: pictures from images.example.com.');
   await expect(page.getByText(/^Pictures from images\.example\.com: Pictures from images\.example\.com show now\./)).toBeVisible({ timeout: 120_000 });
   // In the next reply's policy, with no restart, and kept in the project's .env for the next start.
   expect(await policyOf()).toMatch(/img-src 'self'[^;]* https:\/\/images\.example\.com(;|$)/);

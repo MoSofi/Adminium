@@ -258,10 +258,23 @@ export function styleForBusiness(skills: readonly DesignSkill[], text: string): 
   return best?.skill ?? null;
 }
 
-/** A style a person named in their own words: its key or its title, whole. */
+/**
+ * A style a person named in their own words: its key, or its title. A title
+ * of one common word ("Night", "Editorial") counts only beside "style",
+ * "look" or "theme": a hotel's price per night names no style.
+ */
 export function styleNamed(skills: readonly DesignSkill[], text: string): DesignSkill | null {
   const said = text.toLowerCase();
-  return skills.find((skill) => skill.problem === undefined && (wordIn(said, skill.title.toLowerCase()) || (skill.key.includes('-') && said.includes(skill.key)))) ?? null;
+  const escaped = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return (
+    skills.find((skill) => {
+      if (skill.problem !== undefined) return false;
+      if (skill.key.includes('-') && said.includes(skill.key)) return true;
+      const title = escaped(skill.title.toLowerCase());
+      if (skill.title.trim().includes(' ')) return wordIn(said, skill.title.toLowerCase());
+      return new RegExp(`(^|[^a-z])(${title}|${escaped(skill.key)})[\\s"'”’]*(style|look|theme)([^a-z]|$)|(style|look|theme)[\\s:"'“‘]*(${title}|${escaped(skill.key)})([^a-z]|$)`, 'i').test(said);
+    }) ?? null
+  );
 }
 
 /** Up to `count` styles to offer on a card: the nearest by business first, then the list's own order. */

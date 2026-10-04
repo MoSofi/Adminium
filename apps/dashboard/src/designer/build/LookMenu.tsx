@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 import { t } from '../../i18n/t.js';
 import type { AppLook, DesignerStyle } from '../api.js';
-import { StyleSwatch } from '../parts/look.js';
+import { StyleTile } from '../parts/styles.js';
 
 export function StyleMenu({
   current,
@@ -34,7 +34,7 @@ export function StyleMenu({
     return (
       <DropdownMenuItem
         key={`${style.origin}:${style.key}`}
-        icon={<StyleSwatch swatch={style.swatch} />}
+        icon={<StyleTile style={style} />}
         disabled={unusable}
         onSelect={() => (inUse(style) || unusable ? undefined : onPick(style.key))}
         trailing={inUse(style) ? <Check aria-label={t('designer:style.inUse', 'In use')} className="text-accent" /> : undefined}

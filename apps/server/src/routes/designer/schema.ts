@@ -98,6 +98,10 @@ export const designerLookReply = z.object({
   applied: z.boolean(),
 });
 
+export const designerStyleUploadQuery = z.object({ filename: z.string().min(1).max(300) });
+export const designerStyleAddedReply = z.object({ key: z.string(), left: z.array(z.string()) });
+export const designerStyleParams = z.object({ key: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/) });
+export const designerStyleRemovedReply = z.object({ removed: z.literal(true) });
 export const designerStylesReply = z.object({
   styles: z.array(
     z.object({

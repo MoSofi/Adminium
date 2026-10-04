@@ -10007,6 +10007,18 @@
     "status": "mt",
     "srcHash": "6a7c440f2c75"
   },
+  "designer.step.partsAdded": {
+    "status": "mt",
+    "srcHash": "b9c2eb7b9393"
+  },
+  "designer.step.partsAdding": {
+    "status": "mt",
+    "srcHash": "1b505eff4646"
+  },
+  "designer.step.partsFailed": {
+    "status": "mt",
+    "srcHash": "27d240de41ba"
+  },
   "designer.step.pictureSiteAllowed": {
     "status": "mt",
     "srcHash": "301b0a7cb11d"
@@ -10179,6 +10191,62 @@
     "status": "mt",
     "srcHash": "3b4dfc971393"
   },
+  "designer.style.addAgain": {
+    "status": "mt",
+    "srcHash": "623523716d17"
+  },
+  "designer.style.addChecking": {
+    "status": "mt",
+    "srcHash": "820d6004b037"
+  },
+  "designer.style.addChoose": {
+    "status": "mt",
+    "srcHash": "74b1d89d8525"
+  },
+  "designer.style.addDone": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "designer.style.addDrop": {
+    "status": "mt",
+    "srcHash": "531ebd3c1008"
+  },
+  "designer.style.addFailed": {
+    "status": "mt",
+    "srcHash": "01c1dbdb92e1"
+  },
+  "designer.style.addLead": {
+    "status": "mt",
+    "srcHash": "b7e76ab6dfe3"
+  },
+  "designer.style.addLeft": {
+    "status": "mt",
+    "srcHash": "0e8860a41456"
+  },
+  "designer.style.addNote": {
+    "status": "mt",
+    "srcHash": "333f338d9a92"
+  },
+  "designer.style.addOwn": {
+    "status": "mt",
+    "srcHash": "bd80a65177f6"
+  },
+  "designer.style.addTitle": {
+    "status": "mt",
+    "srcHash": "1f6d11930fdd"
+  },
+  "designer.style.added": {
+    "status": "mt",
+    "srcHash": "aba12489482f"
+  },
+  "designer.style.auto": {
+    "status": "mt",
+    "srcHash": "f0a0f1787663"
+  },
+  "designer.style.autoLine": {
+    "status": "mt",
+    "srcHash": "609ca00cb1c5"
+  },
   "designer.style.change": {
     "status": "mt",
     "srcHash": "4c15442e9b6b"
@@ -10223,9 +10291,37 @@
     "status": "mt",
     "srcHash": "dec84d270e8a"
   },
+  "designer.style.pick": {
+    "status": "mt",
+    "srcHash": "35a8fa52ccfe"
+  },
   "designer.style.problem": {
     "status": "mt",
     "srcHash": "48efff96525e"
+  },
+  "designer.style.remove": {
+    "status": "mt",
+    "srcHash": "f90d57981d66"
+  },
+  "designer.style.removeBody": {
+    "status": "mt",
+    "srcHash": "b9f7d1ee94cc"
+  },
+  "designer.style.removeFailed": {
+    "status": "mt",
+    "srcHash": "9a340489bee0"
+  },
+  "designer.style.removeNo": {
+    "status": "mt",
+    "srcHash": "d9f369249799"
+  },
+  "designer.style.removeTitle": {
+    "status": "mt",
+    "srcHash": "097f6eadca93"
+  },
+  "designer.style.removeYes": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
   },
   "designer.style.showAll": {
     "status": "mt",

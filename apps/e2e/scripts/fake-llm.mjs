@@ -485,10 +485,13 @@ export function createFakeLlmServer() {
  * offers the `echo` tool) calls it once and then answers. A turn writes the
  * app's files in one reply, checks the app, applies it and says so.
  *
+ * A new app is named first (`appName`, else the key's words), since its
+ * folder is made from its name.
+ *
  * `files` is what it writes, by path inside the app's folder: a new app is
  * bare, so the spec gives a table, its page and the role's grants.
  */
-export function createDesignerModelServer({ appKey, files }) {
+export function createDesignerModelServer({ appKey, appName, files }) {
   const line = (res, value) => res.write(`${JSON.stringify(value)}\n`);
   const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 900, eval_count: 40, message: { role: 'assistant', content: '' } };
   const say = (res, content) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content } });
@@ -533,11 +536,16 @@ export function createDesignerModelServer({ appKey, files }) {
         res.end();
         return;
       }
-      // A new app is bare: the first reply writes its files, all at once.
+      // A new app has no name yet: it is named first, alone, and its folder is made from the name.
+      const unnamed = messages.some((message) => message.role === 'system' && String(message.content).includes('has no name yet'));
+      const named = messages.slice(lastUser + 1).some((message) => (message.tool_calls ?? []).some((made) => made?.function?.name === 'name_app'));
+      const first = named ? 1 : 0;
+      // A new app is bare: the next reply writes its files, all at once.
       const written = Object.keys(files).length;
-      if (step === 0) calls(res, Object.entries(files).map(([file, content]) => ['write_file', { path: `apps/${appKey}/${file}`, content }]));
-      else if (step === written) call(res, 'check_app', {});
-      else if (step === written + 1) call(res, 'apply_app', {});
+      if (step === 0 && unnamed) call(res, 'name_app', { name: appName ?? appKey.split('-').join(' ') });
+      else if (step === first) calls(res, Object.entries(files).map(([file, content]) => ['write_file', { path: `apps/${appKey}/${file}`, content }]));
+      else if (step === first + written) call(res, 'check_app', {});
+      else if (step === first + written + 1) call(res, 'apply_app', {});
       else say(res, 'The app has a jobs table now. It is applied and saved.');
       line(res, done);
       res.end();

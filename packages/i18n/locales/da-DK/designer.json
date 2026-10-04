@@ -326,7 +326,10 @@
     "picturesRefused": "Ingen billeder tilføjet",
     "naming": "Navngiver appen",
     "named": "Navngav appen {subject}",
-    "notNamed": "Appen blev ikke navngivet"
+    "notNamed": "Appen blev ikke navngivet",
+    "partsAdding": "Tilføjer færdige dele",
+    "partsAdded": "Tilføjede færdige dele",
+    "partsFailed": "Ingen færdige dele blev tilføjet"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -607,7 +610,28 @@
     "problem": "Kan ikke bruges: {why}",
     "finer": "Vil du have noget finere, så sig det i chatten: “mørkere, med guld”.",
     "notApplied": "Stilen blev skrevet, men appen blev ikke anvendt. Næste omgang siger hvorfor.",
-    "failed": "Stilen kunne ikke skiftes"
+    "failed": "Stilen kunne ikke skiftes",
+    "pick": "Stil: {style}",
+    "auto": "Lad Designer vælge",
+    "autoLine": "Den vælger det, der passer til forretningen, og du kan ændre det bagefter.",
+    "addOwn": "Tilføj din egen…",
+    "addTitle": "Tilføj din egen stil",
+    "addLead": "En stil er en mappe med en SKILL.md-fil, der beskriver et udseende. Den kan også indeholde farver og skrifttyper (theme.json), et stylesheet, et forhåndsvisningsbillede og skriftfiler.",
+    "addDrop": "Slip en .zip af mappen eller en enkelt SKILL.md her",
+    "addChoose": "Vælg en fil",
+    "addNote": "Den gemmes i dit projekts design-skills-mappe. Scripts i den køres aldrig.",
+    "addChecking": "Tjekker…",
+    "added": "Tilføjet. Den er på listen nu.",
+    "addLeft": "Udeladt, da det ikke er en del af en stil: {list}",
+    "addDone": "Færdig",
+    "addAgain": "Vælg en anden fil",
+    "addFailed": "Stilen blev ikke tilføjet",
+    "remove": "Fjern {style}…",
+    "removeTitle": "Fjern “{style}”?",
+    "removeBody": "Dens mappe slettes fra projektet. Apps, der bruger den, beholder deres udseende.",
+    "removeYes": "Fjern",
+    "removeNo": "Behold den",
+    "removeFailed": "Stilen kunne ikke fjernes"
   },
   "pictures": {
     "title": "Billeder til siden. Skal de bruges?",

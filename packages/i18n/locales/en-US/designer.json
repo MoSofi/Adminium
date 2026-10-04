@@ -326,7 +326,10 @@
     "picturesRefused": "No pictures added",
     "naming": "Naming the app",
     "named": "Named the app {subject}",
-    "notNamed": "The app was not named"
+    "notNamed": "The app was not named",
+    "partsAdding": "Adding ready-made parts",
+    "partsAdded": "Added ready-made parts",
+    "partsFailed": "No ready-made parts were added"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -607,7 +610,28 @@
     "problem": "Cannot be used: {why}",
     "finer": "For anything finer, say it in the chat: “darker, with gold”.",
     "notApplied": "The style was written, and the app was not applied. The next turn will say why.",
-    "failed": "The style could not be changed"
+    "failed": "The style could not be changed",
+    "pick": "Style: {style}",
+    "auto": "Let the Designer choose",
+    "autoLine": "It picks what suits the business, and you can change it afterwards.",
+    "addOwn": "Add your own…",
+    "addTitle": "Add a style of your own",
+    "addLead": "A style is a folder with a SKILL.md file that describes a look. It may also hold colours and fonts (theme.json), a stylesheet, a preview picture and font files.",
+    "addDrop": "Drop a .zip of the folder or a single SKILL.md here",
+    "addChoose": "Choose a file",
+    "addNote": "It is saved in your project’s design-skills folder. Scripts in it are never run.",
+    "addChecking": "Checking…",
+    "added": "Added. It is in the list now.",
+    "addLeft": "Left out, as no part of a style: {list}",
+    "addDone": "Done",
+    "addAgain": "Choose another file",
+    "addFailed": "The style was not added",
+    "remove": "Remove {style}…",
+    "removeTitle": "Remove “{style}”?",
+    "removeBody": "Its folder is deleted from the project. Apps that use it keep the look they have.",
+    "removeYes": "Remove",
+    "removeNo": "Keep it",
+    "removeFailed": "The style could not be removed"
   },
   "pictures": {
     "title": "Pictures for the page. Use them?",

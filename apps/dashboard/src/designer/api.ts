@@ -275,6 +275,33 @@ export const designerKeys = {
 };
 
 /** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
+/** A style of a person's own, sent as its raw bytes: a .zip of its folder, or one SKILL.md. */
+async function addStyle(file: File): Promise<{ key: string; left: string[] }> {
+  const response = await fetch(`${BASE}/styles?filename=${encodeURIComponent(file.name === '' ? 'style.zip' : file.name)}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', 'content-type': 'application/octet-stream', ...csrfHeaders() },
+    body: file,
+  });
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    // Said below.
+  }
+  if (!response.ok) {
+    const envelope = (body ?? {}) as { error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } };
+    throw new ApiError(
+      response.status,
+      typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+      typeof envelope.error?.message === 'string' ? envelope.error.message : `The style could not be added (${String(response.status)}).`,
+      typeof envelope.error?.requestId === 'string' ? envelope.error.requestId : null,
+      envelope.error?.details,
+    );
+  }
+  return body as { key: string; left: string[] };
+}
+
 async function uploadAttachment(sessionId: string, file: File, palette = ''): Promise<DesignerAttachment> {
   const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=${encodeURIComponent(file.name === '' ? 'pasted' : file.name)}${palette === '' ? '' : `&palette=${palette}`}`, {
     method: 'POST',
@@ -316,6 +343,9 @@ export const designerApi = {
   session: (id: string) => api.get<SessionReply>(`${BASE}/sessions/${id}`),
   patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string }) => api.patch<SessionReply>(`${BASE}/sessions/${id}`, patch),
   styles: () => api.get<{ styles: DesignerStyle[] }>(`${BASE}/styles`),
+  addStyle,
+  removeStyle: (key: string) => api.delete<{ removed: true }>(`${BASE}/styles/${encodeURIComponent(key)}`),
+  stylePreviewUrl: (key: string) => `${BASE}/styles/${encodeURIComponent(key)}/preview`,
   setLook: (id: string, skill: string) => api.post<{ look: AppLook; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { skill }),
   startTurn: (id: string, text: string, attachments: readonly string[] = []) =>
     api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }) }),

@@ -1332,12 +1332,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const problems: string[] = [];
         for (const raw of Array.isArray(input['needs']) ? (input['needs'] as unknown[]).slice(0, 6) : []) {
           const need = (raw ?? {}) as Record<string, unknown>;
-          const id = typeof need['id'] === 'string' ? need['id'].toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) : '';
           const words = typeof need['words'] === 'string' ? need['words'].replace(/\s+/g, ' ').trim().slice(0, 80) : '';
-          if (id === '' || words.length < 2 || needs.some((other) => other.id === id)) {
-            problems.push(`A need was left out: give each a different "id" and "words" to search by.`);
+          if (words.length < 2) {
+            problems.push('A need was left out: give each "words" to search by, saying what the picture shows.');
             continue;
           }
+          // A name for the files: the one given, else the first words; made different from the ones before it.
+          const base = (typeof need['id'] === 'string' ? need['id'] : words.split(' ').slice(0, 2).join('-')).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').replace(/^[^a-z]+/, '').slice(0, 28) || 'picture';
+          let id = base;
+          for (let n = 2; needs.some((other) => other.id === id); n += 1) id = `${base}-${String(n)}`;
           const shape = (PICTURE_SHAPES as readonly unknown[]).includes(need['shape']) ? (need['shape'] as PictureShape) : need['for'] === 'rows' ? 'square' : 'wide';
           const count = Math.min(PICTURES_PER_NEED, Math.max(1, int(need, 'count') ?? (need['for'] === 'rows' ? 6 : 1)));
           if (need['for'] === 'rows') {

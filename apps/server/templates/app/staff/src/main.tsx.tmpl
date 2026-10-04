@@ -1,7 +1,12 @@
+import type { ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { App } from './App';
+import * as screen from './App';
 import './theme.css';
 import './app.css';
+
+// The screen, whether App.tsx exports it by name or as its default.
+const found = screen as { App?: ComponentType; default?: ComponentType };
+const App = found.App ?? found.default ?? (() => null);
 
 createRoot(document.getElementById('root')!).render(<App />);
