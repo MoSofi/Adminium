@@ -8,19 +8,21 @@
 import type { StepRow } from '../build/turns.js';
 import { BuildComposer } from './BuildComposer.js';
 import {
+  AddOnCard,
   DesignerMessage,
   FailedNote,
   LimitNote,
+  NeedsCard,
   NotAppliedNote,
-  AddOnCard,
   PackageCard,
-  RowsCard,
   PersonMessage,
   QuestionCard,
   RemovalCard,
+  RowsCard,
   SavedChip,
   StepsBlock,
   StoppedNote,
+  StyleChip,
   UsageLine,
 } from './chat.js';
 
@@ -96,6 +98,37 @@ export const Cards = {
       />
       <AddOnCard card={{ id: 'ao2', type: 'add-on', key: 'invoices', name: 'invoices', version: null, line: '', listOff: true }} answered={false} busy={false} onGet={noop} onSkip={noop} />
       <QuestionCard card={{ id: 'a', type: 'question', question: 'Should mechanics see part prices?', choices: [] }} answered answer="No, hide prices" busy={false} onChoose={noop} onOwnWords={noop} />
+    </div>
+  ),
+};
+
+const STYLES = [
+  { key: 'warm', title: 'Warm table', description: 'Cream, terracotta and a serif. For restaurants, cafés and bakeries.', origin: 'built-in' as const, swatch: { bg: '#faf4ea', text: '#2c1d13', accent: '#a04e26' } },
+  { key: 'craft-market', title: 'Craft market', description: 'Oat, charcoal and clay. For makers and small shops.', origin: 'built-in' as const, swatch: { bg: '#f5efe6', text: '#2a2622', accent: '#b4532a' } },
+  { key: 'night', title: 'Night', description: 'Near-black with amber. For bars, cinema and late venues.', origin: 'built-in' as const, swatch: { bg: '#0e0e12', text: '#f3f1ea', accent: '#f5a524' } },
+  { key: 'house', title: 'Lucia house style', description: 'From this project', origin: 'project' as const },
+];
+const NEEDS = [
+  { id: 'package:react', kind: 'package' as const, name: 'react', version: '19.2.0', role: 'screens' as const },
+  { id: 'package:@adminiumjs/public-client', kind: 'package' as const, name: '@adminiumjs/public-client', version: '0.3.17', role: 'public-client' as const },
+  { id: 'package:tailwindcss', kind: 'package' as const, name: 'tailwindcss', version: '4.3.3', role: 'tailwind' as const },
+  { id: 'package:lucide-react', kind: 'package' as const, name: 'lucide-react', version: '1.52.0', role: 'icons' as const, why: 'For the menu’s section marks and the booking form.' },
+  { id: 'font:@fontsource/playfair-display', kind: 'font' as const, family: 'Playfair Display', name: '@fontsource/playfair-display', version: '5.3.0', use: 'heading' as const },
+  { id: 'font:@fontsource/inter', kind: 'font' as const, family: 'Inter', name: '@fontsource/inter', version: '5.3.0', use: 'body' as const },
+  { id: 'site:images.example.com', kind: 'picture-site' as const, host: 'images.example.com' },
+  { id: 'package:date-fns', kind: 'package' as const, name: 'date-fns', version: '4.1.0', role: 'other' as const, why: 'Opening hours by weekday.' },
+];
+
+/** The cards a design raises: everything it needs on one card, the style question, and a question with no choices. */
+export const DesignCards = {
+  render: () => (
+    <div className="flex w-[420px] flex-col gap-4 bg-surface p-5">
+      <NeedsCard card={{ id: 'n1', type: 'needs', items: NEEDS }} answered={false} busy={false} onSend={noop} />
+      <NeedsCard card={{ id: 'n2', type: 'needs', items: NEEDS }} answered accepted={NEEDS.slice(0, 6).map((item) => item.id)} busy={false} onSend={noop} />
+      <NeedsCard card={{ id: 'n3', type: 'needs', items: NEEDS.slice(5, 6) }} answered={false} busy onSend={noop} />
+      <QuestionCard card={{ id: 's1', type: 'question', question: 'How should it look?', choices: ['warm', 'craft-market', 'surprise'], style: STYLES, more: ['night', 'house'] }} answered={false} busy={false} onChoose={noop} onOwnWords={noop} />
+      <QuestionCard card={{ id: 'q2', type: 'question', question: 'What are the restaurant’s opening hours?', choices: [] }} answered={false} busy={false} onChoose={noop} onOwnWords={noop} />
+      <StyleChip title="Warm table" fontsLater />
     </div>
   ),
 };

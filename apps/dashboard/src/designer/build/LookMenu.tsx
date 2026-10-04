@@ -34,7 +34,7 @@ export function StyleMenu({
     return (
       <DropdownMenuItem
         key={`${style.origin}:${style.key}`}
-        icon={<StyleTile style={style} />}
+        icon={<StyleTile entry={style} />}
         disabled={unusable}
         onSelect={() => (inUse(style) || unusable ? undefined : onPick(style.key))}
         trailing={inUse(style) ? <Check aria-label={t('designer:style.inUse', 'In use')} className="text-accent" /> : undefined}

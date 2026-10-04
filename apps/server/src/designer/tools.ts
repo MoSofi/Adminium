@@ -41,7 +41,6 @@ import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
-import { projectPackageManager } from '../project/package-manager.js';
 import { runChild } from './child.js';
 import { csvLines, csvOf, type Attachments } from './attachments.js';
 import { FOLDED_MARK } from './fold.js';
@@ -61,8 +60,6 @@ export const MAX_READ_BYTES = 65_536;
 const MAX_LIST = 400;
 /** How long an app's tests may run. */
 const TESTS_TIMEOUT_MS = 60_000;
-/** How long a package install may run. */
-const INSTALL_TIMEOUT_MS = 180_000;
 
 /** An add-on the server has or can get, in one line. */
 export interface AddOnLine {

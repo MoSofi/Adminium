@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { CardAnswer, CardRequest } from '../src/designer/cards.js';
 import type { AddOnGetter, AddOnLook, GetAddOnResult } from '../src/designer/get-add-on.js';
 import { createEventLog } from '../src/designer/events.js';
-import { createSkills, skillsDir } from '../src/designer/skills.js';
+import { createSkills } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import type { NeedItem } from '../src/designer/needs.js';
 import { createPictureShelf, type FoundPicture, type PictureSource } from '../src/designer/pictures.js';

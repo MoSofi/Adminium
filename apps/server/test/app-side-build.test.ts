@@ -382,7 +382,6 @@ describe.skipIf(!ready || tailwindFolder() === null)('Tailwind in a side', () =>
 
   it('builds every ready-made part as it is copied into a side: they compile, and their classes come out of Tailwind', async () => {
     withTailwind();
-    const fromUi = createRequire(join(import.meta.dirname, '..', '..', '..', 'packages', 'ui', 'package.json'));
     for (const name of ["clsx", "tailwind-merge"]) symlinkSync(join(import.meta.dirname, "..", "..", "..", "packages", "ui", "node_modules", name), join(root, "node_modules", name), "dir");
     put('apps/repairs/staff/src/theme.css', ':root { --surface: #fffdf8; --accent: #a04e26; --accent-ink: #fff; --line: #ddd; --text: #111; --muted: #555; --radius: 18px; --shadow: none; }\n');
     const written = addUiParts({ root, key: 'repairs', side: 'staff', parts: Object.keys(UI_PARTS) });

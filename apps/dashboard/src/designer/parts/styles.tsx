@@ -21,9 +21,9 @@ import { designerApi, designerKeys, type DesignerStyle } from '../api.js';
 import { StyleSwatch } from './look.js';
 
 /** A style's own small picture when it has one, else its three colours. */
-export function StyleTile({ style }: { style: Pick<DesignerStyle, 'key' | 'hasPreview' | 'swatch'> }): ReactNode {
-  if (!style.hasPreview) return <StyleSwatch swatch={style.swatch} />;
-  return <img src={designerApi.stylePreviewUrl(style.key)} alt="" className="h-[30px] w-[42px] shrink-0 rounded-md border border-border-strong object-cover" />;
+export function StyleTile({ entry }: { entry: Pick<DesignerStyle, 'key' | 'hasPreview' | 'swatch'> }): ReactNode {
+  if (!entry.hasPreview) return <StyleSwatch swatch={entry.swatch} />;
+  return <img src={designerApi.stylePreviewUrl(entry.key)} alt="" className="h-[30px] w-[42px] shrink-0 rounded-md border border-border-strong object-cover" />;
 }
 
 export const stylesQuery = () => ({ queryKey: designerKeys.styles, queryFn: designerApi.styles, staleTime: 60_000 });
@@ -125,7 +125,7 @@ export function AddStyleDialog({ open, onClose, onAdded }: { open: boolean; onCl
 }
 
 /** "Remove …?" for a style of the project's own. */
-export function RemoveStyleDialog({ style, onClose, onRemoved }: { style: DesignerStyle | null; onClose: () => void; onRemoved?: (key: string) => void }): ReactNode {
+export function RemoveStyleDialog({ target: style, onClose, onRemoved }: { target: DesignerStyle | null; onClose: () => void; onRemoved?: (key: string) => void }): ReactNode {
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: (key: string) => designerApi.removeStyle(key),
@@ -172,7 +172,7 @@ export function StylePicker({ value, disabled, onChange }: { value: string | nul
   const row = (style: DesignerStyle): ReactNode => (
     <DropdownMenuItem
       key={`${style.origin}:${style.key}`}
-      icon={<StyleTile style={style} />}
+      icon={<StyleTile entry={style} />}
       disabled={style.problem !== undefined}
       onSelect={() => onChange(style.key)}
       trailing={style.key === value ? <Check aria-hidden="true" className="text-accent" /> : undefined}
@@ -228,7 +228,7 @@ export function StylePicker({ value, disabled, onChange }: { value: string | nul
       </DropdownMenu>
       <AddStyleDialog open={adding} onClose={() => setAdding(false)} onAdded={(key) => onChange(key)} />
       <RemoveStyleDialog
-        style={removing}
+        target={removing}
         onClose={() => setRemoving(null)}
         // The picked style is gone: the choice goes back to the Designer.
         onRemoved={(key) => (key === value ? onChange(null) : undefined)}
