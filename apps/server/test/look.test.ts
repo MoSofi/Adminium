@@ -20,7 +20,8 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { builtInStylesDir, designCssProblem, listDesignSkills, readFrontMatter, styleForBusiness, styleNamed } from '../src/project/apps/design-skills.js';
+import { previewProblem } from '../src/designer/skill-upload.js';
+import { builtInStylesDir, designCssProblem, listDesignSkills, readFrontMatter, SKILL_LIMITS, styleForBusiness, styleNamed } from '../src/project/apps/design-skills.js';
 import { applyLook, cleanLook, directionForBusiness, directionFromWords, DIRECTIONS, inkOn, LOOK_DIRECTIONS, mentionsLook, missingFonts, readLook, resolveLook, themeCss } from '../src/project/apps/look.js';
 import { cleanPalette, cleanThemePatch, contrast as themeContrast, fontPackage, isPublicFontName, mergePatches, themeFrom, themeFromPalette } from '../src/project/apps/theme.js';
 import { appTemplateDir } from '../src/project/apps/scaffold-app.js';
@@ -200,6 +201,20 @@ describe('a style', () => {
         expect(themeContrast(set?.text ?? '', set?.bg ?? ''), `${skill.key} text`).toBeGreaterThanOrEqual(7);
         expect(themeContrast(set?.muted ?? '', set?.bg ?? ''), `${skill.key} muted`).toBeGreaterThanOrEqual(4.5);
       }
+    }
+  });
+
+  it('has a small picture of itself, held to what an uploaded one is: drawn in its own colours, nothing in it that loads or runs', () => {
+    for (const skill of listDesignSkills(root, builtInStylesDir())) {
+      expect(skill.hasPreview, skill.key).toBe(true);
+      const svg = readFileSync(join(skill.dir, 'preview.svg'), 'utf8');
+      expect(previewProblem(svg), skill.key).toBeNull();
+      expect(svg.length, skill.key).toBeLessThan(SKILL_LIMITS.previewSvg);
+      expect(svg, skill.key).toContain('viewBox="0 0 320 200"');
+      // The page and the button are the style's own: a changed theme with an old picture is caught here.
+      const theme = JSON.parse(readFileSync(join(skill.dir, 'theme.json'), 'utf8')) as { light: { bg: string; accent: string } };
+      expect(svg, skill.key).toContain(`<rect width="320" height="200" fill="${theme.light.bg}"/>`);
+      expect(svg, skill.key).toContain(`fill="${theme.light.accent}"`);
     }
   });
 

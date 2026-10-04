@@ -31,6 +31,8 @@ export type DesignerCard =
        */
       type: 'pictures';
       shelf: string;
+      /** A site some of these pictures are shown from, never copied: a tick lets the app's pages load pictures from it. */
+      site?: string;
       groups: { id: string; label: string; shape: 'wide' | 'tall' | 'square'; pictures: { id: string; title: string; creator: string; licence: string; source: string }[] }[];
     }
   | {

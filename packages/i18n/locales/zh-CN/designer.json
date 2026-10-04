@@ -554,16 +554,17 @@
     "ownerDone": "你现在以 {email} 和你的密码登录。"
   },
   "attach": {
-    "button": "附加图片或 CSV 文件",
+    "button": "附加图片、CSV 文件或字体",
     "list": "已附加的文件",
     "pasted": "粘贴的图片",
     "remove": "移除 {name}",
     "open": "在新标签页中打开 {name}",
     "rows": "{count, plural, other {# 行}}",
-    "wrongKind": "只能附加图片（PNG、JPEG、WebP 或 GIF）或 CSV 文件。",
+    "wrongKind": "只能附加图片（PNG、JPEG、WebP 或 GIF）、CSV 文件或字体（.woff2）。",
     "tooMany": "一条消息最多附加 {count} 个文件。",
     "imageTooLarge": "该图片超过 5 MB。请附加较小的图片。",
     "csvTooLarge": "该文件超过 10 MB。这种大小的文件请在表自己的页面使用“导入”。",
+    "fontTooLarge": "该字体文件超过 400 KB。请将该字体的一个字重作为 .woff2 文件附加。",
     "noPictures": "{model} 无法读取图片。请描述其中的要点，或选择能读取图片的模型。",
     "noPicturesPlain": "此模型无法读取图片。请描述其中的要点，或选择能读取图片的模型。",
     "notSent": "消息未发送"
@@ -636,6 +637,7 @@
   "pictures": {
     "title": "页面用的图片。要使用吗？",
     "lead": "Designer 找到的免费图片。勾选要使用的：它们会连同署名一起复制到你的应用中。",
+    "shownFrom": "其中一些直接从 {site} 显示，不会被复制。之后，该网站会看到对显示它们的页面的每次访问。",
     "noneOfThese": "都不要",
     "by": "{creator} · {licence}",
     "use": "使用 {creator} 的图片“{title}”",

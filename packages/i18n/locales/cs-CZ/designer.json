@@ -554,16 +554,17 @@
     "ownerDone": "Nyní se přihlašujete jako {email}, svým heslem."
   },
   "attach": {
-    "button": "Připojit obrázek nebo soubor CSV",
+    "button": "Připojit obrázek, soubor CSV nebo písmo",
     "list": "Připojené soubory",
     "pasted": "Vložený obrázek",
     "remove": "Odebrat {name}",
     "open": "Otevřít {name} na nové kartě",
     "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
-    "wrongKind": "Připojit lze jen obrázek (PNG, JPEG, WebP nebo GIF) nebo soubor CSV.",
+    "wrongKind": "Připojit lze jen obrázek (PNG, JPEG, WebP nebo GIF), soubor CSV nebo písmo (.woff2).",
     "tooMany": "K jedné zprávě lze připojit nejvýše {count} soubory.",
     "imageTooLarge": "Ten obrázek má přes 5 MB. Připojte menší.",
     "csvTooLarge": "Ten soubor má přes 10 MB. Pro takto velký soubor použijte Import na stránce tabulky.",
+    "fontTooLarge": "Ten soubor písma má přes 400 KB. Připojte jeden řez písma jako soubor .woff2.",
     "noPictures": "{model} obrázky nečte. Popište, na čem v něm záleží, nebo vyberte model, který je čte.",
     "noPicturesPlain": "Tento model obrázky nečte. Popište, na čem v něm záleží, nebo vyberte model, který je čte.",
     "notSent": "Zpráva nebyla odeslána"
@@ -636,6 +637,7 @@
   "pictures": {
     "title": "Obrázky pro stránku. Použít je?",
     "lead": "Bezplatné obrázky, které Designer našel. Zaškrtněte ty, které se mají použít: zkopírují se do vaší aplikace i s uvedením autorů.",
+    "shownFrom": "Některé z nich se zobrazují přímo z {site} a nekopírují se. Ten web pak uvidí každou návštěvu stránky, která je zobrazuje.",
     "noneOfThese": "Žádný z těchto",
     "by": "{creator} · {licence}",
     "use": "Použít obrázek „{title}“ od {creator}",

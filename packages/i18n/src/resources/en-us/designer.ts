@@ -564,16 +564,17 @@ export default {
     "ownerDone": "You now sign in as {email}, with your password."
   },
   "attach": {
-    "button": "Attach a picture or a CSV file",
+    "button": "Attach a picture, a CSV file or a font",
     "list": "Attached files",
     "pasted": "Pasted picture",
     "remove": "Take {name} off",
     "open": "Open {name} in a new tab",
     "rows": "{count, plural, one {# row} other {# rows}}",
-    "wrongKind": "Only a picture (PNG, JPEG, WebP or GIF) or a CSV file can be attached.",
+    "wrongKind": "Only a picture (PNG, JPEG, WebP or GIF), a CSV file or a font (.woff2) can be attached.",
     "tooMany": "Up to {count} files go with one message.",
     "imageTooLarge": "That picture is over 5 MB. Attach a smaller one.",
     "csvTooLarge": "That file is over 10 MB. For a file that size, use Import on the table’s own page.",
+    "fontTooLarge": "That font file is over 400 KB. Attach one weight of the font as a .woff2 file.",
     "noPictures": "{model} does not read pictures. Describe what matters in it, or pick a model that does.",
     "noPicturesPlain": "This model does not read pictures. Describe what matters in it, or pick a model that does.",
     "notSent": "The message was not sent"
@@ -646,6 +647,7 @@ export default {
   "pictures": {
     "title": "Pictures for the page. Use them?",
     "lead": "Free pictures the Designer found. Tick the ones to use: they are copied into your app, with their credits.",
+    "shownFrom": "Some of these are shown straight from {site}, not copied. That site then sees each visit to a page that shows them.",
     "noneOfThese": "None of these",
     "by": "{creator} · {licence}",
     "use": "Use the picture “{title}” by {creator}",

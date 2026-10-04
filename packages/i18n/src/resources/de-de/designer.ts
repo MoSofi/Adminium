@@ -564,16 +564,17 @@ export default {
     "ownerDone": "Du meldest dich jetzt als {email} mit deinem Passwort an."
   },
   "attach": {
-    "button": "Bild oder CSV-Datei anhängen",
+    "button": "Bild, CSV-Datei oder Schrift anhängen",
     "list": "Angehängte Dateien",
     "pasted": "Eingefügtes Bild",
     "remove": "{name} entfernen",
     "open": "{name} in neuem Tab öffnen",
     "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
-    "wrongKind": "Nur ein Bild (PNG, JPEG, WebP oder GIF) oder eine CSV-Datei kann angehängt werden.",
+    "wrongKind": "Nur ein Bild (PNG, JPEG, WebP oder GIF), eine CSV-Datei oder eine Schrift (.woff2) kann angehängt werden.",
     "tooMany": "Bis zu {count} Dateien passen zu einer Nachricht.",
     "imageTooLarge": "Dieses Bild ist größer als 5 MB. Hänge ein kleineres an.",
     "csvTooLarge": "Diese Datei ist größer als 10 MB. Für eine Datei dieser Größe nutze Import auf der Seite der Tabelle.",
+    "fontTooLarge": "Diese Schriftdatei ist größer als 400 KB. Hänge einen Schnitt der Schrift als .woff2-Datei an.",
     "noPictures": "{model} liest keine Bilder. Beschreibe, worauf es darin ankommt, oder wähle ein Modell, das Bilder liest.",
     "noPicturesPlain": "Dieses Modell liest keine Bilder. Beschreibe, worauf es darin ankommt, oder wähle ein Modell, das Bilder liest.",
     "notSent": "Die Nachricht wurde nicht gesendet"
@@ -646,6 +647,7 @@ export default {
   "pictures": {
     "title": "Bilder für die Seite. Verwenden?",
     "lead": "Kostenlose Bilder, die der Designer gefunden hat. Wähle die aus, die verwendet werden sollen: Sie werden mit ihren Bildnachweisen in deine App kopiert.",
+    "shownFrom": "Einige davon werden direkt von {site} angezeigt und nicht kopiert. Diese Website sieht dann jeden Besuch einer Seite, die sie zeigt.",
     "noneOfThese": "Keines davon",
     "by": "{creator} · {licence}",
     "use": "Das Bild „{title}“ von {creator} verwenden",

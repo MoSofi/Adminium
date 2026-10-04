@@ -351,11 +351,11 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const bytes = entry === null ? null : deps.attachments.read(session.id, entry.id);
         if (entry === null || bytes === null) throw new NotFoundError('There is no such file in this session.');
         return reply
-          .header('content-type', entry.kind === 'image' ? entry.mediaType : 'text/csv; charset=utf-8')
+          .header('content-type', entry.kind === 'image' ? entry.mediaType : entry.kind === 'font' ? 'font/woff2' : 'text/csv; charset=utf-8')
           .header('x-content-type-options', 'nosniff')
           .header('content-security-policy', "default-src 'none'; sandbox")
           .header('cache-control', 'private, max-age=3600')
-          .header('content-disposition', entry.kind === 'image' ? 'inline' : 'attachment; filename="attachment.csv"')
+          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${entry.kind === 'font' ? 'woff2' : 'csv'}"`)
           .send(bytes);
       },
     );

@@ -8551,6 +8551,10 @@
     "status": "mt",
     "srcHash": "8eb027883b2a"
   },
+  "designer.attach.fontTooLarge": {
+    "status": "mt",
+    "srcHash": "deb9e92ed09d"
+  },
   "designer.attach.imageTooLarge": {
     "status": "mt",
     "srcHash": "8aa415df470a"
@@ -9442,6 +9446,10 @@
   "designer.pictures.sendNone": {
     "status": "mt",
     "srcHash": "5a2843ccbf2f"
+  },
+  "designer.pictures.shownFrom": {
+    "status": "mt",
+    "srcHash": "fa534cf3d96e"
   },
   "designer.pictures.title": {
     "status": "mt",

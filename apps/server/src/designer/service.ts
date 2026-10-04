@@ -19,10 +19,10 @@ import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.j
 import type { AiConnections, ConnectionId } from '../llm/connections.js';
 import { rebuildApps } from '../project/build.js';
 import { checkApp } from '../project/apps/check-app.js';
-import { designIssues } from '../project/apps/design-check.js';
+import { dashboardPageLine, designIssues } from '../project/apps/design-check.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, type DesignSkill } from '../project/apps/design-skills.js';
 import { ICONS_PACKAGE, listedPackages } from './needs.js';
-import { applyLook, cleanLook, DESIGN_CSS_START, missingFonts, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { applyLook, cleanLook, DESIGN_CSS_START, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
@@ -499,15 +499,26 @@ export function createDesigner(host: DesignerHost): Designer {
       ];
     },
     // The design, held last: a class nothing styles, an emoji for an icon, no logo, no brief.
-    design: async (session) =>
-      (
+    design: async (session) => {
+      const lines = (
         await designIssues(host.root, session.appKey, {
           builtInDir: stylesDir,
           fresh: session.createdApp && session.version === null,
           icons: listedPackages(host.root).has(ICONS_PACKAGE),
           ...(host.findsPictures?.() === true ? { emptyPictureColumns: emptyPictureColumns(host.root, session.appKey, checkApp(host.root, session.appKey, { version: host.version }).manifest) } : {}),
         })
-      ).map((issue) => issue.line),
+      ).map((issue) => issue.line);
+      // Asked for a look, and a dashboard page was written in this turn: those are Adminium's own.
+      const all = store.messages(session.id);
+      const turn = all.reduce((last, entry) => Math.max(last, entry.turn), 0);
+      const mine = all.filter((entry) => entry.turn === turn);
+      const request = (mine.find((entry) => entry.message.role === 'user')?.message.content ?? []).flatMap((block) => (block.type === 'text' ? [block.text] : [])).join(' ');
+      const written = mine.flatMap((entry) =>
+        entry.message.content.flatMap((block) => (block.type === 'tool_call' && (block.name === 'write_file' || block.name === 'edit_file') && typeof block.input['path'] === 'string' ? [block.input['path']] : [])),
+      );
+      const page = dashboardPageLine(request, written);
+      return page === null ? lines : [...lines, page];
+    },
     // Before the model is asked: a side made before styles gets the stylesheet of its own it lacks, and fonts a style
     // changed from the page still waits for are asked for, on one card.
     opening: async (session, handle) => {
@@ -674,7 +685,8 @@ export function createDesigner(host: DesignerHost): Designer {
       // A style of words alone has no values to write: it is the Designer's to apply, in a turn.
       if (!skill.hasTheme) throw new ConflictError('This style is words alone: ask for it in the chat, and the Designer applies it.', 'CONFLICT', { reason: 'STYLE_NEEDS_A_TURN' });
       const before = readLook(host.root, session.appKey);
-      const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without });
+      // A font file of the person's own stays in use across a change of style.
+      const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before) });
       applyLook(host.root, session.appKey, look, places);
       const events = runner.events(session.id);
       const fonts = missingFonts(host.root, look, places).map((font) => font.family);

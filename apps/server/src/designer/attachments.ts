@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a person attaches to a Designer message: a picture or a CSV.
+ * What a person attaches to a Designer message: a picture, a CSV, or a font
+ * of their own (.woff2).
  *
  * Kept in the session's own folder, under names this file makes; the name the
  * person's file had is a label and never a path. What a file is, is read from
  * its bytes: the name and the request's header say nothing here. A picture is
- * never decoded on the server; a CSV is parsed, capped by bytes and by rows.
+ * never decoded on the server; a CSV is parsed, capped by bytes and by rows; a
+ * font is known by its first four bytes and is never parsed at all.
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -19,6 +21,8 @@ import { DESIGNER_DIR } from './session-store.js';
 export const ATTACHMENT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const ATTACHMENT_MAX_CSV_BYTES = 10 * 1024 * 1024;
 export const ATTACHMENT_MAX_CSV_ROWS = 20_000;
+/** The most a font file may be: what a style's own font may be. */
+export const ATTACHMENT_MAX_FONT_BYTES = 400 * 1024;
 export const ATTACHMENT_MAX_PER_MESSAGE = 4;
 export const ATTACHMENT_MAX_PER_SESSION = 40;
 export const ATTACHMENT_MAX_SESSION_BYTES = 50 * 1024 * 1024;
@@ -32,8 +36,8 @@ export interface Attachment {
   id: string;
   /** The name the person's file had, cleaned. Shown, never opened. */
   label: string;
-  kind: 'image' | 'csv';
-  mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'text/csv';
+  kind: 'image' | 'csv' | 'font';
+  mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'text/csv' | 'font/woff2';
   bytes: number;
   sha256: string;
   at: number;
@@ -57,7 +61,7 @@ export class AttachmentError extends Error {
   }
 }
 
-const EXT: Record<Attachment['mediaType'], string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'text/csv': 'csv' };
+const EXT: Record<Attachment['mediaType'], string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'text/csv': 'csv', 'font/woff2': 'woff2' };
 
 /** A picture's type, from its first bytes; null when it is none of the four. */
 export function imageTypeOf(bytes: Buffer): Attachment['mediaType'] | null {
@@ -67,6 +71,9 @@ export function imageTypeOf(bytes: Buffer): Attachment['mediaType'] | null {
   if (bytes.length >= 12 && bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
   return null;
 }
+
+/** Whether a file is a WOFF2 font, by its first bytes. */
+export const isWoff2 = (bytes: Buffer): boolean => bytes.length >= 48 && bytes.subarray(0, 4).toString('latin1') === 'wOF2';
 
 /** The text of a CSV, or null when the bytes are not plain UTF-8 text. */
 function textOf(bytes: Buffer): string | null {
@@ -153,6 +160,9 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
         if (bytes.length > ATTACHMENT_MAX_IMAGE_BYTES) throw new AttachmentError('TOO_LARGE', 'That picture is over 5 MB. Attach a smaller one.');
         const palette = cleanPalette(input.palette);
         entry = { kind: 'image', mediaType: image, ...(palette.length === 0 ? {} : { palette }) };
+      } else if (isWoff2(bytes)) {
+        if (bytes.length > ATTACHMENT_MAX_FONT_BYTES) throw new AttachmentError('TOO_LARGE', 'That font file is over 400 KB. Attach one weight of the font as a .woff2 file.');
+        entry = { kind: 'font', mediaType: 'font/woff2' };
       } else {
         if (bytes.length > ATTACHMENT_MAX_CSV_BYTES) throw new AttachmentError('TOO_LARGE', 'That file is over 10 MB. For a file that size, use Import on the table’s own page.');
         const csv = csvOf(bytes);
@@ -160,8 +170,8 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
           throw new AttachmentError(
             textOf(bytes) === null ? 'NOT_ACCEPTED' : 'CSV_UNREADABLE',
             textOf(bytes) === null
-              ? 'Only a picture (PNG, JPEG, WebP or GIF) or a CSV file can be attached.'
-              : 'That file does not read as a CSV: it needs a first line of column names set apart by commas, and at least one row. (A file whose columns are set apart by semicolons or tabs: save it as comma-separated first.) Only a picture or a CSV can be attached.',
+              ? 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file or a font (.woff2) can be attached.'
+              : 'That file does not read as a CSV: it needs a first line of column names set apart by commas, and at least one row. (A file whose columns are set apart by semicolons or tabs: save it as comma-separated first.) Only a picture, a CSV or a font (.woff2) can be attached.',
           );
         }
         if (csv.rows.length > ATTACHMENT_MAX_CSV_ROWS) {
@@ -221,6 +231,13 @@ export function attachmentNote(attachments: Attachments, sessionId: string, ids:
   const notes: string[] = [];
   for (const id of ids) {
     const entry = attachments.find(sessionId, id);
+    if (entry !== null && entry.kind === 'font') {
+      // The file's name is the person's, shown as data; what to do with it is said by the Designer's own rules.
+      notes.push(
+        `The person attached a font file of their own: "${entry.label.replace(/["\n]/g, ' ')}" (attachment ${entry.id}). To use it in the app's screens call use_font with this attachment, the family's name (from the file's name, as plain words) and "use": "heading" or "body" as the person said; when they did not say, "heading".`,
+      );
+      continue;
+    }
     if (entry === null || entry.kind !== 'csv') continue;
     const bytes = attachments.read(sessionId, id);
     const csv = bytes === null ? null : csvOf(bytes);

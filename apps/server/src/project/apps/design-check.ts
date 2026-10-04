@@ -16,15 +16,16 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { readLook, resolveLook, type LookPlaces } from './look.js';
+import { mentionsLook, readLook, resolveLook, type LookPlaces } from './look.js';
 import { hasOwnBuild } from './own-build.js';
 import { appDir, appPath, SIDES, type AppSide } from './read-app.js';
 import { code } from './side-calls.js';
 import { projectTailwind, tailwindCss } from './side-build.js';
+import { contrast, inkOn, type Theme, type ThemeColours } from './theme.js';
 
 export interface DesignIssue {
   /** What kind of finding it is: a test and the page tell them apart by this. */
-  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures';
+  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'contrast' | 'dashboard';
   /** One line for the model, the same each time. */
   line: string;
 }
@@ -134,6 +135,83 @@ export function rawColours(text: string): string[] {
 /** How many colour values a stylesheet of the app's own may hold before it is said: a shadow or a gradient needs one or two. */
 const COLOURS_ALLOWED = 3;
 
+const PALETTE_CLASS =
+  /^(?:[a-z0-9-]+:)*(?:bg|text|border(?:-[xytrblse])?|ring|ring-offset|outline|fill|stroke|from|via|to|decoration|divide|shadow|accent|caret|placeholder)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|[1-9]00|950)(?:\/\d{1,3})?$/;
+
+/** Whether a class is one of Tailwind's own palette colours (`bg-red-500`, `md:hover:text-slate-700/80`): a colour the theme knows nothing of. */
+export const isPaletteClass = (name: string): boolean => PALETTE_CLASS.test(name);
+
+/** The theme's values a stylesheet may name, as the colours they are in one set. */
+function themeValues(set: ThemeColours): Map<string, string> {
+  const accent2 = set.accent2 ?? set.accent;
+  const band = set.band ?? set.text;
+  return new Map([
+    ['bg', set.bg],
+    ['surface', set.surface],
+    ['surface-2', set.surface2],
+    ['text', set.text],
+    ['muted', set.muted],
+    ['line', set.line],
+    ['accent', set.accent],
+    ['accent-2', accent2],
+    ['band', band],
+    ['accent-ink', inkOn(set.accent)],
+    ['accent-2-ink', inkOn(accent2)],
+    ['band-ink', inkOn(band)],
+  ]);
+}
+
+/** The ink that reads on a background of the theme's, by its name. */
+const INK_FOR: Record<string, string> = { accent: 'accent-ink', 'accent-2': 'accent-2-ink', band: 'band-ink' };
+
+/**
+ * Rules of a stylesheet that set both the text's colour and the background to
+ * values of the theme that do not read on each other (under 4.5:1, in the
+ * light set or the dark). Only a rule that names both, each as one plain
+ * `var(--name)`: a colour that comes from a parent, a gradient or a mix is not
+ * something this can read, and nothing is said of it.
+ */
+export function lowContrastRules(css: string, theme: Pick<Theme, 'light' | 'dark'>): { selector: string; text: string; on: string }[] {
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const sets = [themeValues(theme.light), themeValues(theme.dark)];
+  const value = (decls: string, property: RegExp): string | null => {
+    let found: string | null = null;
+    for (const decl of decls.split(';')) {
+      const at = decl.indexOf(':');
+      if (at < 0 || !property.test(decl.slice(0, at).trim())) continue;
+      const named = /^var\(\s*--([a-z0-9-]+)\s*\)(?:\s*!important)?$/.exec(decl.slice(at + 1).trim());
+      // The last one written wins; one that is no plain theme value hides what came before it.
+      found = named === null ? null : (named[1] as string);
+    }
+    return found;
+  };
+  const out: { selector: string; text: string; on: string }[] = [];
+  for (const rule of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = (rule[1] as string).trim().replace(/\s+/g, ' ');
+    if (selector.startsWith('@')) continue;
+    const text = value(rule[2] as string, /^color$/);
+    const on = value(rule[2] as string, /^background(?:-color)?$/);
+    if (text === null || on === null) continue;
+    if (sets.some((set) => set.has(text) && set.has(on) && contrast(set.get(text) as string, set.get(on) as string) < 4.5)) out.push({ selector: selector.slice(0, 60), text, on });
+  }
+  return out;
+}
+
+/** Words of a request that ask for more than a look: something to keep, list or work with. */
+const MORE_THAN_LOOK = /\b(fields?|columns?|tables?|dashboard|pages?|lists?|forms?|filters?|reports?|charts?|status(es)?|track|records?|rows?|import|export|permissions?|roles?)\b/i;
+
+/**
+ * One line when a turn that was asked only for a look wrote a dashboard page:
+ * those are Adminium's own and take no design. `written` are the paths the
+ * turn's steps wrote, as the model gave them.
+ */
+export function dashboardPageLine(request: string, written: readonly string[]): string | null {
+  if (!mentionsLook(request) || MORE_THAN_LOOK.test(request)) return null;
+  const page = written.map((path) => path.replace(/\\/g, '/').replace(/^\.?\//, '')).find((path) => /(^|\/)manifest\/pages\/[^/]+\.json$/.test(path) || /^pages\/[^/]+\.json$/.test(path));
+  if (page === undefined) return null;
+  return `- ${page} is a dashboard page, and this turn was asked for a look: dashboard pages are Adminium's own and take no design. If the change there was not asked for, put the page back as it was; the look belongs in the app's own screens (set_style, design.css).`;
+}
+
 /**
  * What the screens of `apps/<key>/` lack as a design. Nothing for an app
  * with a build of its own (its authors' design), or with no starter side.
@@ -158,7 +236,13 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
     const defined = new Set<string>();
     for (const sheet of sheets) for (const name of classesDefined(sheet.text)) defined.add(name);
     const used = new Map<string, string>();
-    for (const screen of screens) for (const name of classesIn(screen.text)) if (!defined.has(name) && !used.has(name)) used.set(name, screen.name);
+    const palette = new Map<string, string>();
+    for (const screen of screens) {
+      for (const name of classesIn(screen.text)) {
+        if (!defined.has(name) && !used.has(name)) used.set(name, screen.name);
+        if (isPaletteClass(name) && !palette.has(name)) palette.set(name, screen.name);
+      }
+    }
     let unknown = [...used.keys()];
     if (unknown.length > 0 && tailwind !== null && !('problem' in tailwind)) {
       try {
@@ -173,6 +257,15 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
       issues.push({
         kind: 'class',
         line: `- The class "${name}" (${at(used.get(name) as string)}) is styled nowhere, so that part shows unstyled: write .${name.replace(/[^\w-]/g, '\\$&')} { … } in ${at('design.css')}, or use a made part of app.css${tailwind === null ? '' : ' or a Tailwind class'} in its place.`,
+      });
+    }
+
+    // A colour of Tailwind's own palette: it compiles, and the theme knows nothing of it.
+    if (tailwind !== null && !('problem' in tailwind) && palette.size > 0) {
+      const names = [...palette.keys()].sort();
+      issues.push({
+        kind: 'colour',
+        line: `- ${at(palette.get(names[0] as string) as string)} uses Tailwind's own colours (${names.slice(0, 3).join(', ')}${names.length > 3 ? ', …' : ''}): use the theme's in their place (bg-accent, text-muted, bg-surface, border-line, bg-band), and to change a colour call set_style with a "theme". Then the style menu and dark mode keep working.`,
       });
     }
 
@@ -196,6 +289,12 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
         });
       }
       if (theme !== null) {
+        for (const rule of lowContrastRules(sheet.text, theme).slice(0, 4)) {
+          issues.push({
+            kind: 'contrast',
+            line: `- ${at(sheet.name)}: "${rule.selector}" puts var(--${rule.text}) on var(--${rule.on}), which is hard to read: on that background use var(--${INK_FOR[rule.on] ?? 'text'})${INK_FOR[rule.on] === undefined ? ', or a background the text reads on' : ''}.`,
+          });
+        }
         const carried = new Set([theme.fonts.heading.family, theme.fonts.body.family].filter((family): family is string => family !== undefined).map((family) => family.toLowerCase()));
         const named = [...sheet.text.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/font-family\s*:\s*["']([^"']+)["']/g)].map((found) => found[1] as string).find((family) => !carried.has(family.toLowerCase()));
         if (named !== undefined) {

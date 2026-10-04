@@ -554,16 +554,17 @@
     "ownerDone": "Vous vous connectez désormais en tant que {email}, avec votre mot de passe."
   },
   "attach": {
-    "button": "Joindre une image ou un fichier CSV",
+    "button": "Joindre une image, un fichier CSV ou une police",
     "list": "Fichiers joints",
     "pasted": "Image collée",
     "remove": "Retirer {name}",
     "open": "Ouvrir {name} dans un nouvel onglet",
     "rows": "{count, plural, one {# ligne} other {# lignes}}",
-    "wrongKind": "Seule une image (PNG, JPEG, WebP ou GIF) ou un fichier CSV peut être joint.",
+    "wrongKind": "Seule une image (PNG, JPEG, WebP ou GIF), un fichier CSV ou une police (.woff2) peut être joint.",
     "tooMany": "Jusqu’à {count} fichiers accompagnent un message.",
     "imageTooLarge": "Cette image dépasse 5 Mo. Joignez-en une plus petite.",
     "csvTooLarge": "Ce fichier dépasse 10 Mo. Pour un fichier de cette taille, utilisez Importer sur la page de la table.",
+    "fontTooLarge": "Ce fichier de police dépasse 400 Ko. Joignez une seule graisse de la police au format .woff2.",
     "noPictures": "{model} ne lit pas les images. Décrivez ce qui compte dedans, ou choisissez un modèle qui les lit.",
     "noPicturesPlain": "Ce modèle ne lit pas les images. Décrivez ce qui compte dedans, ou choisissez un modèle qui les lit.",
     "notSent": "Le message n’a pas été envoyé"
@@ -636,6 +637,7 @@
   "pictures": {
     "title": "Des images pour la page. Les utiliser ?",
     "lead": "Des images gratuites trouvées par le Designer. Cochez celles à utiliser : elles sont copiées dans votre application, avec leurs crédits.",
+    "shownFrom": "Certaines sont affichées directement depuis {site}, sans être copiées. Ce site voit alors chaque visite d’une page qui les affiche.",
     "noneOfThese": "Aucune de celles-ci",
     "by": "{creator} · {licence}",
     "use": "Utiliser l’image « {title} » de {creator}",

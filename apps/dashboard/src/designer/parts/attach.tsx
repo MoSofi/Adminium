@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileSpreadsheet, Paperclip, X } from 'lucide-react';
+import { FileSpreadsheet, Paperclip, Type, X } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerAttachment } from '../api.js';
@@ -16,21 +16,22 @@ import { designerApi, type DesignerAttachment } from '../api.js';
 export const MAX_FILES = 4;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_CSV_BYTES = 10 * 1024 * 1024;
+const MAX_FONT_BYTES = 400 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv'].join(',');
+const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2'].join(',');
 
 export interface PendingFile {
   key: string;
   file: File;
-  kind: 'image' | 'csv';
+  kind: 'image' | 'csv' | 'font';
   /** A picture's own address in this page, for its small view. */
   preview: string | null;
   /** Once it went up: where, and the id it was given. A send that failed after that does not send the file again. */
   sent?: { sessionId: string; id: string };
 }
 
-const kindOf = (file: File): 'image' | 'csv' | null =>
-  IMAGE_TYPES.includes(file.type) ? 'image' : file.type === 'text/csv' || /\.csv$/i.test(file.name) ? 'csv' : null;
+const kindOf = (file: File): 'image' | 'csv' | 'font' | null =>
+  IMAGE_TYPES.includes(file.type) ? 'image' : file.type === 'text/csv' || /\.csv$/i.test(file.name) ? 'csv' : file.type === 'font/woff2' || /\.woff2$/i.test(file.name) ? 'font' : null;
 
 export interface AttachState {
   files: PendingFile[];
@@ -116,13 +117,15 @@ export function useAttach(): AttachState {
     for (const file of list) {
       const kind = kindOf(file);
       if (kind === null) {
-        why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF) or a CSV file can be attached.');
+        why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file or a font (.woff2) can be attached.');
       } else if (next.length >= MAX_FILES) {
         why = t('designer:attach.tooMany', 'Up to {count} files go with one message.', { count: MAX_FILES });
       } else if (kind === 'image' && file.size > MAX_IMAGE_BYTES) {
         why = t('designer:attach.imageTooLarge', 'That picture is over 5 MB. Attach a smaller one.');
       } else if (kind === 'csv' && file.size > MAX_CSV_BYTES) {
         why = t('designer:attach.csvTooLarge', 'That file is over 10 MB. For a file that size, use Import on the table’s own page.');
+      } else if (kind === 'font' && file.size > MAX_FONT_BYTES) {
+        why = t('designer:attach.fontTooLarge', 'That font file is over 400 KB. Attach one weight of the font as a .woff2 file.');
       } else {
         seq.current += 1;
         next.push({ key: `f${String(seq.current)}`, file, kind, preview: kind === 'image' ? URL.createObjectURL(file) : null });
@@ -216,8 +219,8 @@ export function AttachButton({ state, disabled = false }: { state: AttachState; 
         type="button"
         disabled={disabled}
         onClick={() => input.current?.click()}
-        aria-label={t('designer:attach.button', 'Attach a picture or a CSV file')}
-        title={t('designer:attach.button', 'Attach a picture or a CSV file')}
+        aria-label={t('designer:attach.button', 'Attach a picture, a CSV file or a font')}
+        title={t('designer:attach.button', 'Attach a picture, a CSV file or a font')}
         className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] text-fg-muted hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Paperclip aria-hidden="true" className="size-4" />
@@ -237,6 +240,8 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
             <li key={entry.key} className="flex max-w-[220px] items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 py-1 pe-1 ps-1.5 text-[12px] font-semibold text-fg">
               {entry.preview !== null ? (
                 <img src={entry.preview} alt="" className="size-7 shrink-0 rounded-md object-cover" />
+              ) : entry.kind === 'font' ? (
+                <Type aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />
               ) : (
                 <FileSpreadsheet aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />
               )}
@@ -286,7 +291,7 @@ export function SentFiles({ sessionId, files }: { sessionId: string; files: read
               </a>
             ) : (
               <span className="flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1.5 text-[12px] font-semibold text-fg">
-                <FileSpreadsheet aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />
+                {file.kind === 'font' ? <Type aria-hidden="true" className="size-4 shrink-0 text-fg-muted" /> : <FileSpreadsheet aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />}
                 <span dir="auto" className="max-w-[180px] truncate">
                   {file.label}
                 </span>

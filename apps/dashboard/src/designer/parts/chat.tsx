@@ -1038,6 +1038,11 @@ export function PicturesCard({
       <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
         {t('designer:pictures.lead', 'Free pictures the Designer found. Tick the ones to use: they are copied into your app, with their credits.')}
       </p>
+      {card.site === undefined ? null : (
+        <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
+          {t('designer:pictures.shownFrom', 'Some of these are shown straight from {site}, not copied. That site then sees each visit to a page that shows them.', { site: card.site })}
+        </p>
+      )}
       {card.groups.map((group) => (
         <div key={group.id} role="group" aria-label={group.label} className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-2">

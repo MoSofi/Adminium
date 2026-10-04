@@ -564,16 +564,17 @@ export default {
     "ownerDone": "你現在以 {email} 和你的密碼登入。"
   },
   "attach": {
-    "button": "附加圖片或 CSV 檔案",
+    "button": "附加圖片、CSV 檔案或字型",
     "list": "已附加的檔案",
     "pasted": "貼上的圖片",
     "remove": "移除 {name}",
     "open": "在新分頁中開啟 {name}",
     "rows": "{count, plural, other {# 列}}",
-    "wrongKind": "只能附加圖片（PNG、JPEG、WebP 或 GIF）或 CSV 檔案。",
+    "wrongKind": "只能附加圖片（PNG、JPEG、WebP 或 GIF）、CSV 檔案或字型（.woff2）。",
     "tooMany": "一則訊息最多附加 {count} 個檔案。",
     "imageTooLarge": "該圖片超過 5 MB。請附加較小的圖片。",
     "csvTooLarge": "該檔案超過 10 MB。這種大小的檔案請在資料表自己的頁面使用「匯入」。",
+    "fontTooLarge": "該字型檔案超過 400 KB。請將該字型的一個字重作為 .woff2 檔案附加。",
     "noPictures": "{model} 無法讀取圖片。請描述其中的重點，或選擇能讀取圖片的模型。",
     "noPicturesPlain": "此模型無法讀取圖片。請描述其中的重點，或選擇能讀取圖片的模型。",
     "notSent": "訊息未傳送"
@@ -646,6 +647,7 @@ export default {
   "pictures": {
     "title": "頁面用的圖片。要使用嗎？",
     "lead": "Designer 找到的免費圖片。勾選要使用的：它們會連同署名一起複製到你的應用程式中。",
+    "shownFrom": "其中一些直接從 {site} 顯示，不會被複製。之後，該網站會看到對顯示它們的頁面的每次造訪。",
     "noneOfThese": "都不要",
     "by": "{creator} · {licence}",
     "use": "使用 {creator} 的圖片「{title}」",

@@ -10,6 +10,11 @@
  *
  * The source is Openverse (no key; pictures free to use and to change, for
  * any purpose), or Pexels when the project's `.env` has `PEXELS_API_KEY`.
+ * With `UNSPLASH_ACCESS_KEY`, pictures for a page come from Unsplash, whose
+ * rules ask that a picture be shown from Unsplash's own address and never
+ * copied: such a picture is given to the page as an address, its site is
+ * allowed with the person's yes on the same card, and Unsplash is told it
+ * was chosen.
  * Every address a source answers with is fetched through the fetch that
  * checks and pins the address it calls, with a size limit, and a file is
  * kept only when its first bytes say it is a picture.
@@ -46,11 +51,19 @@ export interface FoundPicture {
   source: string;
   /** The picture's own page. */
   page: string;
+  /** For a picture that may not be copied: the address a page shows it from. `files` is then empty. */
+  shown?: string;
+  /** The source's address to call when the picture is chosen, where its rules ask for that. Never leaves the server. */
+  chosenUrl?: string;
 }
 
 export interface PictureSource {
   name: string;
   search(words: string, opts: { count: number; shape?: PictureShape; signal?: AbortSignal }): Promise<FoundPicture[]>;
+  /** The one site its pictures are shown from, for a source whose pictures are not copied. */
+  showsFrom?: string;
+  /** Tell the source a picture of its was chosen. Never throws: a picture is not lost for a count. */
+  chosen?(picture: FoundPicture, signal?: AbortSignal): Promise<void>;
 }
 
 type Fetcher = (url: string, opts: SafeFetchOptions) => Promise<{ body: Buffer; contentType: string }>;
@@ -130,6 +143,67 @@ export function pexels(key: string, fetcher: Fetcher = safeFetch): PictureSource
           },
         ];
       });
+    },
+  };
+}
+
+/** The one host Unsplash's pictures are shown from. */
+export const UNSPLASH_HOST = 'images.unsplash.com';
+
+/**
+ * Unsplash, with the project's own key. Its pictures are shown from
+ * Unsplash's address, as its rules ask, and never copied into the app.
+ */
+export function unsplash(key: string, fetcher: Fetcher = safeFetch): PictureSource {
+  const headers = { accept: 'application/json', authorization: `Client-ID ${key}`, 'accept-version': 'v1' };
+  const own = (value: unknown): string => {
+    const url = https(value);
+    return url.startsWith(`https://${UNSPLASH_HOST}/`) ? url : '';
+  };
+  return {
+    name: 'Unsplash',
+    showsFrom: UNSPLASH_HOST,
+    async search(words, opts) {
+      const query = new URLSearchParams({ query: words, per_page: String(Math.min(20, opts.count)), content_filter: 'high' });
+      if (opts.shape !== undefined) query.set('orientation', opts.shape === 'wide' ? 'landscape' : opts.shape === 'tall' ? 'portrait' : 'squarish');
+      const reply = await fetcher(`https://api.unsplash.com/search/photos?${query.toString()}`, { maxBytes: 768 * 1024, timeoutMs: 12_000, headers, ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
+      const results = (JSON.parse(reply.body.toString('utf8')) as { results?: unknown }).results;
+      if (!Array.isArray(results)) return [];
+      return results.flatMap((entry: unknown): FoundPicture[] => {
+        const row = (entry ?? {}) as Record<string, unknown>;
+        const urls = (row['urls'] ?? {}) as Record<string, unknown>;
+        const links = (row['links'] ?? {}) as Record<string, unknown>;
+        const user = (row['user'] ?? {}) as Record<string, unknown>;
+        const thumb = own(urls['small']);
+        const shown = own(urls['regular']);
+        // Only a picture on Unsplash's own picture host: that is the one site the person is asked to allow.
+        if (thumb === '' || shown === '') return [];
+        const chosenUrl = https(links['download_location']);
+        return [
+          {
+            id: id(),
+            thumb,
+            files: [],
+            shown,
+            ...(chosenUrl.startsWith('https://api.unsplash.com/') ? { chosenUrl } : {}),
+            title: text(row['alt_description'], 120) || text(row['description'], 120) || 'Untitled',
+            creator: text(user['name'], 80) || 'Unknown',
+            creatorUrl: https(((user['links'] ?? {}) as Record<string, unknown>)['html']),
+            licence: 'Unsplash licence',
+            licenceUrl: 'https://unsplash.com/license',
+            source: 'Unsplash',
+            page: https(links['html']),
+          },
+        ];
+      });
+    },
+    async chosen(picture, signal) {
+      if (picture.chosenUrl === undefined) return;
+      try {
+        await fetcher(picture.chosenUrl, { maxBytes: 64 * 1024, timeoutMs: 8000, headers, ...(signal === undefined ? {} : { signal }) });
+      } catch {
+        // Unsplash's count of uses, not the picture: the page shows it either way.
+      }
     },
   };
 }

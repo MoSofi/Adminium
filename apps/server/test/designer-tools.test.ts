@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { CardAnswer, CardRequest } from '../src/designer/cards.js';
 import type { AddOnGetter, AddOnLook, GetAddOnResult } from '../src/designer/get-add-on.js';
+import { createAttachments } from '../src/designer/attachments.js';
 import { createEventLog } from '../src/designer/events.js';
 import { createSkills } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -45,6 +46,9 @@ let registry: Record<string, string>;
 let installed: { name: string; version: string }[][];
 /** The picture source the tools search (null: this server calls nothing outside), what it was asked, and the apps to be seeded again. */
 let pictureSource: PictureSource | null;
+/** A source whose pictures are shown from its own site (null: none), and the pictures it was told were chosen. */
+let shownSource: PictureSource | null;
+let toldChosen: string[];
 let searched: { words: string; count: number; shape?: string }[];
 let reseeded: string[];
 
@@ -94,6 +98,8 @@ beforeEach(async () => {
   installed = [];
   searched = [];
   reseeded = [];
+  shownSource = null;
+  toldChosen = [];
   let seq = 0;
   pictureSource = {
     name: 'Fake',
@@ -110,6 +116,7 @@ beforeEach(async () => {
     {
       pictures: {
         source: () => pictureSource,
+        shown: () => shownSource,
         shelf: createPictureShelf({ fetcher: async () => ({ body: Buffer.from([0xff, 0xd8, 0xff]), contentType: 'image/jpeg' }) }),
         // A picture whose title ends in 3 cannot be copied (gone, or too large).
         download: async (picture) => (picture.title.endsWith('3') ? null : { bytes: Buffer.from([0xff, 0xd8, 0xff, ...Buffer.from(picture.id)]), ext: 'jpg' as const }),
@@ -687,6 +694,116 @@ describe('the Designer’s tools', () => {
     asked = [];
     expect(await run('find_pictures', { needs: [{ id: 'hero', words: 'a workshop', for: 'page' }] })).toMatchObject({ isError: true, content: expect.stringContaining('looks for no pictures'), facts: { outcome: 'refused' } });
     expect(asked).toEqual([]);
+  });
+
+  it('with a source that may not be copied: page pictures are shown from its site, which the tick allows and the card names; rows still get files', async () => {
+    const table = join(root, 'apps/repairs/manifest/tables/items.json');
+    const items = JSON.parse(readFileSync(table, 'utf8')) as { columns: unknown[] };
+    writeFileSync(table, JSON.stringify({ ...items, columns: [...items.columns, { ref: 'picture', type: 'text', semantic: 'image', nullable: true }] }));
+    let n = 0;
+    shownSource = {
+      name: 'Shown',
+      showsFrom: 'images.shown.example',
+      search: async (words, opts) => {
+        searched.push({ words, count: opts.count, shape: 'shown' });
+        return Array.from({ length: opts.count }, (): FoundPicture => {
+          n += 1;
+          return { id: `pic_s${String(n)}`, thumb: `https://images.shown.example/t${String(n)}`, files: [], shown: `https://images.shown.example/p${String(n)}?w=1080`, chosenUrl: `https://api.shown.example/chosen/${String(n)}`, title: `Shown "${String(n)}"`, creator: 'Sam', creatorUrl: '', licence: 'Shown licence', licenceUrl: '', source: 'Shown', page: '' };
+        });
+      },
+      chosen: async (picture) => void toldChosen.push(picture.id),
+    };
+    // All but the first are ticked.
+    answers.push({ type: 'pictures', accept: ['pic_s2', 'pic_s3', 'pic_000000000001', 'pic_000000000002'] });
+    const done = await run('find_pictures', { needs: [{ id: 'hero', words: 'a bike workshop', for: 'page', count: 2 }, { id: 'items', words: 'bicycles', for: 'rows', table: 'items', column: 'picture', count: 2 }] });
+    // The page's need went to the source that shows; the rows' to the one whose pictures are copied.
+    expect(searched).toEqual([{ words: 'a bike workshop', count: 4, shape: 'shown' }, { words: 'bicycles', count: 4, shape: 'square' }]);
+    const card = asked[0] as Extract<CardRequest, { type: 'pictures' }>;
+    expect(card.site).toBe('images.shown.example');
+    // Neither a picture's address nor the address the source is told at is on the card.
+    expect(JSON.stringify(card)).not.toMatch(/shown\.example\/[pt]|api\.shown/);
+    expect(done, done.content).toMatchObject({ label: 'Added 4 pictures', facts: { outcome: 'added', count: 4 } });
+    // Allowed by the tick, the source told of each chosen one and of no other, and nothing of them copied.
+    expect([...pictureAllowed]).toEqual(['images.shown.example']);
+    expect(toldChosen).toEqual(['pic_s2', 'pic_s3']);
+    expect(readdirSync(join(root, 'apps/repairs/assets/pictures'))).toEqual(['CREDITS.json']);
+    expect(readdirSync(join(root, 'apps/repairs/seeds/pictures')).sort()).toEqual(['items-1.jpg', 'items-2.jpg']);
+    expect(done.content).toContain('- <img src="https://images.shown.example/p2?w=1080" alt="Shown 2" loading="lazy" />');
+    expect(done.content).toContain('Pictures from images.shown.example are allowed now');
+    const credits = JSON.parse(readFileSync(join(root, 'apps/repairs/assets/pictures/CREDITS.json'), 'utf8')) as { file: string; source: string }[];
+    expect(credits.map((credit) => `${credit.source} ${credit.file}`)).toEqual(['Shown https://images.shown.example/p2?w=1080', 'Shown https://images.shown.example/p3?w=1080', 'Fake seeds/pictures/items-1.jpg', 'Fake seeds/pictures/items-2.jpg']);
+    // The page that shows them is not told it loads from a site that is not allowed.
+    expect((await run('check_app')).content).toContain('No errors.');
+
+    // None of them ticked: the site is not allowed and the source is told nothing.
+    pictureAllowed.clear();
+    toldChosen = [];
+    answers.push({ type: 'pictures', accept: [] });
+    await run('find_pictures', { needs: [{ id: 'team', words: 'mechanics', for: 'page' }] });
+    expect(pictureAllowed.size).toBe(0);
+    expect(toldChosen).toEqual([]);
+
+    // Where a person's yes cannot allow a site (a live server), that source is not used at all: pictures are copied.
+    pictureClosed = 'On this server the sites are set by whoever runs it.';
+    searched = [];
+    asked = [];
+    answers.push({ type: 'pictures', accept: [] });
+    await run('find_pictures', { needs: [{ id: 'yard', words: 'a yard', for: 'page' }] });
+    expect(searched).toEqual([{ words: 'a yard', count: 3, shape: 'wide' }]);
+    expect((asked[0] as Extract<CardRequest, { type: 'pictures' }>).site).toBeUndefined();
+  });
+
+  it('use a font file the person attached: copied under a name of ours, written into fonts.css, never asked for as a package, and kept when the style changes', async () => {
+    const attachments = createAttachments(root);
+    const woff2 = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(60, 7)]);
+    const font = attachments.add(session.id, { filename: '../../Brand Sans Bold.woff2', bytes: woff2 });
+    const shot = attachments.add(session.id, { filename: 'shot.png', bytes: Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 1)]) });
+    const mine = createDesignerTools(
+      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, newestVersion: async (name) => registry[name] ?? null, install: async () => null },
+      'repairs',
+    );
+    const call = (name: string, input: Record<string, unknown>) => (mine.find((candidate) => candidate.name === name) as DesignerTool).run(input, context());
+    // No screens yet: there is nothing to show a font in.
+    expect((await call('use_font', { attachment: font.id, family: 'Brand Sans', use: 'heading' })).content).toContain('call add_side first');
+    mkdirSync(join(root, 'apps/repairs/customer/src'), { recursive: true });
+
+    // What is not a font, not a name, or not in this session is refused, and nothing is written.
+    expect((await call('use_font', { attachment: shot.id, family: 'Brand Sans', use: 'heading' })).content).toContain('"shot.png" is not a font file (.woff2).');
+    expect(await call('use_font', { attachment: 'att_00000000000000000000', family: 'Brand Sans', use: 'heading' })).toMatchObject({ isError: true, miss: true });
+    for (const family of ['../../evil', 'Brand/Sans', 'Brand"; src: url(https://evil.example/x)', '', 'a'.repeat(41)]) {
+      expect((await call('use_font', { attachment: font.id, family, use: 'heading' })).content, family).toContain('Give "family" as the font’s name in plain words');
+    }
+    expect((await call('use_font', { attachment: font.id, family: 'Brand Sans', use: 'title' })).content).toContain('Give "use"');
+    expect((await call('use_font', { attachment: font.id, family: 'Brand Sans', use: 'heading', weight: 650 })).content).toContain('Give "weight"');
+    expect(existsSync(join(root, 'apps/repairs/assets/fonts'))).toBe(false);
+
+    const done = await call('use_font', { attachment: font.id, family: 'Brand  Sans', use: 'heading' });
+    expect(done, done.content).toMatchObject({ label: 'Added the font Brand Sans' });
+    expect(done.isError).toBeUndefined();
+    // The file: under a name made from the family and the weight, whatever the person's file was called.
+    expect(readdirSync(join(root, 'apps/repairs/assets/fonts'))).toEqual(['brand-sans-700.woff2']);
+    expect(readFileSync(join(root, 'apps/repairs/assets/fonts/brand-sans-700.woff2')).equals(woff2)).toBe(true);
+    const look = JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8')) as { skill: string; ownFonts: unknown; theme: { fonts: unknown } };
+    expect(look.ownFonts).toEqual([{ family: 'Brand Sans', weight: 700, file: 'brand-sans-700.woff2' }]);
+    expect(look.theme.fonts).toEqual({ heading: { family: 'Brand Sans' } });
+    const fonts = readFileSync(join(root, 'apps/repairs/customer/src/fonts.css'), 'utf8');
+    expect(fonts).toContain('@font-face { font-family: "Brand Sans"; font-weight: 700; font-style: normal; font-display: swap; src: url("../../assets/fonts/brand-sans-700.woff2") format("woff2"); }');
+    expect(readFileSync(join(root, 'apps/repairs/customer/src/theme.css'), 'utf8')).toContain('--font-display: "Brand Sans",');
+
+    // Another style: no card asks for "Brand Sans" as a package, and it is still the heading's font; the body's is the new style's.
+    asked = [];
+    answers.push({ type: 'needs', accept: [] });
+    await call('set_style', { style: 'night' });
+    expect(asked.flatMap((card) => (card.type === 'needs' ? card.items.map((item) => (item.kind === 'font' ? item.family : '')) : []))).not.toContain('Brand Sans');
+    const after = JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8')) as { skill: string; ownFonts: unknown[]; theme: { fonts: unknown } };
+    expect(after).toMatchObject({ skill: 'night', ownFonts: [{ family: 'Brand Sans' }], theme: { fonts: { heading: { family: 'Brand Sans' } } } });
+    expect(readFileSync(join(root, 'apps/repairs/customer/src/theme.css'), 'utf8')).toMatch(/--font-display: "Brand Sans",[^;]*;[\s\S]*--font-body: "Manrope",|--font-body: "Manrope",[\s\S]*--font-display: "Brand Sans",/);
+
+    // A second weight of the same family is a second file; the same weight again replaces its file.
+    await call('use_font', { attachment: font.id, family: 'Brand Sans', use: 'heading', weight: 400 });
+    await call('use_font', { attachment: font.id, family: 'brand sans', use: 'heading', weight: 400 });
+    expect(readdirSync(join(root, 'apps/repairs/assets/fonts')).sort()).toEqual(['brand-sans-400.woff2', 'brand-sans-700.woff2']);
+    expect((JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8')) as { ownFonts: unknown[] }).ownFonts).toHaveLength(2);
   });
 
   it('never takes a version from the model, and says so when the registry cannot be asked', async () => {

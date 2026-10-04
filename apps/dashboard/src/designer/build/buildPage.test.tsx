@@ -356,6 +356,8 @@ describe('the build page', () => {
       'NightNear-black with amber.',
       // A style of words alone has no values to write: it is asked for in the chat, not picked here.
       'House styleApplying this one takes a turn: ask for it in the chat.',
+      // Last: a style of one's own is added from here too, not only when an app is started.
+      'Add your own…',
     ]);
     expect(within(menu).getByRole('menuitem', { name: /^House style/ }).getAttribute('aria-disabled')).toBe('true');
     expect(within(within(menu).getByRole('menuitem', { name: /^Clean service/ })).getByLabelText('In use')).toBeTruthy();
@@ -366,6 +368,12 @@ describe('the build page', () => {
     expect(await screen.findByText('Style changed to Warm table')).toBeTruthy();
     // Its fonts are not in the project yet: said, so the system's standing in is no surprise.
     expect(screen.getByText('Its fonts are added when you next send a message.')).toBeTruthy();
+
+    // "Add your own…" opens the same dialog the home page has, and changes nothing of the app by itself.
+    await userEvent.click(await screen.findByRole('button', { name: /^Change the style/ }));
+    await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Add your own…' }));
+    expect(await screen.findByRole('dialog', { name: 'Add a style of your own' })).toBeTruthy();
+    expect(calls.filter((call) => call.url === `/api/v1/designer/sessions/${ID}/look`)).toHaveLength(1);
 
     // An app with no screens of its own (or a copy of a published one) is offered no style.
     cleanup();
@@ -513,6 +521,28 @@ describe('the build page', () => {
     ]);
   });
 
+  it('shows found pictures to tick, by ids alone, and says so when some are shown from another site instead of copied', async () => {
+    const groups = [{ id: 'hero', label: 'a set table', shape: 'wide' as const, pictures: [{ id: 'pic_1', title: 'A table', creator: 'Ana', licence: 'Unsplash licence', source: 'Unsplash' }, { id: 'pic_2', title: 'A bar', creator: 'Bo', licence: 'Unsplash licence', source: 'Unsplash' }] }];
+    stored = [ev(1, { kind: 'turn-started', text: 'A restaurant site.' }), ev(1, { kind: 'card', card: { id: 'p1', type: 'pictures', shelf: 'shelf_1', site: 'images.unsplash.com', groups } })];
+    await open();
+    const card = await screen.findByRole('group', { name: 'Pictures for the page. Use them?' });
+    expect(card.textContent).toContain('Some of these are shown straight from images.unsplash.com, not copied. That site then sees each visit to a page that shows them.');
+    // Each small copy comes from this server, named by the shelf and the picture's id: the page calls no other site.
+    expect([...card.querySelectorAll('img')].map((img) => img.getAttribute('src'))).toEqual([`/api/v1/designer/sessions/${ID}/picture-thumb/shelf_1/pic_1`, `/api/v1/designer/sessions/${ID}/picture-thumb/shelf_1/pic_2`]);
+    await userEvent.click(within(card).getByRole('checkbox', { name: 'Use the picture “A bar” by Bo' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(posted('/answers')).toEqual([{ cardId: 'p1', value: { accept: ['pic_1'] } }]));
+  });
+
+  it('says nothing of another site on a pictures card whose pictures are all copied', async () => {
+    const groups = [{ id: 'hero', label: 'a set table', shape: 'wide' as const, pictures: [{ id: 'pic_1', title: 'A table', creator: 'Ana', licence: 'CC BY 2.0', source: 'Openverse' }] }];
+    stored = [ev(1, { kind: 'turn-started', text: 'A restaurant site.' }), ev(1, { kind: 'card', card: { id: 'p2', type: 'pictures', shelf: 'shelf_2', groups } })];
+    await open();
+    const card = await screen.findByRole('group', { name: 'Pictures for the page. Use them?' });
+    expect(card.textContent).toContain('they are copied into your app, with their credits.');
+    expect(card.textContent).not.toContain('shown straight from');
+  });
+
   it('attaches files to a message: they go up first, the turn names them, and one can be taken off', async () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:shot', revokeObjectURL: () => undefined }));
     readsImages = false;
@@ -527,12 +557,19 @@ describe('the build page', () => {
 
     // What is plainly neither kind is said at once, and nothing is sent for it.
     fireEvent.drop(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), { dataTransfer: { files: [new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' })], types: ['Files'] } });
-    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF) or a CSV file can be attached.');
+    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF), a CSV file or a font (.woff2) can be attached.');
+
+    // A font of the person's own goes with the message too, known by its name where the browser gives no type; one too large for a font is said at once.
+    await userEvent.upload(input, new File(['wOF2'], 'Brand Sans.woff2', { type: '' }));
+    expect(within(screen.getByRole('list', { name: 'Attached files' })).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['shot.png', 'orders.csv', 'Brand Sans.woff2']);
+    expect(screen.queryByRole('alert')).toBeNull();
+    await userEvent.upload(input, new File([new Uint8Array(400 * 1024 + 1)], 'Heavy.woff2', { type: 'font/woff2' }));
+    expect(screen.getByRole('alert').textContent).toBe('That font file is over 400 KB. Attach one weight of the font as a .woff2 file.');
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Like this, with these orders.{Enter}');
-    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this, with these orders.', attachments: ['att_00000000000000000001', 'att_00000000000000000002'] }]));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this, with these orders.', attachments: ['att_00000000000000000001', 'att_00000000000000000002', 'att_00000000000000000003'] }]));
     const order = calls.filter((call) => call.method === 'POST' && call.url.includes(`/sessions/${ID}/`)).map((call) => call.url.replace(/\?.*/, '').split('/').pop());
-    expect(order).toEqual(['attachments', 'attachments', 'turns']);
+    expect(order).toEqual(['attachments', 'attachments', 'attachments', 'turns']);
     // Sent: the box and its files are cleared.
     await waitFor(() => expect(screen.queryByRole('list', { name: 'Attached files' })).toBeNull());
   });

@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 
 import { builtInStylesDir, findDesignSkill, skillCss, skillFonts, skillTheme, type DesignSkill } from './design-skills.js';
 import { appDir, type AppSide } from './read-app.js';
-import { cleanThemePatch, fontPackage, fontsCssOf, inkOn as inkOnColour, themeCssOf, themeFamilies, themeFrom, type Theme, type ThemePatch, type WeightsOf } from './theme.js';
+import { cleanOwnFonts, cleanThemePatch, fontPackage, fontsCssOf, inkOn as inkOnColour, themeCssOf, themeFamilies, themeFrom, type OwnFont, type Theme, type ThemePatch, type WeightsOf } from './theme.js';
 
 export const LOOK_DIRECTIONS = ['clean', 'warm', 'bold', 'calm'] as const;
 export type LookDirection = (typeof LOOK_DIRECTIONS)[number];
@@ -42,6 +42,8 @@ export interface Look {
   theme?: ThemePatch;
   /** What the person chose to do without: packages and font families a design would have asked for. Not asked again. */
   without?: string[];
+  /** Font files of the person's own, in the app's `assets/fonts/`. */
+  ownFonts?: OwnFont[];
 }
 
 /** The most of a person's words kept. */
@@ -192,7 +194,7 @@ export function readLook(root: string, key: string): Look | null {
   try {
     const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
     if (typeof raw['skill'] !== 'string' && !isDirection(raw['direction'])) return null;
-    return cleanLook({ skill: raw['skill'], direction: raw['direction'], accent: raw['accent'], words: raw['words'], theme: raw['theme'], without: raw['without'] });
+    return cleanLook({ skill: raw['skill'], direction: raw['direction'], accent: raw['accent'], words: raw['words'], theme: raw['theme'], without: raw['without'], ownFonts: raw['ownFonts'] });
   } catch {
     return null;
   }
@@ -202,7 +204,7 @@ export function readLook(root: string, key: string): Look | null {
 const SKILL_KEY = /^[a-z][a-z0-9-]{1,39}$/;
 
 /** A look with only what a look may hold. With a `skill` it is a style; with a `direction` alone, a look kept before styles. */
-export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?: unknown; words?: unknown; theme?: unknown; without?: unknown }): Look {
+export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?: unknown; words?: unknown; theme?: unknown; without?: unknown; ownFonts?: unknown }): Look {
   const words =
     typeof input.words === 'string'
       ? [...input.words]
@@ -218,6 +220,7 @@ export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?
   // A look read from an older file comes back with its direction as its skill: it is still that older look.
   const skill = named !== undefined && named === direction ? undefined : named;
   const patch = skill === undefined ? {} : cleanThemePatch(input.theme).patch;
+  const ownFonts = cleanOwnFonts(input.ownFonts);
   const without = Array.isArray(input.without) ? [...new Set(input.without.filter((name): name is string => typeof name === 'string' && name.length > 0 && name.length <= 214 && /^[@A-Za-z0-9][\w@/. ~-]*$/.test(name)))].sort().slice(0, 40) : [];
   return {
     skill: skill ?? direction ?? 'clean',
@@ -227,6 +230,8 @@ export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?
     ...(words === '' ? {} : { words }),
     ...(Object.keys(patch).length === 0 ? {} : { theme: patch }),
     ...(without.length === 0 ? {} : { without }),
+    // A look kept before styles names no family of its own, so it carries no font file either.
+    ...(skill === undefined || ownFonts.length === 0 ? {} : { ownFonts }),
   };
 }
 
@@ -237,6 +242,7 @@ const lookFile = (look: Look): Record<string, unknown> => ({
   ...(look.words === undefined ? {} : { words: look.words }),
   ...(look.direction !== undefined || look.theme === undefined ? {} : { theme: look.theme }),
   ...(look.without === undefined ? {} : { without: look.without }),
+  ...(look.ownFonts === undefined ? {} : { ownFonts: look.ownFonts }),
 });
 
 /** The sides of an app that have screens of the starter's kind: a `src/` folder under the side. */
@@ -294,8 +300,24 @@ export function themeCss(given: LookInput, root?: string, places?: LookPlaces): 
   if (look.direction !== undefined) return directionCss({ direction: look.direction, ...(look.accent === undefined ? {} : { accent: look.accent }) });
   const resolved = resolveLook(root ?? '', look, places);
   const theme = resolved.theme as Theme;
-  const installed = root === undefined ? new Set<string>() : fontsCssOf(theme, installedWeights(root)).installed;
+  const installed = root === undefined ? new Set<string>() : fontsCssOf(theme, installedWeights(root), look.ownFonts).installed;
   return themeCssOf(theme, { line: resolved.line, installed });
+}
+
+/**
+ * What a look keeps of its fonts when its style changes: a family the person
+ * brought as a file of their own stays where they put it. Everything else of
+ * the old style's changes goes with the old style.
+ */
+export function ownFontPatch(look: Look | null): ThemePatch {
+  const own = new Set((look?.ownFonts ?? []).map((font) => font.family.toLowerCase()));
+  const fonts = look?.theme?.fonts;
+  if (own.size === 0 || fonts === undefined) return {};
+  const kept = (['heading', 'body'] as const).flatMap((use) => {
+    const family = fonts[use]?.family;
+    return family !== undefined && own.has(family.toLowerCase()) ? [[use, { family }] as const] : [];
+  });
+  return kept.length === 0 ? {} : { fonts: Object.fromEntries(kept) };
 }
 
 /** The font families a look asks for and the project does not carry yet. */
@@ -303,8 +325,9 @@ export function missingFonts(root: string, look: Look, places?: LookPlaces): { f
   const { theme } = resolveLook(root, look, places);
   if (theme === null) return [];
   const has = installedWeights(root);
+  const own = new Set((look.ownFonts ?? []).map((font) => font.family.toLowerCase()));
   return themeFamilies(theme)
-    .filter((entry) => has(entry.family) === null)
+    .filter((entry) => !own.has(entry.family.toLowerCase()) && has(entry.family) === null)
     .map(({ family, use }) => ({ family, use }));
 }
 
@@ -324,7 +347,7 @@ export const DESIGN_CSS_START = `/*
 export function sideLookFiles(root: string, look: Look, places?: LookPlaces): { files: Record<string, string>; fonts: { name: string; from: string }[]; resolved: ResolvedLook } {
   const resolved = resolveLook(root, look, places);
   if (resolved.theme === null) return { files: { 'theme.css': themeCss(look) }, fonts: [], resolved };
-  const fonts = fontsCssOf(resolved.theme, installedWeights(root));
+  const fonts = fontsCssOf(resolved.theme, installedWeights(root), look.ownFonts);
   const files: Record<string, string> = { 'theme.css': themeCssOf(resolved.theme, { line: resolved.line, installed: fonts.installed }), 'fonts.css': fonts.css };
   // The parts a style adds, and the fonts it brings as files: copied into the app, so the app holds all it shows.
   const css = resolved.skill === null ? null : skillCss(resolved.skill);

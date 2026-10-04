@@ -17,6 +17,7 @@ import { runCli } from '../src/cli/run.js';
 import { loadProjectBundler, type Bundler } from '../src/project/build.js';
 import { buildAppSides, buildSide, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
 import { addUiParts, UI_PARTS } from '../src/project/apps/scaffold-app.js';
+import { BASE_THEME, fontsCssOf } from '../src/project/apps/theme.js';
 import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
@@ -298,6 +299,17 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
     const built = await build();
     expect(built.files.some((file) => /^assets\/hero-[A-Z0-9]+\.svg$/.test(file))).toBe(true);
     expect(readdirSync(join(built.dir, 'assets')).map((name) => readFileSync(join(built.dir, 'assets', name), 'utf8')).join('')).not.toContain('do-not-ship');
+  });
+
+  it('carries a font file of the person’s own: fonts.css names it in the app’s assets, and the built page serves it from the side’s own mount', async () => {
+    put('apps/repairs/assets/fonts/brand-sans-700.woff2', 'wOF2 stand-in bytes');
+    put('apps/repairs/staff/src/theme.css', ':root { --font-display: "Brand Sans", serif; }\n');
+    put('apps/repairs/staff/src/fonts.css', fontsCssOf({ ...BASE_THEME, fonts: { ...BASE_THEME.fonts, heading: { ...BASE_THEME.fonts.heading, family: 'Brand Sans' } } }, () => null, [{ family: 'Brand Sans', weight: 700, file: 'brand-sans-700.woff2' }]).css);
+    const built = await build();
+    const css = cssOf(built.dir);
+    const url = /font-family:"?Brand Sans"?;[^}]*src:url\("?([^")]+)"?\)/.exec(css)?.[1] ?? '';
+    expect(url, css.slice(0, 600)).toMatch(/brand-sans-700-[0-9A-Za-z]{8}\.woff2$/);
+    expect(readFileSync(join(built.dir, 'assets', url.split('/').pop() ?? ''), 'utf8')).toBe('wOF2 stand-in bytes');
   });
 
   it('makes the app’s logo the page’s icon', async () => {

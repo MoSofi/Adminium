@@ -113,7 +113,7 @@ export type SpendMark = 'turn-tokens' | 'session-tokens';
 export interface DesignerAttachment {
   id: string;
   label: string;
-  kind: 'image' | 'csv';
+  kind: 'image' | 'csv' | 'font';
   mediaType: string;
   bytes: number;
   rows?: number;
@@ -135,7 +135,7 @@ export type DesignerCard =
   /** Everything a step needs from outside the project, on one card: a checkbox each. */
   | { id: string; type: 'needs'; items: NeedItem[] }
   /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */
-  | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[] }
+  | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[]; /** A site some of these are shown from, never copied. */ site?: string }
   /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */
   | { id: string; type: 'rows'; attachment: string; file: string; table: string; rows: number; left: number; reasons: string[]; mapping: { from: string; to: string }[] }
   | { id: string; type: 'package'; name: string; version: string; why: string; also?: { name: string; version: string }[] }

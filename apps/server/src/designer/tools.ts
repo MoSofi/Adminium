@@ -30,8 +30,8 @@ import { join, relative, sep } from 'node:path';
 
 import { checkApp } from '../project/apps/check-app.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
-import { applyLook, cleanLook, directionFromWords, mentionsLook, missingFonts, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
-import { cleanThemePatch, mergePatches, themeFromPalette } from '../project/apps/theme.js';
+import { applyLook, cleanLook, directionFromWords, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { cleanThemePatch, isPublicFontName, mergePatches, OWN_FONTS_MAX, themeFromPalette } from '../project/apps/theme.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
 import type { AppSide } from '../project/apps/read-app.js';
@@ -42,7 +42,7 @@ import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictu
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { runChild } from './child.js';
-import { csvLines, csvOf, type Attachments } from './attachments.js';
+import { csvLines, csvOf, isWoff2, type Attachments } from './attachments.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
@@ -101,6 +101,8 @@ export interface ToolsDeps {
   pictures?: {
     /** The source to search; null where this server is set to call nothing outside itself. */
     source(): PictureSource | null;
+    /** A source whose pictures are shown from its own site and never copied; null when there is none. */
+    shown?(): PictureSource | null;
     shelf: PictureShelf;
     download?: typeof downloadPicture;
     /** The app's sample rows are in already: once the app is next applied, they are added again with their pictures. */
@@ -1069,8 +1071,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           skill: key ?? now.skill,
           accent: accent ?? (sameStyle ? now.accent : undefined),
           words: now.words,
-          theme: sameStyle && now.direction === undefined ? mergePatches(now.theme ?? {}, given.patch) : given.patch,
+          // A font file of the person's own stays in use when the style changes; the rest of the old style's changes go with it.
+          theme: sameStyle && now.direction === undefined ? mergePatches(now.theme ?? {}, given.patch) : mergePatches(ownFontPatch(now), given.patch),
           without: now.without,
+          ownFonts: now.ownFonts,
         });
         applyLook(deps.root, appKey, look, places);
         // The fonts the look now names and the project lacks: asked for here, on one card.
@@ -1083,6 +1087,62 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           `The style is "${resolved.title}". theme.css was written on each side; build_sides shows it.${given.notes.length === 0 ? '' : `\nLeft out: ${given.notes.join(' ')}`}${needs === null ? '' : `\n${needs.said}`}${key !== null && skill !== null ? `\n\nHow this style lays out a page, as data:\n${skillGuidance(skill).slice(0, 3000)}` : ''}`,
           `Changed the style to ${resolved.title}`,
           { facts: { look: resolved.title } },
+        );
+      },
+    },
+    {
+      name: 'use_font',
+      description:
+        'Use a font file the person attached (.woff2; its attachment id is in the message it came with) in the app’s own screens. "family": the font’s name in plain words, e.g. "Brandon Text". "use": "heading" or "body". "weight": the weight of this file, 100 to 900 (400 when left out for body, 700 for heading). The server copies the file into the app and writes fonts.css and theme.css: write no @font-face yourself.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          attachment: { type: 'string', description: 'The attachment id, e.g. att_…' },
+          family: { type: 'string', description: 'The font’s name: letters, digits and spaces' },
+          use: { type: 'string', enum: ['heading', 'body'] },
+          weight: { type: 'integer', enum: [100, 200, 300, 400, 500, 600, 700, 800, 900] },
+        },
+        required: ['attachment', 'family', 'use'],
+        additionalProperties: false,
+      },
+      running: () => 'Adding the font',
+      run: async (input, ctx) => {
+        const none = (content: string): ToolOutcome => refused(content, 'Font not added');
+        if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own fonts in src/: add the file there.');
+        if (sidesWithScreens(deps.root, appKey).length === 0) return none('The app has no screens of its own yet: call add_side first.');
+        const id = str(input, 'attachment') ?? '';
+        const entry = deps.attachments?.find(ctx.session.id, id) ?? null;
+        if (entry === null) return { ...none('There is no such attachment in this session. Its id is in the message it came with.'), miss: true };
+        const bytes = entry.kind === 'font' ? (deps.attachments?.read(ctx.session.id, id) ?? null) : null;
+        // By its bytes again, whatever the list calls it: only a font is ever written under assets/fonts/.
+        if (bytes === null || !isWoff2(bytes)) return none(`"${entry.label}" is not a font file (.woff2).`);
+        const family = (str(input, 'family') ?? '').replace(/\s+/g, ' ').trim();
+        if (!isPublicFontName(family)) return none('Give "family" as the font’s name in plain words: letters, digits and single spaces, 40 at most.');
+        const use = input['use'] === 'body' ? 'body' : input['use'] === 'heading' ? 'heading' : null;
+        if (use === null) return none('Give "use": "heading" or "body".');
+        const weight = int(input, 'weight') ?? (use === 'heading' ? 700 : 400);
+        if (weight < 100 || weight > 900 || weight % 100 !== 0) return none('Give "weight" as one of 100, 200, … 900, or leave it out.');
+        const now = readLook(deps.root, appKey) ?? DEFAULT_LOOK;
+        const others = (now.ownFonts ?? []).filter((font) => !(font.family.toLowerCase() === family.toLowerCase() && font.weight === weight));
+        if (others.length >= OWN_FONTS_MAX) return none(`The app already carries ${String(OWN_FONTS_MAX)} font files of its own, which is the most it may.`);
+        // A name of this server's making: the person's file name is a label and never a path.
+        const file = `${family.toLowerCase().split(' ').join('-')}-${String(weight)}.woff2`;
+        const dir = join(deps.root, APPS_DIR, appKey, 'assets', 'fonts');
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, file), bytes);
+        const look = cleanLook({
+          // A look kept before styles becomes the style of its name: only a style names its fonts.
+          skill: now.skill,
+          accent: now.accent,
+          words: now.words,
+          theme: mergePatches(now.direction === undefined ? (now.theme ?? {}) : {}, { fonts: { [use]: { family } } }),
+          without: now.without,
+          ownFonts: [...others, { family, weight, file }],
+        });
+        applyLook(deps.root, appKey, look, places);
+        return text(
+          `"${family}" (${String(weight)}) is the ${use} font now, from apps/${appKey}/assets/fonts/${file}. fonts.css and theme.css were written on each side: use var(--font-${use === 'heading' ? 'display' : 'body'}) and write no @font-face. build_sides shows it.`,
+          `Added the font ${family}`,
         );
       },
     },
@@ -1210,7 +1270,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const id = str(input, 'attachment') ?? '';
         const entry = deps.attachments?.find(ctx.session.id, id) ?? null;
         if (entry === null) return { ...refused('There is no such attachment in this session. Its id is in the message it came with.', 'Read no file'), miss: true };
-        if (entry.kind !== 'csv') return refused(`"${entry.label}" is a picture, not a CSV: it has no rows to read.`, 'Read no file');
+        if (entry.kind !== 'csv') return refused(`"${entry.label}" is ${entry.kind === 'font' ? 'a font file' : 'a picture'}, not a CSV: it has no rows to read.`, 'Read no file');
         const bytes = deps.attachments?.read(ctx.session.id, id) ?? null;
         const csv = bytes === null ? null : csvOf(bytes);
         if (csv === null) return refused(`"${entry.label}" could not be read.`, 'Read no file');
@@ -1247,7 +1307,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const entry = deps.attachments?.find(ctx.session.id, id) ?? null;
         if (loader === undefined || deps.attachments === undefined) return none('This Designer cannot load rows. The person can use Import on the table’s page in the dashboard.', 'refused');
         if (entry === null) return none('There is no such attachment in this session. Its id is in the message it came with.', 'refused');
-        if (entry.kind !== 'csv') return none(`"${entry.label}" is a picture, not a CSV.`, 'refused');
+        if (entry.kind !== 'csv') return none(`"${entry.label}" is ${entry.kind === 'font' ? 'a font file' : 'a picture'}, not a CSV.`, 'refused');
         if (!/^[a-z][a-z0-9_]{0,62}$/.test(ref)) return none('Give "table": the ref of one of this app’s tables.', 'refused');
         const given = input['columns'];
         const columns = given !== null && typeof given === 'object' && !Array.isArray(given) ? Object.fromEntries(Object.entries(given).filter((pair): pair is [string, string] => typeof pair[1] === 'string')) : {};
@@ -1314,6 +1374,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         if (nameless !== null) return nameless;
         if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own pictures in src/: add them there.', 'refused');
         const source = deps.pictures?.source() ?? null;
+        // A source whose pictures are shown from its own site: only where a person's yes can allow that site, and only for a page (a row holds a file).
+        const shownSource = deps.pictures?.shown?.() ?? null;
+        const showsFrom = shownSource?.showsFrom !== undefined && deps.pictureSites !== undefined && deps.pictureSites.closed() === null ? shownSource : null;
         if (deps.pictures === undefined || source === null) return none(`This server looks for no pictures (it is set to call nothing outside itself). ${instead}`, 'refused');
         const manifest = checkApp(deps.root, appKey, { version: deps.version }).manifest;
         const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []) : [];
@@ -1361,7 +1424,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         let left = PICTURES_PER_CALL;
         for (const need of needs) {
           try {
-            const pictures = (await source.search(need.words, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).slice(0, Math.min(need.count + 2, left));
+            const pictures = (await (need.rows === null && showsFrom !== null ? showsFrom : source).search(need.words, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).slice(0, Math.min(need.count + 2, left));
             if (pictures.length === 0) problems.push(`"${need.id}": no picture was found for "${need.words}". Try plainer words, or do without.`);
             else found.set(need.id, pictures);
             left -= pictures.length;
@@ -1377,6 +1440,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const answer = await ctx.ask({
           type: 'pictures',
           shelf,
+          // Said on the card: ticking one of these lets the app's pages load pictures from that site.
+          ...(showsFrom?.showsFrom !== undefined && [...found.values()].flat().some((picture) => picture.shown !== undefined) ? { site: showsFrom.showsFrom } : {}),
           groups: needs.flatMap((need) => {
             const pictures = found.get(need.id);
             return pictures === undefined ? [] : [{ id: need.id, label: need.words, shape: need.shape, pictures: pictures.map((picture) => ({ id: picture.id, title: picture.title, creator: picture.creator, licence: picture.licence, source: picture.source })) }];
@@ -1392,11 +1457,23 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const lines: string[] = [];
         let added = 0;
         let seeded = false;
+        let shownFrom: string | null = null;
         const bundleFile = join(dir, 'seeds', 'sample.json');
         for (const need of needs) {
           const chosen = (found.get(need.id) ?? []).filter((picture) => ticked.has(picture.id)).slice(0, need.count);
           const files: { path: string; picture: FoundPicture; sha256: string }[] = [];
+          const links: FoundPicture[] = [];
           for (const picture of chosen) {
+            if (picture.shown !== undefined) {
+              // Shown from its own site, as its source asks: the site is allowed by the tick, and the source is told.
+              const host = new URL(picture.shown).hostname;
+              if (need.rows !== null || showsFrom === null || host !== showsFrom.showsFrom || deps.pictureSites === undefined) continue;
+              if (!deps.pictureSites.covers(host)) deps.pictureSites.add(host, ctx.handle.by);
+              await showsFrom.chosen?.(picture, ctx.signal);
+              links.push(picture);
+              credits.push(creditOf(picture, picture.shown));
+              continue;
+            }
             const got = await download(picture, { signal: ctx.signal });
             if (got === null) continue;
             const name = `${need.id}-${String(files.length + 1)}.${got.ext}`;
@@ -1406,11 +1483,18 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             files.push({ path, picture, sha256: createHash('sha256').update(got.bytes).digest('hex') });
             credits.push(creditOf(picture, path));
           }
-          if (files.length === 0) {
+          if (files.length === 0 && links.length === 0) {
             if (chosen.length > 0) problems.push(`"${need.id}": the pictures chosen could not be copied (too large, or gone).`);
             continue;
           }
-          added += files.length;
+          added += files.length + links.length;
+          if (links.length > 0) {
+            shownFrom = showsFrom?.showsFrom ?? null;
+            lines.push(
+              `"${need.id}" (${need.words}), shown from ${showsFrom?.name ?? 'their site'} (not copied: use each address exactly as it is, in an <img>):\n${links.map((picture) => `- <img src="${picture.shown ?? ''}" alt="${picture.title.replace(/"/g, '')}" loading="lazy" />`).join('\n')}`,
+            );
+            if (files.length === 0) continue;
+          }
           if (need.rows === null) {
             lines.push(
               `"${need.id}" (${need.words}):\n${files.map((file) => `- apps/${appKey}/${file.path} — in a screen: import ${need.id.replace(/-(.)/g, (_all, letter: string) => letter.toUpperCase())}${String(files.indexOf(file) + 1)} from '../../${file.path}'; alt: "${file.picture.title.replace(/"/g, '')}"`).join('\n')}`,
@@ -1458,7 +1542,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         writeFileSync(creditsFile, `${JSON.stringify([...before.filter((credit) => !credits.some((fresh) => fresh.file === credit.file)), ...credits], null, 2)}\n`);
         if (seeded) deps.pictures.reseed?.(appKey);
         return text(
-          `${String(added)} pictures were copied into the app.\n${lines.join('\n')}${problems.length === 0 ? '' : `\n${problems.join('\n')}`}\nGive every picture a fixed shape (the "media" part with "wide", "square" or "tall", or aspect-ratio with object-fit: cover). Their credits are in apps/${appKey}/assets/pictures/CREDITS.json: show them at the foot of the page under "Picture credits" (import credits from '../../assets/pictures/CREDITS.json'; each has creator, licence, page).`,
+          `${shownFrom === null ? `${String(added)} pictures were copied into the app.` : `${String(added)} pictures were added. Pictures from ${shownFrom} are allowed now and show in the page.`}\n${lines.join('\n')}${problems.length === 0 ? '' : `\n${problems.join('\n')}`}\nGive every picture a fixed shape (the "media" part with "wide", "square" or "tall", or aspect-ratio with object-fit: cover). Their credits are in apps/${appKey}/assets/pictures/CREDITS.json: show them at the foot of the page under "Picture credits" (import credits from '../../assets/pictures/CREDITS.json'; each has creator, licence, page).`,
           `Added ${String(added)} pictures`,
           { facts: { outcome: 'added', count: added } },
         );
@@ -1564,6 +1648,7 @@ export const DESIGNER_TOOL_NAMES = [
   'add_side',
   'add_ui_part',
   'set_style',
+  'use_font',
   'list_styles',
   'build_on_shape',
   'read_attachment',

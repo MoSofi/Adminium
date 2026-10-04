@@ -136,7 +136,7 @@ export const designerTurnBody = z.object({
 export const designerAttachment = z.object({
   id: z.string(),
   label: z.string(),
-  kind: z.enum(['image', 'csv']),
+  kind: z.enum(['image', 'csv', 'font']),
   mediaType: z.string(),
   bytes: z.number().int(),
   rows: z.number().int().optional(),

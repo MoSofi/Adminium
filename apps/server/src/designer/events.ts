@@ -21,7 +21,7 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv'; rows?: number }[] }
+  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font'; rows?: number }[] }
   | { kind: 'text'; delta: string }
   | {
       kind: 'step';

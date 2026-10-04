@@ -564,16 +564,17 @@ export default {
     "ownerDone": "Du logger nu ind som {email} med din adgangskode."
   },
   "attach": {
-    "button": "Vedhæft et billede eller en CSV-fil",
+    "button": "Vedhæft et billede, en CSV-fil eller en skrifttype",
     "list": "Vedhæftede filer",
     "pasted": "Indsat billede",
     "remove": "Fjern {name}",
     "open": "Åbn {name} i en ny fane",
     "rows": "{count, plural, one {# række} other {# rækker}}",
-    "wrongKind": "Kun et billede (PNG, JPEG, WebP eller GIF) eller en CSV-fil kan vedhæftes.",
+    "wrongKind": "Kun et billede (PNG, JPEG, WebP eller GIF), en CSV-fil eller en skrifttype (.woff2) kan vedhæftes.",
     "tooMany": "Op til {count} filer kan følge med én besked.",
     "imageTooLarge": "Det billede er over 5 MB. Vedhæft et mindre.",
     "csvTooLarge": "Den fil er over 10 MB. Til en fil af den størrelse skal du bruge Import på tabellens egen side.",
+    "fontTooLarge": "Den skrifttypefil er over 400 KB. Vedhæft én vægt af skrifttypen som en .woff2-fil.",
     "noPictures": "{model} læser ikke billeder. Beskriv det vigtige i det, eller vælg en model, der gør.",
     "noPicturesPlain": "Denne model læser ikke billeder. Beskriv det vigtige i det, eller vælg en model, der gør.",
     "notSent": "Beskeden blev ikke sendt"
@@ -646,6 +647,7 @@ export default {
   "pictures": {
     "title": "Billeder til siden. Skal de bruges?",
     "lead": "Gratis billeder, som Designer har fundet. Sæt flueben ved dem, der skal bruges: de kopieres ind i din app med deres kreditering.",
+    "shownFrom": "Nogle af dem vises direkte fra {site} og kopieres ikke. Det websted ser derefter hvert besøg på en side, der viser dem.",
     "noneOfThese": "Ingen af disse",
     "by": "{creator} · {licence}",
     "use": "Brug billedet “{title}” af {creator}",

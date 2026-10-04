@@ -115,7 +115,8 @@ reaches a contrast of 4.5:1 on its background, and picks black or white for word
 nothing is spent, and it is saved as a version like any other change. `design.css` and the screens
 are left as they are. If the new style names a font the project does not carry, the system's font
 stands in until your next message, which asks for it. For something finer, say it in the chat
-("darker, with gold").
+("darker, with gold"). **Add your own…**, last in that list, takes a style of yours without leaving
+the session.
 
 An app made before Adminium 0.3.17 keeps the look it has (Clean, Warm, Bold or Calm) exactly as
 it was, until you pick a style for it.
@@ -132,6 +133,7 @@ first. Everything a step needs is on **one card**, each thing with a checkbox, a
 | `lucide-react` | A set of icons. Without it the Designer draws small SVG icons. It never uses an emoji as an icon |
 | `clsx`, `tailwind-merge` | Helpers for the ready-made parts (a dialog, tabs, form controls) the Designer can copy into `src/ui/` |
 | The style's two fonts | From Google's catalogue, as packages (`@fontsource/…`): the files are served by your own server, and no visitor's browser calls Google |
+| A font of your own | Not on the card: attach its `.woff2` file to a message (see [Attach a picture or a file](#attach-a-picture-or-a-file)) |
 | A site to show pictures from | See [What it may touch](#what-it-may-touch) |
 
 These are common, free and widely used. Untick what you do not want and press **Send**; the
@@ -152,6 +154,14 @@ shows them from your own server.
 |---|---|
 | [Openverse](https://openverse.org) | By default. Pictures under licences that allow use and change for any purpose; no key |
 | [Pexels](https://www.pexels.com) | When your project's `.env` has `PEXELS_API_KEY` |
+| [Unsplash](https://unsplash.com) | When your project's `.env` has `UNSPLASH_ACCESS_KEY` and no Pexels key. For a page's pictures only; sample rows still get theirs from Openverse |
+
+Unsplash's rules ask that its pictures be shown from Unsplash's own address and never copied. So a
+picture you tick from Unsplash is not copied into your app: the page loads it from
+`images.unsplash.com`, the card says so before you send, your tick allows that one site (it is
+kept in `ADMINIUM_CSP_IMG_HOSTS`), and Unsplash is told the picture was chosen, as it asks. That
+site then sees each visit to a page that shows its pictures. On a live server, where the sites
+pictures may come from are set by whoever runs it, Unsplash is not used.
 
 A picture you attach to a message is yours to use. With no picture, the Designer draws a tile in
 the style's colours. On a server set to call nothing outside itself, it looks for none.
@@ -232,6 +242,7 @@ four go with one message.
 | File | What the Designer does with it |
 |---|---|
 | **A picture** (PNG, JPEG, WebP or GIF, up to 5 MB) | It is sent to the model with your message, so "make it look like this" works. A model that does not read pictures cannot see it: the box says so before you send, and the model is told only that a picture was attached |
+| **A font of your own** (one `.woff2` file, up to 400 KB) | Say what it is for ("use this for headings"). The Designer copies it into the app (`apps/<key>/assets/fonts/`) under the font's name and weight, and the app serves it itself. It stays in use when you change the style. One file is one weight: attach the bold and the regular as two files |
 | **A CSV file** (up to 10 MB and 20,000 rows) | The model is shown its columns and first rows and shapes the table from them. Once the app is applied, a card asks: "Load 1,204 rows from orders.csv into orders?", with which column goes where. **Load them** adds the rows; **Do not load** leaves the table empty |
 
 Rows are loaded by the dashboard's own import, so the table's checks hold (types, required columns,

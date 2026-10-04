@@ -411,15 +411,50 @@ ${colourBlock(theme.dark, '    ')}
 /** The weights a family's package has a stylesheet for, as the files in it say. */
 export type WeightsOf = (family: string) => readonly number[] | null;
 
+/** A font file of the person's own that an app carries in its `assets/fonts/`. */
+export interface OwnFont {
+  family: string;
+  weight: number;
+  /** The file's name in the app's `assets/fonts/`: one this server made. */
+  file: string;
+}
+
+export const OWN_FONT_FILE = /^[a-z0-9]+(?:-[a-z0-9]+)*\.woff2$/;
+/** The most font files of a person's own one app carries. */
+export const OWN_FONTS_MAX = 8;
+
+/** Own fonts as they may be kept: a plain family name, a weight, a file name of ours; one a family and weight. */
+export function cleanOwnFonts(input: unknown): OwnFont[] {
+  if (!Array.isArray(input)) return [];
+  const out: OwnFont[] = [];
+  for (const raw of input) {
+    const font = (raw ?? {}) as Record<string, unknown>;
+    const { family, weight, file } = font;
+    if (typeof family !== 'string' || !isPublicFontName(family) || typeof weight !== 'number' || ![100, 200, 300, 400, 500, 600, 700, 800, 900].includes(weight)) continue;
+    if (typeof file !== 'string' || file.length > 80 || !OWN_FONT_FILE.test(file)) continue;
+    if (out.some((kept) => kept.family.toLowerCase() === family.toLowerCase() && kept.weight === weight)) continue;
+    out.push({ family, weight, file });
+  }
+  return out.slice(0, OWN_FONTS_MAX);
+}
+
 /**
  * A side's `fonts.css`: one import per weight of each family the project
- * carries. A family that is not installed is left out, and the fallback in
- * `theme.css` stands in: the build never fails for a font.
+ * carries, and one `@font-face` per font file of the person's own. A family
+ * that is neither is left out, and the fallback in `theme.css` stands in: the
+ * build never fails for a font.
  */
-export function fontsCssOf(theme: Theme, weightsOf: WeightsOf): { css: string; installed: Set<string> } {
+export function fontsCssOf(theme: Theme, weightsOf: WeightsOf, own: readonly OwnFont[] = []): { css: string; installed: Set<string> } {
   const lines: string[] = [];
   const installed = new Set<string>();
   for (const { family, weights } of themeFamilies(theme)) {
+    // The person's own file of this family comes before a package of the same name.
+    const files = own.filter((font) => font.family.toLowerCase() === family.toLowerCase());
+    if (files.length > 0) {
+      installed.add(family);
+      for (const font of files) lines.push(`@font-face { font-family: "${family}"; font-weight: ${String(font.weight)}; font-style: normal; font-display: swap; src: url("../../assets/fonts/${font.file}") format("woff2"); }`);
+      continue;
+    }
     const has = weightsOf(family);
     if (has === null) continue;
     installed.add(family);

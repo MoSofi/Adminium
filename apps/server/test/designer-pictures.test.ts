@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createPictureShelf, downloadPicture, openverse, pexels, type FoundPicture } from '../src/designer/pictures.js';
+import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type FoundPicture } from '../src/designer/pictures.js';
 import { createRegistry, registryOf } from '../src/designer/registry.js';
 import { SafeFetchError } from '../src/net/safe-fetch.js';
 
@@ -67,6 +67,47 @@ describe('Pexels', () => {
     const found = await source.search('bar', { count: 3, shape: 'wide' });
     expect(seen).toEqual({ url: 'https://api.pexels.com/v1/search?query=bar&per_page=3&orientation=landscape', headers: { accept: 'application/json', authorization: 'KEY-123' } });
     expect(found[0]).toMatchObject({ creator: 'Bo', licence: 'Pexels licence', source: 'Pexels', files: ['https://images.pexels.com/photos/1/l.jpg', 'https://images.pexels.com/photos/1/m.jpg'] });
+  });
+});
+
+describe('Unsplash', () => {
+  const photo = {
+    alt_description: 'a table set for dinner',
+    urls: { small: 'https://images.unsplash.com/photo-1?w=400', regular: 'https://images.unsplash.com/photo-1?w=1080' },
+    links: { html: 'https://unsplash.com/photos/1', download_location: 'https://api.unsplash.com/photos/1/download?ixid=abc' },
+    user: { name: 'Ana', links: { html: 'https://unsplash.com/@ana' } },
+  };
+
+  it('gives a picture as an address on its own picture host, never as a file to copy, with the key in a header', async () => {
+    const calls: { url: string; headers: Record<string, string> | undefined }[] = [];
+    const source = unsplash('KEY-9', async (url, opts) => {
+      calls.push({ url, headers: opts.headers });
+      return json({
+        results: [
+          photo,
+          // A picture whose address is on another host is left out: one site is asked for, and it is this source's own.
+          { ...photo, urls: { small: 'https://images.unsplash.com/photo-2?w=400', regular: 'https://cdn.elsewhere.example/photo-2' } },
+          { ...photo, urls: { small: 'https://images.unsplash.com.evil.example/x', regular: 'https://images.unsplash.com/photo-3' } },
+          // An address to tell that is not Unsplash's own is not kept.
+          { ...photo, links: { html: 'https://unsplash.com/photos/4', download_location: 'https://evil.example/collect' } },
+        ],
+      });
+    });
+    expect(source.showsFrom).toBe('images.unsplash.com');
+    const found = await source.search('dinner table', { count: 4, shape: 'square' });
+    expect(calls).toEqual([{ url: 'https://api.unsplash.com/search/photos?query=dinner+table&per_page=4&content_filter=high&orientation=squarish', headers: { accept: 'application/json', authorization: 'Client-ID KEY-9', 'accept-version': 'v1' } }]);
+    expect(found).toHaveLength(2);
+    expect(found[0]).toMatchObject({ files: [], shown: 'https://images.unsplash.com/photo-1?w=1080', thumb: 'https://images.unsplash.com/photo-1?w=400', creator: 'Ana', creatorUrl: 'https://unsplash.com/@ana', licence: 'Unsplash licence', source: 'Unsplash', page: 'https://unsplash.com/photos/1', chosenUrl: 'https://api.unsplash.com/photos/1/download?ixid=abc' });
+    expect(found[1]?.chosenUrl).toBeUndefined();
+    // Nothing of it can be copied: there is no file to try.
+    expect(await downloadPicture(found[0] as FoundPicture, { fetcher: async () => Promise.reject(new Error('must not be called')) })).toBeNull();
+
+    // A chosen picture is told to Unsplash, with the key; one with no address to tell is not; a failure there is swallowed.
+    await source.chosen?.(found[0] as FoundPicture);
+    await source.chosen?.(found[1] as FoundPicture);
+    expect(calls.slice(1).map((call) => `${call.url} ${call.headers?.['authorization'] ?? ''}`)).toEqual(['https://api.unsplash.com/photos/1/download?ixid=abc Client-ID KEY-9']);
+    const failing = unsplash('KEY-9', async () => Promise.reject(new Error('down')));
+    await expect(failing.chosen?.(found[0] as FoundPicture)).resolves.toBeUndefined();
   });
 });
 

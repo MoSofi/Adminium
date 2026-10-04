@@ -115,7 +115,7 @@ import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
-import { createPictureShelf, openverse, pexels, type PictureSource } from './designer/pictures.js';
+import { createPictureShelf, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
@@ -2054,6 +2054,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           const key = (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '').trim();
           return key === '' ? openverse() : pexels(key);
         };
+        // Unsplash, with the project's own key: for a page's pictures, shown from Unsplash's own site as its rules ask. Pexels, whose pictures are copied, comes first.
+        const shownPictureSource = (): PictureSource | null => {
+          if (!addOnCatalog.networkFeaturesAllowed()) return null;
+          const env = readDotEnv(root);
+          if ((process.env['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
+          const key = (process.env['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
+          return key === '' ? null : unsplash(key);
+        };
         designer = createDesigner({
           root,
           version: APP_VERSION,
@@ -2141,7 +2149,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 rowLoader: designerRows,
                 ...(pictureSites === undefined ? {} : { pictureSites }),
                 newestVersion: designerRegistry,
-                pictures: { source: pictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
+                pictures: { source: pictureSource, shown: shownPictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
               },
               session.appKey,
