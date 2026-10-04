@@ -44,7 +44,9 @@ describe('a side’s calls, read from its source', () => {
     expect(found).toHaveLength(2);
     expect(found[0]).toContain('asks the public API for a list with "where"');
     expect(found[0]).toContain('PUBLIC_QUERY_REFUSED');
-    expect(found[1]).toContain(`use config.tables['cakes'] ?? 'cakes'`);
+    // Said with where the names are, since "config.tables" alone was read as the client's config.
+    expect(found[1]).toContain("loaded.value.tables['<table>'] ?? '<table>'");
+    expect(found[1]).toContain('Never from `client.config()`');
 
     write('customer/src/App.tsx', `const rows = (await client.list(cakesTable, { limit: 50, order: 'name.asc' })).data;`);
     expect(messages()).toEqual([expect.stringContaining('a list with "order"')]);
@@ -58,7 +60,7 @@ describe('a side’s calls, read from its source', () => {
     write('customer/src/App.tsx', `const rows = (await client.list(orders, { limit: 1 })).data;`);
     expect(messages(claimed)).toEqual([expect.stringContaining('never calls client.claim')]);
     write('customer/src/App.tsx', `if (await client.claim({ code, email })) setRows((await client.list(orders, { limit: 1 })).data);`);
-    expect(messages(claimed)).toEqual([expect.stringContaining("${config.tables['orders'] ?? 'orders'}_claimed")]);
+    expect(messages(claimed)).toEqual([expect.stringContaining("${loaded.value.tables['orders'] ?? 'orders'}_claimed")]);
     write('customer/src/App.tsx', `if (await client.claim({ code, email })) setRows((await client.list(\`\${orders}_claimed\`, { limit: 1 })).data);`);
     expect(messages(claimed)).toEqual([]);
   });
@@ -68,7 +70,7 @@ describe('a side’s calls, read from its source', () => {
     const found = messages();
     expect(found).toEqual([
       expect.stringContaining('calls client.claim with a name first'),
-      expect.stringContaining("${config.tables['orders'] ?? 'orders'}_claimed"),
+      expect.stringContaining("${loaded.value.tables['orders'] ?? 'orders'}_claimed"),
       expect.stringContaining('access.json has no entry with a "claim"'),
     ]);
     expect(found[2]).toContain('manifest-by-task--let-a-customer-find-their-own-row.md');
@@ -100,7 +102,13 @@ describe('table names read from the wrong config', () => {
       const file = join(root, 'apps', 'bakery', 'customer', 'src', 'App.tsx');
       writeFileSync(file, "async function loadCakes() {\n  const client = createPublicClient(loaded.value);\n  const config = await client.config();\n  const table = config.tables['cakes'] ?? 'cakes';\n  const { data } = await client.list(table, { limit: 50 });\n}\n");
       const issues = sideCallIssues(root, 'bakery', { requiredSchema: { tables: [{ ref: 'cakes' }] } });
-      expect(issues.map((issue) => issue.message).join(' ')).toContain('reads "config.tables" from client.config()');
+      expect(issues.map((issue) => issue.message).join(' ')).toContain('reads "tables" from client.config()');
+      expect(issues.map((issue) => issue.message).join(' ')).toContain("loaded.value.tables['<table>'] ?? '<table>'");
+      // The other spellings a model wrote: straight off the call, with or without the await.
+      for (const line of ["const t = client.config().tables['cakes'] ?? 'cakes';", "const t = (await client.config()).tables['cakes'];", "const t = (await client.config())?.tables?.['cakes'];"]) {
+        writeFileSync(file, `async function load() {\n  ${line}\n}\n`);
+        expect(sideCallIssues(root, 'bakery', { requiredSchema: { tables: [{ ref: 'cakes' }] } }).map((issue) => issue.message).join(' '), line).toContain('from client.config()');
+      }
       writeFileSync(file, "async function loadCakes() {\n  const client = createPublicClient(loaded.value);\n  const table = loaded.value.tables['cakes'] ?? 'cakes';\n  const config = await client.config();\n  const zone = config.timezone;\n  const { data } = await client.list(table, { limit: 50 });\n}\n");
       expect(sideCallIssues(root, 'bakery', { requiredSchema: { tables: [{ ref: 'cakes' }] } }).map((issue) => issue.message).join(' ')).not.toContain('client.config()');
     } finally {

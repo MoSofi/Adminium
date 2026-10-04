@@ -186,7 +186,8 @@ function Menu({ config }: { config: CustomerConfig }) {
 ```
 
 `config.tables` maps each table's short name to the name its public endpoint goes by on this
-install. The client also signs guests in, opens a guest's own rows, reads free and full times, and
+install. It is the customer config's (`useCustomer()`'s `loaded.value`), not the client's:
+`client.config()` answers other things and has no `tables`. The client also signs guests in, opens a guest's own rows, reads free and full times, and
 more; see [An app's public access](/guides/apps/public-access/) and
 [A person and their own rows](/guides/apps/identity-and-own-links/).
 

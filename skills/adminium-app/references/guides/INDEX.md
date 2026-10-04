@@ -11,7 +11,7 @@
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3042 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
-| `references/guides/manifest-by-task--let-a-customer-find-their-own-row.md` | Let a customer find their own row | 2787 |
+| `references/guides/manifest-by-task--let-a-customer-find-their-own-row.md` | Let a customer find their own row | 2981 |
 | `references/guides/manifest-by-task--sample-data.md` | Sample data | 1495 |
 | `references/guides/manifest-by-task--settings-the-operator-fills-in.md` | Settings the operator fills in | 1069 |
 | `references/guides/manifest-by-task--emails.md` | Emails | 721 |

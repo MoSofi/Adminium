@@ -56,6 +56,10 @@ const LITERAL_TABLE = /\.(list|create|get|update|remove)\(\s*(['"`])([a-z][a-z0-
 /** `where` given as a plain object of column: value. */
 const WHERE_AS_OBJECT = /\bwhere\s*:\s*\{\s*(?!column\b|and\b|or\b|not\b|['"`]?(?:column|and|or|not)['"`]?\s*:)[A-Za-z_'"`[]/;
 
+/** Where a customer screen's table names are: said the same way in every finding, since "config.tables" alone was read as the client's config. */
+const WHERE_TABLES =
+  "The table names are in the CUSTOMER config, which the page gets from useCustomer(): `const loaded = useCustomer()`, then, once `loaded.state === 'ready'`, `loaded.value.tables['<table>'] ?? '<table>'` (the starter passes `loaded.value` to its screen as the prop `config`, so there it reads `config.tables[…]`). Never from `client.config()`.";
+
 /** A component: a function whose name starts with a capital, declared at the start of a line. */
 const COMPONENT = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Z]\w*)\s*\(|^(?:export\s+)?const\s+([A-Z]\w*)\s*(?::[^=]+)?=\s*(?:\([^)]*\)|\w+)\s*(?::[^=]+)?=>\s*\{/;
 /** A hook called: `useState(`, `React.useEffect(`, a hook of the app's own. */
@@ -132,11 +136,12 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
     // `tables` read from the public client's own config: it has none (the table names are in the customer config), so the
     // read throws inside the load, the list stays empty, and the page says nothing.
     const fromClient = /\b(?:const|let)\s+(\w+)\s*=\s*await\s+\w+\.config\(\s*\)/.exec(text);
-    if (fromClient !== null && new RegExp(`\\b${fromClient[1] as string}\\.tables\\b`).test(text)) {
+    const direct = /\.config\(\s*\)\s*\)?\s*\??\.\s*tables\b/.test(text);
+    if (direct || (fromClient !== null && new RegExp(`\\b${fromClient[1] as string}\\??\\.tables\\b`).test(text))) {
       out.push({
         side: 'customer',
         file,
-        message: `reads "${fromClient[1] as string}.tables" from client.config(). The public client's config has no "tables": that read throws, the list it was for stays empty, and the page shows nothing where the rows should be. The table names are in the customer config the page already has: const loaded = useCustomer(), then loaded.value.tables['<table>'] (and createPublicClient(loaded.value)).`,
+        message: `reads "tables" from client.config(). The public client's config has no "tables" (and client.config() is a promise): that read throws, and the page stops or the list it was for stays empty. ${WHERE_TABLES}`,
       });
     }
     const named = new Set<string>();
@@ -146,7 +151,7 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
       out.push({
         side: 'customer',
         file,
-        message: `calls the public client with the table's short name (${[...named].map((name) => `"${name}"`).join(', ')}). A public endpoint goes by another name on each install: use config.tables['${one}'] ?? '${one}', as the starter screen does, or the call finds nothing.`,
+        message: `calls the public client with the table's short name (${[...named].map((name) => `"${name}"`).join(', ')}). A public endpoint goes by another name on each install, so the call finds nothing: \`loaded.value.tables['${one}'] ?? '${one}'\`. ${WHERE_TABLES}`,
       });
     }
   }
@@ -160,7 +165,7 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
       out.push({
         side: 'customer',
         file,
-        message: "reads a claimed endpoint by a name written out. Its name is the table's own endpoint name with _claimed after it: `${config.tables['orders'] ?? 'orders'}_claimed` (for a table \"orders\").",
+        message: `reads a claimed endpoint by a name written out. Its name is the table's own endpoint name with _claimed after it: \`\${loaded.value.tables['orders'] ?? 'orders'}_claimed\` (for a table "orders"). ${WHERE_TABLES}`,
       });
     }
   }
@@ -185,7 +190,7 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
       out.push({
         side: 'customer',
         file: where,
-        message: `claims a row of "${one}" and never reads it: after client.claim(…) answers true, the person's own row is listed from the claimed endpoint, \`\${config.tables['${one}'] ?? '${one}'}_claimed\`.`,
+        message: `claims a row of "${one}" and never reads it: after client.claim(…) answers true, the person's own row is listed from the claimed endpoint, \`\${loaded.value.tables['${one}'] ?? '${one}'}_claimed\`. ${WHERE_TABLES}`,
       });
     }
   }

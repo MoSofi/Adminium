@@ -9,7 +9,7 @@
 | `references/guides/building-a-side--the-look.md` | The look | 2448 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
 | `references/guides/building-a-side--a-staff-side.md` | A staff side | 3317 |
-| `references/guides/building-a-side--a-customer-side.md` | A customer side | 3576 |
+| `references/guides/building-a-side--a-customer-side.md` | A customer side | 3718 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |
 | `references/guides/building-a-side--looking-at-a-side-without-adminium.md` | Looking at a side without Adminium | 1224 |
 | `references/guides/building-a-side--what-a-served-screen-may-not-load.md` | What a served screen may not load | 783 |

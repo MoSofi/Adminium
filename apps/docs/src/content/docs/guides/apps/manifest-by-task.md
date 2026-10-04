@@ -312,6 +312,8 @@ type that nobody can guess:
 claimed endpoint, whose name is the table's with `_claimed` after it:
 
 ```tsx
+// `config` is the customer config: `useCustomer()` gives it as `loaded.value`, and the starter's
+// screen takes it as its prop. Its `tables` are not on the client: `client.config()` has none.
 const orders = config.tables['orders'] ?? 'orders';
 
 // Placing the order: the reply carries what the entry's "select" shows.
