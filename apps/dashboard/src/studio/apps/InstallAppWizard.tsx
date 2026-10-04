@@ -473,7 +473,10 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
     (row) => row.need === 'requires' && row.state !== 'unavailable' && (row.action === 'install' || row.action === 'update') && !row.staged && row.offeredVersion !== null,
   );
   /** Only fetching holds Install: the press that installs fetches first. */
-  const onlyFetchHolds = quick && needFetch.length > 0 && addOnHint !== null && addOnBlock(appName, addOnRows.map((row) => (needFetch.includes(row) ? { ...row, staged: true } : row)), addOnPicks) === null;
+  /** The server calls a plan not installable while a required add-on is still to be downloaded: that alone does not hold the press that downloads it. */
+  const heldByFetchAlone = plan !== null && (plan.installable || (plan.problems.length > 0 && plan.problems.every((problem) => problem.code === 'ADD_ON_DOWNLOAD_REQUIRED')));
+  const onlyFetchHolds =
+    quick && needFetch.length > 0 && addOnHint !== null && heldByFetchAlone && addOnBlock(appName, addOnRows.map((row) => (needFetch.includes(row) ? { ...row, staged: true } : row)), addOnPicks) === null;
   /** Set by the Install press, read once the check made after the fetch is on screen. */
   const [installAfterCheck, setInstallAfterCheck] = useState(false);
   /** The add-ons this dialog fetched, and those of them whose own plan the person has yet to read. */
@@ -1191,7 +1194,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
 
           {step === 'plan' && !(checking && (dirty || stopped !== null || install.isPending)) ? (
             <Button
-              disabled={busy || plan === null || !plan.installable || (addOnHint !== null && !onlyFetchHolds)}
+              disabled={busy || plan === null || (!plan.installable && !onlyFetchHolds) || (addOnHint !== null && !onlyFetchHolds)}
               onClick={() => (onlyFetchHolds ? void fetchThenInstall() : install.mutate())}
             >
               {install.isPending ? <Spinner size="sm" /> : null}

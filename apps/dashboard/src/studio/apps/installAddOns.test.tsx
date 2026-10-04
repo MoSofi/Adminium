@@ -96,6 +96,11 @@ const HOLIDAYS = row({
   reason: { 'en-US': 'Marks public holidays as the studio’s days off, for Capacity.' },
 });
 
+/** What `POST /apps/plan` adds while a required add-on is still to be downloaded: the plan is "not installable", for that reason. */
+function awaitingDownload(plan: Record<string, unknown>, addOn: string): Record<string, unknown> {
+  return { ...plan, installable: false, problems: [{ code: 'ADD_ON_DOWNLOAD_REQUIRED', message: `Download ${addOn} first.`, table: addOn }] };
+}
+
 function planWith(addOns: Record<string, unknown>[]): Record<string, unknown> {
   return {
     key: 'clients',
@@ -398,7 +403,8 @@ describe('the Add-ons card', () => {
   });
 
   it('the one dialog names nothing to adminium.dev until Install is pressed; that press fetches the required add-on, checks again and installs', async () => {
-    plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }, { ...HOLIDAYS, source: 'catalog', staged: false, plan: null }]), planWith([INVOICES, HOLIDAYS])];
+    // As the server answers: a plan that waits for a download is "not installable" until the add-on is here.
+    plans = [awaitingDownload(planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }, { ...HOLIDAYS, source: 'catalog', staged: false, plan: null }]), 'invoices'), planWith([INVOICES, HOLIDAYS])];
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={createQueryClient()}>
@@ -427,7 +433,7 @@ describe('the Add-ons card', () => {
 
   it('the one dialog installs at the one press when the fetched add-on makes nothing in the database', async () => {
     const plain = { ...INVOICES, plan: { ...(INVOICES['plan'] as Record<string, unknown>), create: [], touchesData: false, requiresSchemaChange: false } };
-    plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }]), planWith([plain])];
+    plans = [awaitingDownload(planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }]), 'invoices'), planWith([plain])];
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={createQueryClient()}>
@@ -441,7 +447,7 @@ describe('the Add-ons card', () => {
   });
 
   it('the one dialog installs nothing when the check made after the fetch no longer stands', async () => {
-    plans = [planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }]), { ...planWith([INVOICES]), installable: false }];
+    plans = [awaitingDownload(planWith([{ ...INVOICES, source: 'catalog', staged: false, plan: null }]), 'invoices'), { ...planWith([INVOICES]), installable: false, problems: [{ code: 'TABLE_TAKEN', message: 'A table is taken.', table: 'clients' }] }];
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={createQueryClient()}>
