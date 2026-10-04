@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { addSide, scaffoldApp } from '../src/project/apps/scaffold-app.js';
-import { sideCallIssues } from '../src/project/apps/side-calls.js';
+import { hooksAfterReturn, sideCallIssues } from '../src/project/apps/side-calls.js';
 import { APP_VERSION } from '../src/version.js';
 
 let root: string;
@@ -89,5 +89,74 @@ describe('a side’s calls, read from its source', () => {
     expect(messages({ requiredSchema: { tables: [{ ref: 'items' }, { ref: 'requests' }] }, publicAccess: [{ table: 'items', methods: ['GET'] }] })).toEqual([]);
     write('customer/src/notes.ts', `// never: client.list(items, { where: x })\n/* nor client.list('cakes') */\nexport const x = 1;`);
     expect(messages()).toEqual([]);
+  });
+});
+
+describe('a hook called after a component may already have returned', () => {
+  it('is found where a model wrote it: early returns, then a hook', () => {
+    const screen = [
+      "export function App() {",
+      "  const loaded = useCustomer();",
+      "  const [form, setForm] = useState({ name: '' });",
+      "",
+      "  if (loaded.state === 'loading') return <div className=\"page\">Loading...</div>;",
+      "  if (loaded.state === 'error') return <div className=\"page\">Error</div>;",
+      "",
+      "  React.useEffect(() => {",
+      "    if (!form.name) return;",
+      "    setForm({ name: 'x' });",
+      "  }, []);",
+      "",
+      "  return <main>{form.name}</main>;",
+      "}",
+    ].join('\n');
+    expect(hooksAfterReturn(screen)).toEqual([{ component: 'App', hook: 'useEffect', line: 8, returnedAt: 5 }]);
+  });
+
+  it('is found for a return inside an if block, and for a component written as an arrow', () => {
+    const screen = ['const Menu = ({ config }: Props) => {', '  if (config === null) {', '    return null;', '  }', '  const [cakes, setCakes] = useState<Row[]>([]);', '  return <ul>{cakes.length}</ul>;', '};'].join('\n');
+    expect(hooksAfterReturn(screen)).toEqual([{ component: 'Menu', hook: 'useState', line: 5, returnedAt: 3 }]);
+  });
+
+  it('is not seen in a screen that calls its hooks first, whatever its callbacks return', () => {
+    const screen = [
+      'export function App() {',
+      '  const [rows, setRows] = useState<Row[]>([]);',
+      '  useEffect(() => {',
+      '    if (rows.length > 0) return;',
+      '    void load().then(setRows);',
+      '  }, [rows]);',
+      '  const submit = async (event: FormEvent) => {',
+      '    if (busy) return;',
+      '    await save();',
+      '  };',
+      "  // if (x) return early, then useThing() — a comment is not code",
+      "  const label = 'if (a) return useState(';",
+      '  if (rows.length === 0) return <p>Nothing yet</p>;',
+      '  return <ul>{rows.map((row) => <li key={row.id}>{row.name}</li>)}</ul>;',
+      '}',
+      '',
+      'function helper() {',
+      '  if (1) return 2;',
+      '  return useless();',
+      '}',
+    ].join('\n');
+    // (A lower-case function is no component; `useless(` is not a hook's name.)
+    expect(hooksAfterReturn(screen.replace(/\/\/[^\n]*/g, ''))).toEqual([]);
+  });
+
+  it('is said with the file, both lines and what to do, for either side', () => {
+    const root = mkdtempSync(join(tmpdir(), 'adminium-side-hooks-'));
+    try {
+      mkdirSync(join(root, 'apps', 'bakery', 'staff', 'src'), { recursive: true });
+      writeFileSync(join(root, 'apps', 'bakery', 'staff', 'src', 'App.tsx'), 'export function App() {\n  if (!ready) return null;\n  const rows = useRows();\n  return <p>{rows.length}</p>;\n}\n');
+      const issues = sideCallIssues(root, 'bakery', { requiredSchema: { tables: [] } });
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatchObject({ side: 'staff', file: 'apps/bakery/staff/src/App.tsx' });
+      expect(issues[0]?.message).toContain('line 3: "App" calls useRows after it may already have returned (line 2)');
+      expect(issues[0]?.message).toContain('Move every hook');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

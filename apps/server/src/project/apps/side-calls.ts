@@ -56,6 +56,63 @@ const LITERAL_TABLE = /\.(list|create|get|update|remove)\(\s*(['"`])([a-z][a-z0-
 /** `where` given as a plain object of column: value. */
 const WHERE_AS_OBJECT = /\bwhere\s*:\s*\{\s*(?!column\b|and\b|or\b|not\b|['"`]?(?:column|and|or|not)['"`]?\s*:)[A-Za-z_'"`[]/;
 
+/** A component: a function whose name starts with a capital, declared at the start of a line. */
+const COMPONENT = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Z]\w*)\s*\(|^(?:export\s+)?const\s+([A-Z]\w*)\s*(?::[^=]+)?=\s*(?:\([^)]*\)|\w+)\s*(?::[^=]+)?=>\s*\{/;
+/** A hook called: `useState(`, `React.useEffect(`, a hook of the app's own. */
+const HOOK_CALL = /(?:^|[^\w.$])(?:React\.)?(use[A-Z]\w*)\s*(?:<[^>()]*>)?\s*\(/;
+
+/**
+ * Hooks called after a component may already have returned.
+ *
+ * `if (loading) return <p>…</p>;` and then `useEffect(…)` below it builds,
+ * and stops the screen the moment the first return is passed: "Rendered more
+ * hooks than during the previous render". A person meets that as a blank
+ * page. Read line by line, at the depth of the component's own body: a
+ * return inside a nested function or a callback is not one of the
+ * component's, and is not counted.
+ */
+export function hooksAfterReturn(text: string): { component: string; hook: string; line: number; returnedAt: number }[] {
+  const out: { component: string; hook: string; line: number; returnedAt: number }[] = [];
+  // Strings and template text hold braces and words that are not code.
+  const lines = text.replace(/(['"`])(?:\\.|(?!\1)[^\\\n])*\1/g, (found) => found[0] + ' '.repeat(Math.max(0, found.length - 2)) + found[0]).split('\n');
+  let component: string | null = null;
+  let depth = 0;
+  /** The line of the first return the component's own body may take early; 0 while there is none. */
+  let returnedAt = 0;
+  /** An `if (…) {` opened at the body's own depth: a return directly inside it is an early one. */
+  let ifBlock = false;
+  let told = false;
+  for (const [index, line] of lines.entries()) {
+    if (component === null) {
+      const found = COMPONENT.exec(line);
+      if (found === null) continue;
+      component = (found[1] ?? found[2]) as string;
+      depth = 0;
+      returnedAt = 0;
+      ifBlock = false;
+      told = false;
+    } else if (depth === 1) {
+      if (returnedAt !== 0 && !told) {
+        const hook = HOOK_CALL.exec(line);
+        if (hook !== null) {
+          out.push({ component, hook: hook[1] as string, line: index + 1, returnedAt });
+          told = true;
+        }
+      }
+      if (/^\s*if\s*\(.*\)\s*return\b/.test(line) && returnedAt === 0) returnedAt = index + 1;
+      ifBlock = /^\s*(?:\}\s*else\s+)?if\s*\(/.test(line) && /\{\s*$/.test(line);
+    } else if (depth === 2 && ifBlock && returnedAt === 0 && /^\s*return\b/.test(line)) {
+      returnedAt = index + 1;
+    }
+    for (const char of line) {
+      if (char === '{') depth += 1;
+      else if (char === '}') depth -= 1;
+    }
+    if (component !== null && depth <= 0 && line.includes('}')) component = null;
+  }
+  return out;
+}
+
 export function sideCallIssues(root: string, key: string, manifest: unknown): SideCallIssue[] {
   const app = (manifest ?? {}) as ManifestLike;
   const tables = new Set((app.requiredSchema?.tables ?? []).map((table) => table.ref));
@@ -120,6 +177,19 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
         file: where,
         message: `claims a row of "${one}" and never reads it: after client.claim(…) answers true, the person's own row is listed from the claimed endpoint, \`\${config.tables['${one}'] ?? '${one}'}_claimed\`.`,
       });
+    }
+  }
+
+  // A screen that stops as it opens, on either side.
+  for (const side of ['customer', 'staff'] as const) {
+    for (const { file, text } of sources(root, key, side).filter((source) => /\.[jt]sx$/.test(source.file))) {
+      for (const found of hooksAfterReturn(code(text))) {
+        out.push({
+          side,
+          file,
+          message: `line ${String(found.line)}: "${found.component}" calls ${found.hook} after it may already have returned (line ${String(found.returnedAt)}). React stops the whole screen there ("Rendered more hooks than during the previous render"), and the person sees an error instead of the page. Move every hook (useState, useEffect, the app's own) above the first return of "${found.component}".`,
+        });
+      }
     }
   }
 
