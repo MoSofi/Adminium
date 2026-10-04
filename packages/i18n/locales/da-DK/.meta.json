@@ -8923,6 +8923,10 @@
     "status": "mt",
     "srcHash": "404214afb86d"
   },
+  "designer.card.typeBelow": {
+    "status": "mt",
+    "srcHash": "b7ca289abac9"
+  },
   "designer.card.youAnswered": {
     "status": "mt",
     "srcHash": "f698fbd8ec00"
@@ -9310,6 +9314,142 @@
   "designer.model.unreachable": {
     "status": "mt",
     "srcHash": "bc097bb5fde6"
+  },
+  "designer.needs.added": {
+    "status": "mt",
+    "srcHash": "d3fa58a22461"
+  },
+  "designer.needs.adding": {
+    "status": "mt",
+    "srcHash": "ffb2e628b0e9"
+  },
+  "designer.needs.deselectAll": {
+    "status": "mt",
+    "srcHash": "85cce1e14782"
+  },
+  "designer.needs.font": {
+    "status": "mt",
+    "srcHash": "f1d299ee261a"
+  },
+  "designer.needs.fontBody": {
+    "status": "mt",
+    "srcHash": "b48dbc92e7c0"
+  },
+  "designer.needs.fontHeading": {
+    "status": "mt",
+    "srcHash": "07936cf96f56"
+  },
+  "designer.needs.icons": {
+    "status": "mt",
+    "srcHash": "e6e3b43715df"
+  },
+  "designer.needs.lead": {
+    "status": "mt",
+    "srcHash": "c991fe3a6195"
+  },
+  "designer.needs.left": {
+    "status": "mt",
+    "srcHash": "cc783393ccb0"
+  },
+  "designer.needs.none": {
+    "status": "mt",
+    "srcHash": "88b3a5b34ddb"
+  },
+  "designer.needs.note": {
+    "status": "mt",
+    "srcHash": "efdcf864d65f"
+  },
+  "designer.needs.other": {
+    "status": "src",
+    "srcHash": "18f628e84dd2"
+  },
+  "designer.needs.publicClient": {
+    "status": "mt",
+    "srcHash": "d44772d31112"
+  },
+  "designer.needs.screens": {
+    "status": "mt",
+    "srcHash": "05a92dec65d8"
+  },
+  "designer.needs.selectAll": {
+    "status": "mt",
+    "srcHash": "913afff1faf7"
+  },
+  "designer.needs.send": {
+    "status": "src",
+    "srcHash": "9bc2575c3930"
+  },
+  "designer.needs.sendNone": {
+    "status": "mt",
+    "srcHash": "7c558c837505"
+  },
+  "designer.needs.site": {
+    "status": "mt",
+    "srcHash": "16ccdf1f0fbe"
+  },
+  "designer.needs.siteNote": {
+    "status": "mt",
+    "srcHash": "099ee7e6da90"
+  },
+  "designer.needs.sitePictures": {
+    "status": "mt",
+    "srcHash": "3bb40e6ae7fa"
+  },
+  "designer.needs.tailwind": {
+    "status": "mt",
+    "srcHash": "573ef1546a65"
+  },
+  "designer.needs.title": {
+    "status": "mt",
+    "srcHash": "effdb6f90e2b"
+  },
+  "designer.needs.ui": {
+    "status": "mt",
+    "srcHash": "68e90726b22e"
+  },
+  "designer.needs.unknownHead": {
+    "status": "mt",
+    "srcHash": "85d2f637ac2b"
+  },
+  "designer.needs.unknownLead": {
+    "status": "mt",
+    "srcHash": "8b6f147aacf1"
+  },
+  "designer.pictures.added": {
+    "status": "mt",
+    "srcHash": "766a4bb0d961"
+  },
+  "designer.pictures.by": {
+    "status": "src",
+    "srcHash": "7899902905b5"
+  },
+  "designer.pictures.copying": {
+    "status": "mt",
+    "srcHash": "d00448986dd7"
+  },
+  "designer.pictures.lead": {
+    "status": "mt",
+    "srcHash": "426799ec893f"
+  },
+  "designer.pictures.noneChosen": {
+    "status": "mt",
+    "srcHash": "d0618ce77cce"
+  },
+  "designer.pictures.noneOfThese": {
+    "status": "mt",
+    "srcHash": "175ed947e347"
+  },
+  "designer.pictures.sendNone": {
+    "status": "mt",
+    "srcHash": "5a2843ccbf2f"
+  },
+  "designer.pictures.title": {
+    "status": "mt",
+    "srcHash": "c686ff6f1178"
+  },
+  "designer.pictures.use": {
+    "status": "mt",
+    "srcHash": "2f0d4b25b947"
   },
   "designer.preview.buildingCustomer": {
     "status": "mt",
@@ -9807,6 +9947,34 @@
     "status": "mt",
     "srcHash": "121bfa240a1e"
   },
+  "designer.step.named": {
+    "status": "mt",
+    "srcHash": "0134bdd5c705"
+  },
+  "designer.step.naming": {
+    "status": "mt",
+    "srcHash": "5703a83b38eb"
+  },
+  "designer.step.needsAdded": {
+    "status": "mt",
+    "srcHash": "36be70b3d525"
+  },
+  "designer.step.needsAsking": {
+    "status": "mt",
+    "srcHash": "d679178eccba"
+  },
+  "designer.step.needsFailed": {
+    "status": "mt",
+    "srcHash": "974f5c51a3ef"
+  },
+  "designer.step.needsNone": {
+    "status": "mt",
+    "srcHash": "700dcf02e4ce"
+  },
+  "designer.step.needsRefused": {
+    "status": "mt",
+    "srcHash": "f18ece26ca85"
+  },
   "designer.step.noScreens": {
     "status": "mt",
     "srcHash": "9cae55812b9f"
@@ -9814,6 +9982,10 @@
   "designer.step.notApplied": {
     "status": "mt",
     "srcHash": "68d1e1222698"
+  },
+  "designer.step.notNamed": {
+    "status": "mt",
+    "srcHash": "ade18486b6da"
   },
   "designer.step.packageAdded": {
     "status": "mt",
@@ -9854,6 +10026,26 @@
   "designer.step.pictureSiteRefused": {
     "status": "mt",
     "srcHash": "f102d9c3797c"
+  },
+  "designer.step.picturesAdded": {
+    "status": "mt",
+    "srcHash": "9167ef578b7b"
+  },
+  "designer.step.picturesDeclined": {
+    "status": "mt",
+    "srcHash": "58553337d0fd"
+  },
+  "designer.step.picturesFailed": {
+    "status": "mt",
+    "srcHash": "abc18db1ee06"
+  },
+  "designer.step.picturesLooking": {
+    "status": "mt",
+    "srcHash": "f25595bd3fb8"
+  },
+  "designer.step.picturesRefused": {
+    "status": "mt",
+    "srcHash": "0466847b444a"
   },
   "designer.step.read": {
     "status": "mt",
@@ -9911,6 +10103,26 @@
     "status": "mt",
     "srcHash": "51e9111b8711"
   },
+  "designer.step.style": {
+    "status": "mt",
+    "srcHash": "644d4ae74815"
+  },
+  "designer.step.styleDone": {
+    "status": "mt",
+    "srcHash": "8d89fcd6b3c7"
+  },
+  "designer.step.styleFailed": {
+    "status": "mt",
+    "srcHash": "7936d30eb29d"
+  },
+  "designer.step.styles": {
+    "status": "mt",
+    "srcHash": "863e59cea903"
+  },
+  "designer.step.stylesDone": {
+    "status": "mt",
+    "srcHash": "2caaa42fcd7e"
+  },
   "designer.step.testing": {
     "status": "mt",
     "srcHash": "bb9c37613a8d"
@@ -9966,6 +10178,66 @@
   "designer.steps.working": {
     "status": "mt",
     "srcHash": "3b4dfc971393"
+  },
+  "designer.style.change": {
+    "status": "mt",
+    "srcHash": "4c15442e9b6b"
+  },
+  "designer.style.changed": {
+    "status": "mt",
+    "srcHash": "a5f6679f23ee"
+  },
+  "designer.style.changing": {
+    "status": "mt",
+    "srcHash": "75d712e7b77d"
+  },
+  "designer.style.failed": {
+    "status": "mt",
+    "srcHash": "42157426e7ba"
+  },
+  "designer.style.finer": {
+    "status": "mt",
+    "srcHash": "aff2ec971336"
+  },
+  "designer.style.fontsLater": {
+    "status": "mt",
+    "srcHash": "d3b0c57a17d0"
+  },
+  "designer.style.fromProject": {
+    "status": "mt",
+    "srcHash": "29d249b5f43c"
+  },
+  "designer.style.inUse": {
+    "status": "mt",
+    "srcHash": "20716e9262a7"
+  },
+  "designer.style.lead": {
+    "status": "mt",
+    "srcHash": "143db22e7b2f"
+  },
+  "designer.style.menu": {
+    "status": "mt",
+    "srcHash": "f73d5913ffcc"
+  },
+  "designer.style.notApplied": {
+    "status": "mt",
+    "srcHash": "dec84d270e8a"
+  },
+  "designer.style.problem": {
+    "status": "mt",
+    "srcHash": "48efff96525e"
+  },
+  "designer.style.showAll": {
+    "status": "mt",
+    "srcHash": "0c4f9e0a2993"
+  },
+  "designer.style.wordsOnly": {
+    "status": "mt",
+    "srcHash": "fbc90a4d12de"
+  },
+  "designer.style.yours": {
+    "status": "mt",
+    "srcHash": "755844bc3946"
   },
   "designer.target.auto": {
     "status": "src",

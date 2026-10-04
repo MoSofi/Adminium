@@ -45,6 +45,56 @@ export interface AttachState {
   hasImage: boolean;
 }
 
+/**
+ * A picture's colours, the most first, as `rrggbb:share` with the share in
+ * thousandths: what the server reads a look from when the picture shows a
+ * design. The picture is drawn small and its colours counted in coarse steps,
+ * so a flat page colour comes out as one colour and a photograph as many.
+ * Empty when the browser cannot draw the picture: the upload goes without.
+ */
+export function paletteFromPixels(data: ArrayLike<number>): string {
+  // Sixteen steps a channel: near colours fall together; each bin keeps the sum of its pixels, to say its mean.
+  const bins = new Map<number, { count: number; r: number; g: number; b: number }>();
+  for (let at = 0; at + 3 < data.length; at += 4) {
+    const [r, g, b] = [data[at] ?? 0, data[at + 1] ?? 0, data[at + 2] ?? 0];
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const bin = bins.get(key) ?? { count: 0, r: 0, g: 0, b: 0 };
+    bin.count += 1;
+    bin.r += r;
+    bin.g += g;
+    bin.b += b;
+    bins.set(key, bin);
+  }
+  const total = data.length / 4;
+  const all = [...bins.values()].map((bin) => ({ r: bin.r / bin.count, g: bin.g / bin.count, b: bin.b / bin.count, share: bin.count / total })).sort((a, b) => b.share - a.share);
+  // What covers the picture, and the strong colours that cover little of it: a button's colour is a few pixels and says the most.
+  const strong = all.filter((colour) => {
+    const max = Math.max(colour.r, colour.g, colour.b);
+    return max >= 60 && (max - Math.min(colour.r, colour.g, colour.b)) / max >= 0.4 && colour.share >= 0.001;
+  });
+  const picked = [...new Set([...all.slice(0, 10), ...strong.slice(0, 6)])].sort((a, b) => b.share - a.share);
+  const hex = (value: number): string => Math.round(value).toString(16).padStart(2, '0');
+  return picked.map((colour) => `${hex(colour.r)}${hex(colour.g)}${hex(colour.b)}:${String(Math.max(1, Math.round(colour.share * 1000)))}`).join(',');
+}
+
+export async function paletteOf(file: Blob): Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const width = Math.min(240, bitmap.width);
+    const height = Math.max(1, Math.min(960, Math.round((bitmap.height / bitmap.width) * width)));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (context === null) return '';
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    return paletteFromPixels(context.getImageData(0, 0, width, height).data);
+  } catch {
+    return '';
+  }
+}
+
 export function useAttach(): AttachState {
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [refused, setRefused] = useState<string | null>(null);
@@ -102,7 +152,7 @@ export function useAttach(): AttachState {
     const ids: string[] = [];
     // The files as they were when the message was sent: one added while they go up waits for the next message.
     for (const entry of [...held.current]) {
-      if (entry.sent?.sessionId !== sessionId) entry.sent = { sessionId, id: (await designerApi.uploadAttachment(sessionId, entry.file)).id };
+      if (entry.sent?.sessionId !== sessionId) entry.sent = { sessionId, id: (await designerApi.uploadAttachment(sessionId, entry.file, entry.kind === 'image' ? await paletteOf(entry.file) : '')).id };
       ids.push(entry.sent.id);
     }
     return ids;

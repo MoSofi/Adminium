@@ -28,7 +28,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { DesignerEvent, DesignerEventBody, DesignerVersion, YourApp } from '../api.js';
+import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, YourApp } from '../api.js';
 
 const spendSound = vi.hoisted(() => ({ playSpendSound: vi.fn() }));
 vi.mock('./spendSound.js', () => spendSound);
@@ -61,7 +61,13 @@ interface Call {
 
 let calls: Call[];
 let yourApps: YourApp[];
-let look: { direction: 'clean' | 'warm' | 'bold' | 'calm' } | null;
+let look: { skill: string; title: string; origin: 'built-in' | 'project' | 'earlier' } | null;
+const STYLES: DesignerStyle[] = [
+  { key: 'clean', title: 'Clean service', description: 'Cool white, slate and a clear blue.', origin: 'built-in', hasTheme: true, hasPreview: false, swatch: { bg: '#f6f7f9', text: '#14171f', accent: '#2f5bea' } },
+  { key: 'warm', title: 'Warm table', description: 'Cream, terracotta and a serif.', origin: 'built-in', hasTheme: true, hasPreview: false, swatch: { bg: '#faf4ea', text: '#2c1d13', accent: '#a04e26' } },
+  { key: 'night', title: 'Night', description: 'Near-black with amber.', origin: 'built-in', hasTheme: true, hasPreview: false, swatch: { bg: '#0e0e12', text: '#f3f1ea', accent: '#f5a524' } },
+  { key: 'house', title: 'House style', description: 'Ours.', origin: 'project', hasTheme: false, hasPreview: false },
+];
 let stored: DesignerEvent[];
 let versions: DesignerVersion[];
 let seq: number;
@@ -119,7 +125,8 @@ beforeEach(() => {
         return Promise.resolve(jsonResponse(200, { runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, designer: { mode: 'local', link: true } }));
       }
       if (url === `/api/v1/designer/sessions/${ID}` && method === 'GET') return Promise.resolve(jsonResponse(200, { session: SESSION, waiting: [], active: false, look }));
-      if (url === `/api/v1/designer/sessions/${ID}/look`) return Promise.resolve(jsonResponse(200, { look: { direction: body?.['direction'] }, version: { n: 2, name: 'v2' }, applied: true }));
+      if (url === `/api/v1/designer/sessions/${ID}/look`) return Promise.resolve(jsonResponse(200, { look: { skill: body?.['skill'], title: 'Warm table', origin: 'built-in' }, version: { n: 2, name: 'v2' }, applied: true }));
+      if (url === '/api/v1/designer/styles') return Promise.resolve(jsonResponse(200, { styles: STYLES }));
       if (url === `/api/v1/designer/sessions/${ID}` && method === 'PATCH') return Promise.resolve(jsonResponse(200, { session: { ...SESSION, ...body }, waiting: [], active: false }));
       if (url.startsWith(`/api/v1/designer/sessions/${ID}/events-since`)) {
         const after = Number(new URL(url, 'http://x').searchParams.get('after'));
@@ -336,25 +343,111 @@ describe('the build page', () => {
     expect(posted('/answers')).toEqual([{ cardId: 'p3', value: { accept: true } }]);
   });
 
-  it('changes the look from under the last turn with no turn started, and says what it was changed to', async () => {
-    look = { direction: 'clean' };
+  it('changes the style from under the last turn with no turn started, and says what it was changed to', async () => {
+    look = { skill: 'clean', title: 'Clean service', origin: 'built-in' };
     stored = finishedTurn();
     await open();
-    await userEvent.click(await screen.findByRole('button', { name: 'Change the look' }));
+    // The button names the style in use.
+    await userEvent.click(await screen.findByRole('button', { name: /^Change the style\s*Clean service$/ }));
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent?.slice(0, 5))).toEqual(['Clean', 'WarmC', 'BoldB', 'CalmS']);
-    await userEvent.click(within(menu).getByRole('menuitem', { name: /^Warm/ }));
-    await waitFor(() => expect(calls.filter((call) => call.url === `/api/v1/designer/sessions/${ID}/look`).map((call) => call.body)).toEqual([{ direction: 'warm' }]));
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Clean serviceCool white, slate and a clear blue.',
+      'Warm tableCream, terracotta and a serif.',
+      'NightNear-black with amber.',
+      // A style of words alone has no values to write: it is asked for in the chat, not picked here.
+      'House styleApplying this one takes a turn: ask for it in the chat.',
+    ]);
+    expect(within(menu).getByRole('menuitem', { name: /^House style/ }).getAttribute('aria-disabled')).toBe('true');
+    expect(within(within(menu).getByRole('menuitem', { name: /^Clean service/ })).getByLabelText('In use')).toBeTruthy();
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /^Warm table/ }));
+    await waitFor(() => expect(calls.filter((call) => call.url === `/api/v1/designer/sessions/${ID}/look`).map((call) => call.body)).toEqual([{ skill: 'warm' }]));
     expect(posted('/turns')).toEqual([]);
-    live(ev(1, { kind: 'look', direction: 'warm' }), ev(1, { kind: 'version', n: 2, name: 'v2' }));
-    expect(await screen.findByText('Look changed to Warm')).toBeTruthy();
+    live(ev(1, { kind: 'style', skill: 'warm', title: 'Warm table', fonts: ['Playfair Display'] }), ev(1, { kind: 'version', n: 2, name: 'v2' }));
+    expect(await screen.findByText('Style changed to Warm table')).toBeTruthy();
+    // Its fonts are not in the project yet: said, so the system's standing in is no surprise.
+    expect(screen.getByText('Its fonts are added when you next send a message.')).toBeTruthy();
 
-    // An app with no screens of its own (or a copy of a published one) is offered no look.
+    // An app with no screens of its own (or a copy of a published one) is offered no style.
     cleanup();
     look = null;
     await open();
     await screen.findByText('I built Repair Desk.');
-    expect(screen.queryByRole('button', { name: 'Change the look' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Change the style/ })).toBeNull();
+  });
+
+  it('asks for everything a design needs on ONE card: a checkbox each, all that Adminium knows ticked, and sends back what stayed ticked', async () => {
+    const items: NeedItem[] = [
+      { id: 'package:react', kind: 'package', name: 'react', version: '19.2.0', role: 'screens' },
+      { id: 'package:tailwindcss', kind: 'package', name: 'tailwindcss', version: '4.3.3', role: 'tailwind' },
+      { id: 'package:lucide-react', kind: 'package', name: 'lucide-react', version: '0.544.0', role: 'icons', why: 'For the menu’s marks.' },
+      { id: 'font:@fontsource/playfair-display', kind: 'font', family: 'Playfair Display', name: '@fontsource/playfair-display', version: '5.2.8', use: 'heading' },
+      { id: 'site:images.example.com', kind: 'picture-site', host: 'images.example.com' },
+      { id: 'package:date-fns', kind: 'package', name: 'date-fns', version: '4.1.0', role: 'other', why: 'Dates.' },
+    ];
+    stored = [ev(1, { kind: 'turn-started', text: 'A restaurant site.' }), ev(1, { kind: 'card', card: { id: 'n1', type: 'needs', items } })];
+    await open();
+    const card = await screen.findByRole('group', { name: 'The design needs a few things. Add them?' });
+    // Told plainly that these are ordinary, and why it asks.
+    expect(card.textContent).toContain('These are common, free and widely used. Adminium asks because it adds nothing to your project without your yes.');
+    const boxes = within(card).getAllByRole('checkbox') as HTMLInputElement[];
+    expect(boxes.map((box) => `${box.checked ? 'x' : ' '} ${box.labels?.[0]?.textContent ?? ''}`)).toEqual([
+      'x react — what the app’s own screens are built with19.2.0',
+      'x Tailwind CSS — a styling toolkit, for a finer design4.3.3',
+      'x lucide-react — a set of icons0.544.0The Designer’s note: For the menu’s marks.',
+      'x Playfair Display — a typeface, for headings5.2.8',
+      'x Pictures from images.example.com — shown straight from that siteThat site then sees each visit to a page that shows its pictures.',
+      // A name only the Designer vouches for: in its own group, said to be unknown, and NOT ticked.
+      '  date-fnsdate-fns 4.1.0The Designer’s note: Dates.',
+    ]);
+    expect(card.textContent).toContain('Adminium does not know these. Add one only if you recognise it.');
+    // The footer: Select all and Deselect all at the start, Send at the end.
+    expect(within(card).getAllByRole('button').map((button) => button.textContent)).toEqual(['Select all', 'Deselect all', 'Send']);
+    await userEvent.click(within(card).getByRole('button', { name: 'Deselect all' }));
+    expect(within(card).getByRole('button', { name: 'Send — add nothing' })).toBeTruthy();
+    await userEvent.click(within(card).getByRole('button', { name: 'Select all' }));
+    expect(boxes.every((box) => box.checked)).toBe(true);
+    await userEvent.click(boxes[5] as HTMLInputElement);
+    await userEvent.click(boxes[4] as HTMLInputElement);
+    await userEvent.click(within(card).getByRole('button', { name: 'Send' }));
+    expect(posted('/answers')).toEqual([{ cardId: 'n1', value: { accept: ['package:react', 'package:tailwindcss', 'package:lucide-react', 'font:@fontsource/playfair-display'] } }]);
+    // Answered, it says what was added and what was left out, by name.
+    live(ev(1, { kind: 'card-answered', id: 'n1', value: { type: 'needs', accept: ['package:react', 'package:tailwindcss', 'font:@fontsource/playfair-display'] } }));
+    await waitFor(() => expect(card.textContent).toContain('Added: react, Tailwind CSS, Playfair Display.'));
+    expect(card.textContent).toContain('Left out: lucide-react, pictures from images.example.com, date-fns.');
+    expect(within(card).queryAllByRole('checkbox')).toEqual([]);
+  });
+
+  it('asks how it should look with the styles that suit, and the rest behind "Show all"', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Something for my team.' }),
+      ev(1, { kind: 'card', card: { id: 's1', type: 'question', question: 'How should it look?', choices: ['clean', 'warm', 'surprise'], style: STYLES.slice(0, 3), more: ['night'] } }),
+    ];
+    await open();
+    const card = await screen.findByRole('group', { name: 'How should it look?' });
+    expect(within(card).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Clean serviceCool white, slate and a clear blue.',
+      'Warm tableCream, terracotta and a serif.',
+      'Show all 3',
+      'Surprise me',
+      'Describe it in my own words',
+    ]);
+    await userEvent.click(within(card).getByRole('button', { name: 'Show all 3' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Night/ }));
+    expect(posted('/answers')).toEqual([{ cardId: 's1', value: { text: 'night' } }]);
+    live(ev(1, { kind: 'card-answered', id: 's1', value: { type: 'question', text: 'night' } }));
+    await waitFor(() => expect(card.textContent).toContain('You answered: Night'));
+
+  });
+
+  it('a question with no choices has no button at all: the answer box is simply there', async () => {
+    stored = [ev(1, { kind: 'turn-started', text: 'A restaurant.' }), ev(1, { kind: 'card', card: { id: 'q9', type: 'question', question: 'What are the opening hours?', choices: [] } })];
+    await open();
+    const plain = await screen.findByRole('group', { name: 'What are the opening hours?' });
+    expect(within(plain).queryAllByRole('button')).toEqual([]);
+    expect(plain.textContent).toContain('Type your answer below.');
+    const box = screen.getByPlaceholderText('Answer the question above…');
+    await userEvent.type(box, 'Noon to ten.{Enter}');
+    expect(posted('/answers').at(-1)).toEqual({ cardId: 'q9', value: { text: 'Noon to ten.' } });
   });
 
   it('says a provider’s own reason when it refused, as text', async () => {

@@ -86,7 +86,7 @@ export function DesignerHome(): ReactNode {
   const start = useMutation({
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
-      const base = { name: nameFromRequest(text), target, connectionId: model.picked.connectionId, model: model.picked.model };
+      const base = { title: nameFromRequest(text), target, connectionId: model.picked.connectionId, model: model.picked.model };
       if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim() });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay

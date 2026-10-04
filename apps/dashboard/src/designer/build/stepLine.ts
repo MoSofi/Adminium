@@ -59,6 +59,27 @@ export function stepLine(row: StepRow): string {
       return running ? t('designer:step.addOns', 'Looking at the add-ons') : t('designer:step.addOnsDone', 'Looked at the add-ons');
     case 'add_side':
       return running ? t('designer:step.side', 'Adding screens') : t('designer:step.sideDone', 'Added screens');
+    case 'name_app':
+      if (running) return t('designer:step.naming', 'Naming the app');
+      return row.state === 'failed' || row.subject === undefined ? t('designer:step.notNamed', 'The app was not named') : t('designer:step.named', 'Named the app {subject}', S);
+    case 'find_pictures':
+      if (running) return t('designer:step.picturesLooking', 'Looking for pictures');
+      switch (row.outcome) {
+        case 'added':
+          return t('designer:step.picturesAdded', 'Pictures added: {count}', { count: row.count ?? 0 });
+        case 'declined':
+          return t('designer:step.picturesDeclined', 'Did without pictures');
+        case 'failed':
+          return t('designer:step.picturesFailed', 'Could not add pictures');
+        default:
+          return t('designer:step.picturesRefused', 'No pictures added');
+      }
+    case 'set_style':
+      if (running) return t('designer:step.style', 'Changing the style');
+      if (row.state === 'failed') return t('designer:step.styleFailed', 'The style was not changed');
+      return row.look === undefined ? t('designer:style.change', 'Change the style') : t('designer:step.styleDone', 'Changed the style to {style}', { style: row.look });
+    case 'list_styles':
+      return running ? t('designer:step.styles', 'Looking at the styles') : t('designer:step.stylesDone', 'Looked at the styles');
     case 'set_look':
       if (running) return t('designer:step.look', 'Changing the look');
       return row.state === 'failed' ? t('designer:step.lookFailed', 'The look was not changed') : t('designer:step.lookDone', 'Changed the look');
@@ -94,6 +115,20 @@ export function stepLine(row: StepRow): string {
           return t('designer:step.addOnRefused', 'No add-on was got');
       }
     case 'request_package':
+      // Everything a step needs, on one card: no one name to say. (A session of before the list named one package.)
+      if (row.subject === undefined) {
+        if (running) return t('designer:step.needsAsking', 'Asking for what the design needs');
+        switch (row.outcome) {
+          case 'added':
+            return t('designer:step.needsAdded', 'Added what the design needs');
+          case 'declined':
+            return t('designer:step.needsNone', 'Did without them');
+          case 'failed':
+            return t('designer:step.needsFailed', 'Could not add what the design needs');
+          default:
+            return t('designer:step.needsRefused', 'Nothing to ask for');
+        }
+      }
       if (running) return t('designer:step.packageAsking', 'Asking to add {subject}', S);
       switch (row.outcome) {
         case 'added':

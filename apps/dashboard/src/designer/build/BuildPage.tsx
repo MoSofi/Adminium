@@ -18,7 +18,7 @@ import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { AttachTray, SentFiles, useAttach, useReadsImages } from '../parts/attach.js';
-import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion, type LookDirection } from '../api.js';
+import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { BuildComposer } from '../parts/BuildComposer.js';
@@ -27,6 +27,9 @@ import {
   FailedNote,
   LimitNote,
   LookChip,
+  NeedsCard,
+  PicturesCard,
+  StyleChip,
   NotAppliedNote,
   AddOnCard,
   PackageCard,
@@ -41,7 +44,7 @@ import {
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
-import { LookMenu } from './LookMenu.js';
+import { StyleMenu } from './LookMenu.js';
 import { SessionMenu } from './SessionMenu.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
@@ -56,8 +59,9 @@ function errorText(error: unknown): string {
   return error instanceof ApiError || error instanceof Error ? error.message : String(error);
 }
 
-function answerOf(value: unknown): { text?: string; accept?: boolean } {
-  return typeof value === 'object' && value !== null ? (value as { text?: string; accept?: boolean }) : {};
+/** A card's answer as it was sent: words, a yes or no, or (the needs card) the ids that were ticked. */
+function answerOf(value: unknown): { text?: string; accept?: boolean | string[] } {
+  return typeof value === 'object' && value !== null ? (value as { text?: string; accept?: boolean | string[] }) : {};
 }
 
 export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
@@ -165,14 +169,16 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     },
     onError: fail(t('designer:build.newSessionFailed', 'The new session could not be started')),
   });
-  // "Change the look": no turn, no model. The server writes it, builds, applies and saves a version.
+  // The styles the menu offers: built in, and the project's own.
+  const styles = useQuery({ queryKey: designerKeys.styles, queryFn: designerApi.styles, staleTime: 60_000 });
+  // "Change the style": no turn, no model. The server writes it, builds, applies and saves a version.
   const look = useMutation({
-    mutationFn: (direction: LookDirection) => designerApi.setLook(sessionId, direction),
+    mutationFn: (skill: string) => designerApi.setLook(sessionId, skill),
     onSuccess: (reply) => {
       refresh();
-      if (!reply.applied) toasts.push({ variant: 'warning', title: t('designer:look.notApplied', 'The look was written, and the app was not applied. The next turn will say why.') });
+      if (!reply.applied) toasts.push({ variant: 'warning', title: t('designer:style.notApplied', 'The style was written, and the app was not applied. The next turn will say why.') });
     },
-    onError: fail(t('designer:look.failed', 'The look could not be changed')),
+    onError: fail(t('designer:style.failed', 'The style could not be changed')),
   });
   const restore = useMutation({
     mutationFn: ({ n, record }: { n: number; record: boolean }) => designerApi.restore(sessionId, n, record),
@@ -274,6 +280,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           {live && turn.usage !== null ? <UsageLine step={turn.usage.step} tokens={turn.usage.tokens} /> : null}
           {turn.cards.map(({ card, answered, answer: given }) => {
             const said = answerOf(given);
+            const yes = typeof said.accept === 'boolean' ? said.accept : undefined;
             if (card.type === 'question') {
               return (
                 <QuestionCard
@@ -290,6 +297,33 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                 />
               );
             }
+            if (card.type === 'needs') {
+              return (
+                <NeedsCard
+                  key={card.id}
+                  card={card}
+                  answered={answered}
+                  closed={!live}
+                  accepted={Array.isArray(said.accept) ? said.accept : undefined}
+                  busy={busy}
+                  onSend={(ids) => answer.mutate({ cardId: card.id, value: { accept: ids } })}
+                />
+              );
+            }
+            if (card.type === 'pictures') {
+              return (
+                <PicturesCard
+                  key={card.id}
+                  card={card}
+                  sessionId={sessionId}
+                  answered={answered}
+                  closed={!live}
+                  accepted={Array.isArray(said.accept) ? said.accept : undefined}
+                  busy={busy}
+                  onSend={(ids) => answer.mutate({ cardId: card.id, value: { accept: ids } })}
+                />
+              );
+            }
             if (card.type === 'package') {
               return (
                 <PackageCard
@@ -297,7 +331,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   card={card}
                   answered={answered}
                   closed={!live}
-                  accepted={said.accept}
+                  accepted={yes}
                   busy={busy}
                   onAdd={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
                   onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
@@ -311,7 +345,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   card={card}
                   answered={answered}
                   closed={!live}
-                  accepted={said.accept}
+                  accepted={yes}
                   busy={busy}
                   onGet={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
                   onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
@@ -325,7 +359,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   card={card}
                   answered={answered}
                   closed={!live}
-                  accepted={said.accept}
+                  accepted={yes}
                   busy={busy}
                   onLoad={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
                   onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
@@ -366,8 +400,9 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate({ message: turn.text ?? '', attachments: turn.attachments.map((file) => file.id) }) : undefined} />
           ) : null}
           {turn.look === null ? null : <LookChip direction={turn.look} />}
+          {turn.style === null ? null : <StyleChip title={turn.style.title} fontsLater={turn.style.fonts.length > 0} />}
           {turn.version === null ? null : <SavedChip name={turn.version.name} />}
-          {last && !live && data?.look != null ? <LookMenu current={data.look.direction} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(direction) => look.mutate(direction)} /> : null}
+          {last && !live && data?.look != null ? <StyleMenu current={data.look} styles={styles.data?.styles ?? []} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(skill) => look.mutate(skill)} /> : null}
         </DesignerMessage>
       </div>
     );

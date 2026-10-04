@@ -114,6 +114,7 @@ function turn(over: Partial<TurnView>): TurnView {
     cards: [],
     version: null,
     look: null,
+    style: null,
     buildFailed: null,
     limit: null,
     error: null,

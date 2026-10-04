@@ -55,6 +55,8 @@ export interface TurnView {
   buildFailed: string | null;
   /** The look chosen from the page after this turn ("Change the look"), newest. */
   look: string | null;
+  /** The style chosen from the page after this turn ("Change the style"), newest; `fonts` are families it names that are asked for with the next message. */
+  style: { title: string; fonts: string[] } | null;
   limit: { which: LimitKind; value: number } | null;
   error: { code: string; message: string; provider?: string; status?: number } | null;
   /** The engine's last word, when it did not apply. */
@@ -83,6 +85,7 @@ function blank(turn: number, at: number): TurnView {
     version: null,
     buildFailed: null,
     look: null,
+    style: null,
     limit: null,
     error: null,
     notApplied: null,
@@ -223,6 +226,9 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         break;
       case 'look':
         turn.look = event.direction;
+        break;
+      case 'style':
+        turn.style = { title: event.title, fonts: event.fonts ?? [] };
         break;
       case 'limit':
         turn.limit = { which: event.which, value: event.value };

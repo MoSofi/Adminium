@@ -168,7 +168,7 @@ describe('sending from Designer Home', () => {
     await userEvent.type(box(), '{Enter}');
     await waitFor(() => expect(created()).toHaveLength(1));
     expect(created()[0]?.body).toEqual({
-      name: 'Repair shop',
+      title: 'Repair shop',
       target: 'auto',
       connectionId: 'env:anthropic',
       model: 'claude-test',

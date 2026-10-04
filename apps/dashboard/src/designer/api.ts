@@ -121,7 +121,21 @@ export interface DesignerAttachment {
 }
 
 export type DesignerCard =
-  | { id: string; type: 'question'; question: string; choices: string[]; /** The look of the app's screens: the choices are directions, worded here. */ look?: true }
+  | {
+      id: string;
+      type: 'question';
+      question: string;
+      choices: string[];
+      /** A session made before styles: the choices are the four looks of then, worded here. */
+      look?: true;
+      /** The style of the app's screens: every style there is, to draw the choices from. `more`: the keys behind "Show all". */
+      style?: StyleChoice[];
+      more?: string[];
+    }
+  /** Everything a step needs from outside the project, on one card: a checkbox each. */
+  | { id: string; type: 'needs'; items: NeedItem[] }
+  /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */
+  | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[] }
   /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */
   | { id: string; type: 'rows'; attachment: string; file: string; table: string; rows: number; left: number; reasons: string[]; mapping: { from: string; to: string }[] }
   | { id: string; type: 'package'; name: string; version: string; why: string; also?: { name: string; version: string }[] }
@@ -134,7 +148,50 @@ export type DesignerCard =
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
     };
 
-/** The four looks an app's own screens can take. */
+/** What a known package is for: its line on the card is worded from this. */
+export type NeedRole = 'screens' | 'public-client' | 'tailwind' | 'icons' | 'ui' | 'other';
+export type NeedItem =
+  | { id: string; kind: 'package'; name: string; version: string; role: NeedRole; why?: string }
+  | { id: string; kind: 'font'; family: string; name: string; version: string; use: 'heading' | 'body' | 'other'; why?: string }
+  | { id: string; kind: 'picture-site'; host: string; why?: string };
+
+export interface PictureGroup {
+  id: string;
+  label: string;
+  shape: 'wide' | 'tall' | 'square';
+  pictures: { id: string; title: string; creator: string; licence: string; source: string }[];
+}
+
+export interface Swatch {
+  bg: string;
+  text: string;
+  accent: string;
+}
+/** A style as a card offers it. */
+export interface StyleChoice {
+  key: string;
+  title: string;
+  description: string;
+  swatch?: Swatch;
+  origin: 'built-in' | 'project';
+}
+/** A style as the list holds it. */
+export interface DesignerStyle extends StyleChoice {
+  /** False for a style of words alone: applying it takes a turn. */
+  hasTheme: boolean;
+  hasPreview: boolean;
+  problem?: string;
+}
+/** The look an app has. `earlier`: kept before styles, drawn as it was until a style is picked. */
+export interface AppLook {
+  skill: string;
+  title: string;
+  origin: 'built-in' | 'project' | 'earlier';
+  accent?: string;
+  swatch?: Swatch;
+}
+
+/** The four looks of before styles: an older session's card still names them. */
 export const LOOK_DIRECTIONS = ['clean', 'warm', 'bold', 'calm'] as const;
 export type LookDirection = (typeof LOOK_DIRECTIONS)[number];
 
@@ -143,7 +200,7 @@ export interface SessionReply {
   waiting: DesignerCard[];
   active: boolean;
   /** The look of the app's own screens, when it can be changed from the page. */
-  look?: { direction: LookDirection; accent?: string } | null;
+  look?: AppLook | null;
 }
 
 export type StepFacts = {
@@ -167,6 +224,7 @@ export type DesignerEventBody =
   | { kind: 'apply'; ok: boolean; state: string; stage?: string; message?: string }
   | { kind: 'version'; n: number; name: string }
   | { kind: 'look'; direction: string }
+  | { kind: 'style'; skill: string; title: string; fonts?: string[] }
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }
@@ -210,14 +268,15 @@ export const designerKeys = {
   apps: ['designer', 'your-apps'] as const,
   catalog: ['designer', 'catalog'] as const,
   models: ['designer', 'models'] as const,
+  styles: ['designer', 'styles'] as const,
   session: (id: string) => ['designer', 'session', id] as const,
   versions: (id: string) => ['designer', 'versions', id] as const,
   architecture: (id: string) => ['designer', 'architecture', id] as const,
 };
 
 /** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
-async function uploadAttachment(sessionId: string, file: File): Promise<DesignerAttachment> {
-  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=${encodeURIComponent(file.name === '' ? 'pasted' : file.name)}`, {
+async function uploadAttachment(sessionId: string, file: File, palette = ''): Promise<DesignerAttachment> {
+  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=${encodeURIComponent(file.name === '' ? 'pasted' : file.name)}${palette === '' ? '' : `&palette=${palette}`}`, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { accept: 'application/json', 'content-type': 'application/octet-stream', ...csrfHeaders() },
@@ -256,12 +315,13 @@ export const designerApi = {
   saveConnection: (draft: ConnectionDraft & { model: string }) => api.put<ModelConnection>(`${BASE}/connections`, draft),
   session: (id: string) => api.get<SessionReply>(`${BASE}/sessions/${id}`),
   patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string }) => api.patch<SessionReply>(`${BASE}/sessions/${id}`, patch),
-  setLook: (id: string, direction: LookDirection) =>
-    api.post<{ look: { direction: LookDirection }; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { direction }),
+  styles: () => api.get<{ styles: DesignerStyle[] }>(`${BASE}/styles`),
+  setLook: (id: string, skill: string) => api.post<{ look: AppLook; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { skill }),
   startTurn: (id: string, text: string, attachments: readonly string[] = []) =>
     api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }) }),
   uploadAttachment,
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
+  pictureThumbUrl: (id: string, shelf: string, picture: string) => `${BASE}/sessions/${id}/picture-thumb/${shelf}/${picture}`,
   readsImages: (connectionId: string, model: string) => api.post<{ readsImages: boolean | null }>(`${BASE}/models/reads-images`, { connectionId, model }),
   stop: (id: string) => api.post<{ stopped: boolean }>(`${BASE}/sessions/${id}/stop`, {}),
   answer: (id: string, cardId: string, value: unknown) => api.post<{ answered: true }>(`${BASE}/sessions/${id}/answers`, { cardId, value }),
@@ -272,7 +332,7 @@ export const designerApi = {
   architecture: (id: string) => api.get<ArchitectureDoc>(`${BASE}/sessions/${id}/architecture`),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
-  createSession: (input: { appKey?: string; name?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
+  createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; text?: string }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
 };
 

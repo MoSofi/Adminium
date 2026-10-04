@@ -8,7 +8,7 @@
 import type { ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
-import type { LookDirection } from '../api.js';
+import type { LookDirection, Swatch } from '../api.js';
 
 export const LOOK_SWATCH: Record<LookDirection, { bg: string; ink: string; accent: string }> = {
   clean: { bg: '#f6f7f9', ink: '#14171f', accent: '#2f5bea' },
@@ -55,6 +55,27 @@ export function LookSwatch({ direction }: { direction: LookDirection }): ReactNo
     <span
       aria-hidden="true"
       style={{ '--look-bg': swatch.bg, '--look-ink': swatch.ink, '--look-accent': swatch.accent }}
+      className="flex h-[30px] w-[42px] shrink-0 flex-col justify-center gap-[3px] rounded-md border border-border-strong bg-[var(--look-bg)] px-[6px]"
+    >
+      <span className="block h-[4px] w-[20px] rounded-full bg-[var(--look-ink)]" />
+      <span className="flex items-center gap-[3px]">
+        <span className="block h-[7px] w-[16px] rounded-[3px] bg-[var(--look-accent)]" />
+        <span className="block h-[3px] w-[8px] rounded-full bg-[var(--look-ink)] opacity-40" />
+      </span>
+    </span>
+  );
+}
+
+/** A small picture of a style: its page, a line of its ink, a dot of its accent. A style of words alone has none: a plain tile. */
+export function StyleSwatch({ swatch }: { swatch?: Swatch | undefined }): ReactNode {
+  if (swatch === undefined) {
+    return <span aria-hidden="true" className="block h-[30px] w-[42px] shrink-0 rounded-md border border-dashed border-border-strong bg-surface-2" />;
+  }
+  // The colours travel as custom properties: they are the style's own, not the dashboard's tokens.
+  return (
+    <span
+      aria-hidden="true"
+      style={{ '--look-bg': swatch.bg, '--look-ink': swatch.text, '--look-accent': swatch.accent }}
       className="flex h-[30px] w-[42px] shrink-0 flex-col justify-center gap-[3px] rounded-md border border-border-strong bg-[var(--look-bg)] px-[6px]"
     >
       <span className="block h-[4px] w-[20px] rounded-full bg-[var(--look-ink)]" />

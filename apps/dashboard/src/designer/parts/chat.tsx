@@ -8,10 +8,16 @@
  * Milo's chat parts are not used: they carry Milo's own turn model (a page's
  * context, option groups, a token hint) and the `assistant` words.
  */
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
   Blocks,
   FileSpreadsheet,
+  ArrowDown,
+  Image as ImageIcon,
+  Plug,
+  Shapes,
+  Type,
+  Wind,
   Check,
   ChevronDown,
   CircleSlash2,
@@ -33,10 +39,10 @@ import {
 } from 'lucide-react';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type SpendMark } from '../api.js';
+import { designerApi, LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type NeedItem, type SpendMark, type StyleChoice } from '../api.js';
 import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
 import type { StepRow } from '../build/turns.js';
-import { lookLine, lookName, LookSwatch } from './look.js';
+import { lookLine, lookName, LookSwatch, StyleSwatch } from './look.js';
 import { Markdown } from './markdown.js';
 
 const SECONDARY = 'inline-flex items-center gap-1.5 rounded-[10px] border border-border-strong bg-surface px-3 py-[7px] text-[12.5px] font-bold text-fg hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50';
@@ -220,6 +226,17 @@ export function LookChip({ direction }: { direction: string }): ReactNode {
   );
 }
 
+/** After "Change the style": what it was changed to, and that its fonts come with the next message when the project lacks them. */
+export function StyleChip({ title, fontsLater }: { title: string; fontsLater: boolean }): ReactNode {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 self-start rounded-full bg-surface-3 px-[9px] py-[3px] text-[11px] font-bold text-fg-muted">
+      <Palette aria-hidden="true" className="size-3" />
+      {t('designer:style.changed', 'Style changed to {style}', { style: title })}
+      {fontsLater ? <span className="font-normal">{t('designer:style.fontsLater', 'Its fonts are added when you next send a message.')}</span> : null}
+    </span>
+  );
+}
+
 function CardShell({
   tone = 'plain',
   icon,
@@ -273,6 +290,7 @@ export function QuestionCard({
   onChoose: (choice: string) => void;
   onOwnWords: () => void;
 }): ReactNode {
+  if (card.style !== undefined) return <StyleQuestion card={card} styles={card.style} answered={answered} answer={answer} busy={busy} onChoose={onChoose} onOwnWords={onOwnWords} />;
   if (card.look === true) {
     // The look of the app's screens: the server asks by direction, and the page says it in its own words.
     return (
@@ -331,11 +349,253 @@ export function QuestionCard({
               ))}
             </div>
           )}
-          <button type="button" onClick={onOwnWords} className="self-start text-[12.5px] font-bold text-accent hover:underline">
-            {t('designer:card.ownWords', 'Answer in my own words')}
-          </button>
+          {card.choices.length === 0 ? (
+            // No choices: the answer box under the chat is simply there, and takes the answer.
+            <p className="m-0 flex items-center gap-1.5 text-[12.5px] text-fg-muted">
+              <ArrowDown aria-hidden="true" className="size-3.5" />
+              {t('designer:card.typeBelow', 'Type your answer below.')}
+            </p>
+          ) : (
+            <button type="button" onClick={onOwnWords} className="self-start text-[12.5px] font-bold text-accent hover:underline">
+              {t('designer:card.ownWords', 'Answer in my own words')}
+            </button>
+          )}
         </>
       )}
+    </CardShell>
+  );
+}
+
+/** "How should it look?": a few styles that suit, the rest behind "Show all", and the person's own words. */
+function StyleQuestion({
+  card,
+  styles,
+  answered,
+  answer,
+  busy,
+  onChoose,
+  onOwnWords,
+}: {
+  card: Extract<DesignerCard, { type: 'question' }>;
+  styles: readonly StyleChoice[];
+  answered: boolean;
+  answer?: string | undefined;
+  busy: boolean;
+  onChoose: (choice: string) => void;
+  onOwnWords: () => void;
+}): ReactNode {
+  const [all, setAll] = useState(false);
+  const byKey = new Map(styles.map((style) => [style.key, style]));
+  const first = card.choices.flatMap((key) => byKey.get(key) ?? []);
+  const rest = (card.more ?? []).flatMap((key) => byKey.get(key) ?? []);
+  const said = answer === undefined || answer === '' ? null : answer === 'surprise' ? t('designer:look.surprise', 'Surprise me') : (byKey.get(answer)?.title ?? answer);
+  return (
+    <CardShell cardId={card.id} icon={<Palette className="size-4" />} title={t('designer:look.question', 'How should it look?')}>
+      {answered ? (
+        <p className="m-0 text-[12.5px] text-fg-muted">{said === null ? t('designer:card.noAnswer', 'No answer was given.') : t('designer:card.youAnswered', 'You answered: {answer}', { answer: said })}</p>
+      ) : (
+        <>
+          <p className="m-0 text-[12.5px] leading-normal text-fg-muted">{t('designer:style.lead', 'Pick a style for the screens people will see. You can change it afterwards.')}</p>
+          <div className="flex flex-col gap-1.5">
+            {[...first, ...(all ? rest : [])].map((style) => (
+              <button
+                key={style.key}
+                type="button"
+                disabled={busy}
+                onClick={() => onChoose(style.key)}
+                className="flex items-center gap-2.5 rounded-[10px] border border-border-strong bg-surface px-2.5 py-2 text-start hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <StyleSwatch swatch={style.swatch} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-[12.5px] font-bold text-fg">{style.title}</span>
+                  <span dir="auto" className="text-[11.5px] leading-snug text-fg-muted">
+                    {style.description}
+                  </span>
+                </span>
+              </button>
+            ))}
+            {rest.length === 0 || all ? null : (
+              <button type="button" onClick={() => setAll(true)} className="self-start text-[12.5px] font-bold text-accent hover:underline">
+                {t('designer:style.showAll', 'Show all {count}', { count: first.length + rest.length })}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <button type="button" disabled={busy} onClick={() => onChoose('surprise')} className={PRIMARY}>
+              {t('designer:look.surprise', 'Surprise me')}
+            </button>
+            <button type="button" onClick={onOwnWords} className="text-[12.5px] font-bold text-accent hover:underline">
+              {t('designer:look.ownWords', 'Describe it in my own words')}
+            </button>
+          </div>
+        </>
+      )}
+    </CardShell>
+  );
+}
+
+/** What a thing on the needs card is, in the page's words: the server sends what it is, never a sentence. */
+function needLine(item: NeedItem): string {
+  if (item.kind === 'picture-site') return t('designer:needs.site', 'Pictures from {host} — shown straight from that site', { host: item.host });
+  if (item.kind === 'font') {
+    if (item.use === 'heading') return t('designer:needs.fontHeading', '{family} — a typeface, for headings', { family: item.family });
+    if (item.use === 'body') return t('designer:needs.fontBody', '{family} — a typeface, for the body text', { family: item.family });
+    return t('designer:needs.font', '{family} — a typeface', { family: item.family });
+  }
+  switch (item.role) {
+    case 'screens':
+      return t('designer:needs.screens', '{name} — what the app’s own screens are built with', { name: item.name });
+    case 'public-client':
+      return t('designer:needs.publicClient', '{name} — lets the public page talk to your Adminium', { name: item.name });
+    case 'tailwind':
+      return t('designer:needs.tailwind', 'Tailwind CSS — a styling toolkit, for a finer design');
+    case 'icons':
+      return t('designer:needs.icons', '{name} — a set of icons', { name: item.name });
+    case 'ui':
+      return t('designer:needs.ui', '{name} — a small helper for the page’s parts', { name: item.name });
+    default:
+      return t('designer:needs.other', '{name}', { name: item.name });
+  }
+}
+
+/** A thing's short name, for "Added: …" and "Left out: …". */
+function needShort(item: NeedItem): string {
+  if (item.kind === 'picture-site') return t('designer:needs.sitePictures', 'pictures from {host}', { host: item.host });
+  if (item.kind === 'font') return item.family;
+  return item.role === 'tailwind' ? 'Tailwind CSS' : item.name;
+}
+
+function NeedIcon({ item }: { item: NeedItem }): ReactNode {
+  const cls = 'mt-[2px] size-3.5 shrink-0 text-fg-subtle';
+  if (item.kind === 'picture-site') return <ImageIcon aria-hidden="true" className={cls} />;
+  if (item.kind === 'font') return <Type aria-hidden="true" className={cls} />;
+  if (item.role === 'public-client') return <Plug aria-hidden="true" className={cls} />;
+  if (item.role === 'tailwind') return <Wind aria-hidden="true" className={cls} />;
+  if (item.role === 'icons') return <Shapes aria-hidden="true" className={cls} />;
+  return <Package aria-hidden="true" className={cls} />;
+}
+
+/** Whether Adminium itself knows the thing: those are offered ticked. A name only the Designer vouches for is not. */
+const knownNeed = (item: NeedItem): boolean => item.kind !== 'package' || item.role !== 'other';
+
+/**
+ * Everything a step needs from outside the project, on one card: a checkbox
+ * each, "Select all" and "Deselect all" at the start of the footer, "Send"
+ * at its end.
+ */
+export function NeedsCard({
+  card,
+  answered,
+  closed = false,
+  accepted,
+  busy,
+  onSend,
+}: {
+  card: Extract<DesignerCard, { type: 'needs' }>;
+  answered: boolean;
+  /** The turn ended without an answer. */
+  closed?: boolean;
+  /** The ids ticked, once answered. */
+  accepted?: readonly string[] | undefined;
+  busy: boolean;
+  onSend: (ids: string[]) => void;
+}): ReactNode {
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set(card.items.filter(knownNeed).map((item) => item.id)));
+  const group = useId();
+  const known = card.items.filter(knownNeed);
+  const unknown = card.items.filter((item) => !knownNeed(item));
+  const toggle = (id: string): void => {
+    setTicked((before) => {
+      const next = new Set(before);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const row = (item: NeedItem): ReactNode => {
+    const on = ticked.has(item.id);
+    const id = `${group}-${item.id}`;
+    return (
+      <li key={item.id} className="flex items-start gap-2.5">
+        <input id={id} type="checkbox" checked={on} disabled={busy} onChange={() => toggle(item.id)} className="mt-[3px] size-3.5 shrink-0 accent-[var(--color-accent)]" />
+        <NeedIcon item={item} />
+        <label htmlFor={id} className={`flex min-w-0 flex-col gap-0.5 text-[12.5px] leading-snug ${on ? 'text-fg' : 'text-fg-muted'}`}>
+          <span>
+            <span className="font-semibold">{needLine(item)}</span>
+            {item.kind === 'picture-site' ? null : (
+              <span dir="ltr" className="ms-1.5 font-mono text-[11px] text-fg-subtle">
+                {item.kind === 'package' && item.role === 'other' ? `${item.name} ` : ''}
+                {item.version}
+              </span>
+            )}
+          </span>
+          {item.kind === 'picture-site' ? <span className="text-[11.5px] text-fg-subtle">{t('designer:needs.siteNote', 'That site then sees each visit to a page that shows its pictures.')}</span> : null}
+          {item.why === undefined ? null : (
+            <span dir="auto" className="text-[11.5px] text-fg-subtle">
+              {t('designer:needs.note', 'The Designer’s note: {why}', { why: item.why })}
+            </span>
+          )}
+        </label>
+      </li>
+    );
+  };
+  const title = t('designer:needs.title', 'The design needs a few things. Add them?');
+  if (answered || closed) {
+    const yes = new Set(accepted ?? []);
+    const added = card.items.filter((item) => yes.has(item.id));
+    const left = card.items.filter((item) => !yes.has(item.id));
+    return (
+      <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={title}>
+        {!answered ? (
+          <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</p>
+        ) : added.length === 0 ? (
+          <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:needs.none', 'You chose to add nothing.')}</p>
+        ) : (
+          <div className="flex flex-col gap-1 text-[12.5px] text-fg-muted">
+            <p dir="auto" className="m-0 font-semibold">
+              {t('designer:needs.added', 'Added: {list}.', { list: added.map(needShort).join(', ') })}
+            </p>
+            {left.length === 0 ? null : (
+              <p dir="auto" className="m-0">
+                {t('designer:needs.left', 'Left out: {list}.', { list: left.map(needShort).join(', ') })}
+              </p>
+            )}
+          </div>
+        )}
+      </CardShell>
+    );
+  }
+  return (
+    <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={title}>
+      {known.length === 0 ? null : (
+        <>
+          <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
+            {t('designer:needs.lead', 'These are common, free and widely used. Adminium asks because it adds nothing to your project without your yes.')}
+          </p>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">{known.map(row)}</ul>
+        </>
+      )}
+      {unknown.length === 0 ? null : (
+        <div className="flex flex-col gap-2 rounded-lg border border-border-strong bg-surface-2 p-2.5">
+          <p className="m-0 text-[12px] font-bold text-fg">{t('designer:needs.unknownHead', 'Asked for by the Designer')}</p>
+          <p className="m-0 text-[12px] leading-normal text-fg-muted">{t('designer:needs.unknownLead', 'Adminium does not know these. Add one only if you recognise it.')}</p>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">{unknown.map(row)}</ul>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button type="button" disabled={busy} onClick={() => setTicked(new Set(card.items.map((item) => item.id)))} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
+            {t('designer:needs.selectAll', 'Select all')}
+          </button>
+          <button type="button" disabled={busy} onClick={() => setTicked(new Set())} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
+            {t('designer:needs.deselectAll', 'Deselect all')}
+          </button>
+        </div>
+        <button type="button" disabled={busy} onClick={() => onSend(card.items.filter((item) => ticked.has(item.id)).map((item) => item.id))} className={PRIMARY}>
+          {busy ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
+          {busy ? t('designer:needs.adding', 'Adding…') : ticked.size === 0 ? t('designer:needs.sendNone', 'Send — add nothing') : t('designer:needs.send', 'Send')}
+        </button>
+      </div>
     </CardShell>
   );
 }
@@ -717,5 +977,116 @@ export function NotAppliedNote({ message }: { message: string }): ReactNode {
       <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
       <span>{t('designer:turn.notApplied', 'This turn’s changes were not applied: {message}', { message })}</span>
     </p>
+  );
+}
+
+const PICTURE_SHAPE: Record<'wide' | 'tall' | 'square', string> = { wide: 'aspect-[16/10]', tall: 'aspect-[4/5]', square: 'aspect-square' };
+
+/**
+ * Free pictures the Designer found, in groups by what each is for: a
+ * checkbox on each, all ticked at first, "None of these" per group, and the
+ * same footer as the needs card. A picture is shown from this server.
+ */
+export function PicturesCard({
+  card,
+  sessionId,
+  answered,
+  closed = false,
+  accepted,
+  busy,
+  onSend,
+}: {
+  card: Extract<DesignerCard, { type: 'pictures' }>;
+  sessionId: string;
+  answered: boolean;
+  /** The turn ended without an answer. */
+  closed?: boolean;
+  accepted?: readonly string[] | undefined;
+  busy: boolean;
+  onSend: (ids: string[]) => void;
+}): ReactNode {
+  const all = card.groups.flatMap((group) => group.pictures.map((picture) => picture.id));
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set(all));
+  const title = t('designer:pictures.title', 'Pictures for the page. Use them?');
+  const icon = <ImageIcon className="size-[15px]" />;
+  if (answered || closed) {
+    const count = (accepted ?? []).length;
+    return (
+      <CardShell cardId={card.id} icon={icon} title={title}>
+        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">
+          {!answered
+            ? t('designer:card.noAnswer', 'No answer was given.')
+            : count === 0
+              ? t('designer:pictures.noneChosen', 'You chose none. The Designer will draw tiles instead.')
+              : t('designer:pictures.added', 'Pictures added: {count}. Their credits are kept with them.', { count })}
+        </p>
+      </CardShell>
+    );
+  }
+  const set = (ids: readonly string[], on: boolean): void => {
+    setTicked((before) => {
+      const next = new Set(before);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+  return (
+    <CardShell cardId={card.id} icon={icon} title={title}>
+      <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
+        {t('designer:pictures.lead', 'Free pictures the Designer found. Tick the ones to use: they are copied into your app, with their credits.')}
+      </p>
+      {card.groups.map((group) => (
+        <div key={group.id} role="group" aria-label={group.label} className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span dir="auto" className="text-[12px] font-bold text-fg">
+              {group.label}
+            </span>
+            <button type="button" disabled={busy} onClick={() => set(group.pictures.map((picture) => picture.id), false)} className="shrink-0 text-[11.5px] font-bold text-accent hover:underline disabled:opacity-50">
+              {t('designer:pictures.noneOfThese', 'None of these')}
+            </button>
+          </div>
+          <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3">
+            {group.pictures.map((picture) => {
+              const on = ticked.has(picture.id);
+              return (
+                <li key={picture.id}>
+                  <label className={`relative flex cursor-pointer flex-col gap-1 rounded-lg border p-1 ${on ? 'border-accent ring-1 ring-accent' : 'border-border-strong opacity-60'}`}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={busy}
+                      onChange={() => set([picture.id], !on)}
+                      aria-label={t('designer:pictures.use', 'Use the picture “{title}” by {creator}', { title: picture.title, creator: picture.creator })}
+                      className="absolute start-2 top-2 size-4 accent-[var(--color-accent)]"
+                    />
+                    <img src={designerApi.pictureThumbUrl(sessionId, card.shelf, picture.id)} alt="" loading="lazy" className={`w-full rounded-md bg-surface-3 object-cover ${PICTURE_SHAPE[group.shape]}`} />
+                    <span dir="auto" className="truncate px-0.5 text-[11px] text-fg-subtle">
+                      {t('designer:pictures.by', '{creator} · {licence}', { creator: picture.creator, licence: picture.licence })}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button type="button" disabled={busy} onClick={() => set(all, true)} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
+            {t('designer:needs.selectAll', 'Select all')}
+          </button>
+          <button type="button" disabled={busy} onClick={() => set(all, false)} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
+            {t('designer:needs.deselectAll', 'Deselect all')}
+          </button>
+        </div>
+        <button type="button" disabled={busy} onClick={() => onSend(all.filter((id) => ticked.has(id)))} className={PRIMARY}>
+          {busy ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
+          {busy ? t('designer:pictures.copying', 'Copying…') : ticked.size === 0 ? t('designer:pictures.sendNone', 'Send — use none') : t('designer:needs.send', 'Send')}
+        </button>
+      </div>
+    </CardShell>
   );
 }
