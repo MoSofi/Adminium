@@ -8,7 +8,7 @@
  * made. The model never applies anything itself; it writes files, and this
  * decides what becomes of them.
  */
-import type { Attachments } from './attachments.js';
+import type { Attachment, Attachments } from './attachments.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -331,22 +331,27 @@ export function createDesigner(host: DesignerHost): Designer {
    * back for the half the person came for. A load that was asked and refused,
    * or that failed, is not said again.
    */
-  const unloadedFiles = (session: DesignerSession): string[] => {
-    if (host.attachments === undefined) return [];
+  /** The CSV files attached to this turn's message whose rows nobody tried to load. */
+  const unloadedCsv = (session: DesignerSession): { messages: import('@adminium/llm').RunMessage[]; files: Attachment[] } => {
+    if (host.attachments === undefined) return { messages: [], files: [] };
     const messages = store.messages(session.id).filter((entry) => entry.turn === session.turns).map((entry) => entry.message);
     const noted = messages.flatMap((message) => (message.role === 'user' ? message.content.flatMap((block) => (block.type === 'text' ? [...block.text.matchAll(/\(attachment (att_[0-9a-f]{20});/g)].map((match) => match[1] as string) : [])) : []));
     const tried = new Set(messages.flatMap((message) => message.content.flatMap((block) => (block.type === 'tool_call' && block.name === 'load_rows' && typeof block.input['attachment'] === 'string' ? [block.input['attachment']] : []))));
-    return [...new Set(noted)]
-      .filter((id) => !tried.has(id))
-      .flatMap((id) => {
-        const entry = host.attachments?.find(session.id, id) ?? null;
-        if (entry === null || entry.kind !== 'csv') return [];
-        const first = `- The person attached "${entry.label}" (${String(entry.rows ?? 0)} rows) and its rows were not loaded: once the app is applied, call load_rows with attachment ${entry.id} for the table the file belongs to (the person is asked first). If its rows belong in no table, say so in a sentence and finish.`;
-        // Said among other things and passed over: said once more, alone in its words, since it is what the person attached the file for.
-        const again = `- "${entry.label}" is still not loaded, and the person attached it to have its rows in the app. Call load_rows now: attachment ${entry.id}, the table, and which CSV column goes to which column. Or say in one sentence why its rows are not loaded.`;
-        const toldFirst = messages.some((message) => message.role === 'user' && message.content.some((block) => block.type === 'text' && block.text.includes(first)));
-        return [toldFirst ? again : first];
-      });
+    const files = [...new Set(noted)].filter((id) => !tried.has(id)).flatMap((id) => {
+      const entry = host.attachments?.find(session.id, id) ?? null;
+      return entry === null || entry.kind !== 'csv' ? [] : [entry];
+    });
+    return { messages, files };
+  };
+  const unloadedFiles = (session: DesignerSession): string[] => {
+    const { messages, files } = unloadedCsv(session);
+    return files.map((entry) => {
+      const first = `- The person attached "${entry.label}" (${String(entry.rows ?? 0)} rows) and its rows were not loaded: once the app is applied, call the tool load_rows with attachment ${entry.id} for the table the file belongs to (the person is asked first). If its rows belong in no table, say so in a sentence and finish.`;
+      // Said among other things and passed over: said once more, alone in its words, since it is what the person attached the file for.
+      const again = `- "${entry.label}" is still not loaded, and the person attached it to have its rows in the app. Call the tool load_rows now (not check_app, not apply_app): attachment ${entry.id}, the table, and which CSV column goes to which column. Or say in one sentence why its rows are not loaded.`;
+      const toldFirst = messages.some((message) => message.role === 'user' && message.content.some((block) => block.type === 'text' && block.text.includes(first)));
+      return toldFirst ? again : first;
+    });
   };
 
   const runner = createDesignerRunner({
@@ -389,6 +394,11 @@ export function createDesigner(host: DesignerHost): Designer {
         ...unnamed,
       ];
     },
+    // What the person is told when the turn ends and a file they attached is still in no table: the model said nothing of it, so the Designer does.
+    closing: (session) =>
+      unloadedCsv(session).files.map(
+        (entry) => `"${entry.label}" was not loaded: its rows are in no table yet. Ask for it again in a message of its own ("load ${entry.label} into …"), or use Import on the table's page in the dashboard.`,
+      ),
     limits: () => host.limits(),
     publish: (event) => {
       host.publish(event);

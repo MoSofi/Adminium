@@ -83,6 +83,8 @@ export interface RunnerDeps {
    * and the check has nothing left.
    */
   advice?(session: DesignerSession): string[];
+  /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
+  closing?(session: DesignerSession): string[];
   /** How long to wait before asking a provider again after it failed in passing; one entry per try. */
   retryWaitsMs?: readonly number[];
   /** The engine's last word: check, build, apply, and save a version. Emits its own events. */
@@ -362,9 +364,14 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             errors.length > 0 && nudges < MAX_NUDGES
               ? `The app does not pass the check yet, so nothing is applied:\n${errors.slice(0, 12).join('\n')}\nFix these, then check_app and apply_app.`
               : missing.length > 0
-                ? `Before you finish:\n${missing.slice(0, 12).join('\n')}\nAdd what is missing, then check_app and apply_app. If one of these is left out on purpose, say so in a sentence and finish.`
+                ? `Before you finish:\n${missing.slice(0, 12).join('\n')}\nDo what each line says: where it names a tool, call that tool; after a change to the app's files, check_app and apply_app. If one of these is left out on purpose, say so in a sentence and finish.`
                 : null;
-          if (sendBack === null) break;
+          if (sendBack === null) {
+            // Left undone and unsaid: said to the person by the Designer itself, as the last words of the turn.
+            const notes = deps.closing?.(session) ?? [];
+            if (notes.length > 0) log.text(turn, `${assistant.content.some((block) => block.type === 'text' && block.text.trim() !== '') ? '\n\n' : ''}${notes.join('\n\n')}`);
+            break;
+          }
           if (errors.length > 0) nudges += 1;
           deps.store.appendMessage(session.id, turn, { role: 'user', content: [{ type: 'text', text: sendBack }] });
           continue;

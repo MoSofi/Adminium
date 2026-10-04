@@ -425,6 +425,40 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(imports.data[0]).toMatchObject({ status: 'succeeded', stats: { inserted: 3 } });
   });
 
+  it('tells the person itself when a file they attached ends the turn in no table and the model said nothing', async () => {
+    const client = await server({ designer: true });
+    script = [writesStarter];
+    const session = (await client.call('POST', '/api/v1/designer/sessions', createBody())).body['session'] as { id: string };
+    await finishedTurn(client, session.id, 1);
+    const sent = await composed!.app.inject({
+      method: 'POST',
+      url: `/api/v1/designer/sessions/${session.id}/attachments?filename=jobs.csv`,
+      headers: { host: HOST, cookie: client.owner, 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('Title,State\nFix the chain,open\nNew tyre,done\n'),
+    });
+    const file = (sent.json() as { attachment: { id: string } }).attachment;
+    // A model that changes a file, is reminded twice, and never loads the rows nor says why.
+    asked = [];
+    script = [
+      () => ({ calls: [{ name: 'write_file', arguments: { path: 'apps/repair-desk/manifest/tables/items.json', content: tableAs('items', 'Job') } }] }),
+      () => ({ text: '' }),
+      () => ({ calls: [{ name: 'check_app', arguments: {} }] }),
+      () => ({ text: '' }),
+      () => ({ text: '' }),
+    ];
+    await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Here are my jobs.', attachments: [file.id] });
+    const events = (await finishedTurn(client, session.id, 2)) as (EventRow & { delta?: string })[];
+    // Reminded once among the rest, then once more in words of its own that name the tool and not the check.
+    const reminders = asked.flatMap((messages) => messages.filter((message) => message.role === 'user' && (message.content ?? '').startsWith('Before you finish:')).map((message) => message.content ?? ''));
+    expect(reminders.some((text) => text.includes('call the tool load_rows with attachment'))).toBe(true);
+    expect(reminders.some((text) => text.includes('Call the tool load_rows now (not check_app, not apply_app)'))).toBe(true);
+    expect(reminders.every((text) => !text.includes('Add what is missing, then check_app'))).toBe(true);
+    // And the person is not left with silence.
+    const words = events.filter((event) => event.kind === 'text').map((event) => event.delta ?? '').join('');
+    expect(words).toContain('"jobs.csv" was not loaded: its rows are in no table yet.');
+    expect(words).toContain('Import on the table\'s page');
+  });
+
   it('send a picture only to a model that reads pictures, and tell another that one was attached', async () => {
     const client = await server({ designer: true });
     script = [writesStarter];
