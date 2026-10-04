@@ -69,6 +69,24 @@ const LOADED_BY_NAME = [
     why: "a project's compiled or plain JavaScript adminium.config file",
   },
   {
+    site: 'apps/server/dist/project/apps/side-build.js',
+    resolves: 'tailwindcss/package.json',
+    loads: [],
+    why: "a project's own Tailwind, found in its node_modules; the CLI does not depend on it",
+  },
+  {
+    site: 'apps/server/dist/project/apps/side-build.js',
+    resolves: 'tailwindcss',
+    loads: [],
+    why: "that Tailwind's entry file",
+  },
+  {
+    site: 'apps/server/dist/project/apps/side-build.js',
+    arg: 'pathToFileURL(tailwind.entry).href',
+    loads: [],
+    why: "a project's own Tailwind, found in its node_modules after its package.json is checked; the CLI does not depend on it",
+  },
+  {
     site: 'apps/server/dist/project/code/load.js',
     arg: 'url',
     loads: [],
