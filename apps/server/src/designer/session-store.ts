@@ -46,6 +46,10 @@ export interface DesignerSession {
   createdApp: boolean;
   /** A person gave the session its title: it no longer follows the app's name. */
   titled?: boolean;
+  /** The Designer gave the app its name (and its key was made from it): asked once, before anything is written. */
+  named?: boolean;
+  /** The style the person picked when they started, a design skill's key; absent when they left it to the Designer. */
+  style?: string;
   /** Tokens spent across the session, for its ceiling. */
   tokens: { in: number; out: number };
 }

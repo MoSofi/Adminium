@@ -26,7 +26,7 @@ export const designerSession = z.object({
 });
 
 /** A card as the page draws it. Its fields depend on its type. */
-export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'add-on', 'rows', 'removal']) }).passthrough();
+export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'needs', 'pictures', 'add-on', 'rows', 'removal']) }).passthrough();
 
 /** An event as the page reads it. Its fields depend on its kind. */
 export const designerEvent = z.object({ seq: z.number().int(), turn: z.number().int(), at: z.number(), kind: z.string() }).passthrough();
@@ -64,28 +64,55 @@ export const designerAppsReply = z.object({
 export const designerSessionCreateBody = z.object({
   appKey: z.string().max(80).optional(),
   name: z.string().max(80).optional(),
+  /** The session's title until the Designer names the app: the first words of the request. */
+  title: z.string().max(80).optional(),
   target: target.default('auto'),
   connectionId: z.string().max(64),
   model: z.string().min(1).max(200),
+  /** A style picked at the start, a design skill's key; left out to let the Designer choose. */
+  style: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/).optional(),
   /** The first message. Without it the session opens with no turn: "Continue" on an app no session built. */
   text: z.string().min(1).max(20_000).optional(),
 });
 
-const lookDirection = z.enum(['clean', 'warm', 'bold', 'calm']);
+const styleKey = z.string().regex(/^[a-z][a-z0-9-]{1,39}$/);
+const swatch = z.object({ bg: z.string(), text: z.string(), accent: z.string() });
+/** A look as the page is told it. `earlier`: kept before styles, drawn as it was until a style is picked. */
+const publicLook = z.object({ skill: z.string(), title: z.string(), origin: z.enum(['built-in', 'project', 'earlier']), accent: z.string().optional(), swatch: swatch.optional() });
 
 export const designerSessionReply = z.object({
   session: designerSession,
   waiting: z.array(designerCard),
   active: z.boolean(),
   /** The look of the app's own screens, when it can be changed from the page; null for an app with no screens, or a copy of a published one. */
-  look: z.object({ direction: lookDirection, accent: z.string().optional() }).nullable(),
+  look: publicLook.nullable(),
 });
 
-export const designerLookBody = z.object({ direction: lookDirection, accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() });
+/** `direction` is the name this took before styles: read as the style of that name. */
+export const designerLookBody = z
+  .object({ skill: styleKey.optional(), direction: z.enum(['clean', 'warm', 'bold', 'calm']).optional(), accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() })
+  .refine((body) => body.skill !== undefined || body.direction !== undefined, { message: 'Give a style.' });
 export const designerLookReply = z.object({
-  look: z.object({ direction: lookDirection, accent: z.string().optional() }),
+  look: publicLook,
   version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
   applied: z.boolean(),
+});
+
+export const designerStylesReply = z.object({
+  styles: z.array(
+    z.object({
+      key: z.string(),
+      title: z.string(),
+      description: z.string(),
+      origin: z.enum(['built-in', 'project']),
+      /** False for a style of words alone: applying it takes a turn. */
+      hasTheme: z.boolean(),
+      hasPreview: z.boolean(),
+      swatch: swatch.optional(),
+      /** Why it cannot be used, in a sentence. */
+      problem: z.string().optional(),
+    }),
+  ),
 });
 
 export const designerSessionCreateReply = z.object({ session: designerSession, turn: z.number().int().nullable() });
@@ -111,8 +138,16 @@ export const designerAttachment = z.object({
   rows: z.number().int().optional(),
   columns: z.array(z.string()).optional(),
 });
-export const designerAttachmentQuery = z.object({ filename: z.string().min(1).max(300) });
+export const designerAttachmentQuery = z.object({
+  filename: z.string().min(1).max(300),
+  /** A picture's colours as the page read them: `rrggbb:share` (share in thousandths), the most first. */
+  palette: z
+    .string()
+    .regex(/^[0-9a-f]{6}:\d{1,4}(,[0-9a-f]{6}:\d{1,4}){0,15}$/)
+    .optional(),
+});
 export const designerAttachmentParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), attachment: z.string().regex(/^att_[0-9a-f]{20}$/) });
+export const designerPictureThumbParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), shelf: z.string().regex(/^shelf_[0-9a-f]{16}$/), picture: z.string().regex(/^pic_[0-9a-f]{12}$/) });
 export const designerAttachmentReply = z.object({ attachment: designerAttachment });
 export const designerReadsImagesBody = z.object({ connectionId: z.string().min(1).max(200), model: z.string().min(1).max(200) });
 export const designerReadsImagesReply = z.object({ readsImages: z.boolean().nullable() });

@@ -113,6 +113,10 @@ import { createVersions } from './designer/versions.js';
 import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
+import { createNeedsAsker } from './designer/ask-needs.js';
+import { createRegistry } from './designer/registry.js';
+import { createPictureShelf, openverse, pexels, type PictureSource } from './designer/pictures.js';
+import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
 import { createLive } from './designer/live.js';
@@ -2040,10 +2044,30 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 });
               },
             });
+        // A package's newest version, asked of the registry the project installs from; nothing is asked where this server calls nothing outside.
+        const designerRegistry = createRegistry({ root, allowed: () => addOnCatalog.networkFeaturesAllowed() });
+        const designerNeeds = createNeedsAsker({ root, version: APP_VERSION, newestVersion: designerRegistry, ...(pictureSites === undefined ? {} : { pictureSites }) });
+        // Free pictures for an app's pages: Pexels with the project's own key, else Openverse; none where this server calls nothing outside.
+        const designerShelf = createPictureShelf();
+        const pictureSource = (): PictureSource | null => {
+          if (!addOnCatalog.networkFeaturesAllowed()) return null;
+          const key = (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '').trim();
+          return key === '' ? openverse() : pexels(key);
+        };
         designer = createDesigner({
           root,
           version: APP_VERSION,
           meta,
+          needs: designerNeeds,
+          findsPictures: () => pictureSource() !== null,
+          reseedSample: async (key) => {
+            const target = await findSampleApp(meta, key);
+            if (target === null) return;
+            const samples = createSampleDataService(sampleDataDeps);
+            // Rows a person changed since stay theirs; the rest go and come back as the files now have them.
+            await samples.remove(target, { keepChanged: true, userId: null, userLabel: 'Adminium Designer' });
+            await samples.add(target, { locale: 'en-US', userId: null, userLabel: 'Adminium Designer' });
+          },
           ...(pictureSites === undefined ? {} : { pictureSites }),
           connections: aiConnections,
           projectApps: () => projectApps,
@@ -2091,6 +2115,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             attachments: designerAttachments,
             // A model that could not be asked is sent no picture: a request refused for one would end the turn.
             readsImages: (session) => aiConnections.readsImages(session.connectionId as Parameters<typeof aiConnections.readsImages>[0], session.model).catch(() => null),
+            needsName: (session) => designer?.needsName(session) === true,
           }),
           attachments: designerAttachments,
           tools: (session) =>
@@ -2115,6 +2140,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 attachments: designerAttachments,
                 rowLoader: designerRows,
                 ...(pictureSites === undefined ? {} : { pictureSites }),
+                newestVersion: designerRegistry,
+                pictures: { source: pictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
               },
               session.appKey,
@@ -2127,6 +2154,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             connections: aiConnections,
             mode: designerOpts.mode,
             attachments: designerAttachments,
+            pictures: designerShelf,
             ...(live === null ? {} : { live }),
             root,
             limits,

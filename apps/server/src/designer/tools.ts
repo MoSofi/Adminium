@@ -24,13 +24,16 @@
  * server code is written, only after the person said yes in that turn. A bad
  * input is an answer the model can read and fix, never a crash of the turn.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 import { checkApp } from '../project/apps/check-app.js';
-import { applyLook, cleanLook, directionForBusiness, directionFromWords, DIRECTIONS, isDirection, LOOK_DIRECTIONS, mentionsLook, readLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
+import { applyLook, cleanLook, directionFromWords, mentionsLook, missingFonts, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { cleanThemePatch, mergePatches, themeFromPalette } from '../project/apps/theme.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
-import { addSide, nameFromKey, PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
+import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
 import type { AppSide } from '../project/apps/read-app.js';
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
@@ -45,6 +48,9 @@ import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
+import { creditOf, downloadPicture, PICTURE_SHAPES, PICTURES_PER_CALL, PICTURES_PER_NEED, type FoundPicture, type PictureCredit, type PictureShape, type PictureShelf, type PictureSource } from './pictures.js';
+import { createNeedsAsker, screenWants, type NeedsDeps } from './ask-needs.js';
+import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, type Wanted } from './needs.js';
 import type { Designer } from './service.js';
 import type { Skills } from './skills.js';
 import type { DesignerTool, PictureSites, ToolContext, ToolOutcome } from './tool-types.js';
@@ -88,10 +94,22 @@ export interface ToolsDeps {
   mode?: 'local' | 'live';
   /** The sites this server lets pages load pictures from. Absent in a harness with no policy. */
   pictureSites?: PictureSites;
+  /** The newest version of an npm package (null: the registry has none; a throw: it could not be asked). Absent in a harness that adds only what this server knows the version of. */
+  newestVersion?: (name: string, signal?: AbortSignal) => Promise<string | null>;
+  /** Where the built-in styles are; found beside the engine when left out. */
+  stylesDir?: string | null;
+  /** Adding packages to the project; the project's own package manager when left out. */
+  install?: NeedsDeps['install'];
+  /** Looking for free pictures. Absent where this Designer cannot (a harness, a server that calls nothing outside). */
+  pictures?: {
+    /** The source to search; null where this server is set to call nothing outside itself. */
+    source(): PictureSource | null;
+    shelf: PictureShelf;
+    download?: typeof downloadPicture;
+    /** The app's sample rows are in already: once the app is next applied, they are added again with their pictures. */
+    reseed?(appKey: string): void;
+  };
 }
-
-/** A host a picture may come from: names with a dot, no wildcard, no port, no address. */
-const PICTURE_HOST = /^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/;
 
 const text = (content: string, label: string, extra: Partial<ToolOutcome> = {}): ToolOutcome => ({ content, label, ...extra });
 const refused = (content: string, label: string): ToolOutcome => ({ content, label, isError: true });
@@ -100,24 +118,10 @@ const str = (input: Record<string, unknown>, key: string): string | null => (typ
 const int = (input: Record<string, unknown>, key: string): number | null =>
   typeof input[key] === 'number' && Number.isInteger(input[key]) && (input[key] as number) >= 0 ? (input[key] as number) : null;
 
-/** npm's own rule for a package name, scoped or not. */
-const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
-/** An exact version: no range, no tag, no URL. */
-const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+export { DESIGNER_REACT_VERSION };
 
-/** The React an app's screens are built with here. */
-export const DESIGNER_REACT_VERSION = '19.2.0';
-
-/**
- * The packages a screen needs, at the one version this server knows is right.
- * A model guesses versions (the evaluation saw six for the public client); for
- * these the guess is replaced, so the person is asked once, for the right one.
- */
-export function knownPackageVersion(name: string, serverVersion: string): string | null {
-  if (name === PUBLIC_CLIENT_PACKAGE) return serverVersion;
-  if (name === 'react' || name === 'react-dom') return DESIGNER_REACT_VERSION;
-  return null;
-}
+/** The one version this server knows is right for a package of the screens (React, the public client); null for any other. */
+export const knownPackageVersion = fixedVersion;
 
 /** What a side's screens need in the project and do not find there: react, react-dom, and the public client for a customer side. */
 export function missingScreenPackages(root: string, side: AppSide, serverVersion: string): { name: string; version: string }[] {
@@ -134,14 +138,18 @@ export function missingScreenPackages(root: string, side: AppSide, serverVersion
     .map((name) => ({ name, version: knownPackageVersion(name, serverVersion) ?? '' }));
 }
 
-/** The parts a starter screen is drawn with, for whoever rewrites it. */
-export const LOOK_PARTS = `The screen is drawn with made parts: class names in src/app.css, coloured by src/theme.css. Use them; do not write inline styles or a stylesheet of your own for what a part already does.
-- Page: "page" (add "narrow" for one column), "site-header" with "brand" and "brand-mark", "hero" with "eyebrow", an h1 and "lead", "section" with "section-head", "layout" (a wide column and an "aside" that stays in view), "site-footer".
-- Things on offer: "grid" of "card"s, each with "card-media", "card-title", "card-row", "price"; "stepper" for a quantity; "summary" with a "total" line for what was chosen.
-- Forms: "form" of "field"s (a label, then the input, then an optional "hint"); "btn btn-primary" for the one main action, "btn" and "btn btn-quiet" for the rest, "btn-small", "btn-block".
-- What the page says back: "notice ok" after sending, "notice error" for a problem, "empty" (a strong line and a sentence) where a list has nothing, "badge" with "accent", "good", "warn" or "bad" for a status.
-- For staff: "toolbar", "list" of "list-row"s, or a "board" of "column"s holding cards; "row" to put things side by side; "muted", "small".
-A page people see has the business's name in its header, a first line that says what the page is for, and one clear main button. Write real words for this business, not placeholders.`;
+/** The parts a starter screen is drawn with, and how a screen is designed on top of them. */
+export const LOOK_PARTS = `How the screens are styled. Four stylesheets, loaded for you in this order (do not import them):
+- src/theme.css: the look's values (colours, the two fonts, sizes, spacing, corners). The server writes it; change it with set_style, never by hand.
+- src/app.css: made parts, listed below. Use one when it fits.
+- src/design.css: YOURS. Write here every class of your own, and any change to a made part. Every class a screen uses must exist in app.css or design.css (or be a Tailwind class, when Tailwind is on): a class nothing defines is refused by the check.
+- In design.css use the theme's values only: var(--bg) var(--surface) var(--surface-2) var(--text) var(--muted) var(--line) var(--accent) var(--accent-ink) var(--accent-2) var(--band) var(--band-ink), var(--font-display) var(--font-body), var(--text-sm) … var(--text-4xl), var(--space-1) … var(--space-8), var(--radius) var(--radius-sm) var(--radius-lg), var(--shadow) var(--shadow-lg). Never a colour value, never a font's name.
+The made parts of app.css:
+- Page: "page" (add "narrow" for one column), "site-header" with "brand", "logo" and "site-nav" (links, then the main button), "hero" with "eyebrow", an h1 and "lead" (add "split" and a "media hero-media" picture for words beside a picture), "section-title" (a heading with a mark above it), "section", "layout" (a wide column and an "aside"), "band" (a stretch in another colour, edge to edge) with "quote", "facts" (hours, address, phone side by side), "footer-cols".
+- Things on offer: "grid" of "card"s, each with "card-media", "card-title", "card-row", "price"; "item-list" of "item-row"s (an "item-thumb" picture, "item-body" with a strong name and a span, then the "price") for a menu or a price list; "strip" for a row of pictures; "media" (with "wide", "square" or "tall") gives any picture a fixed shape.
+- Forms: "form" of "field"s (a label, then the input, then an optional "hint"); "btn btn-primary" for the one main action, "btn" and "btn btn-quiet" for the rest, "btn-small", "btn-block"; "stepper"; "summary" with a "total" line.
+- What the page says back: "notice ok" after sending, "notice error" for a problem, "empty" where a list has nothing, "badge" with "accent", "good", "warn" or "bad".
+- For staff: "toolbar", "list" of "list-row"s, or a "board" of "column"s holding cards; "row", "muted", "small", "icon".`;
 
 /** An app manifest's own build command is set by a person (D33): refused when the model writes one. */
 function addsBuildCommand(path: string, content: string, appKey: string): boolean {
@@ -224,6 +232,34 @@ function nearestIndex(skills: Skills, name: string): { skill: string; text: stri
   return null;
 }
 
+/** What to do after a side is added: the order of the work, for the model. */
+export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boolean; icons: boolean; picture: boolean; colours?: boolean }): string {
+  const app = `apps/${appKey}`;
+  const how = opts.tailwind
+    ? 'Tailwind is on: style with Tailwind classes in the screen, with the theme\'s names (bg-bg bg-surface bg-surface-2 bg-accent bg-accent-2 bg-band text-text text-muted text-accent text-accent-ink text-band-ink border-line font-display font-body rounded-theme shadow-theme), and put in design.css only what classes cannot say, as plain CSS with the theme\'s values. Never a palette colour of Tailwind\'s own (bg-red-500): the theme\'s names only. For a dialog, tabs, an accordion or form controls, add_ui_part copies ready ones into src/ui/.'
+    : 'Tailwind is not in this project: style with the made parts and your own classes in design.css. Use no Tailwind class.';
+  const marks = opts.icons ? 'Icons: import each from "lucide-react" (import { Clock } from \'lucide-react\'), one size on a screen.' : 'Icons: a small inline SVG each. There is no icon package.';
+  const first = opts.picture
+    ? opts.colours
+      ? `The person showed a picture of the look they want, and its colours are already in the theme. Write the brief: ${app}/design.md, with the picture's sections in its order and its kind of layout (what is beside what, what is in a row, where the coloured band is).`
+      : `The person showed a picture of the look they want. Read its colours and call set_style with a "theme" FIRST: {"light": {"bg": the page's background, "surface": its cards, "text": its text, "accent": the colour of its buttons, "accent2": its second colour, "band": the colour of its coloured section}} as #rrggbb, and "radius" for its corners. Then write the brief: ${app}/design.md, with the picture's sections in its order.`
+    : `Write the brief: ${app}/design.md. If the person named colours, call set_style with a "theme" that has them.`;
+  return `Now, in this order:
+1. ${first} The brief says: who the page is for, the feeling in three words, the style and what you change in it, the sections of the first page in order, what the pictures show, the logo's idea.
+2. ${
+    side === 'customer'
+      ? `Pictures: call find_pictures ONCE for every picture the brief names. For the page (the first screen, a strip of the place): "for": "page". For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true }) and ask "for": "rows" with the table and the column. Without find_pictures a page has only tiles.\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
+      : ''
+  }Read ${app}/${side}/src/App.tsx and write it again for this app's tables, keeping the way it loads, lists, sends and reports errors, and DESIGN it to the brief: ${side === 'customer' ? 'a header with the logo and links, a first screen that says what the business is, what is on offer, why to trust it, the form, a footer.' : 'the work first: a plain header, the list or board staff work from, clear status marks.'}
+${side === 'customer' ? '4' : '3'}. Write ${app}/${side}/src/design.css for every class of your own.${side === 'customer' ? ` Write the logo at exactly ${app}/assets/logo.svg (a simple mark with a viewBox and its colour written as a value, e.g. the accent's #rrggbb: a picture shown with <img> cannot read var(--…); no text, no script, no outside address) and show it in the header: in ${side}/src/App.tsx, import logo from '../../assets/logo.svg', then <img className="logo" src={logo} alt="" />.` : ''}
+${side === 'customer' ? '5' : '4'}. build_sides.
+${how}
+${marks} Never an emoji as an icon.${opts.icons ? ' lucide-react has no brand logos (no Facebook, Instagram, Twitter, Linkedin, Youtube): for a social link write its name as text.' : ''}
+A public page uses "page" alone for its width; "page narrow" is for a page that is only a form.
+
+${LOOK_PARTS}`;
+}
+
 export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTool[] {
   const jail: Jail = createJail(deps.root, appKey);
   const shown = (path: string): string => {
@@ -244,14 +280,18 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     }
   };
 
-  /** Add packages to the project, exact versions, no install scripts. Null when it worked; else what the manager said. */
-  const installPackages = async (specs: readonly { name: string; version: string }[], signal: AbortSignal): Promise<string | null> => {
-    const manager = projectPackageManager(deps.root, {});
-    const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
-    const args = [manager === 'npm' ? 'install' : 'add', ...specs.map((spec) => `${spec.name}@${spec.version}`), '--ignore-scripts', exact];
-    const result = await runChild(manager, args, { cwd: deps.root, timeoutMs: INSTALL_TIMEOUT_MS, signal });
-    return result.code === 0 ? null : `${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`;
-  };
+  const stylesDir = deps.stylesDir === undefined ? builtInStylesDir() : deps.stylesDir;
+  const places = { builtInDir: stylesDir };
+  /** The styles a person can pick: built in, and the project's own. */
+  const styles = (): DesignSkill[] => listDesignSkills(deps.root, stylesDir).filter((skill) => skill.problem === undefined);
+  const askNeeds = createNeedsAsker({
+    root: deps.root,
+    version: deps.version,
+    stylesDir,
+    ...(deps.pictureSites === undefined ? {} : { pictureSites: deps.pictureSites }),
+    ...(deps.newestVersion === undefined ? {} : { newestVersion: deps.newestVersion }),
+    ...(deps.install === undefined ? {} : { install: deps.install }),
+  });
 
   /** What the person wrote in this session: the first message of each turn. Never the engine's own notes to the model. */
   const personWords = (sessionId: string): string => {
@@ -266,42 +306,86 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     return out.join(' ');
   };
 
+  /** The four looks of before styles, as words point to them: the base when a person describes a look and names no business. */
+  const styleFromWords = (all: readonly DesignSkill[], words: string): DesignSkill | null => all.find((skill) => skill.key === directionFromWords(words)) ?? null;
+
   /**
-   * The look of the app's screens, chosen once (D106). When the person said
-   * something about it, their words decide; otherwise they are asked, with
-   * four directions and "Surprise me". It is the server that asks, so the
-   * question is the same on every model.
+   * The style of the app's screens, chosen once, by the server and not by the
+   * model, so it is the same on every model. In order: the style the person
+   * named; the style that suits the kind of business; the nearest to what
+   * they said about the look (or showed in a picture); and only when nothing
+   * says anything, a card.
    */
-  const chooseLook = async (ctx: ToolContext): Promise<{ look: Look; how: string }> => {
+  const chooseStyle = async (ctx: ToolContext): Promise<{ look: Look; how: string }> => {
     const kept = readLook(deps.root, appKey);
     if (kept !== null) return { look: kept, how: 'chosen earlier' };
+    const all = styles();
     const said = personWords(ctx.session.id);
-    let look: Look;
-    let how: string;
-    if (mentionsLook(said)) {
-      look = cleanLook({ direction: directionFromWords(said), words: said });
-      how = 'read from what the person wrote about the look';
-    } else {
-      const answer = await ctx.ask({ type: 'question', question: 'How should it look?', choices: [...LOOK_DIRECTIONS, 'surprise'], look: true });
+    const picked = ctx.session.style === undefined ? null : (all.find((skill) => skill.key === ctx.session.style) ?? null);
+    const pictures = (deps.attachments?.list(ctx.session.id) ?? []).filter((entry) => entry.kind === 'image');
+    const showedPicture = pictures.length > 0;
+    // The colours of the picture they showed, read by the page that sent it: the same on every model, one that reads pictures or not.
+    const fromPicture = pictures.map((entry) => themeFromPalette(entry.palette ?? [])).find((patch) => patch !== null) ?? null;
+    let skill: DesignSkill | null = picked ?? styleNamed(all, said);
+    let how = 'the person picked it';
+    let words: string | undefined;
+    if (skill === null) {
+      skill = styleForBusiness(all, said);
+      how = 'picked for this kind of business. Tell the person in one sentence which style you took and that they can change it';
+      // Their own words about the look ride along either way: the brief is written from them.
+      if (mentionsLook(said)) words = said;
+    }
+    if (skill === null && (mentionsLook(said) || showedPicture)) {
+      skill = styleFromWords(all, said);
+      how = showedPicture ? 'the nearest to what the person showed and said: it is only the base, and the brief follows their picture' : 'the nearest to what the person wrote about the look';
+      words = said;
+    }
+    if (skill === null && all.length > 0) {
+      const offer = stylesToOffer(all, said, 4);
+      const card = (entry: DesignSkill): { key: string; title: string; description: string; swatch?: { bg: string; text: string; accent: string }; origin: 'built-in' | 'project' } => ({
+        key: entry.key,
+        title: entry.title,
+        description: entry.description,
+        origin: entry.origin,
+        ...(entry.swatch === undefined ? {} : { swatch: entry.swatch }),
+      });
+      const answer = await ctx.ask({
+        type: 'question',
+        question: 'How should it look?',
+        choices: [...offer.map((entry) => entry.key), 'surprise'],
+        style: all.map(card),
+        more: all.filter((entry) => !offer.includes(entry)).map((entry) => entry.key),
+      });
       const given = answer.type === 'question' ? answer.text.trim() : 'surprise';
-      if (isDirection(given)) {
-        look = { direction: given };
+      const chosen = all.find((entry) => entry.key === given) ?? null;
+      if (chosen !== null) {
+        skill = chosen;
         how = 'the person chose it';
       } else if (given === 'surprise') {
-        look = { direction: directionForBusiness(said) };
-        how = 'the person left it to you; it was picked for this kind of business';
+        skill = all[0] ?? null;
+        how = 'the person left it to you';
       } else {
-        look = cleanLook({ direction: directionFromWords(`${given} ${said}`), words: given });
+        skill = styleNamed(all, given) ?? styleForBusiness(all, given) ?? styleFromWords(all, `${given} ${said}`);
         how = 'read from the person’s own words about the look';
+        words = given;
       }
     }
-    applyLook(deps.root, appKey, look);
-    return { look, how };
+    const look = cleanLook({ skill: skill?.key ?? DEFAULT_LOOK.skill, words, ...(fromPicture === null ? {} : { theme: fromPicture }) });
+    applyLook(deps.root, appKey, look, places);
+    return { look, how: fromPicture === null ? how : `${how}; its colours were read from the picture the person showed and are already set, so call set_style for a colour only where the picture clearly differs` };
   };
 
-  /** A look in a sentence, for the model. The person's words are data. */
-  const lookLine = (look: Look, how: string): string =>
-    `The look is "${look.direction}" (${how}). ${DIRECTIONS[look.direction].line}${look.words === undefined ? '' : ` What the person said about it, as data: "${look.words}".`} Its colours and type are in src/theme.css of each side: to change the look, call set_look or change values there, never restyle part by part.`;
+  /** A look in a few sentences, for the model. The person's words are data. */
+  const styleLine = (look: Look, how: string): string => {
+    const resolved = resolveLook(deps.root, look, places);
+    return `The style is "${resolved.title}" (${how}). ${resolved.line}${look.words === undefined ? '' : ` What the person said about the look, as data: "${look.words}".`} Its values are in src/theme.css of each side, written by the server: to change a colour, a font or the style itself call set_style, never edit theme.css.`;
+  };
+
+  /** A new app is named before anything is written: its key, and so every path and every table's name, is made from the name. */
+  const unnamed = (ctx: ToolContext): ToolOutcome | null =>
+    deps.designer().needsName?.(ctx.session) === true
+      ? refused('Call name_app first, alone: give the app the name the business would use (two or three words, like "Crispy Bites" or "Cake Orders"). Its folder is made from that name, and nothing can be written before it.', 'The app has no name yet')
+      : null;
 
   /** The last text refused as invalid JSON, by file: the same text again is said to be the same. */
   const refusedJson = new Map<string, string>();
@@ -313,8 +397,6 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
   const buildCode = new Map<string, 'allowed' | 'refused'>();
   const RUN_THEM = 'Run them';
   const ALLOW_IT = 'Allow it';
-  /** What was said to a picture site, by turn: asked once, and a no is kept. */
-  const pictureAnswers = new Map<string, 'yes' | 'no'>();
   /** The app's pictures from sites this server does not let through, as lines for the model. */
   const pictureLines = (): string[] =>
     deps.pictureSites === undefined || hasOwnBuild(deps.root, appKey)
@@ -562,7 +644,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         if (path === null || content === null) return refused('Give "path" and "content".', 'Wrote nothing');
         // An earlier step of this conversation, shown cut short, copied back as if it were the file.
         if (FOLDED_MARK.test(content)) return refused('That is a shortened copy of an earlier step, not the file: it ends in "… (N more characters …)". read_file gives the whole file; then write all of it.', 'Wrote nothing');
-        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
@@ -601,7 +683,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
         if (FOLDED_MARK.test(after) || FOLDED_MARK.test(before)) return refused('That is a shortened copy of an earlier step, not the file\'s words: it ends in "… (N more characters …)". read_file gives the file as it is; edit from that.', 'Edited nothing');
-        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
@@ -848,6 +930,26 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       },
     },
     {
+      name: 'name_app',
+      description:
+        'Give a NEW app its name, as your first step and alone in its reply: what the business would call it, two or three words ("Crispy Bites", "Cake Orders"), never the words of the request. The app\'s folder and key are made from the name, so this comes before any file is written, and the answer says the folder to use from then on.',
+      inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Two or three words, e.g. Crispy Bites' } }, required: ['name'], additionalProperties: false },
+      running: (input) => `Naming the app ${String(input['name'] ?? '').slice(0, 40)}`,
+      run: async (input, ctx) => {
+        const name = (str(input, 'name') ?? '').replace(/\s+/g, ' ').trim();
+        if (deps.designer().needsName?.(ctx.session) !== true) {
+          return text(`The app already has its name and its folder, apps/${appKey}/: its key stays as it is. To change the name people read, set "name" in apps/${appKey}/manifest/app.json and leave "key" alone.`, 'The app is already named');
+        }
+        if (name === '' || name.length > 40 || name.split(' ').length > 4) return refused('Give a name of one to four words, 40 characters at most: what the business would call it, not the words of the request.', 'The app was not named');
+        try {
+          const done = await deps.designer().nameApp(ctx.session.id, name);
+          return text(`The app is "${done.name}", and its folder is apps/${done.key}/. Write every file under apps/${done.key}/ from now on: any other path is refused.`, `Named the app ${done.name}`);
+        } catch (error) {
+          return refused(error instanceof Error ? error.message : String(error), 'The app was not named');
+        }
+      },
+    },
+    {
       name: 'add_side',
       description:
         'Give the app screens of its own for one side: "staff" (people who sign in) or "customer" (public, nobody signed in). Writes a working starter screen (src/main.tsx, src/App.tsx, and its look: src/app.css, src/theme.css) and declares the side in app.json. The first time, the person is asked how it should look unless they already said. The starter screen lists and adds rows of tables named "items" and "requests": rewrite src/App.tsx for this app’s own tables, keeping the way it loads, lists, sends and reports errors. A customer screen reaches only what manifest/access.json grants: write that file too.',
@@ -856,6 +958,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       run: async (input, ctx) => {
         const side = str(input, 'side');
         if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff" or "customer".', 'Added no side');
+        const nameless = unnamed(ctx);
+        if (nameless !== null) return nameless;
         if (hasOwnBuild(deps.root, appKey)) return refused(`This app keeps its screens in apps/${appKey}/src/ and builds them itself: edit them there.`, 'Added no side');
         let written: string[];
         try {
@@ -874,49 +978,125 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           if (error instanceof JailError || error instanceof Error) return refused(error.message, `Could not add the ${side} side`);
           throw error;
         }
-        // The look, once for the app: asked here, where the first screen people see is made.
-        const { look, how } = await chooseLook(ctx);
-        // What the screens need and the project lacks: one card for all of it.
-        const missing = missingScreenPackages(deps.root, side, deps.version);
-        let packages = '';
-        if (missing.length > 0) {
-          const [first, ...rest] = missing as [{ name: string; version: string }, ...{ name: string; version: string }[]];
-          const answer = await ctx.ask({ type: 'package', name: first.name, version: first.version, why: 'The app’s own screens are built with these.', ...(rest.length === 0 ? {} : { also: rest }) });
-          if (answer.type === 'package' && answer.accept) {
-            const failed = await installPackages(missing, ctx.signal);
-            packages = failed === null ? `\nAdded to the project: ${missing.map((spec) => spec.name).join(', ')}.` : `\nThe packages the screens need could not be added:\n${failed}`;
-          } else {
-            packages = `\nThe person said no to ${missing.map((spec) => spec.name).join(', ')}: the screens cannot be built without them. Say so, and build what needs no screen.`;
-          }
-        }
-        if (written.length === 0) return text(`The ${side} side is already there: edit apps/${appKey}/${side}/src/App.tsx.\n${lookLine(look, how)}${packages}`, `The ${side} side is there`);
+        // The style, once for the app: chosen here, where the first screen people see is made.
+        const { look, how } = await chooseStyle(ctx);
+        // Everything the screens and their design need from outside, on one card.
+        const needs = await askNeeds(ctx, appKey, screenWants(deps.root, appKey, { side, publicToo: ctx.session.target === 'web', look, stylesDir }));
+        const tailwind = listedPackages(deps.root).has(TAILWIND_PACKAGE);
+        const icons = listedPackages(deps.root).has(ICONS_PACKAGE);
+        const picture = (deps.attachments?.list(ctx.session.id) ?? []).some((entry) => entry.kind === 'image');
+        const colours = (deps.attachments?.list(ctx.session.id) ?? []).some((entry) => entry.kind === 'image' && themeFromPalette(entry.palette ?? []) !== null);
+        const made = `${styleLine(readLook(deps.root, appKey) ?? look, how)}\n\n${needs.said}\n\n${designSteps(appKey, side, { tailwind, icons, picture, colours })}`;
+        if (written.length === 0) return text(`The ${side} side is already there: edit apps/${appKey}/${side}/src/App.tsx.\n${made}`, `The ${side} side is there`);
         return text(
-          `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json${side === 'staff' ? ', and each role may open it (app:@:staff)' : ''}. Now read apps/${appKey}/${side}/src/App.tsx and write it again for this app’s tables${side === 'customer' ? ', and write manifest/access.json with what customers may read and add' : ''}, keeping its parts and its shape. Then build_sides. You need not read app.css or theme.css.\n\n${lookLine(look, how)}\n\n${LOOK_PARTS}${packages}`,
+          `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json${side === 'staff' ? ', and each role may open it (app:@:staff)' : ''}.\n\n${made}`,
           `Added the ${side} side`,
         );
       },
     },
     {
-      name: 'set_look',
-      description:
-        'Change the look of the app’s own screens to one of four directions: "clean", "warm", "bold" or "calm", with an optional accent colour (#rrggbb). Writes src/theme.css on each side. Use it when the person asks for a different look; for a finer change, edit values in theme.css.',
+      name: 'add_ui_part',
+      description: `Copy ready-made parts into a side's src/ui/ folder, to import in a screen: ${Object.entries(UI_PARTS)
+        .map(([part, exports]) => `"${part}" (${exports})`)
+        .join('; ')}. They are written with Tailwind and the theme's names, work with the keyboard, and are the app's own files once copied. Needs Tailwind in the project.`,
       inputSchema: {
         type: 'object',
-        properties: { direction: { type: 'string', enum: [...LOOK_DIRECTIONS] }, accent: { type: 'string', description: 'A colour as #rrggbb, in place of the direction’s own' } },
-        required: ['direction'],
+        properties: { side: { type: 'string', enum: ['staff', 'customer'] }, parts: { type: 'array', minItems: 1, maxItems: 7, items: { type: 'string', enum: Object.keys(UI_PARTS) } } },
+        required: ['side', 'parts'],
         additionalProperties: false,
       },
-      running: () => 'Changing the look',
-      run: async (input) => {
-        const direction = str(input, 'direction');
-        if (!isDirection(direction)) return refused(`Give "direction": one of ${LOOK_DIRECTIONS.join(', ')}.`, 'Look not changed');
-        if (hasOwnBuild(deps.root, appKey)) return refused('This app is a copy of a published one and keeps its own styles in src/: change them there.', 'Look not changed');
-        if (sidesWithScreens(deps.root, appKey).length === 0) return refused('The app has no screens of its own yet: call add_side first.', 'Look not changed');
+      running: () => 'Adding ready-made parts',
+      run: async (input, ctx) => {
+        const side = str(input, 'side');
+        if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff" or "customer".', 'Added no parts');
+        if (!sidesWithScreens(deps.root, appKey).includes(side)) return refused(`The app has no ${side} side yet: call add_side first.`, 'Added no parts');
+        if (hasOwnBuild(deps.root, appKey)) return refused('This app is a copy of a published one and has its own parts in src/.', 'Added no parts');
+        const parts = [...new Set((Array.isArray(input['parts']) ? (input['parts'] as unknown[]) : []).filter((part): part is string => typeof part === 'string'))];
+        const unknown = parts.filter((part) => UI_PARTS[part] === undefined);
+        if (parts.length === 0 || unknown.length > 0) return { ...refused(`${unknown.length > 0 ? `There is no part ${unknown.map((part) => `"${part.slice(0, 40)}"`).join(', ')}. ` : ''}The parts: ${Object.keys(UI_PARTS).join(', ')}.`, 'Added no parts'), miss: true };
+        if (!listedPackages(deps.root).has(TAILWIND_PACKAGE)) {
+          return refused('These parts are written with Tailwind, and this project does without it: write the part as a plain component, with its classes in design.css.', 'Added no parts');
+        }
+        // What the parts are written with: asked for here when the project lacks it, on the one card.
+        const lacking = UI_HELPER_PACKAGES.filter((name) => !listedPackages(deps.root).has(name));
+        let asked = '';
+        if (lacking.length > 0) {
+          const needs = await askNeeds(ctx, appKey, lacking.map((name): Wanted => ({ kind: 'package', name })));
+          if (UI_HELPER_PACKAGES.some((name) => !listedPackages(deps.root).has(name)) && needs.failed === null && needs.added.length < lacking.length) {
+            return refused(`${needs.said}\nThe ready-made parts cannot be used without their helpers: write the part as a plain component, with Tailwind classes.`, 'Added no parts');
+          }
+          asked = `\n${needs.said}`;
+        }
+        const written = addUiParts({ root: deps.root, key: appKey, side, parts });
+        const lines = parts.map((part) => `- import { … } from './ui/${part}': ${UI_PARTS[part] as string}`);
+        return text(
+          `${written.length === 0 ? 'These parts are already in the side, as the app has them now.' : `Written:\n${written.map((file) => `- ${file}`).join('\n')}`}\nIn a screen of apps/${appKey}/${side}/src/:\n${lines.join('\n')}\nThey take a className for anything more. Change a part's file when the design asks for it: it is the app's own.${asked}`,
+          `Added ${String(parts.length)} ready-made parts`,
+          { facts: { count: parts.length } },
+        );
+      },
+    },
+    {
+      name: 'set_style',
+      description:
+        'Change the style of the app’s own screens, or values of it. "style": a style’s key (list_styles gives them). "accent": the main colour as #rrggbb. "theme": values to change in the style, any of: light and dark (each with bg, surface, surface2, text, muted, line, accent, accent2, band as #rrggbb), fonts (heading and body, each with family, weights, fallback: serif | sans | mono | rounded), headingWeight, typeScale (1.125 to 1.5), space (compact | regular | roomy), radius (0 to 32), shadow (none | soft | strong). The server writes src/theme.css on each side and makes text readable on its background. Use it for the colours of a reference picture, and whenever the person asks for a different look.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          style: { type: 'string', description: 'A style’s key, e.g. warm' },
+          accent: { type: 'string', description: 'The main colour as #rrggbb' },
+          theme: { type: 'object', description: 'Values to change in the style, e.g. {"light": {"bg": "#f7efe2", "accent": "#b8432b"}, "radius": 20}' },
+        },
+        additionalProperties: false,
+      },
+      running: () => 'Changing the style',
+      run: async (input, ctx) => {
+        if (hasOwnBuild(deps.root, appKey)) return refused('This app is a copy of a published one and keeps its own styles in src/: change them there.', 'Style not changed');
+        if (sidesWithScreens(deps.root, appKey).length === 0) return refused('The app has no screens of its own yet: call add_side first.', 'Style not changed');
+        // The old name of this tool gave a direction: read as the style of that name.
+        const key = str(input, 'style') ?? str(input, 'direction');
         const accent = str(input, 'accent');
-        if (accent !== null && !/^#[0-9a-f]{6}$/i.test(accent)) return refused('Give "accent" as #rrggbb, or leave it out.', 'Look not changed');
-        const look = cleanLook({ direction, accent: accent ?? undefined, words: readLook(deps.root, appKey)?.words });
-        applyLook(deps.root, appKey, look);
-        return text(`The look is now "${direction}". ${DIRECTIONS[direction].line} theme.css was written on each side; build_sides shows it.`, `Changed the look to ${direction}`, { facts: { look: direction } });
+        if (accent !== null && !/^#[0-9a-f]{6}$/i.test(accent)) return refused('Give "accent" as #rrggbb, or leave it out.', 'Style not changed');
+        const now = readLook(deps.root, appKey) ?? DEFAULT_LOOK;
+        const skill = key === null ? null : findDesignSkill(deps.root, stylesDir, key);
+        if (key !== null && (skill === null || skill.problem !== undefined)) {
+          return { ...refused(`There is no style "${key.slice(0, 40)}". The styles: ${styles().map((entry) => entry.key).join(', ')}.`, 'Style not changed'), miss: true };
+        }
+        const given = input['theme'] === undefined ? { patch: {}, notes: [] } : cleanThemePatch(input['theme']);
+        if (key === null && accent === null && Object.keys(given.patch).length === 0) {
+          return refused(`Give a "style", an "accent" or a "theme" with values to change.${given.notes.length === 0 ? '' : ` ${given.notes.join(' ')}`}`, 'Style not changed');
+        }
+        // A new style starts from its own values; changes to the same style add to what the app already changed.
+        const sameStyle = key === null || (now.direction === undefined && key === now.skill);
+        const look = cleanLook({
+          skill: key ?? now.skill,
+          accent: accent ?? (sameStyle ? now.accent : undefined),
+          words: now.words,
+          theme: sameStyle && now.direction === undefined ? mergePatches(now.theme ?? {}, given.patch) : given.patch,
+          without: now.without,
+        });
+        applyLook(deps.root, appKey, look, places);
+        // The fonts the look now names and the project lacks: asked for here, on one card.
+        const wants = missingFonts(deps.root, look, places)
+          .filter((font) => !(look.without ?? []).includes(font.family))
+          .map((font): Wanted => ({ kind: 'font', family: font.family, use: font.use }));
+        const needs = wants.length === 0 ? null : await askNeeds(ctx, appKey, wants);
+        const resolved = resolveLook(deps.root, readLook(deps.root, appKey) ?? look, places);
+        return text(
+          `The style is "${resolved.title}". theme.css was written on each side; build_sides shows it.${given.notes.length === 0 ? '' : `\nLeft out: ${given.notes.join(' ')}`}${needs === null ? '' : `\n${needs.said}`}${key !== null && skill !== null ? `\n\nHow this style lays out a page, as data:\n${skillGuidance(skill).slice(0, 3000)}` : ''}`,
+          `Changed the style to ${resolved.title}`,
+          { facts: { look: resolved.title } },
+        );
+      },
+    },
+    {
+      name: 'list_styles',
+      description: 'The styles the app’s own screens can take: key, name and what each suits. Built in, and the project’s own.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      running: () => 'Looking at the styles',
+      run: async () => {
+        const all = styles();
+        return text(all.map((skill) => `${skill.key} — ${skill.title}${skill.origin === 'project' ? ' (this project’s own)' : ''}: ${skill.description}`).join('\n') || 'There are no styles here.', `Found ${String(all.length)} styles`);
       },
     },
     {
@@ -946,6 +1126,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const addOn = str(input, 'add_on');
         const shape = str(input, 'shape');
         if (addOn === null || shape === null) return refused('Give "add_on" and "shape".', 'Built on nothing');
+        const nameless = unnamed(ctx);
+        if (nameless !== null) return nameless;
         let document = (await deps.readAddOn?.(addOn)) ?? null;
         if (document === null) {
           // Not on this server: the person is asked for it here, so the model need not know to ask first.
@@ -1098,6 +1280,191 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       },
     },
     {
+      name: 'find_pictures',
+      description:
+        'Find free pictures for the app, all the page needs in ONE call. Each need has an "id" (a short name like "hero" or "dishes"), "words" to search by in English (say what the picture shows: "pancakes with berries on a plate"), "for": "page" (pictures a screen imports) or "rows" (pictures of the sample rows of a table, with its "table" and its picture "column"), a "count" (1 to 8) and a "shape" (wide, tall or square). The person sees the pictures on a card and ticks the ones to use; those are copied into the app with their credits, and the answer says where each is. Never put a picture address of another site in a screen yourself.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          needs: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 6,
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'A short name: hero, dishes, team' },
+                words: { type: 'string', description: 'What the picture shows, in English' },
+                for: { type: 'string', enum: ['page', 'rows'] },
+                table: { type: 'string', description: 'For rows: the table’s ref' },
+                column: { type: 'string', description: 'For rows: the picture column’s ref' },
+                count: { type: 'integer', minimum: 1, maximum: PICTURES_PER_NEED },
+                shape: { type: 'string', enum: [...PICTURE_SHAPES] },
+              },
+              required: ['id', 'words', 'for'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['needs'],
+        additionalProperties: false,
+      },
+      running: () => 'Looking for pictures',
+      run: async (input, ctx) => {
+        const none = (content: string, outcome: 'refused' | 'declined' | 'failed'): ToolOutcome => ({ ...refused(content, 'No pictures added'), facts: { outcome } });
+        const instead = 'Use a picture the person attached, or draw a tile in the theme’s colours (a letter or an icon on var(--surface-2)); never another site’s address.';
+        const nameless = unnamed(ctx);
+        if (nameless !== null) return nameless;
+        if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own pictures in src/: add them there.', 'refused');
+        const source = deps.pictures?.source() ?? null;
+        if (deps.pictures === undefined || source === null) return none(`This server looks for no pictures (it is set to call nothing outside itself). ${instead}`, 'refused');
+        const manifest = checkApp(deps.root, appKey, { version: deps.version }).manifest;
+        const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []) : [];
+
+        interface Need {
+          id: string;
+          words: string;
+          rows: { table: string; column: string } | null;
+          count: number;
+          shape: PictureShape;
+        }
+        const needs: Need[] = [];
+        const problems: string[] = [];
+        for (const raw of Array.isArray(input['needs']) ? (input['needs'] as unknown[]).slice(0, 6) : []) {
+          const need = (raw ?? {}) as Record<string, unknown>;
+          const id = typeof need['id'] === 'string' ? need['id'].toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) : '';
+          const words = typeof need['words'] === 'string' ? need['words'].replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+          if (id === '' || words.length < 2 || needs.some((other) => other.id === id)) {
+            problems.push(`A need was left out: give each a different "id" and "words" to search by.`);
+            continue;
+          }
+          const shape = (PICTURE_SHAPES as readonly unknown[]).includes(need['shape']) ? (need['shape'] as PictureShape) : need['for'] === 'rows' ? 'square' : 'wide';
+          const count = Math.min(PICTURES_PER_NEED, Math.max(1, int(need, 'count') ?? (need['for'] === 'rows' ? 6 : 1)));
+          if (need['for'] === 'rows') {
+            const table = tables.find((candidate) => candidate.ref === need['table']);
+            const column = table?.columns.find((candidate) => candidate.ref === need['column']);
+            if (table === undefined || column === undefined || column.type !== 'text' || !('semantic' in column) || column.semantic !== 'image') {
+              problems.push(
+                `"${id}": for rows, give "table" and "column", and the column must be a picture column: { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } in the table's file. Add it, check_app, then call find_pictures again.`,
+              );
+              continue;
+            }
+            needs.push({ id, words, rows: { table: table.ref, column: column.ref }, count, shape });
+          } else {
+            needs.push({ id, words, rows: null, count, shape });
+          }
+        }
+        if (needs.length === 0) return none(`${problems.join('\n') || 'Give "needs": what each picture shows.'}`, 'refused');
+
+        // One search per need; a need the source has nothing for is said, and the rest go on.
+        const found = new Map<string, FoundPicture[]>();
+        let left = PICTURES_PER_CALL;
+        for (const need of needs) {
+          try {
+            const pictures = (await source.search(need.words, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).slice(0, Math.min(need.count + 2, left));
+            if (pictures.length === 0) problems.push(`"${need.id}": no picture was found for "${need.words}". Try plainer words, or do without.`);
+            else found.set(need.id, pictures);
+            left -= pictures.length;
+          } catch (error) {
+            if (ctx.signal.aborted) throw error;
+            problems.push(`"${need.id}": the search could not be made (${error instanceof Error ? error.message.slice(0, 120) : 'no answer'}).`);
+          }
+          if (left <= 0) break;
+        }
+        if (found.size === 0) return none(`${problems.join('\n')}\n${instead}`, 'failed');
+
+        const shelf = deps.pictures.shelf.put(ctx.session.id, [...found.values()].flat());
+        const answer = await ctx.ask({
+          type: 'pictures',
+          shelf,
+          groups: needs.flatMap((need) => {
+            const pictures = found.get(need.id);
+            return pictures === undefined ? [] : [{ id: need.id, label: need.words, shape: need.shape, pictures: pictures.map((picture) => ({ id: picture.id, title: picture.title, creator: picture.creator, licence: picture.licence, source: picture.source })) }];
+          }),
+        });
+        const ticked = new Set(answer.type === 'pictures' ? answer.accept : []);
+        deps.pictures.shelf.drop(shelf);
+        if (ticked.size === 0) return none(`The person chose none of the pictures. Do not look again in this turn. ${instead}`, 'declined');
+
+        const dir = join(deps.root, APPS_DIR, appKey);
+        const download = deps.pictures.download ?? downloadPicture;
+        const credits: PictureCredit[] = [];
+        const lines: string[] = [];
+        let added = 0;
+        let seeded = false;
+        const bundleFile = join(dir, 'seeds', 'sample.json');
+        for (const need of needs) {
+          const chosen = (found.get(need.id) ?? []).filter((picture) => ticked.has(picture.id)).slice(0, need.count);
+          const files: { path: string; picture: FoundPicture; sha256: string }[] = [];
+          for (const picture of chosen) {
+            const got = await download(picture, { signal: ctx.signal });
+            if (got === null) continue;
+            const name = `${need.id}-${String(files.length + 1)}.${got.ext}`;
+            const path = need.rows === null ? `assets/pictures/${name}` : `seeds/pictures/${name}`;
+            mkdirSync(join(dir, ...path.split('/').slice(0, -1)), { recursive: true });
+            writeFileSync(join(dir, ...path.split('/')), got.bytes);
+            files.push({ path, picture, sha256: createHash('sha256').update(got.bytes).digest('hex') });
+            credits.push(creditOf(picture, path));
+          }
+          if (files.length === 0) {
+            if (chosen.length > 0) problems.push(`"${need.id}": the pictures chosen could not be copied (too large, or gone).`);
+            continue;
+          }
+          added += files.length;
+          if (need.rows === null) {
+            lines.push(
+              `"${need.id}" (${need.words}):\n${files.map((file) => `- apps/${appKey}/${file.path} — in a screen: import ${need.id.replace(/-(.)/g, (_all, letter: string) => letter.toUpperCase())}${String(files.indexOf(file) + 1)} from '../../${file.path}'; alt: "${file.picture.title.replace(/"/g, '')}"`).join('\n')}`,
+            );
+            continue;
+          }
+          // The table's sample rows take the pictures in order, as the bundle's own assets.
+          let bundle: { assets?: Record<string, unknown>; tables?: { ref: string; rows: Record<string, unknown>[] }[] };
+          try {
+            bundle = JSON.parse(readFileSync(bundleFile, 'utf8')) as typeof bundle;
+          } catch {
+            problems.push(`"${need.id}": apps/${appKey}/seeds/sample.json does not read, so the rows of "${need.rows.table}" got no pictures. Write the sample rows first, then call find_pictures again.`);
+            continue;
+          }
+          const rows = bundle.tables?.find((table) => table.ref === need.rows?.table)?.rows ?? [];
+          if (rows.length === 0) {
+            problems.push(`"${need.id}": "${need.rows.table}" has no sample rows in seeds/sample.json. Write them first, then call find_pictures again.`);
+            continue;
+          }
+          bundle.assets = { ...(bundle.assets ?? {}) };
+          files.forEach((file, index) => {
+            const row = rows[index];
+            if (row === undefined) return;
+            const label = `picture-${need.id}-${String(index + 1)}`;
+            (bundle.assets as Record<string, unknown>)[label] = { file: file.path, sha256: file.sha256 };
+            row[need.rows?.column as string] = { '@asset': label };
+          });
+          writeFileSync(bundleFile, `${JSON.stringify(bundle, null, 2)}\n`);
+          seeded = true;
+          lines.push(
+            `"${need.id}": the first ${String(Math.min(files.length, rows.length))} sample rows of "${need.rows.table}" have a picture in "${need.rows.column}" (seeds/sample.json and seeds/pictures/). Show each on the page with pictureUrl, as adminium-app/references/manifest/public-access--pictures.md says, and a plain tile for a row with none.`,
+          );
+        }
+        if (added === 0) return none(`${problems.join('\n')}\n${instead}`, 'failed');
+        // The credits, kept with the pictures: who made each, and under which licence.
+        const creditsFile = join(dir, 'assets', 'pictures', 'CREDITS.json');
+        let before: PictureCredit[] = [];
+        try {
+          const parsed = JSON.parse(readFileSync(creditsFile, 'utf8')) as unknown;
+          if (Array.isArray(parsed)) before = parsed as PictureCredit[];
+        } catch {
+          // None yet.
+        }
+        mkdirSync(join(dir, 'assets', 'pictures'), { recursive: true });
+        writeFileSync(creditsFile, `${JSON.stringify([...before.filter((credit) => !credits.some((fresh) => fresh.file === credit.file)), ...credits], null, 2)}\n`);
+        if (seeded) deps.pictures.reseed?.(appKey);
+        return text(
+          `${String(added)} pictures were copied into the app.\n${lines.join('\n')}${problems.length === 0 ? '' : `\n${problems.join('\n')}`}\nGive every picture a fixed shape (the "media" part with "wide", "square" or "tall", or aspect-ratio with object-fit: cover). Their credits are in apps/${appKey}/assets/pictures/CREDITS.json: show them at the foot of the page under "Picture credits" (import credits from '../../assets/pictures/CREDITS.json'; each has creator, licence, page).`,
+          `Added ${String(added)} pictures`,
+          { facts: { outcome: 'added', count: added } },
+        );
+      },
+    },
+    {
       name: 'ask_person',
       description: 'Ask the person a question, only when the answer changes what you build. Give "choices" when there are a few clear ones.',
       inputSchema: {
@@ -1117,42 +1484,46 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     },
     {
       name: 'request_package',
-      description: 'Ask the person to add an npm package to the project (an exact version). Nothing is installed unless they say yes; install scripts never run.',
+      description:
+        'Ask the person for what the app needs from outside the project, all of it in ONE call: npm packages ("packages": name and why), fonts of Google’s catalogue ("fonts": family, use, why) and sites pictures are shown from ("picture_sites": host, why). The person gets one card with a checkbox each. Give no version: the server finds the right one. Nothing is added unless they tick it; install scripts never run.',
       inputSchema: {
         type: 'object',
-        properties: { name: { type: 'string' }, version: { type: 'string', description: 'An exact version, e.g. 4.17.21' }, why: { type: 'string' } },
-        required: ['name', 'version', 'why'],
+        properties: {
+          packages: { type: 'array', maxItems: 8, items: { type: 'object', properties: { name: { type: 'string' }, why: { type: 'string' } }, required: ['name'], additionalProperties: false } },
+          fonts: {
+            type: 'array',
+            maxItems: 4,
+            items: { type: 'object', properties: { family: { type: 'string', description: 'As Google’s catalogue names it, e.g. Playfair Display' }, use: { type: 'string', enum: ['heading', 'body', 'other'] }, why: { type: 'string' } }, required: ['family'], additionalProperties: false },
+          },
+          picture_sites: { type: 'array', maxItems: 4, items: { type: 'object', properties: { host: { type: 'string', description: 'The host alone, e.g. images.example.com' }, why: { type: 'string' } }, required: ['host'], additionalProperties: false } },
+        },
         additionalProperties: false,
       },
-      running: (input) => `Asking to add ${String(input['name'] ?? '')}`,
+      running: () => 'Asking for what the design needs',
       run: async (input, ctx) => {
-        const name = str(input, 'name') ?? '';
-        const version = knownPackageVersion(name, deps.version) ?? str(input, 'version') ?? '';
-        const why = (str(input, 'why') ?? '').slice(0, 300);
-        if (!PACKAGE_NAME.test(name) || name.length > 214) return { ...refused(`"${name}" is not an npm package name.`, 'No package added'), facts: { outcome: 'refused' } };
-        if (!EXACT_VERSION.test(version)) {
-          return { ...refused(`"${version}" is not an exact version. Give one like 1.2.3, not a range or a tag.`, 'No package added'), facts: { outcome: 'refused' } };
-        }
-        // Already there (a project made by `design` starts with what screens need): nothing to ask.
-        try {
-          const listed = JSON.parse(readFileSync(join(deps.root, 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown>; devDependencies?: Record<string, unknown> };
-          if (listed.dependencies?.[name] !== undefined || listed.devDependencies?.[name] !== undefined) {
-            return text(`${name} is already in the project: import it. If the build could not find it, the fault is elsewhere: read the build's own words.`, `${name} is already there`, { facts: { outcome: 'added' } });
-          }
-        } catch {
-          // No package.json to read: ask, and let the install say what is wrong.
-        }
-        const answer = await ctx.ask({ type: 'package', name, version, why });
-        if (answer.type !== 'package' || !answer.accept) return text(`The person said no to ${name}@${version}. Do without it.`, `Did without ${name}`, { facts: { outcome: 'declined' } });
-        const failed = await installPackages([{ name, version }], ctx.signal);
-        if (failed !== null) return { ...refused(failed, `Could not add ${name}`), facts: { outcome: 'failed' } };
-        return text(`Added ${name}@${version} to the project.`, `Added ${name}@${version}`, { facts: { outcome: 'added' } });
+        const list = (key: string): Record<string, unknown>[] => (Array.isArray(input[key]) ? (input[key] as unknown[]).filter((entry): entry is Record<string, unknown> => entry !== null && typeof entry === 'object') : []);
+        const wanted: Wanted[] = [
+          ...list('packages').flatMap((entry): Wanted[] => (typeof entry['name'] === 'string' ? [{ kind: 'package', name: entry['name'], ...(typeof entry['why'] === 'string' ? { why: entry['why'] } : {}) }] : [])),
+          // One package by name, as this tool once took it: its version is the server's to find.
+          ...(typeof input['name'] === 'string' ? [{ kind: 'package' as const, name: input['name'], ...(typeof input['why'] === 'string' ? { why: input['why'] } : {}) }] : []),
+          ...list('fonts').flatMap((entry): Wanted[] =>
+            typeof entry['family'] === 'string'
+              ? [{ kind: 'font', family: entry['family'], use: entry['use'] === 'heading' || entry['use'] === 'body' ? entry['use'] : 'other', ...(typeof entry['why'] === 'string' ? { why: entry['why'] } : {}) }]
+              : [],
+          ),
+          ...list('picture_sites').flatMap((entry): Wanted[] => (typeof entry['host'] === 'string' ? [{ kind: 'picture-site', host: entry['host'], ...(typeof entry['why'] === 'string' ? { why: entry['why'] } : {}) }] : [])),
+        ];
+        if (wanted.length === 0) return { ...refused('Give "packages", "fonts" or "picture_sites": what the app needs, each with a short "why".', 'Asked for nothing'), facts: { outcome: 'refused' } };
+        const done = await askNeeds(ctx, appKey, wanted);
+        if (!done.asked) return text(done.said, 'Nothing to ask for', { facts: { outcome: done.said.startsWith('Already') ? 'added' : 'refused' } });
+        if (done.failed !== null) return { ...refused(done.said, 'Could not add what was asked'), facts: { outcome: 'failed' } };
+        return text(done.said, done.added.length === 0 ? 'Did without them' : `Added ${String(done.added.length)}`, { facts: { outcome: done.added.length === 0 ? 'declined' : 'added', count: done.added.length } });
       },
     },
     {
       name: 'allow_picture_site',
       description:
-        'Ask the person to let the app’s pages load pictures from another site (a host, e.g. "images.example.com"). This server shows pictures only from itself and from sites the person allowed; any other is an empty frame. Nothing is allowed unless they say yes.',
+        'Ask the person to let the app’s pages show pictures from another site (a host, e.g. "images.example.com"). This server shows pictures only from itself and from sites the person allowed; any other is an empty frame. Nothing is allowed unless they say yes. To copy free pictures into the app instead, use find_pictures.',
       inputSchema: {
         type: 'object',
         properties: { name: { type: 'string', description: 'The host alone, e.g. images.example.com' }, why: { type: 'string' } },
@@ -1161,34 +1532,13 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       },
       running: (input) => `Asking to allow pictures from ${String(input['name'] ?? '')}`,
       run: async (input, ctx) => {
-        const host = (str(input, 'name') ?? '')
-          .trim()
-          .toLowerCase()
-          .replace(/^https:\/\//, '')
-          .replace(/\/.*$/, '');
-        const none = (content: string, outcome: 'refused' | 'declined' | 'failed'): ToolOutcome => ({ ...refused(content, 'No picture site allowed'), facts: { outcome } });
-        if (!PICTURE_HOST.test(host)) return none(`"${host.slice(0, 80)}" is not a site's host. Give the host alone, like images.example.com: no http://, no path, no "*".`, 'refused');
-        const sites = deps.pictureSites;
-        if (sites === undefined) return none('This server cannot allow a picture site from here. Use no picture from another site.', 'refused');
-        if (sites.covers(host)) return text(`Pictures from ${host} are already allowed: they show.`, `Pictures from ${host} are allowed`, { facts: { outcome: 'added' } });
-        const closed = sites.closed();
-        if (closed !== null) return none(`${closed} Use no picture from another site, and tell the person in a sentence.`, 'refused');
-        const turnKey = `${ctx.session.id}:${String(ctx.turn)}:${host}`;
-        const before = pictureAnswers.get(turnKey);
-        if (before === 'no') return none(`The person already said no to pictures from ${host} in this turn. Do not ask again: take those pictures out.`, 'declined');
-        const answer = await ctx.ask({
-          type: 'question',
-          question: `Let this project’s pages show pictures from ${host}? Adminium shows pictures only from your own server unless a site is named. A yes adds ${host} to ADMINIUM_CSP_IMG_HOSTS in your project’s .env, and that site then sees each visit to a page that shows its pictures.`,
-          choices: [ALLOW_IT, 'Do not allow it'],
-        });
-        const yes = answer.type === 'question' && answer.text === ALLOW_IT;
-        pictureAnswers.set(turnKey, yes ? 'yes' : 'no');
-        if (!yes) return none(`The person said no to pictures from ${host}. Take those pictures out: draw with the look’s own parts or an inline SVG.`, 'declined');
-        try {
-          sites.add(host, ctx.handle.by);
-        } catch (error) {
-          return none(`The site could not be kept: ${error instanceof Error ? error.message : String(error)} Tell the person; use no picture from another site.`, 'failed');
+        const host = (str(input, 'name') ?? '').trim().toLowerCase().replace(/^https:\/\//, '').replace(/\/.*$/, '');
+        const done = await askNeeds(ctx, appKey, [{ kind: 'picture-site', host, ...(str(input, 'why') === null ? {} : { why: str(input, 'why') as string }) }]);
+        if (!done.asked) {
+          const already = deps.pictureSites?.covers(host) === true;
+          return already ? text(`Pictures from ${host} are already allowed: they show.`, `Pictures from ${host} are allowed`, { facts: { outcome: 'added' } }) : { ...refused(done.said, 'No picture site allowed'), facts: { outcome: done.left.length > 0 ? 'declined' : 'refused' } };
         }
+        if (done.added.length === 0) return { ...refused(`The person said no to pictures from ${host}. Take those pictures out: find free ones with find_pictures, or draw with the look’s own parts or an inline SVG.`, 'No picture site allowed'), facts: { outcome: 'declined' } };
         return text(`Pictures from ${host} show now. The site is kept in the project’s .env (ADMINIUM_CSP_IMG_HOSTS).`, `Allowed pictures from ${host}`, { facts: { outcome: 'added' } });
       },
     },
@@ -1210,11 +1560,15 @@ export const DESIGNER_TOOL_NAMES = [
   'read_reference',
   'list_add_ons',
   'get_add_on',
+  'name_app',
   'add_side',
-  'set_look',
+  'add_ui_part',
+  'set_style',
+  'list_styles',
   'build_on_shape',
   'read_attachment',
   'load_rows',
+  'find_pictures',
   'ask_person',
   'request_package',
   'allow_picture_site',

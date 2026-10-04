@@ -22,9 +22,10 @@
  */
 
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { CliError } from '../../cli/exit.js';
 import { SURFACE_JSON_VERSION } from '../../cli/surfaces-root.js';
@@ -105,15 +106,40 @@ function describeFailure(error: unknown): string {
   return errors
     .map((e) => {
       const missing = /^Could not resolve "(react|react-dom|react-dom\/client|react\/jsx-runtime)"$/.exec(e.text);
-      const text = missing === null ? e.text : `${e.text} — install the project's dependencies first (npm install)`;
+      const icon = /^No matching export in "[^"]*lucide-react[^"]*" for import "([^"]+)"$/.exec(e.text);
+      const text =
+        icon !== null
+          ? `lucide-react has no icon named "${icon[1] as string}" (it has no brand logos, and names are exact): use another icon, or plain text`
+          : missing === null
+            ? e.text
+            : `${e.text} — install the project's dependencies first (npm install)`;
       return e.location ? `${e.location.file}:${String(e.location.line)}:${String(e.location.column)}: ${text}` : text;
     })
     .join('\n');
 }
 
+interface ResolveArgs {
+  path: string;
+  importer: string;
+  resolveDir: string;
+  kind: string;
+  namespace: string;
+  pluginData?: unknown;
+}
+interface ResolveResult {
+  path?: string;
+  namespace?: string;
+  errors?: { text: string }[];
+  external?: boolean;
+  pluginData?: unknown;
+}
 interface PluginBuild {
-  onResolve(options: { filter: RegExp }, callback: () => { path: string; namespace: string }): void;
-  onLoad(options: { filter: RegExp; namespace: string }, callback: () => { contents: string; loader: string; resolveDir: string }): void;
+  onResolve(options: { filter: RegExp; namespace?: string }, callback: (args: ResolveArgs) => ResolveResult | null | undefined | Promise<ResolveResult | null | undefined>): void;
+  onLoad(
+    options: { filter: RegExp; namespace?: string },
+    callback: (args: { path: string }) => { contents: string; loader: string; resolveDir?: string; watchFiles?: string[] } | null | undefined | Promise<{ contents: string; loader: string; resolveDir?: string } | null | undefined>,
+  ): void;
+  resolve(path: string, options: { resolveDir: string; kind: string; importer?: string; pluginData?: unknown }): Promise<ResolveResult>;
 }
 
 /**
@@ -131,6 +157,285 @@ function sideModulePlugin(root: string, file: string) {
         loader: file.endsWith('.ts') ? 'ts' : 'js',
         resolveDir: root,
       }));
+    },
+  };
+}
+
+/** The stylesheets of a side, in the order they are loaded. `tailwind` is not a file: the build makes its text. */
+export const SIDE_STYLES = ['theme.css', 'fonts.css', 'app.css', 'tailwind', 'style.css', 'design.css'] as const;
+const SIDE_ENTRY = 'adminium-side-entry';
+const TAILWIND_TEXT = 'adminium-tailwind.css';
+
+/**
+ * A side's entry: its stylesheets, each when it is there, then `main.tsx`.
+ * The build brings the stylesheets itself, so a screen whose `main.tsx` was
+ * written again without an import still has its look. A stylesheet `main.tsx`
+ * imports as well is bundled once, in the place it has here.
+ */
+function sideEntryPlugin(src: string, tailwind: boolean) {
+  return {
+    name: 'adminium-side-entry',
+    setup(build: PluginBuild) {
+      build.onResolve({ filter: /^adminium-side-entry$/ }, () => ({ path: SIDE_ENTRY, namespace: 'adminium-entry' }));
+      build.onLoad({ filter: /.*/, namespace: 'adminium-entry' }, () => {
+        const lines = SIDE_STYLES.flatMap((name) => {
+          if (name === 'tailwind') return tailwind ? [`import ${JSON.stringify(TAILWIND_TEXT)};`] : [];
+          return existsSync(join(src, name)) ? [`import ${JSON.stringify(`./${name}`)};`] : [];
+        });
+        return { contents: `${lines.join('\n')}\nimport './main.tsx';\n`, loader: 'js', resolveDir: src };
+      });
+    },
+  };
+}
+
+const sameOrUnder = (path: string, dir: string): boolean => path === dir || path.startsWith(`${dir}${sep}`);
+
+/**
+ * A side is built from its app's folder and from installed packages, and from
+ * nothing else in the project. A screen is written by a model that reads
+ * other people's text (a style, a picture's caption); an import of
+ * `../../../package.json` or of a file under `.adminium/` would put the
+ * project's own files into a public page. So every import is resolved here
+ * first, by its real path, and one that lands anywhere else is refused.
+ */
+function containmentPlugin(root: string, key: string) {
+  const real = (path: string): string => {
+    try {
+      return realpathSync(path);
+    } catch {
+      return path;
+    }
+  };
+  const app = real(appDir(root, key));
+  return {
+    name: 'adminium-side-containment',
+    setup(build: PluginBuild) {
+      build.onResolve({ filter: /.*/ }, async (args) => {
+        // Our own second look at the same import, and anything another plugin of ours names.
+        if ((args.pluginData as { checked?: boolean } | undefined)?.checked === true) return null;
+        if (args.namespace !== 'file' && args.namespace !== 'adminium-entry' && args.namespace !== '') return null;
+        if (args.kind === 'entry-point' || /^(data:|https?:|#)/.test(args.path)) return null;
+        // What an installed package imports is the package's own business: only the app's files are held to the app.
+        if (args.namespace === 'file' && args.importer !== '' && !sameOrUnder(real(args.importer), app)) return null;
+        const found = await build.resolve(args.path, { resolveDir: args.resolveDir, kind: args.kind, importer: args.importer, pluginData: { checked: true } });
+        if ((found.errors ?? []).length > 0 || found.path === undefined || found.external === true || (found.namespace !== undefined && found.namespace !== 'file')) return found;
+        const target = real(found.path);
+        if (sameOrUnder(target, app)) return found;
+        // A package: the import names it, and it is installed in the project or above it. What it resolves to must be inside
+        // that package, so a name mapped elsewhere (a tsconfig "paths" in the app) opens nothing.
+        const named = /^(@[^/]+\/[^/]+|[^./@][^/]*)/.exec(args.path)?.[1];
+        if (named !== undefined) {
+          for (let dir = root; ; dir = dirname(dir)) {
+            const installed = join(dir, 'node_modules', named);
+            if (existsSync(installed) && sameOrUnder(target, real(installed))) return found;
+            if (dir === dirname(dir)) break;
+          }
+        }
+        return {
+          errors: [
+            {
+              text: `"${args.path}" is outside this app: a screen may import files of ${appPath(key)}/ and installed packages, nothing else in the project.`,
+            },
+          ],
+        };
+      });
+    },
+  };
+}
+
+/** The classes Tailwind is to know of: every run of marks in a side's source that could be one. */
+function classCandidates(src: string, read: (file: string) => void): string[] {
+  const found = new Set<string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      // No link is followed: a link out of the side would have the scan read the project.
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.isSymbolicLink()) continue;
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile() && /\.(?:tsx?|jsx?|mjs)$/.test(entry.name) && statSync(path).size <= 512 * 1024) {
+        read(path);
+        for (const mark of readFileSync(path, 'utf8').matchAll(/[^\s"'`<>{}=;,]+/g)) if (mark[0].length <= 120) found.add(mark[0]);
+      }
+    }
+  };
+  walk(src);
+  return [...found];
+}
+
+/** The theme's values, given to Tailwind under its own names: `bg-accent`, `font-display`, `rounded-theme`. */
+export const TAILWIND_SOURCE = `@import "tailwindcss";
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2, var(--accent));
+  --color-accent-2-ink: var(--accent-2-ink, var(--accent-ink));
+  --color-band: var(--band, var(--text));
+  --color-band-ink: var(--band-ink, var(--bg));
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --radius-theme: var(--radius);
+  --shadow-theme: var(--shadow);
+}
+`;
+
+interface TailwindModule {
+  compile(
+    css: string,
+    opts: {
+      base: string;
+      loadStylesheet: (id: string, base: string) => Promise<{ path: string; base: string; content: string }>;
+      loadModule: () => Promise<never>;
+    },
+  ): Promise<{ build(candidates: string[]): string }>;
+}
+
+/** The Tailwind a project carries, when it is the one this build knows: version 4, with no package of its own to pull in. */
+export function projectTailwind(root: string): { dir: string; entry: string; version: string } | { problem: string } | null {
+  // The project's own: named in its package.json. One that only happens to be reachable (hoisted by a package manager, found on NODE_PATH) is not.
+  try {
+    const listed = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown>; devDependencies?: Record<string, unknown> };
+    if (listed.dependencies?.['tailwindcss'] === undefined && listed.devDependencies?.['tailwindcss'] === undefined) return null;
+  } catch {
+    return null;
+  }
+  let manifest: string;
+  try {
+    manifest = createRequire(join(root, 'package.json')).resolve('tailwindcss/package.json');
+  } catch {
+    return null;
+  }
+  try {
+    const json = JSON.parse(readFileSync(manifest, 'utf8')) as { name?: unknown; version?: unknown; dependencies?: Record<string, unknown>; exports?: Record<string, unknown>; main?: unknown };
+    if (json.name !== 'tailwindcss') return { problem: 'The package installed as "tailwindcss" is not Tailwind.' };
+    const version = typeof json.version === 'string' ? json.version : '';
+    if (!version.startsWith('4.')) return { problem: `The project has Tailwind ${version}, and this build knows Tailwind 4. Use no Tailwind class, or put Tailwind 4 in the project.` };
+    if (Object.keys(json.dependencies ?? {}).length > 0) return { problem: 'This Tailwind brings packages of its own, which this build does not run.' };
+    const dir = dirname(manifest);
+    const entry = createRequire(join(root, 'package.json')).resolve('tailwindcss');
+    return { dir, entry, version };
+  } catch (error) {
+    return { problem: `The project's Tailwind does not read: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+/** How long Tailwind may take over one side. */
+const TAILWIND_TIMEOUT_MS = 5000;
+
+/**
+ * Tailwind for a side, when the project has it. Its text is made here at
+ * every build (the theme's values under Tailwind's names) and never read from
+ * the side, so nothing a screen's author writes reaches Tailwind's compiler
+ * but class names. Tailwind may read its own four stylesheets and no other
+ * file, and loads no module: a plugin or a config file is code.
+ *
+ * The side's own stylesheets are put in Tailwind's "components" layer, so a
+ * class on an element wins over a made part's rule, as people who know
+ * Tailwind expect.
+ */
+/** Tailwind's stylesheet for a side, from the class names given: its own four files and no other, no module, in a few seconds or not at all. */
+export async function tailwindCss(tailwind: { dir: string; entry: string }, src: string, candidates: string[], applied = ''): Promise<string> {
+  // The package's entry may load as a CommonJS module, whose exports come under `default`.
+  const loaded = (await import(pathToFileURL(tailwind.entry).href)) as Partial<TailwindModule> & { default?: Partial<TailwindModule> };
+  const compile = loaded.compile ?? loaded.default?.compile;
+  if (typeof compile !== 'function') throw new Error('The project\'s Tailwind has no compile() this build can call.');
+  const module: TailwindModule = { compile };
+  const work = (async () => {
+    const compiler = await module.compile(`${TAILWIND_SOURCE}${applied}`, {
+      base: src,
+      loadStylesheet: async (id, base) => {
+        const file = TAILWIND_OWN.get(id);
+        // Tailwind's own files, asked for by name or from inside its own folder; nothing else.
+        if (file === undefined || (id.startsWith('./') && base !== tailwind.dir)) throw new Error(`Tailwind may not read "${id}" here.`);
+        const path = join(tailwind.dir, file);
+        return { path, base: tailwind.dir, content: readFileSync(path, 'utf8') };
+      },
+      loadModule: async () => {
+        throw new Error('Tailwind plugins and config files are not run here.');
+      },
+    });
+    return compiler.build(candidates);
+  })();
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Tailwind took too long over this side.')), TAILWIND_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([work, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const TAILWIND_OWN = new Map([
+  ['tailwindcss', 'index.css'],
+  ['tailwindcss/theme', 'theme.css'],
+  ['tailwindcss/theme.css', 'theme.css'],
+  ['tailwindcss/preflight', 'preflight.css'],
+  ['tailwindcss/preflight.css', 'preflight.css'],
+  ['tailwindcss/utilities', 'utilities.css'],
+  ['tailwindcss/utilities.css', 'utilities.css'],
+  ['./theme.css', 'theme.css'],
+  ['./preflight.css', 'preflight.css'],
+  ['./utilities.css', 'utilities.css'],
+]);
+
+function tailwindPlugin(tailwind: { dir: string; entry: string }, src: string, scanned: (file: string) => void) {
+  // By their real paths: the bundler names a file by where it really is (a temp folder is often a link).
+  const realOf = (path: string): string => {
+    try {
+      return realpathSync(path);
+    } catch {
+      return path;
+    }
+  };
+  const layered = new Set(['app.css', 'style.css', 'design.css'].map((name) => realOf(join(src, name))));
+  return {
+    name: 'adminium-side-tailwind',
+    setup(build: PluginBuild) {
+      build.onResolve({ filter: /^adminium-tailwind\.css$/ }, () => ({ path: TAILWIND_TEXT, namespace: 'adminium-tailwind' }));
+      /**
+       * A stylesheet of the app's that uses `@apply` is Tailwind's to compile: its text goes in with Tailwind's own, in the
+       * components layer. It may then hold rules and nothing that loads or runs: Tailwind is given no path of the app's to follow.
+       */
+      const applied = (): { files: Set<string>; text: string } => {
+        const files = new Set<string>();
+        let text = '';
+        for (const file of layered) {
+          if (!existsSync(file)) continue;
+          const css = readFileSync(file, 'utf8');
+          const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+          if (!/@apply\b/.test(bare)) continue;
+          const loads = /@(import|source|plugin|config|reference)\b/.exec(bare);
+          if (loads !== null) throw new Error(`${basename(file)} uses @apply and @${loads[1] as string} together: a stylesheet with @apply holds rules only. Take the @${loads[1] as string} out.`);
+          files.add(file);
+          text += `\n@layer components {\n${css}\n}\n`;
+        }
+        return { files, text };
+      };
+      build.onLoad({ filter: /.*/, namespace: 'adminium-tailwind' }, async () => ({ contents: await tailwindCss(tailwind, src, classCandidates(src, scanned), applied().text), loader: 'css', resolveDir: src }));
+      build.onLoad({ filter: /\.css$/ }, (args) => {
+        if (!layered.has(realOf(args.path))) return null;
+        // Compiled with Tailwind's own text, where its @apply is understood: nothing of it is left to load here.
+        if (applied().files.has(realOf(args.path))) return { contents: '', loader: 'css', resolveDir: dirname(args.path) };
+        const text = readFileSync(args.path, 'utf8');
+        // What must stand first in a stylesheet stays above the layer.
+        const first: string[] = [];
+        const rest = text.replace(/^\s*@(?:import|charset)\b[^;]*;/gm, (line) => {
+          first.push(line.trim());
+          return '';
+        });
+        return { contents: `${first.join('\n')}\n@layer theme, base, components, utilities;\n@layer components {\n${rest}\n}\n`, loader: 'css', resolveDir: dirname(args.path) };
+      });
     },
   };
 }
@@ -221,11 +526,17 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(join(staging, 'assets'), { recursive: true });
 
+  const src = join(source, 'src');
+  // Tailwind, when the project carries the one this build knows; a project without it builds as it always did.
+  const tailwind = projectTailwind(root);
+  if (tailwind !== null && 'problem' in tailwind) throw new CliError(`Could not build the ${side} side of "${key}":\n${tailwind.problem}`);
+  const scanned: string[] = [];
+
   let result: Awaited<ReturnType<Bundler['build']>>;
   try {
     result = await opts.bundler.build({
       absWorkingDir: root,
-      entryPoints: { main: entry },
+      entryPoints: { main: SIDE_ENTRY },
       outdir: join(staging, 'assets'),
       entryNames: '[name]-[hash]',
       assetNames: '[name]-[hash]',
@@ -249,7 +560,12 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
       },
       metafile: true,
       logLevel: 'silent',
-      plugins: [sideModulePlugin(root, opts.sideModule ?? engineSideModule())],
+      plugins: [
+        sideEntryPlugin(src, tailwind !== null),
+        sideModulePlugin(root, opts.sideModule ?? engineSideModule()),
+        ...(tailwind === null ? [] : [tailwindPlugin(tailwind, src, (file) => scanned.push(file))]),
+        containmentPlugin(root, key),
+      ],
     });
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
@@ -264,6 +580,15 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
     const assetUrl = (path: string): string => `${prefix}/assets/${path.split('/').pop() as string}`;
     const script = assetUrl(main[0]);
     const style = main[1].cssBundle === undefined ? null : assetUrl(main[1].cssBundle);
+
+    // The app's logo is the page's icon: copied beside the page, under a name that changes when it does.
+    const logo = join(appDir(root, key), 'assets', 'logo.svg');
+    let icon: string | null = null;
+    if (existsSync(logo) && lstatSync(logo).isFile() && statSync(logo).size <= 64 * 1024) {
+      const name = `logo-${sha256(logo).slice(0, 8)}.svg`;
+      cpSync(logo, join(staging, 'assets', name));
+      icon = `${prefix}/assets/${name}`;
+    }
 
     // Files the side wants served as they are (a favicon, a robots.txt).
     const publicDir = join(source, 'public');
@@ -285,6 +610,7 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         `<title>${escapeHtml(opts.name)}</title>`,
+        ...(icon === null ? [] : [`<link rel="icon" type="image/svg+xml" href="${icon}">`]),
         ...(style === null ? [] : [`<link rel="stylesheet" href="${style}">`]),
         '</head>',
         '<body>',
@@ -318,6 +644,8 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
       inputs[toProjectPath(root, file)] = sha256(file);
     }
     if (existsSync(navFile)) inputs[toProjectPath(root, navFile)] = sha256(navFile);
+    // Every file Tailwind read class names from: a class changed in one changes the stylesheet.
+    for (const file of scanned) inputs[toProjectPath(root, file)] = sha256(file);
 
     rmSync(out, { recursive: true, force: true });
     mkdirSync(dirname(out), { recursive: true });

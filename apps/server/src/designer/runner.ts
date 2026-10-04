@@ -83,6 +83,16 @@ export interface RunnerDeps {
    * and the check has nothing left.
    */
   advice?(session: DesignerSession): string[];
+  /**
+   * What the screens are short of as a design (a class nothing styles, an
+   * emoji for an icon, no logo). Said when the check and the advice have
+   * nothing left, at most `MAX_DESIGN_ROUNDS` times a turn: a model that
+   * cannot fix a finding must not go round on it for ever. Each line names
+   * one finding in the same words each time.
+   */
+  design?(session: DesignerSession): string[] | Promise<string[]>;
+  /** Before the model is first asked in a turn: what the server itself settles with the person (a card), and files it makes sure are there. */
+  opening?(session: DesignerSession, turn: TurnHandle): Promise<void>;
   /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
   closing?(session: DesignerSession): string[];
   /** How long to wait before asking a provider again after it failed in passing; one entry per try. */
@@ -127,10 +137,14 @@ export interface DesignerRunner {
 export const MAX_REPAIRS = 2;
 /** How many times a turn's model is sent back to errors it left behind. */
 export const MAX_NUDGES = 2;
+/** How many times a turn's model is sent back to what its screens lack as a design. */
+export const MAX_DESIGN_ROUNDS = 2;
+/** A tool an older session called by another name: a transcript that names it still runs. */
+export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_style' };
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
 export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
 /** The tools that change, check or apply the app. */
-const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape']);
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'set_style', 'add_ui_part', 'find_pictures']);
 const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
 
 /** Wait, unless the turn is stopped first. */
@@ -168,7 +182,8 @@ function whyOf(content: string): string {
 
 /** The file or name a call is about, for the page to name: its `path`, else its `name`. */
 function stepSubject(input: Record<string, unknown>): string | undefined {
-  const value = typeof input['path'] === 'string' ? input['path'] : typeof input['name'] === 'string' ? input['name'] : typeof input['key'] === 'string' ? input['key'] : undefined;
+  const value =
+    typeof input['path'] === 'string' ? input['path'] : typeof input['name'] === 'string' ? input['name'] : typeof input['key'] === 'string' ? input['key'] : typeof input['style'] === 'string' ? input['style'] : undefined;
   return value === undefined || value === '' ? undefined : value.slice(0, 200);
 }
 
@@ -242,6 +257,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let unreadable = 0;
     let continued = false;
     let nudges = 0;
+    let designRounds = 0;
     /** Whether this turn changed, checked or applied anything: only then is it held to the check. */
     let acted = false;
     const waits = deps.retryWaitsMs ?? RETRY_WAITS_MS;
@@ -253,13 +269,17 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
 
     try {
       const { runner, maxTokens } = await deps.runnerFor(session);
-      const tools = deps.tools(session);
+      let tools = deps.tools(session);
+      await deps.opening?.(session, handle);
       for (;;) {
         if (signal.aborted) throw new TurnStoppedError();
         if (steps >= limits.maxSteps) {
           limit = { which: 'steps', value: limits.maxSteps };
           break;
         }
+        // The session as it is stored now: a step may have named the app, a person renamed the session.
+        session = deps.store.read(session.id);
+        context.session = session;
         const entries = deps.store.messages(session.id);
         const transcript = joinUserMessages(closeDangling(entries.map((entry) => entry.message)));
         // What the messages alone do not say: the person's own words for this turn, and the turn each picture came with.
@@ -366,6 +386,23 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               : missing.length > 0
                 ? `Before you finish:\n${missing.slice(0, 12).join('\n')}\nDo what each line says: where it names a tool, call that tool; after a change to the app's files, check_app and apply_app. If one of these is left out on purpose, say so in a sentence and finish.`
                 : null;
+          if (sendBack === null && designRounds < MAX_DESIGN_ROUNDS) {
+            // The design, last: the app works, and its screens are held to what a designed page has.
+            const findings = (await deps.design?.(session)) ?? [];
+            if (findings.length > 0) {
+              designRounds += 1;
+              deps.store.appendMessage(session.id, turn, {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `The app works. Its screens are not finished as a design yet:\n${findings.slice(0, 12).join('\n')}\nFix each, then build_sides and apply_app.${designRounds === MAX_DESIGN_ROUNDS ? ' This is the last time these are said: fix what you can, and tell the person in a sentence what is left.' : ''}`,
+                  },
+                ],
+              });
+              continue;
+            }
+          }
           if (sendBack === null) {
             // Left undone and unsaid: said to the person by the Designer itself, as the last words of the turn.
             const notes = deps.closing?.(session) ?? [];
@@ -386,7 +423,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `The arguments of this call could not be read (${bad.error}). Send the call again with a JSON object.` });
             continue;
           }
-          const tool = tools.find((candidate) => candidate.name === call.name);
+          const tool = tools.find((candidate) => candidate.name === (TOOL_ALIASES[call.name] ?? call.name));
           if (tool === undefined) {
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `There is no tool "${call.name}". The tools are: ${tools.map((candidate) => candidate.name).join(', ')}.` });
             continue;
@@ -413,6 +450,13 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
+            // A tool that named the app moved its folder: the tools after it in this reply, and every later step, work in the new one.
+            const stored = deps.store.read(session.id);
+            if (stored.appKey !== session.appKey) {
+              session = stored;
+              context.session = stored;
+              tools = deps.tools(stored);
+            }
           } catch (error) {
             if (error instanceof TurnStoppedError || signal.aborted) {
               log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: 'Stopped', state: 'failed', ms: now() - started, ...about, ended: 'stopped' });

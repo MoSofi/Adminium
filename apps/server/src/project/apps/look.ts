@@ -3,31 +3,45 @@
  * The look of an app's own screens.
  *
  * A side's `src/app.css` draws a set of made parts (a header, cards, a form,
- * buttons, an empty state) from tokens in `src/theme.css`. A look is a
- * *direction*, one of four sets of token values, with an accent colour that
- * may be changed. The choice is kept in `apps/<key>/look.json`, so a later
- * change starts from what was chosen, and whoever builds on the app is told.
+ * buttons, an empty state) from values in `src/theme.css`. A look is a
+ * *style* (a design skill: built in, or the project's own) with what the app
+ * changes in it: an accent colour, and values of the theme. The choice is
+ * kept in `apps/<key>/look.json`, so a later change starts from what was
+ * chosen, and whoever builds on the app is told.
  *
- * `theme.css` is written here from the direction: nobody has to compose
- * colours by hand to get a screen that looks finished. It is the person's
- * file once written, and may be edited; choosing a direction again writes it
- * anew. Only system font stacks are used: a served screen loads nothing from
- * another host.
+ * Written here for each side, from the look: `theme.css` (the values),
+ * `fonts.css` (the fonts the project carries, served by the app itself: a
+ * screen loads nothing from another host), `style.css` (the parts the style
+ * adds), and an empty `design.css` for what this app adds. Choosing a style
+ * again writes the first three anew and leaves `design.css` alone.
+ *
+ * An app made before styles keeps a *direction* in its `look.json`, one of
+ * four sets of values. It is drawn exactly as it was until someone picks a
+ * style for it.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { builtInStylesDir, findDesignSkill, skillCss, skillFonts, skillTheme, type DesignSkill } from './design-skills.js';
 import { appDir, type AppSide } from './read-app.js';
+import { cleanThemePatch, fontPackage, fontsCssOf, inkOn as inkOnColour, themeCssOf, themeFamilies, themeFrom, type Theme, type ThemePatch, type WeightsOf } from './theme.js';
 
 export const LOOK_DIRECTIONS = ['clean', 'warm', 'bold', 'calm'] as const;
 export type LookDirection = (typeof LOOK_DIRECTIONS)[number];
 
 export interface Look {
-  direction: LookDirection;
-  /** A colour of the person's own, `#rrggbb`, in place of the direction's accent. */
+  /** The style's key: a design skill, built in or the project's own. For a look kept before styles, the direction's name. */
+  skill: string;
+  /** Only on a look kept before styles: it is drawn with the direction's own values, as it always was. */
+  direction?: LookDirection;
+  /** A colour of the person's own, `#rrggbb`, in place of the style's accent. */
   accent?: string;
   /** What the person said about the look, in their words. Data, never an instruction. */
   words?: string;
+  /** What this app changes in the style's theme. */
+  theme?: ThemePatch;
+  /** What the person chose to do without: packages and font families a design would have asked for. Not asked again. */
+  without?: string[];
 }
 
 /** The most of a person's words kept. */
@@ -110,15 +124,7 @@ export const DIRECTIONS: Record<LookDirection, Direction> = {
 };
 
 /** Black or white, whichever reads on `hex`. */
-export function inkOn(hex: string): string {
-  const channel = (at: number): number => {
-    const value = Number.parseInt(hex.slice(at, at + 2), 16) / 255;
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  // The contrast with white, against the contrast with near-black.
-  return 1.05 / (luminance + 0.05) >= (luminance + 0.05) / 0.06 ? '#ffffff' : '#111111';
-}
+export const inkOn = inkOnColour;
 
 function block(tokens: Tokens, accent: string): string {
   return [
@@ -133,8 +139,8 @@ function block(tokens: Tokens, accent: string): string {
   ].join('\n');
 }
 
-/** A side's `theme.css` for a look. */
-export function themeCss(look: Look): string {
+/** A side's `theme.css` for a look kept before styles: a direction's own values. */
+function directionCss(look: { direction: LookDirection; accent?: string }): string {
   const direction = DIRECTIONS[look.direction];
   const own = look.accent !== undefined && HEX.test(look.accent) ? look.accent.toLowerCase() : undefined;
   return `/*
@@ -171,21 +177,32 @@ ${block(direction.dark, own ?? direction.dark.accent)
 `;
 }
 
+/** Where the built-in styles are; a test may name another folder. */
+export interface LookPlaces {
+  /** The engine's own styles; found beside the engine when left out. */
+  builtInDir?: string | null;
+}
+
+const placesDir = (places: LookPlaces | undefined): string | null => (places?.builtInDir === undefined ? builtInStylesDir() : places.builtInDir);
+
 /** The look kept in the app's folder; null when there is none, or the file is not one. */
 export function readLook(root: string, key: string): Look | null {
   const file = join(appDir(root, key), LOOK_FILE);
   if (!existsSync(file)) return null;
   try {
     const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-    if (!isDirection(raw['direction'])) return null;
-    return cleanLook({ direction: raw['direction'], accent: raw['accent'], words: raw['words'] });
+    if (typeof raw['skill'] !== 'string' && !isDirection(raw['direction'])) return null;
+    return cleanLook({ skill: raw['skill'], direction: raw['direction'], accent: raw['accent'], words: raw['words'], theme: raw['theme'], without: raw['without'] });
   } catch {
     return null;
   }
 }
 
-/** A look with only what a look may hold. */
-export function cleanLook(input: { direction: LookDirection; accent?: unknown; words?: unknown }): Look {
+/** A style's key, as a folder may be named. */
+const SKILL_KEY = /^[a-z][a-z0-9-]{1,39}$/;
+
+/** A look with only what a look may hold. With a `skill` it is a style; with a `direction` alone, a look kept before styles. */
+export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?: unknown; words?: unknown; theme?: unknown; without?: unknown }): Look {
   const words =
     typeof input.words === 'string'
       ? [...input.words]
@@ -196,23 +213,134 @@ export function cleanLook(input: { direction: LookDirection; accent?: unknown; w
           .trim()
           .slice(0, LOOK_WORDS_MAX)
       : '';
+  const direction = isDirection(input.direction) ? input.direction : undefined;
+  const named = typeof input.skill === 'string' && SKILL_KEY.test(input.skill) ? input.skill : undefined;
+  // A look read from an older file comes back with its direction as its skill: it is still that older look.
+  const skill = named !== undefined && named === direction ? undefined : named;
+  const patch = skill === undefined ? {} : cleanThemePatch(input.theme).patch;
+  const without = Array.isArray(input.without) ? [...new Set(input.without.filter((name): name is string => typeof name === 'string' && name.length > 0 && name.length <= 214 && /^[@A-Za-z0-9][\w@/. ~-]*$/.test(name)))].sort().slice(0, 40) : [];
   return {
-    direction: input.direction,
+    skill: skill ?? direction ?? 'clean',
+    // A direction is kept only while there is no style: it says "draw this as it was".
+    ...(skill === undefined ? { direction: direction ?? 'clean' } : {}),
     ...(typeof input.accent === 'string' && HEX.test(input.accent) ? { accent: input.accent.toLowerCase() } : {}),
     ...(words === '' ? {} : { words }),
+    ...(Object.keys(patch).length === 0 ? {} : { theme: patch }),
+    ...(without.length === 0 ? {} : { without }),
   };
 }
+
+/** A look as its file holds it. */
+const lookFile = (look: Look): Record<string, unknown> => ({
+  ...(look.direction !== undefined ? { direction: look.direction } : { skill: look.skill }),
+  ...(look.accent === undefined ? {} : { accent: look.accent }),
+  ...(look.words === undefined ? {} : { words: look.words }),
+  ...(look.direction !== undefined || look.theme === undefined ? {} : { theme: look.theme }),
+  ...(look.without === undefined ? {} : { without: look.without }),
+});
 
 /** The sides of an app that have screens of the starter's kind: a `src/` folder under the side. */
 export function sidesWithScreens(root: string, key: string): AppSide[] {
   return (['staff', 'customer'] as const).filter((side) => existsSync(join(appDir(root, key), side, 'src')));
 }
 
+/** The weights of a family the project carries, read from its package's files; null when it is not installed. */
+export function installedWeights(root: string): WeightsOf {
+  return (family) => {
+    const dir = join(root, 'node_modules', ...fontPackage(family).split('/'));
+    if (!existsSync(join(dir, 'package.json'))) return null;
+    return readdirSync(dir)
+      .flatMap((name) => {
+        const found = /^([1-9]00)\.css$/.exec(name);
+        return found === null ? [] : [Number(found[1])];
+      })
+      .sort((a, b) => a - b);
+  };
+}
+
+export interface ResolvedLook {
+  look: Look;
+  /** The style, when it is one that is still there. */
+  skill: DesignSkill | null;
+  /** The whole theme; null for a look kept before styles (its direction's own values are its theme). */
+  theme: Theme | null;
+  /** What the list calls it. */
+  title: string;
+  /** One line for whoever builds on it. */
+  line: string;
+}
+
+const DIRECTION_TITLES: Record<LookDirection, string> = { clean: 'Clean', warm: 'Warm', bold: 'Bold', calm: 'Calm' };
+
+/** A look with its style found and its theme put together. */
+export function resolveLook(root: string, look: Look, places?: LookPlaces): ResolvedLook {
+  if (look.direction !== undefined) {
+    return { look, skill: null, theme: null, title: DIRECTION_TITLES[look.direction], line: DIRECTIONS[look.direction].line };
+  }
+  const skill = findDesignSkill(root, placesDir(places), look.skill);
+  const usable = skill !== null && skill.problem === undefined ? skill : null;
+  const base = usable === null ? null : skillTheme(usable);
+  const theme = themeFrom([...(base === null ? [] : [base.patch]), ...(look.theme === undefined ? [] : [look.theme])], look.accent);
+  const title = usable?.title ?? look.skill;
+  return { look, skill: usable, theme, title, line: `${title}${usable === null || usable.description === '' ? '.' : `: ${usable.description}`}` };
+}
+
+/** A side's `theme.css` for a look. */
+/** A look as a caller may give it: a direction alone is a look kept before styles. */
+export type LookInput = Omit<Look, 'skill'> & { skill?: string };
+
+export function themeCss(given: LookInput, root?: string, places?: LookPlaces): string {
+  const look = cleanLook(given);
+  if (look.direction !== undefined) return directionCss({ direction: look.direction, ...(look.accent === undefined ? {} : { accent: look.accent }) });
+  const resolved = resolveLook(root ?? '', look, places);
+  const theme = resolved.theme as Theme;
+  const installed = root === undefined ? new Set<string>() : fontsCssOf(theme, installedWeights(root)).installed;
+  return themeCssOf(theme, { line: resolved.line, installed });
+}
+
+/** The font families a look asks for and the project does not carry yet. */
+export function missingFonts(root: string, look: Look, places?: LookPlaces): { family: string; use: 'heading' | 'body' }[] {
+  const { theme } = resolveLook(root, look, places);
+  if (theme === null) return [];
+  const has = installedWeights(root);
+  return themeFamilies(theme)
+    .filter((entry) => has(entry.family) === null)
+    .map(({ family, use }) => ({ family, use }));
+}
+
+/** What an app's own stylesheet starts as: the Designer's, and the person's. */
+export const DESIGN_CSS_START = `/*
+ * What this app adds to its look: parts of its own, and changes to the made ones.
+ * Colours, fonts, corners and spacing come from theme.css (var(--accent), var(--font-display),
+ * var(--radius), var(--space-4)): never write a colour value here.
+ */
+`;
+
+/**
+ * What a look writes in a side's `src/`: `theme.css`, and for a style
+ * `fonts.css` and, when the style adds parts, `style.css`. `fonts` are the
+ * font files the style brings, to copy into the app's `assets/fonts/`.
+ */
+export function sideLookFiles(root: string, look: Look, places?: LookPlaces): { files: Record<string, string>; fonts: { name: string; from: string }[]; resolved: ResolvedLook } {
+  const resolved = resolveLook(root, look, places);
+  if (resolved.theme === null) return { files: { 'theme.css': themeCss(look) }, fonts: [], resolved };
+  const fonts = fontsCssOf(resolved.theme, installedWeights(root));
+  const files: Record<string, string> = { 'theme.css': themeCssOf(resolved.theme, { line: resolved.line, installed: fonts.installed }), 'fonts.css': fonts.css };
+  // The parts a style adds, and the fonts it brings as files: copied into the app, so the app holds all it shows.
+  const css = resolved.skill === null ? null : skillCss(resolved.skill);
+  if (resolved.skill === null || css === null || !('css' in css)) return { files, fonts: [], resolved };
+  files['style.css'] = `/* The parts of the style "${resolved.title}". Written by Adminium: change the style, or add to design.css. */\n${css.css.replace(/url\(\s*(["']?)(?:\.\/)?fonts\//g, 'url($1../../assets/fonts/')}`;
+  const from = resolved.skill.dir;
+  return { files, fonts: skillFonts(resolved.skill).map((name) => ({ name, from: join(from, 'fonts', name) })), resolved };
+}
+
 /**
  * Keep a look and write it to every side: `look.json`, and each side's
- * `src/theme.css`. Returns the files written, relative to the app's folder.
+ * `src/theme.css`, `src/fonts.css` and `src/style.css`; a side with no
+ * `src/design.css` gets an empty one. Returns the files written, relative to
+ * the app's folder.
  */
-export function applyLook(root: string, key: string, look: Look): string[] {
+export function applyLook(root: string, key: string, look: LookInput, places?: LookPlaces): string[] {
   const dir = appDir(root, key);
   const kept = cleanLook(look);
   const written: string[] = [];
@@ -222,8 +350,19 @@ export function applyLook(root: string, key: string, look: Look): string[] {
     writeFileSync(target, text);
     written.push(file);
   };
-  write(LOOK_FILE, `${JSON.stringify(kept, null, 2)}\n`);
-  for (const side of sidesWithScreens(root, key)) write(`${side}/src/theme.css`, themeCss(kept));
+  write(LOOK_FILE, `${JSON.stringify(lookFile(kept), null, 2)}\n`);
+  const made = sideLookFiles(root, kept, places);
+  for (const font of made.fonts) {
+    mkdirSync(join(dir, 'assets', 'fonts'), { recursive: true });
+    copyFileSync(font.from, join(dir, 'assets', 'fonts', font.name));
+    written.push(`assets/fonts/${font.name}`);
+  }
+  for (const side of sidesWithScreens(root, key)) {
+    for (const [file, text] of Object.entries(made.files)) write(`${side}/src/${file}`, text);
+    // A style with no parts of its own leaves none of the last style's behind.
+    if (made.resolved.theme !== null && made.files['style.css'] === undefined) rmSync(join(dir, side, 'src', 'style.css'), { force: true });
+    if (!existsSync(join(dir, side, 'src', 'design.css'))) write(`${side}/src/design.css`, DESIGN_CSS_START);
+  }
   return written;
 }
 

@@ -230,6 +230,42 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect((await client.call('POST', '/api/v1/designer/sessions', createBody())).status).toBe(404);
   });
 
+  it('an app the person did not name is named by the Designer first: its key is made from the name, never from the request’s words', async () => {
+    const client = await server({ designer: true });
+    const parts = starterParts({ key: 'cake-orders', name: 'Cake Orders', sides: [], version: APP_VERSION });
+    const write = (key: string) => ({ name: 'write_file', arguments: { path: `apps/${key}/manifest/tables/items.json`, content: JSON.stringify(parts['manifest/tables/items.json'], null, 2) } });
+    script = [
+      // It writes before naming: refused, with the reason.
+      () => ({ calls: [write('new-app')] }),
+      // It names the app, and in the same reply writes to the old folder: the name moves the app, and the old path is refused.
+      () => ({ calls: [{ name: 'name_app', arguments: { name: 'Cake Orders' } }, write('new-app')] }),
+      () => ({
+        calls: Object.entries(parts)
+          .filter(([file]) => file !== 'manifest/app.json')
+          .map(([file, value]) => ({ name: 'write_file', arguments: { path: `apps/cake-orders/${file}`, content: JSON.stringify(value, null, 2) } })),
+      }),
+    ];
+    const created = await client.call('POST', '/api/v1/designer/sessions', { title: 'Me to create a website', target: 'auto', connectionId: 'env:ollama', model: 'fake', text: 'I want you to create a website for my cake shop.' });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    const session = created.body['session'] as { id: string; appKey: string; title: string };
+    // Until it has a name the app is "new-app", and the session is called by the request's first words.
+    expect(session).toMatchObject({ appKey: 'new-app', title: 'Me to create a website' });
+    const events = (await finishedTurn(client, session.id, 1)) as (EventRow & { tool?: string; label?: string; detail?: string })[];
+    const steps = events.filter((event) => event.kind === 'step' && event.state !== 'running').map((event) => `${event.tool ?? ''}:${event.state ?? ''}`);
+    expect(steps.slice(0, 3)).toEqual(['write_file:failed', 'name_app:done', 'write_file:failed']);
+    expect(events.find((event) => event.kind === 'step' && event.tool === 'write_file' && event.state === 'failed')?.detail).toContain('Call name_app first');
+    expect(events.at(-1)).toMatchObject({ outcome: 'done' });
+    // The folder, the key, the manifest and the session all carry the name.
+    expect(existsSync(join(root!, 'apps', 'new-app'))).toBe(false);
+    expect(JSON.parse(readFileSync(join(root!, 'apps', 'cake-orders', 'manifest', 'app.json'), 'utf8'))).toMatchObject({ key: 'cake-orders', name: 'Cake Orders' });
+    const after = (await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['session'] as { appKey: string; title: string };
+    expect(after).toMatchObject({ appKey: 'cake-orders', title: 'Cake Orders' });
+    expect((await client.call('GET', '/api/v1/apps')).body).toMatchObject({ apps: [expect.objectContaining({ key: 'cake-orders' })] });
+    // The model was told the folder each time it was asked afterwards.
+    expect(JSON.stringify(asked.at(-1))).toContain('key \\"cake-orders\\"');
+    expect(JSON.stringify(asked.find((messages) => JSON.stringify(messages).includes('I want you to create a website')))).toContain('has no name yet: call name_app first');
+  });
+
   it('are for whoever may use the Designer, and nobody else', async () => {
     const client = await server({ designer: true });
     expect((await client.call('GET', '/api/v1/designer/state', undefined, '')).status).toBe(401);
@@ -315,23 +351,31 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(none.body).toMatchObject({ error: { details: { reason: 'NO_LOOK' } } });
 
     addSide({ root: root!, key: 'repair-desk', name: 'Repair desk', side: 'customer' });
-    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toEqual({ direction: 'clean' });
+    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toMatchObject({ skill: 'clean', title: 'Clean service', origin: 'built-in', swatch: { accent: '#2f5bea' } });
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'neon' })).status).toBe(422);
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, {})).status).toBe(422);
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { skill: 'no-such-style' })).status).toBe(404);
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'warm', accent: 'red' })).status).toBe(422);
 
     asked = [];
-    const done = await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'warm' });
+    const done = await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { skill: 'warm' });
     expect(done.status, JSON.stringify(done.body)).toBe(200);
-    expect(done.body['look']).toEqual({ direction: 'warm' });
+    expect(done.body['look']).toMatchObject({ skill: 'warm', title: 'Warm table', origin: 'built-in' });
     // No model was asked anything.
     expect(asked).toEqual([]);
-    expect(JSON.parse(readFileSync(join(root!, 'apps', 'repair-desk', 'look.json'), 'utf8'))).toEqual({ direction: 'warm' });
+    expect(JSON.parse(readFileSync(join(root!, 'apps', 'repair-desk', 'look.json'), 'utf8'))).toEqual({ skill: 'warm' });
     expect(readFileSync(join(root!, 'apps', 'repair-desk', 'customer', 'src', 'theme.css'), 'utf8')).toContain('--accent: #a04e26;');
-    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toEqual({ direction: 'warm' });
-    const events = (await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=0`)).body['events'] as { kind: string; direction?: string; turn: number }[];
-    expect(events.filter((event) => event.kind === 'look')).toEqual([expect.objectContaining({ direction: 'warm', turn: 1 })]);
+    expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}`)).body['look']).toMatchObject({ skill: 'warm' });
+    const events = (await client.call('GET', `/api/v1/designer/sessions/${session.id}/events-since?after=0`)).body['events'] as { kind: string; skill?: string; fonts?: string[]; turn: number }[];
+    // The style's fonts are not in the project: the event says which, and the next message asks for them.
+    expect(events.filter((event) => event.kind === 'style')).toEqual([expect.objectContaining({ skill: 'warm', title: 'Warm table', fonts: ['Playfair Display', 'Inter'], turn: 1 })]);
+    // The name the body took before styles still reads.
+    expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/look`, { direction: 'calm' })).body['look']).toMatchObject({ skill: 'calm', title: 'Soft care' });
+    const styles = (await client.call('GET', '/api/v1/designer/styles')).body['styles'] as { key: string; hasTheme: boolean }[];
+    expect(styles.map((style) => style.key)).toEqual(['clean', 'warm', 'bold', 'calm', 'editorial', 'craft-market', 'night', 'bright-start', 'sharp-tech', 'classic-hotel']);
 
-    // Not while the Designer is working.
+    // Not while the Designer is working. (The style's fonts would be asked for first, on a card: this app does without them.)
+    writeFileSync(join(root!, 'apps', 'repair-desk', 'look.json'), JSON.stringify({ skill: 'calm', without: ['Fraunces', 'Nunito Sans'] }));
     reply = { text: 'Done', wait: true };
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'More.' })).status).toBe(202);
     await vi.waitFor(() => expect(held.length).toBeGreaterThan(0), { timeout: 15_000, interval: 25 });

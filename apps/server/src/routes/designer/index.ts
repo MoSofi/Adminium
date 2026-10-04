@@ -67,6 +67,8 @@ import {
   designerRestoreReply,
   designerLookBody,
   designerLookReply,
+  designerPictureThumbParams,
+  designerStylesReply,
   designerStopReply,
   designerVersionParams,
   designerVersionsReply,
@@ -101,6 +103,8 @@ export interface DesignerRoutesDeps {
   owner?: { needsPassword(userId: string | null): Promise<boolean>; set(input: { email: string; password: string }, by: Actor): Promise<string> } | undefined;
   /** What people attach to a message. */
   attachments: Attachments;
+  /** The pictures a card is showing, to serve each one's small copy. Absent where the Designer looks for none. */
+  pictures?: import('../../designer/pictures.js').PictureShelf;
   /** How an app fits together, from what the engine applied. */
   architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
@@ -212,11 +216,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     }
 
     // "Your apps": every app of the folder, with the newest session that built it.
-    /** The look as the page is told it: the direction and the accent, never the person's words. */
-    const publicLook = (appKey: string): { direction: 'clean' | 'warm' | 'bold' | 'calm'; accent?: string } | null => {
-      const look = designer.lookOf(appKey);
-      return look === null ? null : { direction: look.direction, ...(look.accent === undefined ? {} : { accent: look.accent }) };
-    };
+    const publicLook = (appKey: string) => designer.publicLook(appKey);
 
     app.get('/designer/sessions', { preHandler: guard, config: RATE, schema: { response: { 200: designerAppsReply } } }, async () => {
       const sessions = store.list();
@@ -320,7 +320,12 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const session = store.read(request.params.id);
         if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the file itself as the request body.', { reason: 'ATTACHMENT' });
         try {
-          const made = deps.attachments.add(session.id, { filename: request.query.filename, bytes: request.body });
+          // A picture's colours, as the page read them: thousandths of the picture each.
+          const palette = (request.query.palette ?? '')
+            .split(',')
+            .filter((entry) => entry !== '')
+            .map((entry) => ({ hex: `#${entry.slice(0, 6)}`, share: Math.min(1, Number(entry.slice(7)) / 1000) }));
+          const made = deps.attachments.add(session.id, { filename: request.query.filename, bytes: request.body, ...(palette.length === 0 ? {} : { palette }) });
           return await reply.code(201).send({ attachment: publicAttachment(made) });
         } catch (error) {
           if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
@@ -345,6 +350,24 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           .header('cache-control', 'private, max-age=3600')
           .header('content-disposition', entry.kind === 'image' ? 'inline' : 'attachment; filename="attachment.csv"')
           .send(bytes);
+      },
+    );
+
+    // A picture on a pictures card, as a small copy. The card names it by ids of this server's: the address it came from never reaches the page.
+    app.get(
+      '/designer/sessions/:id/picture-thumb/:shelf/:picture',
+      { preHandler: guard, config: { rateLimitBucket: 'designer-files' as const }, schema: { params: designerPictureThumbParams } },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        const thumb = (await deps.pictures?.thumb(session.id, request.params.shelf, request.params.picture)) ?? null;
+        if (thumb === null) throw new NotFoundError('There is no such picture on a card of this session.');
+        return reply
+          .header('content-type', thumb.mime)
+          .header('x-content-type-options', 'nosniff')
+          .header('content-security-policy', "default-src 'none'; sandbox")
+          .header('cache-control', 'private, max-age=3600')
+          .header('content-disposition', 'inline')
+          .send(thumb.bytes);
       },
     );
 
@@ -406,10 +429,24 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         schema: { params: designerSessionParams, body: designerLookBody, response: { 200: designerLookReply } },
       },
       async (request) => {
-        const done = await designer.setLook(request.params.id, { direction: request.body.direction, accent: request.body.accent }, actorOf(request));
-        return { look: { direction: done.look.direction, ...(done.look.accent === undefined ? {} : { accent: done.look.accent }) }, version: done.version, applied: done.applied };
+        const done = await designer.setLook(request.params.id, { skill: request.body.skill ?? (request.body.direction as string), accent: request.body.accent }, actorOf(request));
+        return done;
       },
     );
+
+    // The styles a person can pick: built in, and the project's own.
+    app.get('/designer/styles', { preHandler: guard, config: RATE, schema: { response: { 200: designerStylesReply } } }, async () => ({
+      styles: designer.styles().map((skill) => ({
+        key: skill.key,
+        title: skill.title,
+        description: skill.description,
+        origin: skill.origin,
+        hasTheme: skill.hasTheme,
+        hasPreview: skill.hasPreview,
+        ...(skill.swatch === undefined ? {} : { swatch: skill.swatch }),
+        ...(skill.problem === undefined ? {} : { problem: skill.problem }),
+      })),
+    }));
 
     // Going back to a version (O1: as a new version on top), or putting the files back after a stop (O3).
     app.post(

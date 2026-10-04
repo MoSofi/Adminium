@@ -1,0 +1,48 @@
+{
+  "light": {
+    "bg": "#f8f5ee",
+    "surface": "#fffdf8",
+    "surface2": "#efe9dc",
+    "text": "#14223b",
+    "muted": "#5d6577",
+    "line": "#ddd5c3",
+    "accent": "#9a7b3c",
+    "accent2": "#14223b",
+    "band": "#14223b"
+  },
+  "dark": {
+    "bg": "#0d1524",
+    "surface": "#152036",
+    "surface2": "#1d2a45",
+    "text": "#f3eee2",
+    "muted": "#a8afbf",
+    "line": "#2a3856",
+    "accent": "#d1b06b",
+    "accent2": "#f3eee2",
+    "band": "#090f1b"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Cormorant Garamond",
+      "weights": [
+        500,
+        600
+      ],
+      "fallback": "serif"
+    },
+    "body": {
+      "family": "Lato",
+      "weights": [
+        400,
+        700
+      ],
+      "fallback": "sans"
+    }
+  },
+  "headingWeight": 600,
+  "headingTracking": "0em",
+  "typeScale": 1.333,
+  "space": "roomy",
+  "radius": 4,
+  "shadow": "soft"
+}

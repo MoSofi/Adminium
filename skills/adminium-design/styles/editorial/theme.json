@@ -1,0 +1,48 @@
+{
+  "light": {
+    "bg": "#fbfaf7",
+    "surface": "#fbfaf7",
+    "surface2": "#f1efe9",
+    "text": "#161513",
+    "muted": "#6b6862",
+    "line": "#161513",
+    "accent": "#8a3b12",
+    "accent2": "#161513",
+    "band": "#161513"
+  },
+  "dark": {
+    "bg": "#121110",
+    "surface": "#121110",
+    "surface2": "#1c1b19",
+    "text": "#f2efe8",
+    "muted": "#a09c93",
+    "line": "#f2efe8",
+    "accent": "#e08a5b",
+    "accent2": "#f2efe8",
+    "band": "#000000"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Newsreader",
+      "weights": [
+        400,
+        500
+      ],
+      "fallback": "serif"
+    },
+    "body": {
+      "family": "Inter",
+      "weights": [
+        400,
+        500
+      ],
+      "fallback": "sans"
+    }
+  },
+  "headingWeight": 500,
+  "headingTracking": "-0.02em",
+  "typeScale": 1.333,
+  "space": "roomy",
+  "radius": 2,
+  "shadow": "none"
+}

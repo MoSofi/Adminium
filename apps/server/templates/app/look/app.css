@@ -568,3 +568,272 @@ textarea::placeholder {
     transition: none !important;
   }
 }
+
+/*
+ * Parts a public site needs. They draw from the same values; a value an older
+ * theme.css does not have falls back to one it does.
+ *
+ *   .logo  .site-nav  .hero.split  .hero-media  .media (.wide .square .tall)
+ *   .strip  .section-title  .item-list  .item-row  .item-thumb  .item-body
+ *   .band  .quote  .facts  .footer-cols  .icon
+ */
+
+.logo {
+  display: block;
+  width: auto;
+  height: 2.3rem;
+}
+
+/* Links in the header, with the one button a visitor is there for at the end. */
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.site-nav a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current='page'] {
+  color: var(--accent);
+}
+
+/* A picture with a fixed shape, so a row of them stays even whatever was uploaded. */
+.media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.media.wide {
+  aspect-ratio: 16 / 9;
+}
+
+.media.square {
+  aspect-ratio: 1;
+}
+
+.media.tall {
+  aspect-ratio: 4 / 5;
+}
+
+/* The same shapes when the picture sits inside the part, not on it. */
+.media,
+.item-thumb,
+.card-media {
+  overflow: hidden;
+}
+
+.media > img,
+.item-thumb > img,
+.card-media > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The first screen with a picture beside the words; one column on a phone. */
+.hero.split {
+  max-width: none;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3rem);
+}
+
+@media (min-width: 56rem) {
+  .hero.split {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+}
+
+.hero.split > div {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: start;
+}
+
+.hero-media {
+  border-radius: var(--radius-lg, var(--radius));
+  box-shadow: var(--shadow-lg, var(--shadow));
+}
+
+/* A few pictures in a row: the room, the work, the team. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+/* A section's heading with a short mark above it. */
+.section-title {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 40rem;
+  padding-top: clamp(1.5rem, 4vw, 3rem);
+}
+
+.section-title::before {
+  content: '';
+  width: 2.5rem;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  font-size: var(--text-2xl, clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem));
+  line-height: 1.15;
+}
+
+.section-title p {
+  font-family: var(--font-body);
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Things with a price, one per line: a menu, a list of services. */
+.item-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.item-thumb {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--surface-2);
+}
+
+.item-body {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.item-body strong {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  font-size: 1.05rem;
+}
+
+.item-body span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* A stretch of the page in another colour, edge to edge: a quote, the booking, a last call. */
+.band {
+  display: grid;
+  gap: 1rem;
+  margin: clamp(1.5rem, 4vw, 3rem) 0;
+  padding: clamp(2rem, 6vw, 4rem) 0;
+  background: var(--band, var(--text));
+  color: var(--band-ink, var(--bg));
+  box-shadow: 0 0 0 100vmax var(--band, var(--text));
+  clip-path: inset(0 -100vmax);
+}
+
+.band h2,
+.band h3 {
+  color: inherit;
+}
+
+.band .muted,
+.band .lead {
+  color: inherit;
+  opacity: 0.78;
+}
+
+.quote {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 44rem;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 1rem + 1.2vw, 1.8rem);
+  line-height: 1.3;
+}
+
+.quote footer {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  opacity: 0.78;
+}
+
+/* Short facts side by side: hours, the address, a phone number. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1.25rem;
+}
+
+.facts > div {
+  display: grid;
+  gap: 0.25rem;
+  align-content: start;
+}
+
+.facts strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.footer-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1.5rem;
+  margin-top: clamp(2rem, 5vw, 4rem);
+  padding: 2rem 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.footer-cols strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--text);
+}
+
+.footer-cols a {
+  color: inherit;
+}
+
+/* An icon beside words. */
+.icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  vertical-align: -0.2em;
+}

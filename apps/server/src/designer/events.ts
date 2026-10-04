@@ -53,6 +53,8 @@ export type DesignerEventBody =
   | { kind: 'version'; n: number; name: string }
   /** The look was changed from the page ("Change the look"), with no model behind it. */
   | { kind: 'look'; direction: string }
+  /** The style was changed from the page ("Change the style"), with no model behind it. `fonts`: families it names that the project does not carry yet; they are asked for when the next message is sent. */
+  | { kind: 'style'; skill: string; title: string; fonts?: string[] }
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }

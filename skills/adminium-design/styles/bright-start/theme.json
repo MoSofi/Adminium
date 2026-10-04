@@ -1,0 +1,48 @@
+{
+  "light": {
+    "bg": "#fffaf0",
+    "surface": "#ffffff",
+    "surface2": "#fdf1d7",
+    "text": "#17254a",
+    "muted": "#56618a",
+    "line": "#f0e3c4",
+    "accent": "#f59e0b",
+    "accent2": "#2b8fd6",
+    "band": "#17254a"
+  },
+  "dark": {
+    "bg": "#101730",
+    "surface": "#182142",
+    "surface2": "#222d57",
+    "text": "#f7f3e8",
+    "muted": "#aab3d6",
+    "line": "#2b376a",
+    "accent": "#fbbf24",
+    "accent2": "#6cc0f5",
+    "band": "#0b1024"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Baloo 2",
+      "weights": [
+        600,
+        700
+      ],
+      "fallback": "rounded"
+    },
+    "body": {
+      "family": "Nunito",
+      "weights": [
+        400,
+        700
+      ],
+      "fallback": "rounded"
+    }
+  },
+  "headingWeight": 700,
+  "headingTracking": "-0.01em",
+  "typeScale": 1.25,
+  "space": "roomy",
+  "radius": 22,
+  "shadow": "soft"
+}

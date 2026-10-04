@@ -11,6 +11,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { cleanPalette, type PaletteColour } from '../project/apps/theme.js';
+
 import { parseCsv } from '../data-io/csv.js';
 import { DESIGNER_DIR } from './session-store.js';
 
@@ -38,6 +40,8 @@ export interface Attachment {
   /** A CSV's data rows (the header is not one) and its header's names. */
   rows?: number;
   columns?: string[];
+  /** A picture's colours, the most first, as the page that sent it read them. Data: a look may be read from them. */
+  palette?: PaletteColour[];
 }
 
 export type AttachmentRefusal = 'TOO_LARGE' | 'NOT_ACCEPTED' | 'CSV_UNREADABLE' | 'CSV_TOO_MANY_ROWS' | 'SESSION_FULL' | 'EMPTY';
@@ -103,7 +107,7 @@ export function labelOf(filename: string): string {
 }
 
 export interface Attachments {
-  add(sessionId: string, input: { filename: string; bytes: Buffer }): Attachment;
+  add(sessionId: string, input: { filename: string; bytes: Buffer; palette?: unknown }): Attachment;
   list(sessionId: string): Attachment[];
   find(sessionId: string, id: string): Attachment | null;
   /** The file's bytes; null when there is no such attachment in this session. */
@@ -147,7 +151,8 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       let entry: Omit<Attachment, 'id' | 'at' | 'sha256' | 'label' | 'bytes'>;
       if (image !== null) {
         if (bytes.length > ATTACHMENT_MAX_IMAGE_BYTES) throw new AttachmentError('TOO_LARGE', 'That picture is over 5 MB. Attach a smaller one.');
-        entry = { kind: 'image', mediaType: image };
+        const palette = cleanPalette(input.palette);
+        entry = { kind: 'image', mediaType: image, ...(palette.length === 0 ? {} : { palette }) };
       } else {
         if (bytes.length > ATTACHMENT_MAX_CSV_BYTES) throw new AttachmentError('TOO_LARGE', 'That file is over 10 MB. For a file that size, use Import on the table’s own page.');
         const csv = csvOf(bytes);

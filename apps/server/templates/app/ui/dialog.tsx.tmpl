@@ -1,0 +1,54 @@
+/*
+ * A dialog, and a sheet that slides in from the side, on the browser's own
+ * <dialog>: it traps focus, closes on Escape and dims the page by itself.
+ * Yours to change.
+ */
+import { useEffect, useRef, type ReactNode } from 'react';
+
+import { cn } from './utils';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  /** Read out as the dialog's name. */
+  title: string;
+  children: ReactNode;
+  className?: string;
+}
+
+function Base({ open, onClose, title, children, className }: Props) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog === null) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      aria-label={title}
+      onClose={onClose}
+      // A click on the dimmed page around the dialog closes it.
+      onClick={(event) => {
+        if (event.target === ref.current) onClose();
+      }}
+      className={cn('bg-surface p-0 text-text shadow-theme backdrop:bg-black/50', className)}
+    >
+      {children}
+    </dialog>
+  );
+}
+
+export function Dialog(props: Props) {
+  return <Base {...props} className={cn('m-auto w-[min(32rem,calc(100vw-2rem))] rounded-theme', props.className)} />;
+}
+
+/** From the end of the page (the right, in a left-to-right language): a menu on a phone, a basket. */
+export function Sheet(props: Props) {
+  return <Base {...props} className={cn('ms-auto me-0 h-dvh max-h-none w-[min(24rem,90vw)] max-w-none', props.className)} />;
+}
+
+export function DialogBody({ className, children }: { className?: string; children: ReactNode }) {
+  return <div className={cn('grid gap-4 p-6', className)}>{children}</div>;
+}

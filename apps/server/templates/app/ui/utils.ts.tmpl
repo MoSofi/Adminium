@@ -1,0 +1,10 @@
+/*
+ * A helper for the parts in this folder: joins class names, and when two
+ * Tailwind classes say the same thing ("p-2 p-4"), the later one wins.
+ */
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
+}

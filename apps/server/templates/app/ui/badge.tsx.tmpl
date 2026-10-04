@@ -1,0 +1,22 @@
+/* A small mark beside a thing: new, sold out, vegetarian. After shadcn/ui's (MIT). Yours to change. */
+import type { HTMLAttributes } from 'react';
+
+import { cn } from './utils';
+
+const TONE = {
+  plain: 'bg-surface-2 text-text',
+  accent: 'bg-accent text-accent-ink',
+  second: 'bg-accent-2 text-accent-2-ink',
+  good: 'bg-good/15 text-good',
+  warn: 'bg-warn/15 text-warn',
+  bad: 'bg-bad/15 text-bad',
+} as const;
+
+export function Badge({ tone = 'plain', className, ...rest }: HTMLAttributes<HTMLSpanElement> & { tone?: keyof typeof TONE }) {
+  return <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold', TONE[tone], className)} {...rest} />;
+}
+
+/** A thin line between two parts. */
+export function Separator({ className, ...rest }: HTMLAttributes<HTMLHRElement>) {
+  return <hr className={cn('border-0 border-t border-line', className)} {...rest} />;
+}

@@ -1,0 +1,22 @@
+/* Questions that open one at a time, on the browser's own <details>. Yours to change. */
+import type { ReactNode } from 'react';
+
+import { cn } from './utils';
+
+export function Accordion({ items, className }: { items: readonly { id: string; question: string; answer: ReactNode }[]; className?: string }) {
+  return (
+    <div className={cn('divide-y divide-line border-y border-line', className)}>
+      {items.map((item) => (
+        <details key={item.id} name="accordion" className="group py-1">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+            {item.question}
+            <span aria-hidden="true" className="text-accent transition group-open:rotate-45">
+              +
+            </span>
+          </summary>
+          <div className="pb-4 text-muted">{item.answer}</div>
+        </details>
+      ))}
+    </div>
+  );
+}

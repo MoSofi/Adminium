@@ -1,0 +1,32 @@
+/* A button, in the theme's colours. After shadcn/ui's (MIT). Yours to change. */
+import type { ButtonHTMLAttributes } from 'react';
+
+import { cn } from './utils';
+
+const VARIANT = {
+  primary: 'bg-accent text-accent-ink hover:brightness-110',
+  secondary: 'bg-surface-2 text-text hover:brightness-95',
+  outline: 'border border-line bg-transparent text-text hover:bg-surface-2',
+  ghost: 'bg-transparent text-text hover:bg-surface-2',
+} as const;
+const SIZE = { sm: 'h-9 px-3 text-sm', md: 'h-11 px-5 text-base', lg: 'h-13 px-7 text-lg' } as const;
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: keyof typeof VARIANT;
+  size?: keyof typeof SIZE;
+}
+
+export function Button({ variant = 'primary', size = 'md', className, type = 'button', ...rest }: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 rounded-theme font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50',
+        VARIANT[variant],
+        SIZE[size],
+        className,
+      )}
+      {...rest}
+    />
+  );
+}

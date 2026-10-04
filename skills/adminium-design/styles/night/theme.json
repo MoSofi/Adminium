@@ -1,0 +1,48 @@
+{
+  "scheme": "dark",
+  "light": {
+    "bg": "#0e0e12",
+    "surface": "#17171d",
+    "surface2": "#22222a",
+    "text": "#f3f1ea",
+    "muted": "#a3a09a",
+    "line": "#2c2c35",
+    "accent": "#f5a524",
+    "accent2": "#e0457b",
+    "band": "#000000"
+  },
+  "dark": {
+    "bg": "#0e0e12",
+    "surface": "#17171d",
+    "surface2": "#22222a",
+    "text": "#f3f1ea",
+    "muted": "#a3a09a",
+    "line": "#2c2c35",
+    "accent": "#f5a524",
+    "accent2": "#e0457b",
+    "band": "#000000"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Bebas Neue",
+      "weights": [
+        400
+      ],
+      "fallback": "sans"
+    },
+    "body": {
+      "family": "Manrope",
+      "weights": [
+        400,
+        600
+      ],
+      "fallback": "sans"
+    }
+  },
+  "headingWeight": 400,
+  "headingTracking": "0.01em",
+  "typeScale": 1.333,
+  "space": "regular",
+  "radius": 8,
+  "shadow": "strong"
+}

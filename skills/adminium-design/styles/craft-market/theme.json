@@ -1,0 +1,48 @@
+{
+  "light": {
+    "bg": "#f5efe6",
+    "surface": "#fffaf3",
+    "surface2": "#ebe2d4",
+    "text": "#2a2622",
+    "muted": "#70675d",
+    "line": "#ddd2c1",
+    "accent": "#b4532a",
+    "accent2": "#3f5d45",
+    "band": "#3f5d45"
+  },
+  "dark": {
+    "bg": "#191613",
+    "surface": "#231f1b",
+    "surface2": "#2e2924",
+    "text": "#f3ece1",
+    "muted": "#b3a797",
+    "line": "#3a342d",
+    "accent": "#e58b62",
+    "accent2": "#93b59a",
+    "band": "#231f1b"
+  },
+  "fonts": {
+    "heading": {
+      "family": "DM Serif Display",
+      "weights": [
+        400
+      ],
+      "fallback": "serif"
+    },
+    "body": {
+      "family": "DM Sans",
+      "weights": [
+        400,
+        500,
+        700
+      ],
+      "fallback": "sans"
+    }
+  },
+  "headingWeight": 400,
+  "headingTracking": "-0.01em",
+  "typeScale": 1.25,
+  "space": "regular",
+  "radius": 14,
+  "shadow": "soft"
+}

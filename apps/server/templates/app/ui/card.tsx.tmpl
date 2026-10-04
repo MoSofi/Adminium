@@ -1,0 +1,28 @@
+/* A card and its parts. After shadcn/ui's (MIT). Yours to change. */
+import type { HTMLAttributes } from 'react';
+
+import { cn } from './utils';
+
+export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('rounded-theme border border-line bg-surface text-text shadow-theme', className)} {...rest} />;
+}
+
+export function CardHeader({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('grid gap-1 p-6 pb-0', className)} {...rest} />;
+}
+
+export function CardTitle({ className, ...rest }: HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={cn('font-display text-xl', className)} {...rest} />;
+}
+
+export function CardText({ className, ...rest }: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn('text-sm text-muted', className)} {...rest} />;
+}
+
+export function CardBody({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('p-6', className)} {...rest} />;
+}
+
+export function CardFooter({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex items-center gap-3 p-6 pt-0', className)} {...rest} />;
+}

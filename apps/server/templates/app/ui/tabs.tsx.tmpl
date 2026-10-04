@@ -1,0 +1,54 @@
+/* Tabs: a row of buttons, and the panel of the one that is picked. Works with the keyboard (arrow keys). Yours to change. */
+import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
+
+import { cn } from './utils';
+
+export interface Tab {
+  id: string;
+  label: string;
+  content: ReactNode;
+}
+
+export function Tabs({ tabs, initial, className }: { tabs: readonly Tab[]; initial?: string; className?: string }) {
+  const [current, setCurrent] = useState(initial ?? tabs[0]?.id ?? '');
+  const base = useId();
+  const move = (event: KeyboardEvent<HTMLDivElement>) => {
+    const at = tabs.findIndex((tab) => tab.id === current);
+    const next = event.key === 'ArrowRight' ? at + 1 : event.key === 'ArrowLeft' ? at - 1 : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault();
+    const tab = tabs[(next + tabs.length) % tabs.length];
+    if (tab === undefined) return;
+    setCurrent(tab.id);
+    document.getElementById(`${base}-tab-${tab.id}`)?.focus();
+  };
+  return (
+    <div className={cn('grid gap-4', className)}>
+      <div role="tablist" onKeyDown={move} className="flex flex-wrap gap-1 border-b border-line">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            id={`${base}-tab-${tab.id}`}
+            role="tab"
+            type="button"
+            aria-selected={tab.id === current}
+            aria-controls={`${base}-panel-${tab.id}`}
+            tabIndex={tab.id === current ? 0 : -1}
+            onClick={() => setCurrent(tab.id)}
+            className={cn(
+              '-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent',
+              tab.id === current ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-text',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {tabs.map((tab) => (
+        <div key={tab.id} id={`${base}-panel-${tab.id}`} role="tabpanel" aria-labelledby={`${base}-tab-${tab.id}`} hidden={tab.id !== current}>
+          {tab.content}
+        </div>
+      ))}
+    </div>
+  );
+}

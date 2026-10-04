@@ -6,7 +6,8 @@
  * is this package's dev dependency: both are linked into a temp project the
  * way a real project has them installed.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -14,7 +15,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseSurfaceManifest } from '../src/cli/surfaces-root.js';
 import { runCli } from '../src/cli/run.js';
 import { loadProjectBundler, type Bundler } from '../src/project/build.js';
-import { buildAppSides, buildSide, sideBuildDir } from '../src/project/apps/side-build.js';
+import { buildAppSides, buildSide, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
+import { addUiParts, UI_PARTS } from '../src/project/apps/scaffold-app.js';
 import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
@@ -232,5 +234,203 @@ describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
     const script = readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets', staff), 'utf8');
     expect(script).toContain('surface-config.json');
     expect(script).toContain('x-adminium-csrf');
+  });
+});
+
+/** The repository's own Tailwind 4 (the dashboard's), linked into the project as an install would put it. Null when this checkout has none. */
+function tailwindFolder(): string | null {
+  try {
+    return dirname(createRequire(join(import.meta.dirname, '..', '..', 'dashboard', 'package.json')).resolve('tailwindcss/package.json'));
+  } catch {
+    return null;
+  }
+}
+
+describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
+  const cssOf = (dir: string): string => readFileSync(join(dir, 'assets', readdirSync(join(dir, 'assets')).find((name) => name.endsWith('.css')) ?? ''), 'utf8');
+
+  it('loads a side’s stylesheets itself, in their order, whether or not main.tsx imports them', async () => {
+    // main.tsx imports app.css and nothing else: the look and the app's own rules still arrive, the theme first.
+    put('apps/repairs/staff/src/theme.css', ':root { --accent: #a04e26; }\n');
+    put('apps/repairs/staff/src/design.css', '.mine { color: var(--accent); }\n');
+    put('apps/repairs/staff/src/style.css', '.of-the-style { margin: 0; }\n');
+    const css = cssOf((await build()).dir);
+    const at = (text: string): number => css.indexOf(text);
+    expect(at('--accent')).toBeGreaterThanOrEqual(0);
+    expect(at('--accent')).toBeLessThan(at('h1{'));
+    expect(at('h1{')).toBeLessThan(at('.of-the-style'));
+    expect(at('.of-the-style')).toBeLessThan(at('.mine'));
+    // A stylesheet main.tsx imports too is bundled once.
+    expect(css.split('h1{')).toHaveLength(2);
+  });
+
+  it('refuses an import that leaves the app’s folder, by a path, by a link or by a name mapped onto the project', async () => {
+    put('secret.json', '{"key":"do-not-ship"}');
+    put('.adminium/keys.json', '{"key":"do-not-ship"}');
+    const tries: [string, string][] = [
+      ["import secret from '../../../../secret.json';\nconsole.log(secret);", '../../../../secret.json'],
+      ["import keys from '../../../../.adminium/keys.json';\nconsole.log(keys);", '.adminium/keys.json'],
+      ["import pkg from '../../../../package.json';\nconsole.log(pkg);", 'package.json'],
+    ];
+    for (const [line, named] of tries) {
+      put('apps/repairs/staff/src/main.tsx', `${line}\n${MAIN}`);
+      await expect(build(), named).rejects.toThrow(/is outside this app: a screen may import files of apps\/repairs\/ and installed packages/);
+    }
+    // A stylesheet reaching out with @import is an import like any other.
+    put('apps/repairs/staff/src/main.tsx', MAIN);
+    put('outside.css', '.leak { color: red }');
+    put('apps/repairs/staff/src/app.css', '@import "../../../../outside.css";\nh1 { color: rebeccapurple; }\n');
+    await expect(build()).rejects.toThrow(/is outside this app/);
+    put('apps/repairs/staff/src/app.css', 'h1 { color: rebeccapurple; }\n');
+    // A link inside the app that points out of it.
+    symlinkSync(join(root, 'secret.json'), join(root, 'apps/repairs/staff/src/linked.json'));
+    put('apps/repairs/staff/src/main.tsx', `import linked from './linked.json';\nconsole.log(linked);\n${MAIN}`);
+    await expect(build()).rejects.toThrow(/is outside this app/);
+    rmSync(join(root, 'apps/repairs/staff/src/linked.json'));
+    // A name mapped onto the project by a tsconfig of the app's own.
+    put('apps/repairs/tsconfig.json', JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { 'handy/*': ['../../*'] } } }));
+    put('apps/repairs/staff/src/main.tsx', `import mapped from 'handy/secret.json';\nconsole.log(mapped);\n${MAIN}`);
+    await expect(build()).rejects.toThrow(/is outside this app/);
+    rmSync(join(root, 'apps/repairs/tsconfig.json'));
+    // The app's own files, from anywhere in its folder, and installed packages: fine.
+    put('apps/repairs/assets/pictures/hero.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>\n');
+    put('apps/repairs/staff/src/main.tsx', `import hero from '../../assets/pictures/hero.svg';\nconsole.log(hero);\n${MAIN}`);
+    const built = await build();
+    expect(built.files.some((file) => /^assets\/hero-[A-Z0-9]+\.svg$/.test(file))).toBe(true);
+    expect(readdirSync(join(built.dir, 'assets')).map((name) => readFileSync(join(built.dir, 'assets', name), 'utf8')).join('')).not.toContain('do-not-ship');
+  });
+
+  it('makes the app’s logo the page’s icon', async () => {
+    put('apps/repairs/assets/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>\n');
+    const built = await build();
+    const icon = /<link rel="icon" type="image\/svg\+xml" href="([^"]+)">/.exec(readFileSync(join(built.dir, 'index.html'), 'utf8'))?.[1] ?? '';
+    expect(icon).toMatch(/^\/apps\/repairs\/staff\/assets\/logo-[0-9a-f]{8}\.svg$/);
+    expect(existsSync(join(built.dir, 'assets', icon.split('/').pop() ?? ''))).toBe(true);
+  });
+});
+
+describe.skipIf(!ready || tailwindFolder() === null)('Tailwind in a side', () => {
+  const cssOf = (dir: string): string => readFileSync(join(dir, 'assets', readdirSync(join(dir, 'assets')).find((name) => name.endsWith('.css')) ?? ''), 'utf8');
+  const withTailwind = (): void => {
+    symlinkSync(tailwindFolder() as string, join(root, 'node_modules', 'tailwindcss'), 'dir');
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'my-admin', private: true, type: 'module', dependencies: { tailwindcss: '4.3.3' } }));
+  };
+  const SCREEN = [
+    "import { createRoot } from 'react-dom/client';",
+    'function App() {',
+    '  return <main className="bg-surface text-accent md:p-8 rounded-theme grid-cols-[1fr_2fr] made-part not-a-class">Hello</main>;',
+    '}',
+    "createRoot(document.getElementById('root')!).render(<App />);",
+    '',
+  ].join('\n');
+
+  it('is off, and the build is as it always was, until the project itself lists the package', async () => {
+    put('apps/repairs/staff/src/main.tsx', SCREEN);
+    // Reachable is not installed: a package the project does not name is not its Tailwind.
+    symlinkSync(tailwindFolder() as string, join(root, 'node_modules', 'tailwindcss'), 'dir');
+    expect(projectTailwind(root)).toBeNull();
+    expect(cssOf((await build()).dir)).not.toContain('md\\:p-8');
+  });
+
+  it('compiles the classes a screen uses, with the theme’s names, and puts the made parts under them', async () => {
+    withTailwind();
+    put('apps/repairs/staff/src/main.tsx', SCREEN);
+    put('apps/repairs/staff/src/theme.css', ':root { --surface: #fffdf8; --accent: #a04e26; --radius: 18px; }\n');
+    put('apps/repairs/staff/src/app.css', '.made-part { padding: 1px; }\n');
+    put('apps/repairs/staff/src/design.css', '@import "./extra.css";\n.mine { color: var(--accent); }\n');
+    put('apps/repairs/staff/src/extra.css', '.extra { margin: 0; }\n');
+    const built = await build();
+    const css = cssOf(built.dir);
+    for (const used of ['.bg-surface{background-color:var(--surface)}', '.text-accent{color:var(--accent)}', '.rounded-theme{border-radius:var(--radius)}', 'md\\:p-8', 'grid-cols-\\[1fr_2fr\\]']) expect(css, used).toContain(used);
+    expect(css).not.toContain('not-a-class');
+    // The made parts and the app's own rules sit in the components layer, so a class on the element wins over them.
+    expect(css).toMatch(/@layer components\{[^}]*\.made-part/);
+    expect(css).toMatch(/@layer components\{[^}]*\.mine/);
+    expect(css).toContain('.extra');
+    // The screen Tailwind read class names from is a build input: a class changed there changes the stylesheet.
+    expect(Object.keys(built.inputs)).toContain('apps/repairs/staff/src/main.tsx');
+  });
+
+  it('never hands Tailwind a file of the app: an @import, @plugin or @config written into a stylesheet reaches no compiler', async () => {
+    withTailwind();
+    put('apps/repairs/staff/src/main.tsx', SCREEN);
+    put('secret.css', '.leak { color: red }');
+    // A tailwind.css in the side is not read at all: the build makes Tailwind's text itself.
+    put('apps/repairs/staff/src/tailwind.css', '@import "tailwindcss";\n@import "../../../../secret.css";\n@plugin "./evil.js";\n@config "./evil.js";\n@source "../../../../";\n');
+    put('apps/repairs/staff/src/evil.js', "throw new Error('ran');");
+    const css = cssOf((await build()).dir);
+    expect(css).not.toContain('.leak');
+    expect(css).toContain('md\\:p-8');
+  });
+
+  it('understands @apply in the app’s own stylesheet, names a class it cannot apply, and lets such a stylesheet load nothing', async () => {
+    withTailwind();
+    put('apps/repairs/staff/src/main.tsx', SCREEN);
+    put('apps/repairs/staff/src/theme.css', ':root { --surface: #fffdf8; --accent: #a04e26; --radius: 18px; }\n');
+    put('apps/repairs/staff/src/design.css', '.form-box {\n  @apply mx-auto p-8 bg-surface rounded-theme;\n}\n');
+    const css = cssOf((await build()).dir);
+    expect(css).toMatch(/\.form-box\{[^}]*background-color:var\(--surface\)/);
+    expect(css).not.toContain('@apply');
+    put('apps/repairs/staff/src/design.css', '.form-box { @apply shadow-soft; }\n');
+    await expect(build()).rejects.toThrow(/shadow-soft/);
+    put('secret.css', '.leak { color: red }');
+    for (const line of ['@import "../../../../secret.css";', '@plugin "./evil.js";', '@config "./evil.js";', '@source "../../../../";', '@reference "../../../../secret.css";']) {
+      put('apps/repairs/staff/src/design.css', `${line}\n.form-box { @apply p-8; }\n`);
+      await expect(build(), line).rejects.toThrow(/uses @apply and @(import|plugin|config|source|reference) together/);
+    }
+  });
+
+  it('builds every ready-made part as it is copied into a side: they compile, and their classes come out of Tailwind', async () => {
+    withTailwind();
+    const fromUi = createRequire(join(import.meta.dirname, '..', '..', '..', 'packages', 'ui', 'package.json'));
+    for (const name of ["clsx", "tailwind-merge"]) symlinkSync(join(import.meta.dirname, "..", "..", "..", "packages", "ui", "node_modules", name), join(root, "node_modules", name), "dir");
+    put('apps/repairs/staff/src/theme.css', ':root { --surface: #fffdf8; --accent: #a04e26; --accent-ink: #fff; --line: #ddd; --text: #111; --muted: #555; --radius: 18px; --shadow: none; }\n');
+    const written = addUiParts({ root, key: 'repairs', side: 'staff', parts: Object.keys(UI_PARTS) });
+    expect(written.map((file) => file.split('/').pop()).sort()).toEqual(['accordion.tsx', 'badge.tsx', 'button.tsx', 'card.tsx', 'dialog.tsx', 'input.tsx', 'tabs.tsx', 'utils.ts']);
+    // A second copy leaves the app's own files as they are.
+    expect(addUiParts({ root, key: 'repairs', side: 'staff', parts: ['button', 'no-such-part'] })).toEqual([]);
+    put(
+      'apps/repairs/staff/src/main.tsx',
+      [
+        "import { createRoot } from 'react-dom/client';",
+        "import { useState } from 'react';",
+        "import { Accordion } from './ui/accordion';",
+        "import { Badge, Separator } from './ui/badge';",
+        "import { Button } from './ui/button';",
+        "import { Card, CardBody, CardFooter, CardHeader, CardText, CardTitle } from './ui/card';",
+        "import { Dialog, DialogBody, Sheet } from './ui/dialog';",
+        "import { Field, Input, Select, Textarea } from './ui/input';",
+        "import { Tabs } from './ui/tabs';",
+        'function App() {',
+        '  const [open, setOpen] = useState(false);',
+        '  return (',
+        '    <Card><CardHeader><CardTitle>T</CardTitle><CardText>x</CardText></CardHeader><CardBody>',
+        '      <Field label="Name" htmlFor="n" hint="h"><Input id="n" /></Field><Textarea /><Select><option>a</option></Select>',
+        '      <Badge tone="accent">new</Badge><Separator />',
+        "      <Tabs tabs={[{ id: 'a', label: 'A', content: 'a' }]} />",
+        "      <Accordion items={[{ id: 'q', question: 'Q', answer: 'A' }]} />",
+        '      <Dialog open={open} onClose={() => setOpen(false)} title="D"><DialogBody>d</DialogBody></Dialog>',
+        '      <Sheet open={false} onClose={() => undefined} title="S">s</Sheet>',
+        '    </CardBody><CardFooter><Button variant="outline" size="lg" onClick={() => setOpen(true)}>Go</Button></CardFooter></Card>',
+        '  );',
+        '}',
+        "createRoot(document.getElementById('root')!).render(<App />);",
+        '',
+      ].join('\n'),
+    );
+    const css = cssOf((await build()).dir);
+    for (const used of ['.rounded-theme', '.bg-accent', '.text-accent-ink', '.border-line', '.shadow-theme', 'backdrop\\:bg-black\\/50', '.h-11', 'focus-visible\\:outline-accent']) expect(css, used).toContain(used);
+  });
+
+  it('refuses a Tailwind it does not know, with a sentence', async () => {
+    mkdirSync(join(root, 'node_modules', 'tailwindcss'), { recursive: true });
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'my-admin', dependencies: { tailwindcss: '3.4.0' } }));
+    writeFileSync(join(root, 'node_modules', 'tailwindcss', 'package.json'), JSON.stringify({ name: 'tailwindcss', version: '3.4.0', main: 'index.js' }));
+    writeFileSync(join(root, 'node_modules', 'tailwindcss', 'index.js'), 'module.exports = {};');
+    await expect(build()).rejects.toThrow(/this build knows Tailwind 4/);
+    writeFileSync(join(root, 'node_modules', 'tailwindcss', 'package.json'), JSON.stringify({ name: 'not-tailwind', version: '4.0.0', main: 'index.js' }));
+    await expect(build()).rejects.toThrow(/is not Tailwind/);
+    writeFileSync(join(root, 'node_modules', 'tailwindcss', 'package.json'), JSON.stringify({ name: 'tailwindcss', version: '4.0.0', main: 'index.js', dependencies: { extra: '1.0.0' } }));
+    await expect(build()).rejects.toThrow(/brings packages of its own/);
   });
 });

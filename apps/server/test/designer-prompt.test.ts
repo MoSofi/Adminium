@@ -204,8 +204,8 @@ describe('a screen that shows nothing', () => {
     expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('customer/src/ shows nothing real yet')]);
     // Its calls may live beside App.tsx.
     writeFileSync(`${root}/apps/repairs/customer/src/menu.ts`, 'export const load = (client) => client.list("cakes");');
-    // It reads a table now, and still has no look: none of the starter's parts are in it.
-    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('uses none of the starter’s parts'.replace('’', "'"))]);
+    // It reads a table now. Whether it is designed is the design check's to say, not this one's.
+    expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([]);
     writeFileSync(`${root}/apps/repairs/customer/src/App.tsx`, `export function App() { return <div className="page"><label>{en('en-US: Email')}</label></div>; }`);
     expect(placeholderScreens(root, 'repairs', ['items', 'requests'])).toEqual([expect.stringContaining('en() takes the English text alone')]);
     writeFileSync(`${root}/apps/repairs/customer/src/App.tsx`, `export function App() { return <div className="page hero">{en('Email')}</div>; }`);

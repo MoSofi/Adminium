@@ -9,7 +9,7 @@
  * decides what becomes of them.
  */
 import type { Attachment, Attachments } from './attachments.js';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { MetaDb } from '@adminium/meta';
@@ -19,12 +19,15 @@ import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.j
 import type { AiConnections, ConnectionId } from '../llm/connections.js';
 import { rebuildApps } from '../project/build.js';
 import { checkApp } from '../project/apps/check-app.js';
-import { applyLook, cleanLook, readLook, sidesWithScreens, type Look, type LookDirection } from '../project/apps/look.js';
+import { designIssues } from '../project/apps/design-check.js';
+import { builtInStylesDir, findDesignSkill, listDesignSkills, type DesignSkill } from '../project/apps/design-skills.js';
+import { ICONS_PACKAGE, listedPackages } from './needs.js';
+import { applyLook, cleanLook, DESIGN_CSS_START, missingFonts, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
-import { appKeyProblem, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
+import { appKeyProblem, DEFAULT_LOOK, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { findProject } from '../project/locate.js';
 import type { DesignerEvent } from './events.js';
@@ -60,6 +63,14 @@ export interface DesignerHost {
   versions?: Versions | null;
   /** The sites this server lets pages load pictures from; absent in a harness with no policy. */
   pictureSites?: import('./tool-types.js').PictureSites;
+  /** Where the built-in styles are; found beside the engine when left out. */
+  stylesDir?: string | null;
+  /** Asking the person for what a design needs, on one card. Absent in a harness that asks for nothing. */
+  needs?: import('./ask-needs.js').NeedsAsker;
+  /** Whether this Designer can look for pictures now (a source it may call). */
+  findsPictures?: () => boolean;
+  /** Take an app's sample rows out and add them again, as its files now have them (with pictures they did not have). */
+  reseedSample?: (appKey: string) => Promise<void>;
 }
 
 export interface CreateSessionInput {
@@ -67,9 +78,13 @@ export interface CreateSessionInput {
   appKey?: string | undefined;
   /** What a new app is called. Its key is made from it. */
   name?: string | undefined;
+  /** What the session is called until the app has a name: the first words of the request. Never the app's key. */
+  title?: string | undefined;
   target: DesignerTarget;
   connectionId: string;
   model: string;
+  /** A style picked at the start: a design skill's key. */
+  style?: string | undefined;
 }
 
 export interface Designer {
@@ -87,16 +102,66 @@ export interface Designer {
   /** The look of the app's own screens, when it has screens whose look can be changed here; else null. */
   lookOf(appKey: string): Look | null;
   /**
-   * "Change the look": write a direction to every side, build, apply and save
-   * a version. No model is called.
+   * Whether the app still waits for its name: this session made it, nothing
+   * of it is written or applied yet, and its key is still the first words of
+   * the request.
    */
-  setLook(sessionId: string, look: { direction: LookDirection; accent?: string | undefined }, by: Actor): Promise<{ look: Look; version: { n: number; name: string } | null; applied: boolean }>;
+  needsName(session: DesignerSession): boolean;
+  /**
+   * Give a new app its name, and make its key from the name. Only while the
+   * app is as bare as it was made: the folder is moved, and nothing that
+   * names the key has been written yet.
+   */
+  nameApp(sessionId: string, name: string): Promise<{ key: string; name: string }>;
+  /** After the app is next applied, its sample rows are added again: they were given pictures after they went in. */
+  reseedAfterApply(appKey: string): void;
+  /** The styles a person can pick here: built in, and the project's own. */
+  styles(): DesignSkill[];
+  /** A look as the page is told it: the style, its name and where it is from; never the person's words. */
+  publicLook(appKey: string): PublicLook | null;
+  /**
+   * "Change the style": write a style to every side, build, apply and save a
+   * version. No model is called. Fonts the style names and the project lacks
+   * are stood in for by the system's until the next message, which asks for them.
+   */
+  setLook(sessionId: string, look: { skill: string; accent?: string | undefined }, by: Actor): Promise<{ look: PublicLook; version: { n: number; name: string } | null; applied: boolean }>;
   /**
    * Build the folder's apps and apply them, with no turn behind it: what the
    * check, the build or the apply says is wrong with `key`, or nothing.
    */
   buildAndApply(key: string): Promise<string[]>;
   shutdown(): Promise<void>;
+}
+
+/** Words that ask, beyond doubt, for a screen of the app's own: a turn that ends with none is sent back. (A phone number is no screen.) */
+export const ASKS_FOR_SCREENS =
+  /\b(web ?site|web ?page|landing page|home ?page|public (page|site|form)|a (site|page) for|storefront|portal|booking page|order online|kiosk|staff (screen|side)|customers? (can|could|should|need to|must) (see|book|order|send|browse|view|track|reserve|request|sign up))\b/i;
+
+export interface PublicLook {
+  skill: string;
+  title: string;
+  origin: 'built-in' | 'project' | 'earlier';
+  accent?: string;
+  swatch?: { bg: string; text: string; accent: string };
+}
+
+/** The picture columns of tables customers read, no sample row of which has a picture. */
+export function emptyPictureColumns(root: string, appKey: string, manifest: unknown): { table: string; column: string }[] {
+  const app = manifest as { kind?: string; publicAccess?: { table?: string; methods?: string[] }[]; requiredSchema?: { tables?: { ref: string; columns: { ref: string; type: string; semantic?: string }[] }[] } } | null;
+  if (app === null || app.kind !== 'app') return [];
+  let rows: Record<string, Record<string, unknown>[]> = {};
+  try {
+    const bundle = JSON.parse(readFileSync(join(root, APPS_DIR, appKey, 'seeds', 'sample.json'), 'utf8')) as { tables?: { ref: string; rows: Record<string, unknown>[] }[] };
+    rows = Object.fromEntries((bundle.tables ?? []).map((table) => [table.ref, table.rows]));
+  } catch {
+    return [];
+  }
+  const read = new Set((app.publicAccess ?? []).filter((entry) => (entry.methods ?? []).includes('GET')).map((entry) => entry.table));
+  return (app.requiredSchema?.tables ?? []).flatMap((table) =>
+    !read.has(table.ref) || (rows[table.ref] ?? []).length === 0
+      ? []
+      : table.columns.filter((column) => column.type === 'text' && column.semantic === 'image' && (rows[table.ref] ?? []).every((row) => row[column.ref] === undefined || row[column.ref] === null)).map((column) => ({ table: table.ref, column: column.ref })),
+  );
 }
 
 /** A key made from a name, free in this folder: `Repair desk` → `repair-desk`, then `-2`, `-3`. */
@@ -225,10 +290,6 @@ export function placeholderScreens(root: string, appKey: string, tables: readonl
     if (starter) out.push(`- apps/${appKey}/${side}/src/App.tsx is still the starter's screen, over tables this app does not have: write it for this app's tables.`);
     else if (!calls) out.push(`- apps/${appKey}/${side}/src/ shows nothing real yet (it reads no table): write the screen the person asked for.`);
     // A screen that left the starter's parts behind is the browser's default look: bare.
-    else if (existsSync(join(root, APPS_DIR, appKey, side, 'src', 'theme.css')) && !/className="[^"]*\b(page|card|btn|form|field|grid|list|board)\b/.test(all)) {
-      out.push(`- apps/${appKey}/${side}/src/App.tsx uses none of the starter's parts, so it has no look: use the classes of app.css (page, site-header, hero, grid, card, form, field, btn btn-primary, notice, empty).`);
-    }
-    // en() takes the English text itself; a language tag inside it is shown to people as written.
     if (/\ben\(\s*['"`]en-[A-Z]{2}\s*:/.test(all)) out.push(`- apps/${appKey}/${side}/src/ calls en('en-US: …'): en() takes the English text alone, so people see "en-US:" on the page. Take the tag out.`);
   }
   return out;
@@ -246,7 +307,23 @@ export function createDesigner(host: DesignerHost): Designer {
   const lookOf = (appKey: string): Look | null => {
     if (hasOwnBuild(host.root, appKey)) return null;
     const themed = sidesWithScreens(host.root, appKey).filter((side) => existsSync(join(host.root, APPS_DIR, appKey, side, 'src', 'theme.css')));
-    return themed.length === 0 ? null : (readLook(host.root, appKey) ?? { direction: 'clean' });
+    return themed.length === 0 ? null : (readLook(host.root, appKey) ?? DEFAULT_LOOK);
+  };
+  const stylesDir = host.stylesDir === undefined ? builtInStylesDir() : host.stylesDir;
+  const places = { builtInDir: stylesDir };
+  const publicLook = (appKey: string): PublicLook | null => {
+    const look = lookOf(appKey);
+    if (look === null) return null;
+    const resolved = resolveLook(host.root, look, places);
+    const theme = resolved.theme;
+    return {
+      skill: look.skill,
+      title: resolved.title,
+      // A look kept before styles is drawn with its own old values: it is none of the list's.
+      origin: look.direction !== undefined ? 'earlier' : (resolved.skill?.origin ?? 'project'),
+      ...(look.accent === undefined ? {} : { accent: look.accent }),
+      ...(theme === null ? {} : { swatch: { bg: theme.light.bg, text: theme.light.text, accent: theme.light.accent } }),
+    };
   };
 
   /**
@@ -261,6 +338,8 @@ export function createDesigner(host: DesignerHost): Designer {
     if (name !== '' && name !== session.title && name.length <= 80) store.update(session.id, { title: name });
   };
 
+  /** Apps whose sample rows are to be added again once they are next applied. */
+  const reseeds = new Set<string>();
   /** What the last install or apply of each app said about its pages. */
   const pageWarnings = new Map<string, string[]>();
   /** Public access the last apply left as it was: the screens are refused what the manifest grants until it is settled. */
@@ -301,6 +380,13 @@ export function createDesigner(host: DesignerHost): Designer {
       ...(result?.message === undefined ? {} : { message: result.message }),
     });
     if (!applied) return { ok: false, version: null };
+
+    // Sample rows that were given pictures after they went in: taken out and added again, now that the server has the files.
+    if (reseeds.delete(key) && host.reseedSample !== undefined) {
+      await host.reseedSample(key).catch((error: unknown) => {
+        host.log('could not add an app’s sample rows again with their pictures', error);
+      });
+    }
 
     // What the manifest no longer declares, and holds data, waits for the person here.
     const waiting = opts.askRemovals === false ? null : await host.service.removals.pending(key);
@@ -386,7 +472,20 @@ export function createDesigner(host: DesignerHost): Designer {
         session.createdApp && session.titled !== true && session.version === null && named === session.title && named.trim().split(/\s+/).length > 3
           ? [`- The app is still named after the request ("${named}"), and that is what its pages show as the business's name: set "name" in manifest/app.json to what the business would call it, two or three words.`]
           : [];
+      // Asked for a website or a screen, and built tables and dashboard pages alone: the half the person came for is missing.
+      const asked = store
+        .messages(session.id)
+        .filter((entry, index, all) => entry.message.role === 'user' && all.findIndex((other) => other.turn === entry.turn) === index)
+        .flatMap((entry) => entry.message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])))
+        .join(' ');
+      const noScreens =
+        session.target !== 'dashboard' && ASKS_FOR_SCREENS.test(asked) && sidesWithScreens(host.root, session.appKey).length === 0
+          ? [
+              `- The person asked for ${/\bwebsite|\bsite\b|public|customers?\b/i.test(asked) ? 'a page customers see' : 'screens of the app\'s own'}, and the app has none yet: call add_side (${/\bstaff\b/i.test(asked) && !/\bwebsite|public|customers?\b/i.test(asked) ? '"staff"' : '"customer"'}) and build it now. Do not ask whether to: it is what they asked for.`,
+            ]
+          : [];
       return [
+        ...noScreens,
         ...unloadedFiles(session),
         ...unopenedTables(manifest),
         ...unreadPersonalColumns(manifest),
@@ -398,6 +497,33 @@ export function createDesigner(host: DesignerHost): Designer {
         ...(session.version === null ? emptyFirstPreview(manifest) : []),
         ...unnamed,
       ];
+    },
+    // The design, held last: a class nothing styles, an emoji for an icon, no logo, no brief.
+    design: async (session) =>
+      (
+        await designIssues(host.root, session.appKey, {
+          builtInDir: stylesDir,
+          fresh: session.createdApp && session.version === null,
+          icons: listedPackages(host.root).has(ICONS_PACKAGE),
+          ...(host.findsPictures?.() === true ? { emptyPictureColumns: emptyPictureColumns(host.root, session.appKey, checkApp(host.root, session.appKey, { version: host.version }).manifest) } : {}),
+        })
+      ).map((issue) => issue.line),
+    // Before the model is asked: a side made before styles gets the stylesheet of its own it lacks, and fonts a style
+    // changed from the page still waits for are asked for, on one card.
+    opening: async (session, handle) => {
+      const key = session.appKey;
+      if (hasOwnBuild(host.root, key)) return;
+      const look = lookOf(key);
+      if (look === null) return;
+      for (const side of sidesWithScreens(host.root, key)) {
+        const file = join(host.root, APPS_DIR, key, side, 'src', 'design.css');
+        if (existsSync(join(host.root, APPS_DIR, key, side, 'src', 'theme.css')) && !existsSync(file)) writeFileSync(file, DESIGN_CSS_START);
+      }
+      if (host.needs === undefined || look.direction !== undefined) return;
+      const wants = missingFonts(host.root, look, places)
+        .filter((font) => !(look.without ?? []).includes(font.family))
+        .map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }));
+      if (wants.length > 0) await host.needs({ ask: handle.ask, signal: handle.signal, handle }, key, wants);
     },
     // What the person is told when the turn ends and a file they attached is still in no table: the model said nothing of it, so the Designer does.
     closing: (session) =>
@@ -413,10 +539,44 @@ export function createDesigner(host: DesignerHost): Designer {
     log: host.log,
   });
 
+  /** A new app, as bare as `createSession` made it: its two starting files and nothing the Designer wrote. */
+  const stillBare = (appKey: string): boolean => {
+    const dir = join(host.root, APPS_DIR, appKey);
+    const walk = (folder: string, rel: string): string[] =>
+      existsSync(folder) ? readdirSync(folder, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(join(folder, entry.name), `${rel}${entry.name}/`) : [`${rel}${entry.name}`])) : [];
+    return walk(dir, '').every((file) => ['manifest/app.json', 'manifest/roles.json', 'README.md', 'tests/app.test.mjs', '.DS_Store'].includes(file));
+  };
+  const needsName = (session: DesignerSession): boolean => session.createdApp && session.named !== true && session.version === null && stillBare(session.appKey);
+
   return {
     store,
     runner,
     pipeline,
+    needsName,
+    async nameApp(sessionId, given) {
+      const session = store.read(sessionId);
+      const name = given.replace(/\s+/g, ' ').trim();
+      if (name === '' || name.length > 40 || name.split(' ').length > 4) throw new ValidationFailedError('A name is one to four words, 40 characters at most: what the business would call it.', { reason: 'NAME' });
+      if (!needsName(session)) throw new ConflictError('The app already has its name and its files: its key stays as it is.', 'CONFLICT', { reason: 'ALREADY_NAMED' });
+      const from = join(host.root, APPS_DIR, session.appKey);
+      // The folder is taken out of the way first, so the name it has now is free to be the name it keeps.
+      const key = keyFromName(host.root, name) === `${session.appKey}-2` ? session.appKey : keyFromName(host.root, name);
+      if (key !== session.appKey) {
+        rmSync(from, { recursive: true, force: true });
+        scaffoldApp({ root: host.root, key, name, sides: [], version: host.version, bare: true });
+      } else {
+        const file = join(from, 'manifest', 'app.json');
+        const app = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+        writeFileSync(file, `${JSON.stringify({ ...app, name, navGroups: [{ key: 'main', label: { 'en-US': name }, order: 1 }] }, null, 2)}\n`);
+      }
+      const next = store.update(session.id, { appKey: key, named: true, ...(session.titled === true ? {} : { title: name }) });
+      // What "put the files back" returns to is the app as it is named now.
+      await host.versions?.snapshot(next).catch((error: unknown) => {
+        host.log('could not record the folder after an app was named', error);
+      });
+      await host.audit('designer.app.named', null, { sessionId: session.id, appKey: key, was: session.appKey });
+      return { key, name };
+    },
     async createSession(input, by) {
       if (!(DESIGNER_TARGETS as readonly string[]).includes(input.target)) {
         throw new ValidationFailedError('Choose what to build for: auto, dashboard or web.', { reason: 'TARGET' });
@@ -436,7 +596,8 @@ export function createDesigner(host: DesignerHost): Designer {
       let appKey = input.appKey;
       let createdApp = false;
       if (appKey === undefined) {
-        const name = (input.name ?? '').trim() || 'My app';
+        // No name given: the Designer names the app in its first step, and the key is made from that name. Until then it is "new-app".
+        const name = (input.name ?? '').trim() || 'New app';
         if (name.length > 80) throw new ValidationFailedError('An app’s name is at most 80 characters.', { reason: 'NAME' });
         appKey = keyFromName(host.root, name);
         // Bare: the model writes this app's own tables, with nothing of the starter's to clear away first.
@@ -450,11 +611,15 @@ export function createDesigner(host: DesignerHost): Designer {
       }
       const session = store.create({
         appKey,
-        title: input.name?.trim() || nameFromKey(appKey),
+        title: input.name?.trim() || input.title?.trim() || nameFromKey(appKey),
+        // A name the person gave is the app's name: the Designer is not asked for another.
+        ...(createdApp && (input.name ?? '').trim() === '' ? {} : { named: true }),
         target: input.target,
         connectionId: connection.id,
         model: input.model,
         createdApp,
+        // A key that is no style here is left out: the Designer chooses, as if none was picked.
+        ...(input.style !== undefined && findDesignSkill(host.root, stylesDir, input.style)?.problem === undefined && findDesignSkill(host.root, stylesDir, input.style) !== null ? { style: input.style } : {}),
       });
       // What the folder held before the session: "put the files back" in its first turn returns to it.
       await host.versions?.snapshot(session).catch((error: unknown) => {
@@ -491,6 +656,9 @@ export function createDesigner(host: DesignerHost): Designer {
       return { version, applied: applied.ok };
     },
     lookOf,
+    publicLook,
+    reseedAfterApply: (appKey) => void reseeds.add(appKey),
+    styles: () => listDesignSkills(host.root, stylesDir),
     async setLook(sessionId, input, by) {
       const session = store.read(sessionId);
       if (runner.active() !== null) {
@@ -499,17 +667,25 @@ export function createDesigner(host: DesignerHost): Designer {
       if (lookOf(session.appKey) === null) {
         throw new ConflictError('This app has no screens whose look can be changed here.', 'CONFLICT', { reason: 'NO_LOOK' });
       }
-      const look = cleanLook({ direction: input.direction, accent: input.accent, words: readLook(host.root, session.appKey)?.words });
-      applyLook(host.root, session.appKey, look);
+      const skill = findDesignSkill(host.root, stylesDir, input.skill);
+      if (skill === null || skill.problem !== undefined) {
+        throw new NotFoundError(skill?.problem ?? 'There is no such style.', { skill: input.skill });
+      }
+      // A style of words alone has no values to write: it is the Designer's to apply, in a turn.
+      if (!skill.hasTheme) throw new ConflictError('This style is words alone: ask for it in the chat, and the Designer applies it.', 'CONFLICT', { reason: 'STYLE_NEEDS_A_TURN' });
+      const before = readLook(host.root, session.appKey);
+      const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without });
+      applyLook(host.root, session.appKey, look, places);
       const events = runner.events(session.id);
-      events.emit(session.turns, { kind: 'look', direction: look.direction });
+      const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+      events.emit(session.turns, { kind: 'style', skill: skill.key, title: skill.title, ...(fonts.length === 0 ? {} : { fonts }) });
       const applied = await pipeline(
         store.read(session.id),
         { turn: session.turns, by, events, signal: new AbortController().signal, ask: () => Promise.reject(new Error('nothing is asked outside a turn')) },
         { askRemovals: false },
       );
-      await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, direction: look.direction });
-      return { look, version: applied.version, applied: applied.ok };
+      await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, style: look.skill });
+      return { look: publicLook(session.appKey) as PublicLook, version: applied.version, applied: applied.ok };
     },
     async buildAndApply(key) {
       const built = await rebuildApps(project(), { version: host.version, dev: true });

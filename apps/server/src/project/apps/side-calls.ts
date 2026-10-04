@@ -223,6 +223,20 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
     }
   }
 
+  // pictureUrl with too few arguments answers null for every row: the page builds, and no picture ever shows.
+  for (const { file, text } of customer) {
+    for (const call of text.matchAll(/\bpictureUrl\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)) {
+      const given = (call[1] as string).split(',').filter((part) => part.trim() !== '').length;
+      if (given >= 6 || /^\s*\.\.\./.test(call[1] as string)) continue;
+      out.push({
+        side: 'customer',
+        file,
+        message: `calls pictureUrl with ${String(given)} argument${given === 1 ? '' : 's'}, and it takes six: no picture will show. ${HOW_PICTURES}`,
+      });
+      break;
+    }
+  }
+
   // A screen that stops as it opens, on either side.
   for (const side of ['customer', 'staff'] as const) {
     for (const { file, text } of sources(root, key, side).filter((source) => /\.[jt]sx$/.test(source.file))) {
