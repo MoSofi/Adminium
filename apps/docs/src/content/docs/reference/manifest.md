@@ -38,7 +38,7 @@ There are two kinds of manifest:
   "license": "AGPL-3.0-only",
   "description": { "key": "mft.visits.desc", "fallback": "Book and track client visits." },
   "categories": ["operations"],
-  "compatibility": { "minAdminiumVersion": "0.3.16" },
+  "compatibility": { "minAdminiumVersion": "0.3.17" },
   "requiredSchema": {
     "prefixed": true,
     "tables": [
@@ -110,7 +110,7 @@ publisher is refused at validation, and an add-on can never be `local`.
 
 ```json
 "compatibility": {
-  "minAdminiumVersion": "0.3.16",
+  "minAdminiumVersion": "0.3.17",
   "engines": ["postgres", "mysql", "sqlite"],
   "requires": ["realtime"]
 }
