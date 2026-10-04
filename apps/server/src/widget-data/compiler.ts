@@ -1206,7 +1206,18 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         descriptor.select !== undefined && descriptor.select.length > 0
           ? descriptor.select.map((name) => view.readableColumn(table, name, canReadPii))
           : view.selectableColumns(table);
-      qb = qb.select(selectedColumns.map((column) => dynamic.ref(column.name)));
+      /*
+       * The row's own key rides every row, named in `select` or not. A card,
+       * an event or a list item opens its record by it, and a `select` chosen
+       * for reading (a board's title and status) left it out: the widget then
+       * numbered its rows by position, and a click opened record 0. It is not
+       * one of `selectedColumns`, so no column heading and no positional
+       * field is made of it. A key the reader may not see is left out.
+       */
+      const keyName = table.primaryKey.length === 1 ? table.primaryKey[0] : undefined;
+      const keyColumn = keyName === undefined || selectedColumns.some((column) => column.name === keyName) ? undefined : table.columns.get(keyName);
+      const rideAlong = keyColumn !== undefined && !keyColumn.secret && keyColumn.unreadable !== true && (!keyColumn.masked || canReadPii) ? [keyColumn] : [];
+      qb = qb.select([...selectedColumns, ...rideAlong].map((column) => dynamic.ref(column.name)));
       if (lookups.length > 0) {
         qb = qb.select((eb) => lookupSelections(eb as never, db, table, lookups)) as Qb;
       }

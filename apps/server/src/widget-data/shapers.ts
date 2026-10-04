@@ -193,6 +193,8 @@ export interface ShapedRecordList {
   rows: Row[];
   columns: ColumnMeta[];
   total: number;
+  /** The column each row is opened by (the table's one-column key); absent when the table has none. Every row carries it, in `columns` or not. */
+  key?: string;
 }
 
 export interface ShapedRecord {
@@ -923,6 +925,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
         rows: maskedRowsOf(compiled, rows, canReadPii),
         columns: columnMetaOf(compiled),
         total: input.total ?? rows.length,
+        ...(compiled.table.primaryKey.length === 1 ? { key: compiled.table.primaryKey[0] as string } : {}),
       };
     }
 

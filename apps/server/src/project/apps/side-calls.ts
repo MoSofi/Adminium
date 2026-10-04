@@ -25,9 +25,13 @@ export interface SideCallIssue {
 
 /** What of a manifest these checks read. */
 interface ManifestLike {
-  requiredSchema?: { tables?: { ref: string }[] } | undefined;
-  publicAccess?: { table?: string; claim?: unknown; kind?: string }[] | undefined;
+  requiredSchema?: { tables?: { ref: string; columns?: { ref?: string; role?: string }[] }[] } | undefined;
+  publicAccess?: { table?: string; claim?: unknown; kind?: string; select?: unknown; pictures?: unknown }[] | undefined;
 }
+
+/** How a customer screen shows a picture a table keeps, said the same way in every finding. */
+const HOW_PICTURES =
+  "A picture column holds the staff's own address of the file (…/api/v1/files/file_…/content), which only a signed-in member of staff may open: a visitor gets a broken image. The address anyone may open is built from it: `import { createPublicClient, pictureUrl } from '@adminiumjs/public-client'`, then once, `const shown = await client.config()` (the PUBLIC client's config: it says where pictures are), and for each row `pictureUrl(loaded.value.baseUrl, shown, table, row.id, '<column>', row.<column>)`, where `table` is the name the row was listed by (`loaded.value.tables['<table>'] ?? '<table>'`) and `loaded` is what useCustomer() gave. It answers null when the row has no picture: show the page's own tile then.";
 
 /** The source files of a side, a few dozen at most, with their paths. */
 function sources(root: string, key: string, side: AppSide): { file: string; text: string }[] {
@@ -45,7 +49,7 @@ function sources(root: string, key: string, side: AppSide): { file: string; text
 }
 
 /** Source with its comments blanked, so a call quoted in a comment is not read as a call. */
-function code(text: string): string {
+export function code(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, (found) => found.replace(/[^\n]/g, ' ')).replace(/(^|[^:'"`\\])\/\/[^\n]*/g, (found, lead: string) => lead + ' '.repeat(found.length - lead.length));
 }
 
@@ -191,6 +195,30 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
         side: 'customer',
         file: where,
         message: `claims a row of "${one}" and never reads it: after client.claim(…) answers true, the person's own row is listed from the claimed endpoint, \`\${loaded.value.tables['${one}'] ?? '${one}'}_claimed\`. ${WHERE_TABLES}`,
+      });
+    }
+  }
+
+  // A picture a table keeps, shown to visitors: the address is built, never the column's own value.
+  const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []);
+  for (const entry of app.publicAccess ?? []) {
+    const pictures = strings(entry.pictures);
+    if (pictures.length === 0 || typeof entry.table !== 'string') continue;
+    const table = entry.table;
+    const pk = (app.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === table)?.columns?.find((column) => column.role === 'pk')?.ref ?? 'id';
+    if (!strings(entry.select).includes(pk)) {
+      out.push({
+        side: 'customer',
+        file: appPath(key, 'manifest', 'access.json'),
+        message: `shows pictures of "${table}" (${pictures.map((name) => `"${name}"`).join(', ')}) and its "select" leaves out "${pk}". A picture's address is made from its row's "${pk}", so no picture of this table can be shown: add "${pk}" to that entry's "select".`,
+      });
+    }
+    const reads = customer.filter(({ text }) => pictures.some((name) => new RegExp(`(?:\\.|\\[['"\`])${name}\\b`).test(text)));
+    if (reads.length > 0 && !customer.some(({ text }) => /\bpictureUrl\s*\(/.test(text))) {
+      out.push({
+        side: 'customer',
+        file: (reads[0] as { file: string }).file,
+        message: `reads the picture column ${pictures.map((name) => `"${name}"`).join(', ')} of "${table}" and never calls pictureUrl: the column's own value in an <img> is a broken image for every visitor. ${HOW_PICTURES}`,
       });
     }
   }

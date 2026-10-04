@@ -177,6 +177,26 @@ describe.skipIf(!AVAILABLE)('widget-data API (live PG, Northwind)', () => {
     expect(result.rows[0]!._masked).toContain('phone');
   });
 
+  it('carries each row’s own key when the select leaves it out, and makes no column of it', async () => {
+    // A board's or a list's columns are chosen for reading; the row is still opened by its key.
+    const { statusCode, body } = await query({
+      connectionId: connId,
+      source: { name: 'orders', schema: 'public' },
+      shape: 'record-list',
+      select: ['freight', 'order_date'],
+      orderBy: [{ column: 'order_id', dir: 'asc' }],
+      limit: 2,
+    });
+    expect(statusCode, JSON.stringify(body)).toBe(200);
+    const result = body.result as unknown as { rows: Record<string, unknown>[]; columns: { name: string }[]; key?: string };
+    expect(result.columns.map((c) => c.name)).toEqual(['freight', 'order_date']);
+    // The answer says which column a row is opened by: a table keyed `order_id` has no `id`.
+    expect(result.key).toBe('order_id');
+    const keys = psql(pg.database, 'SELECT order_id FROM orders ORDER BY order_id LIMIT 2').trim().split('\n').map((line) => Number(line.trim()));
+    expect(result.rows.map((row) => Number(row['order_id']))).toEqual(keys);
+    expect(Object.keys(result.rows[0]!).sort()).toEqual(['freight', 'order_date', 'order_id']);
+  });
+
   it('denies tables outside the caller grants with 403 TABLE_FORBIDDEN', async () => {
     const { statusCode, body } = await query({
       connectionId: connId,

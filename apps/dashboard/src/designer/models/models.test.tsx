@@ -11,8 +11,10 @@
  *     listed, then the chosen one asked to call a tool), saved to the
  *     project, said, and the picker opens with it selected.
  *  3. A refused key is said on the key field; changing the key clears it.
- *     A model that cannot build can still be saved. A provider already added
- *     tests against its saved key, which never comes back.
+ *     A model that cannot build can still be saved. A listed model that
+ *     could not be asked keeps the list, so another one can be chosen. A
+ *     provider already added tests against its saved key, which never comes
+ *     back.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -273,6 +275,29 @@ describe('Add a model', () => {
     await within(dialog).findByText('This model cannot build apps: it does not support tools. You can still save it for other uses.');
     expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false);
     expect(posted('/api/v1/designer/connections/test')[0]?.body).toEqual({ provider: 'ollama', baseUrl: 'http://localhost:11434' });
+  });
+
+  it('keeps the list when the first model cannot be asked, so another one can be chosen', async () => {
+    models = NONE;
+    const listed = [{ id: 'big:cloud', label: 'big:cloud' }, { id: 'qwen-coder:32b', label: 'qwen-coder:32b' }];
+    tests = (body) => {
+      if (body['model'] === 'big:cloud') return { ok: false, models: [], canBuild: null, error: { code: 'server', message: 'ollama: HTTP 402' } };
+      return { ok: true, models: listed, canBuild: body['model'] === undefined ? null : { canBuild: true, reportsUsage: true }, error: null };
+    };
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a model' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: /Ollama/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Test' }));
+    await within(dialog).findByText('The test failed: ollama: HTTP 402');
+    const select = within(dialog).getByLabelText('Model') as HTMLSelectElement;
+    expect(select.disabled).toBe(false);
+    expect(select.value).toBe('big:cloud');
+    expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.selectOptions(select, 'qwen-coder:32b');
+    await within(dialog).findByText('This model can build apps.');
+    expect(within(dialog).queryByText('The test failed: ollama: HTTP 402')).toBeNull();
+    expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('tests a provider already added against its saved key, which is never shown', async () => {

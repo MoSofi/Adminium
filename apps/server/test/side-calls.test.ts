@@ -9,6 +9,8 @@
  *  3. A staff screen that passes `where` as { column: value } is told the
  *     filter's real shape.
  *  4. The starter's own screens, and a call quoted in a comment, raise nothing.
+ *  5. A picture a table keeps, shown by the column's own value, or through an
+ *     entry whose rows carry no id, is told, with how its address is built.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -53,6 +55,30 @@ describe('a side’s calls, read from its source', () => {
     // What a public list does take, and a name that is no table of the app's.
     write('customer/src/App.tsx', `const rows = (await client.list(config.tables['cakes'] ?? 'cakes', { limit: 50, cursor })).data;\nawait client.create(name, { message });\nthings.get('other');`);
     expect(messages()).toEqual([]);
+  });
+
+  it('names a picture column put in an <img> as it is, and a pictures entry whose rows carry no id', () => {
+    const pictured = (select: string[]) => ({
+      requiredSchema: { tables: [{ ref: 'cakes', columns: [{ ref: 'id', role: 'pk' }, { ref: 'name' }, { ref: 'photo' }] }] },
+      publicAccess: [{ table: 'cakes', methods: ['GET'], select, pictures: ['photo'] }],
+    });
+    // The column's own value is the staff's address of the file: a visitor gets a broken image.
+    write('customer/src/App.tsx', `const rows = (await client.list(table)).data;\nexport const Card = ({ cake }) => <img src={cake.photo} alt={cake.name} />;`);
+    const found = messages(pictured(['name', 'photo']));
+    expect(found).toHaveLength(2);
+    expect(found[0]).toContain('its "select" leaves out "id"');
+    expect(found[1]).toContain('reads the picture column "photo" of "cakes" and never calls pictureUrl');
+    expect(found[1]).toContain("pictureUrl(loaded.value.baseUrl, shown, table, row.id, '<column>', row.<column>)");
+
+    // Built with pictureUrl, with the id in the rows: nothing to say.
+    write(
+      'customer/src/App.tsx',
+      `import { pictureUrl } from '@adminiumjs/public-client';\nconst shown = await client.config();\nconst src = pictureUrl(loaded.value.baseUrl, shown, table, cake.id, 'photo', cake.photo);`,
+    );
+    expect(messages(pictured(['id', 'name', 'photo']))).toEqual([]);
+    // A screen that never shows the picture is not told about it.
+    write('customer/src/App.tsx', `const rows = (await client.list(table)).data;\nexport const Card = ({ cake }) => <p>{cake.name}</p>;`);
+    expect(messages(pictured(['id', 'name', 'photo']))).toEqual([]);
   });
 
   it('names a claim the page never makes, and one it never reads through', () => {

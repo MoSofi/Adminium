@@ -435,7 +435,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           style={{ '--designer-chat-w': `${String(chatWidth)}px` }}
           className={`flex min-w-0 flex-col border-border bg-surface max-md:w-full md:w-[var(--designer-chat-w)] md:shrink-0 md:border-e ${tab === 'chat' ? '' : 'max-md:hidden'}`}
         >
-          <div ref={follow.scroller} onScroll={follow.onScroll} aria-busy={!loaded} className="nb-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-[22px] [overflow-anchor:none]">
+          {/* `relative`: a word hidden for screen readers (a running step's "(running)") is placed absolutely. With no positioned ancestor it sat at its place in the whole chat's length, far below the window, and the page itself scrolled to empty space. */}
+          <div ref={follow.scroller} onScroll={follow.onScroll} aria-busy={!loaded} className="nb-scroll relative min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-[22px] [overflow-anchor:none]">
             <div ref={follow.content} className="flex flex-col gap-5">
               {turns.map((turn, index) => turnBlock(turn, index === turns.length - 1))}
               {loaded && turns.length === 0 ? (

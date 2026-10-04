@@ -200,12 +200,13 @@ export function ownerInitials(owner: string | undefined, locale?: string): strin
 export function toBoardCard(
   row: Record<string, unknown>,
   index: number,
-  fields: { columnField: string; laneField?: string | undefined; titleField: string },
+  fields: { columnField: string; laneField?: string | undefined; titleField: string; keyField?: string | undefined },
 ): BoardCardData {
   const str = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
   const num = (value: unknown): number | undefined => (typeof value === 'number' && Number.isFinite(value) ? value : undefined);
   return {
-    id: String(row['id'] ?? row['_id'] ?? index),
+    // The answer names the column a row is opened by; a table keyed `order_id` has no `id`.
+    id: String((fields.keyField === undefined ? undefined : row[fields.keyField]) ?? row['id'] ?? row['_id'] ?? index),
     title: str(row[fields.titleField]) ?? str(row['title']) ?? `#${index + 1}`,
     column: str(row[fields.columnField]) ?? '',
     lane: fields.laneField === undefined ? undefined : (str(row[fields.laneField]) ?? ''),

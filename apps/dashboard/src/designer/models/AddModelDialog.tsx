@@ -10,8 +10,10 @@
  * The test is two calls: one lists the models (the Model field stays off
  * until it passes), then one asks the chosen model to call a tool, so the
  * result says whether it can build. A model that cannot is still savable,
- * for other uses. Changing the key or the address clears the test; changing
- * the model asks the new one.
+ * for other uses. A listed model that could not be asked (one the account has
+ * no access to) keeps the list, so another one can be chosen; it is not
+ * savable. Changing the key or the address clears the test; changing the model
+ * asks the new one.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, CircleAlert, CircleCheck, Cpu, FileText, Loader2, TriangleAlert } from 'lucide-react';
@@ -23,7 +25,8 @@ import type { ConfigurableProvider } from '../../studio/ai/providerCatalog.js';
 import { designerApi, type ConnectionDraft, type ConnectionTest, type DesignerModels, type ModelConnection } from '../api.js';
 import { PROVIDERS, providerFields, providerLabel, providerLine } from './providers.js';
 
-type Verdict = NonNullable<ConnectionTest['canBuild']>;
+/** `unanswered`: the connection listed its models, but this one could not be asked. */
+type Verdict = NonNullable<ConnectionTest['canBuild']> | { unanswered: string };
 
 type TestState =
   | { kind: 'idle' }
@@ -108,7 +111,11 @@ export function AddModelDialog({
     }));
     if (run.current !== ticket) return;
     if (!reply.ok) {
-      setTest(failure(id, reply.error));
+      const failed = failure(id, reply.error);
+      // The list came back, so the connection works: only this model failed. A refused key is the
+      // exception (a list can be a built-in one).
+      if (listed.length === 0 || failed.on !== 'form') setTest(failed);
+      else setTest({ kind: 'passed', models: listed, ms: null, verdict: { unanswered: failed.message } });
       return;
     }
     setTest({ kind: 'passed', models: listed, ms: performance.now() - started, verdict: reply.canBuild });
@@ -174,7 +181,8 @@ export function AddModelDialog({
   const busy = test.kind === 'testing' || saving;
   const missing = fields !== null && ((fields.key === 'required' && key.trim() === '' && !keySaved) || (fields.address === 'required' && address.trim() === ''));
   const passed = test.kind === 'passed' ? test : null;
-  const canSave = passed !== null && model.trim() !== '' && passed.verdict !== 'checking' && !saving;
+  const unanswered = passed !== null && typeof passed.verdict === 'object' && passed.verdict !== null && 'unanswered' in passed.verdict ? passed.verdict.unanswered : null;
+  const canSave = passed !== null && model.trim() !== '' && passed.verdict !== 'checking' && unanswered === null && !saving;
   const resultId = 'designer-add-model-result';
 
   return (
@@ -287,7 +295,13 @@ export function AddModelDialog({
                   {t('designer:model.checking', 'Asking this model whether it can build…')}
                 </p>
               ) : null}
-              {passed !== null && typeof passed.verdict === 'object' && passed.verdict !== null ? (
+              {unanswered === null ? null : (
+                <p role="alert" className="m-0 flex items-start gap-2 text-[12.5px] font-semibold text-danger">
+                  <CircleAlert aria-hidden="true" className="mt-0.5 size-[15px] shrink-0" />
+                  {unanswered}
+                </p>
+              )}
+              {passed !== null && typeof passed.verdict === 'object' && passed.verdict !== null && 'canBuild' in passed.verdict ? (
                 passed.verdict.canBuild ? (
                   <p className="m-0 flex items-start gap-2 text-[12.5px] font-semibold text-pos">
                     <CircleCheck aria-hidden="true" className="mt-0.5 size-[15px] shrink-0" />

@@ -110,6 +110,8 @@ import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
+import { createPictureSites } from './designer/picture-sites.js';
+import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
@@ -2024,10 +2026,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               changes: { after: detail },
             });
         };
+        // The sites pages may load pictures from: a person's yes adds one under `adminium design`.
+        const pictureSites: PictureSites | undefined = !app.hasDecorator('pictureHosts')
+          ? undefined
+          : createPictureSites({
+              root,
+              hosts: app.pictureHosts,
+              mode: designerOpts.mode,
+              fromEnvironment: process.env['ADMINIUM_CSP_IMG_HOSTS'],
+              onAdded: (host, by) => {
+                void designerAudit('designer.picture-site.allowed', by, { host }).catch((error: unknown) => {
+                  app.log.warn({ err: error }, 'could not audit an allowed picture site');
+                });
+              },
+            });
         designer = createDesigner({
           root,
           version: APP_VERSION,
           meta,
+          ...(pictureSites === undefined ? {} : { pictureSites }),
           connections: aiConnections,
           projectApps: () => projectApps,
           service: designerService,
@@ -2097,6 +2114,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 addOnGetter: designerAddOns,
                 attachments: designerAttachments,
                 rowLoader: designerRows,
+                ...(pictureSites === undefined ? {} : { pictureSites }),
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
               },
               session.appKey,

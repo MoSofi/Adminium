@@ -187,12 +187,14 @@ version, changes included.
 
 ## Look at it
 
-- **Preview** shows the app as a person with the app's own role sees it: the dashboard pages, and
-  the staff and customer screens when the app has them, at desktop, tablet and phone width.
-  The bar says whose eyes it is ("Seen as: Baker — a preview"; "a visitor, not signed in" for the
-  customer side). **Open in a new tab** opens the staff side inside the dashboard, as staff meet
-  it, signed in as that same preview person: the dashboard there has no Studio, no people and no
-  settings, and a bar across its top says so and links to **Open the dashboard as yourself**.
+- **Preview** shows the app at desktop, tablet and phone width. **Dashboard** is your own
+  dashboard, as the owner you are: the app's pages, and Studio, people and settings with them.
+  **Staff** and **Customer**, when the app has them, show its own screens as its people see them.
+  The bar says whose eyes it is ("Seen as: you, the owner"; "Seen as: Baker — a preview"; "a
+  visitor, not signed in" for the customer side). **Open in a new tab** opens the staff side inside
+  the dashboard, as staff meet it, signed in as that preview person: the dashboard there has no
+  Studio, no people and no settings, and a bar across its top says so and links to **Open the
+  dashboard as yourself**.
 - **Architecture** draws what the server applied: who uses the app, what they use, the tables and
   how they link, the emails and add-ons. Anything written to the folder and not applied yet is
   marked.
@@ -214,13 +216,19 @@ folder (`apps/<key>/`), run the check, build the screens, apply the app, and rea
 pages that ship with Adminium. It has no shell and no web access, and it cannot read `.env` or any
 file outside the folders it is given.
 
-What it writes is still code, so three things wait for your yes, each asked in the chat:
+What it writes is still code, so four things wait for your yes, each asked in the chat:
 
 | It asks before | Why |
 |---|---|
 | Adding an npm package | Nothing is installed without a yes, and install scripts never run |
 | Running the app's tests | The tests are code the model wrote, and they run on your machine with your access |
 | Writing in `hooks/` or `actions/` | Those files run inside your server, with everything it can reach |
+| Showing pictures from another site | Adminium shows pictures only from your own server unless a site is named. A yes names that one site: it is written to [`ADMINIUM_CSP_IMG_HOSTS`](/self-hosting/env-vars/#adminium_csp_img_hosts) in your project's `.env` and counts at once, with no restart |
+
+A picture from a site you did not allow is an empty frame, and the Designer's check names it before
+you see it. When the project later runs on another host, copy that line of `.env` into the host's
+own settings. On a live server, and where the host's settings already name the list, the Designer
+does not ask: whoever runs the server adds the site.
 
 While the Designer runs, the app's own screens are served only in the preview, on a second address
 of your machine (`localhost`, beside the Designer's `127.0.0.1`), signed in as a preview user who

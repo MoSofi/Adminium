@@ -137,8 +137,11 @@ describe('the preview', () => {
     expect(tickets).toEqual(['/apps/repairs/staff/']);
     expect(frame().src).toContain('ticket=t1');
 
+    // The dashboard is the owner's own, on the Designer's name: no ticket, no preview user.
     await userEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
-    await waitFor(() => expect(tickets).toEqual(['/apps/repairs/staff/', '/']));
+    await waitFor(() => expect(frame().getAttribute('src')).toBe('/'));
+    expect(screen.getByText('Seen as: you, the owner')).toBeTruthy();
+    expect(tickets).toEqual(['/apps/repairs/staff/']);
     await userEvent.click(screen.getByRole('button', { name: 'Customer' }));
     await waitFor(() => expect(tickets.at(-1)).toBe('/apps/repairs/customer/'));
   });
@@ -146,7 +149,8 @@ describe('the preview', () => {
   it('leaves out a side the app does not have', async () => {
     sides = [];
     mount();
-    await waitFor(() => expect(tickets).toEqual(['/']));
+    await waitFor(() => expect(frame()?.getAttribute('src')).toBe('/'));
+    expect(tickets).toEqual([]);
     expect(screen.getByRole('button', { name: 'Dashboard' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Staff' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();

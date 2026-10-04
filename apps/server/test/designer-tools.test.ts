@@ -35,6 +35,9 @@ let switched: number;
 let afterSwitch: Record<string, AddOnLook> | null;
 let getResult: GetAddOnResult;
 let onServer: Set<string>;
+/** The picture sites the server lets through, why one cannot be added (null: it can), and what was added. */
+let pictureAllowed: Set<string>;
+let pictureClosed: string | null;
 
 const session = { id: 'ds_000000000000000000000000', appKey: 'repairs' } as DesignerSession;
 const context = (): ToolContext => {
@@ -76,8 +79,11 @@ beforeEach(async () => {
   afterSwitch = null;
   getResult = { ok: true, name: 'Invoices & Receipts', version: '1.0.7' };
   onServer = new Set(['invoices']);
+  pictureAllowed = new Set();
+  pictureClosed = null;
   tools = createDesignerTools(
     {
+      pictureSites: { covers: (host) => pictureAllowed.has(host), closed: () => pictureClosed, add: (host) => void pictureAllowed.add(host) },
       root,
       version: APP_VERSION,
       // What the person wrote, as the session's transcript holds it: the look is read from it.
@@ -557,6 +563,51 @@ describe('the Designer’s tools', () => {
       { type: 'package', name: '@adminiumjs/public-client', version: APP_VERSION, why: 'The customer screen' },
       { type: 'package', name: 'react', version: '19.2.0', why: 'The screens' },
     ]);
+  });
+
+  it('names a picture from another site at the check, and allows the site only after a yes', async () => {
+    mkdirSync(join(root, 'apps/repairs/customer/src'), { recursive: true });
+    writeFileSync(
+      join(root, 'apps/repairs/customer/src/App.tsx'),
+      'export default function App() {\n  // <img src="https://commented.example.com/a.png" /> is the docs link https://adminium.dev/docs\n  return <img src="https://images.unsplash.com/photo-1?w=400" alt="" />;\n}\n',
+    );
+    const checked = await run('check_app');
+    expect(checked.content).toContain('Pictures from images.unsplash.com (apps/repairs/customer/src/App.tsx) will not show');
+    expect(checked.content).toContain('allow_picture_site');
+    expect(checked.content).not.toContain('adminium.dev');
+
+    // Not a host: http, a wildcard, a bare word, a number, a second source. Nobody is asked.
+    for (const name of ['http://images.unsplash.com', '*.unsplash.com', 'localhost', '10.0.0.1', "x.com' data:"]) {
+      expect(await run('allow_picture_site', { name }), name).toMatchObject({ isError: true, facts: { outcome: 'refused' } });
+    }
+    expect(asked).toEqual([]);
+
+    // A no is kept for the turn: no second card.
+    answers.push({ type: 'question', text: 'Do not allow it' });
+    expect(await run('allow_picture_site', { name: 'images.unsplash.com' })).toMatchObject({ isError: true, facts: { outcome: 'declined' } });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toMatchObject({ type: 'question', question: expect.stringContaining('images.unsplash.com') });
+    expect(await run('allow_picture_site', { name: 'images.unsplash.com' })).toMatchObject({ facts: { outcome: 'declined' } });
+    expect(asked).toHaveLength(1);
+    expect(pictureAllowed.size).toBe(0);
+
+    // A yes (to another host: an address is read down to its host) adds it, and the check says nothing of it afterwards.
+    answers.push({ type: 'question', text: 'Allow it' });
+    expect(await run('allow_picture_site', { name: 'https://images.pexels.com/photos/1.jpg' })).toMatchObject({ label: 'Allowed pictures from images.pexels.com', facts: { outcome: 'added' } });
+    expect([...pictureAllowed]).toEqual(['images.pexels.com']);
+    expect(await run('allow_picture_site', { name: 'images.pexels.com' })).toMatchObject({ facts: { outcome: 'added' } });
+    expect(asked).toHaveLength(2);
+    pictureAllowed.add('images.unsplash.com');
+    expect((await run('check_app')).content).not.toContain('will not show');
+
+    // Where the list is the operator's, nobody is asked and the model is told to do without.
+    pictureClosed = 'On this server the sites pictures may come from are set by whoever runs it.';
+    expect(await run('allow_picture_site', { name: 'picsum.photos' })).toMatchObject({ isError: true, content: expect.stringContaining('whoever runs it'), facts: { outcome: 'refused' } });
+    expect(asked).toHaveLength(2);
+    writeFileSync(join(root, 'apps/repairs/customer/src/hero.css'), '.hero { background: url(http://picsum.photos/600) }\n');
+    const told = (await run('check_app')).content;
+    expect(told).toContain('Pictures from picsum.photos');
+    expect(told).toContain('https only');
   });
 
   it('write server code only once the person allows it, asked once', async () => {

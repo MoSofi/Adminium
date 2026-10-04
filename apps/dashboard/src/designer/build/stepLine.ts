@@ -105,6 +105,18 @@ export function stepLine(row: StepRow): string {
         default:
           return t('designer:step.packageRefused', 'No package added');
       }
+    case 'allow_picture_site':
+      if (running) return t('designer:step.pictureSiteAsking', 'Asking to allow pictures from {subject}', S);
+      switch (row.outcome) {
+        case 'added':
+          return t('designer:step.pictureSiteAllowed', 'Allowed pictures from {subject}', S);
+        case 'declined':
+          return t('designer:step.pictureSiteDeclined', 'Did without pictures from {subject}', S);
+        case 'failed':
+          return t('designer:step.pictureSiteFailed', 'Could not allow pictures from {subject}', S);
+        default:
+          return t('designer:step.pictureSiteRefused', 'No picture site allowed');
+      }
     default:
       return row.state === 'failed' && row.ended === 'error' ? t('designer:step.failed', 'This step failed') : row.label;
   }

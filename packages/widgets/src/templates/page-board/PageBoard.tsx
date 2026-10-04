@@ -165,9 +165,12 @@ export function boardCardsOf(
   rows: Record<string, unknown>[],
   cfg: BoardItemConfig,
   dates: PlanningDateOptions = {},
+  /** The column a row is opened by, as the answer names it. */
+  keyField?: string,
 ): BoardCardData[] {
   return rows.map((row, index) => {
     const card = toBoardCard(row, index, {
+      ...(keyField === undefined ? {} : { keyField }),
       columnField: cfg.statusColumn,
       titleField: cfg.titleColumn,
       ...(cfg.laneColumn === undefined ? {} : { laneField: cfg.laneColumn }),
@@ -217,9 +220,11 @@ function BoardSlot({
   const source = planningSourceOf(raw);
   const rows = useMemo(() => boardRowsOf(state.data), [state.data]);
   const dateKind = planningDateKindOf(state.data, cfg.dateColumn);
+  const answered = state.data as { key?: unknown } | null | undefined;
+  const keyField = typeof answered?.key === 'string' ? answered.key : undefined;
   const cards = useMemo(
-    () => boardCardsOf(rows, cfg, { timeZone, kind: dateKind }),
-    [rows, cfg, timeZone, dateKind],
+    () => boardCardsOf(rows, cfg, { timeZone, kind: dateKind }, keyField),
+    [rows, cfg, timeZone, dateKind, keyField],
   );
   const roadmap = cfg.roadmap && cfg.dateColumn !== undefined;
   // The answer's words for a status and a lane, read in the reader's language.

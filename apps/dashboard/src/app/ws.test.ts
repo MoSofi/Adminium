@@ -174,4 +174,78 @@ describe('createRealtimeClient — SSE fallback', () => {
     expect(FakeEventSource.instances[1]!.url).toContain('b');
     client.stop();
   });
+
+  it('shares one stream among the page’s clients, each given only its own channels', () => {
+    vi.useFakeTimers();
+    const got: Record<string, string[]> = { one: [], two: [] };
+    const make = (name: 'one' | 'two', channel: string) =>
+      createRealtimeClient({ channels: [channel], wsUrl: 'ws://test/ws', sseEventTypes: ['record.create'], onEvent: (event) => got[name]!.push(event.channel) });
+    const down = (): void => {
+      // Every socket open so far fails, three rounds: each client falls back.
+      for (const wait of [1000, 2000, 0]) {
+        for (const socket of FakeWebSocket.instances.filter((candidate) => candidate.readyState === 0)) socket.fail();
+        vi.advanceTimersByTime(wait);
+      }
+    };
+    const one = make('one', 'a');
+    const two = make('two', 'b');
+    one.start();
+    two.start();
+    down();
+    // One stream is open, for both channels; the ones it replaced are closed.
+    const open = FakeEventSource.instances.filter((stream) => !stream.closed);
+    expect(open).toHaveLength(1);
+    expect(decodeURIComponent(open[0]!.url)).toContain('channels=a,b');
+    open[0]!.emit('record.create', frame('a'));
+    open[0]!.emit('record.create', frame('b'));
+    expect(got).toEqual({ one: ['a'], two: ['b'] });
+
+    // One client leaves: the stream goes on for the other, without the channel nobody reads.
+    one.stop();
+    const left = FakeEventSource.instances.filter((stream) => !stream.closed);
+    expect(left).toHaveLength(1);
+    expect(decodeURIComponent(left[0]!.url)).toContain('channels=b');
+    two.stop();
+    expect(FakeEventSource.instances.filter((stream) => !stream.closed)).toHaveLength(0);
+  });
+
+  it('goes on trying the socket behind the stream, and gives the stream up when the socket opens', () => {
+    vi.useFakeTimers();
+    const status: boolean[] = [];
+    const client = createRealtimeClient({ channels: ['a'], wsUrl: 'ws://test/ws', onEvent: () => undefined, onStatusChange: (connected) => status.push(connected) });
+    client.start();
+    // The server is away for a restart: three failed connects, and the stream stands in.
+    FakeWebSocket.instances[0]!.fail();
+    vi.advanceTimersByTime(1000);
+    FakeWebSocket.instances[1]!.fail();
+    vi.advanceTimersByTime(2000);
+    FakeWebSocket.instances[2]!.fail();
+    expect(FakeEventSource.instances).toHaveLength(1);
+    const es = FakeEventSource.instances[0]!;
+    expect(es.closed).toBe(false);
+
+    // The socket is tried again, with a longer wait each time and no second stream.
+    vi.advanceTimersByTime(4000);
+    expect(FakeWebSocket.instances).toHaveLength(4);
+    FakeWebSocket.instances[3]!.fail();
+    vi.advanceTimersByTime(8000);
+    expect(FakeWebSocket.instances).toHaveLength(5);
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    // It opens: the channels are subscribed on it, and the stream's connection is given back.
+    FakeWebSocket.instances[4]!.open();
+    expect(FakeWebSocket.instances[4]!.sent).toEqual([JSON.stringify({ op: 'subscribe', channel: 'a' })]);
+    expect(es.closed).toBe(true);
+    expect(status.at(-1)).toBe(true);
+
+    // A later outage falls back again, on a new stream.
+    FakeWebSocket.instances[4]!.fail();
+    vi.advanceTimersByTime(1000);
+    FakeWebSocket.instances[5]!.fail();
+    vi.advanceTimersByTime(2000);
+    FakeWebSocket.instances[6]!.fail();
+    expect(FakeEventSource.instances).toHaveLength(2);
+    client.stop();
+    expect(FakeEventSource.instances[1]!.closed).toBe(true);
+  });
 });

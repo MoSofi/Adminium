@@ -524,6 +524,15 @@ export function createDesignerModelServer({ appKey, files }) {
         if (message.role === 'user') lastUser = index;
       });
       const step = messages.slice(lastUser + 1).filter((message) => message.role === 'tool').length;
+      // Pictures from another site: asked for by its host (the person gets a card), then said.
+      const asked = /pictures from ([a-z0-9.-]+[a-z])/.exec(String(messages[lastUser]?.content ?? ''));
+      if (asked !== null) {
+        if (step === 0) call(res, 'allow_picture_site', { name: asked[1] });
+        else say(res, `Pictures from ${asked[1]}: ${String(messages.at(-1)?.content ?? '').slice(0, 200)}`);
+        line(res, done);
+        res.end();
+        return;
+      }
       // A new app is bare: the first reply writes its files, all at once.
       const written = Object.keys(files).length;
       if (step === 0) calls(res, Object.entries(files).map(([file, content]) => ['write_file', { path: `apps/${appKey}/${file}`, content }]));

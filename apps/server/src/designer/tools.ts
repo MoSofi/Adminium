@@ -17,6 +17,7 @@
  *   build_on_shape    the tables and emails of an add-on's shape, from its manifest
  *   ask_person        a question for the person, and their answer
  *   request_package   an npm package, installed only when the person says yes
+ *   allow_picture_site  a site the app's pages may load pictures from, after a yes
  *
  * No shell and no web. What the model writes is still code: the app's tests,
  * and the project's hooks/ and actions/, run as the person. So tests run, and
@@ -34,6 +35,7 @@ import type { AppSide } from '../project/apps/read-app.js';
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
+import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { projectPackageManager } from '../project/package-manager.js';
@@ -45,7 +47,7 @@ import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import type { Designer } from './service.js';
 import type { Skills } from './skills.js';
-import type { DesignerTool, ToolContext, ToolOutcome } from './tool-types.js';
+import type { DesignerTool, PictureSites, ToolContext, ToolOutcome } from './tool-types.js';
 
 /** The most a read returns; the rest is said to be there. */
 export const MAX_READ_BYTES = 65_536;
@@ -84,7 +86,12 @@ export interface ToolsDeps {
   rowLoader?: RowLoader;
   /** `local` under `adminium design`, where applying an app installs the add-ons it needs that are already in the store. */
   mode?: 'local' | 'live';
+  /** The sites this server lets pages load pictures from. Absent in a harness with no policy. */
+  pictureSites?: PictureSites;
 }
+
+/** A host a picture may come from: names with a dot, no wildcard, no port, no address. */
+const PICTURE_HOST = /^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/;
 
 const text = (content: string, label: string, extra: Partial<ToolOutcome> = {}): ToolOutcome => ({ content, label, ...extra });
 const refused = (content: string, label: string): ToolOutcome => ({ content, label, isError: true });
@@ -306,6 +313,13 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
   const buildCode = new Map<string, 'allowed' | 'refused'>();
   const RUN_THEM = 'Run them';
   const ALLOW_IT = 'Allow it';
+  /** What was said to a picture site, by turn: asked once, and a no is kept. */
+  const pictureAnswers = new Map<string, 'yes' | 'no'>();
+  /** The app's pictures from sites this server does not let through, as lines for the model. */
+  const pictureLines = (): string[] =>
+    deps.pictureSites === undefined || hasOwnBuild(deps.root, appKey)
+      ? []
+      : outsidePictureLines(outsidePictures(deps.root, appKey), (host) => deps.pictureSites?.covers(host) ?? true, deps.pictureSites.closed() === null);
 
   /**
    * An app with a build of its own (a copy of a published app): the files that decide what its approved build
@@ -664,6 +678,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         // What the screens ask of Adminium that it will refuse: said here, before a person meets it on the page.
         const calls = hasOwnBuild(deps.root, appKey) ? [] : sideCallLines(sideCallIssues(deps.root, appKey, check.manifest));
         if (calls.length > 0) lines.push('', 'The screens build, and these calls will be refused when a person uses the page. Fix them:', ...calls);
+        const pictures = pictureLines();
+        if (pictures.length > 0) lines.push('', 'The browser will refuse these pictures, and the person will see empty frames. Fix them:', ...pictures);
         return {
           content: [head, ...lines].join('\n'),
           label: errors === 0 ? 'Checked: no errors' : `Checked: ${String(errors)} error${errors === 1 ? '' : 's'}`,
@@ -1133,6 +1149,49 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         return text(`Added ${name}@${version} to the project.`, `Added ${name}@${version}`, { facts: { outcome: 'added' } });
       },
     },
+    {
+      name: 'allow_picture_site',
+      description:
+        'Ask the person to let the app’s pages load pictures from another site (a host, e.g. "images.example.com"). This server shows pictures only from itself and from sites the person allowed; any other is an empty frame. Nothing is allowed unless they say yes.',
+      inputSchema: {
+        type: 'object',
+        properties: { name: { type: 'string', description: 'The host alone, e.g. images.example.com' }, why: { type: 'string' } },
+        required: ['name'],
+        additionalProperties: false,
+      },
+      running: (input) => `Asking to allow pictures from ${String(input['name'] ?? '')}`,
+      run: async (input, ctx) => {
+        const host = (str(input, 'name') ?? '')
+          .trim()
+          .toLowerCase()
+          .replace(/^https:\/\//, '')
+          .replace(/\/.*$/, '');
+        const none = (content: string, outcome: 'refused' | 'declined' | 'failed'): ToolOutcome => ({ ...refused(content, 'No picture site allowed'), facts: { outcome } });
+        if (!PICTURE_HOST.test(host)) return none(`"${host.slice(0, 80)}" is not a site's host. Give the host alone, like images.example.com: no http://, no path, no "*".`, 'refused');
+        const sites = deps.pictureSites;
+        if (sites === undefined) return none('This server cannot allow a picture site from here. Use no picture from another site.', 'refused');
+        if (sites.covers(host)) return text(`Pictures from ${host} are already allowed: they show.`, `Pictures from ${host} are allowed`, { facts: { outcome: 'added' } });
+        const closed = sites.closed();
+        if (closed !== null) return none(`${closed} Use no picture from another site, and tell the person in a sentence.`, 'refused');
+        const turnKey = `${ctx.session.id}:${String(ctx.turn)}:${host}`;
+        const before = pictureAnswers.get(turnKey);
+        if (before === 'no') return none(`The person already said no to pictures from ${host} in this turn. Do not ask again: take those pictures out.`, 'declined');
+        const answer = await ctx.ask({
+          type: 'question',
+          question: `Let this project’s pages show pictures from ${host}? Adminium shows pictures only from your own server unless a site is named. A yes adds ${host} to ADMINIUM_CSP_IMG_HOSTS in your project’s .env, and that site then sees each visit to a page that shows its pictures.`,
+          choices: [ALLOW_IT, 'Do not allow it'],
+        });
+        const yes = answer.type === 'question' && answer.text === ALLOW_IT;
+        pictureAnswers.set(turnKey, yes ? 'yes' : 'no');
+        if (!yes) return none(`The person said no to pictures from ${host}. Take those pictures out: draw with the look’s own parts or an inline SVG.`, 'declined');
+        try {
+          sites.add(host, ctx.handle.by);
+        } catch (error) {
+          return none(`The site could not be kept: ${error instanceof Error ? error.message : String(error)} Tell the person; use no picture from another site.`, 'failed');
+        }
+        return text(`Pictures from ${host} show now. The site is kept in the project’s .env (ADMINIUM_CSP_IMG_HOSTS).`, `Allowed pictures from ${host}`, { facts: { outcome: 'added' } });
+      },
+    },
   ];
   return tools;
 }
@@ -1158,4 +1217,5 @@ export const DESIGNER_TOOL_NAMES = [
   'load_rows',
   'ask_person',
   'request_package',
+  'allow_picture_site',
 ] as const;

@@ -9423,6 +9423,10 @@
     "status": "mt",
     "srcHash": "e62606117829"
   },
+  "designer.preview.seenAsOwner": {
+    "status": "mt",
+    "srcHash": "8d55a7d95d28"
+  },
   "designer.preview.seenAsStaff": {
     "status": "mt",
     "srcHash": "29da8f70ac4a"
@@ -9830,6 +9834,26 @@
   "designer.step.packageRefused": {
     "status": "mt",
     "srcHash": "6a7c440f2c75"
+  },
+  "designer.step.pictureSiteAllowed": {
+    "status": "mt",
+    "srcHash": "301b0a7cb11d"
+  },
+  "designer.step.pictureSiteAsking": {
+    "status": "mt",
+    "srcHash": "10973e3e3b94"
+  },
+  "designer.step.pictureSiteDeclined": {
+    "status": "mt",
+    "srcHash": "a6c49af6ca72"
+  },
+  "designer.step.pictureSiteFailed": {
+    "status": "mt",
+    "srcHash": "70c985d71499"
+  },
+  "designer.step.pictureSiteRefused": {
+    "status": "mt",
+    "srcHash": "f102d9c3797c"
   },
   "designer.step.read": {
     "status": "mt",

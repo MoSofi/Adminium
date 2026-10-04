@@ -118,6 +118,7 @@ import type { FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
 import type { Env } from '../config/env.js';
+import { createPictureHosts } from '../config/picture-hosts.js';
 import { ForbiddenError, RateLimitedError } from '../errors.js';
 import {
   allowedOriginHosts,
@@ -570,6 +571,23 @@ export const corePlugin = fp<CorePluginOptions>(
       // HSTS only behind TLS; on the desktop shell's loopback and
       // the LAN origins it would pin browsers to an https that isn't there.
       ...(env.ADMINIUM_TRUST_PROXY ? {} : { hsts: false }),
+    });
+
+    /*
+     * A picture site allowed while the server runs (Adminium Designer, after
+     * a person's yes) counts from the next reply: the header above was made
+     * once, so the hosts added since are appended here. Only to a policy that
+     * shows this server's own pictures: a route with a policy of its own (a
+     * sandboxed document) gains nothing.
+     */
+    const pictureHosts = createPictureHosts(env.ADMINIUM_CSP_IMG_HOSTS ?? []);
+    app.decorate('pictureHosts', pictureHosts);
+    app.addHook('onSend', async (_request, reply, payload) => {
+      const added = pictureHosts.added();
+      if (added.length === 0) return payload;
+      const policy = reply.getHeader('content-security-policy');
+      if (typeof policy === 'string') reply.header('content-security-policy', policy.replace(/img-src 'self'[^;]*/, (found) => `${found} ${added.join(' ')}`));
+      return payload;
     });
 
     // Bucket assignment. Added BEFORE @fastify/rate-limit registers so its

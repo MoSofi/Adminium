@@ -8,7 +8,8 @@
  * frame opens the ticket's address, which signs the frame in as a user that
  * holds only the app's own roles and sends it on to the page.
  *
- * Sides: the Dashboard (the dashboard itself, with the app's real pages),
+ * Sides: the Dashboard (the person's own dashboard, as the owner they are,
+ * on the Designer's name: no ticket, no preview user),
  * Staff and Customer — a side the app does not have is absent. Widths:
  * desktop fills, tablet is 768 wide, phone 360 in a bezel. The frame reloads
  * when the app is applied again (`app-changed`), and on Reload.
@@ -27,6 +28,9 @@ import { designerApi, type DesignerSession } from '../api.js';
 import type { TurnView } from './turns.js';
 
 export type PreviewSide = 'dashboard' | 'staff' | 'customer';
+
+/** The dashboard on the Designer's own name, where the session is the owner's. */
+const OWN_DASHBOARD = '/';
 export type PreviewWidth = 'desktop' | 'tablet' | 'phone';
 
 const installedKey = ['designer', 'installed'] as const;
@@ -70,8 +74,9 @@ function crashedTitle(side: PreviewSide): string {
     : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
 }
 
-/** Whose eyes the preview is: the app's own roles for the dashboard and the staff side, nobody for the customer side. */
+/** Whose eyes the preview is: the owner's own for the dashboard, the app's roles for the staff side, nobody for the customer side. */
 export function seenAs(side: PreviewSide, roles: readonly string[] | null): string {
+  if (side === 'dashboard') return t('designer:preview.seenAsOwner', 'Seen as: you, the owner');
   if (side === 'customer') return t('designer:preview.seenAsVisitor', 'Seen as: a visitor, not signed in');
   if (roles === null) return t('designer:preview.seenAsStaff', 'Seen as: staff — a preview');
   if (roles.length === 0) return t('designer:preview.seenAsNoRole', 'Seen as: a person with no role yet — a preview');
@@ -136,7 +141,8 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   const ticket = useQuery({
     queryKey: ['designer', 'preview', session.id, side, round] as const,
     queryFn: () => designerApi.previewTicket(session.id, to),
-    enabled: app !== null && !info.isPending && !noPreview,
+    // The dashboard is the person's own, on the Designer's name: it needs no ticket.
+    enabled: app !== null && !info.isPending && !noPreview && side !== 'dashboard',
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0,
     retry: false,
@@ -193,6 +199,11 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
     const tab = window.open('', '_blank');
     if (tab === null) return;
     tab.opener = null;
+    // The dashboard is Adminium's own pages, not a model's: it opens on this name, as the owner.
+    if (side === 'dashboard') {
+      tab.location.href = OWN_DASHBOARD;
+      return;
+    }
     // A customer page is public: it opens as it is, with nobody signed in, and makes no preview session in the tab.
     if (side === 'customer' && previewOrigin !== null) {
       tab.location.href = `${previewOrigin}${to}`;
@@ -200,22 +211,25 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
     }
     // The staff side opens inside the dashboard, as staff meet it: there the bar says whose eyes this is.
     void designerApi
-      .previewTicket(session.id, side === 'staff' ? `/a/${session.appKey}` : to)
+      .previewTicket(session.id, `/a/${session.appKey}`)
       .then((reply) => {
         tab.location.href = reply.url;
       })
       .catch(() => tab.close());
   };
 
+  // What the plain frame shows, and the mark of its having loaded (a Reload opens the same dashboard again).
+  const frameUrl = side === 'dashboard' ? OWN_DASHBOARD : ticket.data?.url;
+  const frameMark = frameUrl === undefined ? null : `${String(round)} ${frameUrl}`;
   const frame =
-    ticket.data === undefined ? null : side === 'staff' ? (
+    frameUrl === undefined ? null : side === 'staff' && ticket.data !== undefined ? (
       <AppFrame key={`${side}.${String(round)}`} appKey={session.appKey} path="" title={sideName(side)} onNavigate={() => undefined} src={ticket.data.url} origin={ticket.data.origin} />
     ) : (
       <iframe
         key={`${side}.${String(round)}`}
-        src={ticket.data.url}
+        src={frameUrl}
         title={sideName(side)}
-        onLoad={() => setLoadedFor(ticket.data?.url ?? null)}
+        onLoad={() => setLoadedFor(frameMark)}
         className="h-full w-full border-0"
         allow=""
       />
@@ -283,7 +297,10 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
           </div>
         )}
         {app === null ? null : (
-          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold text-fg-muted" title={t('designer:preview.seenAsHint', 'The preview is not your own sign-in. It shows the app as its people will see it.')}>
+          <span
+            className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold text-fg-muted"
+            title={side === 'dashboard' ? undefined : t('designer:preview.seenAsHint', 'The preview is not your own sign-in. It shows the app as its people will see it.')}
+          >
             <Eye aria-hidden="true" className="size-3 shrink-0" />
             <span className="truncate">{seenAs(side, ticket.data?.seenAs ?? null)}</span>
           </span>
@@ -315,7 +332,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
           <p className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
             {installed.isPending ? null : t('designer:preview.nothing', 'Nothing to show yet. Once the Designer applies the app, it shows here.')}
           </p>
-        ) : ticket.isError ? (
+        ) : ticket.isError && side !== 'dashboard' ? (
           <p role="alert" className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
             {t('designer:preview.unavailable', 'The preview could not be opened: {message}', { message: ticket.error.message })}
           </p>
@@ -323,7 +340,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
           sized
         )}
 
-        {app !== null && side !== 'staff' && !state.building && state.failed === null && (ticket.data === undefined || loadedFor !== ticket.data.url) && !ticket.isError ? (
+        {app !== null && side !== 'staff' && !state.building && state.failed === null && (frameMark === null || loadedFor !== frameMark) && !ticket.isError ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <LoaderCircle aria-label={t('designer:preview.loading', 'Opening the preview')} className="size-5 animate-spin text-fg-subtle" />
           </div>

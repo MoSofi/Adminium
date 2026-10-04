@@ -67,3 +67,13 @@ export class TurnStoppedError extends Error {
     super('The turn was stopped.');
   }
 }
+
+/** The server's picture sites, as the Designer meets them. */
+export interface PictureSites {
+  /** Whether a picture on this host, over https, is let through. */
+  covers(host: string): boolean;
+  /** Null where a person's yes can add a site; otherwise why it cannot, in a sentence for the model. */
+  closed(): string | null;
+  /** Keep the site (the project's `.env`) and let it through from the next reply. `by` is who said yes. */
+  add(host: string, by: { id: string | null; label: string }): void;
+}

@@ -258,6 +258,17 @@ describe('security headers', () => {
     expect(csp).toContain(
       "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://images.unsplash.com https://*.cdn.example.com;",
     );
+    // A site added while the server runs (the Designer, after a person's yes) is in the next reply, after the ones it started with.
+    expect(fixture.app.pictureHosts.covers('images.unsplash.com')).toBe(true);
+    expect(fixture.app.pictureHosts.covers('a.cdn.example.com')).toBe(true);
+    expect(fixture.app.pictureHosts.covers('cdn.example.com')).toBe(false);
+    expect(fixture.app.pictureHosts.add('https:')).toBe(false);
+    expect(fixture.app.pictureHosts.add('https://images.unsplash.com')).toBe(false);
+    expect(fixture.app.pictureHosts.add('https://picsum.photos')).toBe(true);
+    const later = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
+    expect(String(later.headers['content-security-policy'])).toContain(
+      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://images.unsplash.com https://*.cdn.example.com https://picsum.photos;",
+    );
     // Only img-src moved. A host named for pictures reaches nothing else.
     expect(csp).toContain("default-src 'self';");
     expect(csp).not.toMatch(/(?:connect|script|frame|font)-src[^;]*unsplash/);

@@ -68,6 +68,12 @@ describe('board-lib helpers', () => {
     const c = toBoardCard(row, 0, { columnField: 'state', laneField: 'lane', titleField: 'name' });
     expect(c).toMatchObject({ id: '7', title: 'Ship it', column: 'done', lane: 'growth', pct: 42, owner: 'Ava Reyes' });
   });
+
+  it('opens a card by the column the answer names as the row’s key, and by its place only when there is none', () => {
+    // A table keyed `order_id` has no `id`: its place in the list is not a record.
+    expect(toBoardCard({ order_id: 10248, name: 'Vins', state: 'done' }, 0, { columnField: 'state', titleField: 'name', keyField: 'order_id' }).id).toBe('10248');
+    expect(toBoardCard({ name: 'Vins', state: 'done' }, 3, { columnField: 'state', titleField: 'name', keyField: 'order_id' }).id).toBe('3');
+  });
 });
 
 describe('BoardCard', () => {

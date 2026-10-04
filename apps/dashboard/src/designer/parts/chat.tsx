@@ -81,7 +81,7 @@ const M3 = '\u0003';
 export function PersonMessage({ text }: { text: string }): ReactNode {
   return (
     <div className="flex justify-end">
-      <p dir="auto" className="m-0 max-w-[86%] whitespace-pre-wrap text-pretty rounded-2xl rounded-ee-md bg-surface-3 px-3.5 py-[11px] text-[13.5px] leading-normal text-fg">{text}</p>
+      <p dir="auto" className="m-0 min-w-0 max-w-[86%] whitespace-pre-wrap text-pretty [overflow-wrap:anywhere] rounded-2xl rounded-ee-md bg-surface-3 px-3.5 py-[11px] text-[13.5px] leading-normal text-fg">{text}</p>
     </div>
   );
 }

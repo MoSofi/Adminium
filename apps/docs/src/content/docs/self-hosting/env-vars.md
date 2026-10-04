@@ -347,6 +347,10 @@ is a scheme and a host, with an optional port; a leading `*.` covers that host's
 subdomains. Some of the example apps' demo data links its photos on
 `images.unsplash.com`, so a demo database needs `https://images.unsplash.com`.
 
+Under `adminium design`, Adminium Designer adds a host to this list in the
+project's `.env` when you say yes to its card, and that host counts from the
+next reply. Everywhere else the list is read once, when the server starts.
+
 What it refuses, and why it refuses rather than guesses:
 
 - **A bare `*` or a scheme alone (`https:`).** Either one admits pictures from

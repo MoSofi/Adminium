@@ -5,14 +5,14 @@
  * `adminium design` in a project folder; its one-use link opens the Designer
  * signed in (no sign-in form); a request from Home starts a session; the
  * model writes a table, its page and its role, checks the app and applies it; the turn is saved as
- * v1; the preview frames the app on the preview's own host name, signed in
- * as the low preview user; the Architecture tab draws the new table. Each
+ * v1; the preview frames the person's own dashboard, as the owner; the Architecture tab draws the new table. Each
  * page is swept by axe, in the light and the dark theme.
  *
  * The model speaks Ollama's streaming protocol from this process
  * (`createDesignerModelServer`): it proves the wiring, never that a real
  * model can build — that is the evaluation's job.
  */
+import { readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -25,10 +25,13 @@ import { ProjectHarness } from './projectHarness.js';
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);
 const APP_KEY = 'repair-desk';
+/** A word with nowhere to break, as a pasted address is. */
+const LONG_WORD = `http://127.0.0.1:4700/api/v1/files/file_${'01M42ZQKVJ062DHES0A3P9SG1T'.repeat(3)}/content`;
 
 let project: ProjectHarness;
 let model: Server;
 let link: string;
+let designEnv: Record<string, string>;
 
 test.describe.configure({ mode: 'serial' });
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -64,7 +67,8 @@ test.beforeAll(async ({}, testInfo) => {
   model = createDesignerModelServer({ appKey: APP_KEY, files: Object.fromEntries(Object.entries(files).map(([file, value]) => [file, JSON.stringify(value, null, 2)])) });
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
   const modelUrl = `http://127.0.0.1:${String((model.address() as AddressInfo).port)}`;
-  link = await project.design({ ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' });
+  designEnv = { ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' };
+  link = await project.design(designEnv);
 });
 
 test.afterAll(async () => {
@@ -128,10 +132,12 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   await expect(page.getByRole('button', { name: 'Version v1: v1' })).toBeVisible();
   await bothThemes(page, 'Build', testInfo);
 
-  // The preview: the dashboard, on the preview's own host name, signed in as the preview user.
+  // The preview's dashboard is the person's own, on the Designer's name: the owner, with the app's page and Studio both in reach.
   const frame = page.frameLocator('iframe[title="Dashboard"]');
-  await expect(frame.getByRole('heading', { name: 'Jobs', exact: true })).toBeVisible({ timeout: 60_000 });
-  expect(await page.locator('iframe[title="Dashboard"]').getAttribute('src')).toMatch(/^http:\/\/localhost:\d+\/designer-preview\/enter\?ticket=/);
+  expect(await page.locator('iframe[title="Dashboard"]').getAttribute('src')).toBe('/');
+  await expect(page.getByText('Seen as: you, the owner')).toBeVisible();
+  await expect(frame.getByRole('button', { name: 'Set your password' })).toBeVisible({ timeout: 60_000 });
+  expect(await frame.locator('body').evaluate(async () => (await fetch('/api/v1/auth/session')).text())).toContain('owner@adminium.localhost');
 
   // The architecture: the table the turn applied, with its real name.
   await page.getByRole('tab', { name: 'Architecture' }).click();
@@ -148,13 +154,16 @@ test('design opens signed in; a request builds, applies, previews and draws an a
     const scroller = document.querySelector('aside .nb-scroll') as HTMLElement;
     const frames: [number, number, number][] = [];
     (window as unknown as { chatFrames: typeof frames }).chatFrames = frames;
+    const page = window as unknown as { pageOverflow: number };
+    page.pageOverflow = 0;
     const tick = (): void => {
       frames.push([scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight]);
+      page.pageOverflow = Math.max(page.pageOverflow, document.documentElement.scrollHeight - window.innerHeight);
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   });
-  await page.getByRole('textbox', { name: 'Message to Adminium Designer' }).fill('Write them again, exactly as they are.');
+  await page.getByRole('textbox', { name: 'Message to Adminium Designer' }).fill(`Write them again, exactly as they are. ${LONG_WORD}`);
   await page.keyboard.press('Enter');
   // The same files again change nothing, so no version is saved: the turn is over when its own reply and summary are there.
   await expect(page.getByText('The app has a jobs table now. It is applied and saved.')).toHaveCount(2, { timeout: 120_000 });
@@ -168,8 +177,68 @@ test('design opens signed in; a request builds, applies, previews and draws an a
     const before = frames[index - 1];
     // Off its end for two frames running is something a person sees.
     if (height - top - client > 1 && before !== undefined && before[1] - before[0] - before[2] > 1) offEnd += 1;
-    // Up, while nothing was taken away below it.
-    if (before !== undefined && top < before[0] - 1 && height >= before[1]) movedBack += 1;
+    // Up, while nothing was taken away below it, and not because the column itself grew taller (the message box shrinks once a long message is sent).
+    if (before !== undefined && top < before[0] - 1 && height >= before[1] && client <= before[2]) movedBack += 1;
   });
   expect({ offEnd, movedBack }).toEqual({ offEnd: 0, movedBack: 0 });
+  // A message with a word too long for its bubble (an address) is broken inside it: the chat never scrolls sideways.
+  await expect(page.getByText(LONG_WORD)).toBeVisible();
+  expect(await page.evaluate(() => ((scroller) => scroller.scrollWidth - scroller.clientWidth)(document.querySelector('aside .nb-scroll') as HTMLElement))).toBe(0);
+  // The page itself never grows past the window while a step runs (a running step's hidden word once sat far below it, and the whole page scrolled to empty space).
+  expect(await page.evaluate(() => (window as unknown as { pageOverflow: number }).pageOverflow)).toBe(0);
+
+  // A picture from another site: the server names the sites pictures may come from, and none is added without a yes.
+  const policyOf = async (): Promise<string> => (await page.request.get(new URL('/', page.url()).href)).headers()['content-security-policy'] ?? '';
+  expect(await policyOf()).not.toContain('images.example.com');
+  await page.getByRole('textbox', { name: 'Message to Adminium Designer' }).fill('Use pictures from images.example.com on the page.');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/Let this project’s pages show pictures from images\.example\.com\?/)).toBeVisible({ timeout: 120_000 });
+  expect(await policyOf()).not.toContain('images.example.com');
+  await page.getByRole('button', { name: 'Allow it', exact: true }).click();
+  await expect(page.getByText(/^Pictures from images\.example\.com: Pictures from images\.example\.com show now\./)).toBeVisible({ timeout: 120_000 });
+  // In the next reply's policy, with no restart, and kept in the project's .env for the next start.
+  expect(await policyOf()).toMatch(/img-src 'self'[^;]* https:\/\/images\.example\.com(;|$)/);
+  expect(readFileSync(project.path('.env'), 'utf8')).toMatch(/^ADMINIUM_CSP_IMG_HOSTS=https:\/\/images\.example\.com$/m);
+});
+
+test('tabs left open across a restart of the server do not stop a new one from loading', async ({ context }, testInfo) => {
+  testInfo.setTimeout(240_000);
+  const REPLY = 'The app has a jobs table now. It is applied and saved.';
+  // Three tabs on the session, each with its live connections.
+  const first = await context.newPage();
+  await first.goto(await project.design(designEnv));
+  await first.getByRole('button', { name: /^Continue / }).click();
+  await expect(first).toHaveURL(/\/design\/ds_[0-9a-z]{24}$/);
+  const session = first.url();
+  const tabs = [first, await context.newPage(), await context.newPage()];
+  for (const tab of tabs) {
+    if (tab !== first) await tab.goto(session);
+    await expect(tab.getByText(REPLY).first()).toBeVisible({ timeout: 60_000 });
+  }
+
+  /*
+   * The server goes away for longer than three failed connects, as a restart
+   * does, and comes back. Each open tab fell back to an event stream, which
+   * holds one of the browser's six connections to the server; they used to
+   * keep them for good, and a tab opened next waited forever for its data.
+   */
+  await project.stop();
+  await first.waitForTimeout(6_000);
+  const again = await project.design(designEnv);
+  const fresh = await context.newPage();
+  await fresh.goto(again);
+  await expect(fresh.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible({ timeout: 30_000 });
+  await fresh.goto(session);
+  await expect(fresh.getByText(REPLY).first()).toBeVisible({ timeout: 30_000 });
+  // And the dashboard, in one more tab.
+  const dashboard = await context.newPage();
+  await dashboard.goto(new URL('/', session).href);
+  await expect(dashboard.getByRole('button', { name: 'Set your password' })).toBeVisible({ timeout: 30_000 });
+
+  // The old tabs are back on their sockets, and hold no stream.
+  for (const tab of tabs) {
+    await expect
+      .poll(() => tab.evaluate(() => performance.getEntriesByType('resource').filter((entry) => entry.name.includes('/api/v1/events?')).every((entry) => (entry as PerformanceResourceTiming).responseEnd > 0)), { timeout: 60_000 })
+      .toBe(true);
+  }
 });

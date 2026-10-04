@@ -23,6 +23,7 @@ import { applyLook, cleanLook, readLook, sidesWithScreens, type Look, type LookD
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
+import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { appKeyProblem, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { findProject } from '../project/locate.js';
@@ -57,6 +58,8 @@ export interface DesignerHost {
   prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[], opts?: import('./prompt.js').PromptOpts) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
   /** Versions after each turn; absent in a harness that keeps none. */
   versions?: Versions | null;
+  /** The sites this server lets pages load pictures from; absent in a harness with no policy. */
+  pictureSites?: import('./tool-types.js').PictureSites;
 }
 
 export interface CreateSessionInput {
@@ -390,6 +393,8 @@ export function createDesigner(host: DesignerHost): Designer {
         ...placeholderScreens(host.root, session.appKey, tables),
         // A call the page makes that Adminium refuses: the person would meet it as "That did not work".
         ...sideCallLines(sideCallIssues(host.root, session.appKey, manifest)),
+        // A picture from a site this server does not let through: the person would meet it as an empty frame.
+        ...(host.pictureSites === undefined ? [] : outsidePictureLines(outsidePictures(host.root, session.appKey), host.pictureSites.covers, host.pictureSites.closed() === null)),
         ...(session.version === null ? emptyFirstPreview(manifest) : []),
         ...unnamed,
       ];
