@@ -127,7 +127,8 @@ export function StartWithAnApp({ onStart = () => undefined }: { onStart?: (app: 
       </div>
 
       {catalog.isPending ? (
-        <div aria-busy="true" aria-label={t('designer:start.loading', 'Loading the app list')} className={GRID}>
+        // A status, so its name is allowed: a bare div may not carry one (seen by axe once a new install showed this list at first paint).
+        <div role="status" aria-busy="true" aria-label={t('designer:start.loading', 'Loading the app list')} className={GRID}>
           {[1, 2, 3, 4, 5, 6].map((key) => (
             <div key={key} className="flex flex-col overflow-hidden rounded-[14px] border border-border bg-surface">
               <Skeleton className="aspect-[16/10] rounded-none" />
