@@ -1,5 +1,59 @@
 # @adminium/dashboard
 
+## 0.3.16
+
+### Patch Changes
+
+- 3392573: Attach a picture or a CSV file to a Designer message: by the clip, a paste or a drop, up to four a message.
+  
+  - A picture (PNG, JPEG, WebP, GIF; 5 MB) is sent to the model when the model reads pictures. Whether it does is asked of the model, once; when it does not, the box says so before the message is sent.
+  - A CSV (10 MB, 20,000 rows) is shown to the model as its columns and first rows. Once the app is applied, a card asks before its rows are loaded into one of the app's tables; the load is the dashboard's own import, so the table's checks hold and Imports keeps the report.
+  - What a file is, is read from its bytes; anything else is refused. Files are kept in the session's folder and served back only to the Designer's own page, with headers under which nothing in them can run.
+  - The Designer now tells a model when its staff role reads a table and not its personal columns (an email, a phone number): a board on such a table was refused for that role in the preview.
+- 6db5fa2: Adminium Designer's chat: the reply is drawn as Markdown (headings, lists, bold, code, tables; no HTML, no image and no link from a model is ever run, fetched or made clickable). The column no longer moves up and down while the Designer writes, and it keeps following its end. A card that waits for an answer is scrolled into view and takes the focus. A file or reference the Designer looked for and did not find is drawn plainly ("Looked for … — not there"), not as a red failure; a real failure says "Could not write …" with its reason on the line.
+- bc0284d: Adminium Designer: a first build worth keeping. An app's own screens now start with a look: made parts (a header with the business's name, cards, a form, buttons, an empty state; a list and a board for staff) in `src/app.css`, drawn from `src/theme.css`, in one of four directions (clean, warm, bold, calm), light and dark. The first time a side is added the Designer asks how it should look (four directions, "Surprise me", or your own words) unless the request already said; the choice is kept in the app's `look.json`. "Change the look" under the last turn switches direction with no model call and saves a version. The Designer gives the app a short name of its own, the session's title follows it, and a screen's header follows a rename at the next build (`APP_NAME` from `@adminiumjs/adminium/side`). It writes a few sample rows for what customers read, and sample rows written after the first apply are now added when the app first names them. A project made by `adminium design` starts with React and the public client, so a first build shows no package card; elsewhere the screens' packages are asked for on one card. A file refused as invalid JSON shows the lines around the fault and what is still open there, and says so when the same text is sent again. The preview no longer says a side "did not build" after a later build fixed it. A failed turn shows the model provider's own reason when it gave one. `adminium app new` writes the same starter.
+  
+  The check of an app's public access says where a guest quantity's `validation` goes (on the column) and what to do when `expect` names a figure Adminium does not work out.
+- 4a01150: Adminium Designer: "New session" on the build page and on each row of "Your apps". It starts an empty conversation on the same app, from the app's files as they are, so a long chat is no longer sent again at every step. The earlier sessions of the app are listed beside the button and stay readable. The spending notice for a session has the button too.
+- d5f0dac: Adminium Designer: tokens end no turn. Past `designer.turnTokens` or `designer.sessionTokens` a red notice appears above the message box and a sound plays once; the work goes on, and Stop is the person's to press (the step limit still ends a turn). Stop now ends a copied app's own build half-way, and a turn stopped during its last build says "stopped", not a failed build. "Make it yours" names the copy's package after its new key and starts it with an empty `RELEASES.json`. Where a model cannot be added (a live server), the model picker no longer offers "Add a model".
+- 0a1b8e6: A customer's own row ("track my order"), and what a refused call says.
+  
+  - **Security:** an app that lets anyone add a row to a table and anyone read that table was refused when both were in one `publicAccess` entry, and not when they were written as two entries (`POST` in one, `GET` in the next). Both are refused now, by `adminium app check`, by the Designer and at install, with the claim to use instead. No released app is written that way. **An app of your own written that way installed on 0.3.15, and is refused now when it is next updated or applied:** give the reading entry a `claim`, or drop one of the two entries.
+  - While an app's folder is worked on (`adminium dev`, the local Designer), a change to what a `publicAccess` entry shows or how it is reached now takes effect when the app is applied. It used to be left as it was, in silence, so a page stayed refused however often `access.json` was rewritten. A server (`adminium start`) and an update of a published app keep what was allowed, as before, and say which entry was left as it was and why.
+  - A refused `where`, `order` or `q` on a public list (`400` `PUBLIC_QUERY_REFUSED`) names the parameter in `params.parameter` and says what a page does instead.
+  - Adminium Designer reads its screens' calls before a person meets them (a public list sorted or filtered from the page, a table named by its short name, a claim never made or never read through, a staff filter written as `{ column: value }`), is told the tested recipe for a person's own row when the request is about one, and the preview shows a call Adminium refused with "Ask the Designer to fix it".
+  - New guide: "Let a customer find their own row" (`guides/apps/manifest-by-task`).
+- 426eb40: Adminium Designer: who you are, and whose eyes the preview is. The preview's bar says whom it shows ("Seen as: Baker — a preview"; "a visitor, not signed in" for the customer side). "Open in a new tab" opens the staff side inside the dashboard, as staff meet it, and that dashboard says across its top that it is a preview and links to "Open the dashboard as yourself"; a customer page opens as it is, with nobody signed in. The dashboard opened as the owner `adminium design` made, who has no password, offers "Set your password" on the page: an address and a password, the same as `adminium owner set` (`POST /api/v1/designer/owner-password`: only on a `design` server, only for that owner, only once; it never changes a password that exists).
+- 085fe69: The Designer reads a screen for a React hook called after the component may already have returned (an `if (loading) return …` above a `useEffect`). Such a screen builds and then stops as it opens; the model is now told the file, both lines and what to move, by `check_app` and before the turn ends, so a person does not meet the error first.
+  
+  Two more of the same kind: a screen that reads its table names from the public client's own config (which has none) is told so; and the preview now shows an error a screen went on from (a list left empty because its load threw), with "Ask the Designer to fix it", where it used to show only an error that left the page blank.
+  
+  The Designer's own hints about a customer screen's table names now say where they are (`useCustomer()`'s `loaded.value.tables`): "use config.tables" alone was read as the public client's config, and screens stopped on it.
+- 8bb8392: One Install button for add-ons and apps, and the Designer can get an add-on itself.
+  
+  **A new install now asks adminium.dev for the two lists (add-ons and apps).** One request when the server starts and once a day, which tells adminium.dev the server's IP address, the time and its Adminium version. No add-on or app is named until a person presses Install. To switch it off: the switch on each page, or `ADMINIUM_NETWORK_FEATURES=off` (set before the first start, the request is never made). **A server upgraded from an earlier version is unchanged**: a list that was off stays off, and its page shows one button, "Show what is available".
+  
+  - Add-ons page: Install downloads the add-on and then shows what it adds, with Cancel and Install.
+  - Apps page: Install downloads the app and opens one dialog (the database, what it adds, the add-ons it brings); "More choices" opens the full wizard. An add-on the app requires is downloaded by the dialog's own Install, and the dialog says so before it is pressed.
+  - The Designer: when a request needs an add-on that is not on the server, a card asks, by the add-on's name and version, and a yes downloads and installs that version. Where the list is off, a first card says what switching it on sends and downloads nothing; the add-on's own card follows.
+  - An add-ons page whose list is off no longer shows rows cached from an earlier refresh.
+- Updated dependencies [3392573]
+- Updated dependencies [6db5fa2]
+- Updated dependencies [bc0284d]
+- Updated dependencies [4a01150]
+- Updated dependencies [d5f0dac]
+- Updated dependencies [0a1b8e6]
+- Updated dependencies [426eb40]
+- Updated dependencies [085fe69]
+- Updated dependencies [8bb8392]
+  - @adminium/i18n@0.3.16
+  - @adminium/charts@0.3.16
+  - @adminium/widgets@0.3.16
+  - @adminium/engine@0.3.16
+  - @adminium/add-on-contracts@0.3.16
+  - @adminium/tokens@0.3.16
+  - @adminium/ui@0.3.16
+
 ## 0.3.15
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @adminium/adapter-mysql
 
+## 0.3.16
+
+### Patch Changes
+
+- @adminium/engine@0.3.16
+
 ## 0.3.15
 
 ### Patch Changes
