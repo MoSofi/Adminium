@@ -336,11 +336,16 @@ describe('a screen that stops with an error', () => {
     expect(dev.posted[0]).toEqual({ message: { type: 'adminium:side-error', app: '', side: 'staff', message: 'Rendered more hooks than during the previous render.' }, origin: '*' });
     expect((dev.posted[1]?.message as { message: string }).message).toHaveLength(400);
 
-    // A screen that still shows something goes on working: nothing is said.
+    // A screen that still shows something goes on working. The browser's own notices are not said…
     const working = frame();
     reportErrorsToFrame(working.target, true, () => false, (run) => run());
     working.listeners.get('error')?.({ error: new Error('ResizeObserver loop completed with undelivered notifications.') });
+    working.listeners.get('error')?.({ message: 'Script error.' });
+    working.listeners.get('unhandledrejection')?.({ reason: 'a string nobody threw as an error' });
     expect(working.posted).toEqual([]);
+    // …and a thing the screen's own code threw is, as an error it went on from: a load that failed leaves a list empty with no word.
+    working.listeners.get('unhandledrejection')?.({ reason: new TypeError("Cannot read properties of undefined (reading 'cakes')") });
+    expect(working.posted).toEqual([{ message: { type: 'adminium:side-error', app: '', side: 'staff', message: "Cannot read properties of undefined (reading 'cakes')", went: true }, origin: '*' }]);
 
     // A packed app, or a page nobody frames, says nothing.
     const packed = frame();

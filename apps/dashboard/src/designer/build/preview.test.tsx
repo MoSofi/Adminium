@@ -273,6 +273,29 @@ describe('the preview', () => {
     expect(onFix).toHaveBeenCalledWith('The screen builds, and stops with an error when it opens: the staff screen reported “Rendered more hooks than during the previous render.” Please fix it.');
   });
 
+  it('shows an error a screen went on from, asks for the fix, and lets the page be looked at', async () => {
+    const { onFix } = mount([turn({})]);
+    await screen.findByRole('button', { name: 'Staff' });
+    await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: 'http://localhost:4731',
+          data: { type: 'adminium:side-error', went: true, app: SESSION.appKey, side: 'staff', message: "Cannot read properties of undefined (reading 'cakes')" },
+          source: document.querySelector('iframe')?.contentWindow ?? null,
+        }),
+      );
+    });
+    const card = await screen.findByRole('alert');
+    expect(card.textContent).toContain('The staff screen hit an error and went on. A part of it may be empty.');
+    expect(card.textContent).toContain("Cannot read properties of undefined (reading 'cakes')");
+    await userEvent.click(screen.getByRole('button', { name: 'Ask the Designer to fix it' }));
+    expect(onFix).toHaveBeenCalledWith("The staff screen opens, and something in it fails with an error, so a part of it stays empty: Cannot read properties of undefined (reading 'cakes') Please fix the screen.");
+    // The page still works: the card can be put away.
+    await userEvent.click(screen.getByRole('button', { name: 'Keep looking at the page' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('shows a call the screen made that Adminium refused, asks for the fix, and lets the page be looked at', async () => {
     const { onFix } = mount([turn({})]);
     await screen.findByRole('button', { name: 'Staff' });

@@ -9371,6 +9371,10 @@
     "status": "mt",
     "srcHash": "09f0136a4dc9"
   },
+  "designer.preview.fixWentOnMessage": {
+    "status": "mt",
+    "srcHash": "2311f4c0c66a"
+  },
   "designer.preview.keepLooking": {
     "status": "mt",
     "srcHash": "66a75711c7c3"
@@ -9442,6 +9446,14 @@
   "designer.preview.unavailable": {
     "status": "mt",
     "srcHash": "66342f4e38a8"
+  },
+  "designer.preview.wentOnCustomer": {
+    "status": "mt",
+    "srcHash": "0fe76b884382"
+  },
+  "designer.preview.wentOnStaff": {
+    "status": "mt",
+    "srcHash": "2541052f3150"
   },
   "designer.preview.width": {
     "status": "mt",

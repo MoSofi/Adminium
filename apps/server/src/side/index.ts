@@ -128,26 +128,31 @@ async function readConfig(base: string, doFetch: Fetch): Promise<{ status: numbe
  *
  * A screen can build and still fail the moment it opens (a hook called after
  * an early return, a row read as the wrong type): the frame goes blank and
- * nobody is told. In a bundle `adminium dev` built, and only inside a frame,
+ * nobody is told. Or it goes on, with a part of it empty because a load
+ * threw, and nobody is told that either. In a bundle `adminium dev` built, and only inside a frame,
  * the error's first line is posted to the framing page, which is the
  * Designer's preview: it shows it, and can ask for it to be fixed. A packed
  * app never posts (`DEV` is false).
  */
 export function reportErrorsToFrame(target: { addEventListener: Window['addEventListener']; parent: { postMessage(message: unknown, origin: string): void } } | undefined = framed(),
   dev: boolean = DEV,
-  /** Whether the page shows nothing: only a screen an error left blank is reported, not one that goes on working. */
+  /** Whether the page shows nothing. A screen an error left blank has stopped; one that still shows something went on, and is said as that. */
   blank: () => boolean = () => (typeof document === 'undefined' ? true : (document.body?.innerText ?? '').trim() === ''),
   later: (run: () => void) => void = (run) => void setTimeout(run, 150),
 ): void {
   if (!dev || target === undefined) return;
   const say = (message: unknown): void =>
     later(() => {
-      if (blank()) post(message);
+      if (blank()) post(message, false);
+      // The screen still shows something. A thing its own code threw (a TypeError in a load nobody awaited) left a part of
+      // it empty with no word to the person: said, as an error the screen went on from. The browser's own notices
+      // (a ResizeObserver loop, a string with no error behind it) are not the screen's fault and are not said.
+      else if (message instanceof Error && !/ResizeObserver/i.test(message.message)) post(message, true);
     });
-  const post = (message: unknown): void => {
+  const post = (message: unknown, went: boolean): void => {
     const text = (message instanceof Error ? message.message : typeof message === 'string' ? message : 'The screen stopped with an error.').split('\n')[0] ?? '';
     // The message alone, to whoever frames this page: no row, no key, nothing of the session.
-    target.parent.postMessage({ type: 'adminium:side-error', app: APP_KEY, side: SIDE, message: text.slice(0, 400) }, '*');
+    target.parent.postMessage({ type: 'adminium:side-error', app: APP_KEY, side: SIDE, message: text.slice(0, 400), ...(went ? { went: true } : {}) }, '*');
   };
   target.addEventListener('error', (event) => say((event as ErrorEvent).error ?? (event as ErrorEvent).message));
   target.addEventListener('unhandledrejection', (event) => say((event as PromiseRejectionEvent).reason));

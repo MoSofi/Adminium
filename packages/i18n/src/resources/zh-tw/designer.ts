@@ -396,7 +396,10 @@ export default {
     "seenAsStaff": "檢視身分：員工 — 預覽",
     "seenAsNoRole": "檢視身分：尚無角色的人 — 預覽",
     "seenAsVisitor": "檢視身分：訪客，未登入",
-    "seenAsHint": "預覽不是你自己的登入。它依應用程式使用者將看到的樣子顯示應用程式。"
+    "seenAsHint": "預覽不是你自己的登入。它依應用程式使用者將看到的樣子顯示應用程式。",
+    "wentOnCustomer": "客戶畫面遇到錯誤後繼續執行。其中一部分可能是空的。",
+    "wentOnStaff": "員工畫面遇到錯誤後繼續執行。其中一部分可能是空的。",
+    "fixWentOnMessage": "{side} 畫面可以開啟，但其中某處出錯，導致一部分內容為空：{error} 請修正該畫面。"
   },
   "arch": {
     "access": "客戶存取",

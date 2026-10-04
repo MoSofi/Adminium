@@ -396,7 +396,10 @@ export default {
     "seenAsStaff": "Set som: personale — en forhåndsvisning",
     "seenAsNoRole": "Set som: en person uden rolle endnu — en forhåndsvisning",
     "seenAsVisitor": "Set som: en besøgende, ikke logget ind",
-    "seenAsHint": "Forhåndsvisningen er ikke dit eget login. Den viser appen, som dens folk vil se den."
+    "seenAsHint": "Forhåndsvisningen er ikke dit eget login. Den viser appen, som dens folk vil se den.",
+    "wentOnCustomer": "Kundeskærmen stødte på en fejl og fortsatte. En del af den kan være tom.",
+    "wentOnStaff": "Personaleskærmen stødte på en fejl og fortsatte. En del af den kan være tom.",
+    "fixWentOnMessage": "{side}-skærmen åbner, og noget i den fejler, så en del af den forbliver tom: {error} Ret venligst skærmen."
   },
   "arch": {
     "access": "Kundeadgang",

@@ -92,6 +92,23 @@ describe('a side’s calls, read from its source', () => {
   });
 });
 
+describe('table names read from the wrong config', () => {
+  it('is found where a model wrote it, and not in a screen that reads them from the customer config', () => {
+    const root = mkdtempSync(join(tmpdir(), 'adminium-side-config-'));
+    try {
+      mkdirSync(join(root, 'apps', 'bakery', 'customer', 'src'), { recursive: true });
+      const file = join(root, 'apps', 'bakery', 'customer', 'src', 'App.tsx');
+      writeFileSync(file, "async function loadCakes() {\n  const client = createPublicClient(loaded.value);\n  const config = await client.config();\n  const table = config.tables['cakes'] ?? 'cakes';\n  const { data } = await client.list(table, { limit: 50 });\n}\n");
+      const issues = sideCallIssues(root, 'bakery', { requiredSchema: { tables: [{ ref: 'cakes' }] } });
+      expect(issues.map((issue) => issue.message).join(' ')).toContain('reads "config.tables" from client.config()');
+      writeFileSync(file, "async function loadCakes() {\n  const client = createPublicClient(loaded.value);\n  const table = loaded.value.tables['cakes'] ?? 'cakes';\n  const config = await client.config();\n  const zone = config.timezone;\n  const { data } = await client.list(table, { limit: 50 });\n}\n");
+      expect(sideCallIssues(root, 'bakery', { requiredSchema: { tables: [{ ref: 'cakes' }] } }).map((issue) => issue.message).join(' ')).not.toContain('client.config()');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('a hook called after a component may already have returned', () => {
   it('is found where a model wrote it: early returns, then a hook', () => {
     const screen = [

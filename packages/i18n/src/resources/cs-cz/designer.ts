@@ -396,7 +396,10 @@ export default {
     "seenAsStaff": "Viděno jako: personál — náhled",
     "seenAsNoRole": "Viděno jako: osoba zatím bez role — náhled",
     "seenAsVisitor": "Viděno jako: návštěvník, nepřihlášený",
-    "seenAsHint": "Náhled není vaše vlastní přihlášení. Ukazuje aplikaci tak, jak ji uvidí její lidé."
+    "seenAsHint": "Náhled není vaše vlastní přihlášení. Ukazuje aplikaci tak, jak ji uvidí její lidé.",
+    "wentOnCustomer": "Zákaznická obrazovka narazila na chybu a pokračovala. Její část může být prázdná.",
+    "wentOnStaff": "Obrazovka personálu narazila na chybu a pokračovala. Její část může být prázdná.",
+    "fixWentOnMessage": "Obrazovka {side} se otevře a něco v ní selže s chybou, takže její část zůstane prázdná: {error} Opravte prosím obrazovku."
   },
   "arch": {
     "access": "Přístup zákazníků",

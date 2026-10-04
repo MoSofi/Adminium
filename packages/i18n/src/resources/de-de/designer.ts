@@ -396,7 +396,10 @@ export default {
     "seenAsStaff": "Gesehen als: Mitarbeitende — eine Vorschau",
     "seenAsNoRole": "Gesehen als: eine Person noch ohne Rolle — eine Vorschau",
     "seenAsVisitor": "Gesehen als: Besucher, nicht angemeldet",
-    "seenAsHint": "Die Vorschau ist nicht deine eigene Anmeldung. Sie zeigt die App so, wie ihre Menschen sie sehen werden."
+    "seenAsHint": "Die Vorschau ist nicht deine eigene Anmeldung. Sie zeigt die App so, wie ihre Menschen sie sehen werden.",
+    "wentOnCustomer": "Der Kundenbildschirm ist auf einen Fehler gestoßen und lief weiter. Ein Teil davon kann leer sein.",
+    "wentOnStaff": "Der Mitarbeiterbildschirm ist auf einen Fehler gestoßen und lief weiter. Ein Teil davon kann leer sein.",
+    "fixWentOnMessage": "Der Bildschirm {side} öffnet sich, und etwas darin schlägt mit einem Fehler fehl, sodass ein Teil leer bleibt: {error} Bitte korrigiere den Bildschirm."
   },
   "arch": {
     "access": "Kundenzugriff",

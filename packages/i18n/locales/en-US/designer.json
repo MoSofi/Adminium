@@ -386,7 +386,10 @@
     "seenAsStaff": "Seen as: staff — a preview",
     "seenAsNoRole": "Seen as: a person with no role yet — a preview",
     "seenAsVisitor": "Seen as: a visitor, not signed in",
-    "seenAsHint": "The preview is not your own sign-in. It shows the app as its people will see it."
+    "seenAsHint": "The preview is not your own sign-in. It shows the app as its people will see it.",
+    "wentOnCustomer": "The customer screen hit an error and went on. A part of it may be empty.",
+    "wentOnStaff": "The staff screen hit an error and went on. A part of it may be empty.",
+    "fixWentOnMessage": "The {side} screen opens, and something in it fails with an error, so a part of it stays empty: {error} Please fix the screen."
   },
   "arch": {
     "access": "Customer access",

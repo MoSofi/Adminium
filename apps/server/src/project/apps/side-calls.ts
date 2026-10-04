@@ -129,6 +129,16 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
         message: `asks the public API for a list with "${query[1] as string}". A public list takes only limit, offset and cursor from the page, and refuses this with 400 PUBLIC_QUERY_REFUSED, so customers see an error. Read the list and sort or narrow it in the page; keep rows out of it with "filters" in access.json; and to show a person only their own row, give the entry a "claim" and call client.claim({ … }) first.`,
       });
     }
+    // `tables` read from the public client's own config: it has none (the table names are in the customer config), so the
+    // read throws inside the load, the list stays empty, and the page says nothing.
+    const fromClient = /\b(?:const|let)\s+(\w+)\s*=\s*await\s+\w+\.config\(\s*\)/.exec(text);
+    if (fromClient !== null && new RegExp(`\\b${fromClient[1] as string}\\.tables\\b`).test(text)) {
+      out.push({
+        side: 'customer',
+        file,
+        message: `reads "${fromClient[1] as string}.tables" from client.config(). The public client's config has no "tables": that read throws, the list it was for stays empty, and the page shows nothing where the rows should be. The table names are in the customer config the page already has: const loaded = useCustomer(), then loaded.value.tables['<table>'] (and createPublicClient(loaded.value)).`,
+      });
+    }
     const named = new Set<string>();
     for (const found of text.matchAll(LITERAL_TABLE)) if (tables.has(found[3] as string)) named.add(found[3] as string);
     if (named.size > 0) {

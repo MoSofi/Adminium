@@ -396,7 +396,10 @@ export default {
     "seenAsStaff": "Vu en tant que : personnel — un aperçu",
     "seenAsNoRole": "Vu en tant que : une personne sans rôle pour l’instant — un aperçu",
     "seenAsVisitor": "Vu en tant que : un visiteur, non connecté",
-    "seenAsHint": "L’aperçu n’est pas votre propre connexion. Il montre l’application telle que ses utilisateurs la verront."
+    "seenAsHint": "L’aperçu n’est pas votre propre connexion. Il montre l’application telle que ses utilisateurs la verront.",
+    "wentOnCustomer": "L’écran client a rencontré une erreur et a continué. Une partie peut être vide.",
+    "wentOnStaff": "L’écran du personnel a rencontré une erreur et a continué. Une partie peut être vide.",
+    "fixWentOnMessage": "L’écran {side} s’ouvre, et quelque chose y échoue avec une erreur, si bien qu’une partie reste vide : {error} Corrigez l’écran, s’il vous plaît."
   },
   "arch": {
     "access": "Accès client",
