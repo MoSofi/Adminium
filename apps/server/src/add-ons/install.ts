@@ -570,7 +570,7 @@ async function installLikeAnApp(
   }
 
   const records = appTablesRepo(deps.meta);
-  let stage: 'tables' | 'writers' | 'finish' = 'tables';
+  let stage: 'tables' | 'writers' | 'seeds' | 'finish' = 'tables';
   const created: string[] = [];
   let reused: string[] = [];
   let written: Readonly<Record<string, unknown>> = {};
@@ -617,6 +617,22 @@ async function installLikeAnApp(
      */
     stage = 'writers';
     written = (await core.writePages(who, where, manifest, row.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, false)) ?? {};
+    /*
+     * The rows its tables start with, and its one settings row: after the
+     * rules, so each row gets its table's own defaults, numbers and codes;
+     * into empty tables only, so finishing a stopped install adds none twice.
+     */
+    stage = 'seeds';
+    if ((manifest.seeds ?? []).length > 0 || manifest.addOn.settingsTable !== undefined) {
+      const seeded = await core.writeSeeds({
+        actor: who,
+        manifest,
+        connectionId,
+        names: checked.plan.names ?? {},
+        readFile: async (path) => (await deps.store.readVerifiedFile(key, version, path)).bytes,
+      });
+      written = { ...written, seeds: seeded.written, seedsKept: seeded.kept };
+    }
     stage = 'finish';
     await manifests.setStatus(row.row.id, 'installed');
     // Loaded before any save is let back in: the next one runs this version's code.

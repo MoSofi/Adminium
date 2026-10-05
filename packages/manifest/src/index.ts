@@ -285,6 +285,7 @@ export {
   ROLE_SLUG_LIMIT,
   uniqueWithOf,
   uniqueSetName,
+  indexSetName,
   plainIndexName,
   uniqueSetBytes,
   type PlanContext,

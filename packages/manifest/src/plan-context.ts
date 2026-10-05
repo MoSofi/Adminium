@@ -48,6 +48,8 @@ import type {
   ShareOffer,
   TableClass,
 } from './plan-model.js';
+import { MYSQL_UNIQUE_KEY_BYTES, uniqueSetBytes, uniqueTextWidth } from './key-bytes.js';
+import { ledgerIndexes } from './ledger-indexes.js';
 import { typeConflict } from './plan-types.js';
 import { installsLikeAnApp, type Manifest, type RequiredColumn, type RequiredTable } from './schema.js';
 
@@ -117,21 +119,6 @@ function wideningFor(
 }
 
 /**
- * MySQL indexes at most 3072 bytes of a key, and counts four bytes for each
- * character of a `varchar` (utf8mb4): a unique text column of more than 768
- * characters cannot be made, on a new table or an existing one.
- */
-export const MYSQL_UNIQUE_KEY_BYTES = 3072;
-
-/** The width of a text column that is unique on its own (declared so, or a code), or null. */
-function uniqueTextWidth(column: RequiredColumn): number | null {
-  if (column.type !== 'text') return null;
-  const code = column.rules?.code;
-  if (column.unique !== true && code === undefined) return null;
-  return column.maxLength ?? (code === undefined ? null : (code.prefix ?? '').length + code.length);
-}
-
-/**
  * The columns a declared column must be unique with, as a table made with it
  * is: alone (`[]`) when declared `unique`, a code, or a number without gaps
  * across the table; with its parent row when the number counts per parent;
@@ -160,34 +147,6 @@ function keepsSet(table: SchemaModelView['tables'][number] | undefined, columns:
   if (table?.uniques === undefined) return true;
   const wanted = [...columns].sort().join('\u0000');
   return table.uniques.some((unique) => [...unique].sort().join('\u0000') === wanted);
-}
-
-/**
- * The bytes MySQL's key over a set of columns takes: four a character of
- * text (a code's own width), four a character of an enum's values (32 or 64),
- * a uuid's 36 characters (its own, or a linked key's), eight for anything else.
- */
-export function uniqueSetBytes(set: readonly string[], table: { columns: readonly RequiredColumn[] }, tables: readonly { ref: string; columns: readonly RequiredColumn[] }[]): number {
-  let bytes = 0;
-  for (const ref of set) {
-    const column = table.columns.find((c) => c.ref === ref);
-    if (column === undefined) continue;
-    if (column.type === 'text') {
-      const code = column.rules?.code;
-      bytes += 4 * (column.maxLength ?? (code === undefined ? 0 : (code.prefix ?? '').length + code.length));
-    } else if (column.type === 'enum') {
-      bytes += 4 * ((column.enum ?? []).every((value) => value.length <= 32) ? 32 : 64);
-    } else if (column.type === 'fk') {
-      const target = tables.find((t) => t.ref === column.references)?.columns.find((c) => c.role === 'pk');
-      bytes += target?.type === 'uuid' ? 4 * 36 : 8;
-    } else if (column.type === 'uuid') {
-      // MySQL keeps a uuid as CHAR(36).
-      bytes += 4 * 36;
-    } else {
-      bytes += 8;
-    }
-  }
-  return bytes;
 }
 
 /**
@@ -323,6 +282,7 @@ export function planWithContext(
   const noun = manifest.kind === 'app' ? 'app' : 'add-on';
   const required: readonly RequiredTable[] = manifest.requiredSchema?.tables ?? [];
   const live = new Map(model.tables.map((t) => [t.ref, t]));
+  const ledgerSets = ledgerIndexes(manifest);
   // Index and constraint names are per schema (Postgres) or per database (SQLite): a new rule's name takes none.
   const takenNames = new Set([...(model.indexNames ?? []), ...model.tables.flatMap((t) => t.indexNames ?? [])]);
   const limit = IDENTIFIER_LIMIT[context.dialect];
@@ -368,6 +328,8 @@ export function planWithContext(
     const left = leftShare(context.records[table.ref], table.shape, context);
     const record = left ? undefined : context.records[table.ref];
     const existing = live.get(real);
+    // What a ledger of the manifest needs of this table: its receipt key, the indexes its rows are read by.
+    const derived = ledgerSets.filter((index) => index.table === table.ref);
     const holders = context.others.filter((o) => o.table === real && o.state !== 'dropped');
     const choice = context.choices?.[table.ref];
 
@@ -580,12 +542,30 @@ export function planWithContext(
           takenNames.add(name);
           plan.edits.push({ kind: 'add-index', column: column.ref, name });
         }
-        for (const set of table.unique ?? []) {
-          const reachable = set.every((ref) => existing.columns.some((c) => c.ref === ref) || plan.edits.some((e) => e.kind === 'add-column' && e.column === ref));
-          if (!reachable || keepsSet(existing, set)) continue;
+        const reachable = (set: readonly string[]): boolean => set.every((ref) => existing.columns.some((c) => c.ref === ref) || plan.edits.some((e) => e.kind === 'add-column' && e.column === ref));
+        // The sets the app declares, and the one key a ledger's receipt table is kept by.
+        for (const set of [...(table.unique ?? []), ...derived.filter((index) => index.unique).map((index) => index.columns)]) {
+          if (!reachable(set) || keepsSet(existing, set)) continue;
           const name = uniqueSetName(real, set, takenNames);
           takenNames.add(name);
           plan.edits.push({ kind: 'add-unique', column: set.at(-1)!, with: set.slice(0, -1), name });
+        }
+        /*
+         * The plain indexes the table declares and the ones a ledger reads by,
+         * where the table has none that starts with exactly those columns in
+         * that order (one that goes on after them serves as well). Compared by
+         * the whole list: (a) being indexed says nothing about (a, b).
+         */
+        if (existing.indexSets !== undefined) {
+          const have = [...existing.indexSets.map((set) => [...set])];
+          for (const edit of plan.edits) if (edit.kind === 'add-index') have.push([edit.column]);
+          for (const set of [...(table.indexes ?? []), ...derived.filter((index) => !index.unique).map((index) => index.columns)]) {
+            if (!reachable(set) || have.some((live) => set.every((ref, at) => live[at] === ref))) continue;
+            const name = indexSetName(real, set, takenNames);
+            takenNames.add(name);
+            have.push([...set]);
+            plan.edits.push({ kind: 'add-index', column: set.at(-1)!, ...(set.length === 1 ? {} : { with: set.slice(0, -1) }), name });
+          }
         }
       }
       if (plan.blocked.length > 0) {
@@ -605,6 +585,19 @@ export function planWithContext(
      * the column an update adds) would go in and the rule would not.
      */
     if (context.dialect === 'mysql' && plan.action !== 'share' && plan.action !== 'undecided') {
+      // An index is bounded as a unique rule is: the same key, the same bytes.
+      for (const set of table.indexes ?? []) {
+        const bytes = uniqueSetBytes(set, table, required);
+        if (bytes <= MYSQL_UNIQUE_KEY_BYTES) continue;
+        problems.push({
+          code: 'UNIQUE_KEY_TOO_LONG',
+          table: table.ref,
+          column: set.at(-1)!,
+          message:
+            `"${real}" is indexed by ${set.join(', ')}, and MySQL can index at most ${String(MYSQL_UNIQUE_KEY_BYTES)} bytes ` +
+            `together: these take up to ${String(bytes)}, so it cannot be used on MySQL. Make the text columns shorter.`,
+        });
+      }
       for (const set of table.unique ?? []) {
         const bytes = uniqueSetBytes(set, table, required);
         if (bytes <= MYSQL_UNIQUE_KEY_BYTES) continue;
@@ -725,9 +718,20 @@ export function uniqueSetName(realTable: string, columns: readonly string[], tak
   return shortName('uq', realTable, columns, taken);
 }
 
+export { MYSQL_UNIQUE_KEY_BYTES, uniqueSetBytes } from './key-bytes.js';
+
 /** The name of a plain index on one column (`index: true`): `ix_<table>_<column>`, shortened and hashed like {@link uniqueSetName}. */
 export function plainIndexName(realTable: string, column: string, taken: ReadonlySet<string> = new Set()): string {
   return shortName('ix', realTable, [column], taken);
+}
+
+/**
+ * The name of a plain index over a set of columns a table declares, or a
+ * ledger needs: `ix_<table>_<a>_<b>`, shortened and hashed like
+ * {@link uniqueSetName}. Over one column it is the name {@link plainIndexName} gives.
+ */
+export function indexSetName(realTable: string, columns: readonly string[], taken: ReadonlySet<string> = new Set()): string {
+  return shortName('ix', realTable, columns, taken);
 }
 
 /** `<kind>_<table>_<columns>`, or — too long, or taken — the table cut short and a hash of the table and columns. */

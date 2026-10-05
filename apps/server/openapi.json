@@ -92632,7 +92632,9 @@
                     "rules": {},
                     "roles": {},
                     "outbox": {},
-                    "documents": {}
+                    "documents": {},
+                    "seeds": {},
+                    "seedsKept": {}
                   },
                   "required": [
                     "addOn",

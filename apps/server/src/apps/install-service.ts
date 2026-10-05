@@ -27,6 +27,7 @@ import {
   type InstallPlan,
   type Manifest,
   installsLikeAnApp,
+  ledgerIndexes,
   prefixFor,
   satisfiesSemverRange,
   uniqueWithOf,
@@ -49,6 +50,7 @@ import {
   pagesRepo,
   rolesRepo,
   settingsRepo,
+  userPrefsRepo,
   type MetaDb,
 } from '@adminium/meta';
 import type { z } from 'zod';
@@ -79,6 +81,7 @@ import {
 import { createAppFiles, type AppFiles } from './app-files.js';
 import type { InstallActor, InstallCore, InstallHost } from '../add-ons/install-core.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { writeManifestSeeds } from './manifest-seeds.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { createRemovals } from './removal.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
@@ -269,9 +272,9 @@ export function editBodyFor(
         }
         continue;
       }
-      // A plain index a limit or a total counts by.
+      // A plain index: one a limit or a total counts by, or a set the table declares or a ledger reads by.
       if (edit.kind === 'add-index') {
-        addIndexes.push({ table: id, columns: [edit.column], name: edit.name });
+        addIndexes.push({ table: id, columns: [...(edit.with ?? []), edit.column], name: edit.name });
         continue;
       }
       // A set the app declares, by its own name: never merged with a rule on its last column alone.
@@ -1651,8 +1654,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     // Real names for the DDL: the plan's tables, and every internal FK.
     const names = plan.names ?? {};
     const refOf = new Map(Object.entries(names).map(([ref, real]) => [real, ref]));
+    // What a ledger needs of its tables — the receipt key, the indexes its rows are read by — is made as a declared set is.
+    const derived = ledgerIndexes(manifest);
+    const setsOf = (ref: string, unique: boolean) => derived.filter((index) => index.table === ref && index.unique === unique).map((index) => index.columns);
     const realTables = (manifest.requiredSchema?.tables ?? []).map((table) => ({
       ...table,
+      ...(setsOf(table.ref, true).length === 0 ? {} : { unique: [...(table.unique ?? []), ...setsOf(table.ref, true)] }),
+      ...(setsOf(table.ref, false).length === 0 ? {} : { indexes: [...(table.indexes ?? []), ...setsOf(table.ref, false)] }),
       ref: names[table.ref] ?? table.ref,
       columns: table.columns.map((column) =>
         column.type === 'fk' && column.references !== undefined && names[column.references] !== undefined
@@ -2738,6 +2746,29 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * What the add-on installer may ask of this service: the port carries no
    * schema target, so the two members that need it take this server's own.
    */
+  /**
+   * The rows a manifest's tables start with. Read against the database as it
+   * is now — its tables just made, its rules just written — and written in the
+   * installing person's language.
+   */
+  async function writeSeeds(input: Parameters<InstallCore['writeSeeds']>[0]): ReturnType<InstallCore['writeSeeds']> {
+    const { actor, manifest, connectionId } = input;
+    if (deps.schemaTarget?.data === undefined) {
+      throw new ValidationFailedError(`"${manifest.key}" starts with rows of its own, which this instance cannot write: no database handle is wired into the install here.`, { reason: 'SEEDS_UNAVAILABLE' });
+    }
+    const source = await deps.schemaTarget.data(connectionId);
+    return writeManifestSeeds({
+      meta: deps.meta,
+      manifest,
+      names: input.names,
+      view: await loadSnapshotView(deps.meta, connectionId, { lists: true }),
+      source: source as Parameters<typeof writeManifestSeeds>[0]['source'],
+      actor: actor.id === null ? null : { id: actor.id, label: actor.label },
+      locale: (await userPrefsRepo(deps.meta).resolve(actor.id)).locale,
+      readFile: input.readFile,
+    });
+  }
+
   const core: InstallCore = {
     planFor: (manifest, connectionId) => planFor(manifest, connectionId),
     checkedPlan: async (key, manifest, connectionId, verb, expectedChecksum) => {
@@ -2753,6 +2784,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     createTables: (key, manifest, connectionId, verb, opts, expectedChecksum) => createTables(key, manifest, connectionId, verb, opts, expectedChecksum),
     writePages,
     publicAccessOf: (manifest, connectionId, names, actor, installed) => publicAccessOf(manifest, connectionId, names, actor, installed),
+    writeSeeds,
     makeDocuments: async (manifest, connectionId, userId) =>
       ownsBlocks(manifest)
         ? installAppDocuments({

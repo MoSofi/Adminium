@@ -18,7 +18,7 @@
  * planner that edits a reused one. Pure.
  */
 import { RECEIPT_KEY, type Ledger } from './ledgers.js';
-import { MYSQL_UNIQUE_KEY_BYTES, uniqueSetBytes } from './plan-context.js';
+import { MYSQL_UNIQUE_KEY_BYTES, uniqueSetBytes } from './key-bytes.js';
 import { ledgersOf, type Manifest, type RequiredColumn } from './schema.js';
 
 export interface LedgerIndex {

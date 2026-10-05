@@ -114,9 +114,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   navGroups: ADD_ON_INSTALL_RELEASE,
   addOns: ADD_ON_INSTALL_RELEASE,
   'requiredSchema.prefixed': ADD_ON_INSTALL_RELEASE,
-  seeds: ADD_ON_INSTALL_RELEASE,
-  'table.indexes': ADD_ON_INSTALL_RELEASE,
-  'addOn.settingsTable': ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
   'sampleData.addOns': ADD_ON_INSTALL_RELEASE,
@@ -161,6 +158,10 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A column that keeps a table's name: a rename of that table rewrites its rows.
   'column.tableRef',
+  // The rows an add-on's tables start with, its one settings row, and an index a table declares over a set of columns.
+  'seeds',
+  'addOn.settingsTable',
+  'table.indexes',
 ];
 
 export interface UnbuiltWord {

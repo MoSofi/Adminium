@@ -104,6 +104,16 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
   ): Promise<Readonly<Record<string, unknown>> | undefined>;
   publicAccessOf(manifest: Manifest, connectionId: string, names: Readonly<Record<string, string>>, actor: InstallActor, installed?: boolean): Promise<unknown>;
   /**
+   * The rows a manifest's tables start with, and its one settings row: written
+   * once, into tables that are empty, after its rules. `readFile` reads a
+   * file of the package the rows may be kept in.
+   */
+  writeSeeds(input: { actor: InstallActor; manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; readFile: (path: string) => Promise<Buffer> }): Promise<{
+    written: Record<string, number>;
+    kept: string[];
+    settings: 'made' | 'kept' | null;
+  }>;
+  /**
    * The owner's document profiles, made or brought up to date with the
    * add-ons loaded as they are NOW. An add-on's install calls it once its own
    * code is loaded: what it prints for its own rows can be made only then.

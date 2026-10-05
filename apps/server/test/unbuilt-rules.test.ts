@@ -96,7 +96,6 @@ describe('a manifest that uses a word this server does not run yet', () => {
       { word: 'pages', path: 'pages', release: '0.3.18' },
       { word: 'roles', path: 'roles', release: '0.3.18' },
       { word: 'requiredSchema.prefixed', path: 'requiredSchema.prefixed', release: '0.3.18' },
-      { word: 'table.indexes', path: 'requiredSchema.tables.0.indexes', release: '0.3.18' },
     ]);
   });
 

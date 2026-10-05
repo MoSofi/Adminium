@@ -262,6 +262,10 @@ export const installAddOnReply = z.object({
   roles: z.unknown().optional(),
   outbox: z.unknown().optional(),
   documents: z.unknown().optional(),
+  /** The rows its tables started with at this install, by its own short table name (its one settings row among them). */
+  seeds: z.unknown().optional(),
+  /** Its tables that already held a row, and so were given none. */
+  seedsKept: z.unknown().optional(),
 });
 
 /** Enable or disable on one host (PATCH). */

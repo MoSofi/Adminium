@@ -43,7 +43,7 @@
  */
 
 import type { Dialect } from '@adminium/engine';
-import { plainIndexName, uniqueSetName, type InstallPlan, type RequiredColumn, type RequiredTable } from '@adminium/manifest';
+import { indexSetName, plainIndexName, uniqueSetName, type InstallPlan, type RequiredColumn, type RequiredTable } from '@adminium/manifest';
 import { sql, type CreateTableBuilder, type Kysely } from 'kysely';
 
 import { AppError } from '../errors.js';
@@ -190,6 +190,8 @@ export interface ExistingTable {
   indexNames?: readonly string[];
   /** The columns an index leads with. */
   indexed?: readonly string[];
+  /** Every plain-column index, as its whole ordered column list. */
+  indexSets?: readonly (readonly string[])[];
 }
 
 export interface ApplyInstallInput {
@@ -539,6 +541,8 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
 
     try {
       await builder.execute();
+      /** The plain indexes this create has made, by their column lists. */
+      const made: string[][] = [];
       // A plain index on a link a limit or a total counts by. MySQL made one with the foreign key already.
       if (dialect !== 'mysql') {
         for (const column of table.columns) {
@@ -546,7 +550,25 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
           const name = plainIndexName(table.ref, column.ref, taken);
           taken.add(name);
           await db.schema.createIndex(name).ifNotExists().on(table.ref).column(column.ref).execute();
+          made.push([column.ref]);
         }
+      }
+      /*
+       * The indexes the table declares over a set of columns (and, folded in
+       * by the caller, the ones a ledger reads its rows by), on every engine.
+       * Not one an index made a moment ago already is; and not a single
+       * foreign key on MySQL, which indexed it with the key.
+       */
+      for (const set of table.indexes ?? []) {
+        if (made.some((have) => have.length === set.length && have.every((ref, at) => ref === set[at]))) continue;
+        const only = set.length === 1 ? table.columns.find((column) => column.ref === set[0]) : undefined;
+        if (dialect === 'mysql' && only?.type === 'fk') continue;
+        const name = indexSetName(table.ref, set, taken);
+        taken.add(name);
+        // The table was made a moment ago, so the index cannot be there; and MySQL has no `if not exists` for one.
+        const index = db.schema.createIndex(name).on(table.ref).columns([...set]);
+        await (dialect === 'mysql' ? index : index.ifNotExists()).execute();
+        made.push([...set]);
       }
       created.push(table.ref);
     } catch (error) {

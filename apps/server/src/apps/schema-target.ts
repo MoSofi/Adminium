@@ -79,6 +79,8 @@ export interface AppSchemaTarget {
     build: (model: DatabaseModel) => EditBody,
     opts: { superAdmin: boolean; createdBy: string | null; expectedChecksum?: string | undefined },
   ): Promise<ApplyResult>;
+  /** The database's own handle, for a writer that puts rows in a table the install just made. */
+  data?(connectionId: string): Promise<{ db: unknown; dialect: string }>;
   /**
    * Whether two rows of `table` already hold the same values in `columns`
    * (empty ones aside): a unique rule asked for there would be refused. No
@@ -148,5 +150,9 @@ export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEd
     },
     apply: (plan, manifest, connectionId, existing, onCreated) =>
       applyPlanTo(deps, connectionId, plan, manifest, existing, onCreated),
+    data: async (connectionId) => {
+      const handle = await deps.manager.data(connectionId);
+      return { db: handle.db, dialect: handle.dialect };
+    },
   };
 }

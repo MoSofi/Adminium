@@ -24,6 +24,8 @@ export interface SchemaModelView {
     indexNames?: readonly string[];
     /** The columns an index of the table leads with; absent = not known, and no index is offered. */
     indexed?: readonly string[];
+    /** Every plain-column index of the table, as its whole ordered column list; absent = not known, and no index over a set is offered. */
+    indexSets?: readonly (readonly string[])[];
   }[];
   /**
    * The engine the tables live on. Only the type check reads it: SQLite
@@ -238,8 +240,12 @@ export type PlanEdit =
    * the table does not say so yet. Offered only where no two rows break it.
    */
   | { kind: 'add-unique'; column: string; with?: string[]; name?: string }
-  /** A plain index a limit or a total counts by (`index: true`). */
-  | { kind: 'add-index'; column: string; name: string };
+  /**
+   * A plain index: one a limit or a total counts by (`index: true`), or a
+   * set the table declares or a ledger reads by (`with`: the columns before
+   * this one, in order).
+   */
+  | { kind: 'add-index'; column: string; with?: string[]; name: string };
 
 export interface InstallTablePlan {
   /** The manifest's short name. */

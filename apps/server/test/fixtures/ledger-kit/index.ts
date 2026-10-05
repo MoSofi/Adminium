@@ -42,7 +42,8 @@ export function ledgerKitManifest(): Doc {
     settingsTable: 'settings',
     words: [{ id: 'units-left', ledger: 'units', action: 'use', input: 'account', showLeftBelow: { setting: 'show_left_below' } }],
   };
-  kit.requiredSchema.tables = [...kit.requiredSchema.tables, SETTINGS];
+  // An index the kit declares itself, beside the ones its ledger is given.
+  kit.requiredSchema.tables = [...kit.requiredSchema.tables.map((table) => (table['ref'] === 'entries' ? { ...table, indexes: [['account_id', 'kind']] } : table)), SETTINGS];
   return kit;
 }
 

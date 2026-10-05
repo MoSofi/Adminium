@@ -296,15 +296,20 @@ export const schemaEditSchema = z.strictObject({
    * Rules that no two rows hold the same values in several columns together
    * (one waitlist entry per show per address), on existing tables, each by
    * its own name. A column the same edit adds may be one of them. The rows
-   * there must not already break it — the caller checks first.
+   * there must not already break it — the caller checks first. Up to six
+   * columns: the key a ledger's receipt table is kept by has six.
    */
   addUniques: z
-    .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(2).max(4), name: identifierSchema }))
+    .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(2).max(6), name: identifierSchema }))
     .max(20)
     .optional(),
-  /** Plain indexes on one column of an existing table (a link a limit counts by), each by its own name. */
+  /**
+   * Plain indexes on an existing table, each by its own name: on one column
+   * (a link a limit counts by), or over up to four in order (a set the table
+   * declares, or one a ledger reads its rows by).
+   */
   addIndexes: z
-    .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(1).max(1), name: identifierSchema }))
+    .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(1).max(4), name: identifierSchema }))
     .max(20)
     .optional(),
   /**
@@ -1006,7 +1011,9 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
     const where = { table: entry.table, column: entry.columns[0]! };
     const known = (name: string) =>
       table.columns.some((c) => c.name === name) || (edit.addColumns ?? []).some((other) => (other.table === table.id || other.table === table.name) && other.column.name === name);
-    if (!entry.columns.every(known)) push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(entry.columns[0])} to index`, ...where });
+    const unknown = entry.columns.filter((name) => !known(name));
+    if (unknown.length > 0) push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(unknown.join(', '))} to index`, ...where });
+    if (new Set(entry.columns).size !== entry.columns.length) push({ code: 'DUPLICATE_COLUMN', message: 'an index names each column once', ...where });
     checkIdentifier(entry.name, where);
   }
 

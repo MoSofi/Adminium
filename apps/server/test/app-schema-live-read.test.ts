@@ -74,6 +74,7 @@ describe('readLiveTables', () => {
           { ref: 'invoice_id', isPrimaryKey: false, dbType: 'text', nullable: false, hasDefault: false, isGenerated: false, logicalType: 'text', maxLength: null, isIdentity: false },
         ],
         indexed: [],
+        indexSets: [],
         indexNames: [],
         uniques: [],
       },
@@ -100,6 +101,8 @@ describe('readLiveTables', () => {
     // Every index's and constraint's name, and the column each index leads with.
     expect(versions?.indexNames).toEqual(['uq_versions_code', 'uq_versions_v', 'ix_note', 'ix_v']);
     expect(versions?.indexed).toEqual(['proposal_id', 'note', 'v']);
+    // Each whole index, in its own column order; a partial one indexes only some rows, and is no index to count on.
+    expect(versions?.indexSets).toEqual([['proposal_id', 'v'], ['v']]);
     expect(versions?.columns.find((c) => c.ref === 'code')?.isUnique).toBe(true);
   });
 
