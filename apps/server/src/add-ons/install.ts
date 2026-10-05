@@ -45,7 +45,7 @@ import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 import { DECIDER_CONTRACTS, deciderGate } from './decide.js';
-import type { InstallCore } from './install-core.js';
+import type { InstallActor, InstallCore, InstallHost } from './install-core.js';
 import { needsOf } from './needs.js';
 import type { AddOnSchemaTarget } from './schema-target.js';
 import type { AddOnStore } from './store.js';
@@ -92,6 +92,8 @@ export interface Actor {
   kind?: 'user' | 'system' | undefined;
   /** Whether they may open the row-ceiling door a schema edit can need. No when absent. */
   superAdmin?: (() => Promise<boolean>) | undefined;
+  /** Whether they hold a permission; yes when absent (a caller with no permission layer). */
+  can?: ((permission: string) => Promise<boolean>) | undefined;
 }
 
 /** A host as the attach checks see it; `version` and `tables` are null for the dashboard. */
@@ -408,6 +410,8 @@ export interface InstallAddOnInput {
   connectionId?: string | undefined;
   /** The `checksum` of the plan the person looked at; a database that moved since answers `SCHEMA_DRIFT`. */
   planChecksum?: string | undefined;
+  /** The server the install runs in: its log, and how open dashboards are told. A quiet one when absent. */
+  host?: InstallHost | undefined;
   actor: Actor;
   /** How the audit row says it arrived. */
   via?: string;
@@ -423,7 +427,7 @@ export interface InstallAddOnInput {
 export async function installAddOn(
   deps: AddOnInstallerDeps,
   input: InstallAddOnInput,
-): Promise<{ installed: InstalledManifest; plan: InstallPlanDto; created: string[]; reused?: string[]; connectionId?: string | null }> {
+): Promise<{ installed: InstalledManifest; plan: InstallPlanDto; created: string[]; reused?: string[]; connectionId?: string | null; written?: Readonly<Record<string, unknown>> }> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const { key, version } = input;
   const existing = await manifests.findByKey(key);
@@ -539,7 +543,7 @@ async function installLikeAnApp(
   deps: AddOnInstallerDeps,
   input: InstallAddOnInput,
   ctx: { manifest: AddOnManifest; warnings: string[]; attachTo: string[]; hosts: readonly HostApp[]; resumed: InstalledManifest | null },
-): Promise<{ installed: InstalledManifest; plan: InstallPlanDto; created: string[]; reused: string[]; connectionId: string }> {
+): Promise<{ installed: InstalledManifest; plan: InstallPlanDto; created: string[]; reused: string[]; connectionId: string; written: Readonly<Record<string, unknown>> }> {
   const { manifest, attachTo, hosts } = ctx;
   const { key, version } = input;
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
@@ -565,9 +569,18 @@ async function installLikeAnApp(
   }
 
   const records = appTablesRepo(deps.meta);
-  let stage: 'tables' | 'finish' = 'tables';
+  let stage: 'tables' | 'writers' | 'finish' = 'tables';
   const created: string[] = [];
   let reused: string[] = [];
+  let written: Readonly<Record<string, unknown>> = {};
+  const who: InstallActor = {
+    id: input.actor.id,
+    label: input.actor.label,
+    kind: input.actor.kind,
+    superAdmin: input.actor.superAdmin ?? (() => Promise.resolve(false)),
+    can: input.actor.can ?? (() => Promise.resolve(true)),
+  };
+  const where: InstallHost = input.host ?? { log: { info: () => undefined, warn: () => undefined } };
   let installed = ctx.resumed;
   const work = async (): Promise<InstalledManifest> => {
     const row =
@@ -583,7 +596,7 @@ async function installLikeAnApp(
       checked,
       manifest,
       connectionId,
-      { superAdmin: (await input.actor.superAdmin?.()) ?? false, createdBy: input.actor.id },
+      { superAdmin: await who.superAdmin(), createdBy: input.actor.id },
       {
         afterRenames: async () => {
           for (const [ref, id] of await core.recordTables({ key, manifest, rowId: row.row.id, connectionId, checked, prefix })) pending.set(ref, id);
@@ -596,6 +609,13 @@ async function installLikeAnApp(
       },
     );
     reused = applied.reused;
+    /*
+     * What it declares beside its tables, in the order an app's are written:
+     * option lists and rules, pages, roles, emails. Strict: one that cannot be
+     * written stops the install here, to be finished by the same call.
+     */
+    stage = 'writers';
+    written = (await core.writePages(who, where, manifest, row.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, false)) ?? {};
     stage = 'finish';
     await manifests.setStatus(row.row.id, 'installed');
     // Loaded before any save is let back in: the next one runs this version's code.
@@ -635,7 +655,7 @@ async function installLikeAnApp(
       after: { key, version, attachTo, connectionId, tables: reused, created, ...(ctx.resumed === null ? {} : { resumed: true }), ...(input.via === undefined ? {} : { via: input.via }) },
     },
   });
-  return { installed, plan: planned.dto, created, reused, connectionId };
+  return { installed, plan: planned.dto, created, reused, connectionId, written };
 }
 
 /**

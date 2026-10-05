@@ -37,6 +37,7 @@ import type { Manifest } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
+import { ownsBlocks } from './owns-blocks.js';
 
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 
@@ -72,12 +73,18 @@ function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<st
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
 
+/** The refs of the screens an add-on draws from its own bundle (`addOn.pages`); none for an app. */
+function codePagesOf(manifest: Manifest): string[] {
+  return manifest.kind === 'add-on' ? (manifest.addOn.pages ?? []).map((page) => page.ref) : [];
+}
+
 /** What is wrong with the manifest's roles, one message per problem. */
 export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIER_TOO_LONG' | 'ROLE_INVALID'; message: string }[] {
-  if (manifest.kind !== 'app') return [];
+  if (!ownsBlocks(manifest)) return [];
   const roles = manifest.roles ?? [];
   const tables = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref));
-  const pages = new Set((manifest.pages ?? []).map((page) => page.ref));
+  // An add-on's own screens are pages a role may be given too.
+  const pages = new Set([...(manifest.pages ?? []).map((page) => page.ref), ...codePagesOf(manifest)]);
   const out: { role: string; code: 'IDENTIFIER_TOO_LONG' | 'ROLE_INVALID'; message: string }[] = [];
   for (const role of roles) {
     const slug = roleSlugFor(manifest.key, role.key);
@@ -131,7 +138,7 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
  * those). Refused by name at the check, never merged.
  */
 export async function roleSlugProblems(meta: MetaDb, manifest: Manifest): Promise<{ role: string; code: 'ROLE_INVALID'; message: string }[]> {
-  if (manifest.kind !== 'app') return [];
+  if (!ownsBlocks(manifest)) return [];
   const out: { role: string; code: 'ROLE_INVALID'; message: string }[] = [];
   for (const declared of manifest.roles ?? []) {
     const slug = roleSlugFor(manifest.key, declared.key);
@@ -162,7 +169,7 @@ export class RoleTakenError extends Error {
  * app shares before it can.
  */
 export function addOnGrantsOf(manifest: Manifest): { role: string; roleName: string; addOn: string; grant: 'settings' }[] {
-  if (manifest.kind !== 'app') return [];
+  if (!ownsBlocks(manifest)) return [];
   const roles = manifest.roles ?? [];
   return roles.flatMap((role) =>
     grantsOf(role, roles).flatMap((grant) => {
@@ -193,7 +200,7 @@ export async function writeManifestRoles(input: {
 }): Promise<RolesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RolesResult = { created: [], seeded: 0 };
-  if (manifest.kind !== 'app' || (manifest.roles ?? []).length === 0) return result;
+  if (!ownsBlocks(manifest) || (manifest.roles ?? []).length === 0) return result;
 
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   const model = snapshot === null ? null : parseDatabaseModel(snapshot.schema);
@@ -312,7 +319,14 @@ export async function writeManifestRoles(input: {
         await permissions.grant(role.id, 'table', ref, actions as never);
       } else if (page !== null) {
         const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
-        if (target === null) continue;
+        if (target === null) {
+          // One of an add-on's own screens: no page row stands behind it, so the grant is on its ref.
+          if (codePagesOf(manifest).includes(page[1]!)) {
+            const held = await permissions.find(role.id, 'page', page[1]!);
+            await permissions.grant(role.id, 'page', page[1]!, { view: false, edit: false, ...(held?.actions as Record<string, boolean> | undefined), [page[2]!]: true } as never);
+          }
+          continue;
+        }
         const existing = await permissions.find(role.id, 'page', target.id);
         const actions = { view: false, edit: false, ...(existing?.actions as Record<string, boolean> | undefined), [page[2]!]: true };
         await permissions.grant(role.id, 'page', target.id, actions as never);

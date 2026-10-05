@@ -1349,16 +1349,27 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * for the add-ons it needs. An add-on with pages is mounted on the
          * dashboard as well, or its page would reach no rail.
          */
-        const { installed, plan, created, reused, connectionId } = await installAddOn(installer, {
+        const { installed, plan, created, reused, connectionId, written } = await installAddOn(installer, {
           key,
           version,
           attachTo,
           connectionId: request.body.connectionId,
           planChecksum: request.body.planChecksum,
           actor: actorOf(request),
+          host: {
+            log: request.log,
+            ...(request.server.hasDecorator('realtime') ? { publish: (channel, event, payload) => request.server.realtime.publish(channel, event, payload) } : {}),
+          },
         });
         await makeAppDocuments(request, key, attachTo);
-        return { addOn: await toDto(installed), plan, connectionId: connectionId ?? null, schema: { created, reused: reused ?? plan.reuse.map((table) => table.ref) } };
+        const { pages, rules, roles, outbox } = written ?? {};
+        return {
+          addOn: await toDto(installed),
+          plan,
+          connectionId: connectionId ?? null,
+          schema: { created, reused: reused ?? plan.reuse.map((table) => table.ref) },
+          ...(written === undefined ? {} : { pages, rules, roles, outbox }),
+        };
       },
     );
 

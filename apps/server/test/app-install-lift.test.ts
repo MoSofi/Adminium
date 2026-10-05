@@ -100,6 +100,20 @@ describe('the add-on installer', () => {
   });
 });
 
+describe('the writers of what a manifest declares beside its tables', () => {
+  it('read only what an app and an add-on both have: never `frontends`, never a need only an app states, without asking the kind', () => {
+    // `ownsBlocks` narrows an add-on that installs like an app to the app's manifest type (apps/owns-blocks.ts).
+    for (const file of ['apps/manifest-rules.ts', 'apps/manifest-pages.ts', 'apps/manifest-outbox.ts', 'apps/manifest-page-config.ts']) {
+      const text = read(file);
+      expect(/\.frontends\b/.test(text), `${file} reads frontends`).toBe(false);
+      expect(/addOns\??\.(requires|features)\b/.test(text), `${file} reads a need only an app states`).toBe(false);
+    }
+    // The roles writer reads `addOns.requires` to bound a settings grant: optional on both, absent on an add-on.
+    expect(/\.frontends\b/.test(read('apps/manifest-roles.ts'))).toBe(false);
+    expect(read('apps/manifest-roles.ts')).toContain('manifest.addOns?.requires ?? []');
+  });
+});
+
 describe('an add-on\'s own suggests', () => {
   it('never reach an app\'s add-on rows: only an app names add-ons to resolve', () => {
     const doc = structuredClone(DESK) as unknown as Record<string, unknown>;

@@ -50,6 +50,7 @@ import type { Manifest } from '@adminium/manifest';
 import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
+import { ownsBlocks } from './owns-blocks.js';
 import { bindForm, bindLayout, calendarOf } from './manifest-page-config.js';
 import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
@@ -188,9 +189,9 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
   const { meta, manifest, connectionId } = input;
   const pages = pagesRepo(meta);
   const result: MaterialiseResult = { created: [], recomposed: [], kept: [], warnings: [] };
-  // Only an app declares engine pages; an add-on's `addOn.pages` are its own
-  // bundle's screens, a different thing entirely.
-  const declared = manifest.kind === 'app' ? (manifest.pages ?? []) : [];
+  // Generated pages, of an app or of an add-on that installs like one. An
+  // add-on's `addOn.pages` are its own bundle's screens, a different thing entirely.
+  const declared = ownsBlocks(manifest) ? (manifest.pages ?? []) : [];
   if (declared.length === 0) return result;
 
   const composed = connectionId === null ? null : await compositionModel(meta, connectionId);
@@ -236,7 +237,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
 
     const navGroup = navGroupFor(page.nav.group, template);
     // The app's section, whatever the manifest calls the group within it.
-    const rowGroup = manifest.kind === 'app' ? 'app' : navGroup;
+    const rowGroup = ownsBlocks(manifest) ? 'app' : navGroup;
     const title = page.title.fallback;
     const id = holder?.id ?? newId('page');
 
@@ -352,8 +353,9 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         manifestId: input.manifestRowId,
         createdBy: input.createdBy,
       });
-      // The audience its sibling pages already have.
-      await seedPageGrants(meta, { id, connectionId });
+      // The audience its sibling pages already have. An add-on's page is seen by the roles
+      // the add-on itself declares, never by "every role that sees a page of this database".
+      if (manifest.kind === 'app') await seedPageGrants(meta, { id, connectionId });
       result.created.push(slug);
       continue;
     }

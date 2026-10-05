@@ -130,6 +130,9 @@ type Body = any;
 
 export interface Harness {
   meta: MetaDb;
+  /** The connections, for a test that writes rows through the write service. */
+  manager: ConnectionManager;
+  dialect: Dialect;
   owner: User;
   connectionId: string;
   addOnStore: AddOnStore;
@@ -327,6 +330,8 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
 
   return {
     meta,
+    manager,
+    dialect,
     owner,
     connectionId: connection.id,
     addOnStore,

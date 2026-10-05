@@ -47,6 +47,7 @@ import {
   publicKeysRepo,
   manifestsRepo,
   pagesRepo,
+  rolesRepo,
   settingsRepo,
   type MetaDb,
 } from '@adminium/meta';
@@ -77,6 +78,7 @@ import {
 } from './catalog.js';
 import { createAppFiles, type AppFiles } from './app-files.js';
 import type { InstallActor, InstallCore, InstallHost } from '../add-ons/install-core.js';
+import { ownsBlocks } from './owns-blocks.js';
 import { createRemovals } from './removal.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
 import {
@@ -103,6 +105,7 @@ import { formIssues, layoutQueryProblems, layoutTables } from './manifest-page-c
 import {
   addOnGrantsOf,
   roleIssues,
+  roleSlugFor,
   roleSlugProblems,
   writeManifestRoles,
   type RolesResult,
@@ -1190,7 +1193,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
   /** A page's hand-written form or Overview layout, checked against the manifest itself. */
   function pageConfigProblems(manifest: Manifest): PlanProblem[] {
-    if (manifest.kind !== 'app') return [];
+    if (!ownsBlocks(manifest)) return [];
     const declared = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref));
     return (manifest.pages ?? []).flatMap((page) => {
       const issues = formIssues(manifest, page);
@@ -1214,9 +1217,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   async function slugProblems(manifest: Manifest, connectionId: string): Promise<PlanProblem[]> {
-    if (manifest.kind !== 'app') return [];
+    if (!ownsBlocks(manifest)) return [];
     const slugs = new Set((manifest.pages ?? []).map((page) => page.ref));
-    const current = (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key);
+    const current = (await manifests.list(manifest.kind)).find((m) => m.row.manifestKey === manifest.key);
     const owners = new Map((await manifests.list()).map((m) => [m.row.id, m.row.manifestKey]));
     const pages = pagesRepo(deps.meta);
     const out: PlanProblem[] = [];
@@ -1354,6 +1357,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         });
       }
       // The roles last: their grants point at the tables and at these pages.
+      const rolesBefore = manifest.kind === 'add-on' ? (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === manifest.key).length : -1;
       const roles =
         connectionId === null
           ? undefined
@@ -1363,6 +1367,29 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
             });
+      /*
+       * WHOEVER INSTALLS AN ADD-ON HOLDS ITS FIRST ROLE. An add-on's pages and
+       * tables are seen only by its own roles, so without this the person who
+       * just installed it would see nothing of it (and nobody would be there
+       * for the notices it sends). Once: on the install that made the roles,
+       * never on an update, a reinstall over roles that were kept, or with
+       * nobody behind the install.
+       */
+      if (rolesBefore === 0 && (roles?.created.length ?? 0) > 0 && userId !== null && ownsBlocks(manifest)) {
+        const first = manifest.roles?.[0];
+        const role = first === undefined ? null : await rolesRepo(deps.meta).findBySlug(roleSlugFor(manifest.key, first.key));
+        if (role !== null) {
+          await rolesRepo(deps.meta).assignToUser(userId, role.id, userId);
+          await auditRepo(deps.meta).append({
+            actorKind: actor.kind ?? 'user',
+            actorId: actor.id,
+            actorLabel: actor.label,
+            category: 'rbac',
+            action: 'user.role.assign',
+            changes: { after: { userId, roleId: role.id, roleSlug: role.slug, because: `installed "${manifest.key}"` } },
+          });
+        }
+      }
       // The emails it sends: the outbox over its tables, and its templates.
       const outbox =
         connectionId === null || manifestRowId === null

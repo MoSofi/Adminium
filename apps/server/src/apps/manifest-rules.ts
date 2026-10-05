@@ -71,6 +71,7 @@ import {
 } from '@adminium/meta';
 
 import { installedShapes } from '../documents/app-profiles.js';
+import { ownsBlocks } from './owns-blocks.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
 import { adjustRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
@@ -422,7 +423,7 @@ export async function rulesKeptBack(
   connectionId: string,
   reused: readonly { ref: string; tableName: string }[],
 ): Promise<{ table: string; column: string; message: string }[]> {
-  if (manifest.kind !== 'app' || reused.length === 0) return [];
+  if (!ownsBlocks(manifest) || reused.length === 0) return [];
   const model = await latestModel(meta, connectionId);
   if (model === null) return [];
   const active = (await overridesRepo(meta).listForConnection(connectionId)).filter((o) => o.status === 'active');
@@ -456,7 +457,7 @@ export async function writeManifestRules(input: {
 }): Promise<RulesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RulesResult = { written: 0, skipped: [], removed: 0, lists: [] };
-  if (manifest.kind !== 'app') return result;
+  if (!ownsBlocks(manifest)) return result;
 
   // ── option lists ──────────────────────────────────────────────────────
   const lists = optionListsRepo(meta);
@@ -734,7 +735,7 @@ export async function writeManifestRules(input: {
     }
     // A copy, a stamp's copy or a formula never lands a column kept from readers in one that is not.
     if (rule.op === 'column.copy' || rule.op === 'column.stamp' || rule.op === 'column.formula') {
-      codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: manifest.kind === 'app' ? manifest : null });
+      codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: ownsBlocks(manifest) ? manifest : null });
       const issue = keptColumnIssue(rule.op, rule.value, { table: rule.table, column: rule.column }, applyOverrides(model, active), codes);
       if (issue !== null) {
         skip(issue);
@@ -811,7 +812,7 @@ export async function writeManifestRules(input: {
       if (rule.released === true || !readsKept(rule.op)) continue;
       const row = active.find((o) => o.id === rule.overrideId);
       if (row === undefined || rule.column === null) continue;
-      codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: manifest.kind === 'app' ? manifest : null });
+      codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: ownsBlocks(manifest) ? manifest : null });
       const issue = keptColumnIssue(rule.op, row.value, { table: rule.table, column: rule.column }, applyOverrides(model, active.filter((o) => o !== row)), codes);
       if (issue === null) continue;
       await overrides.delete(row.id);

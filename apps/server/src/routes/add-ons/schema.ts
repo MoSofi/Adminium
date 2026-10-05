@@ -251,6 +251,11 @@ export const installAddOnReply = z.object({
   connectionId: z.string().nullable().optional(),
   /** The tables this install made, and the ones it found and took as they were. */
   schema: z.object({ created: z.array(z.string()), reused: z.array(z.string()) }).optional(),
+  /** What an add-on that keeps tables of its own wrote beside them, each as its writer reports it (the app install's own shapes). */
+  pages: z.unknown().optional(),
+  rules: z.unknown().optional(),
+  roles: z.unknown().optional(),
+  outbox: z.unknown().optional(),
 });
 
 /** Enable or disable on one host (PATCH). */

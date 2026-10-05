@@ -196,10 +196,11 @@ describe('materialiseManifestPages', () => {
     expect(kept.config.columns).toHaveLength(1);
   });
 
-  it('writes nothing for an add-on manifest', async () => {
+  it('writes nothing for an add-on that declares no pages, rules or tables of its own', async () => {
     const result = await materialiseManifestPages({
       meta,
-      manifest: { kind: 'add-on', key: 'x', version: '1.0.0' } as unknown as Manifest,
+      // As every add-on released before the install floor: a block of its own, and none of an app's.
+      manifest: { kind: 'add-on', key: 'x', version: '1.0.0', addOn: { attaches: [{ app: '*' }], connect: { kind: 'none' } } } as unknown as Manifest,
       manifestRowId: 'mfst_1',
       connectionId,
       createdBy: null,

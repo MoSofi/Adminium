@@ -23,6 +23,7 @@ import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } 
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
 import { isEmailBlockKind } from '../email/render.js';
+import { ownsBlocks } from './owns-blocks.js';
 import { mapTableRefs } from './real-refs.js';
 import { canonicalJson } from './sample-data.js';
 
@@ -84,7 +85,7 @@ const ROWS_BLOCK = 'email.rows';
  * already refused the `html` block.
  */
 export function templateProblems(manifest: Manifest): string[] {
-  if (manifest.kind !== 'app') return [];
+  if (!ownsBlocks(manifest)) return [];
   const out: string[] = [];
   for (const template of manifest.emailTemplates ?? []) {
     for (const [locale, content] of Object.entries(template.locales)) {
@@ -240,7 +241,7 @@ export async function installOutbox(input: {
   exists?: ((id: string) => boolean) | undefined;
 }): Promise<OutboxResult | undefined> {
   const { meta, manifest } = input;
-  if (manifest.kind !== 'app') return undefined;
+  if (!ownsBlocks(manifest)) return undefined;
   const outboxes = appOutboxesRepo(meta);
   const templates = emailTemplatesRepo(meta);
   const hadAny = (await outboxes.findByApp(manifest.key)) !== null || (await templates.listManagedBy(manifest.key)).length > 0;
