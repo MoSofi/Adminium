@@ -22,3 +22,12 @@ export const fileRefSchema = z
     bytes: z.number().int().positive(),
   })
   .strict();
+
+/** An i18n message: a catalog key plus the English fallback rendered when the key is absent. */
+export const i18nMessageSchema = z
+  .object({
+    key: z.string().min(1).max(120),
+    fallback: z.string().min(1).max(400),
+  })
+  .strict();
+export type I18nMessage = z.infer<typeof i18nMessageSchema>;

@@ -14,8 +14,10 @@ import {
   addOnCategorySchema,
   i18nMessageSchema,
   isSlotId,
+  recordTabIssues,
   type AddOnBlock,
   type I18nMessage,
+  type RecordTabTable,
 } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
@@ -3010,7 +3012,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -3099,6 +3101,11 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     } else {
       out.push(...wordsIssues({ words: parsed.data, ledgers, tables: tables as readonly LedgerTableShape[], settingsTable: m.addOn.settingsTable }));
     }
+  }
+
+  // Tabs that list the add-on's rows on other tables' record pages: its own tables, columns and words.
+  if (m.addOn.recordTabs !== undefined) {
+    out.push(...recordTabIssues({ tabs: m.addOn.recordTabs, tables: tables as unknown as readonly RecordTabTable[], words: wordsOf(m).map((words) => words.id) }));
   }
 
   // The adjuster is typed loosely in the contracts package too: its words are checked here.

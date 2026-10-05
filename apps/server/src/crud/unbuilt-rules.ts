@@ -141,6 +141,8 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   // Stock words, and a public entry answered by them.
   'addOn.words': ADD_ON_INSTALL_RELEASE,
   'availability.words': ADD_ON_INSTALL_RELEASE,
+  // An add-on's rows listed on another table's record page.
+  'addOn.recordTabs': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
   'addOn.adjuster': PRICE_QUESTION_RELEASE,

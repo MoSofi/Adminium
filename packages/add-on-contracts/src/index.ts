@@ -198,3 +198,13 @@ export {
   type ExplainReason,
   type PriceAdjustProvider,
 } from './price-adjust.js';
+
+export {
+  RECORD_TABS_MAX,
+  RECORD_TAB_COLUMNS_MAX,
+  recordTabIssues,
+  recordTabSchema,
+  recordTabsSchema,
+  type RecordTab,
+  type RecordTabTable,
+} from './record-tabs.js';

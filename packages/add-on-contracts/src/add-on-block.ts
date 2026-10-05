@@ -11,7 +11,9 @@
 
 import { z } from 'zod';
 
+import { i18nMessageSchema, type I18nMessage } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
+import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
 import { BUILTIN_NAV_GROUP_KEYS, type BuiltinNavGroupKey } from './nav-groups.js';
 
@@ -118,7 +120,8 @@ export const addOnNetworkSchema = z
 
 /**
  * An i18n message: a catalog key plus the English fallback rendered when the
- * key is absent.
+ * key is absent. Defined in `common.ts`, where a record tab reads it too, and
+ * exported from here as it always was.
  *
  * MOVED HERE FROM `@adminium/manifest` by 51a, which now re-exports it under
  * the same name. One definition rather than two, because both ends need it: a
@@ -128,13 +131,7 @@ export const addOnNetworkSchema = z
  * field nobody reads — `max(400)` here and `max(200)` there — and then the
  * stricter copy refuses first, for a reason no message names.
  */
-export const i18nMessageSchema = z
-  .object({
-    key: z.string().min(1).max(120),
-    fallback: z.string().min(1).max(400),
-  })
-  .strict();
-export type I18nMessage = z.infer<typeof i18nMessageSchema>;
+export { i18nMessageSchema, type I18nMessage };
 
 /**
  * THE RAIL'S BUILT-IN GROUPS now live in `nav-groups.ts`, re-exported here so
@@ -307,6 +304,8 @@ export const addOnBlockSchema = z
       .min(1)
       .max(4)
       .optional(),
+    /** Tabs on other tables' record pages that list this add-on's rows for the record (see `record-tabs.ts`). */
+    recordTabs: recordTabsSchema.optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one
