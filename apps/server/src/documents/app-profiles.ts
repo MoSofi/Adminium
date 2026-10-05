@@ -225,7 +225,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
   return { planned, skipped };
 }
 
-type ManifestTableSource = Extract<Extract<ManifestSlotMapping, { collection: unknown }>['collection'], { table: string }>;
+type ManifestTableSource = Extract<Extract<ManifestSlotMapping, { collection: unknown }>['collection'], { via: string }>;
 
 /** A child-row source in the store's words: its real table, its link, its columns, and the names it lists one level down. */
 function storedCollection(source: ManifestTableSource, realId: (ref: string) => string | null): CollectionSource | { reason: string } {
@@ -294,6 +294,8 @@ export function storedProfile(
           sources.push({ nightly: { column: one.nightly, columns: { ...one.columns } } });
           continue;
         }
+        // Rows of an add-on's table, found by a table and a row: not drawn yet (a manifest that says so is refused before this).
+        if ('addOn' in one) return { reason: `the rows of "${one.addOn}"'s "${one.table}" are found by a table and a row, which this Adminium does not draw yet` };
         const stored = storedCollection(one, realId);
         if ('reason' in stored) return stored;
         sources.push({ collection: stored });

@@ -1804,6 +1804,8 @@ export function appReferenceIssues(
     /** An add-on's own ledgers, parsed: its tables' postings may go into them. Present (even empty) only for an add-on. */
     ledgers?: readonly Ledger[] | undefined;
     automations?: readonly ManifestAutomation[] | undefined;
+    /** `add-on` for an add-on's own blocks; absent or `app` for an app's. */
+    kind?: string | undefined;
   },
   /**
    * When the tables are an add-on's shape rather than an app's: the add-on's
@@ -2421,7 +2423,8 @@ export function appReferenceIssues(
     out.push(
       ...appDocumentIssues(m.documents, {
         index,
-        addOns: new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)),
+        // An add-on draws its own documents itself, and another add-on's only when it suggests that one.
+        addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),
         features: new Set((m.addOns?.features ?? []).map((feature) => feature.id)),
         perNight: (ref) =>
           new Map(
@@ -3232,6 +3235,19 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
   if (m.sampleData?.addOns !== undefined) {
     out.push({ path: ['sampleData', 'addOns'], message: 'rows for another add-on are an app\'s to ship: an add-on\'s sample data is its own file' });
   }
+  // A document another add-on draws may not be there: an email that carries one must be able to go without it.
+  const suggested = new Set((m.addOns?.suggests ?? []).map((need) => need.key));
+  (m.emailTemplates ?? []).forEach((template, t) => {
+    const attach = template.attach;
+    if (attach === undefined || attach.optional === true) return;
+    const drawnBy = (m.documents ?? []).find((document) => document.kind === attach.kind && suggested.has(document.addOn));
+    if (drawnBy !== undefined) {
+      out.push({
+        path: ['emailTemplates', t, 'attach', 'optional'],
+        message: `"${attach.kind}" is drawn by "${drawnBy.addOn}", which this add-on only suggests: write "optional": true, or the email could never be sent without it`,
+      });
+    }
+  });
   return out;
 }
 

@@ -574,6 +574,23 @@ describe('the outbox and its templates', () => {
     expect(issuesOf(changed((d) => delete (d.emailTemplates[0]!.locales as Record<string, unknown>)['en-US']))).toContain('a template includes en-US');
   });
 
+  it('a block is sent only with a variable, or only without one: one name, never both', () => {
+    const block = (d: Doc) => d.emailTemplates[0]!.locales['en-US'].blocks[0] as { data?: Record<string, unknown> };
+    const marked = (data: Record<string, unknown>) => issuesOf(changed((d) => (block(d).data = { ...(block(d).data ?? {}), ...data })));
+    expect(marked({ onlyWith: 'patient.name', onlyWithout: 'patient.phone' })).toContain('a block is sent onlyWith a variable or onlyWithout one, not both');
+    expect(marked({ onlyWith: '{{patient.name}}' })).toContain('onlyWith names one variable, without braces (card.sender_name)');
+    expect(marked({ onlyWithout: 'app_url.balance' })).toContain('"app_url.balance" is not a link the outbox declares (outbox.pages.app)');
+    expect(marked({ onlyWith: 'row.name' })).toContain('a row\'s own value is read inside an email.rows block');
+    // The mark is a word only a newer Adminium reads: the floor says so, and nothing else is wrong with it.
+    expect(marked({ onlyWith: 'patient.name' }).replaceAll(/[^\n]*is read by Adminium 0\.3\.18 and later[^\n]*\n?/g, '')).toBe('');
+  });
+
+  it('an app links to its own guest side; "app" is how an add-on links into an app', () => {
+    expect(issuesOf(changed((d) => ((d.outbox as Record<string, unknown>)['pages'] = { app: { balance: 'giftCard' } })))).toContain(
+      'an app links to its own guest side (pages.manage, pages.booking): "app" is how an add-on links into an app',
+    );
+  });
+
   it('links producers through the outbox\'s own foreign keys', () => {
     expect(issuesOf(changed((d) => (d.outbox.producers[2]!.link = 'patient_id')))).toContain('"messages.patient_id" does not point at "appointments"');
     expect(issuesOf(changed((d) => (d.outbox.producers[2]!.link = 'to_address')))).toContain('"to_address" is not one of the outbox\'s links');

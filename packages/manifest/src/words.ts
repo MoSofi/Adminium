@@ -98,6 +98,26 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     });
   });
 
+  // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table-and-row pair.
+  const outbox = isDoc(document['outbox']) ? document['outbox'] : {};
+  if (isDoc(outbox['pages']) && outbox['pages']['app'] !== undefined) out.push({ word: 'outbox.pages.app', path: 'outbox.pages.app' });
+  list(document['emailTemplates']).forEach((template, t) => {
+    for (const [locale, content] of Object.entries(isDoc(template) && isDoc(template['locales']) ? template['locales'] : {})) {
+      list(isDoc(content) ? content['blocks'] : undefined).forEach((block, b) => {
+        const data = isDoc(block) && isDoc(block['data']) ? block['data'] : {};
+        const here = `emailTemplates.${String(t)}.locales.${locale}.blocks.${String(b)}.data`;
+        for (const mark of ['onlyWith', 'onlyWithout'] as const) if (data[mark] !== undefined) out.push({ word: `email.${mark}`, path: `${here}.${mark}` });
+        if (isDoc(data['from']) && data['from']['addOn'] !== undefined) out.push({ word: 'rows.pair', path: `${here}.from` });
+      });
+    }
+  });
+  list(document['documents']).forEach((entry, d) => {
+    for (const [slot, source] of Object.entries(isDoc(entry) && isDoc(entry['mapping']) ? entry['mapping'] : {})) {
+      const sources = isDoc(source) ? [...(isDoc(source['collection']) ? [source['collection']] : []), ...list(source['collections'])] : [];
+      if (sources.some((one) => isDoc(one) && one['addOn'] !== undefined)) out.push({ word: 'rows.pair', path: `documents.${String(d)}.mapping.${slot}` });
+    }
+  });
+
   list(document['publicAccess']).forEach((entry, e) => {
     if (isDoc(entry) && isDoc(entry['unlockBy']) && entry['unlockBy']['self'] === true) {
       out.push({ word: 'unlockBy.self', path: `publicAccess.${String(e)}.unlockBy` });

@@ -131,6 +131,11 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   'column.codeLast4': ADD_ON_INSTALL_RELEASE,
   // Rules an app or an add-on ships.
   automations: ADD_ON_INSTALL_RELEASE,
+  // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table and a row.
+  'email.onlyWith': ADD_ON_INSTALL_RELEASE,
+  'email.onlyWithout': ADD_ON_INSTALL_RELEASE,
+  'outbox.pages.app': ADD_ON_INSTALL_RELEASE,
+  'rows.pair': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
   'addOn.adjuster': PRICE_QUESTION_RELEASE,

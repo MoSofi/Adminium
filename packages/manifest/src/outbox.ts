@@ -340,6 +340,16 @@ export const outboxSchema = z
       .object({
         manage: z.string().regex(/^\/[A-Za-z0-9/_-]{0,119}$/, 'a path on the guest side, e.g. /my-visits').optional(),
         booking: z.string().regex(/^\/[A-Za-z0-9/_-]{0,119}$/, 'a path on the guest side, e.g. /').optional(),
+        /**
+         * An add-on's links into the customer side of whichever app it serves:
+         * a name of its own → the key of a route that app declares. A template
+         * reads it as `{{app_url.<name>}}`; it is empty when no app of the
+         * add-on's has that route.
+         */
+        app: z
+          .record(z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a kebab-case name'), z.string().regex(/^[A-Za-z][A-Za-z0-9]{0,39}$/, 'a route key'))
+          .refine((names) => Object.keys(names).length >= 1 && Object.keys(names).length <= 6, { message: 'one to six links into an app' })
+          .optional(),
       })
       .strict()
       .optional(),
@@ -435,6 +445,9 @@ export const REPEAT_KEY_LENGTH = 43;
 export const WAS_MIN_LENGTH = 1000;
 /** The mark on a template's block that is sent only with the document the template carries (`attach.optional`). */
 export const WITH_ATTACHMENT = 'withAttachment';
+/** The marks on a block that is sent only when a variable is filled (`onlyWith`), or only when it is empty (`onlyWithout`). */
+export const ONLY_WITH = 'onlyWith';
+export const ONLY_WITHOUT = 'onlyWithout';
 
 /** What the outbox writes, and which rules each refuses: everything, but a check of the address a person types. */
 export const OUTBOX_WRITTEN = {
@@ -481,6 +494,8 @@ export function outboxIssues(
     outbox?: Outbox | undefined;
     emailTemplates?: readonly EmailTemplate[] | undefined;
     addOns?: AddOnNeeds | undefined;
+    /** `add-on` when the outbox is an add-on's own: it links into its apps' pages, and has no guest side of its own. */
+    kind?: string | undefined;
   } & Parameters<typeof unlistedColumn>[0],
   index: TableIndex,
 ): ReferenceIssue[] {
@@ -493,6 +508,20 @@ export function outboxIssues(
     // A block sent only with the document: marked `true`, and only where the document may be left out.
     for (const [locale, content] of Object.entries(template.locales)) {
       content.blocks.forEach((block, b) => {
+        // A block sent only when a variable is filled, or only when it is empty: one name, without braces.
+        const marks = [ONLY_WITH, ONLY_WITHOUT].filter((name) => block.data?.[name] !== undefined);
+        if (marks.length === 2) out.push({ path: ['emailTemplates', i, 'locales', locale, 'blocks', b, 'data'], message: `a block is sent ${ONLY_WITH} a variable or ${ONLY_WITHOUT} one, not both` });
+        for (const name of marks) {
+          const variable = block.data?.[name];
+          const path = ['emailTemplates', i, 'locales', locale, 'blocks', b, 'data', name];
+          if (typeof variable !== 'string' || !/^[A-Za-z_][A-Za-z0-9_.-]{0,119}$/.test(variable)) {
+            out.push({ path, message: `${name} names one variable, without braces (card.sender_name)` });
+          } else if (variable.startsWith('app_url.') && m.outbox?.pages?.app?.[variable.slice('app_url.'.length)] === undefined) {
+            out.push({ path, message: `"${variable}" is not a link the outbox declares (outbox.pages.app)` });
+          } else if (variable.startsWith('row.')) {
+            out.push({ path, message: 'a row\'s own value is read inside an email.rows block, which is sent with its rows or not at all' });
+          }
+        }
         const mark = block.data?.[WITH_ATTACHMENT];
         if (mark === undefined) return;
         const path = ['emailTemplates', i, 'locales', locale, 'blocks', b, 'data', WITH_ATTACHMENT];
@@ -513,6 +542,14 @@ export function outboxIssues(
     return out;
   }
   const at = (...rest: (string | number)[]) => ['outbox', ...rest];
+  // Whose pages a link leads to: an app's own guest side, or — for an add-on — a page of the app it serves.
+  if (m.kind === 'add-on') {
+    for (const own of ['manage', 'booking'] as const) {
+      if (box.pages?.[own] !== undefined) out.push({ path: at('pages', own), message: `an add-on has no guest side of its own: link into its app's pages by name (outbox.pages.app)` });
+    }
+  } else if (box.pages?.app !== undefined) {
+    out.push({ path: at('pages', 'app'), message: 'an app links to its own guest side (pages.manage, pages.booking): "app" is how an add-on links into an app' });
+  }
   if (index.table(box.table) === undefined) {
     out.push({ path: at('table'), message: `"${box.table}" is not a table of this app` });
     return out;
@@ -852,7 +889,8 @@ export function outboxIssues(
       }
     }
   });
-  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index, (table, column) => unlistedColumn(m, table, column)));
+  const named = new Set([...(m.kind === 'add-on' ? [m.key] : []), ...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => (typeof need === 'string' ? need : need.key)));
+  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index, (table, column) => unlistedColumn(m, table, column), named));
   return out;
 }
 
@@ -872,17 +910,36 @@ export function outboxIssues(
  */
 export const emailRowsDataSchema = z
   .object({
-    from: z
-      .object({
-        link: z.string().regex(/^[a-z][a-z_]*$/, 'a link name is snake_case'),
-        table: refSchema,
-        via: refSchema,
-        orderBy: refSchema.optional(),
-        where: z.object({ column: refSchema, in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
-        unless: refSchema.optional(),
-        limit: z.number().int().min(1).max(50).optional(),
-      })
-      .strict(),
+    from: z.union([
+      z
+        .object({
+          link: z.string().regex(/^[a-z][a-z_]*$/, 'a link name is snake_case'),
+          table: refSchema,
+          via: refSchema,
+          orderBy: refSchema.optional(),
+          where: z.object({ column: refSchema, in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
+          unless: refSchema.optional(),
+          limit: z.number().int().min(1).max(50).optional(),
+        })
+        .strict(),
+      /**
+       * Rows of an add-on's table that belong to the row a link names, found
+       * by the table-and-row pair the add-on keeps (what was applied to an
+       * order). `table` and `match` are the add-on's own short names.
+       */
+      z
+        .object({
+          link: z.string().regex(/^[a-z][a-z_]*$/, 'a link name is snake_case'),
+          addOn: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'an add-on key'),
+          table: refSchema,
+          match: z.object({ table: refSchema, row: refSchema }).strict(),
+          orderBy: refSchema.optional(),
+          where: z.object({ column: refSchema, in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
+          unless: refSchema.optional(),
+          limit: z.number().int().min(1).max(50).optional(),
+        })
+        .strict(),
+    ]),
     joins: z
       .record(
         refSchema,
@@ -924,7 +981,14 @@ function stringsIn(value: unknown, path: (string | number)[], out: { text: strin
  * can fill; the same rows in every language; and a QR code only as a whole
  * image value, of a code column.
  */
-function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, index: TableIndex, unlisted: (table: string, column: string) => string | null): ReferenceIssue[] {
+function emailBlockIssues(
+  templates: readonly EmailTemplate[],
+  box: Outbox,
+  index: TableIndex,
+  unlisted: (table: string, column: string) => string | null,
+  /** The add-ons whose rows a block may list: the ones the manifest names, and itself when it is one. */
+  named: ReadonlySet<string> = new Set(),
+): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const links = box.links ?? {};
   /** The table a link names. */
@@ -1000,6 +1064,12 @@ function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, inde
         const from = data.from;
         const parent = linkTable(from.link);
         if (links[from.link] === undefined) out.push({ path: at('data', 'from', 'link'), message: `"${from.link}" is not one of the outbox's links` });
+        if ('addOn' in from) {
+          // An add-on's rows: its table and columns are checked where its manifest is at hand, at install.
+          if (!named.has(from.addOn)) out.push({ path: at('data', 'from', 'addOn'), message: `"${from.addOn}" is not an add-on this manifest names: add it to addOns.requires or addOns.suggests` });
+          if (data.joins !== undefined) out.push({ path: at('data', 'joins'), message: 'rows of an add-on\'s table join no list of this manifest\'s' });
+          return;
+        }
         if (index.table(from.table) === undefined) {
           out.push({ path: at('data', 'from', 'table'), message: `"${from.table}" is not a table of this app` });
           return;

@@ -118,6 +118,8 @@ export {
   REPEAT_KEY_LENGTH,
   WAS_MIN_LENGTH,
   WITH_ATTACHMENT,
+  ONLY_WITH,
+  ONLY_WITHOUT,
   GROUPED_FORM,
   groupedCode,
   isCodeColumn,
@@ -209,7 +211,7 @@ export {
 
 export { addOnsSchema, namedAddOns, requiresAddOn, type AddOnNeeds } from './add-ons.js';
 
-export { appDocumentSchema, slotMappingSchema, type AppDocument, type SlotMapping } from './documents.js';
+export { appDocumentSchema, pairSourceSchema, slotMappingSchema, type AppDocument, type PairSource, type SlotMapping } from './documents.js';
 
 export {
   mapRules as mapShapeRules,
