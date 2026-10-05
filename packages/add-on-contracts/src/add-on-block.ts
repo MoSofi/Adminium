@@ -11,7 +11,7 @@
 
 import { z } from 'zod';
 
-import { i18nMessageSchema, type I18nMessage } from './common.js';
+import { i18nMessageSchema } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
 import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
@@ -131,7 +131,7 @@ export const addOnNetworkSchema = z
  * field nobody reads — `max(400)` here and `max(200)` there — and then the
  * stricter copy refuses first, for a reason no message names.
  */
-export { i18nMessageSchema, type I18nMessage };
+export { i18nMessageSchema, type I18nMessage } from './common.js';
 
 /**
  * THE RAIL'S BUILT-IN GROUPS now live in `nav-groups.ts`, re-exported here so
