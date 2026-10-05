@@ -1,0 +1,108 @@
+{
+  "kind": "add-on",
+  "manifestVersion": 1,
+  "key": "personalizer",
+  "name": "Live Personalizer",
+  "version": "1.0.7",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "addon.personalizer.line",
+    "fallback": "A live picture of what the customer is asking for. You draw the areas a customer may change once; after that they type their own words and watch them appear on the piece, and you get a machine-ready file with the letters already turned into outlines."
+  },
+  "categories": ["artwork"],
+
+  "compatibility": {
+    "minAdminiumVersion": "0.3.1"
+  },
+
+  "capabilities": ["file-storage"],
+
+  "addOn": {
+    "attaches": [
+      { "app": "maker", "range": "^0.1.0" },
+      { "app": "*", "table": "products" },
+      { "app": "*", "table": "order_lines" }
+    ],
+    "provides": [
+      { "contract": "product-personalizer", "version": 1, "server": "dist/server.js" }
+    ],
+    "consumes": [],
+    "slots": [
+      { "slot": "product.options.personalize", "client": "dist/client.js", "order": 10 },
+      { "slot": "cart.line.preview", "client": "dist/client.js", "order": 10 },
+      { "slot": "product.admin.panel", "client": "dist/client.js", "order": 10 },
+      { "slot": "order.line.actions", "client": "dist/client.js", "order": 10 },
+      { "slot": "nav.add-on.routes", "client": "dist/client.js", "order": 10 },
+      { "slot": "settings.add-on.panel", "client": "dist/client.js", "order": 10 },
+      { "slot": "record.editor.panel", "client": "dist/client.js", "order": 10 }
+    ],
+    "events": [],
+    "connect": { "kind": "none" },
+    "scopes": ["records:products:read", "files:write"],
+    "publicSettings": ["offered_fonts", "proof_required", "default_finish"]
+  },
+
+  "requiredSchema": {
+    "tables": [
+      {
+        "ref": "personalization_templates",
+        "columns": [
+          { "ref": "id", "type": "id", "role": "pk" },
+          { "ref": "product_id", "type": "fk", "references": "products" },
+          { "ref": "angles", "type": "json" },
+          { "ref": "zones", "type": "json" },
+          { "ref": "created_at", "type": "timestamptz", "role": "created_at" },
+          { "ref": "updated_at", "type": "timestamptz", "role": "updated_at" }
+        ]
+      },
+      {
+        "ref": "personalizations",
+        "columns": [
+          { "ref": "id", "type": "id", "role": "pk" },
+          { "ref": "order_line_id", "type": "fk", "references": "order_lines" },
+          { "ref": "template_id", "type": "fk", "references": "personalization_templates" },
+          { "ref": "values", "type": "json" },
+          { "ref": "preview_file", "type": "text", "nullable": true },
+          { "ref": "production_file", "type": "text", "nullable": true },
+          { "ref": "created_at", "type": "timestamptz", "role": "created_at" }
+        ]
+      }
+    ]
+  },
+
+  "settings": [
+    {
+      "key": "offered_fonts",
+      "type": "json",
+      "label": {
+        "key": "addon.personalizer.set.fonts",
+        "fallback": "Alphabets a customer may choose from"
+      },
+      "default": ["fenwick", "bramley", "row", "alder", "quarry"]
+    },
+    {
+      "key": "proof_required",
+      "type": "boolean",
+      "label": {
+        "key": "addon.personalizer.set.proof",
+        "fallback": "A picture still needs a yes before you cut"
+      },
+      "default": true
+    },
+    {
+      "key": "default_finish",
+      "type": "enum",
+      "enum": ["engraved", "raised", "printed", "painted"],
+      "label": {
+        "key": "addon.personalizer.set.finish",
+        "fallback": "What a new area is cut as"
+      },
+      "default": "engraved"
+    }
+  ]
+}

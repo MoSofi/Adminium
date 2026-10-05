@@ -1,0 +1,6353 @@
+{
+  "manifestVersion": 1,
+  "key": "pos",
+  "name": "Point of Sale",
+  "version": "0.2.0",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "mft.pos.desc",
+    "fallback": "Point-of-sale terminal and back-office for cafes and restaurants — menu, tickets, split payments, floor plan, and staff shifts, over one shared database."
+  },
+  "categories": [
+    "hospitality"
+  ],
+  "compatibility": {
+    "minAdminiumVersion": "0.3.0-rc.4",
+    "engines": [
+      "sqlite",
+      "postgres",
+      "mysql"
+    ],
+    "requires": [
+      "realtime"
+    ]
+  },
+  "requiredSchema": {
+    "prefixed": true,
+    "tables": [
+      {
+        "ref": "menu_categories",
+        "shape": "menu@1",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "slug",
+            "type": "text",
+            "maxLength": 48,
+            "label": {
+              "en-US": "Key",
+              "de-DE": "Schlüssel",
+              "fr-FR": "Clé",
+              "da-DK": "Nøgle",
+              "cs-CZ": "Klíč",
+              "ar-EG": "المفتاح",
+              "zh-CN": "标识",
+              "zh-TW": "識別碼"
+            },
+            "nullable": true
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "semantic": "name",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "position",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Position",
+              "de-DE": "Reihenfolge",
+              "fr-FR": "Ordre",
+              "da-DK": "Rækkefølge",
+              "cs-CZ": "Pořadí",
+              "ar-EG": "الترتيب",
+              "zh-CN": "排序",
+              "zh-TW": "排序"
+            }
+          },
+          {
+            "ref": "icon",
+            "type": "text",
+            "maxLength": 40,
+            "nullable": true,
+            "label": {
+              "en-US": "Icon",
+              "de-DE": "Symbol",
+              "fr-FR": "Icône",
+              "da-DK": "Ikon",
+              "cs-CZ": "Ikona",
+              "ar-EG": "الأيقونة",
+              "zh-CN": "图标",
+              "zh-TW": "圖示"
+            }
+          },
+          {
+            "ref": "tint",
+            "type": "text",
+            "maxLength": 32,
+            "nullable": true,
+            "label": {
+              "en-US": "Color",
+              "de-DE": "Farbe",
+              "fr-FR": "Couleur",
+              "da-DK": "Farve",
+              "cs-CZ": "Barva",
+              "ar-EG": "اللون",
+              "zh-CN": "颜色",
+              "zh-TW": "顏色"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Category",
+          "de-DE": "Kategorie",
+          "fr-FR": "Catégorie",
+          "da-DK": "Kategori",
+          "cs-CZ": "Kategorie",
+          "ar-EG": "فئة",
+          "zh-CN": "分类",
+          "zh-TW": "分類"
+        },
+        "labelPlural": {
+          "en-US": "Categories",
+          "de-DE": "Kategorien",
+          "fr-FR": "Catégories",
+          "da-DK": "Kategorier",
+          "cs-CZ": "Kategorie",
+          "ar-EG": "الفئات",
+          "zh-CN": "分类",
+          "zh-TW": "分類"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "menu_items",
+        "shape": "menu@1",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "category_id",
+            "type": "fk",
+            "references": "menu_categories",
+            "nullable": true,
+            "label": {
+              "en-US": "Category",
+              "de-DE": "Kategorie",
+              "fr-FR": "Catégorie",
+              "da-DK": "Kategori",
+              "cs-CZ": "Kategorie",
+              "ar-EG": "فئة",
+              "zh-CN": "分类",
+              "zh-TW": "分類"
+            }
+          },
+          {
+            "ref": "slug",
+            "type": "text",
+            "maxLength": 64,
+            "label": {
+              "en-US": "Key",
+              "de-DE": "Schlüssel",
+              "fr-FR": "Clé",
+              "da-DK": "Nøgle",
+              "cs-CZ": "Klíč",
+              "ar-EG": "المفتاح",
+              "zh-CN": "标识",
+              "zh-TW": "識別碼"
+            },
+            "nullable": true
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "semantic": "name",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "short_name",
+            "type": "text",
+            "maxLength": 24,
+            "nullable": true,
+            "label": {
+              "en-US": "Short name",
+              "de-DE": "Kurzname",
+              "fr-FR": "Nom court",
+              "da-DK": "Kort navn",
+              "cs-CZ": "Krátký název",
+              "ar-EG": "الاسم المختصر",
+              "zh-CN": "简称",
+              "zh-TW": "簡稱"
+            }
+          },
+          {
+            "ref": "description",
+            "type": "text",
+            "maxLength": 280,
+            "nullable": true,
+            "label": {
+              "en-US": "Description",
+              "de-DE": "Beschreibung",
+              "fr-FR": "Description",
+              "da-DK": "Beskrivelse",
+              "cs-CZ": "Popis",
+              "ar-EG": "الوصف",
+              "zh-CN": "描述",
+              "zh-TW": "描述"
+            }
+          },
+          {
+            "ref": "price",
+            "type": "money",
+            "default": 0,
+            "semantic": "money",
+            "label": {
+              "en-US": "Price",
+              "de-DE": "Preis",
+              "fr-FR": "Prix",
+              "da-DK": "Pris",
+              "cs-CZ": "Cena",
+              "ar-EG": "السعر",
+              "zh-CN": "价格",
+              "zh-TW": "價格"
+            }
+          },
+          {
+            "ref": "image",
+            "type": "text",
+            "semantic": "image",
+            "nullable": true,
+            "label": {
+              "en-US": "Photo",
+              "de-DE": "Foto",
+              "fr-FR": "Photo",
+              "da-DK": "Foto",
+              "cs-CZ": "Fotka",
+              "ar-EG": "الصورة",
+              "zh-CN": "图片",
+              "zh-TW": "圖片"
+            }
+          },
+          {
+            "ref": "available",
+            "type": "bool",
+            "default": true,
+            "label": {
+              "en-US": "Available",
+              "de-DE": "Verfügbar",
+              "fr-FR": "Disponible",
+              "da-DK": "Tilgængelig",
+              "cs-CZ": "Dostupné",
+              "ar-EG": "متاح",
+              "zh-CN": "可售",
+              "zh-TW": "可售"
+            }
+          },
+          {
+            "ref": "featured",
+            "type": "bool",
+            "default": false,
+            "label": {
+              "en-US": "Featured",
+              "de-DE": "Hervorgehoben",
+              "fr-FR": "À la une",
+              "da-DK": "Fremhævet",
+              "cs-CZ": "Doporučené",
+              "ar-EG": "مميز",
+              "zh-CN": "推荐",
+              "zh-TW": "推薦"
+            }
+          },
+          {
+            "ref": "tags",
+            "type": "text",
+            "maxLength": 120,
+            "nullable": true,
+            "label": {
+              "en-US": "Tags",
+              "de-DE": "Schlagwörter",
+              "fr-FR": "Étiquettes",
+              "da-DK": "Mærker",
+              "cs-CZ": "Štítky",
+              "ar-EG": "الوسوم",
+              "zh-CN": "标签",
+              "zh-TW": "標籤"
+            }
+          },
+          {
+            "ref": "position",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Position",
+              "de-DE": "Reihenfolge",
+              "fr-FR": "Ordre",
+              "da-DK": "Rækkefølge",
+              "cs-CZ": "Pořadí",
+              "ar-EG": "الترتيب",
+              "zh-CN": "排序",
+              "zh-TW": "排序"
+            }
+          },
+          {
+            "ref": "barcode",
+            "type": "text",
+            "maxLength": 64,
+            "nullable": true,
+            "label": {
+              "en-US": "Barcode",
+              "de-DE": "Barcode",
+              "fr-FR": "Code-barres",
+              "da-DK": "Stregkode",
+              "cs-CZ": "Čárový kód",
+              "ar-EG": "الباركود",
+              "zh-CN": "条形码",
+              "zh-TW": "條碼"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Menu item",
+          "de-DE": "Artikel",
+          "fr-FR": "Article",
+          "da-DK": "Menupunkt",
+          "cs-CZ": "Položka menu",
+          "ar-EG": "صنف",
+          "zh-CN": "菜品",
+          "zh-TW": "菜品"
+        },
+        "labelPlural": {
+          "en-US": "Menu items",
+          "de-DE": "Artikel",
+          "fr-FR": "Articles",
+          "da-DK": "Menupunkter",
+          "cs-CZ": "Položky menu",
+          "ar-EG": "الأصناف",
+          "zh-CN": "菜品",
+          "zh-TW": "菜品"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "modifier_groups",
+        "shape": "menu@1",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "item_id",
+            "type": "fk",
+            "references": "menu_items",
+            "label": {
+              "en-US": "Menu item",
+              "de-DE": "Artikel",
+              "fr-FR": "Article",
+              "da-DK": "Menupunkt",
+              "cs-CZ": "Položka menu",
+              "ar-EG": "صنف",
+              "zh-CN": "菜品",
+              "zh-TW": "菜品"
+            }
+          },
+          {
+            "ref": "slug",
+            "type": "text",
+            "maxLength": 48,
+            "label": {
+              "en-US": "Key",
+              "de-DE": "Schlüssel",
+              "fr-FR": "Clé",
+              "da-DK": "Nøgle",
+              "cs-CZ": "Klíč",
+              "ar-EG": "المفتاح",
+              "zh-CN": "标识",
+              "zh-TW": "識別碼"
+            },
+            "nullable": true
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "kind",
+            "type": "enum",
+            "enum": [
+              "radio",
+              "check"
+            ],
+            "default": "radio",
+            "label": {
+              "en-US": "Choice",
+              "de-DE": "Auswahl",
+              "fr-FR": "Choix",
+              "da-DK": "Valg",
+              "cs-CZ": "Výběr",
+              "ar-EG": "نوع الاختيار",
+              "zh-CN": "选择方式",
+              "zh-TW": "選擇方式"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "radio": {
+                    "en-US": "Pick one",
+                    "de-DE": "Eine Auswahl",
+                    "fr-FR": "Un seul choix",
+                    "da-DK": "Vælg én",
+                    "cs-CZ": "Vybrat jednu",
+                    "ar-EG": "اختيار واحد",
+                    "zh-CN": "单选",
+                    "zh-TW": "單選"
+                  },
+                  "check": {
+                    "en-US": "Pick any",
+                    "de-DE": "Mehrfachauswahl",
+                    "fr-FR": "Plusieurs choix",
+                    "da-DK": "Vælg flere",
+                    "cs-CZ": "Vybrat více",
+                    "ar-EG": "اختيار متعدد",
+                    "zh-CN": "多选",
+                    "zh-TW": "多選"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "min",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "At least",
+              "de-DE": "Mindestens",
+              "fr-FR": "Au moins",
+              "da-DK": "Mindst",
+              "cs-CZ": "Nejméně",
+              "ar-EG": "الحد الأدنى",
+              "zh-CN": "至少",
+              "zh-TW": "至少"
+            }
+          },
+          {
+            "ref": "max",
+            "type": "int",
+            "default": 1,
+            "label": {
+              "en-US": "At most",
+              "de-DE": "Höchstens",
+              "fr-FR": "Au plus",
+              "da-DK": "Højst",
+              "cs-CZ": "Nejvýše",
+              "ar-EG": "الحد الأقصى",
+              "zh-CN": "至多",
+              "zh-TW": "至多"
+            }
+          },
+          {
+            "ref": "hint",
+            "type": "text",
+            "maxLength": 120,
+            "nullable": true,
+            "label": {
+              "en-US": "Hint",
+              "de-DE": "Hinweis",
+              "fr-FR": "Indication",
+              "da-DK": "Hjælpetekst",
+              "cs-CZ": "Nápověda",
+              "ar-EG": "تلميح",
+              "zh-CN": "提示",
+              "zh-TW": "提示"
+            }
+          },
+          {
+            "ref": "position",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Position",
+              "de-DE": "Reihenfolge",
+              "fr-FR": "Ordre",
+              "da-DK": "Rækkefølge",
+              "cs-CZ": "Pořadí",
+              "ar-EG": "الترتيب",
+              "zh-CN": "排序",
+              "zh-TW": "排序"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Option group",
+          "de-DE": "Optionsgruppe",
+          "fr-FR": "Groupe d’options",
+          "da-DK": "Valggruppe",
+          "cs-CZ": "Skupina možností",
+          "ar-EG": "مجموعة خيارات",
+          "zh-CN": "选项组",
+          "zh-TW": "選項組"
+        },
+        "labelPlural": {
+          "en-US": "Option groups",
+          "de-DE": "Optionsgruppen",
+          "fr-FR": "Groupes d’options",
+          "da-DK": "Valggrupper",
+          "cs-CZ": "Skupiny možností",
+          "ar-EG": "مجموعات الخيارات",
+          "zh-CN": "选项组",
+          "zh-TW": "選項組"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "modifiers",
+        "shape": "menu@1",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "group_id",
+            "type": "fk",
+            "references": "modifier_groups",
+            "label": {
+              "en-US": "Group",
+              "de-DE": "Gruppe",
+              "fr-FR": "Groupe",
+              "da-DK": "Gruppe",
+              "cs-CZ": "Skupina",
+              "ar-EG": "المجموعة",
+              "zh-CN": "组",
+              "zh-TW": "組"
+            }
+          },
+          {
+            "ref": "slug",
+            "type": "text",
+            "maxLength": 48,
+            "label": {
+              "en-US": "Key",
+              "de-DE": "Schlüssel",
+              "fr-FR": "Clé",
+              "da-DK": "Nøgle",
+              "cs-CZ": "Klíč",
+              "ar-EG": "المفتاح",
+              "zh-CN": "标识",
+              "zh-TW": "識別碼"
+            },
+            "nullable": true
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "price_delta",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Extra charge",
+              "de-DE": "Aufpreis",
+              "fr-FR": "Supplément",
+              "da-DK": "Tillæg",
+              "cs-CZ": "Příplatek",
+              "ar-EG": "رسوم إضافية",
+              "zh-CN": "加价",
+              "zh-TW": "加價"
+            }
+          },
+          {
+            "ref": "available",
+            "type": "bool",
+            "default": true,
+            "label": {
+              "en-US": "Available",
+              "de-DE": "Verfügbar",
+              "fr-FR": "Disponible",
+              "da-DK": "Tilgængelig",
+              "cs-CZ": "Dostupné",
+              "ar-EG": "متاح",
+              "zh-CN": "可售",
+              "zh-TW": "可售"
+            }
+          },
+          {
+            "ref": "position",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Position",
+              "de-DE": "Reihenfolge",
+              "fr-FR": "Ordre",
+              "da-DK": "Rækkefølge",
+              "cs-CZ": "Pořadí",
+              "ar-EG": "الترتيب",
+              "zh-CN": "排序",
+              "zh-TW": "排序"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Option",
+          "de-DE": "Option",
+          "fr-FR": "Option",
+          "da-DK": "Valgmulighed",
+          "cs-CZ": "Možnost",
+          "ar-EG": "خيار",
+          "zh-CN": "选项",
+          "zh-TW": "選項"
+        },
+        "labelPlural": {
+          "en-US": "Options",
+          "de-DE": "Optionen",
+          "fr-FR": "Options",
+          "da-DK": "Valgmuligheder",
+          "cs-CZ": "Možnosti",
+          "ar-EG": "الخيارات",
+          "zh-CN": "选项",
+          "zh-TW": "選項"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "restaurant_tables",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "label",
+            "type": "text",
+            "maxLength": 16,
+            "label": {
+              "en-US": "Table",
+              "de-DE": "Tisch",
+              "fr-FR": "Table",
+              "da-DK": "Bord",
+              "cs-CZ": "Stůl",
+              "ar-EG": "طاولة",
+              "zh-CN": "桌台",
+              "zh-TW": "桌位"
+            }
+          },
+          {
+            "ref": "seats",
+            "type": "int",
+            "default": 2,
+            "label": {
+              "en-US": "Seats",
+              "de-DE": "Plätze",
+              "fr-FR": "Places",
+              "da-DK": "Pladser",
+              "cs-CZ": "Míst",
+              "ar-EG": "المقاعد",
+              "zh-CN": "座位数",
+              "zh-TW": "座位數"
+            }
+          },
+          {
+            "ref": "zone",
+            "type": "text",
+            "maxLength": 40,
+            "nullable": true,
+            "rules": {
+              "options": {
+                "list": "zones"
+              }
+            },
+            "label": {
+              "en-US": "Area",
+              "de-DE": "Bereich",
+              "fr-FR": "Zone",
+              "da-DK": "Zone",
+              "cs-CZ": "Zóna",
+              "ar-EG": "المنطقة",
+              "zh-CN": "区域",
+              "zh-TW": "區域"
+            }
+          },
+          {
+            "ref": "position",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Position",
+              "de-DE": "Reihenfolge",
+              "fr-FR": "Ordre",
+              "da-DK": "Rækkefølge",
+              "cs-CZ": "Pořadí",
+              "ar-EG": "الترتيب",
+              "zh-CN": "排序",
+              "zh-TW": "排序"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Table",
+          "de-DE": "Tisch",
+          "fr-FR": "Table",
+          "da-DK": "Bord",
+          "cs-CZ": "Stůl",
+          "ar-EG": "طاولة",
+          "zh-CN": "桌台",
+          "zh-TW": "桌位"
+        },
+        "labelPlural": {
+          "en-US": "Tables",
+          "de-DE": "Tische",
+          "fr-FR": "Tables",
+          "da-DK": "Borde",
+          "cs-CZ": "Stoly",
+          "ar-EG": "الطاولات",
+          "zh-CN": "桌台",
+          "zh-TW": "桌位"
+        },
+        "keyField": "label"
+      },
+      {
+        "ref": "staff",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "semantic": "name",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "initials",
+            "type": "text",
+            "maxLength": 4,
+            "nullable": true,
+            "label": {
+              "en-US": "Initials",
+              "de-DE": "Initialen",
+              "fr-FR": "Initiales",
+              "da-DK": "Initialer",
+              "cs-CZ": "Iniciály",
+              "ar-EG": "الأحرف الأولى",
+              "zh-CN": "缩写",
+              "zh-TW": "縮寫"
+            }
+          },
+          {
+            "ref": "role",
+            "type": "text",
+            "maxLength": 40,
+            "nullable": true,
+            "rules": {
+              "options": {
+                "list": "roles"
+              }
+            },
+            "label": {
+              "en-US": "Role",
+              "de-DE": "Rolle",
+              "fr-FR": "Rôle",
+              "da-DK": "Rolle",
+              "cs-CZ": "Role",
+              "ar-EG": "الدور",
+              "zh-CN": "角色",
+              "zh-TW": "角色"
+            }
+          },
+          {
+            "ref": "email",
+            "type": "text",
+            "maxLength": 254,
+            "nullable": true,
+            "semantic": "email",
+            "rules": {
+              "validation": {
+                "format": "email"
+              }
+            },
+            "label": {
+              "en-US": "Email",
+              "de-DE": "E-Mail",
+              "fr-FR": "E-mail",
+              "da-DK": "E-mail",
+              "cs-CZ": "E-mail",
+              "ar-EG": "البريد الإلكتروني",
+              "zh-CN": "电子邮件",
+              "zh-TW": "電子郵件"
+            }
+          },
+          {
+            "ref": "active",
+            "type": "bool",
+            "default": true,
+            "label": {
+              "en-US": "Active",
+              "de-DE": "Aktiv",
+              "fr-FR": "Actif",
+              "da-DK": "Aktiv",
+              "cs-CZ": "Aktivní",
+              "ar-EG": "نشط",
+              "zh-CN": "在职",
+              "zh-TW": "在職"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Staff member",
+          "de-DE": "Mitarbeiter",
+          "fr-FR": "Membre de l’équipe",
+          "da-DK": "Medarbejder",
+          "cs-CZ": "Zaměstnanec",
+          "ar-EG": "موظف",
+          "zh-CN": "员工",
+          "zh-TW": "員工"
+        },
+        "labelPlural": {
+          "en-US": "Staff",
+          "de-DE": "Personal",
+          "fr-FR": "Équipe",
+          "da-DK": "Personale",
+          "cs-CZ": "Personál",
+          "ar-EG": "الموظفون",
+          "zh-CN": "员工",
+          "zh-TW": "員工"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "time_clock",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "staff_id",
+            "type": "fk",
+            "references": "staff",
+            "label": {
+              "en-US": "Staff member",
+              "de-DE": "Mitarbeiter",
+              "fr-FR": "Membre de l’équipe",
+              "da-DK": "Medarbejder",
+              "cs-CZ": "Zaměstnanec",
+              "ar-EG": "موظف",
+              "zh-CN": "员工",
+              "zh-TW": "員工"
+            }
+          },
+          {
+            "ref": "clock_in",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "Clocked in",
+              "de-DE": "Eingestempelt",
+              "fr-FR": "Arrivée",
+              "da-DK": "Stemplet ind",
+              "cs-CZ": "Příchod",
+              "ar-EG": "وقت الحضور",
+              "zh-CN": "上班打卡",
+              "zh-TW": "上班打卡"
+            }
+          },
+          {
+            "ref": "clock_out",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Clocked out",
+              "de-DE": "Ausgestempelt",
+              "fr-FR": "Départ",
+              "da-DK": "Stemplet ud",
+              "cs-CZ": "Odchod",
+              "ar-EG": "وقت الانصراف",
+              "zh-CN": "下班打卡",
+              "zh-TW": "下班打卡"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Time clock entry",
+          "de-DE": "Stempelzeit",
+          "fr-FR": "Pointage",
+          "da-DK": "Stempling",
+          "cs-CZ": "Záznam docházky",
+          "ar-EG": "تسجيل حضور",
+          "zh-CN": "打卡记录",
+          "zh-TW": "打卡紀錄"
+        },
+        "labelPlural": {
+          "en-US": "Time clock",
+          "de-DE": "Zeiterfassung",
+          "fr-FR": "Pointages",
+          "da-DK": "Stempelur",
+          "cs-CZ": "Docházka",
+          "ar-EG": "سجل الحضور",
+          "zh-CN": "打卡",
+          "zh-TW": "打卡"
+        }
+      },
+      {
+        "ref": "shifts",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "opened_by",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Opened by",
+              "de-DE": "Geöffnet von",
+              "fr-FR": "Ouvert par",
+              "da-DK": "Åbnet af",
+              "cs-CZ": "Otevřel(a)",
+              "ar-EG": "فتحها",
+              "zh-CN": "开班人",
+              "zh-TW": "開班人"
+            }
+          },
+          {
+            "ref": "staff",
+            "type": "text",
+            "maxLength": 80,
+            "nullable": true,
+            "label": {
+              "en-US": "On shift",
+              "de-DE": "Im Dienst",
+              "fr-FR": "En service",
+              "da-DK": "På vagt",
+              "cs-CZ": "Ve směně",
+              "ar-EG": "في الوردية",
+              "zh-CN": "当班人员",
+              "zh-TW": "當班人員"
+            }
+          },
+          {
+            "ref": "started_at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "Started",
+              "de-DE": "Beginn",
+              "fr-FR": "Début",
+              "da-DK": "Startet",
+              "cs-CZ": "Začátek",
+              "ar-EG": "البداية",
+              "zh-CN": "开始",
+              "zh-TW": "開始"
+            }
+          },
+          {
+            "ref": "ended_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Ended",
+              "de-DE": "Ende",
+              "fr-FR": "Fin",
+              "da-DK": "Sluttet",
+              "cs-CZ": "Konec",
+              "ar-EG": "النهاية",
+              "zh-CN": "结束",
+              "zh-TW": "結束"
+            }
+          },
+          {
+            "ref": "opening_float",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Opening float",
+              "de-DE": "Wechselgeld zu Beginn",
+              "fr-FR": "Fond de caisse",
+              "da-DK": "Byttepenge ved start",
+              "cs-CZ": "Počáteční hotovost",
+              "ar-EG": "رصيد البداية",
+              "zh-CN": "备用金",
+              "zh-TW": "備用金"
+            }
+          },
+          {
+            "ref": "counted_cash",
+            "type": "money",
+            "nullable": true,
+            "label": {
+              "en-US": "Counted cash",
+              "de-DE": "Gezähltes Bargeld",
+              "fr-FR": "Espèces comptées",
+              "da-DK": "Optalte kontanter",
+              "cs-CZ": "Spočítaná hotovost",
+              "ar-EG": "النقد المعدود",
+              "zh-CN": "清点现金",
+              "zh-TW": "清點現金"
+            }
+          },
+          {
+            "ref": "expected_cash",
+            "type": "money",
+            "nullable": true,
+            "label": {
+              "en-US": "Expected cash",
+              "de-DE": "Erwartetes Bargeld",
+              "fr-FR": "Espèces attendues",
+              "da-DK": "Forventede kontanter",
+              "cs-CZ": "Očekávaná hotovost",
+              "ar-EG": "النقد المتوقع",
+              "zh-CN": "应有现金",
+              "zh-TW": "應有現金"
+            }
+          },
+          {
+            "ref": "over_short",
+            "type": "money",
+            "nullable": true,
+            "label": {
+              "en-US": "Over / short",
+              "de-DE": "Differenz",
+              "fr-FR": "Écart",
+              "da-DK": "Difference",
+              "cs-CZ": "Rozdíl",
+              "ar-EG": "الفرق",
+              "zh-CN": "长短款",
+              "zh-TW": "長短款"
+            }
+          },
+          {
+            "ref": "closed_by",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Closed by",
+              "de-DE": "Geschlossen von",
+              "fr-FR": "Clôturé par",
+              "da-DK": "Lukket af",
+              "cs-CZ": "Uzavřel(a)",
+              "ar-EG": "أغلقها",
+              "zh-CN": "结班人",
+              "zh-TW": "結班人"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Shift",
+          "de-DE": "Schicht",
+          "fr-FR": "Service",
+          "da-DK": "Vagt",
+          "cs-CZ": "Směna",
+          "ar-EG": "وردية",
+          "zh-CN": "班次",
+          "zh-TW": "班次"
+        },
+        "labelPlural": {
+          "en-US": "Shifts",
+          "de-DE": "Schichten",
+          "fr-FR": "Services",
+          "da-DK": "Vagter",
+          "cs-CZ": "Směny",
+          "ar-EG": "الورديات",
+          "zh-CN": "班次",
+          "zh-TW": "班次"
+        }
+      },
+      {
+        "ref": "tickets",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "number",
+            "type": "text",
+            "maxLength": 16,
+            "nullable": true,
+            "rules": {
+              "sequence": {
+                "start": 1001
+              }
+            },
+            "label": {
+              "en-US": "Number",
+              "de-DE": "Nummer",
+              "fr-FR": "Numéro",
+              "da-DK": "Nummer",
+              "cs-CZ": "Číslo",
+              "ar-EG": "الرقم",
+              "zh-CN": "编号",
+              "zh-TW": "編號"
+            }
+          },
+          {
+            "ref": "table_id",
+            "type": "fk",
+            "references": "restaurant_tables",
+            "nullable": true,
+            "label": {
+              "en-US": "Table",
+              "de-DE": "Tisch",
+              "fr-FR": "Table",
+              "da-DK": "Bord",
+              "cs-CZ": "Stůl",
+              "ar-EG": "طاولة",
+              "zh-CN": "桌台",
+              "zh-TW": "桌位"
+            }
+          },
+          {
+            "ref": "staff_id",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Staff member",
+              "de-DE": "Mitarbeiter",
+              "fr-FR": "Membre de l’équipe",
+              "da-DK": "Medarbejder",
+              "cs-CZ": "Zaměstnanec",
+              "ar-EG": "موظف",
+              "zh-CN": "员工",
+              "zh-TW": "員工"
+            }
+          },
+          {
+            "ref": "shift_id",
+            "type": "fk",
+            "references": "shifts",
+            "nullable": true,
+            "label": {
+              "en-US": "Shift",
+              "de-DE": "Schicht",
+              "fr-FR": "Service",
+              "da-DK": "Vagt",
+              "cs-CZ": "Směna",
+              "ar-EG": "وردية",
+              "zh-CN": "班次",
+              "zh-TW": "班次"
+            }
+          },
+          {
+            "ref": "guests",
+            "type": "int",
+            "default": 1,
+            "label": {
+              "en-US": "Guests",
+              "de-DE": "Gäste",
+              "fr-FR": "Couverts",
+              "da-DK": "Gæster",
+              "cs-CZ": "Hosté",
+              "ar-EG": "الضيوف",
+              "zh-CN": "人数",
+              "zh-TW": "人數"
+            }
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "open",
+              "sent",
+              "paid",
+              "void"
+            ],
+            "default": "open",
+            "label": {
+              "en-US": "Status",
+              "de-DE": "Status",
+              "fr-FR": "Statut",
+              "da-DK": "Status",
+              "cs-CZ": "Stav",
+              "ar-EG": "الحالة",
+              "zh-CN": "状态",
+              "zh-TW": "狀態"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "open": {
+                    "en-US": "Open",
+                    "de-DE": "Offen",
+                    "fr-FR": "Ouvert",
+                    "da-DK": "Åben",
+                    "cs-CZ": "Otevřený",
+                    "ar-EG": "مفتوحة",
+                    "zh-CN": "未结",
+                    "zh-TW": "未結"
+                  },
+                  "sent": {
+                    "en-US": "Sent",
+                    "de-DE": "Gesendet",
+                    "fr-FR": "Envoyé",
+                    "da-DK": "Sendt",
+                    "cs-CZ": "Odesláno",
+                    "ar-EG": "مُرسلة",
+                    "zh-CN": "已下单",
+                    "zh-TW": "已送出"
+                  },
+                  "paid": {
+                    "en-US": "Paid",
+                    "de-DE": "Bezahlt",
+                    "fr-FR": "Payé",
+                    "da-DK": "Betalt",
+                    "cs-CZ": "Zaplaceno",
+                    "ar-EG": "مدفوعة",
+                    "zh-CN": "已付款",
+                    "zh-TW": "已付款"
+                  },
+                  "void": {
+                    "en-US": "Void",
+                    "de-DE": "Storniert",
+                    "fr-FR": "Annulé",
+                    "da-DK": "Annulleret",
+                    "cs-CZ": "Stornováno",
+                    "ar-EG": "ملغاة",
+                    "zh-CN": "已作废",
+                    "zh-TW": "已作廢"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "kitchen_status",
+            "type": "enum",
+            "enum": [
+              "new",
+              "cooking",
+              "ready",
+              "served"
+            ],
+            "default": "new",
+            "label": {
+              "en-US": "Kitchen",
+              "de-DE": "Küche",
+              "fr-FR": "Cuisine",
+              "da-DK": "Køkken",
+              "cs-CZ": "Kuchyně",
+              "ar-EG": "المطبخ",
+              "zh-CN": "厨房",
+              "zh-TW": "廚房"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "new": {
+                    "en-US": "New",
+                    "de-DE": "Neu",
+                    "fr-FR": "Nouveau",
+                    "da-DK": "Ny",
+                    "cs-CZ": "Nové",
+                    "ar-EG": "جديدة",
+                    "zh-CN": "新单",
+                    "zh-TW": "新單"
+                  },
+                  "cooking": {
+                    "en-US": "Cooking",
+                    "de-DE": "In Zubereitung",
+                    "fr-FR": "En préparation",
+                    "da-DK": "Tilberedes",
+                    "cs-CZ": "Připravuje se",
+                    "ar-EG": "قيد التحضير",
+                    "zh-CN": "制作中",
+                    "zh-TW": "製作中"
+                  },
+                  "ready": {
+                    "en-US": "Ready",
+                    "de-DE": "Fertig",
+                    "fr-FR": "Prêt",
+                    "da-DK": "Klar",
+                    "cs-CZ": "Hotovo",
+                    "ar-EG": "جاهزة",
+                    "zh-CN": "待取餐",
+                    "zh-TW": "待取餐"
+                  },
+                  "served": {
+                    "en-US": "Served",
+                    "de-DE": "Serviert",
+                    "fr-FR": "Servi",
+                    "da-DK": "Serveret",
+                    "cs-CZ": "Podáno",
+                    "ar-EG": "قُدّمت",
+                    "zh-CN": "已上菜",
+                    "zh-TW": "已上菜"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "held",
+            "type": "bool",
+            "default": false,
+            "label": {
+              "en-US": "Held",
+              "de-DE": "Geparkt",
+              "fr-FR": "En attente",
+              "da-DK": "Parkeret",
+              "cs-CZ": "Odloženo",
+              "ar-EG": "معلقة",
+              "zh-CN": "挂单",
+              "zh-TW": "掛單"
+            }
+          },
+          {
+            "ref": "merged_into_id",
+            "type": "fk",
+            "references": "tickets",
+            "nullable": true,
+            "label": {
+              "en-US": "Merged into",
+              "de-DE": "Zusammengeführt mit",
+              "fr-FR": "Fusionné dans",
+              "da-DK": "Flettet ind i",
+              "cs-CZ": "Sloučeno do",
+              "ar-EG": "دُمجت في",
+              "zh-CN": "并入",
+              "zh-TW": "併入"
+            }
+          },
+          {
+            "ref": "discount_kind",
+            "type": "enum",
+            "enum": [
+              "percent",
+              "amount",
+              "comp"
+            ],
+            "nullable": true,
+            "label": {
+              "en-US": "Discount type",
+              "de-DE": "Rabattart",
+              "fr-FR": "Type de remise",
+              "da-DK": "Rabattype",
+              "cs-CZ": "Typ slevy",
+              "ar-EG": "نوع الخصم",
+              "zh-CN": "折扣类型",
+              "zh-TW": "折扣類型"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "percent": {
+                    "en-US": "Percent",
+                    "de-DE": "Prozent",
+                    "fr-FR": "Pourcentage",
+                    "da-DK": "Procent",
+                    "cs-CZ": "Procenta",
+                    "ar-EG": "نسبة مئوية",
+                    "zh-CN": "百分比",
+                    "zh-TW": "百分比"
+                  },
+                  "amount": {
+                    "en-US": "Amount",
+                    "de-DE": "Betrag",
+                    "fr-FR": "Montant",
+                    "da-DK": "Beløb",
+                    "cs-CZ": "Částka",
+                    "ar-EG": "مبلغ",
+                    "zh-CN": "金额",
+                    "zh-TW": "金額"
+                  },
+                  "comp": {
+                    "en-US": "On the house",
+                    "de-DE": "Aufs Haus",
+                    "fr-FR": "Offert",
+                    "da-DK": "På husets regning",
+                    "cs-CZ": "Na účet podniku",
+                    "ar-EG": "على حساب المحل",
+                    "zh-CN": "免单",
+                    "zh-TW": "招待"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "discount_value",
+            "type": "money",
+            "nullable": true,
+            "label": {
+              "en-US": "Discount",
+              "de-DE": "Rabatt",
+              "fr-FR": "Remise",
+              "da-DK": "Rabat",
+              "cs-CZ": "Sleva",
+              "ar-EG": "الخصم",
+              "zh-CN": "折扣",
+              "zh-TW": "折扣"
+            }
+          },
+          {
+            "ref": "discount_reason",
+            "type": "text",
+            "maxLength": 120,
+            "nullable": true,
+            "label": {
+              "en-US": "Discount reason",
+              "de-DE": "Rabattgrund",
+              "fr-FR": "Motif de la remise",
+              "da-DK": "Rabatårsag",
+              "cs-CZ": "Důvod slevy",
+              "ar-EG": "سبب الخصم",
+              "zh-CN": "折扣原因",
+              "zh-TW": "折扣原因"
+            }
+          },
+          {
+            "ref": "subtotal",
+            "type": "money",
+            "default": 0,
+            "rules": {
+              "rollup": {
+                "from": "ticket_items",
+                "via": "ticket_id",
+                "sum": "unit_price",
+                "times": "qty",
+                "unlessSet": "voided_at"
+              }
+            },
+            "label": {
+              "en-US": "Subtotal",
+              "de-DE": "Zwischensumme",
+              "fr-FR": "Sous-total",
+              "da-DK": "Subtotal",
+              "cs-CZ": "Mezisoučet",
+              "ar-EG": "المجموع الفرعي",
+              "zh-CN": "小计",
+              "zh-TW": "小計"
+            }
+          },
+          {
+            "ref": "tax",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Tax",
+              "de-DE": "Steuer",
+              "fr-FR": "Taxe",
+              "da-DK": "Moms",
+              "cs-CZ": "Daň",
+              "ar-EG": "الضريبة",
+              "zh-CN": "税额",
+              "zh-TW": "稅額"
+            }
+          },
+          {
+            "ref": "tip",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Tip",
+              "de-DE": "Trinkgeld",
+              "fr-FR": "Pourboire",
+              "da-DK": "Drikkepenge",
+              "cs-CZ": "Spropitné",
+              "ar-EG": "البقشيش",
+              "zh-CN": "小费",
+              "zh-TW": "小費"
+            }
+          },
+          {
+            "ref": "total",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Total",
+              "de-DE": "Gesamt",
+              "fr-FR": "Total",
+              "da-DK": "I alt",
+              "cs-CZ": "Celkem",
+              "ar-EG": "الإجمالي",
+              "zh-CN": "合计",
+              "zh-TW": "合計"
+            }
+          },
+          {
+            "ref": "reservation_id",
+            "type": "fk",
+            "references": "reservations",
+            "nullable": true,
+            "label": {
+              "en-US": "Reservation",
+              "de-DE": "Reservierung",
+              "fr-FR": "Réservation",
+              "da-DK": "Reservation",
+              "cs-CZ": "Rezervace",
+              "ar-EG": "حجز",
+              "zh-CN": "预订",
+              "zh-TW": "訂位"
+            }
+          },
+          {
+            "ref": "customer_id",
+            "type": "fk",
+            "references": "customers",
+            "nullable": true,
+            "label": {
+              "en-US": "Customer",
+              "de-DE": "Kunde",
+              "fr-FR": "Client",
+              "da-DK": "Kunde",
+              "cs-CZ": "Zákazník",
+              "ar-EG": "العميل",
+              "zh-CN": "顾客",
+              "zh-TW": "顧客"
+            }
+          },
+          {
+            "ref": "channel",
+            "type": "enum",
+            "enum": [
+              "till",
+              "phone",
+              "web",
+              "app"
+            ],
+            "nullable": true,
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "till": {
+                    "en-US": "Till",
+                    "de-DE": "Kasse",
+                    "fr-FR": "Caisse",
+                    "da-DK": "Kasse",
+                    "cs-CZ": "Pokladna",
+                    "ar-EG": "الكاشير",
+                    "zh-CN": "收银台",
+                    "zh-TW": "收銀台"
+                  },
+                  "phone": {
+                    "en-US": "Phone",
+                    "de-DE": "Telefon",
+                    "fr-FR": "Téléphone",
+                    "da-DK": "Telefon",
+                    "cs-CZ": "Telefon",
+                    "ar-EG": "الهاتف",
+                    "zh-CN": "电话",
+                    "zh-TW": "電話"
+                  },
+                  "web": {
+                    "en-US": "Web",
+                    "de-DE": "Web",
+                    "fr-FR": "Web",
+                    "da-DK": "Web",
+                    "cs-CZ": "Web",
+                    "ar-EG": "الويب",
+                    "zh-CN": "网站",
+                    "zh-TW": "網站"
+                  },
+                  "app": {
+                    "en-US": "App",
+                    "de-DE": "App",
+                    "fr-FR": "Appli",
+                    "da-DK": "App",
+                    "cs-CZ": "Aplikace",
+                    "ar-EG": "التطبيق",
+                    "zh-CN": "应用",
+                    "zh-TW": "應用程式"
+                  }
+                }
+              }
+            },
+            "label": {
+              "en-US": "Taken",
+              "de-DE": "Aufgenommen",
+              "fr-FR": "Prise",
+              "da-DK": "Taget",
+              "cs-CZ": "Přijato",
+              "ar-EG": "وصل عبر",
+              "zh-CN": "下单方式",
+              "zh-TW": "下單方式"
+            }
+          },
+          {
+            "ref": "pickup_code",
+            "type": "text",
+            "maxLength": 16,
+            "nullable": true,
+            "label": {
+              "en-US": "Pickup code",
+              "de-DE": "Abholcode",
+              "fr-FR": "Code de retrait",
+              "da-DK": "Afhentningskode",
+              "cs-CZ": "Kód k vyzvednutí",
+              "ar-EG": "رمز الاستلام",
+              "zh-CN": "取餐码",
+              "zh-TW": "取餐碼"
+            }
+          },
+          {
+            "ref": "pickup_stage",
+            "type": "enum",
+            "enum": [
+              "queued",
+              "making",
+              "ready",
+              "collected"
+            ],
+            "nullable": true,
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "queued": {
+                    "en-US": "Queued",
+                    "de-DE": "Wartend",
+                    "fr-FR": "En attente",
+                    "da-DK": "I kø",
+                    "cs-CZ": "Ve frontě",
+                    "ar-EG": "في الانتظار",
+                    "zh-CN": "排队中",
+                    "zh-TW": "排隊中"
+                  },
+                  "making": {
+                    "en-US": "Making",
+                    "de-DE": "In Arbeit",
+                    "fr-FR": "En préparation",
+                    "da-DK": "Laves",
+                    "cs-CZ": "Připravuje se",
+                    "ar-EG": "قيد التحضير",
+                    "zh-CN": "制作中",
+                    "zh-TW": "製作中"
+                  },
+                  "ready": {
+                    "en-US": "Ready",
+                    "de-DE": "Fertig",
+                    "fr-FR": "Prête",
+                    "da-DK": "Klar",
+                    "cs-CZ": "Hotovo",
+                    "ar-EG": "جاهزة",
+                    "zh-CN": "可取",
+                    "zh-TW": "可取"
+                  },
+                  "collected": {
+                    "en-US": "Collected",
+                    "de-DE": "Abgeholt",
+                    "fr-FR": "Retirée",
+                    "da-DK": "Afhentet",
+                    "cs-CZ": "Vyzvednuto",
+                    "ar-EG": "تم الاستلام",
+                    "zh-CN": "已取",
+                    "zh-TW": "已取"
+                  }
+                }
+              }
+            },
+            "label": {
+              "en-US": "Pickup",
+              "de-DE": "Abholung",
+              "fr-FR": "Retrait",
+              "da-DK": "Afhentning",
+              "cs-CZ": "Vyzvednutí",
+              "ar-EG": "الاستلام",
+              "zh-CN": "自取",
+              "zh-TW": "自取"
+            }
+          },
+          {
+            "ref": "ready_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Ready at",
+              "de-DE": "Fertig um",
+              "fr-FR": "Prête à",
+              "da-DK": "Klar kl.",
+              "cs-CZ": "Hotovo v",
+              "ar-EG": "جاهزة في",
+              "zh-CN": "可取时间",
+              "zh-TW": "可取時間"
+            }
+          },
+          {
+            "ref": "notified_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Notified at",
+              "de-DE": "Benachrichtigt um",
+              "fr-FR": "Prévenu·e à",
+              "da-DK": "Besked givet kl.",
+              "cs-CZ": "Upozorněno v",
+              "ar-EG": "أُبلغ في",
+              "zh-CN": "通知时间",
+              "zh-TW": "通知時間"
+            }
+          },
+          {
+            "ref": "signed_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Signed",
+              "de-DE": "Unterschrieben",
+              "fr-FR": "Signé le",
+              "da-DK": "Underskrevet",
+              "cs-CZ": "Podepsáno",
+              "ar-EG": "وقت التوقيع",
+              "zh-CN": "签名时间",
+              "zh-TW": "簽名時間"
+            }
+          },
+          {
+            "ref": "receipt_via",
+            "type": "enum",
+            "enum": [
+              "email",
+              "text",
+              "print",
+              "none"
+            ],
+            "nullable": true,
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "email": {
+                    "en-US": "Email",
+                    "de-DE": "E-Mail",
+                    "fr-FR": "E-mail",
+                    "da-DK": "E-mail",
+                    "cs-CZ": "E-mail",
+                    "ar-EG": "بريد إلكتروني",
+                    "zh-CN": "邮件",
+                    "zh-TW": "電子郵件"
+                  },
+                  "text": {
+                    "en-US": "Text",
+                    "de-DE": "SMS",
+                    "fr-FR": "SMS",
+                    "da-DK": "SMS",
+                    "cs-CZ": "SMS",
+                    "ar-EG": "رسالة نصية",
+                    "zh-CN": "短信",
+                    "zh-TW": "簡訊"
+                  },
+                  "print": {
+                    "en-US": "Printed",
+                    "de-DE": "Gedruckt",
+                    "fr-FR": "Imprimé",
+                    "da-DK": "Udskrevet",
+                    "cs-CZ": "Tištěná",
+                    "ar-EG": "مطبوع",
+                    "zh-CN": "纸质",
+                    "zh-TW": "紙本"
+                  },
+                  "none": {
+                    "en-US": "None",
+                    "de-DE": "Keiner",
+                    "fr-FR": "Aucun",
+                    "da-DK": "Ingen",
+                    "cs-CZ": "Žádná",
+                    "ar-EG": "بدون",
+                    "zh-CN": "不需要",
+                    "zh-TW": "不需要"
+                  }
+                }
+              }
+            },
+            "label": {
+              "en-US": "Receipt",
+              "de-DE": "Beleg",
+              "fr-FR": "Reçu",
+              "da-DK": "Kvittering",
+              "cs-CZ": "Účtenka",
+              "ar-EG": "الإيصال",
+              "zh-CN": "收据",
+              "zh-TW": "收據"
+            }
+          },
+          {
+            "ref": "receipt_to",
+            "type": "text",
+            "maxLength": 254,
+            "nullable": true,
+            "label": {
+              "en-US": "Receipt to",
+              "de-DE": "Beleg an",
+              "fr-FR": "Reçu à",
+              "da-DK": "Kvittering til",
+              "cs-CZ": "Účtenka na",
+              "ar-EG": "الإيصال إلى",
+              "zh-CN": "收据发送至",
+              "zh-TW": "收據寄至"
+            }
+          },
+          {
+            "ref": "opened_at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "Opened",
+              "de-DE": "Geöffnet",
+              "fr-FR": "Ouvert",
+              "da-DK": "Åbnet",
+              "cs-CZ": "Otevřeno",
+              "ar-EG": "فُتحت",
+              "zh-CN": "开单时间",
+              "zh-TW": "開單時間"
+            }
+          },
+          {
+            "ref": "sent_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Sent to kitchen",
+              "de-DE": "An die Küche gesendet",
+              "fr-FR": "Envoyé en cuisine",
+              "da-DK": "Sendt til køkkenet",
+              "cs-CZ": "Odesláno do kuchyně",
+              "ar-EG": "أُرسلت إلى المطبخ",
+              "zh-CN": "送厨时间",
+              "zh-TW": "送廚時間"
+            }
+          },
+          {
+            "ref": "closed_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Closed",
+              "de-DE": "Geschlossen",
+              "fr-FR": "Clôturé",
+              "da-DK": "Lukket",
+              "cs-CZ": "Uzavřeno",
+              "ar-EG": "أُغلقت",
+              "zh-CN": "结账时间",
+              "zh-TW": "結帳時間"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Ticket",
+          "de-DE": "Bon",
+          "fr-FR": "Ticket",
+          "da-DK": "Bon",
+          "cs-CZ": "Účet",
+          "ar-EG": "فاتورة",
+          "zh-CN": "账单",
+          "zh-TW": "訂單"
+        },
+        "labelPlural": {
+          "en-US": "Tickets",
+          "de-DE": "Bons",
+          "fr-FR": "Tickets",
+          "da-DK": "Bonner",
+          "cs-CZ": "Účty",
+          "ar-EG": "الفواتير",
+          "zh-CN": "账单",
+          "zh-TW": "訂單"
+        },
+        "keyField": "number"
+      },
+      {
+        "ref": "ticket_items",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "ticket_id",
+            "type": "fk",
+            "references": "tickets",
+            "label": {
+              "en-US": "Ticket",
+              "de-DE": "Bon",
+              "fr-FR": "Ticket",
+              "da-DK": "Bon",
+              "cs-CZ": "Účet",
+              "ar-EG": "فاتورة",
+              "zh-CN": "账单",
+              "zh-TW": "訂單"
+            }
+          },
+          {
+            "ref": "menu_item_id",
+            "type": "fk",
+            "references": "menu_items",
+            "nullable": true,
+            "label": {
+              "en-US": "Menu item",
+              "de-DE": "Artikel",
+              "fr-FR": "Article",
+              "da-DK": "Menupunkt",
+              "cs-CZ": "Položka menu",
+              "ar-EG": "صنف",
+              "zh-CN": "菜品",
+              "zh-TW": "菜品"
+            }
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "default": "",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "qty",
+            "type": "int",
+            "default": 1,
+            "label": {
+              "en-US": "Quantity",
+              "de-DE": "Menge",
+              "fr-FR": "Quantité",
+              "da-DK": "Antal",
+              "cs-CZ": "Množství",
+              "ar-EG": "الكمية",
+              "zh-CN": "数量",
+              "zh-TW": "數量"
+            }
+          },
+          {
+            "ref": "unit_price",
+            "type": "money",
+            "default": 0,
+            "rules": {
+              "copy": {
+                "via": "menu_item_id",
+                "from": "price"
+              }
+            },
+            "label": {
+              "en-US": "Unit price",
+              "de-DE": "Stückpreis",
+              "fr-FR": "Prix unitaire",
+              "da-DK": "Enhedspris",
+              "cs-CZ": "Jednotková cena",
+              "ar-EG": "سعر الوحدة",
+              "zh-CN": "单价",
+              "zh-TW": "單價"
+            }
+          },
+          {
+            "ref": "seat",
+            "type": "int",
+            "default": 1,
+            "label": {
+              "en-US": "Seat",
+              "de-DE": "Platz",
+              "fr-FR": "Place",
+              "da-DK": "Plads",
+              "cs-CZ": "Místo",
+              "ar-EG": "المقعد",
+              "zh-CN": "座位",
+              "zh-TW": "座位"
+            }
+          },
+          {
+            "ref": "notes",
+            "type": "text",
+            "maxLength": 280,
+            "nullable": true,
+            "label": {
+              "en-US": "Notes",
+              "de-DE": "Notizen",
+              "fr-FR": "Notes",
+              "da-DK": "Noter",
+              "cs-CZ": "Poznámky",
+              "ar-EG": "ملاحظات",
+              "zh-CN": "备注",
+              "zh-TW": "備註"
+            }
+          },
+          {
+            "ref": "sent_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Sent to kitchen",
+              "de-DE": "An die Küche gesendet",
+              "fr-FR": "Envoyé en cuisine",
+              "da-DK": "Sendt til køkkenet",
+              "cs-CZ": "Odesláno do kuchyně",
+              "ar-EG": "أُرسلت إلى المطبخ",
+              "zh-CN": "送厨时间",
+              "zh-TW": "送廚時間"
+            }
+          },
+          {
+            "ref": "voided_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Voided",
+              "de-DE": "Storniert",
+              "fr-FR": "Annulé",
+              "da-DK": "Annulleret",
+              "cs-CZ": "Stornováno",
+              "ar-EG": "أُلغيت",
+              "zh-CN": "作废时间",
+              "zh-TW": "作廢時間"
+            }
+          },
+          {
+            "ref": "void_reason",
+            "type": "text",
+            "maxLength": 120,
+            "nullable": true,
+            "label": {
+              "en-US": "Void reason",
+              "de-DE": "Stornogrund",
+              "fr-FR": "Motif d’annulation",
+              "da-DK": "Annulleringsårsag",
+              "cs-CZ": "Důvod storna",
+              "ar-EG": "سبب الإلغاء",
+              "zh-CN": "作废原因",
+              "zh-TW": "作廢原因"
+            }
+          },
+          {
+            "ref": "voided_by",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Voided by",
+              "de-DE": "Storniert von",
+              "fr-FR": "Annulé par",
+              "da-DK": "Annulleret af",
+              "cs-CZ": "Stornoval(a)",
+              "ar-EG": "ألغاها",
+              "zh-CN": "作废人",
+              "zh-TW": "作廢人"
+            }
+          },
+          {
+            "ref": "reward_id",
+            "type": "fk",
+            "references": "rewards",
+            "nullable": true,
+            "label": {
+              "en-US": "Reward",
+              "de-DE": "Prämie",
+              "fr-FR": "Récompense",
+              "da-DK": "Belønning",
+              "cs-CZ": "Odměna",
+              "ar-EG": "المكافأة",
+              "zh-CN": "奖励",
+              "zh-TW": "獎勵"
+            }
+          },
+          {
+            "ref": "gift_card_id",
+            "type": "fk",
+            "references": "gift_cards",
+            "nullable": true,
+            "label": {
+              "en-US": "Gift card",
+              "de-DE": "Gutscheinkarte",
+              "fr-FR": "Carte cadeau",
+              "da-DK": "Gavekort",
+              "cs-CZ": "Dárková karta",
+              "ar-EG": "بطاقة الهدية",
+              "zh-CN": "礼品卡",
+              "zh-TW": "禮物卡"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Ticket line",
+          "de-DE": "Bonposition",
+          "fr-FR": "Ligne de ticket",
+          "da-DK": "Bonlinje",
+          "cs-CZ": "Položka účtu",
+          "ar-EG": "بند الفاتورة",
+          "zh-CN": "账单明细",
+          "zh-TW": "訂單明細"
+        },
+        "labelPlural": {
+          "en-US": "Ticket lines",
+          "de-DE": "Bonpositionen",
+          "fr-FR": "Lignes de ticket",
+          "da-DK": "Bonlinjer",
+          "cs-CZ": "Položky účtu",
+          "ar-EG": "بنود الفاتورة",
+          "zh-CN": "账单明细",
+          "zh-TW": "訂單明細"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "ticket_item_modifiers",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "ticket_item_id",
+            "type": "fk",
+            "references": "ticket_items",
+            "label": {
+              "en-US": "Ticket line",
+              "de-DE": "Bonposition",
+              "fr-FR": "Ligne de ticket",
+              "da-DK": "Bonlinje",
+              "cs-CZ": "Položka účtu",
+              "ar-EG": "بند الفاتورة",
+              "zh-CN": "账单明细",
+              "zh-TW": "訂單明細"
+            }
+          },
+          {
+            "ref": "modifier_id",
+            "type": "fk",
+            "references": "modifiers",
+            "nullable": true,
+            "label": {
+              "en-US": "Option",
+              "de-DE": "Option",
+              "fr-FR": "Option",
+              "da-DK": "Valgmulighed",
+              "cs-CZ": "Možnost",
+              "ar-EG": "خيار",
+              "zh-CN": "选项",
+              "zh-TW": "選項"
+            }
+          },
+          {
+            "ref": "price_delta",
+            "type": "money",
+            "default": 0,
+            "rules": {
+              "copy": {
+                "via": "modifier_id",
+                "from": "price_delta"
+              }
+            },
+            "label": {
+              "en-US": "Extra charge",
+              "de-DE": "Aufpreis",
+              "fr-FR": "Supplément",
+              "da-DK": "Tillæg",
+              "cs-CZ": "Příplatek",
+              "ar-EG": "رسوم إضافية",
+              "zh-CN": "加价",
+              "zh-TW": "加價"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Line option",
+          "de-DE": "Positionsoption",
+          "fr-FR": "Option de ligne",
+          "da-DK": "Linjevalg",
+          "cs-CZ": "Možnost položky",
+          "ar-EG": "خيار البند",
+          "zh-CN": "明细选项",
+          "zh-TW": "明細選項"
+        },
+        "labelPlural": {
+          "en-US": "Line options",
+          "de-DE": "Positionsoptionen",
+          "fr-FR": "Options de ligne",
+          "da-DK": "Linjevalg",
+          "cs-CZ": "Možnosti položek",
+          "ar-EG": "خيارات البنود",
+          "zh-CN": "明细选项",
+          "zh-TW": "明細選項"
+        }
+      },
+      {
+        "ref": "payments",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "uuid",
+            "role": "pk"
+          },
+          {
+            "ref": "ticket_id",
+            "type": "fk",
+            "references": "tickets",
+            "label": {
+              "en-US": "Ticket",
+              "de-DE": "Bon",
+              "fr-FR": "Ticket",
+              "da-DK": "Bon",
+              "cs-CZ": "Účet",
+              "ar-EG": "فاتورة",
+              "zh-CN": "账单",
+              "zh-TW": "訂單"
+            }
+          },
+          {
+            "ref": "method",
+            "type": "enum",
+            "enum": [
+              "cash",
+              "card",
+              "qr",
+              "gift_card"
+            ],
+            "label": {
+              "en-US": "Method",
+              "de-DE": "Zahlungsart",
+              "fr-FR": "Moyen de paiement",
+              "da-DK": "Betalingsmåde",
+              "cs-CZ": "Způsob platby",
+              "ar-EG": "طريقة الدفع",
+              "zh-CN": "支付方式",
+              "zh-TW": "付款方式"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "cash": {
+                    "en-US": "Cash",
+                    "de-DE": "Bar",
+                    "fr-FR": "Espèces",
+                    "da-DK": "Kontant",
+                    "cs-CZ": "Hotově",
+                    "ar-EG": "نقدًا",
+                    "zh-CN": "现金",
+                    "zh-TW": "現金"
+                  },
+                  "card": {
+                    "en-US": "Card",
+                    "de-DE": "Karte",
+                    "fr-FR": "Carte",
+                    "da-DK": "Kort",
+                    "cs-CZ": "Kartou",
+                    "ar-EG": "بطاقة",
+                    "zh-CN": "银行卡",
+                    "zh-TW": "信用卡"
+                  },
+                  "qr": {
+                    "en-US": "QR code",
+                    "de-DE": "QR-Code",
+                    "fr-FR": "QR code",
+                    "da-DK": "QR-kode",
+                    "cs-CZ": "QR kód",
+                    "ar-EG": "رمز QR",
+                    "zh-CN": "二维码",
+                    "zh-TW": "QR 碼"
+                  },
+                  "gift_card": {
+                    "en-US": "Gift card",
+                    "de-DE": "Gutscheinkarte",
+                    "fr-FR": "Carte cadeau",
+                    "da-DK": "Gavekort",
+                    "cs-CZ": "Dárková karta",
+                    "ar-EG": "بطاقة هدية",
+                    "zh-CN": "礼品卡",
+                    "zh-TW": "禮物卡"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "amount",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Amount",
+              "de-DE": "Betrag",
+              "fr-FR": "Montant",
+              "da-DK": "Beløb",
+              "cs-CZ": "Částka",
+              "ar-EG": "المبلغ",
+              "zh-CN": "金额",
+              "zh-TW": "金額"
+            }
+          },
+          {
+            "ref": "tip",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Tip",
+              "de-DE": "Trinkgeld",
+              "fr-FR": "Pourboire",
+              "da-DK": "Drikkepenge",
+              "cs-CZ": "Spropitné",
+              "ar-EG": "البقشيش",
+              "zh-CN": "小费",
+              "zh-TW": "小費"
+            }
+          },
+          {
+            "ref": "tendered",
+            "type": "money",
+            "nullable": true,
+            "label": {
+              "en-US": "Tendered",
+              "de-DE": "Gegeben",
+              "fr-FR": "Remis",
+              "da-DK": "Modtaget",
+              "cs-CZ": "Přijato",
+              "ar-EG": "المبلغ المدفوع",
+              "zh-CN": "实收",
+              "zh-TW": "實收"
+            }
+          },
+          {
+            "ref": "change",
+            "type": "money",
+            "nullable": true,
+            "label": {
+              "en-US": "Change",
+              "de-DE": "Rückgeld",
+              "fr-FR": "Monnaie rendue",
+              "da-DK": "Byttepenge",
+              "cs-CZ": "Vráceno",
+              "ar-EG": "الباقي",
+              "zh-CN": "找零",
+              "zh-TW": "找零"
+            }
+          },
+          {
+            "ref": "reference",
+            "type": "text",
+            "maxLength": 64,
+            "nullable": true,
+            "label": {
+              "en-US": "Reference",
+              "de-DE": "Referenz",
+              "fr-FR": "Référence",
+              "da-DK": "Reference",
+              "cs-CZ": "Reference",
+              "ar-EG": "المرجع",
+              "zh-CN": "参考号",
+              "zh-TW": "參考號"
+            }
+          },
+          {
+            "ref": "paid_at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "Paid",
+              "de-DE": "Bezahlt",
+              "fr-FR": "Payé",
+              "da-DK": "Betalt",
+              "cs-CZ": "Zaplaceno",
+              "ar-EG": "وقت الدفع",
+              "zh-CN": "付款时间",
+              "zh-TW": "付款時間"
+            }
+          },
+          {
+            "ref": "staff_id",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Staff member",
+              "de-DE": "Mitarbeiter",
+              "fr-FR": "Membre de l’équipe",
+              "da-DK": "Medarbejder",
+              "cs-CZ": "Zaměstnanec",
+              "ar-EG": "موظف",
+              "zh-CN": "员工",
+              "zh-TW": "員工"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Payment",
+          "de-DE": "Zahlung",
+          "fr-FR": "Paiement",
+          "da-DK": "Betaling",
+          "cs-CZ": "Platba",
+          "ar-EG": "دفعة",
+          "zh-CN": "付款",
+          "zh-TW": "付款"
+        },
+        "labelPlural": {
+          "en-US": "Payments",
+          "de-DE": "Zahlungen",
+          "fr-FR": "Paiements",
+          "da-DK": "Betalinger",
+          "cs-CZ": "Platby",
+          "ar-EG": "المدفوعات",
+          "zh-CN": "付款",
+          "zh-TW": "付款"
+        }
+      },
+      {
+        "ref": "refunds",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "uuid",
+            "role": "pk"
+          },
+          {
+            "ref": "ticket_id",
+            "type": "fk",
+            "references": "tickets",
+            "label": {
+              "en-US": "Ticket",
+              "de-DE": "Bon",
+              "fr-FR": "Ticket",
+              "da-DK": "Bon",
+              "cs-CZ": "Účet",
+              "ar-EG": "فاتورة",
+              "zh-CN": "账单",
+              "zh-TW": "訂單"
+            }
+          },
+          {
+            "ref": "method",
+            "type": "enum",
+            "enum": [
+              "cash",
+              "card",
+              "qr",
+              "gift_card"
+            ],
+            "label": {
+              "en-US": "Method",
+              "de-DE": "Zahlungsart",
+              "fr-FR": "Moyen de paiement",
+              "da-DK": "Betalingsmåde",
+              "cs-CZ": "Způsob platby",
+              "ar-EG": "طريقة الدفع",
+              "zh-CN": "支付方式",
+              "zh-TW": "付款方式"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "cash": {
+                    "en-US": "Cash",
+                    "de-DE": "Bar",
+                    "fr-FR": "Espèces",
+                    "da-DK": "Kontant",
+                    "cs-CZ": "Hotově",
+                    "ar-EG": "نقدًا",
+                    "zh-CN": "现金",
+                    "zh-TW": "現金"
+                  },
+                  "card": {
+                    "en-US": "Card",
+                    "de-DE": "Karte",
+                    "fr-FR": "Carte",
+                    "da-DK": "Kort",
+                    "cs-CZ": "Kartou",
+                    "ar-EG": "بطاقة",
+                    "zh-CN": "银行卡",
+                    "zh-TW": "信用卡"
+                  },
+                  "qr": {
+                    "en-US": "QR code",
+                    "de-DE": "QR-Code",
+                    "fr-FR": "QR code",
+                    "da-DK": "QR-kode",
+                    "cs-CZ": "QR kód",
+                    "ar-EG": "رمز QR",
+                    "zh-CN": "二维码",
+                    "zh-TW": "QR 碼"
+                  },
+                  "gift_card": {
+                    "en-US": "Gift card",
+                    "de-DE": "Gutscheinkarte",
+                    "fr-FR": "Carte cadeau",
+                    "da-DK": "Gavekort",
+                    "cs-CZ": "Dárková karta",
+                    "ar-EG": "بطاقة هدية",
+                    "zh-CN": "礼品卡",
+                    "zh-TW": "禮物卡"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "amount",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Amount",
+              "de-DE": "Betrag",
+              "fr-FR": "Montant",
+              "da-DK": "Beløb",
+              "cs-CZ": "Částka",
+              "ar-EG": "المبلغ",
+              "zh-CN": "金额",
+              "zh-TW": "金額"
+            }
+          },
+          {
+            "ref": "tax",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Tax",
+              "de-DE": "Steuer",
+              "fr-FR": "Taxe",
+              "da-DK": "Moms",
+              "cs-CZ": "Daň",
+              "ar-EG": "الضريبة",
+              "zh-CN": "税额",
+              "zh-TW": "稅額"
+            }
+          },
+          {
+            "ref": "reason",
+            "type": "text",
+            "maxLength": 120,
+            "nullable": true,
+            "label": {
+              "en-US": "Reason",
+              "de-DE": "Grund",
+              "fr-FR": "Motif",
+              "da-DK": "Årsag",
+              "cs-CZ": "Důvod",
+              "ar-EG": "السبب",
+              "zh-CN": "原因",
+              "zh-TW": "原因"
+            }
+          },
+          {
+            "ref": "staff_id",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Staff member",
+              "de-DE": "Mitarbeiter",
+              "fr-FR": "Membre de l’équipe",
+              "da-DK": "Medarbejder",
+              "cs-CZ": "Zaměstnanec",
+              "ar-EG": "موظف",
+              "zh-CN": "员工",
+              "zh-TW": "員工"
+            }
+          },
+          {
+            "ref": "refunded_at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "Refunded",
+              "de-DE": "Erstattet",
+              "fr-FR": "Remboursé",
+              "da-DK": "Refunderet",
+              "cs-CZ": "Vráceno",
+              "ar-EG": "وقت الاسترداد",
+              "zh-CN": "退款时间",
+              "zh-TW": "退款時間"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Refund",
+          "de-DE": "Erstattung",
+          "fr-FR": "Remboursement",
+          "da-DK": "Refusion",
+          "cs-CZ": "Vrácení",
+          "ar-EG": "استرداد",
+          "zh-CN": "退款",
+          "zh-TW": "退款"
+        },
+        "labelPlural": {
+          "en-US": "Refunds",
+          "de-DE": "Erstattungen",
+          "fr-FR": "Remboursements",
+          "da-DK": "Refusioner",
+          "cs-CZ": "Vrácení",
+          "ar-EG": "المستردات",
+          "zh-CN": "退款",
+          "zh-TW": "退款"
+        }
+      },
+      {
+        "ref": "refund_items",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "uuid",
+            "role": "pk"
+          },
+          {
+            "ref": "refund_id",
+            "type": "fk",
+            "references": "refunds",
+            "label": {
+              "en-US": "Refund",
+              "de-DE": "Erstattung",
+              "fr-FR": "Remboursement",
+              "da-DK": "Refusion",
+              "cs-CZ": "Vrácení",
+              "ar-EG": "استرداد",
+              "zh-CN": "退款",
+              "zh-TW": "退款"
+            }
+          },
+          {
+            "ref": "ticket_item_id",
+            "type": "fk",
+            "references": "ticket_items",
+            "label": {
+              "en-US": "Ticket line",
+              "de-DE": "Bonposition",
+              "fr-FR": "Ligne de ticket",
+              "da-DK": "Bonlinje",
+              "cs-CZ": "Položka účtu",
+              "ar-EG": "بند الفاتورة",
+              "zh-CN": "账单明细",
+              "zh-TW": "訂單明細"
+            }
+          },
+          {
+            "ref": "qty",
+            "type": "int",
+            "default": 1,
+            "label": {
+              "en-US": "Quantity",
+              "de-DE": "Menge",
+              "fr-FR": "Quantité",
+              "da-DK": "Antal",
+              "cs-CZ": "Množství",
+              "ar-EG": "الكمية",
+              "zh-CN": "数量",
+              "zh-TW": "數量"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Refund line",
+          "de-DE": "Erstattungsposition",
+          "fr-FR": "Ligne de remboursement",
+          "da-DK": "Refusionslinje",
+          "cs-CZ": "Položka vrácení",
+          "ar-EG": "بند الاسترداد",
+          "zh-CN": "退款明细",
+          "zh-TW": "退款明細"
+        },
+        "labelPlural": {
+          "en-US": "Refund lines",
+          "de-DE": "Erstattungspositionen",
+          "fr-FR": "Lignes de remboursement",
+          "da-DK": "Refusionslinjer",
+          "cs-CZ": "Položky vrácení",
+          "ar-EG": "بنود الاسترداد",
+          "zh-CN": "退款明细",
+          "zh-TW": "退款明細"
+        }
+      },
+      {
+        "ref": "reservations",
+        "capacity": {
+          "slot": "starts_at",
+          "amount": "party_size",
+          "perSlot": {
+            "table": "booking_rules",
+            "column": "covers_per_slot"
+          },
+          "countWhere": {
+            "column": "status",
+            "values": [
+              "confirmed",
+              "seated"
+            ]
+          },
+          "slotMinutes": {
+            "table": "booking_rules",
+            "column": "slot_minutes"
+          },
+          "windowDays": {
+            "table": "booking_rules",
+            "column": "days_ahead"
+          },
+          "opens": {
+            "table": "booking_rules",
+            "column": "opens"
+          },
+          "closes": {
+            "table": "booking_rules",
+            "column": "closes"
+          },
+          "cancelHours": {
+            "table": "booking_rules",
+            "column": "cancel_hours"
+          }
+        },
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "code",
+            "type": "text",
+            "maxLength": 12,
+            "nullable": true,
+            "rules": {
+              "code": {
+                "prefix": "MR-",
+                "length": 4
+              }
+            },
+            "label": {
+              "en-US": "Code",
+              "de-DE": "Code",
+              "fr-FR": "Code",
+              "da-DK": "Kode",
+              "cs-CZ": "Kód",
+              "ar-EG": "الرمز",
+              "zh-CN": "预订码",
+              "zh-TW": "訂位代碼"
+            }
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "semantic": "name",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "mobile",
+            "type": "text",
+            "maxLength": 32,
+            "nullable": true,
+            "rules": {
+              "validation": {
+                "format": "phone"
+              }
+            },
+            "label": {
+              "en-US": "Mobile",
+              "de-DE": "Mobilnummer",
+              "fr-FR": "Mobile",
+              "da-DK": "Mobilnummer",
+              "cs-CZ": "Mobil",
+              "ar-EG": "رقم الجوال",
+              "zh-CN": "手机号",
+              "zh-TW": "手機號碼"
+            }
+          },
+          {
+            "ref": "email",
+            "type": "text",
+            "maxLength": 254,
+            "nullable": true,
+            "semantic": "email",
+            "rules": {
+              "validation": {
+                "format": "email"
+              }
+            },
+            "label": {
+              "en-US": "Email",
+              "de-DE": "E-Mail",
+              "fr-FR": "E-mail",
+              "da-DK": "E-mail",
+              "cs-CZ": "E-mail",
+              "ar-EG": "البريد الإلكتروني",
+              "zh-CN": "电子邮件",
+              "zh-TW": "電子郵件"
+            }
+          },
+          {
+            "ref": "party_size",
+            "type": "int",
+            "default": 2,
+            "label": {
+              "en-US": "Party size",
+              "de-DE": "Personen",
+              "fr-FR": "Nombre de couverts",
+              "da-DK": "Antal personer",
+              "cs-CZ": "Počet osob",
+              "ar-EG": "عدد الأشخاص",
+              "zh-CN": "人数",
+              "zh-TW": "人數"
+            }
+          },
+          {
+            "ref": "starts_at",
+            "type": "timestamptz",
+            "rules": {
+              "venueLocal": true
+            },
+            "label": {
+              "en-US": "Date and time",
+              "de-DE": "Datum und Uhrzeit",
+              "fr-FR": "Date et heure",
+              "da-DK": "Dato og tid",
+              "cs-CZ": "Datum a čas",
+              "ar-EG": "التاريخ والوقت",
+              "zh-CN": "日期和时间",
+              "zh-TW": "日期與時間"
+            }
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "confirmed",
+              "seated",
+              "no_show",
+              "cancelled"
+            ],
+            "default": "confirmed",
+            "label": {
+              "en-US": "Status",
+              "de-DE": "Status",
+              "fr-FR": "Statut",
+              "da-DK": "Status",
+              "cs-CZ": "Stav",
+              "ar-EG": "الحالة",
+              "zh-CN": "状态",
+              "zh-TW": "狀態"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "confirmed": {
+                    "en-US": "Confirmed",
+                    "de-DE": "Bestätigt",
+                    "fr-FR": "Confirmée",
+                    "da-DK": "Bekræftet",
+                    "cs-CZ": "Potvrzeno",
+                    "ar-EG": "مؤكد",
+                    "zh-CN": "已确认",
+                    "zh-TW": "已確認"
+                  },
+                  "seated": {
+                    "en-US": "Seated",
+                    "de-DE": "Platziert",
+                    "fr-FR": "Installé",
+                    "da-DK": "Placeret",
+                    "cs-CZ": "Usazeno",
+                    "ar-EG": "جالس",
+                    "zh-CN": "已入座",
+                    "zh-TW": "已入座"
+                  },
+                  "no_show": {
+                    "en-US": "No-show",
+                    "de-DE": "Nicht erschienen",
+                    "fr-FR": "Absent",
+                    "da-DK": "Udeblevet",
+                    "cs-CZ": "Nedostavil se",
+                    "ar-EG": "لم يحضر",
+                    "zh-CN": "未到店",
+                    "zh-TW": "未到店"
+                  },
+                  "cancelled": {
+                    "en-US": "Cancelled",
+                    "de-DE": "Storniert",
+                    "fr-FR": "Annulée",
+                    "da-DK": "Aflyst",
+                    "cs-CZ": "Zrušeno",
+                    "ar-EG": "ملغى",
+                    "zh-CN": "已取消",
+                    "zh-TW": "已取消"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "channel",
+            "type": "enum",
+            "enum": [
+              "online",
+              "phone",
+              "walk_in"
+            ],
+            "default": "phone",
+            "label": {
+              "en-US": "Booked via",
+              "de-DE": "Gebucht über",
+              "fr-FR": "Réservé via",
+              "da-DK": "Booket via",
+              "cs-CZ": "Rezervováno přes",
+              "ar-EG": "الحجز عبر",
+              "zh-CN": "预订渠道",
+              "zh-TW": "訂位管道"
+            },
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "online": {
+                    "en-US": "Online",
+                    "de-DE": "Online",
+                    "fr-FR": "En ligne",
+                    "da-DK": "Online",
+                    "cs-CZ": "Online",
+                    "ar-EG": "عبر الإنترنت",
+                    "zh-CN": "线上",
+                    "zh-TW": "線上"
+                  },
+                  "phone": {
+                    "en-US": "Phone",
+                    "de-DE": "Telefon",
+                    "fr-FR": "Téléphone",
+                    "da-DK": "Telefon",
+                    "cs-CZ": "Telefon",
+                    "ar-EG": "الهاتف",
+                    "zh-CN": "电话",
+                    "zh-TW": "電話"
+                  },
+                  "walk_in": {
+                    "en-US": "Walk-in",
+                    "de-DE": "Ohne Reservierung",
+                    "fr-FR": "Sans réservation",
+                    "da-DK": "Walk-in",
+                    "cs-CZ": "Bez rezervace",
+                    "ar-EG": "بدون حجز",
+                    "zh-CN": "现场到店",
+                    "zh-TW": "現場到店"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "ref": "table_id",
+            "type": "fk",
+            "references": "restaurant_tables",
+            "nullable": true,
+            "label": {
+              "en-US": "Table",
+              "de-DE": "Tisch",
+              "fr-FR": "Table",
+              "da-DK": "Bord",
+              "cs-CZ": "Stůl",
+              "ar-EG": "طاولة",
+              "zh-CN": "桌台",
+              "zh-TW": "桌位"
+            }
+          },
+          {
+            "ref": "occasion",
+            "type": "text",
+            "maxLength": 40,
+            "nullable": true,
+            "label": {
+              "en-US": "Occasion",
+              "de-DE": "Anlass",
+              "fr-FR": "Occasion",
+              "da-DK": "Anledning",
+              "cs-CZ": "Příležitost",
+              "ar-EG": "المناسبة",
+              "zh-CN": "场合",
+              "zh-TW": "場合"
+            }
+          },
+          {
+            "ref": "guest_request",
+            "type": "text",
+            "maxLength": 280,
+            "nullable": true,
+            "label": {
+              "en-US": "Guest request",
+              "de-DE": "Gästewunsch",
+              "fr-FR": "Demande du client",
+              "da-DK": "Gæstens ønske",
+              "cs-CZ": "Přání hosta",
+              "ar-EG": "طلب الضيف",
+              "zh-CN": "顾客要求",
+              "zh-TW": "顧客需求"
+            }
+          },
+          {
+            "ref": "staff_note",
+            "type": "text",
+            "maxLength": 280,
+            "nullable": true,
+            "label": {
+              "en-US": "Staff note",
+              "de-DE": "Notiz fürs Team",
+              "fr-FR": "Note interne",
+              "da-DK": "Note til personalet",
+              "cs-CZ": "Poznámka pro personál",
+              "ar-EG": "ملاحظة الموظفين",
+              "zh-CN": "员工备注",
+              "zh-TW": "員工備註"
+            }
+          },
+          {
+            "ref": "created_at",
+            "type": "timestamptz",
+            "role": "created_at",
+            "default": "now",
+            "label": {
+              "en-US": "Booked",
+              "de-DE": "Gebucht",
+              "fr-FR": "Réservé le",
+              "da-DK": "Booket",
+              "cs-CZ": "Rezervováno",
+              "ar-EG": "وقت الحجز",
+              "zh-CN": "预订时间",
+              "zh-TW": "訂位時間"
+            }
+          },
+          {
+            "ref": "seated_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Seated",
+              "de-DE": "Platziert",
+              "fr-FR": "Installé",
+              "da-DK": "Placeret",
+              "cs-CZ": "Usazeno",
+              "ar-EG": "وقت الجلوس",
+              "zh-CN": "入座时间",
+              "zh-TW": "入座時間"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Reservation",
+          "de-DE": "Reservierung",
+          "fr-FR": "Réservation",
+          "da-DK": "Reservation",
+          "cs-CZ": "Rezervace",
+          "ar-EG": "حجز",
+          "zh-CN": "预订",
+          "zh-TW": "訂位"
+        },
+        "labelPlural": {
+          "en-US": "Reservations",
+          "de-DE": "Reservierungen",
+          "fr-FR": "Réservations",
+          "da-DK": "Reservationer",
+          "cs-CZ": "Rezervace",
+          "ar-EG": "الحجوزات",
+          "zh-CN": "预订",
+          "zh-TW": "訂位"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "customers",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "member_no",
+            "type": "text",
+            "maxLength": 16,
+            "nullable": true,
+            "rules": {
+              "sequence": {
+                "start": 1001
+              }
+            },
+            "label": {
+              "en-US": "Member number",
+              "de-DE": "Mitgliedsnummer",
+              "fr-FR": "Numéro de membre",
+              "da-DK": "Medlemsnummer",
+              "cs-CZ": "Číslo člena",
+              "ar-EG": "رقم العضوية",
+              "zh-CN": "会员号",
+              "zh-TW": "會員編號"
+            }
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "semantic": "name",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Jméno",
+              "ar-EG": "الاسم",
+              "zh-CN": "姓名",
+              "zh-TW": "姓名"
+            }
+          },
+          {
+            "ref": "mobile",
+            "type": "text",
+            "maxLength": 32,
+            "rules": {
+              "validation": {
+                "format": "phone"
+              },
+              "personal": false
+            },
+            "label": {
+              "en-US": "Mobile",
+              "de-DE": "Handy",
+              "fr-FR": "Mobile",
+              "da-DK": "Mobil",
+              "cs-CZ": "Mobil",
+              "ar-EG": "الجوال",
+              "zh-CN": "手机",
+              "zh-TW": "手機"
+            }
+          },
+          {
+            "ref": "email",
+            "type": "text",
+            "maxLength": 254,
+            "nullable": true,
+            "semantic": "email",
+            "rules": {
+              "validation": {
+                "format": "email"
+              }
+            },
+            "label": {
+              "en-US": "Email",
+              "de-DE": "E-Mail",
+              "fr-FR": "E-mail",
+              "da-DK": "E-mail",
+              "cs-CZ": "E-mail",
+              "ar-EG": "البريد الإلكتروني",
+              "zh-CN": "电子邮箱",
+              "zh-TW": "電子郵件"
+            }
+          },
+          {
+            "ref": "joined_at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "Joined",
+              "de-DE": "Beigetreten",
+              "fr-FR": "Inscrit le",
+              "da-DK": "Tilmeldt",
+              "cs-CZ": "Registrován",
+              "ar-EG": "تاريخ الانضمام",
+              "zh-CN": "入会时间",
+              "zh-TW": "入會時間"
+            }
+          },
+          {
+            "ref": "points",
+            "type": "int",
+            "default": 0,
+            "rules": {
+              "rollup": {
+                "from": "loyalty_ledger",
+                "via": "customer_id",
+                "sum": "points"
+              }
+            },
+            "label": {
+              "en-US": "Points",
+              "de-DE": "Punkte",
+              "fr-FR": "Points",
+              "da-DK": "Point",
+              "cs-CZ": "Body",
+              "ar-EG": "النقاط",
+              "zh-CN": "积分",
+              "zh-TW": "點數"
+            }
+          },
+          {
+            "ref": "lifetime_points",
+            "type": "int",
+            "default": 0,
+            "rules": {
+              "rollup": {
+                "from": "loyalty_ledger",
+                "via": "customer_id",
+                "sum": "points",
+                "unlessSet": "reward_id"
+              }
+            },
+            "label": {
+              "en-US": "Points earned",
+              "de-DE": "Gesammelte Punkte",
+              "fr-FR": "Points gagnés",
+              "da-DK": "Optjente point",
+              "cs-CZ": "Získané body",
+              "ar-EG": "النقاط المكتسبة",
+              "zh-CN": "累计积分",
+              "zh-TW": "累積點數"
+            }
+          },
+          {
+            "ref": "visits",
+            "type": "int",
+            "default": 0,
+            "rules": {
+              "rollup": {
+                "from": "loyalty_ledger",
+                "via": "customer_id",
+                "sum": "visit"
+              }
+            },
+            "label": {
+              "en-US": "Visits",
+              "de-DE": "Besuche",
+              "fr-FR": "Visites",
+              "da-DK": "Besøg",
+              "cs-CZ": "Návštěvy",
+              "ar-EG": "الزيارات",
+              "zh-CN": "到店次数",
+              "zh-TW": "到店次數"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Customer",
+          "de-DE": "Kunde",
+          "fr-FR": "Client",
+          "da-DK": "Kunde",
+          "cs-CZ": "Zákazník",
+          "ar-EG": "عميل",
+          "zh-CN": "顾客",
+          "zh-TW": "顧客"
+        },
+        "labelPlural": {
+          "en-US": "Customers",
+          "de-DE": "Kunden",
+          "fr-FR": "Clients",
+          "da-DK": "Kunder",
+          "cs-CZ": "Zákazníci",
+          "ar-EG": "العملاء",
+          "zh-CN": "顾客",
+          "zh-TW": "顧客"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "rewards",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "name",
+            "type": "text",
+            "maxLength": 80,
+            "semantic": "name",
+            "label": {
+              "en-US": "Name",
+              "de-DE": "Name",
+              "fr-FR": "Nom",
+              "da-DK": "Navn",
+              "cs-CZ": "Název",
+              "ar-EG": "الاسم",
+              "zh-CN": "名称",
+              "zh-TW": "名稱"
+            }
+          },
+          {
+            "ref": "points",
+            "type": "int",
+            "default": 100,
+            "rules": {
+              "validation": {
+                "min": 1
+              }
+            },
+            "label": {
+              "en-US": "Points",
+              "de-DE": "Punkte",
+              "fr-FR": "Points",
+              "da-DK": "Point",
+              "cs-CZ": "Body",
+              "ar-EG": "النقاط",
+              "zh-CN": "所需积分",
+              "zh-TW": "所需點數"
+            }
+          },
+          {
+            "ref": "menu_item_id",
+            "type": "fk",
+            "references": "menu_items",
+            "label": {
+              "en-US": "Item",
+              "de-DE": "Artikel",
+              "fr-FR": "Article",
+              "da-DK": "Vare",
+              "cs-CZ": "Položka",
+              "ar-EG": "الصنف",
+              "zh-CN": "商品",
+              "zh-TW": "品項"
+            }
+          },
+          {
+            "ref": "icon",
+            "type": "text",
+            "maxLength": 40,
+            "nullable": true,
+            "label": {
+              "en-US": "Icon",
+              "de-DE": "Symbol",
+              "fr-FR": "Icône",
+              "da-DK": "Ikon",
+              "cs-CZ": "Ikona",
+              "ar-EG": "الأيقونة",
+              "zh-CN": "图标",
+              "zh-TW": "圖示"
+            }
+          },
+          {
+            "ref": "active",
+            "type": "bool",
+            "default": true,
+            "label": {
+              "en-US": "Active",
+              "de-DE": "Aktiv",
+              "fr-FR": "Active",
+              "da-DK": "Aktiv",
+              "cs-CZ": "Aktivní",
+              "ar-EG": "نشطة",
+              "zh-CN": "启用",
+              "zh-TW": "啟用"
+            }
+          },
+          {
+            "ref": "position",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Position",
+              "de-DE": "Reihenfolge",
+              "fr-FR": "Ordre",
+              "da-DK": "Rækkefølge",
+              "cs-CZ": "Pořadí",
+              "ar-EG": "الترتيب",
+              "zh-CN": "排序",
+              "zh-TW": "排序"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Reward",
+          "de-DE": "Prämie",
+          "fr-FR": "Récompense",
+          "da-DK": "Belønning",
+          "cs-CZ": "Odměna",
+          "ar-EG": "مكافأة",
+          "zh-CN": "奖励",
+          "zh-TW": "獎勵"
+        },
+        "labelPlural": {
+          "en-US": "Rewards",
+          "de-DE": "Prämien",
+          "fr-FR": "Récompenses",
+          "da-DK": "Belønninger",
+          "cs-CZ": "Odměny",
+          "ar-EG": "المكافآت",
+          "zh-CN": "奖励",
+          "zh-TW": "獎勵"
+        },
+        "keyField": "name"
+      },
+      {
+        "ref": "loyalty_ledger",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "uuid",
+            "role": "pk"
+          },
+          {
+            "ref": "customer_id",
+            "type": "fk",
+            "references": "customers",
+            "label": {
+              "en-US": "Customer",
+              "de-DE": "Kunde",
+              "fr-FR": "Client",
+              "da-DK": "Kunde",
+              "cs-CZ": "Zákazník",
+              "ar-EG": "العميل",
+              "zh-CN": "顾客",
+              "zh-TW": "顧客"
+            }
+          },
+          {
+            "ref": "kind",
+            "type": "enum",
+            "enum": [
+              "earn",
+              "redeem",
+              "adjust"
+            ],
+            "default": "earn",
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "earn": {
+                    "en-US": "Earned",
+                    "de-DE": "Gesammelt",
+                    "fr-FR": "Gagnés",
+                    "da-DK": "Optjent",
+                    "cs-CZ": "Získáno",
+                    "ar-EG": "مكتسبة",
+                    "zh-CN": "获得",
+                    "zh-TW": "獲得"
+                  },
+                  "redeem": {
+                    "en-US": "Redeemed",
+                    "de-DE": "Eingelöst",
+                    "fr-FR": "Utilisés",
+                    "da-DK": "Indløst",
+                    "cs-CZ": "Uplatněno",
+                    "ar-EG": "مستبدلة",
+                    "zh-CN": "兑换",
+                    "zh-TW": "兌換"
+                  },
+                  "adjust": {
+                    "en-US": "Adjusted",
+                    "de-DE": "Korrigiert",
+                    "fr-FR": "Ajustés",
+                    "da-DK": "Justeret",
+                    "cs-CZ": "Upraveno",
+                    "ar-EG": "معدّلة",
+                    "zh-CN": "调整",
+                    "zh-TW": "調整"
+                  }
+                }
+              }
+            },
+            "label": {
+              "en-US": "Kind",
+              "de-DE": "Art",
+              "fr-FR": "Type",
+              "da-DK": "Type",
+              "cs-CZ": "Druh",
+              "ar-EG": "النوع",
+              "zh-CN": "类型",
+              "zh-TW": "類型"
+            }
+          },
+          {
+            "ref": "points",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Points",
+              "de-DE": "Punkte",
+              "fr-FR": "Points",
+              "da-DK": "Point",
+              "cs-CZ": "Body",
+              "ar-EG": "النقاط",
+              "zh-CN": "积分",
+              "zh-TW": "點數"
+            }
+          },
+          {
+            "ref": "visit",
+            "type": "int",
+            "default": 0,
+            "label": {
+              "en-US": "Visit",
+              "de-DE": "Besuch",
+              "fr-FR": "Visite",
+              "da-DK": "Besøg",
+              "cs-CZ": "Návštěva",
+              "ar-EG": "زيارة",
+              "zh-CN": "到店",
+              "zh-TW": "到店"
+            }
+          },
+          {
+            "ref": "reward_id",
+            "type": "fk",
+            "references": "rewards",
+            "nullable": true,
+            "label": {
+              "en-US": "Reward",
+              "de-DE": "Prämie",
+              "fr-FR": "Récompense",
+              "da-DK": "Belønning",
+              "cs-CZ": "Odměna",
+              "ar-EG": "المكافأة",
+              "zh-CN": "奖励",
+              "zh-TW": "獎勵"
+            }
+          },
+          {
+            "ref": "ticket_id",
+            "type": "fk",
+            "references": "tickets",
+            "nullable": true,
+            "label": {
+              "en-US": "Ticket",
+              "de-DE": "Bon",
+              "fr-FR": "Ticket",
+              "da-DK": "Bon",
+              "cs-CZ": "Účet",
+              "ar-EG": "الفاتورة",
+              "zh-CN": "订单",
+              "zh-TW": "訂單"
+            }
+          },
+          {
+            "ref": "note",
+            "type": "text",
+            "maxLength": 200,
+            "nullable": true,
+            "label": {
+              "en-US": "Note",
+              "de-DE": "Notiz",
+              "fr-FR": "Note",
+              "da-DK": "Note",
+              "cs-CZ": "Poznámka",
+              "ar-EG": "ملاحظة",
+              "zh-CN": "备注",
+              "zh-TW": "備註"
+            }
+          },
+          {
+            "ref": "staff_id",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Staff",
+              "de-DE": "Mitarbeiter",
+              "fr-FR": "Employé",
+              "da-DK": "Medarbejder",
+              "cs-CZ": "Zaměstnanec",
+              "ar-EG": "الموظف",
+              "zh-CN": "员工",
+              "zh-TW": "員工"
+            }
+          },
+          {
+            "ref": "at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "When",
+              "de-DE": "Zeitpunkt",
+              "fr-FR": "Date",
+              "da-DK": "Tidspunkt",
+              "cs-CZ": "Kdy",
+              "ar-EG": "الوقت",
+              "zh-CN": "时间",
+              "zh-TW": "時間"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Points entry",
+          "de-DE": "Punktebuchung",
+          "fr-FR": "Mouvement de points",
+          "da-DK": "Pointpostering",
+          "cs-CZ": "Pohyb bodů",
+          "ar-EG": "حركة نقاط",
+          "zh-CN": "积分记录",
+          "zh-TW": "點數紀錄"
+        },
+        "labelPlural": {
+          "en-US": "Points history",
+          "de-DE": "Punkteverlauf",
+          "fr-FR": "Historique des points",
+          "da-DK": "Pointhistorik",
+          "cs-CZ": "Historie bodů",
+          "ar-EG": "سجل النقاط",
+          "zh-CN": "积分明细",
+          "zh-TW": "點數明細"
+        }
+      },
+      {
+        "ref": "gift_cards",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "code",
+            "type": "text",
+            "maxLength": 16,
+            "nullable": true,
+            "rules": {
+              "code": {
+                "prefix": "GC-",
+                "length": 8
+              }
+            },
+            "label": {
+              "en-US": "Code",
+              "de-DE": "Code",
+              "fr-FR": "Code",
+              "da-DK": "Kode",
+              "cs-CZ": "Kód",
+              "ar-EG": "الرمز",
+              "zh-CN": "卡号",
+              "zh-TW": "卡號"
+            }
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "inactive",
+              "active",
+              "void"
+            ],
+            "default": "inactive",
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "inactive": {
+                    "en-US": "Not sold yet",
+                    "de-DE": "Noch nicht verkauft",
+                    "fr-FR": "Pas encore vendue",
+                    "da-DK": "Ikke solgt endnu",
+                    "cs-CZ": "Zatím neprodaná",
+                    "ar-EG": "لم تُبع بعد",
+                    "zh-CN": "未售出",
+                    "zh-TW": "未售出"
+                  },
+                  "active": {
+                    "en-US": "Active",
+                    "de-DE": "Aktiv",
+                    "fr-FR": "Active",
+                    "da-DK": "Aktiv",
+                    "cs-CZ": "Aktivní",
+                    "ar-EG": "نشطة",
+                    "zh-CN": "有效",
+                    "zh-TW": "有效"
+                  },
+                  "void": {
+                    "en-US": "Cancelled",
+                    "de-DE": "Gesperrt",
+                    "fr-FR": "Annulée",
+                    "da-DK": "Annulleret",
+                    "cs-CZ": "Zrušená",
+                    "ar-EG": "ملغاة",
+                    "zh-CN": "已作废",
+                    "zh-TW": "已作廢"
+                  }
+                }
+              }
+            },
+            "label": {
+              "en-US": "Status",
+              "de-DE": "Status",
+              "fr-FR": "Statut",
+              "da-DK": "Status",
+              "cs-CZ": "Stav",
+              "ar-EG": "الحالة",
+              "zh-CN": "状态",
+              "zh-TW": "狀態"
+            }
+          },
+          {
+            "ref": "balance",
+            "type": "money",
+            "default": 0,
+            "rules": {
+              "rollup": {
+                "from": "gift_card_ledger",
+                "via": "card_id",
+                "sum": "amount"
+              }
+            },
+            "label": {
+              "en-US": "Balance",
+              "de-DE": "Guthaben",
+              "fr-FR": "Solde",
+              "da-DK": "Saldo",
+              "cs-CZ": "Zůstatek",
+              "ar-EG": "الرصيد",
+              "zh-CN": "余额",
+              "zh-TW": "餘額"
+            }
+          },
+          {
+            "ref": "issued_at",
+            "type": "timestamptz",
+            "nullable": true,
+            "label": {
+              "en-US": "Sold",
+              "de-DE": "Verkauft",
+              "fr-FR": "Vendue le",
+              "da-DK": "Solgt",
+              "cs-CZ": "Prodáno",
+              "ar-EG": "تاريخ البيع",
+              "zh-CN": "售出时间",
+              "zh-TW": "售出時間"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Gift card",
+          "de-DE": "Gutscheinkarte",
+          "fr-FR": "Carte cadeau",
+          "da-DK": "Gavekort",
+          "cs-CZ": "Dárková karta",
+          "ar-EG": "بطاقة هدية",
+          "zh-CN": "礼品卡",
+          "zh-TW": "禮物卡"
+        },
+        "labelPlural": {
+          "en-US": "Gift cards",
+          "de-DE": "Gutscheinkarten",
+          "fr-FR": "Cartes cadeaux",
+          "da-DK": "Gavekort",
+          "cs-CZ": "Dárkové karty",
+          "ar-EG": "بطاقات الهدايا",
+          "zh-CN": "礼品卡",
+          "zh-TW": "禮物卡"
+        },
+        "keyField": "code"
+      },
+      {
+        "ref": "gift_card_ledger",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "uuid",
+            "role": "pk"
+          },
+          {
+            "ref": "card_id",
+            "type": "fk",
+            "references": "gift_cards",
+            "label": {
+              "en-US": "Gift card",
+              "de-DE": "Gutscheinkarte",
+              "fr-FR": "Carte cadeau",
+              "da-DK": "Gavekort",
+              "cs-CZ": "Dárková karta",
+              "ar-EG": "بطاقة الهدية",
+              "zh-CN": "礼品卡",
+              "zh-TW": "禮物卡"
+            }
+          },
+          {
+            "ref": "kind",
+            "type": "enum",
+            "enum": [
+              "issue",
+              "reload",
+              "redeem",
+              "refund",
+              "adjust"
+            ],
+            "default": "reload",
+            "rules": {
+              "enumLabels": {
+                "labels": {
+                  "issue": {
+                    "en-US": "Issued",
+                    "de-DE": "Ausgegeben",
+                    "fr-FR": "Émise",
+                    "da-DK": "Udstedt",
+                    "cs-CZ": "Vydáno",
+                    "ar-EG": "إصدار",
+                    "zh-CN": "发卡",
+                    "zh-TW": "發卡"
+                  },
+                  "reload": {
+                    "en-US": "Reload",
+                    "de-DE": "Aufladung",
+                    "fr-FR": "Recharge",
+                    "da-DK": "Genopfyldning",
+                    "cs-CZ": "Dobití",
+                    "ar-EG": "شحن",
+                    "zh-CN": "充值",
+                    "zh-TW": "儲值"
+                  },
+                  "redeem": {
+                    "en-US": "Purchase",
+                    "de-DE": "Einkauf",
+                    "fr-FR": "Achat",
+                    "da-DK": "Køb",
+                    "cs-CZ": "Nákup",
+                    "ar-EG": "شراء",
+                    "zh-CN": "消费",
+                    "zh-TW": "消費"
+                  },
+                  "refund": {
+                    "en-US": "Refund",
+                    "de-DE": "Erstattung",
+                    "fr-FR": "Remboursement",
+                    "da-DK": "Refusion",
+                    "cs-CZ": "Vrácení",
+                    "ar-EG": "استرداد",
+                    "zh-CN": "退款",
+                    "zh-TW": "退款"
+                  },
+                  "adjust": {
+                    "en-US": "Adjusted",
+                    "de-DE": "Korrigiert",
+                    "fr-FR": "Ajustement",
+                    "da-DK": "Justeret",
+                    "cs-CZ": "Úprava",
+                    "ar-EG": "تعديل",
+                    "zh-CN": "调整",
+                    "zh-TW": "調整"
+                  }
+                }
+              }
+            },
+            "label": {
+              "en-US": "Kind",
+              "de-DE": "Art",
+              "fr-FR": "Type",
+              "da-DK": "Type",
+              "cs-CZ": "Druh",
+              "ar-EG": "النوع",
+              "zh-CN": "类型",
+              "zh-TW": "類型"
+            }
+          },
+          {
+            "ref": "amount",
+            "type": "money",
+            "default": 0,
+            "label": {
+              "en-US": "Amount",
+              "de-DE": "Betrag",
+              "fr-FR": "Montant",
+              "da-DK": "Beløb",
+              "cs-CZ": "Částka",
+              "ar-EG": "المبلغ",
+              "zh-CN": "金额",
+              "zh-TW": "金額"
+            }
+          },
+          {
+            "ref": "ticket_id",
+            "type": "fk",
+            "references": "tickets",
+            "nullable": true,
+            "label": {
+              "en-US": "Ticket",
+              "de-DE": "Bon",
+              "fr-FR": "Ticket",
+              "da-DK": "Bon",
+              "cs-CZ": "Účet",
+              "ar-EG": "الفاتورة",
+              "zh-CN": "订单",
+              "zh-TW": "訂單"
+            }
+          },
+          {
+            "ref": "staff_id",
+            "type": "fk",
+            "references": "staff",
+            "nullable": true,
+            "label": {
+              "en-US": "Staff",
+              "de-DE": "Mitarbeiter",
+              "fr-FR": "Employé",
+              "da-DK": "Medarbejder",
+              "cs-CZ": "Zaměstnanec",
+              "ar-EG": "الموظف",
+              "zh-CN": "员工",
+              "zh-TW": "員工"
+            }
+          },
+          {
+            "ref": "at",
+            "type": "timestamptz",
+            "default": "now",
+            "label": {
+              "en-US": "When",
+              "de-DE": "Zeitpunkt",
+              "fr-FR": "Date",
+              "da-DK": "Tidspunkt",
+              "cs-CZ": "Kdy",
+              "ar-EG": "الوقت",
+              "zh-CN": "时间",
+              "zh-TW": "時間"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Card entry",
+          "de-DE": "Kartenbuchung",
+          "fr-FR": "Mouvement de carte",
+          "da-DK": "Kortpostering",
+          "cs-CZ": "Pohyb karty",
+          "ar-EG": "حركة بطاقة",
+          "zh-CN": "卡片记录",
+          "zh-TW": "卡片紀錄"
+        },
+        "labelPlural": {
+          "en-US": "Gift card history",
+          "de-DE": "Kartenverlauf",
+          "fr-FR": "Historique des cartes",
+          "da-DK": "Gavekorthistorik",
+          "cs-CZ": "Historie karet",
+          "ar-EG": "سجل بطاقات الهدايا",
+          "zh-CN": "礼品卡明细",
+          "zh-TW": "禮物卡明細"
+        }
+      },
+      {
+        "ref": "booking_rules",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "opens",
+            "type": "text",
+            "maxLength": 5,
+            "default": "17:00",
+            "label": {
+              "en-US": "Opens",
+              "de-DE": "Öffnet",
+              "fr-FR": "Ouverture",
+              "da-DK": "Åbner",
+              "cs-CZ": "Otevírá",
+              "ar-EG": "يفتح",
+              "zh-CN": "开始营业",
+              "zh-TW": "開始營業"
+            }
+          },
+          {
+            "ref": "closes",
+            "type": "text",
+            "maxLength": 5,
+            "default": "21:00",
+            "label": {
+              "en-US": "Closes",
+              "de-DE": "Schließt",
+              "fr-FR": "Fermeture",
+              "da-DK": "Lukker",
+              "cs-CZ": "Zavírá",
+              "ar-EG": "يغلق",
+              "zh-CN": "结束营业",
+              "zh-TW": "結束營業"
+            }
+          },
+          {
+            "ref": "slot_minutes",
+            "type": "int",
+            "default": 30,
+            "label": {
+              "en-US": "Slot length (minutes)",
+              "de-DE": "Zeitfenster (Minuten)",
+              "fr-FR": "Durée d’un créneau (minutes)",
+              "da-DK": "Tidsrum (minutter)",
+              "cs-CZ": "Délka slotu (minuty)",
+              "ar-EG": "مدة الفترة (دقائق)",
+              "zh-CN": "时段长度（分钟）",
+              "zh-TW": "時段長度（分鐘）"
+            }
+          },
+          {
+            "ref": "covers_per_slot",
+            "type": "int",
+            "default": 12,
+            "label": {
+              "en-US": "Guests per slot",
+              "de-DE": "Gäste pro Zeitfenster",
+              "fr-FR": "Couverts par créneau",
+              "da-DK": "Gæster pr. tidsrum",
+              "cs-CZ": "Hostů na slot",
+              "ar-EG": "الضيوف لكل فترة",
+              "zh-CN": "每时段人数",
+              "zh-TW": "每時段人數"
+            }
+          },
+          {
+            "ref": "days_ahead",
+            "type": "int",
+            "default": 5,
+            "label": {
+              "en-US": "Days ahead",
+              "de-DE": "Tage im Voraus",
+              "fr-FR": "Jours à l’avance",
+              "da-DK": "Dage frem",
+              "cs-CZ": "Dní dopředu",
+              "ar-EG": "الأيام مقدمًا",
+              "zh-CN": "可提前天数",
+              "zh-TW": "可提前天數"
+            }
+          },
+          {
+            "ref": "max_party",
+            "type": "int",
+            "default": 8,
+            "label": {
+              "en-US": "Largest party",
+              "de-DE": "Größte Gruppe",
+              "fr-FR": "Groupe le plus grand",
+              "da-DK": "Største selskab",
+              "cs-CZ": "Největší skupina",
+              "ar-EG": "أكبر مجموعة",
+              "zh-CN": "最大人数",
+              "zh-TW": "最大人數"
+            }
+          },
+          {
+            "ref": "hold_minutes",
+            "type": "int",
+            "default": 15,
+            "label": {
+              "en-US": "Hold table (minutes)",
+              "de-DE": "Tisch halten (Minuten)",
+              "fr-FR": "Table gardée (minutes)",
+              "da-DK": "Hold bordet (minutter)",
+              "cs-CZ": "Držet stůl (minuty)",
+              "ar-EG": "حجز الطاولة (دقائق)",
+              "zh-CN": "保留桌台（分钟）",
+              "zh-TW": "保留桌位（分鐘）"
+            }
+          },
+          {
+            "ref": "cancel_hours",
+            "type": "int",
+            "default": 2,
+            "label": {
+              "en-US": "Cancel up to (hours before)",
+              "de-DE": "Stornierbar bis (Stunden vorher)",
+              "fr-FR": "Annulation jusqu’à (heures avant)",
+              "da-DK": "Afbestil op til (timer før)",
+              "cs-CZ": "Zrušit nejpozději (hodin předem)",
+              "ar-EG": "الإلغاء حتى (ساعات قبل)",
+              "zh-CN": "最晚取消（提前小时）",
+              "zh-TW": "最晚取消（提前小時）"
+            }
+          },
+          {
+            "ref": "occasions",
+            "type": "json",
+            "nullable": true,
+            "label": {
+              "en-US": "Occasions",
+              "de-DE": "Anlässe",
+              "fr-FR": "Occasions",
+              "da-DK": "Anledninger",
+              "cs-CZ": "Příležitosti",
+              "ar-EG": "المناسبات",
+              "zh-CN": "场合",
+              "zh-TW": "場合"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Booking rules",
+          "de-DE": "Reservierungsregeln",
+          "fr-FR": "Règles de réservation",
+          "da-DK": "Bookingregler",
+          "cs-CZ": "Pravidla rezervací",
+          "ar-EG": "قواعد الحجز",
+          "zh-CN": "预订规则",
+          "zh-TW": "訂位規則"
+        },
+        "labelPlural": {
+          "en-US": "Booking rules",
+          "de-DE": "Reservierungsregeln",
+          "fr-FR": "Règles de réservation",
+          "da-DK": "Bookingregler",
+          "cs-CZ": "Pravidla rezervací",
+          "ar-EG": "قواعد الحجز",
+          "zh-CN": "预订规则",
+          "zh-TW": "訂位規則"
+        }
+      },
+      {
+        "ref": "settings",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "venue_name",
+            "type": "text",
+            "maxLength": 80,
+            "nullable": true,
+            "label": {
+              "en-US": "Venue name",
+              "de-DE": "Name des Lokals",
+              "fr-FR": "Nom de l’établissement",
+              "da-DK": "Stedets navn",
+              "cs-CZ": "Název podniku",
+              "ar-EG": "اسم المكان",
+              "zh-CN": "店铺名称",
+              "zh-TW": "店家名稱"
+            }
+          },
+          {
+            "ref": "venue_mark",
+            "type": "text",
+            "maxLength": 4,
+            "nullable": true,
+            "label": {
+              "en-US": "Venue initial",
+              "de-DE": "Initiale des Lokals",
+              "fr-FR": "Initiale de l’établissement",
+              "da-DK": "Stedets forbogstav",
+              "cs-CZ": "Iniciála podniku",
+              "ar-EG": "الحرف الأول للمكان",
+              "zh-CN": "店铺标识字",
+              "zh-TW": "店家標識字"
+            }
+          },
+          {
+            "ref": "address",
+            "type": "text",
+            "maxLength": 200,
+            "nullable": true,
+            "rules": {
+              "personal": false
+            },
+            "label": {
+              "en-US": "Address",
+              "de-DE": "Adresse",
+              "fr-FR": "Adresse",
+              "da-DK": "Adresse",
+              "cs-CZ": "Adresa",
+              "ar-EG": "العنوان",
+              "zh-CN": "地址",
+              "zh-TW": "地址"
+            }
+          },
+          {
+            "ref": "phone",
+            "type": "text",
+            "maxLength": 32,
+            "nullable": true,
+            "rules": {
+              "personal": false
+            },
+            "label": {
+              "en-US": "Phone",
+              "de-DE": "Telefon",
+              "fr-FR": "Téléphone",
+              "da-DK": "Telefon",
+              "cs-CZ": "Telefon",
+              "ar-EG": "الهاتف",
+              "zh-CN": "电话",
+              "zh-TW": "電話"
+            }
+          },
+          {
+            "ref": "tax_rate_bp",
+            "type": "int",
+            "default": 825,
+            "label": {
+              "en-US": "Tax rate (basis points)",
+              "de-DE": "Steuersatz (Basispunkte)",
+              "fr-FR": "Taux de taxe (points de base)",
+              "da-DK": "Momssats (basispoint)",
+              "cs-CZ": "Sazba daně (bazické body)",
+              "ar-EG": "نسبة الضريبة (نقاط أساس)",
+              "zh-CN": "税率（基点）",
+              "zh-TW": "稅率（基點）"
+            }
+          },
+          {
+            "ref": "tip_presets",
+            "type": "json",
+            "nullable": true,
+            "label": {
+              "en-US": "Tip presets (%)",
+              "de-DE": "Trinkgeld-Vorgaben (%)",
+              "fr-FR": "Pourboires proposés (%)",
+              "da-DK": "Drikkepengeforslag (%)",
+              "cs-CZ": "Předvolby spropitného (%)",
+              "ar-EG": "نسب البقشيش المقترحة (%)",
+              "zh-CN": "小费预设（%）",
+              "zh-TW": "小費預設（%）"
+            }
+          },
+          {
+            "ref": "receipt_footer",
+            "type": "text",
+            "maxLength": 200,
+            "nullable": true,
+            "label": {
+              "en-US": "Receipt footer",
+              "de-DE": "Fußzeile auf dem Beleg",
+              "fr-FR": "Pied de reçu",
+              "da-DK": "Bundtekst på kvittering",
+              "cs-CZ": "Zápatí účtenky",
+              "ar-EG": "تذييل الإيصال",
+              "zh-CN": "小票页脚",
+              "zh-TW": "收據頁尾"
+            }
+          }
+        ],
+        "label": {
+          "en-US": "Settings",
+          "de-DE": "Einstellungen",
+          "fr-FR": "Réglages",
+          "da-DK": "Indstillinger",
+          "cs-CZ": "Nastavení",
+          "ar-EG": "الإعدادات",
+          "zh-CN": "设置",
+          "zh-TW": "設定"
+        },
+        "labelPlural": {
+          "en-US": "Settings",
+          "de-DE": "Einstellungen",
+          "fr-FR": "Réglages",
+          "da-DK": "Indstillinger",
+          "cs-CZ": "Nastavení",
+          "ar-EG": "الإعدادات",
+          "zh-CN": "设置",
+          "zh-TW": "設定"
+        }
+      }
+    ]
+  },
+  "pages": [
+    {
+      "ref": "pos-dashboard",
+      "template": "page-dashboard",
+      "title": {
+        "key": "mft.pos.page.overview",
+        "fallback": "Overview"
+      },
+      "titles": {
+        "de-DE": "Übersicht",
+        "fr-FR": "Vue d’ensemble",
+        "da-DK": "Oversigt",
+        "cs-CZ": "Přehled",
+        "ar-EG": "نظرة عامة",
+        "zh-CN": "概览",
+        "zh-TW": "總覽"
+      },
+      "nav": {
+        "group": "overview",
+        "icon": "gauge",
+        "order": 0
+      },
+      "config": {
+        "layout": {
+          "version": 1,
+          "toolbar": {
+            "day": true
+          },
+          "items": [
+            {
+              "i": "kpi-sales",
+              "widget": "kpi-stat-card",
+              "x": 0,
+              "y": 0,
+              "w": 4,
+              "h": 3,
+              "config": {
+                "title": "Sales",
+                "metricFormat": "currency",
+                "iconName": "dollar",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "tickets",
+                    "type": "table"
+                  },
+                  "shape": "metric+delta",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "total",
+                      "alias": "sales"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "column": "status",
+                      "op": "eq",
+                      "value": "paid"
+                    }
+                  ],
+                  "window": {
+                    "column": "closed_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "kpi-tickets",
+              "widget": "kpi-stat-card",
+              "x": 4,
+              "y": 0,
+              "w": 4,
+              "h": 3,
+              "config": {
+                "title": "Tickets",
+                "metricFormat": "plain",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "tickets",
+                    "type": "table"
+                  },
+                  "shape": "metric+delta",
+                  "aggregations": [
+                    {
+                      "fn": "count",
+                      "alias": "tickets"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "column": "status",
+                      "op": "eq",
+                      "value": "paid"
+                    }
+                  ],
+                  "window": {
+                    "column": "closed_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "kpi-average",
+              "widget": "kpi-stat-card",
+              "x": 8,
+              "y": 0,
+              "w": 4,
+              "h": 3,
+              "config": {
+                "title": "Average ticket",
+                "metricFormat": "currency",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "tickets",
+                    "type": "table"
+                  },
+                  "shape": "metric+delta",
+                  "aggregations": [
+                    {
+                      "fn": "avg",
+                      "column": "total",
+                      "alias": "average"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "column": "status",
+                      "op": "eq",
+                      "value": "paid"
+                    }
+                  ],
+                  "window": {
+                    "column": "closed_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "kpi-tips",
+              "widget": "kpi-stat-card",
+              "x": 0,
+              "y": 3,
+              "w": 6,
+              "h": 3,
+              "config": {
+                "title": "Tips",
+                "metricFormat": "currency",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "payments",
+                    "type": "table"
+                  },
+                  "shape": "metric+delta",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "tip",
+                      "alias": "tips"
+                    }
+                  ],
+                  "window": {
+                    "column": "paid_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "kpi-guests",
+              "widget": "kpi-stat-card",
+              "x": 6,
+              "y": 3,
+              "w": 6,
+              "h": 3,
+              "config": {
+                "title": "Guests served",
+                "metricFormat": "plain",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "tickets",
+                    "type": "table"
+                  },
+                  "shape": "metric+delta",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "guests",
+                      "alias": "guests"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "column": "status",
+                      "op": "eq",
+                      "value": "paid"
+                    }
+                  ],
+                  "window": {
+                    "column": "closed_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "sales-by-hour",
+              "widget": "chart-bar",
+              "x": 0,
+              "y": 6,
+              "w": 8,
+              "h": 8,
+              "config": {
+                "title": "Sales by hour",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "tickets",
+                    "type": "table"
+                  },
+                  "shape": "timeseries",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "total",
+                      "alias": "sales"
+                    }
+                  ],
+                  "bucket": {
+                    "column": "closed_at",
+                    "unit": "hour"
+                  },
+                  "filters": [
+                    {
+                      "column": "status",
+                      "op": "eq",
+                      "value": "paid"
+                    }
+                  ],
+                  "window": {
+                    "column": "closed_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "payments",
+              "widget": "chart-donut",
+              "x": 8,
+              "y": 6,
+              "w": 4,
+              "h": 8,
+              "config": {
+                "title": "Payments",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "payments",
+                    "type": "table"
+                  },
+                  "shape": "categorical",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "amount",
+                      "alias": "paid"
+                    }
+                  ],
+                  "groupBy": [
+                    "method"
+                  ],
+                  "window": {
+                    "column": "paid_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  }
+                }
+              }
+            },
+            {
+              "i": "right-now",
+              "widget": "mini-table",
+              "x": 0,
+              "y": 14,
+              "w": 6,
+              "h": 8,
+              "config": {
+                "title": "Right now",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "tickets",
+                    "type": "table"
+                  },
+                  "shape": "record-list",
+                  "select": [
+                    "number",
+                    "opened_at",
+                    "total"
+                  ],
+                  "filters": [
+                    {
+                      "column": "status",
+                      "op": "in",
+                      "value": [
+                        "open",
+                        "sent"
+                      ]
+                    }
+                  ],
+                  "orderBy": [
+                    {
+                      "column": "opened_at",
+                      "dir": "asc"
+                    }
+                  ],
+                  "limit": 8
+                }
+              }
+            },
+            {
+              "i": "bookings",
+              "widget": "mini-table",
+              "x": 6,
+              "y": 14,
+              "w": 6,
+              "h": 8,
+              "config": {
+                "title": "Today’s bookings",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "reservations",
+                    "type": "table"
+                  },
+                  "shape": "record-list",
+                  "select": [
+                    "starts_at",
+                    "name",
+                    "party_size",
+                    "status"
+                  ],
+                  "window": {
+                    "column": "starts_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  },
+                  "orderBy": [
+                    {
+                      "column": "starts_at",
+                      "dir": "asc"
+                    }
+                  ],
+                  "limit": 12
+                }
+              }
+            },
+            {
+              "i": "best-sellers",
+              "widget": "chart-ranking-bars",
+              "x": 0,
+              "y": 22,
+              "w": 6,
+              "h": 8,
+              "config": {
+                "title": "Best sellers",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "ticket_items",
+                    "type": "table"
+                  },
+                  "shape": "categorical",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "qty",
+                      "alias": "sold"
+                    }
+                  ],
+                  "groupBy": [
+                    "name"
+                  ],
+                  "filters": [
+                    {
+                      "column": "voided_at",
+                      "op": "is_null"
+                    }
+                  ],
+                  "window": {
+                    "column": "sent_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  },
+                  "limit": 5
+                }
+              }
+            },
+            {
+              "i": "sold-out",
+              "widget": "mini-table",
+              "x": 6,
+              "y": 22,
+              "w": 6,
+              "h": 8,
+              "config": {
+                "title": "Sold out now",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "menu_items",
+                    "type": "table"
+                  },
+                  "shape": "record-list",
+                  "select": [
+                    "name",
+                    "price"
+                  ],
+                  "filters": [
+                    {
+                      "column": "available",
+                      "op": "eq",
+                      "value": false
+                    }
+                  ],
+                  "orderBy": [
+                    {
+                      "column": "name",
+                      "dir": "asc"
+                    }
+                  ],
+                  "limit": 12
+                }
+              }
+            },
+            {
+              "i": "shift-cash",
+              "widget": "mini-table",
+              "x": 0,
+              "y": 30,
+              "w": 4,
+              "h": 8,
+              "config": {
+                "title": "Shift and cash",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "shifts",
+                    "type": "table"
+                  },
+                  "shape": "record-list",
+                  "select": [
+                    "started_at",
+                    "opening_float",
+                    "expected_cash",
+                    "over_short"
+                  ],
+                  "orderBy": [
+                    {
+                      "column": "started_at",
+                      "dir": "desc"
+                    }
+                  ],
+                  "limit": 2
+                }
+              }
+            },
+            {
+              "i": "refunds",
+              "widget": "chart-ranking-bars",
+              "x": 4,
+              "y": 30,
+              "w": 4,
+              "h": 8,
+              "config": {
+                "title": "Refunds",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "refunds",
+                    "type": "table"
+                  },
+                  "shape": "categorical",
+                  "aggregations": [
+                    {
+                      "fn": "sum",
+                      "column": "amount",
+                      "alias": "refunded"
+                    }
+                  ],
+                  "groupBy": [
+                    "reason"
+                  ],
+                  "window": {
+                    "column": "refunded_at",
+                    "last": 1,
+                    "unit": "day",
+                    "param": "day"
+                  },
+                  "limit": 5
+                }
+              }
+            },
+            {
+              "i": "on-shift",
+              "widget": "mini-table",
+              "x": 8,
+              "y": 30,
+              "w": 4,
+              "h": 8,
+              "config": {
+                "title": "On shift",
+                "binding": {
+                  "kind": "table-query",
+                  "source": {
+                    "name": "time_clock",
+                    "type": "table"
+                  },
+                  "shape": "record-list",
+                  "select": [
+                    "clock_in"
+                  ],
+                  "lookups": [
+                    "staff_name:staff_id.name"
+                  ],
+                  "filters": [
+                    {
+                      "column": "clock_out",
+                      "op": "is_null"
+                    }
+                  ],
+                  "orderBy": [
+                    {
+                      "column": "clock_in",
+                      "dir": "asc"
+                    }
+                  ],
+                  "limit": 12
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-menu",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.menu",
+        "fallback": "Menu"
+      },
+      "titles": {
+        "de-DE": "Speisekarte",
+        "fr-FR": "Menu",
+        "da-DK": "Menu",
+        "cs-CZ": "Menu",
+        "ar-EG": "القائمة",
+        "zh-CN": "菜单",
+        "zh-TW": "菜單"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "utensils",
+        "order": 1
+      },
+      "bindings": {
+        "rows": "menu_items"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "preset": "upload-chips",
+          "sections": [
+            {
+              "id": "item",
+              "aside": "image",
+              "fields": [
+                {
+                  "column": "name",
+                  "control": "title",
+                  "span": 2
+                },
+                {
+                  "column": "category_id"
+                },
+                {
+                  "column": "price",
+                  "control": "currency"
+                },
+                {
+                  "column": "image",
+                  "control": "image"
+                },
+                {
+                  "column": "available",
+                  "control": "toggle-row",
+                  "initial": {
+                    "kind": "literal",
+                    "value": true
+                  }
+                },
+                {
+                  "column": "featured",
+                  "control": "toggle-row"
+                },
+                {
+                  "column": "tags",
+                  "span": 2
+                },
+                {
+                  "column": "barcode",
+                  "control": "text"
+                }
+              ]
+            },
+            {
+              "id": "extras",
+              "fields": [
+                {
+                  "relation": "modifier_groups",
+                  "span": 2,
+                  "control": "child-rows",
+                  "columns": [
+                    {
+                      "column": "name",
+                      "width": "1fr"
+                    },
+                    {
+                      "column": "kind",
+                      "control": "select",
+                      "width": "150px"
+                    },
+                    {
+                      "column": "min",
+                      "control": "number",
+                      "width": "80px"
+                    },
+                    {
+                      "column": "max",
+                      "control": "number",
+                      "width": "80px"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-categories",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.categories",
+        "fallback": "Categories"
+      },
+      "titles": {
+        "de-DE": "Kategorien",
+        "fr-FR": "Catégories",
+        "da-DK": "Kategorier",
+        "cs-CZ": "Kategorie",
+        "ar-EG": "الفئات",
+        "zh-CN": "分类",
+        "zh-TW": "分類"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "tags",
+        "order": 2
+      },
+      "bindings": {
+        "rows": "menu_categories"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "category",
+              "fields": [
+                {
+                  "column": "name",
+                  "span": 2
+                },
+                {
+                  "column": "icon",
+                  "control": "text"
+                },
+                {
+                  "column": "tint"
+                },
+                {
+                  "column": "position",
+                  "control": "stepper"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-extras",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.extras",
+        "fallback": "Sizes & extras"
+      },
+      "titles": {
+        "de-DE": "Größen & Extras",
+        "fr-FR": "Tailles et suppléments",
+        "da-DK": "Størrelser og tilvalg",
+        "cs-CZ": "Velikosti a doplňky",
+        "ar-EG": "الأحجام والإضافات",
+        "zh-CN": "规格与加料",
+        "zh-TW": "規格與加料"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "sliders-horizontal",
+        "order": 3
+      },
+      "bindings": {
+        "rows": "modifier_groups"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "group",
+              "fields": [
+                {
+                  "column": "name",
+                  "span": 2
+                },
+                {
+                  "column": "item_id"
+                },
+                {
+                  "column": "kind",
+                  "control": "segmented"
+                },
+                {
+                  "column": "min",
+                  "control": "stepper"
+                },
+                {
+                  "column": "max",
+                  "control": "stepper"
+                },
+                {
+                  "column": "hint",
+                  "span": 2
+                },
+                {
+                  "column": "position",
+                  "control": "stepper"
+                }
+              ]
+            },
+            {
+              "id": "options",
+              "fields": [
+                {
+                  "relation": "modifiers",
+                  "control": "child-rows",
+                  "span": 2,
+                  "columns": [
+                    {
+                      "column": "name",
+                      "width": "1fr"
+                    },
+                    {
+                      "column": "price_delta",
+                      "control": "currency",
+                      "width": "120px"
+                    },
+                    {
+                      "column": "position",
+                      "control": "number",
+                      "width": "90px"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-tables",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.tables",
+        "fallback": "Tables & zones"
+      },
+      "titles": {
+        "de-DE": "Tische & Bereiche",
+        "fr-FR": "Tables et zones",
+        "da-DK": "Borde og zoner",
+        "cs-CZ": "Stoly a zóny",
+        "ar-EG": "الطاولات والمناطق",
+        "zh-CN": "桌台与区域",
+        "zh-TW": "桌位與區域"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "armchair",
+        "order": 4
+      },
+      "bindings": {
+        "rows": "restaurant_tables"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "table",
+              "fields": [
+                {
+                  "column": "label"
+                },
+                {
+                  "column": "seats",
+                  "control": "stepper"
+                },
+                {
+                  "column": "zone",
+                  "control": "select"
+                },
+                {
+                  "column": "position",
+                  "control": "stepper"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-staff",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.staff",
+        "fallback": "Staff"
+      },
+      "titles": {
+        "de-DE": "Personal",
+        "fr-FR": "Équipe",
+        "da-DK": "Personale",
+        "cs-CZ": "Personál",
+        "ar-EG": "الموظفون",
+        "zh-CN": "员工",
+        "zh-TW": "員工"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "users",
+        "order": 5
+      },
+      "bindings": {
+        "rows": "staff"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "person",
+              "fields": [
+                {
+                  "column": "name",
+                  "span": 2
+                },
+                {
+                  "column": "initials"
+                },
+                {
+                  "column": "role",
+                  "control": "select"
+                },
+                {
+                  "column": "email",
+                  "control": "email",
+                  "span": 2
+                },
+                {
+                  "column": "active",
+                  "control": "toggle-row",
+                  "initial": {
+                    "kind": "literal",
+                    "value": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-booking-rules",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.bookingRules",
+        "fallback": "Booking rules"
+      },
+      "titles": {
+        "de-DE": "Reservierungsregeln",
+        "fr-FR": "Règles de réservation",
+        "da-DK": "Bookingregler",
+        "cs-CZ": "Pravidla rezervací",
+        "ar-EG": "قواعد الحجز",
+        "zh-CN": "预订规则",
+        "zh-TW": "訂位規則"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "calendar-cog",
+        "order": 6
+      },
+      "bindings": {
+        "rows": "booking_rules"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "hours",
+              "fields": [
+                {
+                  "column": "opens"
+                },
+                {
+                  "column": "closes"
+                }
+              ]
+            },
+            {
+              "id": "slots",
+              "fields": [
+                {
+                  "column": "slot_minutes",
+                  "control": "stepper"
+                },
+                {
+                  "column": "covers_per_slot",
+                  "control": "stepper"
+                },
+                {
+                  "column": "hold_minutes",
+                  "control": "stepper"
+                }
+              ]
+            },
+            {
+              "id": "guests",
+              "fields": [
+                {
+                  "column": "days_ahead",
+                  "control": "stepper"
+                },
+                {
+                  "column": "max_party",
+                  "control": "stepper"
+                },
+                {
+                  "column": "cancel_hours",
+                  "control": "stepper"
+                }
+              ]
+            },
+            {
+              "id": "occasions",
+              "fields": [
+                {
+                  "column": "occasions",
+                  "span": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-settings",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.settings",
+        "fallback": "Settings"
+      },
+      "titles": {
+        "de-DE": "Einstellungen",
+        "fr-FR": "Réglages",
+        "da-DK": "Indstillinger",
+        "cs-CZ": "Nastavení",
+        "ar-EG": "الإعدادات",
+        "zh-CN": "设置",
+        "zh-TW": "設定"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "settings",
+        "order": 7
+      },
+      "bindings": {
+        "rows": "settings"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "venue",
+              "fields": [
+                {
+                  "column": "venue_name"
+                },
+                {
+                  "column": "venue_mark"
+                },
+                {
+                  "column": "address",
+                  "span": 2
+                },
+                {
+                  "column": "phone",
+                  "control": "phone"
+                }
+              ]
+            },
+            {
+              "id": "receipt",
+              "fields": [
+                {
+                  "column": "receipt_footer",
+                  "span": 2
+                }
+              ]
+            },
+            {
+              "id": "money",
+              "fields": [
+                {
+                  "column": "tax_rate_bp",
+                  "control": "number"
+                },
+                {
+                  "column": "tip_presets"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-tickets",
+      "template": "page-master-detail",
+      "title": {
+        "key": "mft.pos.page.tickets",
+        "fallback": "Tickets"
+      },
+      "titles": {
+        "de-DE": "Bons",
+        "fr-FR": "Tickets",
+        "da-DK": "Bonner",
+        "cs-CZ": "Účty",
+        "ar-EG": "الفواتير",
+        "zh-CN": "账单",
+        "zh-TW": "訂單"
+      },
+      "nav": {
+        "group": "records",
+        "icon": "receipt",
+        "order": 8
+      },
+      "bindings": {
+        "rows": "tickets"
+      }
+    },
+    {
+      "ref": "pos-payments",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.payments",
+        "fallback": "Payments"
+      },
+      "titles": {
+        "de-DE": "Zahlungen",
+        "fr-FR": "Paiements",
+        "da-DK": "Betalinger",
+        "cs-CZ": "Platby",
+        "ar-EG": "المدفوعات",
+        "zh-CN": "付款",
+        "zh-TW": "付款"
+      },
+      "nav": {
+        "group": "records",
+        "icon": "credit-card",
+        "order": 9
+      },
+      "bindings": {
+        "rows": "payments"
+      }
+    },
+    {
+      "ref": "pos-reservations",
+      "template": "page-calendar",
+      "title": {
+        "key": "mft.pos.page.reservations",
+        "fallback": "Reservations"
+      },
+      "titles": {
+        "de-DE": "Reservierungen",
+        "fr-FR": "Réservations",
+        "da-DK": "Reservationer",
+        "cs-CZ": "Rezervace",
+        "ar-EG": "الحجوزات",
+        "zh-CN": "预订",
+        "zh-TW": "訂位"
+      },
+      "nav": {
+        "group": "records",
+        "icon": "calendar-days",
+        "order": 10
+      },
+      "bindings": {
+        "rows": "reservations"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "guest",
+              "fields": [
+                {
+                  "column": "name",
+                  "span": 2
+                },
+                {
+                  "column": "mobile",
+                  "control": "phone"
+                },
+                {
+                  "column": "email",
+                  "control": "email"
+                },
+                {
+                  "column": "party_size",
+                  "control": "stepper"
+                }
+              ]
+            },
+            {
+              "id": "when",
+              "fields": [
+                {
+                  "column": "starts_at",
+                  "control": "calendar",
+                  "span": 2,
+                  "slots": {
+                    "start": "17:00",
+                    "end": "21:00",
+                    "minutes": 30
+                  }
+                },
+                {
+                  "column": "table_id"
+                }
+              ]
+            },
+            {
+              "id": "details",
+              "fields": [
+                {
+                  "column": "occasion"
+                },
+                {
+                  "column": "status"
+                },
+                {
+                  "column": "channel"
+                },
+                {
+                  "column": "guest_request",
+                  "control": "textarea",
+                  "span": 2
+                },
+                {
+                  "column": "staff_note",
+                  "control": "textarea",
+                  "span": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-shifts",
+      "template": "page-calendar",
+      "title": {
+        "key": "mft.pos.page.shifts",
+        "fallback": "Shifts"
+      },
+      "titles": {
+        "de-DE": "Schichten",
+        "fr-FR": "Services",
+        "da-DK": "Vagter",
+        "cs-CZ": "Směny",
+        "ar-EG": "الورديات",
+        "zh-CN": "班次",
+        "zh-TW": "班次"
+      },
+      "nav": {
+        "group": "records",
+        "icon": "calendar-clock",
+        "order": 11
+      },
+      "bindings": {
+        "rows": "shifts"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "who",
+              "fields": [
+                {
+                  "column": "opened_by"
+                },
+                {
+                  "column": "closed_by"
+                }
+              ]
+            },
+            {
+              "id": "when",
+              "fields": [
+                {
+                  "column": "started_at"
+                },
+                {
+                  "column": "ended_at"
+                }
+              ]
+            },
+            {
+              "id": "cash",
+              "fields": [
+                {
+                  "column": "opening_float",
+                  "control": "currency"
+                },
+                {
+                  "column": "counted_cash",
+                  "control": "currency"
+                },
+                {
+                  "column": "expected_cash",
+                  "control": "currency"
+                },
+                {
+                  "column": "over_short",
+                  "control": "currency"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-customers",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.customers",
+        "fallback": "Customers"
+      },
+      "titles": {
+        "de-DE": "Kunden",
+        "fr-FR": "Clients",
+        "da-DK": "Kunder",
+        "cs-CZ": "Zákazníci",
+        "ar-EG": "العملاء",
+        "zh-CN": "顾客",
+        "zh-TW": "顧客"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "contact",
+        "order": 8
+      },
+      "bindings": {
+        "rows": "customers"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "customer",
+              "fields": [
+                {
+                  "column": "name",
+                  "control": "title",
+                  "span": 2
+                },
+                {
+                  "column": "mobile",
+                  "control": "phone"
+                },
+                {
+                  "column": "email",
+                  "control": "email"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-rewards",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.rewards",
+        "fallback": "Rewards"
+      },
+      "titles": {
+        "de-DE": "Prämien",
+        "fr-FR": "Récompenses",
+        "da-DK": "Belønninger",
+        "cs-CZ": "Odměny",
+        "ar-EG": "المكافآت",
+        "zh-CN": "奖励",
+        "zh-TW": "獎勵"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "award",
+        "order": 9
+      },
+      "bindings": {
+        "rows": "rewards"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "reward",
+              "fields": [
+                {
+                  "column": "name",
+                  "span": 2
+                },
+                {
+                  "column": "menu_item_id"
+                },
+                {
+                  "column": "points",
+                  "control": "stepper"
+                },
+                {
+                  "column": "icon",
+                  "control": "text"
+                },
+                {
+                  "column": "position",
+                  "control": "stepper"
+                },
+                {
+                  "column": "active",
+                  "control": "toggle-row",
+                  "initial": {
+                    "kind": "literal",
+                    "value": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-gift-cards",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.giftCards",
+        "fallback": "Gift cards"
+      },
+      "titles": {
+        "de-DE": "Gutscheinkarten",
+        "fr-FR": "Cartes cadeaux",
+        "da-DK": "Gavekort",
+        "cs-CZ": "Dárkové karty",
+        "ar-EG": "بطاقات الهدايا",
+        "zh-CN": "礼品卡",
+        "zh-TW": "禮物卡"
+      },
+      "nav": {
+        "group": "manage",
+        "icon": "gift",
+        "order": 10
+      },
+      "bindings": {
+        "rows": "gift_cards"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "card",
+              "fields": [
+                {
+                  "column": "status",
+                  "control": "select"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-points",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.points",
+        "fallback": "Points history"
+      },
+      "titles": {
+        "de-DE": "Punkteverlauf",
+        "fr-FR": "Historique des points",
+        "da-DK": "Pointhistorik",
+        "cs-CZ": "Historie bodů",
+        "ar-EG": "سجل النقاط",
+        "zh-CN": "积分明细",
+        "zh-TW": "點數明細"
+      },
+      "nav": {
+        "group": "records",
+        "icon": "history",
+        "order": 14
+      },
+      "bindings": {
+        "rows": "loyalty_ledger"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "entry",
+              "fields": [
+                {
+                  "column": "customer_id",
+                  "span": 2
+                },
+                {
+                  "column": "kind",
+                  "control": "select"
+                },
+                {
+                  "column": "points",
+                  "control": "stepper"
+                },
+                {
+                  "column": "note",
+                  "span": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ref": "pos-gift-card-history",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.pos.page.giftCardHistory",
+        "fallback": "Gift card history"
+      },
+      "titles": {
+        "de-DE": "Kartenverlauf",
+        "fr-FR": "Historique des cartes",
+        "da-DK": "Gavekorthistorik",
+        "cs-CZ": "Historie karet",
+        "ar-EG": "سجل بطاقات الهدايا",
+        "zh-CN": "礼品卡明细",
+        "zh-TW": "禮物卡明細"
+      },
+      "nav": {
+        "group": "records",
+        "icon": "wallet",
+        "order": 15
+      },
+      "bindings": {
+        "rows": "gift_card_ledger"
+      },
+      "config": {
+        "form": {
+          "v": 2,
+          "sections": [
+            {
+              "id": "entry",
+              "fields": [
+                {
+                  "column": "card_id",
+                  "span": 2
+                },
+                {
+                  "column": "kind",
+                  "control": "select"
+                },
+                {
+                  "column": "amount",
+                  "control": "currency"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "roles": [
+    {
+      "key": "cashier",
+      "name": "POS cashier",
+      "screensOnly": true,
+      "permissions": [
+        "table:@menu_categories:read",
+        "table:@menu_items:read",
+        "table:@modifier_groups:read",
+        "table:@modifiers:read",
+        "table:@staff:read",
+        "table:@restaurant_tables:read",
+        "table:@settings:read",
+        "table:@booking_rules:read",
+        "table:@tickets:read",
+        "table:@tickets:create",
+        "table:@tickets:update",
+        "table:@ticket_items:read",
+        "table:@ticket_items:create",
+        "table:@ticket_items:update",
+        "table:@ticket_item_modifiers:read",
+        "table:@ticket_item_modifiers:create",
+        "table:@ticket_item_modifiers:update",
+        "table:@payments:read",
+        "table:@payments:create",
+        "table:@payments:update",
+        "table:@refunds:read",
+        "table:@refunds:create",
+        "table:@refunds:update",
+        "table:@refund_items:read",
+        "table:@refund_items:create",
+        "table:@refund_items:update",
+        "table:@shifts:read",
+        "table:@shifts:create",
+        "table:@shifts:update",
+        "table:@reservations:read",
+        "table:@reservations:create",
+        "table:@reservations:update",
+        "table:@time_clock:read",
+        "table:@time_clock:create",
+        "table:@time_clock:update",
+        "table:@menu_items:update",
+        "table:@customers:read",
+        "table:@customers:create",
+        "table:@customers:update",
+        "table:@rewards:read",
+        "table:@loyalty_ledger:read",
+        "table:@loyalty_ledger:create",
+        "table:@gift_cards:read",
+        "table:@gift_cards:create",
+        "table:@gift_cards:update",
+        "table:@gift_card_ledger:read",
+        "table:@gift_card_ledger:create",
+        "app:@:staff"
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "POS manager",
+      "permissions": [
+        "table:@menu_categories:read",
+        "table:@menu_categories:create",
+        "table:@menu_categories:update",
+        "table:@menu_categories:delete",
+        "table:@menu_items:read",
+        "table:@menu_items:create",
+        "table:@menu_items:update",
+        "table:@menu_items:delete",
+        "table:@modifier_groups:read",
+        "table:@modifier_groups:create",
+        "table:@modifier_groups:update",
+        "table:@modifier_groups:delete",
+        "table:@modifiers:read",
+        "table:@modifiers:create",
+        "table:@modifiers:update",
+        "table:@modifiers:delete",
+        "table:@restaurant_tables:read",
+        "table:@restaurant_tables:create",
+        "table:@restaurant_tables:update",
+        "table:@restaurant_tables:delete",
+        "table:@staff:read",
+        "table:@staff:create",
+        "table:@staff:update",
+        "table:@staff:delete",
+        "table:@time_clock:read",
+        "table:@time_clock:create",
+        "table:@time_clock:update",
+        "table:@time_clock:delete",
+        "table:@shifts:read",
+        "table:@shifts:create",
+        "table:@shifts:update",
+        "table:@shifts:delete",
+        "table:@tickets:read",
+        "table:@tickets:create",
+        "table:@tickets:update",
+        "table:@tickets:delete",
+        "table:@ticket_items:read",
+        "table:@ticket_items:create",
+        "table:@ticket_items:update",
+        "table:@ticket_items:delete",
+        "table:@ticket_item_modifiers:read",
+        "table:@ticket_item_modifiers:create",
+        "table:@ticket_item_modifiers:update",
+        "table:@ticket_item_modifiers:delete",
+        "table:@payments:read",
+        "table:@payments:create",
+        "table:@payments:update",
+        "table:@payments:delete",
+        "table:@refunds:read",
+        "table:@refunds:create",
+        "table:@refunds:update",
+        "table:@refunds:delete",
+        "table:@refund_items:read",
+        "table:@refund_items:create",
+        "table:@refund_items:update",
+        "table:@refund_items:delete",
+        "table:@reservations:read",
+        "table:@reservations:create",
+        "table:@reservations:update",
+        "table:@reservations:delete",
+        "table:@booking_rules:read",
+        "table:@booking_rules:create",
+        "table:@booking_rules:update",
+        "table:@booking_rules:delete",
+        "table:@settings:read",
+        "table:@settings:create",
+        "table:@settings:update",
+        "table:@settings:delete",
+        "page:@pos-dashboard:view",
+        "page:@pos-dashboard:edit",
+        "page:@pos-menu:view",
+        "page:@pos-menu:edit",
+        "page:@pos-categories:view",
+        "page:@pos-categories:edit",
+        "page:@pos-extras:view",
+        "page:@pos-extras:edit",
+        "page:@pos-tables:view",
+        "page:@pos-tables:edit",
+        "page:@pos-staff:view",
+        "page:@pos-staff:edit",
+        "page:@pos-booking-rules:view",
+        "page:@pos-booking-rules:edit",
+        "page:@pos-settings:view",
+        "page:@pos-settings:edit",
+        "page:@pos-tickets:view",
+        "page:@pos-tickets:edit",
+        "page:@pos-payments:view",
+        "page:@pos-payments:edit",
+        "page:@pos-reservations:view",
+        "page:@pos-reservations:edit",
+        "page:@pos-shifts:view",
+        "page:@pos-shifts:edit",
+        "table:@customers:read",
+        "table:@customers:create",
+        "table:@customers:update",
+        "table:@customers:delete",
+        "table:@rewards:read",
+        "table:@rewards:create",
+        "table:@rewards:update",
+        "table:@rewards:delete",
+        "table:@loyalty_ledger:read",
+        "table:@loyalty_ledger:create",
+        "table:@loyalty_ledger:update",
+        "table:@loyalty_ledger:delete",
+        "table:@gift_cards:read",
+        "table:@gift_cards:create",
+        "table:@gift_cards:update",
+        "table:@gift_cards:delete",
+        "table:@gift_card_ledger:read",
+        "table:@gift_card_ledger:create",
+        "table:@gift_card_ledger:update",
+        "table:@gift_card_ledger:delete",
+        "page:@pos-customers:view",
+        "page:@pos-customers:edit",
+        "page:@pos-rewards:view",
+        "page:@pos-rewards:edit",
+        "page:@pos-gift-cards:view",
+        "page:@pos-gift-cards:edit",
+        "page:@pos-points:view",
+        "page:@pos-points:edit",
+        "page:@pos-gift-card-history:view",
+        "page:@pos-gift-card-history:edit",
+        "app:@:staff"
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "key": "business_type",
+      "type": "enum",
+      "enum": [
+        "restaurant",
+        "retail"
+      ],
+      "default": "restaurant",
+      "label": {
+        "key": "mft.pos.setting.businessType",
+        "fallback": "Business type"
+      }
+    }
+  ],
+  "capabilities": [
+    "receipt-printer",
+    "payments",
+    "realtime",
+    "barcode-scanner"
+  ],
+  "kind": "app",
+  "frontends": [
+    {
+      "side": "staff",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "pos": "/"
+      },
+      "placement": "external"
+    },
+    {
+      "side": "customer",
+      "kind": "spa",
+      "entry": "index.html",
+      "routes": {
+        "book": "/",
+        "manage": "/manage"
+      },
+      "enabled": true
+    }
+  ],
+  "navGroups": [
+    {
+      "key": "manage",
+      "label": {
+        "en-US": "Manage",
+        "de-DE": "Verwalten",
+        "fr-FR": "Gérer",
+        "da-DK": "Administrer",
+        "cs-CZ": "Správa",
+        "ar-EG": "الإدارة",
+        "zh-CN": "管理",
+        "zh-TW": "管理"
+      },
+      "order": 1
+    },
+    {
+      "key": "records",
+      "label": {
+        "en-US": "Records",
+        "de-DE": "Aufzeichnungen",
+        "fr-FR": "Registres",
+        "da-DK": "Registreringer",
+        "cs-CZ": "Záznamy",
+        "ar-EG": "السجلات",
+        "zh-CN": "记录",
+        "zh-TW": "記錄"
+      },
+      "order": 2
+    }
+  ],
+  "optionLists": {
+    "zones": {
+      "label": {
+        "en-US": "Zones",
+        "de-DE": "Bereiche",
+        "fr-FR": "Zones",
+        "da-DK": "Zoner",
+        "cs-CZ": "Zóny",
+        "ar-EG": "المناطق",
+        "zh-CN": "区域",
+        "zh-TW": "區域"
+      },
+      "values": [
+        {
+          "value": "Window",
+          "label": {
+            "en-US": "Window",
+            "de-DE": "Fenster",
+            "fr-FR": "Fenêtre",
+            "da-DK": "Vindue",
+            "cs-CZ": "Okno",
+            "ar-EG": "نافذة",
+            "zh-CN": "窗边",
+            "zh-TW": "窗邊"
+          }
+        },
+        {
+          "value": "Patio",
+          "label": {
+            "en-US": "Patio",
+            "de-DE": "Terrasse",
+            "fr-FR": "Terrasse",
+            "da-DK": "Terrasse",
+            "cs-CZ": "Terasa",
+            "ar-EG": "فناء",
+            "zh-CN": "露台",
+            "zh-TW": "露臺"
+          }
+        },
+        {
+          "value": "Bar",
+          "label": {
+            "en-US": "Bar",
+            "de-DE": "Bar",
+            "fr-FR": "Bar",
+            "da-DK": "Bar",
+            "cs-CZ": "Bar",
+            "ar-EG": "بار",
+            "zh-CN": "吧台",
+            "zh-TW": "吧檯"
+          }
+        },
+        {
+          "value": "Main",
+          "label": {
+            "en-US": "Main",
+            "de-DE": "Hauptraum",
+            "fr-FR": "Salle",
+            "da-DK": "Sal",
+            "cs-CZ": "Hlavní",
+            "ar-EG": "رئيسي",
+            "zh-CN": "主区",
+            "zh-TW": "主區"
+          }
+        }
+      ]
+    },
+    "roles": {
+      "label": {
+        "en-US": "Staff roles",
+        "de-DE": "Rollen",
+        "fr-FR": "Rôles",
+        "da-DK": "Roller",
+        "cs-CZ": "Role",
+        "ar-EG": "الأدوار",
+        "zh-CN": "员工角色",
+        "zh-TW": "員工角色"
+      },
+      "values": [
+        {
+          "value": "Barista",
+          "label": {
+            "en-US": "Barista",
+            "de-DE": "Barista",
+            "fr-FR": "Barista",
+            "da-DK": "Barista",
+            "cs-CZ": "Barista",
+            "ar-EG": "باريستا",
+            "zh-CN": "咖啡师",
+            "zh-TW": "咖啡師"
+          }
+        },
+        {
+          "value": "Shift lead",
+          "label": {
+            "en-US": "Shift lead",
+            "de-DE": "Schichtleitung",
+            "fr-FR": "Chef d’équipe",
+            "da-DK": "Vagtleder",
+            "cs-CZ": "Vedoucí směny",
+            "ar-EG": "مسؤول الوردية",
+            "zh-CN": "值班主管",
+            "zh-TW": "值班組長"
+          }
+        }
+      ]
+    }
+  },
+  "publicAccess": [
+    {
+      "table": "booking_rules",
+      "methods": [
+        "GET"
+      ],
+      "select": [
+        "id",
+        "opens",
+        "closes",
+        "slot_minutes",
+        "max_party",
+        "days_ahead",
+        "hold_minutes",
+        "cancel_hours",
+        "occasions"
+      ]
+    },
+    {
+      "table": "settings",
+      "methods": [
+        "GET"
+      ],
+      "select": [
+        "id",
+        "venue_name",
+        "venue_mark",
+        "phone",
+        "address"
+      ]
+    },
+    {
+      "table": "reservations",
+      "kind": "availability",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "table": "reservations",
+      "methods": [
+        "POST"
+      ],
+      "select": [
+        "id",
+        "code",
+        "starts_at",
+        "party_size",
+        "status"
+      ],
+      "writable": [
+        "party_size",
+        "starts_at",
+        "name",
+        "mobile",
+        "email",
+        "occasion",
+        "guest_request"
+      ],
+      "defaults": {
+        "status": "confirmed",
+        "channel": "online"
+      },
+      "confirm": {
+        "template": "booking-confirmation",
+        "to": "email",
+        "code": "code",
+        "when": "starts_at",
+        "party": "party_size",
+        "name": "name",
+        "venue": {
+          "table": "settings",
+          "name": "venue_name",
+          "address": "address",
+          "phone": "phone"
+        },
+        "link": "manage?code={code}"
+      }
+    },
+    {
+      "table": "reservations",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "claim": {
+        "match": [
+          "code",
+          "mobile"
+        ]
+      },
+      "select": [
+        "id",
+        "code",
+        "name",
+        "party_size",
+        "starts_at",
+        "status",
+        "occasion",
+        "guest_request"
+      ],
+      "writable": [
+        "starts_at",
+        "party_size",
+        "status"
+      ]
+    }
+  ],
+  "sampleData": {
+    "file": "seeds/pos.sample.json"
+  }
+}

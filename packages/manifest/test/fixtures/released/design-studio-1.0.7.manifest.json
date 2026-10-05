@@ -1,0 +1,88 @@
+{
+  "kind": "add-on",
+  "manifestVersion": 1,
+  "key": "design-studio",
+  "name": "Design Studio",
+  "version": "1.0.7",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "addon.design-studio.line",
+    "fallback": "A small artwork editor inside your site. Customers pick a starting layout and edit it on a canvas drawn at the finished size, with the bleed and safe area already on it."
+  },
+  "categories": ["artwork"],
+
+  "compatibility": {
+    "minAdminiumVersion": "0.3.1"
+  },
+
+  "capabilities": ["file-storage"],
+
+  "addOn": {
+    "attaches": [{ "app": "printing", "range": "^0.1.0" }],
+    "provides": [
+      { "contract": "artwork-source", "version": 1, "server": "dist/server.js" }
+    ],
+    "consumes": [],
+    "slots": [
+      { "slot": "artwork.sources", "client": "dist/client.js", "order": 10 },
+      { "slot": "settings.add-on.panel", "client": "dist/client.js", "order": 10 }
+    ],
+    "events": [],
+    "connect": { "kind": "none" },
+    "scopes": ["records:jobs:read", "files:write"],
+    "publicSettings": ["starting_layouts", "proof_required"]
+  },
+
+  "requiredSchema": {
+    "tables": [
+      {
+        "ref": "artwork_designs",
+        "columns": [
+          { "ref": "id", "type": "id", "role": "pk" },
+          { "ref": "job_id", "type": "fk", "references": "jobs" },
+          { "ref": "product", "type": "text" },
+          { "ref": "width_mm", "type": "decimal" },
+          { "ref": "height_mm", "type": "decimal" },
+          { "ref": "bleed_mm", "type": "decimal" },
+          { "ref": "doc", "type": "json" },
+          { "ref": "preview_file", "type": "text", "nullable": true },
+          { "ref": "created_at", "type": "timestamptz", "role": "created_at" },
+          { "ref": "updated_at", "type": "timestamptz", "role": "updated_at" }
+        ]
+      }
+    ]
+  },
+
+  "settings": [
+    {
+      "key": "starting_layouts",
+      "type": "json",
+      "label": {
+        "key": "addon.design-studio.set.layouts",
+        "fallback": "Starting layouts customers may use"
+      },
+      "default": [
+        "business-card",
+        "folded-card",
+        "flyer",
+        "envelope",
+        "sticker",
+        "roll-up"
+      ]
+    },
+    {
+      "key": "proof_required",
+      "type": "boolean",
+      "label": {
+        "key": "addon.design-studio.set.proof",
+        "fallback": "A design still needs a proof"
+      },
+      "default": true
+    }
+  ]
+}

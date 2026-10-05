@@ -1,0 +1,6160 @@
+{
+  "format": "adminium.sample/1",
+  "app": "hotel",
+  "weekAnchor": "tue",
+  "assets": {},
+  "tables": [
+    {
+      "ref": "settings",
+      "rows": [
+        {
+          "@label": "settings",
+          "@onlyIfEmpty": true,
+          "name": "Wren House",
+          "address": "Four Quay Steps, Bellhaven",
+          "town": "Bellhaven",
+          "phone": "(207) 555-0142",
+          "email": "stay@wrenhouse.example",
+          "since": 1974,
+          "about": "Rooms above the harbour, breakfast when you want it, and nobody rushing you out.",
+          "finding": "Two doors up from the harbour steps. Eight minutes on foot from the station; parking behind the house if you need it.",
+          "morning": "House coffee and a pot of tea from seven, the papers on the hall table, and WiFi throughout — all included in the room.",
+          "directions_train": "Bellhaven station, then eight minutes on foot: down Fore Street, left at the chandlery, up the quay steps. Tell us your train and someone will watch for you.",
+          "directions_car": "Route 1 as far as the harbour, then the lane behind the chandlery.",
+          "directions_foot": "From the harbour wall, keep the water on your right until the steps. Blue door, brass bell, a wren on the fanlight.",
+          "breakfast_hours": "07:30 – 10:00",
+          "late_arrival_note": "After 22:00 — we will leave your key",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "arrive_from": "15:00",
+          "leave_by": "11:00",
+          "late_until": "14:00",
+          "no_show_at": "11:00",
+          "cancel_days": 2,
+          "max_nights": 14,
+          "ahead_days": 365,
+          "ref_start": 1001,
+          "ref_prefix": "WH-",
+          "guest_emails_on": true
+        }
+      ]
+    },
+    {
+      "ref": "house_notes",
+      "rows": [
+        {
+          "icon": "wifi",
+          "text": "WiFi throughout",
+          "position": 1
+        },
+        {
+          "icon": "dog",
+          "text": "Dogs in the garden doubles and the loft suites",
+          "position": 2
+        },
+        {
+          "icon": "moon",
+          "text": "Quiet in the house after 22:30",
+          "position": 3
+        }
+      ]
+    },
+    {
+      "ref": "room_types",
+      "rows": [
+        {
+          "@label": "type:snug",
+          "code": "SNG",
+          "name": "Snug single",
+          "blurb": "A small room at the back of the house, quiet as anything, made for one.",
+          "description": "Tucked over the garden wall where the road noise never reaches. Everything you need for a night or two and not one thing more.",
+          "sleeps": 1,
+          "base_rate": 110,
+          "color": "#8a5a48",
+          "icon": "bed-single",
+          "position": 1,
+          "active": true
+        },
+        {
+          "@label": "type:garden",
+          "code": "GDN",
+          "name": "Garden double",
+          "blurb": "Our steady room — a double bed and a window onto the walled garden.",
+          "description": "They are the reason people come back. Sash window over the walled garden, deep sill, a chair you can actually read in.",
+          "sleeps": 2,
+          "base_rate": 150,
+          "color": "#4a7a5c",
+          "icon": "bed-double",
+          "position": 2,
+          "active": true
+        },
+        {
+          "@label": "type:harbour",
+          "code": "HBR",
+          "name": "Harbour double",
+          "blurb": "Front of the house, water in the window, the boats out from six.",
+          "description": "The rooms along the front. You will hear the harbour before you see it, and the light comes off the water onto the ceiling.",
+          "sleeps": 2,
+          "base_rate": 180,
+          "color": "#3a6d92",
+          "icon": "waves",
+          "position": 3,
+          "active": true
+        },
+        {
+          "@label": "type:loft",
+          "code": "LFT",
+          "name": "Loft suite",
+          "blurb": "The top of the house — a sitting room under the beams and room for four.",
+          "description": "Up under the roof. A sitting room with a sofa bed, the bedroom beyond it, and two windows that take in the whole bay.",
+          "sleeps": 4,
+          "base_rate": 215,
+          "color": "#6d4f86",
+          "icon": "sofa",
+          "position": 4,
+          "active": true
+        }
+      ]
+    },
+    {
+      "ref": "room_type_features",
+      "rows": [
+        {
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "feature": "Single bed, proper linen",
+          "position": 1
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "feature": "Rain shower",
+          "position": 2
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "feature": "Desk and a reading lamp",
+          "position": 3
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "feature": "Tea tray",
+          "position": 4
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "feature": "WiFi throughout",
+          "position": 5
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "feature": "Double bed",
+          "position": 1
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "feature": "Bath and shower",
+          "position": 2
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "feature": "Window onto the garden",
+          "position": 3
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "feature": "Tea tray",
+          "position": 4
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "feature": "WiFi throughout",
+          "position": 5
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "feature": "Double bed",
+          "position": 1
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "feature": "Bath and shower",
+          "position": 2
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "feature": "Water view",
+          "position": 3
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "feature": "Robes",
+          "position": 4
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "feature": "WiFi throughout",
+          "position": 5
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "feature": "Double bed and a sofa bed",
+          "position": 1
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "feature": "Sitting room",
+          "position": 2
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "feature": "Bath and shower",
+          "position": 3
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "feature": "Bay window",
+          "position": 4
+        },
+        {
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "feature": "WiFi throughout",
+          "position": 5
+        }
+      ]
+    },
+    {
+      "ref": "rooms",
+      "rows": [
+        {
+          "@label": "room:101",
+          "@byStay": {
+            "from": {
+              "@day": -2,
+              "@week": true
+            },
+            "to": {
+              "@day": 0,
+              "@week": true
+            },
+            "times": {
+              "from": "19:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "101",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:102",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 2,
+              "@week": true
+            },
+            "times": {
+              "from": "18:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "102",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:103",
+          "number": "103",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "cleaning",
+          "note": null
+        },
+        {
+          "@label": "room:104",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 1,
+              "@week": true
+            },
+            "times": {
+              "from": "21:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "104",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:105",
+          "@byStay": {
+            "from": {
+              "@day": -4,
+              "@week": true
+            },
+            "to": {
+              "@day": 0,
+              "@week": true
+            },
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "105",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:106",
+          "@byStay": {
+            "from": {
+              "@day": 0,
+              "@week": true
+            },
+            "to": {
+              "@day": 3,
+              "@week": true
+            },
+            "times": {
+              "from": "08:40",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "106",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:107",
+          "@byStay": {
+            "from": {
+              "@day": -2,
+              "@week": true
+            },
+            "to": {
+              "@day": 1,
+              "@week": true
+            },
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "107",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": "Sloped ceiling on the garden side."
+        },
+        {
+          "@label": "room:108",
+          "number": "108",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "ready",
+          "note": null
+        },
+        {
+          "@label": "room:109",
+          "@byStay": {
+            "from": {
+              "@day": -3,
+              "@week": true
+            },
+            "to": {
+              "@day": 3,
+              "@week": true
+            },
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "109",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:110",
+          "@byStay": {
+            "from": {
+              "@day": -4,
+              "@week": true
+            },
+            "to": {
+              "@day": 2,
+              "@week": true
+            },
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "110",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": "Ground floor, no stairs."
+        },
+        {
+          "@label": "room:111",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 4,
+              "@week": true
+            },
+            "times": {
+              "from": "18:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "111",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:112",
+          "@byStay": {
+            "from": {
+              "@day": -2,
+              "@week": true
+            },
+            "to": {
+              "@day": 1,
+              "@week": true
+            },
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "112",
+          "floor": 1,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:201",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 3,
+              "@week": true
+            },
+            "times": {
+              "from": "22:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "201",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:202",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 1,
+              "@week": true
+            },
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "202",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:203",
+          "number": "203",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "ready",
+          "note": "First door past the stairs."
+        },
+        {
+          "@label": "room:204",
+          "number": "204",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "status": "ready",
+          "note": "Quiet corner."
+        },
+        {
+          "@label": "room:205",
+          "number": "205",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "cleaning",
+          "note": null
+        },
+        {
+          "@label": "room:206",
+          "@byStay": {
+            "from": {
+              "@day": -3,
+              "@week": true
+            },
+            "to": {
+              "@day": 2,
+              "@week": true
+            },
+            "times": {
+              "from": "19:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "206",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:207",
+          "@byStay": {
+            "from": {
+              "@day": -2,
+              "@week": true
+            },
+            "to": {
+              "@day": 5,
+              "@week": true
+            },
+            "times": {
+              "from": "18:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "207",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:208",
+          "number": "208",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "ready",
+          "note": null
+        },
+        {
+          "@label": "room:209",
+          "@byStay": {
+            "from": {
+              "@day": -3,
+              "@week": true
+            },
+            "to": {
+              "@day": 0,
+              "@week": true
+            },
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "209",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:210",
+          "number": "210",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "ready",
+          "note": null
+        },
+        {
+          "@label": "room:211",
+          "number": "211",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "ready",
+          "note": "Nearest the lift."
+        },
+        {
+          "@label": "room:212",
+          "@byStay": {
+            "from": {
+              "@day": 1,
+              "@week": true
+            },
+            "to": {
+              "@day": 4,
+              "@week": true
+            },
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {},
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "212",
+          "floor": 2,
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "status": "ready",
+          "note": null
+        },
+        {
+          "@label": "room:301",
+          "@byStay": {
+            "from": {
+              "@day": -5,
+              "@week": true
+            },
+            "to": {
+              "@day": 0,
+              "@week": true
+            },
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "301",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:302",
+          "@byStay": {
+            "from": {
+              "@day": -2,
+              "@week": true
+            },
+            "to": {
+              "@day": 5,
+              "@week": true
+            },
+            "times": {
+              "from": "20:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "302",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:303",
+          "@byStay": {
+            "from": {
+              "@day": -3,
+              "@week": true
+            },
+            "to": {
+              "@day": 6,
+              "@week": true
+            },
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "303",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:304",
+          "@byStay": {
+            "from": {
+              "@day": 0,
+              "@week": true
+            },
+            "to": {
+              "@day": 5,
+              "@week": true
+            },
+            "times": {
+              "from": "20:00",
+              "to": "10:30"
+            },
+            "before": {},
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "304",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "status": "ready",
+          "note": null
+        },
+        {
+          "@label": "room:305",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 4,
+              "@week": true
+            },
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "305",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "occupied",
+          "note": "Best window in the house."
+        },
+        {
+          "@label": "room:306",
+          "number": "306",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "cleaning",
+          "note": null
+        },
+        {
+          "@label": "room:307",
+          "@byStay": {
+            "from": {
+              "@day": -2,
+              "@week": true
+            },
+            "to": {
+              "@day": 2,
+              "@week": true
+            },
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "307",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:308",
+          "@byStay": {
+            "from": {
+              "@day": -1,
+              "@week": true
+            },
+            "to": {
+              "@day": 3,
+              "@week": true
+            },
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "308",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "occupied",
+          "note": null
+        },
+        {
+          "@label": "room:309",
+          "@byStay": {
+            "from": {
+              "@day": 3,
+              "@week": true
+            },
+            "to": {
+              "@day": 6,
+              "@week": true
+            },
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {},
+            "during": {
+              "status": "occupied"
+            },
+            "after": {
+              "status": "cleaning"
+            }
+          },
+          "number": "309",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "ready",
+          "note": null
+        },
+        {
+          "@label": "room:310",
+          "@byStay": {
+            "from": {
+              "@day": -4,
+              "@week": true
+            },
+            "to": {
+              "@day": -1,
+              "@week": true
+            },
+            "times": {
+              "from": "16:00",
+              "to": "10:20"
+            },
+            "before": {
+              "status": "ready"
+            },
+            "during": {
+              "status": "occupied"
+            },
+            "after": {}
+          },
+          "number": "310",
+          "floor": 3,
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "status": "ready",
+          "note": null
+        }
+      ]
+    },
+    {
+      "ref": "room_closures",
+      "rows": [
+        {
+          "room_id": {
+            "@ref": "room:108"
+          },
+          "from_date": {
+            "@day": 0,
+            "@week": true
+          },
+          "to_date": {
+            "@day": 7,
+            "@week": true
+          },
+          "reason": "The shower is being replaced",
+          "active": true,
+          "set_by": "Owen Tremayne",
+          "created_at": {
+            "@day": -1,
+            "@time": "16:30",
+            "@week": true
+          }
+        },
+        {
+          "room_id": {
+            "@ref": "room:210"
+          },
+          "from_date": {
+            "@day": -8,
+            "@week": true
+          },
+          "to_date": null,
+          "reason": "Waiting on the window repair",
+          "active": true,
+          "set_by": "Owen Tremayne",
+          "created_at": {
+            "@day": -9,
+            "@time": "16:30",
+            "@week": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "rate_rules",
+      "rows": [
+        {
+          "room_type_id": null,
+          "name": "Weekend",
+          "weekdays": "fri,sat",
+          "from_date": null,
+          "to_date": null,
+          "amount": 25,
+          "active": true
+        },
+        {
+          "room_type_id": null,
+          "name": "Summer weeks",
+          "weekdays": null,
+          "from_date": {
+            "@day": 4,
+            "@week": true
+          },
+          "to_date": {
+            "@day": 34,
+            "@week": true
+          },
+          "amount": 20,
+          "active": true
+        }
+      ]
+    },
+    {
+      "ref": "extras",
+      "rows": [
+        {
+          "@label": "extra:breakfast",
+          "code": "BRK",
+          "label": "Breakfast in the dining room",
+          "short": "Breakfast",
+          "how": "$16 per person, per night · 07:30 – 10:00",
+          "icon": "croissant",
+          "amount": 16,
+          "per": "person_night",
+          "spaces": null,
+          "active": true,
+          "position": 1
+        },
+        {
+          "@label": "extra:parking",
+          "code": "PRK",
+          "label": "A space behind the house",
+          "short": "Parking",
+          "how": "$14 a night · six spaces",
+          "icon": "car",
+          "amount": 14,
+          "per": "night",
+          "spaces": 6,
+          "active": true,
+          "position": 2
+        },
+        {
+          "@label": "extra:late",
+          "code": "LATE",
+          "label": "A late leaving",
+          "short": "A late leaving",
+          "how": "$35 · the room until 14:00",
+          "icon": "clock",
+          "amount": 35,
+          "per": "stay",
+          "spaces": null,
+          "active": true,
+          "position": 3
+        }
+      ]
+    },
+    {
+      "ref": "charge_items",
+      "rows": [
+        {
+          "@label": "item:breakfast1",
+          "label": "Breakfast, one morning",
+          "detail": "one person",
+          "amount": 16,
+          "icon": "croissant",
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "active": true,
+          "position": 1
+        },
+        {
+          "@label": "item:parking1",
+          "label": "A night's parking",
+          "detail": "one night behind the house",
+          "amount": 14,
+          "icon": "car",
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "active": true,
+          "position": 2
+        },
+        {
+          "@label": "item:late1",
+          "label": "A late leaving",
+          "detail": "the room until 14:00",
+          "amount": 35,
+          "icon": "clock",
+          "extra_id": {
+            "@ref": "extra:late"
+          },
+          "active": true,
+          "position": 3
+        },
+        {
+          "@label": "item:wine",
+          "label": "A glass of house wine",
+          "detail": "from the bar",
+          "amount": 9,
+          "icon": "wine",
+          "extra_id": null,
+          "active": true,
+          "position": 4
+        },
+        {
+          "@label": "item:ale",
+          "label": "A pint of Quay ale",
+          "detail": "from the bar",
+          "amount": 7,
+          "icon": "beer",
+          "extra_id": null,
+          "active": true,
+          "position": 5
+        },
+        {
+          "@label": "item:sandwich",
+          "label": "Sandwiches from the kitchen",
+          "detail": "from the kitchen",
+          "amount": 12,
+          "icon": "sandwich",
+          "extra_id": null,
+          "active": true,
+          "position": 6
+        },
+        {
+          "@label": "item:red",
+          "label": "A bottle of the house red",
+          "detail": "from the bar",
+          "amount": 32,
+          "icon": "wine",
+          "extra_id": null,
+          "active": true,
+          "position": 7
+        }
+      ]
+    },
+    {
+      "ref": "customers",
+      "rows": [
+        {
+          "@label": "guest:3276",
+          "email": "agnes.pellow@example.com",
+          "first_name": "Agnes",
+          "last_name": "Pellow",
+          "created_at": {
+            "@day": -20,
+            "@time": "09:12",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3277",
+          "email": "tomasz.kowal@example.com",
+          "first_name": "Tomasz",
+          "last_name": "Kowal",
+          "created_at": {
+            "@day": -13,
+            "@time": "10:19",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3278",
+          "email": "lena.hartigan@example.com",
+          "first_name": "Lena",
+          "last_name": "Hartigan",
+          "created_at": {
+            "@day": -29,
+            "@time": "11:26",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3279",
+          "email": "rafe.collier@example.com",
+          "first_name": "Rafe",
+          "last_name": "Collier",
+          "created_at": {
+            "@day": -45,
+            "@time": "12:33",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3280",
+          "email": "iris.waverley@example.com",
+          "first_name": "Iris",
+          "last_name": "Waverley",
+          "created_at": {
+            "@day": -7,
+            "@time": "13:40",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3281",
+          "email": "callum.reece@example.com",
+          "first_name": "Callum",
+          "last_name": "Reece",
+          "created_at": {
+            "@day": -7,
+            "@time": "14:47",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3282",
+          "email": "marguerite.okafor@example.com",
+          "first_name": "Marguerite",
+          "last_name": "Okafor",
+          "created_at": {
+            "@day": -12,
+            "@time": "15:54",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3283",
+          "email": "teodor.blank@example.com",
+          "first_name": "Teodor",
+          "last_name": "Blank",
+          "created_at": {
+            "@day": -17,
+            "@time": "16:01",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3284",
+          "email": "noor.hadid@example.com",
+          "first_name": "Noor",
+          "last_name": "Hadid",
+          "created_at": {
+            "@day": -16,
+            "@time": "17:08",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3285",
+          "email": "bram.ellery@example.com",
+          "first_name": "Bram",
+          "last_name": "Ellery",
+          "created_at": {
+            "@day": -22,
+            "@time": "09:15",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3286",
+          "email": "lucia.fenwick@example.com",
+          "first_name": "Lucia",
+          "last_name": "Fenwick",
+          "created_at": {
+            "@day": -32,
+            "@time": "10:22",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3287",
+          "email": "osian.trelawney@example.com",
+          "first_name": "Osian",
+          "last_name": "Trelawney",
+          "created_at": {
+            "@day": -47,
+            "@time": "11:29",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3288",
+          "email": "petra.nadeau@example.com",
+          "first_name": "Petra",
+          "last_name": "Nadeau",
+          "created_at": {
+            "@day": -4,
+            "@time": "12:36",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3289",
+          "email": "halvor.sund@example.com",
+          "first_name": "Halvor",
+          "last_name": "Sund",
+          "created_at": {
+            "@day": -7,
+            "@time": "13:43",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3290",
+          "email": "amara.sinclair@example.com",
+          "first_name": "Amara",
+          "last_name": "Sinclair",
+          "created_at": {
+            "@day": -10,
+            "@time": "14:50",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3291",
+          "email": "devon.marchetti@example.com",
+          "first_name": "Devon",
+          "last_name": "Marchetti",
+          "created_at": {
+            "@day": -16,
+            "@time": "15:57",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3292",
+          "email": "rosalind.oyelaran@example.com",
+          "first_name": "Rosalind",
+          "last_name": "Oyelaran",
+          "created_at": {
+            "@day": -18,
+            "@time": "16:04",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3293",
+          "email": "fionn.castellane@example.com",
+          "first_name": "Fionn",
+          "last_name": "Castellane",
+          "created_at": {
+            "@day": -22,
+            "@time": "17:11",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3294",
+          "email": "sable.whitcombe@example.com",
+          "first_name": "Sable",
+          "last_name": "Whitcombe",
+          "created_at": {
+            "@day": -33,
+            "@time": "09:18",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3295",
+          "email": "emrys.toll@example.com",
+          "first_name": "Emrys",
+          "last_name": "Toll",
+          "created_at": {
+            "@day": -45,
+            "@time": "10:25",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3296",
+          "email": "junie.alvarez@example.com",
+          "first_name": "Junie",
+          "last_name": "Alvarez",
+          "created_at": {
+            "@day": -5,
+            "@time": "11:32",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3297",
+          "email": "kester.vane@example.com",
+          "first_name": "Kester",
+          "last_name": "Vane",
+          "created_at": {
+            "@day": -6,
+            "@time": "12:39",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3298",
+          "email": "wilda.nkemelu@example.com",
+          "first_name": "Wilda",
+          "last_name": "Nkemelu",
+          "created_at": {
+            "@day": -12,
+            "@time": "13:46",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3299",
+          "email": "corin.ashdown@example.com",
+          "first_name": "Corin",
+          "last_name": "Ashdown",
+          "created_at": {
+            "@day": -13,
+            "@time": "14:53",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3300",
+          "email": "marisol.fairbairn@example.com",
+          "first_name": "Marisol",
+          "last_name": "Fairbairn",
+          "created_at": {
+            "@day": -18,
+            "@time": "15:00",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3301",
+          "email": "ottoline.grey@example.com",
+          "first_name": "Ottoline",
+          "last_name": "Grey",
+          "created_at": {
+            "@day": -21,
+            "@time": "16:07",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3302",
+          "email": "sorley.mackintosh@example.com",
+          "first_name": "Sorley",
+          "last_name": "Mackintosh",
+          "created_at": {
+            "@day": -30,
+            "@time": "17:14",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3303",
+          "email": "priya.raman@example.com",
+          "first_name": "Priya",
+          "last_name": "Raman",
+          "created_at": {
+            "@day": -44,
+            "@time": "09:21",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3304",
+          "email": "ren.kobayashi@example.com",
+          "first_name": "Ren",
+          "last_name": "Kobayashi",
+          "created_at": {
+            "@day": -3,
+            "@time": "10:28",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3305",
+          "email": "nadia.brightwell@example.com",
+          "first_name": "Nadia",
+          "last_name": "Brightwell",
+          "created_at": {
+            "@day": -2,
+            "@time": "11:35",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3306",
+          "email": "hugo.marlowe@example.com",
+          "first_name": "Hugo",
+          "last_name": "Marlowe",
+          "created_at": {
+            "@day": -5,
+            "@time": "12:42",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3307",
+          "email": "beatrix.onslow@example.com",
+          "first_name": "Beatrix",
+          "last_name": "Onslow",
+          "created_at": {
+            "@day": -7,
+            "@time": "13:49",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3308",
+          "email": "cyrus.penhale@example.com",
+          "first_name": "Cyrus",
+          "last_name": "Penhale",
+          "created_at": {
+            "@day": -10,
+            "@time": "14:56",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3309",
+          "email": "dilys.morgan@example.com",
+          "first_name": "Dilys",
+          "last_name": "Morgan",
+          "created_at": {
+            "@day": -15,
+            "@time": "15:03",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3310",
+          "email": "ezra.quint@example.com",
+          "first_name": "Ezra",
+          "last_name": "Quint",
+          "created_at": {
+            "@day": -24,
+            "@time": "16:10",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3311",
+          "email": "freya.lund@example.com",
+          "first_name": "Freya",
+          "last_name": "Lund",
+          "created_at": {
+            "@day": -39,
+            "@time": "17:17",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3312",
+          "email": "gideon.ashe@example.com",
+          "first_name": "Gideon",
+          "last_name": "Ashe",
+          "created_at": {
+            "@day": -1,
+            "@time": "11:05",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3313",
+          "email": "hana.sato@example.com",
+          "first_name": "Hana",
+          "last_name": "Sato",
+          "created_at": {
+            "@day": -1,
+            "@time": "10:31",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3314",
+          "email": "ivo.brandt@example.com",
+          "first_name": "Ivo",
+          "last_name": "Brandt",
+          "created_at": {
+            "@day": -3,
+            "@time": "11:38",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3315",
+          "email": "jonah.keel@example.com",
+          "first_name": "Jonah",
+          "last_name": "Keel",
+          "created_at": {
+            "@day": -5,
+            "@time": "12:45",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3316",
+          "email": "kit.lowry@example.com",
+          "first_name": "Kit",
+          "last_name": "Lowry",
+          "created_at": {
+            "@day": -10,
+            "@time": "13:52",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3317",
+          "email": "mina.farrow@example.com",
+          "first_name": "Mina",
+          "last_name": "Farrow",
+          "created_at": {
+            "@day": -16,
+            "@time": "14:59",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3318",
+          "email": "niall.draper@example.com",
+          "first_name": "Niall",
+          "last_name": "Draper",
+          "created_at": {
+            "@day": -23,
+            "@time": "15:06",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3319",
+          "email": "orla.keane@example.com",
+          "first_name": "Orla",
+          "last_name": "Keane",
+          "created_at": {
+            "@day": -34,
+            "@time": "16:13",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3320",
+          "email": "pim.devries@example.com",
+          "first_name": "Pim",
+          "last_name": "de Vries",
+          "created_at": {
+            "@day": -1,
+            "@time": "13:05",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3321",
+          "email": "quinn.arden@example.com",
+          "first_name": "Quinn",
+          "last_name": "Arden",
+          "created_at": {
+            "@day": -1,
+            "@time": "12:05",
+            "@week": true
+          }
+        },
+        {
+          "@label": "guest:3322",
+          "email": "saoirse.doyle@example.com",
+          "first_name": "Saoirse",
+          "last_name": "Doyle",
+          "created_at": {
+            "@day": -8,
+            "@time": "10:34",
+            "@week": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "stays",
+      "rows": [
+        {
+          "@label": "stay:3276",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "16:00",
+              "to": "10:20"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -4,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -4,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": -1,
+                "@time": "10:20",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3276",
+          "status": "departed",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": {
+            "@ref": "room:310"
+          },
+          "arrive": {
+            "@day": -4,
+            "@week": true
+          },
+          "depart": {
+            "@day": -1,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Agnes",
+          "last_name": "Pellow",
+          "email": "agnes.pellow@example.com",
+          "mobile": "(207) 555-0176",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -6,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -20,
+            "@time": "09:12",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3276"
+          }
+        },
+        {
+          "@label": "stay:3277",
+          "ref_seq": null,
+          "ref": "WH-S3277",
+          "status": "cancelled",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 8,
+            "@week": true
+          },
+          "depart": {
+            "@day": 10,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Tomasz",
+          "last_name": "Kowal",
+          "email": "tomasz.kowal@example.com",
+          "mobile": "(207) 555-0177",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 6,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -13,
+            "@time": "10:19",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3277"
+          },
+          "cancelled_at": {
+            "@day": -8,
+            "@time": "14:12",
+            "@week": true
+          },
+          "cancelled_by": "guest",
+          "cancel_code": "self",
+          "late_cancel": false
+        },
+        {
+          "@label": "stay:3278",
+          "ref_seq": null,
+          "ref": "WH-S3278",
+          "status": "cancelled",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Lena",
+          "last_name": "Hartigan",
+          "email": "lena.hartigan@example.com",
+          "mobile": "(207) 555-0178",
+          "arrival_time": "18:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -1,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -29,
+            "@time": "11:26",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3278"
+          },
+          "cancelled_at": {
+            "@day": -1,
+            "@time": "18:40",
+            "@week": true
+          },
+          "cancelled_by": "guest",
+          "cancel_code": "self",
+          "late_cancel": true
+        },
+        {
+          "@label": "stay:3279",
+          "ref_seq": null,
+          "ref": "WH-S3279",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 0,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Rafe",
+          "last_name": "Collier",
+          "email": "rafe.collier@example.com",
+          "mobile": "(207) 555-0179",
+          "arrival_time": "21:00",
+          "note": "Coming off the late ferry.",
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -45,
+            "@time": "12:33",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3279"
+          }
+        },
+        {
+          "@label": "stay:3280",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -4,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -4,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 0,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3280",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:105"
+          },
+          "arrive": {
+            "@day": -4,
+            "@week": true
+          },
+          "depart": {
+            "@day": 0,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Iris",
+          "last_name": "Waverley",
+          "email": "iris.waverley@example.com",
+          "mobile": "(207) 555-0180",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -6,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -7,
+            "@time": "13:40",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3280"
+          }
+        },
+        {
+          "@label": "stay:3281",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "19:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "19:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "19:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 0,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3281",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": {
+            "@ref": "room:101"
+          },
+          "arrive": {
+            "@day": -2,
+            "@week": true
+          },
+          "depart": {
+            "@day": 0,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Callum",
+          "last_name": "Reece",
+          "email": "callum.reece@example.com",
+          "mobile": "(207) 555-0181",
+          "arrival_time": "19:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "desk",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -7,
+            "@time": "14:47",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3281"
+          }
+        },
+        {
+          "@label": "stay:3282",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 0,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3282",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": {
+            "@ref": "room:209"
+          },
+          "arrive": {
+            "@day": -3,
+            "@week": true
+          },
+          "depart": {
+            "@day": 0,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Marguerite",
+          "last_name": "Okafor",
+          "email": "marguerite.okafor@example.com",
+          "mobile": "(207) 555-0182",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -5,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -12,
+            "@time": "15:54",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3282"
+          }
+        },
+        {
+          "@label": "stay:3283",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -5,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -5,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 0,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3283",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": {
+            "@ref": "room:301"
+          },
+          "arrive": {
+            "@day": -5,
+            "@week": true
+          },
+          "depart": {
+            "@day": 0,
+            "@week": true
+          },
+          "guests": 3,
+          "first_name": "Teodor",
+          "last_name": "Blank",
+          "email": "teodor.blank@example.com",
+          "mobile": "(207) 555-0183",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -7,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -17,
+            "@time": "16:01",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3283"
+          }
+        },
+        {
+          "@label": "stay:3284",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "08:40",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": 0,
+                "@time": "08:40",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": 0,
+                "@time": "08:40",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 3,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3284",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:106"
+          },
+          "arrive": {
+            "@day": 0,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Noor",
+          "last_name": "Hadid",
+          "email": "noor.hadid@example.com",
+          "mobile": "(207) 555-0184",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -16,
+            "@time": "17:08",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3284"
+          }
+        },
+        {
+          "@label": "stay:3285",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "18:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "18:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "18:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 2,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3285",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": {
+            "@ref": "room:102"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 2,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Bram",
+          "last_name": "Ellery",
+          "email": "bram.ellery@example.com",
+          "mobile": "(207) 555-0185",
+          "arrival_time": "18:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -22,
+            "@time": "09:15",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3285"
+          }
+        },
+        {
+          "@label": "stay:3286",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 1,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3286",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:107"
+          },
+          "arrive": {
+            "@day": -2,
+            "@week": true
+          },
+          "depart": {
+            "@day": 1,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Lucia",
+          "last_name": "Fenwick",
+          "email": "lucia.fenwick@example.com",
+          "mobile": "(207) 555-0186",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -32,
+            "@time": "10:22",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3286"
+          }
+        },
+        {
+          "@label": "stay:3287",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 3,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3287",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:109"
+          },
+          "arrive": {
+            "@day": -3,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Osian",
+          "last_name": "Trelawney",
+          "email": "osian.trelawney@example.com",
+          "mobile": "(207) 555-0187",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -5,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -47,
+            "@time": "11:29",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3287"
+          }
+        },
+        {
+          "@label": "stay:3288",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 4,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3288",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": {
+            "@ref": "room:305"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 4,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Petra",
+          "last_name": "Nadeau",
+          "email": "petra.nadeau@example.com",
+          "mobile": "(207) 555-0188",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -4,
+            "@time": "12:36",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3288"
+          }
+        },
+        {
+          "@label": "stay:3289",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "20:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "20:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "20:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 5,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3289",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": {
+            "@ref": "room:302"
+          },
+          "arrive": {
+            "@day": -2,
+            "@week": true
+          },
+          "depart": {
+            "@day": 5,
+            "@week": true
+          },
+          "guests": 4,
+          "first_name": "Halvor",
+          "last_name": "Sund",
+          "email": "halvor.sund@example.com",
+          "mobile": "(207) 555-0189",
+          "arrival_time": "20:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -7,
+            "@time": "13:43",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3289"
+          }
+        },
+        {
+          "@label": "stay:3290",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "21:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "21:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "21:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 1,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3290",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": {
+            "@ref": "room:104"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 1,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Amara",
+          "last_name": "Sinclair",
+          "email": "amara.sinclair@example.com",
+          "mobile": "(207) 555-0190",
+          "arrival_time": "21:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "desk",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -10,
+            "@time": "14:50",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3290"
+          }
+        },
+        {
+          "@label": "stay:3291",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -4,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -4,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 2,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3291",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:110"
+          },
+          "arrive": {
+            "@day": -4,
+            "@week": true
+          },
+          "depart": {
+            "@day": 2,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Devon",
+          "last_name": "Marchetti",
+          "email": "devon.marchetti@example.com",
+          "mobile": "(207) 555-0191",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -6,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -16,
+            "@time": "15:57",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3291"
+          }
+        },
+        {
+          "@label": "stay:3292",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 2,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3292",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": {
+            "@ref": "room:307"
+          },
+          "arrive": {
+            "@day": -2,
+            "@week": true
+          },
+          "depart": {
+            "@day": 2,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Rosalind",
+          "last_name": "Oyelaran",
+          "email": "rosalind.oyelaran@example.com",
+          "mobile": "(207) 555-0192",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -18,
+            "@time": "16:04",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3292"
+          }
+        },
+        {
+          "@label": "stay:3293",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "18:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "18:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "18:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 4,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3293",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:111"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 4,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Fionn",
+          "last_name": "Castellane",
+          "email": "fionn.castellane@example.com",
+          "mobile": "(207) 555-0193",
+          "arrival_time": "18:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -22,
+            "@time": "17:11",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3293"
+          }
+        },
+        {
+          "@label": "stay:3294",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 6,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3294",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": {
+            "@ref": "room:303"
+          },
+          "arrive": {
+            "@day": -3,
+            "@week": true
+          },
+          "depart": {
+            "@day": 6,
+            "@week": true
+          },
+          "guests": 4,
+          "first_name": "Sable",
+          "last_name": "Whitcombe",
+          "email": "sable.whitcombe@example.com",
+          "mobile": "(207) 555-0194",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -5,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -33,
+            "@time": "09:18",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3294"
+          }
+        },
+        {
+          "@label": "stay:3295",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "22:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "22:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "22:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 3,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3295",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": {
+            "@ref": "room:201"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Emrys",
+          "last_name": "Toll",
+          "email": "emrys.toll@example.com",
+          "mobile": "(207) 555-0195",
+          "arrival_time": "22:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -45,
+            "@time": "10:25",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3295"
+          }
+        },
+        {
+          "@label": "stay:3296",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 1,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3296",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:112"
+          },
+          "arrive": {
+            "@day": -2,
+            "@week": true
+          },
+          "depart": {
+            "@day": 1,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Junie",
+          "last_name": "Alvarez",
+          "email": "junie.alvarez@example.com",
+          "mobile": "(207) 555-0196",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -5,
+            "@time": "11:32",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3296"
+          }
+        },
+        {
+          "@label": "stay:3297",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "16:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "16:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 3,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3297",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": {
+            "@ref": "room:308"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Kester",
+          "last_name": "Vane",
+          "email": "kester.vane@example.com",
+          "mobile": "(207) 555-0197",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -6,
+            "@time": "12:39",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3297"
+          }
+        },
+        {
+          "@label": "stay:3298",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "19:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "19:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -3,
+                "@time": "19:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 2,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3298",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:206"
+          },
+          "arrive": {
+            "@day": -3,
+            "@week": true
+          },
+          "depart": {
+            "@day": 2,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Wilda",
+          "last_name": "Nkemelu",
+          "email": "wilda.nkemelu@example.com",
+          "mobile": "(207) 555-0198",
+          "arrival_time": "19:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -5,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -12,
+            "@time": "13:46",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3298"
+          }
+        },
+        {
+          "@label": "stay:3299",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "15:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -1,
+                "@time": "15:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 1,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3299",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": {
+            "@ref": "room:202"
+          },
+          "arrive": {
+            "@day": -1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 1,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Corin",
+          "last_name": "Ashdown",
+          "email": "corin.ashdown@example.com",
+          "mobile": "(207) 555-0199",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "desk",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -13,
+            "@time": "14:53",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3299"
+          }
+        },
+        {
+          "@label": "stay:3300",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "18:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "18:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": -2,
+                "@time": "18:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 5,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3300",
+          "status": "in_house",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:207"
+          },
+          "arrive": {
+            "@day": -2,
+            "@week": true
+          },
+          "depart": {
+            "@day": 5,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Marisol",
+          "last_name": "Fairbairn",
+          "email": "marisol.fairbairn@example.com",
+          "mobile": "(207) 555-0100",
+          "arrival_time": "18:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -18,
+            "@time": "15:00",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3300"
+          }
+        },
+        {
+          "@label": "stay:3301",
+          "ref_seq": null,
+          "ref": "WH-S3301",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 0,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Ottoline",
+          "last_name": "Grey",
+          "email": "ottoline.grey@example.com",
+          "mobile": "(207) 555-0101",
+          "arrival_time": "16:00",
+          "note": "We are driving down and may be later than we said. Please keep the room.",
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -21,
+            "@time": "16:07",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3301"
+          }
+        },
+        {
+          "@label": "stay:3302",
+          "ref_seq": null,
+          "ref": "WH-S3302",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 0,
+            "@week": true
+          },
+          "depart": {
+            "@day": 2,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Sorley",
+          "last_name": "Mackintosh",
+          "email": "sorley.mackintosh@example.com",
+          "mobile": "(207) 555-0102",
+          "arrival_time": "18:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "desk",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -30,
+            "@time": "17:14",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3302"
+          }
+        },
+        {
+          "@label": "stay:3303",
+          "ref_seq": null,
+          "ref": "WH-S3303",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 0,
+            "@week": true
+          },
+          "depart": {
+            "@day": 5,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Priya",
+          "last_name": "Raman",
+          "email": "priya.raman@example.com",
+          "mobile": "(207) 555-0103",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -44,
+            "@time": "09:21",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3303"
+          }
+        },
+        {
+          "@label": "stay:3304",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "20:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": 0,
+                "@time": "20:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": 0,
+                "@time": "20:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 5,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3304",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": {
+            "@ref": "room:304"
+          },
+          "arrive": {
+            "@day": 0,
+            "@week": true
+          },
+          "depart": {
+            "@day": 5,
+            "@week": true
+          },
+          "guests": 4,
+          "first_name": "Ren",
+          "last_name": "Kobayashi",
+          "email": "ren.kobayashi@example.com",
+          "mobile": "(207) 555-0104",
+          "arrival_time": "20:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -3,
+            "@time": "10:28",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3304"
+          }
+        },
+        {
+          "@label": "stay:3305",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": 3,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": 3,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 6,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3305",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": {
+            "@ref": "room:309"
+          },
+          "arrive": {
+            "@day": 3,
+            "@week": true
+          },
+          "depart": {
+            "@day": 6,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Nadia",
+          "last_name": "Brightwell",
+          "email": "nadia.brightwell@example.com",
+          "mobile": "(207) 555-0105",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 1,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -2,
+            "@time": "11:35",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3305"
+          }
+        },
+        {
+          "@label": "stay:3306",
+          "ref_seq": null,
+          "ref": "WH-S3306",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 4,
+            "@week": true
+          },
+          "depart": {
+            "@day": 6,
+            "@week": true
+          },
+          "guests": 3,
+          "first_name": "Hugo",
+          "last_name": "Marlowe",
+          "email": "hugo.marlowe@example.com",
+          "mobile": "(207) 555-0106",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -5,
+            "@time": "12:42",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3306"
+          }
+        },
+        {
+          "@label": "stay:3307",
+          "ref_seq": null,
+          "ref": "WH-S3307",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 5,
+            "@week": true
+          },
+          "depart": {
+            "@day": 9,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Beatrix",
+          "last_name": "Onslow",
+          "email": "beatrix.onslow@example.com",
+          "mobile": "(207) 555-0107",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -7,
+            "@time": "13:49",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3307"
+          }
+        },
+        {
+          "@label": "stay:3308",
+          "ref_seq": null,
+          "ref": "WH-S3308",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 6,
+            "@week": true
+          },
+          "depart": {
+            "@day": 8,
+            "@week": true
+          },
+          "guests": 4,
+          "first_name": "Cyrus",
+          "last_name": "Penhale",
+          "email": "cyrus.penhale@example.com",
+          "mobile": "(207) 555-0108",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -10,
+            "@time": "14:56",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3308"
+          }
+        },
+        {
+          "@label": "stay:3309",
+          "ref_seq": null,
+          "ref": "WH-S3309",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 6,
+            "@week": true
+          },
+          "depart": {
+            "@day": 10,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Dilys",
+          "last_name": "Morgan",
+          "email": "dilys.morgan@example.com",
+          "mobile": "(207) 555-0109",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -15,
+            "@time": "15:03",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3309"
+          }
+        },
+        {
+          "@label": "stay:3310",
+          "ref_seq": null,
+          "ref": "WH-S3310",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 6,
+            "@week": true
+          },
+          "depart": {
+            "@day": 9,
+            "@week": true
+          },
+          "guests": 3,
+          "first_name": "Ezra",
+          "last_name": "Quint",
+          "email": "ezra.quint@example.com",
+          "mobile": "(207) 555-0110",
+          "arrival_time": "18:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -24,
+            "@time": "16:10",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3310"
+          }
+        },
+        {
+          "@label": "stay:3311",
+          "ref_seq": null,
+          "ref": "WH-S3311",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 5,
+            "@week": true
+          },
+          "depart": {
+            "@day": 8,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Freya",
+          "last_name": "Lund",
+          "email": "freya.lund@example.com",
+          "mobile": "(207) 555-0111",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -39,
+            "@time": "17:17",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3311"
+          }
+        },
+        {
+          "@label": "stay:3312",
+          "ref_seq": null,
+          "ref": "WH-S3312",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 6,
+            "@week": true
+          },
+          "depart": {
+            "@day": 9,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Gideon",
+          "last_name": "Ashe",
+          "email": "gideon.ashe@example.com",
+          "mobile": "(207) 555-0112",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "desk",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -1,
+            "@time": "11:05",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3312"
+          }
+        },
+        {
+          "@label": "stay:3313",
+          "ref_seq": null,
+          "ref": "WH-S3313",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 4,
+            "@week": true
+          },
+          "depart": {
+            "@day": 8,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Hana",
+          "last_name": "Sato",
+          "email": "hana.sato@example.com",
+          "mobile": "(207) 555-0113",
+          "arrival_time": "19:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 2,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -1,
+            "@time": "10:31",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3313"
+          }
+        },
+        {
+          "@label": "stay:3314",
+          "ref_seq": null,
+          "ref": "WH-S3314",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 6,
+            "@week": true
+          },
+          "depart": {
+            "@day": 11,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Ivo",
+          "last_name": "Brandt",
+          "email": "ivo.brandt@example.com",
+          "mobile": "(207) 555-0114",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -3,
+            "@time": "11:38",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3314"
+          }
+        },
+        {
+          "@label": "stay:3315",
+          "ref_seq": null,
+          "ref": "WH-S3315",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 7,
+            "@week": true
+          },
+          "depart": {
+            "@day": 9,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Jonah",
+          "last_name": "Keel",
+          "email": "jonah.keel@example.com",
+          "mobile": "(207) 555-0115",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 5,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -5,
+            "@time": "12:45",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3315"
+          }
+        },
+        {
+          "@label": "stay:3316",
+          "ref_seq": null,
+          "ref": "WH-S3316",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 6,
+            "@week": true
+          },
+          "depart": {
+            "@day": 8,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Kit",
+          "last_name": "Lowry",
+          "email": "kit.lowry@example.com",
+          "mobile": "(207) 555-0116",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 4,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -10,
+            "@time": "13:52",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3316"
+          }
+        },
+        {
+          "@label": "stay:3317",
+          "ref_seq": null,
+          "ref": "WH-S3317",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 5,
+            "@week": true
+          },
+          "depart": {
+            "@day": 9,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Mina",
+          "last_name": "Farrow",
+          "email": "mina.farrow@example.com",
+          "mobile": "(207) 555-0117",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 3,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -16,
+            "@time": "14:59",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3317"
+          }
+        },
+        {
+          "@label": "stay:3318",
+          "ref_seq": null,
+          "ref": "WH-S3318",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 7,
+            "@week": true
+          },
+          "depart": {
+            "@day": 9,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Niall",
+          "last_name": "Draper",
+          "email": "niall.draper@example.com",
+          "mobile": "(207) 555-0118",
+          "arrival_time": "20:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 5,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -23,
+            "@time": "15:06",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3318"
+          }
+        },
+        {
+          "@label": "stay:3319",
+          "ref_seq": null,
+          "ref": "WH-S3319",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 10,
+            "@week": true
+          },
+          "depart": {
+            "@day": 12,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Orla",
+          "last_name": "Keane",
+          "email": "orla.keane@example.com",
+          "mobile": "(207) 555-0119",
+          "arrival_time": "15:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 8,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -34,
+            "@time": "16:13",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3319"
+          }
+        },
+        {
+          "@label": "stay:3320",
+          "ref_seq": null,
+          "ref": "WH-S3320",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:harbour"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 10,
+            "@week": true
+          },
+          "depart": {
+            "@day": 13,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Pim",
+          "last_name": "de Vries",
+          "email": "pim.devries@example.com",
+          "mobile": "(207) 555-0120",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 8,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -1,
+            "@time": "13:05",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3320"
+          }
+        },
+        {
+          "@label": "stay:3321",
+          "ref_seq": null,
+          "ref": "WH-S3321",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:loft"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 10,
+            "@week": true
+          },
+          "depart": {
+            "@day": 12,
+            "@week": true
+          },
+          "guests": 4,
+          "first_name": "Quinn",
+          "last_name": "Arden",
+          "email": "quinn.arden@example.com",
+          "mobile": "(207) 555-0121",
+          "arrival_time": "16:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": 8,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -1,
+            "@time": "12:05",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3321"
+          }
+        },
+        {
+          "@label": "stay:3322",
+          "@byStay": {
+            "from": "arrive",
+            "to": "depart",
+            "times": {
+              "from": "17:00",
+              "to": "10:30"
+            },
+            "before": {
+              "status": "booked",
+              "checked_in_at": null,
+              "checked_in_by": null,
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "during": {
+              "status": "in_house",
+              "checked_in_at": {
+                "@day": 1,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": null,
+              "checked_out_by": null
+            },
+            "after": {
+              "status": "departed",
+              "checked_in_at": {
+                "@day": 1,
+                "@time": "17:00",
+                "@week": true
+              },
+              "checked_in_by": "Maeve R.",
+              "checked_out_at": {
+                "@day": 4,
+                "@time": "10:30",
+                "@week": true
+              },
+              "checked_out_by": "Maeve R."
+            }
+          },
+          "ref_seq": null,
+          "ref": "WH-S3322",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:garden"
+          },
+          "room_id": {
+            "@ref": "room:212"
+          },
+          "arrive": {
+            "@day": 1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 4,
+            "@week": true
+          },
+          "guests": 2,
+          "first_name": "Saoirse",
+          "last_name": "Doyle",
+          "email": "saoirse.doyle@example.com",
+          "mobile": "(207) 555-0122",
+          "arrival_time": "17:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "online",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -1,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -8,
+            "@time": "10:34",
+            "@week": true
+          },
+          "customer_id": {
+            "@ref": "guest:3322"
+          }
+        },
+        {
+          "@label": "stay:3323",
+          "ref_seq": null,
+          "ref": "WH-S3323",
+          "status": "booked",
+          "room_type_id": {
+            "@ref": "type:snug"
+          },
+          "room_id": null,
+          "arrive": {
+            "@day": 1,
+            "@week": true
+          },
+          "depart": {
+            "@day": 3,
+            "@week": true
+          },
+          "guests": 1,
+          "first_name": "Tobias",
+          "last_name": "Wynn",
+          "email": null,
+          "mobile": "(207) 555-0123",
+          "arrival_time": "19:00",
+          "note": null,
+          "language": "en-US",
+          "channel": "desk",
+          "tax_rate": 9,
+          "tax_label": "Taxes and city levy",
+          "cancel_by": {
+            "@day": -1,
+            "@time": "15:00",
+            "@week": true
+          },
+          "created_at": {
+            "@day": -11,
+            "@time": "11:41",
+            "@week": true
+          },
+          "customer_id": null
+        }
+      ]
+    },
+    {
+      "ref": "stay_extras",
+      "rows": [
+        {
+          "stay_id": {
+            "@ref": "stay:3276"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -20,
+            "@time": "09:12",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3280"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -7,
+            "@time": "13:40",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3282"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -12,
+            "@time": "15:54",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3282"
+          },
+          "extra_id": {
+            "@ref": "extra:late"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -12,
+            "@time": "15:54",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3283"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -17,
+            "@time": "16:01",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3283"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -17,
+            "@time": "16:01",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3284"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -16,
+            "@time": "17:08",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3286"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -32,
+            "@time": "10:22",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3288"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -4,
+            "@time": "12:36",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3289"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -7,
+            "@time": "13:43",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3289"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -7,
+            "@time": "13:43",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3291"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -16,
+            "@time": "15:57",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3293"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -22,
+            "@time": "17:11",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3294"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -33,
+            "@time": "09:18",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3297"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -6,
+            "@time": "12:39",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3300"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -18,
+            "@time": "15:00",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3300"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -18,
+            "@time": "15:00",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3301"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -21,
+            "@time": "16:07",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3303"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -44,
+            "@time": "09:21",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3303"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -44,
+            "@time": "09:21",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3304"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -3,
+            "@time": "10:28",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3305"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -2,
+            "@time": "11:35",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3306"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -5,
+            "@time": "12:42",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3307"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -7,
+            "@time": "13:49",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3309"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -15,
+            "@time": "15:03",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3310"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -24,
+            "@time": "16:10",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3311"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -39,
+            "@time": "17:17",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3313"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -1,
+            "@time": "10:31",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3314"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -3,
+            "@time": "11:38",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3316"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -10,
+            "@time": "13:52",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3319"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -34,
+            "@time": "16:13",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3320"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -1,
+            "@time": "13:05",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3320"
+          },
+          "extra_id": {
+            "@ref": "extra:parking"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -1,
+            "@time": "13:05",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3321"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -1,
+            "@time": "12:05",
+            "@week": true
+          }
+        },
+        {
+          "stay_id": {
+            "@ref": "stay:3322"
+          },
+          "extra_id": {
+            "@ref": "extra:breakfast"
+          },
+          "state": "on",
+          "added_at": {
+            "@day": -8,
+            "@time": "10:34",
+            "@week": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "charges",
+      "rows": [
+        {
+          "@byClock": {
+            "at": {
+              "@day": -3,
+              "@time": "20:00",
+              "@week": true
+            },
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3283"
+          },
+          "charge_item_id": {
+            "@ref": "item:red"
+          },
+          "note": "taken in the garden",
+          "charged_on": {
+            "@day": -3,
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        }
+      ]
+    },
+    {
+      "ref": "payments",
+      "rows": [
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3276"
+          },
+          "kind": "taken",
+          "amount": 747.74,
+          "method": "card",
+          "paid_on": {
+            "@day": -1,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": -1,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3280"
+          },
+          "kind": "taken",
+          "amount": 848.02,
+          "method": "card",
+          "paid_on": {
+            "@day": 0,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 0,
+            "@time": "08:10",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3281"
+          },
+          "kind": "taken",
+          "amount": 239.8,
+          "method": "card",
+          "paid_on": {
+            "@day": 0,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 0,
+            "@time": "08:25",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3282"
+          },
+          "kind": "taken",
+          "amount": 699.78,
+          "method": "card",
+          "paid_on": {
+            "@day": 0,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 0,
+            "@time": "08:50",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3283"
+          },
+          "kind": "taken",
+          "amount": 500,
+          "method": "card",
+          "paid_on": {
+            "@day": -5,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": -5,
+            "@time": "17:20",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3283"
+          },
+          "kind": "taken",
+          "amount": 1099.03,
+          "method": "card",
+          "paid_on": {
+            "@day": 0,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 0,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3284"
+          },
+          "kind": "taken",
+          "amount": 595.14,
+          "method": "card",
+          "paid_on": {
+            "@day": 3,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 3,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3285"
+          },
+          "kind": "taken",
+          "amount": 359.7,
+          "method": "card",
+          "paid_on": {
+            "@day": 2,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 2,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3286"
+          },
+          "kind": "taken",
+          "amount": 595.14,
+          "method": "card",
+          "paid_on": {
+            "@day": 1,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 1,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3287"
+          },
+          "kind": "taken",
+          "amount": 1008.25,
+          "method": "card",
+          "paid_on": {
+            "@day": 3,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 3,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3288"
+          },
+          "kind": "taken",
+          "amount": 1182.65,
+          "method": "card",
+          "paid_on": {
+            "@day": 4,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 4,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3289"
+          },
+          "kind": "taken",
+          "amount": 2311.89,
+          "method": "card",
+          "paid_on": {
+            "@day": 5,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 5,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3290"
+          },
+          "kind": "taken",
+          "amount": 239.8,
+          "method": "card",
+          "paid_on": {
+            "@day": 1,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 1,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3291"
+          },
+          "kind": "taken",
+          "amount": 1127.06,
+          "method": "card",
+          "paid_on": {
+            "@day": 2,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 2,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3292"
+          },
+          "kind": "taken",
+          "amount": 784.8,
+          "method": "card",
+          "paid_on": {
+            "@day": 2,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 2,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3293"
+          },
+          "kind": "taken",
+          "amount": 1019.15,
+          "method": "card",
+          "paid_on": {
+            "@day": 4,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 4,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3294"
+          },
+          "kind": "taken",
+          "amount": 2862.34,
+          "method": "card",
+          "paid_on": {
+            "@day": 6,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 6,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3295"
+          },
+          "kind": "taken",
+          "amount": 479.6,
+          "method": "card",
+          "paid_on": {
+            "@day": 3,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 3,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3296"
+          },
+          "kind": "taken",
+          "amount": 490.5,
+          "method": "card",
+          "paid_on": {
+            "@day": 1,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 1,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3297"
+          },
+          "kind": "taken",
+          "amount": 845.84,
+          "method": "card",
+          "paid_on": {
+            "@day": 3,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 3,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3298"
+          },
+          "kind": "taken",
+          "amount": 844.75,
+          "method": "card",
+          "paid_on": {
+            "@day": 2,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 2,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3299"
+          },
+          "kind": "taken",
+          "amount": 239.8,
+          "method": "card",
+          "paid_on": {
+            "@day": 1,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 1,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3300"
+          },
+          "kind": "taken",
+          "amount": 1571.78,
+          "method": "card",
+          "paid_on": {
+            "@day": 5,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 5,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3304"
+          },
+          "kind": "taken",
+          "amount": 1596.85,
+          "method": "card",
+          "paid_on": {
+            "@day": 5,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 5,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3305"
+          },
+          "kind": "taken",
+          "amount": 791.34,
+          "method": "card",
+          "paid_on": {
+            "@day": 6,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 6,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        },
+        {
+          "@byClock": {
+            "at": "recorded_at",
+            "after": {
+              "@skip": true
+            }
+          },
+          "stay_id": {
+            "@ref": "stay:3322"
+          },
+          "kind": "taken",
+          "amount": 622.39,
+          "method": "card",
+          "paid_on": {
+            "@day": 4,
+            "@week": true
+          },
+          "recorded_at": {
+            "@day": 4,
+            "@time": "10:15",
+            "@week": true
+          },
+          "recorded_by": "Maeve R."
+        }
+      ]
+    }
+  ]
+}

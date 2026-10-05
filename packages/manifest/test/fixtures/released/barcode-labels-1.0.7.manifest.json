@@ -1,0 +1,79 @@
+{
+  "kind": "add-on",
+  "manifestVersion": 1,
+  "key": "barcode-labels",
+  "name": "Barcode Labels",
+  "version": "1.0.7",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "addon.barcode-labels.line",
+    "fallback": "Give a catalogue row an EAN-13 or Code 128 number and print a sheet of labels for it, from the row's own screen. The symbols are drawn here; nothing is fetched and no number is allocated."
+  },
+  "categories": [
+    "data"
+  ],
+  "compatibility": {
+    "minAdminiumVersion": "0.3.1",
+    "requires": []
+  },
+  "addOn": {
+    "attaches": [
+      {
+        "app": "factory",
+        "range": "^0.1.0"
+      },
+      {
+        "app": "maker",
+        "range": "^0.1.0"
+      },
+      {
+        "app": "pos",
+        "range": "^0.2.0"
+      }
+    ],
+    "provides": [
+      {
+        "contract": "document-render",
+        "version": 1,
+        "server": "dist/server.js"
+      }
+    ],
+    "consumes": [],
+    "slots": [
+      {
+        "slot": "settings.add-on.panel",
+        "client": "dist/client.js",
+        "order": 10
+      },
+      {
+        "slot": "record.actions",
+        "client": "dist/client.js",
+        "order": 10
+      }
+    ],
+    "events": [],
+    "connect": {
+      "kind": "none"
+    },
+    "scopes": [],
+    "publicSettings": [
+      "codes"
+    ]
+  },
+  "settings": [
+    {
+      "key": "codes",
+      "type": "json",
+      "default": [],
+      "label": {
+        "key": "addon.barcode-labels.setting.codes",
+        "fallback": "Numbers given to catalogue rows"
+      }
+    }
+  ]
+}

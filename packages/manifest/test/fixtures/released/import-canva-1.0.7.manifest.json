@@ -1,0 +1,78 @@
+{
+  "kind": "add-on",
+  "manifestVersion": 1,
+  "key": "import-canva",
+  "name": "Canva Import",
+  "version": "1.0.7",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "addon.import-canva.line",
+    "fallback": "Bring in a design you already made in Canva, and run the same checks on it as an upload."
+  },
+  "categories": [
+    "artwork"
+  ],
+  "compatibility": {
+    "minAdminiumVersion": "0.3.1"
+  },
+  "capabilities": [
+    "oauth-connect",
+    "outbound-http",
+    "file-storage"
+  ],
+  "addOn": {
+    "attaches": [
+      {
+        "app": "printing",
+        "range": "^0.1.0"
+      }
+    ],
+    "provides": [
+      {
+        "contract": "artwork-source",
+        "version": 1,
+        "server": "dist/server.js"
+      }
+    ],
+    "consumes": [],
+    "slots": [
+      {
+        "slot": "artwork.sources",
+        "client": "dist/client.js",
+        "order": 20
+      },
+      {
+        "slot": "settings.add-on.panel",
+        "client": "dist/client.js",
+        "order": 10
+      }
+    ],
+    "events": [],
+    "connect": {
+      "kind": "oauth2",
+      "authorizeUrl": "https://www.canva.com/api/oauth/authorize",
+      "tokenUrl": "https://api.canva.com/rest/v1/oauth/token",
+      "scopes": [
+        "design:meta:read",
+        "design:content:read"
+      ]
+    },
+    "scopes": [
+      "records:jobs:read",
+      "files:write"
+    ],
+    "network": {
+      "allow": [
+        "api.canva.com",
+        "www.canva.com"
+      ]
+    },
+    "publicSettings": [],
+    "demoTransport": "dist/server.js"
+  }
+}

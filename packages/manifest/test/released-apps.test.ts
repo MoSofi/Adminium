@@ -67,7 +67,23 @@ const byKey = (key: string): IndexEntry => {
 };
 
 const DIALECTS = ['sqlite', 'postgres', 'mysql'] as const;
-const EMPTY: SchemaModelView = { tables: [] };
+
+/**
+ * The tables a manifest points at and does not make. An app has none; an
+ * add-on that keeps tables of its own links them to its host's, so the
+ * emptiest database it can be planned on already holds those.
+ */
+function hostTables(m: Manifest): SchemaModelView['tables'] {
+  const tables = m.requiredSchema?.tables ?? [];
+  const own = new Set(tables.map((table) => table.ref));
+  const pointedAt = new Set<string>();
+  for (const table of tables) {
+    for (const column of table.columns) {
+      if (column.type === 'fk' && column.references !== undefined && !own.has(column.references)) pointedAt.add(column.references);
+    }
+  }
+  return [...pointedAt].map((ref) => ({ ref, columns: [{ ref: 'id' }] }));
+}
 
 /** The prefix the server gives an app: its own when its tables are prefixed, else none. */
 const prefixOf = (m: Manifest): string | null => (m.kind === 'app' && m.requiredSchema?.prefixed === true ? prefixFor(m.key) : null);
@@ -99,7 +115,8 @@ describe.each(MANIFESTS.map((entry) => [entry.file] as const))('released manifes
   });
 
   it('plans as installable against an empty database, with no context', () => {
-    const plan = planInstall(manifestOf(file), EMPTY);
+    const m = manifestOf(file);
+    const plan = planInstall(m, { tables: hostTables(m) });
     expect(plan.problems).toEqual([]);
     expect(plan.installable).toBe(true);
   });
@@ -108,7 +125,7 @@ describe.each(MANIFESTS.map((entry) => [entry.file] as const))('released manifes
     const m = manifestOf(file);
     const prefixes = new Set([prefixOf(m), prefixFor(m.key), null]);
     for (const prefix of prefixes) {
-      const plan = planInstall(m, { tables: [], dialect }, { prefix, records: {}, others: [], dialect });
+      const plan = planInstall(m, { tables: hostTables(m), dialect }, { prefix, records: {}, others: [], dialect });
       expect(plan.problems, `prefix ${String(prefix)}`).toEqual([]);
       expect(plan.installable, `prefix ${String(prefix)}`).toBe(true);
       for (const table of plan.tables ?? []) expect(table.class, `${table.ref}, prefix ${String(prefix)}`).toBe('new');
@@ -184,9 +201,13 @@ describe('another released app planned beside an installed Point of Sale', () =>
     expect(posPrefix).toBe('pos_');
   });
 
+  /** The tables an app declares on a core table shape: the ones it may share with another app. */
+  const shaped = (m: Manifest): Set<string> =>
+    new Set((m.requiredSchema?.tables ?? []).flatMap((table) => ('shape' in table && typeof table.shape === 'string' ? [table.ref] : [])));
+
   const rest = APPS.filter((entry) => docOf(entry.file)['key'] !== 'pos');
   it.each(rest.flatMap((entry) => DIALECTS.map((dialect) => [entry.file, dialect] as const)))(
-    '%s on %s installs with its own tables, colliding with none of Point of Sale’s',
+    '%s on %s installs beside Point of Sale: its own tables new, and only a table on a shared shape is Point of Sale’s',
     (file, dialect) => {
       const m = manifestOf(file);
       const { model, others } = installedPos(dialect);
@@ -194,13 +215,30 @@ describe('another released app planned beside an installed Point of Sale', () =>
       expect(plan.problems.filter((p) => p.code === 'PREFIX_COLLISION')).toEqual([]);
       expect(plan.problems).toEqual([]);
       expect(plan.installable).toBe(true);
+      const mayShare = shaped(m);
       for (const table of plan.tables ?? []) {
+        if (table.class === 'shared') {
+          expect(mayShare.has(table.ref), table.ref).toBe(true);
+          expect(table.table, table.ref).toBe(`pos_${table.ref}`);
+          continue;
+        }
         expect(table.class, table.ref).toBe('new');
         expect(table.offers, table.ref).toEqual([]);
         expect(table.table.startsWith('pos_'), table.table).toBe(false);
       }
     },
   );
+
+  it('the Online Ordering releases in service share Point of Sale’s menu; every other released app shares nothing', () => {
+    const sharing = rest
+      .filter((entry) => {
+        const m = manifestOf(entry.file);
+        const { model, others } = installedPos('postgres');
+        return (planInstall(m, model, { prefix: prefixOf(m), records: {}, others, dialect: 'postgres' }).tables ?? []).some((table) => table.class === 'shared');
+      })
+      .map((entry) => entry.file);
+    expect(sharing).toEqual(['online-ordering-0.2.0.manifest.json', 'online-ordering-0.2.3.manifest.json']);
+  });
 
   it('Online Ordering 0.1.3 keeps its own menu (it declares no shape, so nothing is offered)', () => {
     const ordering = manifestOf(byKey('ordering').file);

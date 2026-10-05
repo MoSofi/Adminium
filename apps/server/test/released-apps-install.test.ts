@@ -7,7 +7,9 @@
  *
  *  - each released app installs on a fresh connection;
  *  - Client Portal installs with the released Invoices & Receipts add-on it
- *    requires staged beside it, its tables built on the add-on's shapes;
+ *    requires staged beside it, its tables built on the add-on's shapes — the
+ *    first pair listed, and the pair in service;
+ *  - an app installed at its 0.2.0 release updates to its release in service;
  *  - Point of Sale and the released Online Ordering install side by side on
  *    one connection, each with its own tables;
  *  - a release that no longer updates the plain-named 0.1.3 installs (its
@@ -35,14 +37,27 @@ const DOCS = INDEX.filter((entry) => entry.file.endsWith('.manifest.json')).map(
   (entry) => [entry.file, JSON.parse(readFileSync(new URL(entry.file, dir), 'utf8')) as Doc] as const,
 );
 const APPS = DOCS.filter(([, doc]) => doc['kind'] === 'app');
-const released = (key: string): Doc => {
-  const found = DOCS.find(([, doc]) => doc['key'] === key);
-  if (found === undefined) throw new Error(`no released manifest for "${key}"`);
+/** The released manifest of `key`: the first one listed, or the one at `version`. */
+const released = (key: string, version?: string): Doc => {
+  const found = DOCS.find(([, doc]) => doc['key'] === key && (version === undefined || doc['version'] === version));
+  if (found === undefined) throw new Error(`no released manifest for "${key}"${version === undefined ? '' : ` at ${version}`}`);
   return structuredClone(found[1]);
+};
+
+/** Numeric order of two `x.y.z` versions. */
+const byVersion = (a: string, b: string): number => a.localeCompare(b, undefined, { numeric: true });
+
+/** The newest release listed for `key`: the one in service. */
+const inService = (key: string): Doc => {
+  const versions = DOCS.filter(([, doc]) => doc['key'] === key).map(([, doc]) => String(doc['version'])).sort(byVersion);
+  return released(key, versions[versions.length - 1]);
 };
 
 /** The apps that install with no add-on required (this harness stages none); the others have their own case. */
 const ALONE = APPS.filter(([, doc]) => ((doc['addOns'] as { requires?: unknown[] } | undefined)?.requires ?? []).length === 0);
+
+/** The apps listed at 0.2.0 that install alone, by key: each is updated to its release in service. */
+const FROM_0_2_0 = ALONE.filter(([, doc]) => doc['version'] === '0.2.0').map(([, doc]) => String(doc['key']));
 
 /** The apps whose release is 0.1.3: plain table names, no `updatesFrom`. */
 const PLAIN = APPS.filter(([, doc]) => doc['version'] === '0.1.3');
@@ -112,6 +127,47 @@ for (const [dialect, available] of ENGINES) {
         const installed = await h.install('clients', String(portal['version']), { planChecksum: planned.json().plan.checksum });
         expect(installed.statusCode, installed.body).toBe(200);
         expect(await h.tableNames()).toEqual(expect.arrayContaining(['clients_invoices', 'clients_invoice_lines', 'clients_proposals']));
+      },
+      SLOW,
+    );
+
+    it(
+      'Client Portal in service installs with the Invoices & Receipts in service',
+      async () => {
+        const h = (openAddOns = await addOnHarness(dialect));
+        await h.stageAddOn(inService('invoices'), { bundled: true });
+        const portal = inService('clients');
+        const planned = await h.plan(portal);
+        expect(planned.statusCode, planned.body).toBe(200);
+        expect(planned.json().plan.problems).toEqual([]);
+        expect(planned.json().plan.installable).toBe(true);
+        const installed = await h.install('clients', String(portal['version']), { planChecksum: planned.json().plan.checksum });
+        expect(installed.statusCode, installed.body).toBe(200);
+        expect(await h.tableNames()).toEqual(expect.arrayContaining(['clients_invoices', 'clients_invoice_lines', 'clients_proposals']));
+      },
+      SLOW,
+    );
+
+    it.each(FROM_0_2_0.map((key) => [key] as const))(
+      '%s installed at 0.2.0 updates to its release in service',
+      async (key) => {
+        const h = (open = await installHarness(dialect));
+        const installed = await h.install(released(key, '0.2.0'));
+        expect(installed.statusCode, installed.body).toBe(200);
+        const next = inService(key);
+        expect(next['version']).not.toBe('0.2.0');
+        await h.stage(next);
+
+        const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key, version: String(next['version']), connectionId: h.connectionId } });
+        expect(planned.statusCode, planned.body).toBe(200);
+        const plan = (JSON.parse(planned.body) as { plan: { installable: boolean; problems: unknown[]; checksum: string } }).plan;
+        expect(plan.problems).toEqual([]);
+        expect(plan.installable).toBe(true);
+
+        const updated = await h.inject({ method: 'POST', url: `/apps/${key}/update`, payload: { planChecksum: plan.checksum, publicAccess: true } });
+        expect(updated.statusCode, updated.body).toBe(200);
+        const listed = JSON.parse((await h.inject({ method: 'GET', url: '/apps' })).body) as { apps: { key: string; version: string }[] };
+        expect(listed.apps.find((app) => app.key === key)?.version).toBe(next['version']);
       },
       SLOW,
     );

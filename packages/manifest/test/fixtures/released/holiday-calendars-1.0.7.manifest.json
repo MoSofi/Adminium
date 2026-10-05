@@ -1,0 +1,50 @@
+{
+  "kind": "add-on",
+  "manifestVersion": 1,
+  "key": "holiday-calendars",
+  "name": "Holiday Calendars",
+  "version": "1.0.7",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "addon.holiday-calendars.line",
+    "fallback": "Checked public-holiday day-sets for a handful of countries, carried inside the add-on. Choose a country and a year, look at the days, and import them."
+  },
+  "categories": ["data"],
+  "compatibility": {
+    "minAdminiumVersion": "0.3.1",
+    "requires": []
+  },
+  "addOn": {
+    "attaches": [
+      { "app": "hr", "range": "^0.1.0" },
+      { "app": "clinic", "range": "^0.2.0" },
+      { "app": "clients", "range": "^0.2.0" },
+      { "app": "ordering", "range": "^0.2.0" }
+    ],
+    "provides": [],
+    "consumes": [],
+    "slots": [
+      { "slot": "settings.add-on.panel", "client": "dist/client.js", "order": 10 }
+    ],
+    "events": [],
+    "connect": { "kind": "none" },
+    "scopes": [],
+    "publicSettings": ["days"]
+  },
+  "settings": [
+    {
+      "key": "days",
+      "type": "json",
+      "default": [],
+      "label": {
+        "key": "addon.holiday-calendars.setting.days",
+        "fallback": "Days the business is closed"
+      }
+    }
+  ]
+}
