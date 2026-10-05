@@ -1092,6 +1092,13 @@ export interface ApplyOverridesOptions {
    * value labels, its inline `column.options` words included. Absent, en_US.
    */
   defaultLocale?: string;
+  /**
+   * Where a link into an add-on's table points on this database, by the
+   * add-on's key, its short name for the table, and the table the link sits
+   * on (`apps/add-on-tables.ts`). Absent, or answering null: the link is
+   * inert — its `tableId` stays null and a lookup through it is not made.
+   */
+  addOnTables?: ((addOn: string, ref: string, fromTableId: string | null) => { tableId: string; key: string | null } | null) | undefined;
 }
 
 /** Every link a table's states read through: linked conditions, moments on a linked row, the rows effects move. */
@@ -1608,6 +1615,19 @@ export function applyOverrides(
     if (table !== undefined) table.label = label;
   }
 
+  // Links into an add-on's tables: resolved where the add-on is found here, inert where it is not.
+  if (opts.addOnTables !== undefined) {
+    for (const table of effective.tables) {
+      for (const column of table.columns as EffectiveColumn[]) {
+        const link = column.addOnLink ?? (column.addOnLookup === undefined ? undefined : { addOn: column.addOnLookup.table.addOn, table: column.addOnLookup.table.table });
+        if (link === undefined) continue;
+        const found = opts.addOnTables(link.addOn, link.table, tableId(table as unknown as TableModel));
+        if (column.addOnLink !== undefined) column.addOnLink = { ...column.addOnLink, tableId: found?.tableId ?? null, key: found?.key ?? null };
+        // A lookup among the add-on's rows is an ordinary lookup once its table is known.
+        if (column.addOnLookup !== undefined && found !== null && found !== undefined) column.lookup = { ...column.addOnLookup, table: found.tableId };
+      }
+    }
+  }
   return effective;
 }
 

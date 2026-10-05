@@ -9,6 +9,7 @@
 import { overridesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 
+import { addOnTablesFor } from '../apps/add-on-tables.js';
 import { applyOverrides } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { NotFoundError } from '../errors.js';
@@ -19,5 +20,6 @@ export async function loadSnapshotView(meta: MetaDb, connectionId: string): Prom
     throw new NotFoundError('No schema snapshot — introspect the connection first.', { connectionId });
   }
   const active = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
-  return new SnapshotView(connectionId, applyOverrides(snapshot.schema as DatabaseModel, active));
+  const model = snapshot.schema as DatabaseModel;
+  return new SnapshotView(connectionId, applyOverrides(model, active, { addOnTables: await addOnTablesFor(meta, connectionId, model) }));
 }

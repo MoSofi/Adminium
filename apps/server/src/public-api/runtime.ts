@@ -31,6 +31,7 @@ import {
 } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 
+import { addOnInstallsRevision, addOnTablesFor } from '../apps/add-on-tables.js';
 import { applyOverrides } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { createPublicKeyResolver, type PublicKeyResolver, type ResolveFailure } from './resolve.js';
@@ -59,14 +60,15 @@ export function createPublicViews(meta: MetaDb): PublicViews {
       if (head === null) return null;
       const active = await overrides.listForConnection(connectionId, { status: 'active' });
       const last = active.at(-1);
-      const stamp = `${head.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
+      const stamp = `${head.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}:${String(addOnInstallsRevision())}`;
       const cached = cache.get(connectionId);
       if (cached !== undefined && cached.stamp === stamp) return cached.view;
       const snapshot = await snapshots.findById(head.id);
       // Deleted between the two reads: answer as if there were none, and let
       // the next request stamp again.
       if (snapshot === null) return null;
-      const view = new SnapshotView(connectionId, applyOverrides(snapshot.schema as DatabaseModel, active));
+      const model = snapshot.schema as DatabaseModel;
+      const view = new SnapshotView(connectionId, applyOverrides(model, active, { addOnTables: await addOnTablesFor(meta, connectionId, model) }));
       cache.set(connectionId, { stamp, view });
       return view;
     },
