@@ -20,7 +20,7 @@ import type {
 } from '@adminium/engine';
 import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
 import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type StateCondition, type TimeCondition } from '@adminium/manifest';
-import type { SchemaOverride, StoredPosting } from '@adminium/meta';
+import type { SchemaOverride, StoredAdjust, StoredPosting } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
 export interface ColumnOptionItem {
@@ -152,6 +152,9 @@ export type ColumnPlainText = true | { digits?: number; max?: number };
 
 /** A table's posting as it is stored (the manifest's own keys; a sibling table by its id in the snapshot). */
 export type TablePosting = StoredPosting;
+
+/** A table's price rule as it is stored (the manifest's own keys; a child table by its id in the snapshot). */
+export type TableAdjust = StoredAdjust;
 
 /** `table.switchedOff`: the postings (and the price rule) the owner switched off on this table. */
 export interface TableSwitchedOff {
@@ -582,6 +585,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   states?: TableStatesRule;
   /** What a row of the table hands to an add-on's ledger (`table.postings`). */
   postings?: TablePosting[];
+  /** Where an add-on lowers the price of this table's rows (`table.adjust`): the app's rule when it ships one, else the owner's. */
+  adjust?: TableAdjust;
   /** The postings the owner switched off (`table.switchedOff`). */
   switchedOff?: TableSwitchedOff;
   /** Rows of other tables that lock this table's rows (`lockedWhenReferencedBy`, resolved). */
@@ -1338,6 +1343,11 @@ export function applyOverrides(
       case 'table.postings': {
         // A manifest's row and an owner's may both be there: the table carries every posting of both.
         if (table !== undefined) table.postings = [...(table.postings ?? []), ...((value as unknown as { postings: TablePosting[] }).postings ?? [])];
+        break;
+      }
+      case 'table.adjust': {
+        // One rule a table. Where an app's and an owner's are both stored, the app's stands: an update keeps it current.
+        if (table !== undefined && (table.adjust === undefined || row.origin === 'app')) table.adjust = value as unknown as TableAdjust;
         break;
       }
       case 'table.switchedOff': {

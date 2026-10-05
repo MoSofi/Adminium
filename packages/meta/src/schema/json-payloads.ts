@@ -753,6 +753,83 @@ export const storedPosting = z
   .strict();
 export type StoredPosting = z.infer<typeof storedPosting>;
 
+const adjustWhat = z.object({ column: ruleColumn, as: z.enum(['item', 'category', 'type', 'tag']) }).strict();
+const adjustOnly = z.union([z.object({ column: ruleColumn, eq: postingScalar }).strict(), z.object({ column: ruleColumn, in: z.array(postingScalar).min(1).max(16) }).strict()]);
+
+/** A table's price rule as it is stored: the manifest's own keys, every one of them; a child table by its id in the snapshot. */
+export const storedAdjust = z
+  .object({
+    by: z.object({ addOn: z.string().min(1).max(80) }).strict(),
+    needs: ledgerId.optional(),
+    lines: z
+      .array(
+        z.union([
+          z
+            .object({
+              table: ruleTable,
+              via: ruleColumn,
+              price: ruleColumn,
+              quantity: ruleColumn.optional(),
+              discount: ruleColumn,
+              what: z.array(adjustWhat).min(1).max(4),
+              excludes: z.object({ column: ruleColumn, set: z.literal(true) }).strict().optional(),
+              paidBy: z.object({ column: ruleColumn }).strict().optional(),
+              only: adjustOnly.optional(),
+              unlessSet: ruleColumn.optional(),
+            })
+            .strict(),
+          z
+            .object({
+              self: z.literal(true),
+              price: ruleColumn,
+              quantity: ruleColumn.optional(),
+              discount: ruleColumn,
+              what: z.array(adjustWhat).max(4),
+              nights: z.object({ from: ruleColumn, to: ruleColumn, rate: ruleColumn }).strict().optional(),
+            })
+            .strict(),
+        ]),
+      )
+      .min(1)
+      .max(3),
+    order: z
+      .object({
+        discount: ruleColumn,
+        customer: z
+          .object({ link: ruleColumn, address: ruleColumn, proved: ruleColumn, counts: z.object({ column: ruleColumn, in: z.array(postingScalar).min(1).max(16) }).strict().optional() })
+          .strict()
+          .optional(),
+        staff: z.object({ kind: ruleColumn, value: ruleColumn, reason: ruleColumn, by: ruleColumn }).strict().optional(),
+        currency: storedPostingMapping.optional(),
+      })
+      .strict(),
+    codes: z.object({ table: ruleTable, via: ruleColumn, typed: ruleColumn, code: ruleColumn, voucher: ruleColumn, removed: ruleColumn.optional() }).strict().optional(),
+    uses: ledgerId.optional(),
+    frozen: z
+      .union([
+        z.object({ to: z.array(stateName).min(1).max(16) }).strict(),
+        z.object({ column: ruleColumn, in: z.array(postingScalar).min(1).max(16) }).strict(),
+        z.object({ column: ruleColumn, set: z.literal(true) }).strict(),
+      ])
+      .optional(),
+    expect: ruleColumn.optional(),
+    refunds: z
+      .object({
+        table: ruleTable,
+        via: ruleColumn,
+        amount: ruleColumn,
+        tax: ruleColumn.optional(),
+        of: ruleColumn,
+        taxOf: ruleColumn.optional(),
+        against: ruleColumn.optional(),
+        lines: z.object({ table: ruleTable, via: ruleColumn, line: ruleColumn, quantity: ruleColumn }).strict().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type StoredAdjust = z.infer<typeof storedAdjust>;
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -1247,6 +1324,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     op: z.literal('table.postings'),
     value: z.object({ postings: z.array(storedPosting).min(1).max(6) }).strict(),
   }),
+  /* Where an add-on's offers and codes lower the price of this table's rows: one rule a table. */
+  z.object({ op: z.literal('table.adjust'), value: storedAdjust }),
   /* The owner's switch on a posting (or on the price rule), apart from the rule so an app update never switches it back on. */
   z.object({
     op: z.literal('table.switchedOff'),

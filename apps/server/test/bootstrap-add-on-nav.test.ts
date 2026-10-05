@@ -23,7 +23,8 @@ function manifest(key: string, addOn: Record<string, unknown>): { document: unkn
       license: 'AGPL-3.0-only',
       description: { key: `addon.${key}.line`, fallback: 'x' },
       categories: ['data'],
-      compatibility: { minAdminiumVersion: '1.0.0' },
+      // The floor the released add-ons carry: before the one that names a page under its add-on's key.
+      compatibility: { minAdminiumVersion: '0.3.1' },
       addOn: {
         attaches: [{ app: '*' }],
         connect: { kind: 'none' },

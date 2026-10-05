@@ -8,7 +8,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { composeManifest, locateIssue, splitManifest, validateManifest, type ManifestPartFile } from '../src/index.js';
+import { MANIFEST_PART_FIELDS, appManifestSchema, composeManifest, locateIssue, splitManifest, validateManifest, type ManifestPartFile } from '../src/index.js';
+import { LEDGER_HOST } from './ledger-kit-fixture.js';
 
 const json = (value: unknown): string => JSON.stringify(value);
 
@@ -84,6 +85,12 @@ describe('composing a manifest from its parts', () => {
     expect(validated.ok, JSON.stringify(validated)).toBe(true);
   });
 
+  it('reads the rules an app ships from automations.json, as the array', () => {
+    const rule = { key: 'repairs-done', name: 'Done', enabled: false };
+    const composed = composeManifest(parts({ 'automations.json': json([rule]) }));
+    expect(composed.ok && composed.document['automations']).toEqual([rule]);
+  });
+
   it('leaves an absent part out rather than writing an empty one', () => {
     const composed = composeManifest(parts());
     expect(composed.ok && Object.keys(composed.document).sort()).toEqual(
@@ -108,6 +115,7 @@ describe('composing a manifest from its parts', () => {
     ['a table named differently from its ref', { 'tables/Jobs.json': json(JOBS) }, 'tables/Jobs.json', /Name the file jobs\.json/],
     ['a page with no ref', { 'pages/jobs.json': json({ ...PAGE, ref: undefined }) }, 'pages/jobs.json', /has no "ref"/],
     ['a field written in the wrong part', { 'app.json': json({ ...APP, roles: [] }) }, 'app.json', /"roles" is written in roles\.json/],
+    ['automations written in app.json', { 'app.json': json({ ...APP, automations: [] }) }, 'app.json', /"automations" is written in automations\.json/],
     ['tables written in app.json', { 'app.json': json({ ...APP, requiredSchema: {} }) }, 'app.json', /one file per table/],
     ['a field a block does not hold', { 'access.json': json({ roles: [] }) }, 'access.json', /"roles" is not written here/],
     ['a block that is not an object', { 'sample.json': '[]' }, 'sample.json', /must be an object/],
@@ -139,6 +147,7 @@ describe('saying which part a validator issue is in', () => {
     ['publicKeys.handover', 'access.json', 'publicKeys.handover'],
     ['sampleData.file', 'sample.json', 'sampleData.file'],
     ['addOns.requires.0.key', 'add-ons.json', 'requires.0.key'],
+    ['automations.0.trigger', 'automations.json', '0.trigger'],
     ['something.new', 'app.json', 'something.new'],
   ])('%s → %s', (path, file, inner) => {
     expect(locateIssue(origin, path)).toEqual({ file, path: inner });
@@ -165,6 +174,50 @@ describe('splitting one manifest into parts', () => {
 
   const released = join(import.meta.dirname, 'fixtures', 'released');
   const fixtures = readdirSync(released).filter((name) => name.endsWith('.manifest.json'));
+
+  it('every top-level field of an app manifest has exactly one part', () => {
+    // `kind` is implied by the folder (a folder holds an app); `prefixed` is written in app.json and lives under requiredSchema.
+    const fields = Object.values(MANIFEST_PART_FIELDS).flat().filter((field) => field !== 'prefixed');
+    expect(fields.filter((field, i) => fields.indexOf(field) !== i)).toEqual([]);
+    const declared = Object.keys(appManifestSchema.shape).sort();
+    expect([...fields].sort()).toEqual(declared);
+  });
+
+  it('a manifest using every new word composes back to itself', () => {
+    const document = structuredClone(LEDGER_HOST) as unknown as Record<string, unknown> & { requiredSchema: { tables: Record<string, unknown>[] } };
+    document.requiredSchema.tables[0] = { ...document.requiredSchema.tables[0], indexes: [['status', 'hold_until']] };
+    const full = {
+      ...document,
+      roles: [{ key: 'desk', name: 'Desk', permissions: ['table:@orders:read'] }],
+      sampleData: { file: 'seeds/ledger-host.sample.json', addOns: { 'ledger-kit': { file: 'seeds/ledger-host.ledger-kit.sample.json' } } },
+      automations: [
+        {
+          key: 'ledger-host-cancelled',
+          name: { 'en-US': 'Tell the desk', 'de-DE': 'Dem Empfang sagen' },
+          enabled: true,
+          trigger: { kind: 'record', event: 'updated', table: 'orders', changedColumn: 'status', when: [{ left: { field: 'status' }, op: 'is', right: 'cancelled' }] },
+          graph: {
+            version: 1,
+            nodes: [
+              { id: 't', kind: 'trigger', title: 'An order is cancelled' },
+              { id: 'n', kind: 'action', title: 'Tell the desk', action: { kind: 'notification', to: { roles: ['desk'] }, title: 'Order {{record.id}} was cancelled' } },
+            ],
+          },
+        },
+      ],
+    };
+    const validated = validateManifest(full);
+    expect(validated.ok ? [] : validated.issues).toEqual([]);
+    // Every nested word rides the part its table, role or sample already has; `automations` has a part of its own.
+    const files = splitManifest(full);
+    expect(files.map((file) => file.path)).toContain('automations.json');
+    const composed = composeManifest(files);
+    expect(composed.ok, JSON.stringify(composed)).toBe(true);
+    if (composed.ok) expect(composed.document).toEqual(inRefOrder(full));
+    const table = (ref: string) => ((composed.ok ? composed.document['requiredSchema'] : {}) as { tables: Record<string, unknown>[] }).tables.find((candidate) => candidate['ref'] === ref) as Record<string, unknown>;
+    expect(table('order_lines')['postings']).toEqual((full.requiredSchema.tables.find((candidate) => candidate['ref'] === 'order_lines') as Record<string, unknown>)['postings']);
+    expect(table('orders')['indexes']).toEqual([['status', 'hold_until']]);
+  });
 
   it('has released manifests to try', () => {
     expect(fixtures.length).toBeGreaterThan(0);

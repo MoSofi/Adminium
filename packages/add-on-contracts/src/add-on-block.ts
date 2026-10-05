@@ -290,6 +290,12 @@ export const addOnBlockSchema = z
       .min(1)
       .max(4)
       .optional(),
+    /**
+     * What the add-on reads to answer a price question (offers, codes, what
+     * was applied), served by its `price-adjust` provider. Its words are the
+     * manifest's own, so `@adminium/manifest` checks the whole of it.
+     */
+    adjuster: z.record(z.string(), z.unknown()).optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

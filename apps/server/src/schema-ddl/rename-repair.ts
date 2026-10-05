@@ -181,6 +181,44 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       const lift = rule['capUnless'] as Record<string, unknown> | undefined;
       return lift !== undefined && same(lift['column']) ? { ...rule, capUnless: { ...lift, column: to } } : value;
     }
+    case 'table.adjust': {
+      // What a price rule reads of the order's own table. A column of a child table is that table's to rename.
+      const swap = (name: unknown): unknown => (same(name) ? to : name);
+      const each = (group: unknown): unknown =>
+        typeof group === 'object' && group !== null && !Array.isArray(group) ? Object.fromEntries(Object.entries(group as Record<string, unknown>).map(([key, name]) => [key, typeof name === 'string' ? swap(name) : name])) : group;
+      const order = rule['order'] as Record<string, unknown>;
+      const customer = order['customer'] as Record<string, unknown> | undefined;
+      const counts = customer?.['counts'] as Record<string, unknown> | undefined;
+      const frozen = rule['frozen'] as Record<string, unknown> | undefined;
+      const refunds = rule['refunds'] as Record<string, unknown> | undefined;
+      const next = {
+        ...rule,
+        lines: (rule['lines'] as Record<string, unknown>[]).map((part) =>
+          part['self'] !== true
+            ? part
+            : {
+                ...part,
+                price: swap(part['price']),
+                ...(part['quantity'] === undefined ? {} : { quantity: swap(part['quantity']) }),
+                discount: swap(part['discount']),
+                what: (part['what'] as Record<string, unknown>[]).map((what) => ({ ...what, column: swap(what['column']) })),
+                ...(part['nights'] === undefined ? {} : { nights: each(part['nights']) }),
+              },
+        ),
+        order: {
+          ...order,
+          discount: swap(order['discount']),
+          // The address is a column of the customers' table, which the link points at.
+          ...(customer === undefined ? {} : { customer: { ...customer, link: swap(customer['link']), proved: swap(customer['proved']), ...(counts === undefined ? {} : { counts: { ...counts, column: swap(counts['column']) } }) } }),
+          ...(order['staff'] === undefined ? {} : { staff: each(order['staff']) }),
+          ...(typeof order['currency'] === 'string' ? { currency: swap(order['currency']) } : {}),
+        },
+        ...(frozen !== undefined && frozen['column'] !== undefined ? { frozen: { ...frozen, column: swap(frozen['column']) } } : {}),
+        ...(rule['expect'] === undefined ? {} : { expect: swap(rule['expect']) }),
+        ...(refunds === undefined ? {} : { refunds: { ...refunds, of: swap(refunds['of']), ...(refunds['taxOf'] === undefined ? {} : { taxOf: swap(refunds['taxOf']) }) } }),
+      };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
+    }
     case 'table.postings': {
       // Everything a posting reads of its own table: its link to the parent, what it maps, the columns
       // that leave a line out or fire a point of the line's own. A column of the parent is that table's.

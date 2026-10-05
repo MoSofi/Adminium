@@ -39,6 +39,7 @@ export const ADD_ON_INSTALL_BLOCKS = [
   'publicKeys',
   'navGroups',
   'seeds',
+  'automations',
   'addOns',
 ] as const;
 
@@ -57,8 +58,17 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     const block = isDoc(document['addOn']) ? document['addOn'] : {};
     if (block['settingsTable'] !== undefined) out.push({ word: 'addOn.settingsTable', path: 'addOn.settingsTable' });
     if (block['ledgers'] !== undefined) out.push({ word: 'addOn.ledgers', path: 'addOn.ledgers' });
-  } else if (isDoc(document['sampleData']) && document['sampleData']['addOns'] !== undefined) {
-    out.push({ word: 'sampleData.addOns', path: 'sampleData.addOns' });
+    if (block['adjuster'] !== undefined) out.push({ word: 'addOn.adjuster', path: 'addOn.adjuster' });
+    // An amount Adminium decides for a ledger's action (what a card may pay).
+    list(block['ledgers']).forEach((ledger, l) => {
+      for (const [name, action] of Object.entries(isDoc(ledger) && isDoc(ledger['actions']) ? ledger['actions'] : {})) {
+        if (isDoc(action) && action['decides'] !== undefined) out.push({ word: 'ledger.decides', path: `addOn.ledgers.${String(l)}.actions.${name}.decides` });
+      }
+    });
+  } else {
+    // An app has always had the other blocks: these two it has only since the install floor.
+    if (document['automations'] !== undefined) out.push({ word: 'automations', path: 'automations' });
+    if (isDoc(document['sampleData']) && document['sampleData']['addOns'] !== undefined) out.push({ word: 'sampleData.addOns', path: 'sampleData.addOns' });
   }
 
   list(schema['tables']).forEach((table, t) => {
@@ -66,6 +76,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     const at = `requiredSchema.tables.${String(t)}`;
     if (table['indexes'] !== undefined) out.push({ word: 'table.indexes', path: `${at}.indexes` });
     if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
+    if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
     if (isDoc(table['states'])) {
       for (const [from, moves] of Object.entries(isDoc(table['states']['moves']) ? table['states']['moves'] : {})) {
         list(moves).forEach((move, m) => {

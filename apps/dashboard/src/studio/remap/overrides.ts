@@ -165,6 +165,8 @@ export type RemapOverride =
   /** What a row hands to an add-on's ledger, and the owner's switch on it. Kept whole through a save. */
   | { op: 'table.postings'; tableName: string; value: { postings: Record<string, unknown>[] } }
   | { op: 'table.switchedOff'; tableName: string; value: { postings: string[]; adjust?: true } }
+  /** Where an add-on lowers the price of the table's rows. Kept whole through a save. */
+  | { op: 'table.adjust'; tableName: string; value: Record<string, unknown> }
   | {
       op: 'relation.add';
       tableName: string;

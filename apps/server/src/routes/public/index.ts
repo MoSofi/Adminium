@@ -340,7 +340,11 @@ class PublicPriceChanged extends Error {
  * named: those a create names, and a number outside its bounds (a quantity of
  * minus three) — what the form already says.
  */
-const TREE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'too-short', 'too-small', 'too-large', 'unknown', 'used-up']);
+/*
+ * `needs-minimum`, `not-for-these-items` and `needs-sign-in` are what a guest is told of a typed discount
+ * code beside `unknown` and `used-up`: each says what to do next and gives nothing away about the code.
+ */
+const TREE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'too-short', 'too-small', 'too-large', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in']);
 
 /**
  * The state a row must be in for an update to touch it (`writable_when`), as
@@ -577,8 +581,8 @@ const BOOKING_REASONS: Readonly<Record<string, string>> = {
  * turn on what the stored row holds in another one (`requiredWhen`), which a
  * caller who may change a row need not be able to read.
  */
-const CREATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'unknown', 'used-up']);
-const UPDATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'invalid-character', 'unknown', 'used-up']);
+const CREATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in']);
+const UPDATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'invalid-character', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in']);
 
 /** What a caller may be told of a refused value: the entry's writable columns, and the reasons above. */
 interface Told {

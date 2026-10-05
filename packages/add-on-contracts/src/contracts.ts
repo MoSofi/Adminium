@@ -76,6 +76,20 @@ export const CONTRACT_REGISTRY = [
       'The rows a ledger gains when a host row reaches a point: a synchronous, pure answer from the inputs and reads Adminium hands over, written by Adminium inside the same save.',
     implementations: 2,
   },
+  {
+    /*
+     * THE SIXTH: WHAT AN ORDER'S LINES ARE REDUCED BY. An add-on that keeps
+     * offers, discount codes and vouchers answers one question — these lines,
+     * these typed codes, this customer — with one reduction per line.
+     * Adminium checks the answer against the lines it asked about and writes
+     * every discount column itself.
+     */
+    id: 'price-adjust',
+    version: 1,
+    summary:
+      'What an order is reduced by: one synchronous, pure answer per question — a reduction for every line, what was applied, what was refused — written by Adminium inside the save.',
+    implementations: 1,
+  },
 ] as const satisfies readonly ContractDefinition[];
 
 export type ContractId = (typeof CONTRACT_REGISTRY)[number]['id'];

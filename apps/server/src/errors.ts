@@ -352,3 +352,18 @@ export class AddOnUntrustedError extends AppError {
     );
   }
 }
+
+/**
+ * 409 `ADJUST_REFUSED`: a typed code, or a reduction staff gave by hand, was
+ * refused in a staff save. `details.column` is where it was typed;
+ * `details.reason` is one of the add-on contract's reasons or one of
+ * Adminium's own (`frozen`, `not-allowed`, `refund-over`); `max`, `amount`
+ * and `name` say what would be accepted, where the reason has one.
+ */
+export class AdjustRefusedError extends AppError {
+  override readonly name = 'AdjustRefusedError';
+
+  constructor(message: string, details: { column?: string; reason: string; max?: string; amount?: string; name?: string }) {
+    super(409, 'ADJUST_REFUSED', message, details);
+  }
+}

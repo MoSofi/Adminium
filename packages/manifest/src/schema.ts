@@ -45,6 +45,8 @@ import {
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
 import { installFloorWords } from './words.js';
+import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
+import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, type Ledger, type LedgerScopeTable, type LedgerTableShape } from './ledgers.js';
 
 export { compareSemver };
@@ -911,6 +913,8 @@ export const requiredTableSchema = z
     indexes: tableIndexesSchema.optional(),
     /** What a row of this table hands to an add-on's ledger, and when (see `ledgers.ts`). */
     postings: postingsSchema.optional(),
+    /** Where an add-on's offers and codes lower this order's price (see `adjust.ts`). */
+    adjust: adjustSchema.optional(),
   })
   .strict()
   .refine(
@@ -1049,6 +1053,7 @@ export const shapePartSchema = z
     states: statesSchema.optional(),
     indexes: tableIndexesSchema.optional(),
     postings: postingsSchema.optional(),
+    adjust: adjustSchema.optional(),
   })
   .strict()
   .refine((p) => new Set(p.columns.map((c) => c.ref)).size === p.columns.length, {
@@ -1798,6 +1803,7 @@ export function appReferenceIssues(
     pages?: readonly { feature?: string | undefined }[] | undefined;
     /** An add-on's own ledgers, parsed: its tables' postings may go into them. Present (even empty) only for an add-on. */
     ledgers?: readonly Ledger[] | undefined;
+    automations?: readonly ManifestAutomation[] | undefined;
   },
   /**
    * When the tables are an add-on's shape rather than an app's: the add-on's
@@ -2289,6 +2295,30 @@ export function appReferenceIssues(
     if (table.columns.filter((column) => column.rules?.announce !== undefined).length > 4) {
       out.push({ path: at('columns'), message: 'a table announces at most four columns' });
     }
+    if (table.adjust !== undefined) {
+      // The reductions, who gave one, whether the customer was proved, the links a typed code fills: all Adminium's.
+      for (const [of, columns] of adjustDecidedColumns(table.ref, table.adjust)) for (const ref of columns) decide(of, ref);
+      const named = new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key));
+      out.push(
+        ...adjustIssues(
+          table as unknown as AdjustTableShape,
+          table.adjust,
+          {
+            key: shapeOf?.addOn ?? m.key,
+            kind: shapeOf !== undefined || m.ledgers !== undefined ? 'add-on' : 'app',
+            tables: tables as unknown as ReadonlyMap<string, AdjustTableShape>,
+            named,
+            features: new Map((m.addOns?.features ?? []).map((feature) => [feature.id, feature.requires])),
+            formulaReads: (of, ref) => {
+              const formula = index.column(of, ref)?.rules?.formula;
+              return formula === undefined ? null : formulaColumns(formula);
+            },
+            publicWritable: (of) => new Set((m.publicAccess ?? []).filter((entry) => entry.table === of).flatMap((entry) => entry.writable ?? [])),
+          },
+          at,
+        ),
+      );
+    }
     if (table.postings !== undefined) {
       // What a posting makes Adminium's own: how long a hold lasts, and an amount its ledger decides — on the row, or on the parent its lines belong to.
       for (const posting of table.postings) {
@@ -2374,6 +2404,18 @@ export function appReferenceIssues(
   out.push(...slotPartyIssues(m));
   out.push(...outboxIssues(m, index));
   out.push(...roleLimitIssues(m.roles ?? [], index));
+  // The rules it ships: about its own tables, roles and templates, and only what a rule can do.
+  if (m.automations !== undefined) {
+    out.push(
+      ...automationIssues({
+        automations: m.automations,
+        tables: m.requiredSchema.tables as unknown as readonly AutomationTableShape[],
+        roles: (m.roles ?? []).map((role) => role.key),
+        templates: m.emailTemplates ?? [],
+        decided: (table) => decided.get(table) ?? new Set<string>(),
+      }),
+    );
+  }
   if (shapeOf === undefined) out.push(...addOnNeedsIssues(m));
   if (m.documents !== undefined) {
     out.push(
@@ -2771,6 +2813,7 @@ export interface RequiredTableShape {
   states?: States | undefined;
   builtOn?: string | undefined;
   postings?: z.infer<typeof postingsSchema> | undefined;
+  adjust?: z.infer<typeof adjustSchema> | undefined;
 }
 
 /**
@@ -2804,6 +2847,8 @@ const installBlocksShape = {
   sampleData: sampleDataSchema.optional(),
   /** Document profiles on the manifest's own tables, drawn by an add-on (see `documents.ts`). */
   documents: z.array(appDocumentSchema).max(16).optional(),
+  /** Rules the manifest ships: installed switched as it says, the owner's to switch or copy (see `automations.ts`). */
+  automations: manifestAutomationsSchema.optional(),
 };
 
 export const appManifestSchema = z
@@ -2950,7 +2995,7 @@ function installFloorIssues(m: { compatibility: { minAdminiumVersion: string } }
 }
 
 /** The top-level blocks an add-on declares in an app's words. */
-const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'publicAccess', 'publicKeys', 'outbox', 'emailTemplates', 'sampleData', 'documents', 'addOns'] as const;
+const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'publicAccess', 'publicKeys', 'outbox', 'emailTemplates', 'sampleData', 'documents', 'automations', 'addOns'] as const;
 
 /**
  * Whether an add-on is installed the way an app is: it declares a block an
@@ -2961,7 +3006,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -2970,6 +3015,7 @@ export function installsLikeAnApp(m: Manifest): boolean {
       table.unique !== undefined ||
       table.indexes !== undefined ||
       table.postings !== undefined ||
+      table.adjust !== undefined ||
       table.columns.some((column) => column.rules !== undefined),
   );
 }
@@ -3009,6 +3055,13 @@ function parsedLedgers(raw: readonly unknown[], out: { path: (string | number)[]
   return [];
 }
 
+/** An add-on's adjuster, typed; null for an app, and for an add-on that declares none. */
+export function adjusterOf(m: Manifest): Adjuster | null {
+  if (m.kind !== 'add-on' || m.addOn.adjuster === undefined) return null;
+  const parsed = adjusterSchema.safeParse(m.addOn.adjuster);
+  return parsed.success ? parsed.data : null;
+}
+
 /** An add-on's ledgers, typed. Empty for an app, and for an add-on that declares none. */
 export function ledgersOf(m: Manifest): Ledger[] {
   if (m.kind !== 'add-on' || m.addOn.ledgers === undefined) return [];
@@ -3026,6 +3079,18 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
   const ledgers = m.addOn.ledgers === undefined ? [] : parsedLedgers(m.addOn.ledgers, out);
   out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] }, ledgers }));
   if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)));
+
+  // The adjuster is typed loosely in the contracts package too: its words are checked here.
+  if (m.addOn.adjuster !== undefined) {
+    const parsed = adjusterSchema.safeParse(m.addOn.adjuster);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'adjuster', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(...adjusterIssues(parsed.data, byRef as unknown as ReadonlyMap<string, AdjustTableShape>));
+    }
+    const providers = (m.addOn.provides ?? []).filter((entry) => entry.contract === 'price-adjust');
+    if (providers.length !== 1) out.push({ path: ['addOn', 'provides'], message: 'an add-on with an adjuster provides the contract "price-adjust" exactly once' });
+  }
 
   // A ledger is served by the add-on's one `posting-rows` provider, and its receipt table is the one Adminium writes.
   if (m.addOn.ledgers !== undefined) {

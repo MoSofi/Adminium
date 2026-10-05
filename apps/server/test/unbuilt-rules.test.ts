@@ -141,13 +141,13 @@ describe('a release', () => {
   });
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
-    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef']);
+    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef', 'adjust']);
     expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['unlock_by.self']);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {
     const words = Object.keys(UNBUILT_MANIFEST_WORDS);
-    expect(words).toEqual(expect.arrayContaining(['table.postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef']));
+    expect(words).toEqual(expect.arrayContaining(['table.postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef', 'table.adjust']));
   });
 });
 
@@ -163,6 +163,13 @@ describe('a table that carries one of the new rules', () => {
     expect(carrying({ columns: [column('low', { announce: true })] })).toBe('column.announce');
     expect(carrying({ columns: [column('source_table', { tableRef: true })] })).toBe('column.tableRef');
     expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: ['sent', { to: 'done' }] } }, columns: [column('name')] })).toBeNull();
+  });
+
+  it('a target built by hand, with no columns at all, carries none of them', () => {
+    const bare = { id: 'main.orders', name: 'orders' } as unknown as EffectiveTable;
+    expect(unbuiltRuleOf(bare)).toBeNull();
+    expect(unbuiltRuleOf(bare, undefined, { tables: [bare], relations: [] })).toBeNull();
+    expect(() => refuseUnbuiltTable({ table: { id: 'main.orders', table: bare } })).not.toThrow();
   });
 
   it('a cap lifted for some rows stops the parent and the child whose rows it judges', () => {

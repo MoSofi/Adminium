@@ -53,7 +53,8 @@ export type DecidedInputs = (into: { addOn: string; ledger: string; action: stri
 /**
  * THE COLUMNS A TABLE'S RULES MAKE ADMINIUM'S, beside each column's own rule.
  *
- * A posting hands columns of a row to an add-on's ledger. Two kinds of them
+ * A price rule (`adjust`) names the columns Adminium writes from the add-on's
+ * answer. A posting hands columns of a row to an add-on's ledger; two kinds of them
  * are written by Adminium and by nobody else: the column a posting's
  * `heldUntil` reads (a guest never sets how long a hold lasts), and a column
  * mapped to an input the ledger's action decides. Either may sit on the row
@@ -65,11 +66,28 @@ export type DecidedInputs = (into: { addOn: string; ledger: string; action: stri
  * the definition an operator edits.
  */
 export function ruleDecidedColumns(
-  table: Pick<EffectiveTable, 'id' | 'postings'>,
+  table: Pick<EffectiveTable, 'id' | 'postings' | 'adjust'>,
   model: Pick<EffectiveModel, 'tables' | 'relations'>,
   decides?: DecidedInputs,
 ): Set<string> {
   const out = new Set<string>();
+  // A price rule: every reduction, who gave one by hand, whether the customer was proved, the links a
+  // typed code fills, a refund's amount and tax — on the order's table, and on each child table the rule names.
+  for (const order of model.tables.some((candidate) => candidate.id === table.id) ? model.tables : [...model.tables, table as EffectiveTable]) {
+    const adjust = order.adjust;
+    if (adjust === undefined) continue;
+    const add = (of: string, column: string | undefined) => {
+      if (of === table.id && column !== undefined) out.add(column);
+    };
+    add(order.id, adjust.order.discount);
+    add(order.id, adjust.order.staff?.by);
+    add(order.id, adjust.order.customer?.proved);
+    for (const part of adjust.lines) add('self' in part ? order.id : part.table, part.discount);
+    add(adjust.codes?.table ?? '', adjust.codes?.code);
+    add(adjust.codes?.table ?? '', adjust.codes?.voucher);
+    add(adjust.refunds?.table ?? '', adjust.refunds?.amount);
+    add(adjust.refunds?.table ?? '', adjust.refunds?.tax);
+  }
   const decidedOf = (posting: NonNullable<EffectiveTable['postings']>[number]): ReadonlySet<string> => new Set(decides?.(posting.into) ?? []);
   // The table's own postings: a column of the row itself.
   for (const posting of table.postings ?? []) {

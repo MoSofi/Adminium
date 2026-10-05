@@ -174,3 +174,27 @@ export {
   type PostingWords,
   type PostingWriteScope,
 } from './posting-rows.js';
+
+export {
+  ADJUST_CODES_MAX,
+  ADJUST_EXPLAIN_REASONS,
+  ADJUST_KINDS,
+  ADJUST_LINES_MAX,
+  ADJUST_MODES,
+  ADJUST_OFFERS_MAX,
+  ADJUST_PUBLIC_REASONS,
+  ADJUST_REASONS,
+  adjustAnswerIssues,
+  adjustOutputSchema,
+  type AdjustApplied,
+  type AdjustCode,
+  type AdjustInput,
+  type AdjustKind,
+  type AdjustLine,
+  type AdjustMode,
+  type AdjustOutput,
+  type AdjustReason,
+  type AdjustUse,
+  type ExplainReason,
+  type PriceAdjustProvider,
+} from './price-adjust.js';

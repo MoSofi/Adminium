@@ -20,7 +20,7 @@
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
 import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, undoMoveIssues, type States } from '@adminium/manifest';
 
-import { storedPosting } from '@adminium/meta';
+import { storedAdjust, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
 
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
@@ -1288,6 +1288,61 @@ export function postingsRuleIssue(raw: unknown, table: TableModel, model: Databa
       const sibling = refusal.table === undefined ? table : model.tables.find((candidate) => candidate.id === refusal.table);
       if (sibling === undefined) return `${named} names the table ${JSON.stringify(refusal.table)}, which is not in this database.`;
       if (!has(sibling, refusal.column)) return `${named} reads ${JSON.stringify(refusal.column)}, which is not a column of ${sibling.name}.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * The reason a table's price rule cannot be kept as it is stored, or `null`:
+ * every column it names is a column of the table it names it on, and each
+ * child table is one of this database's, linked to the order through `via`.
+ *
+ * Whether the rule fits the add-on that answers it is judged with that
+ * add-on's manifest at hand; this is what the database alone can say.
+ */
+export function adjustRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const parsed = storedAdjust.safeParse(raw);
+  if (!parsed.success) return `The price rule of ${table.name} is not spelled as Adminium stores it: ${parsed.error.issues[0]?.message ?? 'invalid'}.`;
+  const adjust = parsed.data;
+  if (table.primaryKey.length !== 1) return `A price rule needs rows it can name: ${table.name} has no single-column key.`;
+  const missing = (of: TableModel, columns: readonly (string | undefined)[]): string | null => {
+    const gone = columns.find((column) => column !== undefined && !of.columns.some((c) => c.name === column));
+    return gone === undefined ? null : `The price rule reads ${JSON.stringify(gone)}, which is not a column of ${of.name}.`;
+  };
+  const child = (id: string, via: string): TableModel | string => {
+    const found = model.tables.find((candidate) => candidate.id === id);
+    if (found === undefined) return `The price rule names the table ${JSON.stringify(id)}, which is not in this database.`;
+    const linked = model.relations.some((r) => r.through === null && r.from.tableId === found.id && r.from.columns.length === 1 && r.from.columns[0] === via && r.to.tableId === table.id);
+    return linked ? found : `${JSON.stringify(via)} does not link ${found.name} to ${table.name}, so its rows are no part of the order.`;
+  };
+  const order = adjust.order;
+  const own = missing(table, [order.discount, order.customer?.link, order.customer?.proved, order.customer?.counts?.column, order.staff?.kind, order.staff?.value, order.staff?.reason, order.staff?.by, adjust.expect, adjust.refunds?.of, adjust.refunds?.taxOf, adjust.frozen !== undefined && 'column' in adjust.frozen ? adjust.frozen.column : undefined, typeof order.currency === 'string' ? order.currency : undefined]);
+  if (own !== null) return own;
+  for (const part of adjust.lines) {
+    const of = 'self' in part ? table : child(part.table, part.via);
+    if (typeof of === 'string') return of;
+    const columns = 'self' in part ? [part.price, part.quantity, part.discount, ...part.what.map((what) => what.column), part.nights?.from, part.nights?.to, part.nights?.rate] : [part.via, part.price, part.quantity, part.discount, ...part.what.map((what) => what.column), part.excludes?.column, part.paidBy?.column, part.only?.column, part.unlessSet];
+    const gone = missing(of, columns);
+    if (gone !== null) return gone;
+  }
+  if (adjust.codes !== undefined) {
+    const of = child(adjust.codes.table, adjust.codes.via);
+    if (typeof of === 'string') return of;
+    const gone = missing(of, [adjust.codes.typed, adjust.codes.code, adjust.codes.voucher, adjust.codes.removed]);
+    if (gone !== null) return gone;
+  }
+  if (adjust.refunds !== undefined) {
+    const of = child(adjust.refunds.table, adjust.refunds.via);
+    if (typeof of === 'string') return of;
+    const gone = missing(of, [adjust.refunds.amount, adjust.refunds.tax, adjust.refunds.against]);
+    if (gone !== null) return gone;
+    const lines = adjust.refunds.lines;
+    if (lines !== undefined) {
+      const returned = model.tables.find((candidate) => candidate.id === lines.table);
+      if (returned === undefined) return `The price rule names the table ${JSON.stringify(lines.table)}, which is not in this database.`;
+      const lost = missing(returned, [lines.via, lines.line, lines.quantity]);
+      if (lost !== null) return lost;
     }
   }
   return null;

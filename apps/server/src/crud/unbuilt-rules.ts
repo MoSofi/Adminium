@@ -45,6 +45,9 @@ export interface UnbuiltEntryRule {
   on: (entry: Readonly<Record<string, unknown>>) => boolean;
 }
 
+/** A table's columns; a target built by hand for a test or a tool may carry none. */
+const columnsOf = (table: EffectiveTable): EffectiveTable['columns'] => (table.columns as EffectiveTable['columns'] | undefined) ?? [];
+
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
   // A posting hands rows to an add-on's ledger: written unposted, the ledger would be wrong for good.
   { rule: 'postings', on: (table) => (table.postings?.length ?? 0) > 0 },
@@ -54,18 +57,30 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
     on: (table) => Object.values(table.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && (move as { planned?: unknown }).planned === true)),
   },
   // A link into an add-on's table, and a typed code found there: a value kept unjudged may name no row.
-  { rule: 'column.addOnLink', on: (table) => table.columns.some((column) => column.addOnLink !== undefined || column.addOnLookup !== undefined) },
+  { rule: 'column.addOnLink', on: (table) => columnsOf(table).some((column) => column.addOnLink !== undefined || column.addOnLookup !== undefined) },
   // A cap lifted for some rows: the parent that says so, and the child whose rows it judges.
   {
     rule: 'rollup.capUnless',
     on: (table, model) =>
-      table.columns.some((column) => column.rollup?.capUnless !== undefined) ||
-      (model?.tables ?? []).some((parent) => parent.columns.some((column) => column.rollup?.capUnless !== undefined && column.rollup.from === table.id)),
+      columnsOf(table).some((column) => column.rollup?.capUnless !== undefined) ||
+      (model?.tables ?? []).some((parent) => columnsOf(parent).some((column) => column.rollup?.capUnless !== undefined && column.rollup.from === table.id)),
   },
   // A change told after the save: a rule waiting on it would never run.
-  { rule: 'column.announce', on: (table) => table.columns.some((column) => column.announce === true) },
+  { rule: 'column.announce', on: (table) => columnsOf(table).some((column) => column.announce === true) },
   // A table's stored name: kept by a rename only once the repair knows the column.
-  { rule: 'column.tableRef', on: (table) => table.columns.some((column) => column.tableRef === true) },
+  { rule: 'column.tableRef', on: (table) => columnsOf(table).some((column) => column.tableRef === true) },
+  // A price rule: the order's table, and each child table whose rows are its lines, its codes or its refunds.
+  // Written unpriced, an order would be saved at full price with a code on it and nobody told.
+  {
+    rule: 'adjust',
+    on: (table, model) =>
+      table.adjust !== undefined ||
+      (model?.tables ?? []).some((order) => {
+        const adjust = order.adjust;
+        if (adjust === undefined) return false;
+        return adjust.lines.some((part) => !('self' in part) && part.table === table.id) || adjust.codes?.table === table.id || adjust.refunds?.table === table.id;
+      }),
+  },
 ];
 
 /** The public entry keys whose behaviour is not built yet. */
@@ -76,6 +91,8 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
 
 /** The release that installs an add-on like an app, and runs the words that come with it. */
 const ADD_ON_INSTALL_RELEASE = '0.3.18';
+/** The release that asks an add-on what an order's price is lowered by. */
+const PRICE_QUESTION_RELEASE = '0.3.19';
 
 /**
  * The words of a manifest this server reads and does not run yet, each with
@@ -112,6 +129,12 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   'column.plainText': ADD_ON_INSTALL_RELEASE,
   'column.customerKey': ADD_ON_INSTALL_RELEASE,
   'column.codeLast4': ADD_ON_INSTALL_RELEASE,
+  // Rules an app or an add-on ships.
+  automations: ADD_ON_INSTALL_RELEASE,
+  // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
+  'table.adjust': PRICE_QUESTION_RELEASE,
+  'addOn.adjuster': PRICE_QUESTION_RELEASE,
+  'ledger.decides': PRICE_QUESTION_RELEASE,
 };
 
 export interface UnbuiltWord {
