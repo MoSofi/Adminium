@@ -323,7 +323,9 @@ export function createRemovals(deps: RemovalDeps) {
     // The add-ons connected to it: kept, only their link to it goes.
     const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key);
     // The other apps that use a table too (a shared menu), by name: the dialog says who keeps it.
-    const sharing = others.filter((other) => other.role === 'app' && records.some((record) => record.tableName === other.tableName));
+    // An add-on's record of a table is not a share: its table is simply kept (never droppable, above).
+    const addOnKeys = new Set(addOnTables.values());
+    const sharing = others.filter((other) => other.role === 'app' && !addOnKeys.has(other.appKey) && records.some((record) => record.tableName === other.tableName));
     const appNames = sharing.length === 0 || deps.names === undefined ? new Map<string, string>() : await deps.names();
     const sharedWith = (tableName: string) =>
       [...new Set(sharing.filter((other) => other.tableName === tableName).map((other) => other.appKey))]

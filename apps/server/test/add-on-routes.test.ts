@@ -37,6 +37,7 @@ import {
   manifestsRepo,
   usersRepo,
   type MetaDb,
+  settingsRepo,
 } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -1832,6 +1833,28 @@ describe('acquisition routes', () => {
       });
       // It went through the SAME store path a download would use.
       await expect(store.verifyTree('holiday-calendars', '1.0.0')).resolves.toBeDefined();
+      await app.close();
+    });
+
+    it('keeps a package whose code would decide inside a save, and says at once that the code will not run', async () => {
+      const app = await buildApp();
+      const manifest = manifestFor('holiday-calendars') as unknown as { addOn: { provides: unknown[] } };
+      manifest.addOn.provides = [{ contract: 'posting-rows', version: 1, server: 'dist/server.js' }];
+      const tarball = packageTarball({
+        'manifest.json': JSON.stringify(manifest),
+        'package.json': JSON.stringify({ name: '@adminiumjs/add-on-holiday-calendars' }),
+        'dist/server.js': 'module.exports = { rows: function () { return { rows: [] }; } };',
+      });
+      const res = await sideload(app, tarball);
+      expect(res.statusCode, res.body).toBe(422);
+      expect(res.json()).toMatchObject({ error: { code: 'ADD_ON_UNTRUSTED', details: { key: 'holiday-calendars', version: '1.0.0', stored: true } } });
+      // Stored, as it said: the same bytes are there to install, with that code left out.
+      await expect(store.verifyTree('holiday-calendars', '1.0.0')).resolves.toMatchObject({ integrity: sha512Integrity(tarball) });
+
+      // The same package, once somebody vouches for its bytes, is an ordinary upload.
+      await settingsRepo(meta).set('addOns.deciderTrust', { 'holiday-calendars@1.0.0': sha512Integrity(tarball) });
+      const again = await sideload(app, tarball);
+      expect(again.statusCode, again.body).toBe(200);
       await app.close();
     });
 

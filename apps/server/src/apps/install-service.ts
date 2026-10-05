@@ -26,6 +26,7 @@ import {
   validateManifest,
   type InstallPlan,
   type Manifest,
+  installsLikeAnApp,
   prefixFor,
   satisfiesSemverRange,
   uniqueWithOf,
@@ -778,13 +779,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const recorded = await appTablesRepo(deps.meta).forConnection(connectionId);
     const own = recorded.filter((r) => r.appKey === manifest.key);
     const others = recorded.filter((r) => r.appKey !== manifest.key);
-    const prefix =
-      manifest.kind === 'app' && manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : null;
+    // An add-on that installs like an app is planned as one: under its own prefix, against its own records.
+    const likeApp = manifest.kind === 'app' || installsLikeAnApp(manifest);
+    const prefix = likeApp && manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : null;
     const records: Record<string, { table: string; owned: boolean; state: string }> = {};
     for (const r of own) records[r.ref] = { table: r.tableName, owned: r.owned, state: r.state };
     const installedHere =
-      manifest.kind === 'app' &&
-      (await manifests.list('app')).some((m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId);
+      likeApp &&
+      (await manifests.list(manifest.kind)).some((m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId);
     /*
      * A FRESH INSTALL OF A PREFIXED VERSION STARTS ON ITS OWN TABLES. The
      * tables an unprefixed version left behind when it was uninstalled (kept,
@@ -842,7 +844,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       })),
     ];
 
-    if (own.length === 0 && manifest.kind === 'app') {
+    if (own.length === 0 && likeApp) {
       if (installedHere) {
         for (const table of manifest.requiredSchema?.tables ?? []) {
           if (tables.some((t) => t.ref === table.ref)) {
@@ -857,7 +859,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     // The other apps' names, for a refusal or an offer that names one.
     const appNames = others.some((r) => r.shape !== null) ? await installedAppNames() : new Map<string, string>();
     const pure =
-      manifest.kind === 'app' && dialect !== undefined && dialect !== 'generic'
+      likeApp && dialect !== undefined && dialect !== 'generic'
         ? planInstall(
             manifest,
             { tables, dialect, indexNames: live?.indexNames },

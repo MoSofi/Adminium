@@ -64,6 +64,7 @@
 
 import {
   compareSemver,
+  installsLikeAnApp,
   isAddOnManifest,
   validateManifest,
   type AddOnManifest,
@@ -97,11 +98,16 @@ import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import {
   addOnManifestFromStore,
   attachAddOn,
+  hostsFor,
+  hostsToAttach,
   installAddOn,
+  parseAddOnDocument,
   planAddOn,
   upgradeAddOn,
   type Actor,
 } from '../../add-ons/install.js';
+import { DECIDER_CONTRACTS, deciderTrusted } from '../../add-ons/decide.js';
+import { trustSources } from '../../add-ons/decider-trust.js';
 import type { InstallCore } from '../../add-ons/install-core.js';
 import { needsByAddOn, needsOf, type AppNeed } from '../../add-ons/needs.js';
 import {
@@ -122,9 +128,9 @@ import {
   CATALOG_REFRESH_KIND,
   enqueueCatalogRefresh,
 } from '../../jobs/add-on-acquire.js';
-import { audited } from '../../audit/coverage.js';
+import { audited, auditExempt } from '../../audit/coverage.js';
 import { attachAppDocuments } from '../../documents/app-documents.js';
-import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { AddOnUntrustedError, AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { settingValueIssues } from '../../apps/settings-values.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -154,6 +160,7 @@ import {
   installAddOnBody,
   installAddOnReply,
   installPlanReply,
+  planAddOnBody,
   patchAddOnBody,
   patchAddOnReply,
   uninstallAddOnReply,
@@ -204,6 +211,8 @@ export interface AddOnRoutesDeps {
   rebuildRuntime?: (() => Promise<void>) | undefined;
   /** Installing an add-on "like an app": the app install service, bound late (`add-ons/install-core.ts`). */
   core?: (() => InstallCore | null) | undefined;
+  /** Tests only: the words this server refuses a manifest for (`AddOnInstallerDeps.unbuiltWords`). */
+  unbuiltWords?: Readonly<Record<string, string>> | undefined;
   /**
    * The add-on runtime as it stands, read AFTER a rebuild: connecting an add-on
    * to an installed app makes the app's documents that add-on draws, and only
@@ -370,8 +379,48 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
   }
 
   /** Who did it, for the audit rows the shared installer writes. */
+  /** Whether a staged package provides a contract whose code decides inside a save, with nobody vouching for its bytes. */
+  async function shipsDeciderUntrusted(staged: StagedPackage): Promise<boolean> {
+    let provides: unknown;
+    try {
+      provides = (JSON.parse((await deps.store.readFile(staged.key, staged.version, 'manifest.json')).toString('utf8')) as { addOn?: { provides?: unknown } }).addOn?.provides;
+    } catch {
+      return false;
+    }
+    const decides = Array.isArray(provides) && provides.some((entry) => DECIDER_CONTRACTS[String((entry as { contract?: unknown } | null)?.contract)] !== undefined);
+    if (!decides) return false;
+    return !deciderTrusted({ key: staged.key, version: staged.version, integrity: staged.tree.integrity }, await trustSources(deps.meta));
+  }
+
   function actorOf(request: FastifyRequest): Actor {
-    return { id: request.user?.id ?? null, label: request.user?.email ?? 'unknown' };
+    return {
+      id: request.user?.id ?? null,
+      label: request.user?.email ?? 'unknown',
+      // A server with no permission layer (a test topology) has no Super Admin to ask about.
+      superAdmin: async () => {
+        const server = request.server as { rbac?: { resolve?: (r: FastifyRequest) => Promise<{ superAdmin: boolean }> } };
+        return typeof server.rbac?.resolve === 'function' ? (await server.rbac.resolve(request)).superAdmin : false;
+      },
+    };
+  }
+
+  /**
+   * What installing a staged package would make, and where: for an add-on
+   * that keeps tables of its own the database is worked out as the install
+   * works it out (or asked for, 409), and the plan carries its identity.
+   */
+  async function planOf(input: { key: string; version: string; attachTo: readonly string[]; connectionId?: string | undefined }) {
+    const first = await addOnManifestFromStore(installer, input.key, input.version);
+    const attachTo = hostsToAttach(first.manifest, input.attachTo);
+    const hosts = await hostsFor(installer, attachTo);
+    const { manifest, warnings } = parseAddOnDocument(first.document, input.key, hosts, installer.unbuiltWords);
+    if (!installsLikeAnApp(manifest)) return { plan: (await planAddOn(installer, manifest, { attachTo, hosts, connectionId: input.connectionId, warnings })).dto };
+    const connectionId = (await installer.schemaTarget?.resolve?.({ ownsTables: true, attachTo, connectionId: input.connectionId })) ?? null;
+    if (connectionId === null) {
+      throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
+    }
+    const planned = await planAddOn(installer, manifest, { attachTo, hosts, connectionId, warnings });
+    return { plan: planned.dto, connectionId, ...(planned.checksum === undefined ? {} : { checksum: planned.checksum }) };
   }
 
   /**
@@ -501,6 +550,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     schemaTarget: deps.schemaTarget,
     rebuildRuntime: deps.rebuildRuntime,
     core: deps.core,
+    unbuiltWords: deps.unbuiltWords,
   };
 
   /** The connect block of an oauth2 manifest, narrowed. */
@@ -1138,6 +1188,14 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (installed !== null && installed.row.version === staged.version) {
           await deps.rebuildRuntime?.();
         }
+        /*
+         * A PACKAGE WHOSE CODE WOULD DECIDE INSIDE A SAVE, FROM A FILE. Nothing
+         * vouches for these bytes (they are not the build's own, and the
+         * catalogue did not name them), so the code will not run. The package
+         * is KEPT — it can still be installed, with that code left out — and
+         * the person is told now rather than at the first refused save.
+         */
+        if (await shipsDeciderUntrusted(staged)) throw new AddOnUntrustedError(staged.key, staged.version);
         return {
           key: staged.key,
           version: staged.version,
@@ -1256,8 +1314,22 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             `No package for "${request.params.key}" is staged on this instance.`,
           );
         }
-        const { manifest, warnings } = await addOnManifestFromStore(installer, request.params.key, version);
-        return { plan: (await planAddOn(installer, manifest, { attachTo: [], warnings })).dto };
+        return planOf({ key: request.params.key, version, attachTo: [] });
+      },
+    );
+
+    app.post(
+      '/add-ons/plan',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        // A check: it reads the database and writes nothing.
+        config: { audit: auditExempt('a plan of what an install would make; nothing is written') },
+        schema: { body: planAddOnBody, response: { 200: installPlanReply } },
+      },
+      async (request) => {
+        const version = request.body.version ?? (await deps.store.versions(request.body.key))[0];
+        if (version === undefined) throw new NotFoundError(`No package for "${request.body.key}" is staged on this instance.`);
+        return planOf({ key: request.body.key, version, attachTo: request.body.attachTo, connectionId: request.body.connectionId });
       },
     );
 
@@ -1277,14 +1349,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * for the add-ons it needs. An add-on with pages is mounted on the
          * dashboard as well, or its page would reach no rail.
          */
-        const { installed, plan } = await installAddOn(installer, {
+        const { installed, plan, created, reused, connectionId } = await installAddOn(installer, {
           key,
           version,
           attachTo,
+          connectionId: request.body.connectionId,
+          planChecksum: request.body.planChecksum,
           actor: actorOf(request),
         });
         await makeAppDocuments(request, key, attachTo);
-        return { addOn: await toDto(installed), plan };
+        return { addOn: await toDto(installed), plan, connectionId: connectionId ?? null, schema: { created, reused: reused ?? plan.reuse.map((table) => table.ref) } };
       },
     );
 

@@ -97,13 +97,14 @@ describe('picking the connection an add-on installs into', () => {
     await installHostApp('printing', ids[0]!);
     await installHostApp('signage', ids[1]!);
     const target = createAddOnSchemaTarget({ meta, manager, credentialCrypto: crypto });
-    await expect(target.read(['printing', 'signage'])).rejects.toThrow(/different databases/);
+    await expect(target.read(['printing', 'signage'])).rejects.toMatchObject({ statusCode: 409, code: 'ADD_ON_SCHEMA_CONNECTION', message: expect.stringMatching(/different databases/) as unknown });
   });
 
   it('REFUSES a multi-connection instance rather than picking the first', async () => {
     const { manager } = await connect([{}, {}]);
     const target = createAddOnSchemaTarget({ meta, manager, credentialCrypto: crypto });
-    await expect(target.read([])).rejects.toThrow(/more than one connection/);
+    // Not a guess and not a dead end: the question, with the databases to choose from.
+    await expect(target.read([])).rejects.toMatchObject({ statusCode: 409, code: 'ADD_ON_SCHEMA_CONNECTION', message: expect.stringMatching(/more than one database/) as unknown, details: { connections: [{ name: expect.any(String) as unknown }, { name: expect.any(String) as unknown }] } });
   });
 
   it('ignores a DISABLED connection when deciding whether there is only one', async () => {

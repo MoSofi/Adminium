@@ -80,6 +80,7 @@ import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js'
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import {
   buildAddOnRuntime,
+  isLoadable,
   importServerHalf,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
@@ -2475,7 +2476,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   rebuildAddOnRuntime = async () => {
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
-    const installedAddOns = await repo.list('add-on');
+    // Only an add-on whose install finished is loaded: one still `installing`, or being changed, answers nothing.
+    const installedAddOns = (await repo.list('add-on')).filter((entry) => isLoadable(entry.row.status));
     if (installedAddOns.length === 0) {
       // An empty runtime is a REBUILD RESULT, not an absence: uninstalling the
       // last add-on must clear the provider map, and leaving the old state

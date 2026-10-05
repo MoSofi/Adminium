@@ -297,8 +297,13 @@ export interface DeciderGate {
    * first. When `fn` returns, the add-ons are loaded again and the row says
    * `installed` (unless `fn` removed it). When `fn` throws, the row stays
    * `updating`: an update that stopped half way is not live.
+   *
+   * `mark: false` leaves the row and the reload to `fn` altogether: an
+   * install writes its own row as `installing`, flips it last and loads the
+   * add-ons itself, and a stopped one stays `installing`, which is what lets
+   * the same call finish it.
    */
-  write<T>(fn: () => Promise<T>): Promise<T>;
+  write<T>(fn: () => Promise<T>, opts?: { mark?: boolean }): Promise<T>;
 }
 
 interface GateState {
@@ -339,8 +344,9 @@ export function createDeciderGates(deps: () => GateDeps | null) {
           wake(state);
         };
       },
-      async write(fn) {
-        const bound = deps();
+      async write(fn, opts = {}) {
+        // An install marks its own row and loads the add-ons itself, inside `fn`: the gate only keeps saves out.
+        const bound = opts.mark === false ? null : deps();
         const before = bound === null ? null : await bound.status(key);
         state.writers += 1;
         try {

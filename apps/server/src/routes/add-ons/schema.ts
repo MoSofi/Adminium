@@ -208,7 +208,21 @@ export const installPlanDto = z.object({
   warnings: z.array(z.string()).optional(),
 });
 
-export const installPlanReply = z.object({ plan: installPlanDto });
+/**
+ * For an add-on that keeps tables of its own: the database the plan was made
+ * against and the plan's identity, which the install takes back
+ * (`planChecksum`) so a database that moved in between is said, not built on.
+ */
+export const installPlanReply = z.object({ plan: installPlanDto, connectionId: z.string().nullable().optional(), checksum: z.string().optional() });
+
+/** Check a staged package before installing it: what it would make, and where. */
+export const planAddOnBody = z.object({
+  key: addOnKey,
+  version: z.string().min(1).max(64).optional(),
+  attachTo: z.array(hostKey).default([]),
+  /** The database its tables go in, when it keeps any and there is a choice. */
+  connectionId: z.string().min(1).max(64).optional(),
+});
 
 /**
  * Install takes a STAGED-PACKAGE REFERENCE, never a manifest body
@@ -224,11 +238,19 @@ export const installAddOnBody = z.object({
   version: z.string().min(1).max(64),
   /** Host app keys to attach on install; each must be in the manifest's `attaches`. */
   attachTo: z.array(hostKey).default([]),
+  /** The database its tables go in, when it keeps any and there is a choice (409 `ADD_ON_SCHEMA_CONNECTION` lists them). */
+  connectionId: z.string().min(1).max(64).optional(),
+  /** The `checksum` of the plan the person looked at; a database that moved since answers 409 `SCHEMA_DRIFT`. */
+  planChecksum: z.string().min(1).max(128).optional(),
 });
 
 export const installAddOnReply = z.object({
   addOn: addOnDto,
   plan: installPlanDto,
+  /** Where its tables are; null for an add-on that keeps none. */
+  connectionId: z.string().nullable().optional(),
+  /** The tables this install made, and the ones it found and took as they were. */
+  schema: z.object({ created: z.array(z.string()), reused: z.array(z.string()) }).optional(),
 });
 
 /** Enable or disable on one host (PATCH). */

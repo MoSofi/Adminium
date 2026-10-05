@@ -256,7 +256,7 @@ export async function resolveAppAddOns(
       const attachment = installed.attachments.find((a) => a.attachedTo === app);
       row.enabled = attachment !== undefined && attachment.disabledAt === null;
       try {
-        installedManifest = parseAddOnDocument(installed.document, key).manifest;
+        installedManifest = parseAddOnDocument(installed.document, key, [], 'installed').manifest;
         name = installedManifest.name;
         row.name = name;
       } catch (error) {
@@ -348,7 +348,7 @@ async function planFor(
     const first = await addOnManifestFromStore(installer, row.key, row.offeredVersion);
     const attachTo = hostsToAttach(first.manifest, [host.key]);
     const hosts = attachTo.map((key) => (key === host.key ? host : { key, version: null, tables: null, connectionId: null }));
-    const { manifest, warnings } = parseAddOnDocument(first.document, row.key, hosts);
+    const { manifest, warnings } = parseAddOnDocument(first.document, row.key, hosts, installer.unbuiltWords);
     return (
       await planAddOn(installer, manifest, {
         attachTo,
@@ -385,7 +385,7 @@ async function planFor(
     return extra.length === 0 ? dto : { ...dto, installable: false, problems: [...dto.problems, ...extra] };
   }
   if (row.action === 'attach' && installed !== null && installedManifest !== null) {
-    parseAddOnDocument(installed.document, row.key, [host]);
+    parseAddOnDocument(installed.document, row.key, [host], 'installed');
     if ((installedManifest.requiredSchema?.tables ?? []).length > 0 && connectionId !== null) {
       const { dto } = await planAddOn(installer, installedManifest, { attachTo: [host.key], connectionId });
       if (dto.create.length > 0) {
@@ -700,7 +700,7 @@ export async function attachedRangeRefusal(
   for (const installed of await manifests.attachedToHost(appKey)) {
     let manifest: AddOnManifest;
     try {
-      manifest = parseAddOnDocument(installed.document, installed.row.manifestKey).manifest;
+      manifest = parseAddOnDocument(installed.document, installed.row.manifestKey, [], 'installed').manifest;
     } catch {
       continue;
     }

@@ -92089,6 +92089,16 @@
                       "type": "string",
                       "pattern": "^[a-z][a-z0-9-]{1,79}$"
                     }
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "planChecksum": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
                   }
                 },
                 "required": [
@@ -92568,6 +92578,38 @@
                         "requiresSchemaChange"
                       ],
                       "additionalProperties": false
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "reused": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "created",
+                        "reused"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -92756,6 +92798,245 @@
                         "requiresSchemaChange"
                       ],
                       "additionalProperties": false
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "checksum": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "plan"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/plan": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "attachTo": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    }
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan": {
+                      "type": "object",
+                      "properties": {
+                        "addOnKey": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "installable": {
+                          "type": "boolean"
+                        },
+                        "touchesData": {
+                          "type": "boolean"
+                        },
+                        "create": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ref": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ref",
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reuse": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "missingColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "missingColumns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "references": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "fromTable": {
+                                "type": "string"
+                              },
+                              "fromColumn": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "resolution": {
+                                "type": "string",
+                                "enum": [
+                                  "internal",
+                                  "host",
+                                  "unresolved"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "fromTable",
+                              "fromColumn",
+                              "to",
+                              "resolution"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "problems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message",
+                              "table"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "requiresSchemaChange": {
+                          "type": "boolean"
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "addOnKey",
+                        "version",
+                        "installable",
+                        "touchesData",
+                        "create",
+                        "reuse",
+                        "references",
+                        "problems",
+                        "requiresSchemaChange"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "checksum": {
+                      "type": "string"
                     }
                   },
                   "required": [

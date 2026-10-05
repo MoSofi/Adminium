@@ -41,7 +41,7 @@ import type { Dialect } from '@adminium/engine';
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
 import type { AddOnManifest, InstallPlan, Manifest, RequiredTable } from '@adminium/manifest';
 
-import { ForbiddenError, ValidationFailedError } from '../errors.js';
+import { AppError, ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { runIntrospection } from '../connections/introspect.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -57,6 +57,8 @@ export interface AddOnSchemaTarget {
    * sole-connection guess would be wrong on an instance with two.
    */
   read(attachTo: readonly string[], connectionId?: string): Promise<ExistingTable[]>;
+  /** Where the add-on's tables go, or the question to ask (see {@link resolveAddOnConnection}). */
+  resolve?(choice: ConnectionChoice): Promise<string | null>;
   /** Creates what the plan says to create, then refreshes the snapshot. */
   apply(
     plan: InstallPlan,
@@ -73,45 +75,61 @@ export interface AddOnSchemaTargetDeps {
   credentialCrypto: { encrypt(v: string): string; decrypt(v: string): string };
 }
 
+/** What decides where an add-on's tables go. */
+export interface ConnectionChoice {
+  /** Whether the add-on declares tables at all; one that declares none is never asked. */
+  ownsTables: boolean;
+  attachTo: readonly string[];
+  /** The database the person named. */
+  connectionId?: string | undefined;
+}
+
 /**
- * Resolves the connection an add-on's tables belong in, by the two rules above.
- * Returns `null` when there is no connection at all — which is a legitimate
- * instance shape, not an error, and the planner handles it by seeing no tables.
+ * The connection an add-on's tables belong in, the first of these that answers:
+ *
+ *  a. it declares no tables: none, and nothing is asked;
+ *  b. the one the person named — refused when an app it attaches to reads
+ *     another database (`ADD_ON_OTHER_DATABASE`);
+ *  c. the database of the apps it attaches to — several is a question, 409
+ *     `ADD_ON_SCHEMA_CONNECTION` with the list to choose from;
+ *  d. the instance's one usable connection — several is the same question,
+ *     and none answers `null` (a legitimate instance; the caller says what
+ *     that means).
  */
-async function resolveConnectionId(
-  deps: AddOnSchemaTargetDeps,
-  attachTo: readonly string[],
-): Promise<string | null> {
+export async function resolveAddOnConnection(deps: AddOnSchemaTargetDeps, choice: ConnectionChoice): Promise<string | null> {
+  if (!choice.ownsTables) return null;
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
-
-  // Rule 1: the host app's own connection.
-  const hosts = await Promise.all(attachTo.map(async (key) => manifests.findByKey(key)));
-  const fromHosts = new Set(
-    hosts
-      .map((host) => host?.row.connectionId ?? null)
-      .filter((id): id is string => id !== null && id !== ''),
-  );
-  if (fromHosts.size === 1) return [...fromHosts][0]!;
-  if (fromHosts.size > 1) {
-    throw new ValidationFailedError(
-      'The apps this add-on attaches to read different databases, so there is no single place ' +
-        'to create its tables. Install it against one app at a time.',
-      { code: 'ADD_ON_AMBIGUOUS_CONNECTION', connections: [...fromHosts] },
-    );
-  }
-
-  // Rule 2: the sole connection.
+  const hosts = await Promise.all(choice.attachTo.map(async (key) => manifests.findByKey(key)));
+  const fromHosts = [...new Set(hosts.map((host) => host?.row.connectionId ?? null).filter((id): id is string => id !== null && id !== ''))];
   const all = await deps.manager.connections.list();
+  const named = (ids: readonly string[]) => ids.map((id) => ({ id, name: all.find((connection) => connection.id === id)?.name ?? id }));
+
+  if (choice.connectionId !== undefined) {
+    const chosen = all.find((connection) => connection.id === choice.connectionId);
+    if (chosen === undefined || chosen.disabled) {
+      throw new ValidationFailedError('That database is not connected to this instance.', { code: 'ADD_ON_NO_CONNECTION', connectionId: choice.connectionId });
+    }
+    const other = fromHosts.filter((id) => id !== choice.connectionId);
+    if (other.length > 0) {
+      throw new ValidationFailedError(
+        'An app this add-on attaches to keeps its data in another database, so the add-on\'s tables cannot go in the one you chose.',
+        { code: 'ADD_ON_OTHER_DATABASE', connectionId: choice.connectionId, connections: named(other) },
+      );
+    }
+    return choice.connectionId;
+  }
+  if (fromHosts.length === 1) return fromHosts[0] as string;
+  if (fromHosts.length > 1) {
+    throw new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', 'The apps this add-on attaches to read different databases. Choose the one its tables go in.', { connections: named(fromHosts) });
+  }
   const usable = all.filter((connection) => !connection.disabled);
   if (usable.length === 0) return null;
   if (usable.length > 1) {
-    throw new ValidationFailedError(
-      'This instance has more than one connection and the add-on does not attach to an app that ' +
-        'names one, so there is no single place to create its tables.',
-      { code: 'ADD_ON_AMBIGUOUS_CONNECTION', connections: usable.map((c) => c.id) },
-    );
+    throw new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', 'This instance has more than one database. Choose the one this add-on\'s tables go in.', {
+      connections: named(usable.map((connection) => connection.id)),
+    });
   }
-  return usable[0]!.id;
+  return (usable[0] as (typeof usable)[number]).id;
 }
 
 /** What the connection-explicit core needs; the crypto is the wrapper's own. */
@@ -310,14 +328,15 @@ export async function applyPlanTo(
 
 export function createAddOnSchemaTarget(deps: AddOnSchemaTargetDeps): AddOnSchemaTarget {
   return {
+    resolve: (choice) => resolveAddOnConnection(deps, choice),
     async read(attachTo, explicit) {
-      const connectionId = explicit ?? (await resolveConnectionId(deps, attachTo));
+      const connectionId = explicit ?? (await resolveAddOnConnection(deps, { ownsTables: true, attachTo }));
       if (connectionId === null) return [];
       return readExistingTables(deps, connectionId);
     },
 
     async apply(plan, manifest, attachTo, explicit) {
-      const connectionId = explicit ?? (await resolveConnectionId(deps, attachTo));
+      const connectionId = explicit ?? (await resolveAddOnConnection(deps, { ownsTables: true, attachTo }));
       if (connectionId === null) {
         throw new ValidationFailedError(
           `"${manifest.key}" needs tables, and this instance has no database connection to ` +

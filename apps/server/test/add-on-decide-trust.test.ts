@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BUNDLED_PINS } from '../src/add-ons/bundled-pins.js';
 import { callDecider, type TrustSources } from '../src/add-ons/decide.js';
 import { recordDeciderTrust, trustSources } from '../src/add-ons/decider-trust.js';
-import { buildAddOnRuntime, deciderFor } from '../src/add-ons/runtime.js';
+import { buildAddOnRuntime, deciderFor, isLoadable } from '../src/add-ons/runtime.js';
 import { createAddOnStore, seedBundledPackages, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
 import { packageTarball } from './app-bundle-helpers.js';
 
@@ -215,7 +215,13 @@ describe('what vouches for a package, as this server keeps it', () => {
     }
   });
 
-  it('an add-on that is being changed has a status of its own', () => {
+  it('an add-on that is being changed has a status of its own, and its code is not loaded meanwhile', () => {
     expect(MANIFEST_STATUSES).toContain('updating');
+    expect(MANIFEST_STATUSES.filter((status) => isLoadable(status))).toEqual(['installed', 'disabled']);
+  });
+
+  it('the server loads only the add-ons whose install finished', async () => {
+    const compose = await readFile(join(import.meta.dirname, '..', 'src', 'compose.ts'), 'utf8');
+    expect(compose).toContain(".filter((entry) => isLoadable(entry.row.status))");
   });
 });

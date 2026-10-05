@@ -110,6 +110,16 @@ export function deciderFor(state: Pick<AddOnRuntimeState, 'deciders'> | null, ad
   return state?.deciders.get(addOnKey)?.find((decider) => decider.kinds.includes(kind)) ?? null;
 }
 
+/**
+ * Whether an add-on's code is loaded: only once its install finished. One
+ * still `installing`, one being changed (`updating`) and a broken row answer
+ * nothing; a switched-off one is loaded, as it always was (it is switched off
+ * host by host, not as a whole).
+ */
+export function isLoadable(status: string): boolean {
+  return status === 'installed' || status === 'disabled';
+}
+
 /** What the registry needs to know about one installed add-on. */
 export interface InstalledAddOn {
   manifest: AddOnManifest;

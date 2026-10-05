@@ -140,7 +140,11 @@ export interface Harness {
   failNextTables: () => void;
   /** Turn the online catalogue on, over a cached feed. */
   catalog: { on: boolean };
-  stageAddOn: (manifest: Record<string, unknown>, opts?: { bundled?: boolean }) => Promise<void>;
+  stageAddOn: (manifest: Record<string, unknown>, opts?: { bundled?: boolean; files?: Record<string, string> }) => Promise<void>;
+  /** Connect a second database; answers its id. */
+  addConnection: (label: string) => Promise<string>;
+  /** Read the database again, as a person does after changing it by hand. */
+  introspect: () => Promise<void>;
   stageApp: (manifest: Record<string, unknown>) => Promise<void>;
   inject: (req: { method: string; url: string; payload?: unknown; as?: User | null }) => Promise<{ statusCode: number; body: string; json: () => Body }>;
   /** Stage an app and ask for its plan on the harness's connection. */
@@ -157,6 +161,8 @@ export interface Harness {
 export interface HarnessOptions {
   /** Serve the documents routes too, drawing with this add-on runtime. */
   documents?: { runtime: () => AddOnRuntimeState | null } | undefined;
+  /** The words a staged add-on is refused for; the server's own list when absent. `{}` refuses none. */
+  unbuiltWords?: Readonly<Record<string, string>> | undefined;
 }
 
 export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}): Promise<Harness> {
@@ -248,6 +254,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     },
     // The app install service, once the routes below have their deps: what installs an add-on "like an app".
     core: (): InstallCore | null => installCore,
+    ...(opts.unbuiltWords === undefined ? {} : { unbuiltWords: opts.unbuiltWords }),
   };
   let installCore: InstallCore | null = null;
   const catalog = {
@@ -336,6 +343,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
         'manifest.json': JSON.stringify(manifest),
         'package.json': JSON.stringify({ name: `@adminiumjs/add-on-${key}` }),
         'dist/client.js': 'export const register = () => {};',
+        ...(opts.files ?? {}),
       });
       await addOnStore.stage({ key, version, tarball, expectedIntegrity: sha512Integrity(tarball) });
       if (opts.bundled === true) {
@@ -355,6 +363,21 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     },
     install: async (key, version, extra = {}) =>
       inject({ method: 'POST', url: '/apps/install', payload: { key, version, connectionId: connection.id, ...extra } }),
+    introspect: async () => {
+      await runIntrospection({ manager, meta, connectionId: connection.id });
+    },
+    addConnection: async (label) => {
+      // A second database of the same engine: SQLite gets a file of its own; a server engine reuses the first one's.
+      let other = dsn;
+      if (dialect === 'sqlite') {
+        const file = join(dataDir, `${label}.db`);
+        new BetterSqlite3(file).close();
+        other = `sqlite:${file}`;
+      }
+      const made = await manager.connections.create({ name: label, engine: dialect, introspectDsn: other, dataDsn: other });
+      await runIntrospection({ manager, meta, connectionId: made.id });
+      return made.id;
+    },
     tableNames: async () => {
       const adapter = await manager.introspectAdapter(connection.id);
       try {
