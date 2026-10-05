@@ -169,11 +169,18 @@ export const navGroupKeySchema = z
  * A version rather than a boolean because publishing `Modal` and `useNavigate`
  * to code the engine did not build makes them public API: the day that surface
  * changes shape, an add-on built against the old one must be REFUSED with its
- * version named, not mounted into a blank screen. `z.literal(1)` becomes a
- * union the first time there is a 2 — and there is deliberately no `"*"`.
+ * version named, not mounted into a blank screen. There is deliberately no
+ * `"*"`.
  */
-export const hostApiVersionSchema = z.literal(1);
+export const hostApiVersionSchema = z.union([z.literal(1), z.literal(2)]);
 export const HOST_API_VERSION = 1;
+/**
+ * `addOn.hostApi: 2` — "this add-on's pages also need the data kit"
+ * (`host.data`). The host's own published version stays 1 for good: every
+ * page built against it checks for exactly that, so the kit is a namespace
+ * the host adds beside the others, with a version of its own.
+ */
+export const HOST_API_WITH_DATA = 2;
 
 /**
  * A rail row. Omit `nav` entirely and the page is routable but unlisted —
@@ -363,6 +370,11 @@ export const addOnBlockSchema = z
   // Pages are code the host runs against a published API surface. An add-on
   // that does not say which version it was built against cannot be refused
   // later on version grounds, which is the entire point of having a version.
+  // The data kit is for pages: an add-on with none has nothing to build with it.
+  .refine((b) => b.hostApi !== 2 || b.pages !== undefined, {
+    message: 'hostApi 2 says the add-on\'s pages need the data kit: it declares pages',
+    path: ['hostApi'],
+  })
   .refine((b) => b.pages === undefined || b.hostApi !== undefined, {
     message: 'an add-on that declares pages must declare the hostApi version it is built against',
     path: ['hostApi'],

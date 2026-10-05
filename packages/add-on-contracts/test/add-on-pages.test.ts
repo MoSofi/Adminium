@@ -92,7 +92,17 @@ describe('a page', () => {
   });
 
   it('is refused at a hostApi version that does not exist', () => {
-    expect(addOnBlockSchema.safeParse(withPages({ hostApi: 2 })).success).toBe(false);
+    expect(addOnBlockSchema.safeParse(withPages({ hostApi: 3 })).success).toBe(false);
+    expect(addOnBlockSchema.safeParse(withPages({ hostApi: '*' })).success).toBe(false);
+  });
+
+  it('takes hostApi 2 — pages that also need the data kit — and only with pages', () => {
+    expect(addOnBlockSchema.safeParse(withPages({ hostApi: 2 })).success).toBe(true);
+    const { pages: _pages, ...noPages } = withPages({ hostApi: 2 });
+    const result = addOnBlockSchema.safeParse(noPages);
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain('hostApi 2 says the add-on\'s pages need the data kit');
+    expect(addOnBlockSchema.safeParse(withPages({ hostApi: 3 })).success).toBe(false);
   });
 });
 

@@ -91,6 +91,12 @@ export interface AddOnHostApi {
   i18n: Readonly<Record<string, unknown>>;
   /** The DASHBOARD's own helpers, keyed by {@link ADD_ON_APP_EXPORTS}. */
   app: Readonly<Record<string, unknown>>;
+  /**
+   * The data kit, keyed by {@link ADD_ON_DATA_EXPORTS}, with a version of its
+   * own (`DATA_KIT_VERSION`). Absent on a host that does not publish it: a
+   * page that needs it is told "needs a newer Adminium", never mounted blank.
+   */
+  data?: Readonly<Record<string, unknown>> & { readonly version: number };
 }
 
 /*
@@ -99,9 +105,18 @@ export interface AddOnHostApi {
  * importing the shim, which would run `requireAddOnHost()` at module load.
  */
 export type * from './app-types.js';
+/** The data kit's signatures, for a host to check itself against and a page to type its calls by. */
+export type * from './data-types.js';
 
-/** The host API version this package defines; `addOn.hostApi` must equal it. */
+/** The host API version this package defines; a page checks the host publishes exactly it. */
 export const HOST_API_VERSION = 1;
+
+/**
+ * The version of the data kit (`host.data`) this package defines. A page
+ * built against it needs a host whose kit is at least this; the host's own
+ * `version` above never moves for it.
+ */
+export const DATA_KIT_VERSION = 1;
 
 /**
  * Read the host API, or explain exactly what the host forgot — and never
@@ -339,6 +354,69 @@ export const ADD_ON_UI_EXPORTS = [
   'cn',
 ] as const;
 export type AddOnUiExport = (typeof ADD_ON_UI_EXPORTS)[number];
+
+/**
+ * THE DATA KIT (`host.data`) — what a page of an add-on that keeps tables is
+ * built from: layout, the parts that read rows, the parts of a form, a link,
+ * and the hooks that read and write the add-on's own tables with the
+ * signed-in reader's grants.
+ *
+ * A census like the others, held equal to the shim by `add-on-host.test.ts`.
+ * Every name here is public API from the first published page that imports
+ * it: a name is added on purpose, and none is ever renamed.
+ */
+export const ADD_ON_DATA_EXPORTS = [
+  // Layout
+  'Card',
+  'Grid',
+  'Stack',
+  'Sheet',
+  'SheetHeader',
+  'SheetBody',
+  'SheetFooter',
+  'StickyBar',
+  'Divider',
+  'Skeleton',
+  // Read
+  'DataTable',
+  'Stat',
+  'KeyValueList',
+  'StatusPill',
+  'ProgressBar',
+  'Pagination',
+  'MonoText',
+  // Form
+  'Field',
+  'Input',
+  'NumberInput',
+  'Textarea',
+  'DateInput',
+  'Select',
+  'Combobox',
+  'Switch',
+  'Checkbox',
+  'RadioGroup',
+  'RadioCard',
+  'ToggleChip',
+  'InputGroup',
+  'Menu',
+  'MenuItem',
+  'ConfirmModal',
+  // Navigate
+  'Link',
+  // Hooks
+  'useRecords',
+  'useRecord',
+  'useWrite',
+  'useTreeWrite',
+  'useStateMove',
+  'useAccess',
+  'useLookUp',
+  'useWords',
+  'useDocument',
+  'useExport',
+] as const;
+export type AddOnDataExport = (typeof ADD_ON_DATA_EXPORTS)[number];
 
 /**
  * `@tanstack/react-router` — navigation only.

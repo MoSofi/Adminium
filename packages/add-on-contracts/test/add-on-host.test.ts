@@ -17,7 +17,9 @@ import {
   ADD_ON_I18N_EXPORTS,
   ADD_ON_QUERY_EXPORTS,
   ADD_ON_ROUTER_EXPORTS,
+  ADD_ON_DATA_EXPORTS,
   ADD_ON_UI_EXPORTS,
+  DATA_KIT_VERSION,
   HOST_API_VERSION,
   clearAddOnRuntime,
   installAddOnRuntime,
@@ -67,6 +69,36 @@ describe('requireAddOnHost', () => {
     const host = requireAddOnHost();
     expect(host.version).toBe(HOST_API_VERSION);
     expect(Object.keys(host).sort()).toEqual(['app', 'i18n', 'query', 'router', 'ui', 'version']);
+  });
+});
+
+describe('the data kit', () => {
+  it('is these names and no others, each once: adding one is adding public API', () => {
+    expect([...ADD_ON_DATA_EXPORTS]).toEqual([
+      'Card', 'Grid', 'Stack', 'Sheet', 'SheetHeader', 'SheetBody', 'SheetFooter', 'StickyBar', 'Divider', 'Skeleton',
+      'DataTable', 'Stat', 'KeyValueList', 'StatusPill', 'ProgressBar', 'Pagination', 'MonoText',
+      'Field', 'Input', 'NumberInput', 'Textarea', 'DateInput', 'Select', 'Combobox', 'Switch', 'Checkbox', 'RadioGroup', 'RadioCard', 'ToggleChip', 'InputGroup', 'Menu', 'MenuItem', 'ConfirmModal',
+      'Link',
+      'useRecords', 'useRecord', 'useWrite', 'useTreeWrite', 'useStateMove', 'useAccess', 'useLookUp', 'useWords', 'useDocument', 'useExport',
+    ]);
+    expect(new Set(ADD_ON_DATA_EXPORTS).size).toBe(ADD_ON_DATA_EXPORTS.length);
+    // None of them is a name the UI namespace already publishes: a page imports each from one place.
+    expect(ADD_ON_DATA_EXPORTS.filter((name) => (ADD_ON_UI_EXPORTS as readonly string[]).includes(name))).toEqual([]);
+  });
+
+  it('has a version of its own, and leaves the host\'s at 1', () => {
+    expect(DATA_KIT_VERSION).toBe(1);
+    expect(HOST_API_VERSION).toBe(1);
+    install({ data: { version: DATA_KIT_VERSION, ...stub(ADD_ON_DATA_EXPORTS) } });
+    const host = requireAddOnHost();
+    expect(host.version).toBe(1);
+    expect(host.data?.version).toBe(1);
+    expect(Object.keys(host.data ?? {}).filter((name) => name !== 'version').sort()).toEqual([...ADD_ON_DATA_EXPORTS].sort());
+  });
+
+  it('a host without it still serves every page built before it', () => {
+    install();
+    expect(requireAddOnHost().data).toBeUndefined();
   });
 });
 

@@ -43,6 +43,7 @@ export {
   CONNECT_KINDS,
   DEFAULT_NAV_GROUP,
   HOST_API_VERSION,
+  HOST_API_WITH_DATA,
   addOnBlockSchema,
   addOnCategorySchema,
   addOnConnectSchema,

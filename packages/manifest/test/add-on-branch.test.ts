@@ -84,6 +84,13 @@ describe('an add-on that installs like an app', () => {
     expect(issues).toContain('requiredSchema.prefixed: "requiredSchema.prefixed" is read by');
   });
 
+  it('pages that need the data kit say so with hostApi 2, from the install floor up', () => {
+    const withKit = kit({ addOn: { ...KIT.addOn, hostApi: 2 } });
+    expect(issuesOf(withKit)).toEqual([]);
+    expect(installFloorWords(withKit).map((found) => found.word)).toContain('addOn.hostApi.2');
+    expect(issuesOf({ ...withKit, compatibility: { minAdminiumVersion: '0.3.17' } }).join('\n')).toContain('addOn.hostApi: "addOn.hostApi.2" is read by Adminium 0.3.18 and later');
+  });
+
   it('frontends, addOns.requires and addOns.features stay refused', () => {
     expect(issuesOf(kit({ frontends: [{ side: 'customer', kind: 'spa' }] })).join('\n')).toContain('Unrecognized key');
     const need = { key: 'invoices', range: '>=1.0.7', reason: { 'en-US': 'Prints orders.' } };
