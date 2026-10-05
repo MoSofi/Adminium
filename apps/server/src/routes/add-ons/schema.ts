@@ -201,6 +201,11 @@ export const installPlanDto = z.object({
    */
   requiresSchemaChange: z.boolean(),
   /**
+   * For an add-on that keeps tables of its own: each table's real name in the
+   * database, by its short name (`items` → `inventory_items`).
+   */
+  names: z.record(z.string(), z.string()).optional(),
+  /**
    * Advice that does not stop the install: the manifest names app keys this
    * server does not know (every published add-on names apps an instance may
    * never install).

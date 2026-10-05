@@ -145,3 +145,48 @@ describe('who sees an add-on\'s pages', () => {
     expect((await h.tableNames()).filter((name) => name.startsWith('stock_kit_'))).toEqual([]);
   });
 });
+
+describe.each(LEGS)('an app that needs an add-on with tables of its own — %s', (dialect, available) => {
+  /** An app with a table called `items` of its own, under no prefix, that requires the kit. */
+  const SHOP = {
+    kind: 'app',
+    manifestVersion: 1,
+    key: 'shop',
+    name: 'Shop',
+    version: '0.3.0',
+    publisher: { id: 'adminium', name: 'Adminium' },
+    license: 'MIT',
+    description: { key: 'd', fallback: 'd' },
+    categories: ['commerce'],
+    compatibility: { minAdminiumVersion: '0.3.1' },
+    pages: [{ ref: 'items', template: 'page-crud', title: { key: 't', fallback: 'Items' }, nav: { group: 'manage', icon: 'list', order: 1 }, bindings: { main: 'items' } }],
+    frontends: [{ side: 'staff', kind: 'none' }],
+    addOns: { requires: [{ key: 'stock-kit', range: '>=1.0.0', reason: { 'en-US': 'Keeps the stock.' } }] },
+    requiredSchema: { tables: [{ ref: 'items', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'title', type: 'text', maxLength: 80 }] }] },
+  };
+
+  it.runIf(available)('installs it with the app, in the app\'s database, each keeping its own table of the same short name', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    await h.stageAddOn(stockKitManifest(), { bundled: true });
+    const plan = await h.plan(SHOP);
+    expect(plan.statusCode, plan.body).toBe(200);
+    // The app's `items` is a table to make: the add-on's `items` is another table, under the add-on's prefix.
+    expect(plan.json().plan).toMatchObject({ installable: true });
+    expect(plan.json().plan.create.map((table: { ref: string }) => table.ref)).toEqual(['items']);
+    const reply = await h.install('shop', '0.3.0', { addOns: [{ key: 'stock-kit', version: '1.0.0' }] });
+    expect(reply.statusCode, reply.body).toBe(200);
+    const names = await h.tableNames();
+    expect(names).toEqual(expect.arrayContaining(['items', 'stock_kit_items', 'stock_kit_takes']));
+    const { manifestsRepo } = await import('@adminium/meta');
+    const kit = await manifestsRepo(h.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).findByKey('stock-kit');
+    expect(kit?.row).toMatchObject({ status: 'installed', connectionId: h.connectionId });
+    expect(kit?.attachments.map((attachment) => attachment.attachedTo)).toContain('shop');
+    // The person who installed the app holds the add-on's first role too.
+    expect((await rolesRepo(h.meta).rolesForUser(h.owner.id)).map((role) => role.slug)).toContain('stock-kit-manager');
+
+    // Uninstalling the app: its own `items` is its to drop; nothing of the add-on's is in the list at all.
+    const list = await h.inject({ method: 'GET', url: '/apps/shop/uninstall-plan' });
+    expect(list.statusCode, list.body).toBe(200);
+    expect(list.json().tables).toEqual([{ table: 'items', droppable: true }]);
+  });
+});

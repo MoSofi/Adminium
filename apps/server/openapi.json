@@ -92559,6 +92559,15 @@
                         "requiresSchemaChange": {
                           "type": "boolean"
                         },
+                        "names": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
                         "warnings": {
                           "type": "array",
                           "items": {
@@ -92782,6 +92791,15 @@
                         },
                         "requiresSchemaChange": {
                           "type": "boolean"
+                        },
+                        "names": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
                         },
                         "warnings": {
                           "type": "array",
@@ -93008,6 +93026,15 @@
                         },
                         "requiresSchemaChange": {
                           "type": "boolean"
+                        },
+                        "names": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
                         },
                         "warnings": {
                           "type": "array",

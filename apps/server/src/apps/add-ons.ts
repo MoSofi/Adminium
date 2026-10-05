@@ -38,7 +38,7 @@ import {
   type AddOnNeeds,
   type Manifest,
 } from '@adminium/manifest';
-import { auditRepo, manifestsRepo, type InstalledManifest } from '@adminium/meta';
+import { appTablesRepo, auditRepo, manifestsRepo, type InstalledManifest } from '@adminium/meta';
 
 import { catalogSchema, isCurrentCatalogFormat, meetsMinimum, pickLocalized, type CatalogClient, type CatalogEntry } from '../add-ons/catalog.js';
 import { bundledAddOnVersions } from '../add-ons/bundled.js';
@@ -543,7 +543,8 @@ export function tablesComingFromAddOns(rows: readonly AppAddOnRow[]): { ref: str
     .filter((row) => row.need === 'requires' && row.action === 'install' && row.plan !== null)
     .flatMap((row) =>
       row.plan!.create.map((table) => ({
-        ref: table.ref,
+        // By its REAL name: an add-on that keeps its tables under a prefix never stands in for a table of that bare name.
+        ref: row.plan!.names?.[table.ref] ?? table.ref,
         columns: table.columns.map((column) => ({ ref: column.ref, isPrimaryKey: column.type === 'id' })),
       })),
     );
@@ -558,7 +559,12 @@ export function tablesComingFromAddOns(rows: readonly AppAddOnRow[]): { ref: str
  */
 export async function addOnTablesByName(installer: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>): Promise<Map<string, string>> {
   const out = new Map<string, string>();
+  const records = appTablesRepo(installer.meta);
   for (const installed of await manifestsRepo(installer.meta, installer.credentialCrypto).list('add-on')) {
+    // The names its tables really have, from its records; an add-on installed before records were kept has only its bare refs.
+    const recorded = installed.row.connectionId === null ? [] : (await records.forInstall(installed.row.connectionId, installed.row.manifestKey)).filter((record) => record.state !== 'dropped');
+    for (const record of recorded) if (!out.has(record.tableName)) out.set(record.tableName, installed.row.manifestKey);
+    if (recorded.length > 0) continue;
     const tables = (installed.document as { requiredSchema?: { tables?: { ref?: unknown }[] } } | null)?.requiredSchema?.tables ?? [];
     for (const table of tables) {
       if (typeof table.ref === 'string' && !out.has(table.ref)) out.set(table.ref, installed.row.manifestKey);
@@ -614,7 +620,7 @@ export async function runAddOnSteps(
       done.attached.push({ key: step.key, name: step.name, version: step.version });
     }
     await auditRepo(deps.installer.meta).append({
-      actorKind: 'user',
+      actorKind: input.actor.kind ?? 'user',
       actorId: input.actor.id,
       actorLabel: input.actor.label,
       category: 'app',

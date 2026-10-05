@@ -1934,7 +1934,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         steps,
         host: appHost(manifest, connectionId),
         connectionId,
-        actor: { id: userId, label: userLabel },
+        actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
         manifestRowId: installed.row.id,
       });
       addOnsDone = {
@@ -2288,7 +2288,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           steps: addOnSteps,
           host: appHost(manifest, connectionId ?? null),
           connectionId: connectionId ?? null,
-          actor: { id: userId, label: userLabel },
+          actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
           manifestRowId: rowId,
         });
         // Their tables exist now: the app's plan is read again from the
@@ -2563,7 +2563,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         steps,
         host: appHost(manifest, connectionId),
         connectionId,
-        actor: { id: userId, label: userLabel },
+        actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
         manifestRowId: installed.row.id,
       });
       addOnsDone = {

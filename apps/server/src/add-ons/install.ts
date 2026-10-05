@@ -284,6 +284,7 @@ function toDto(plan: InstallPlan, extra: readonly HostProblem[], warnings: reado
       ...extra.map((p) => ({ code: p.code as string, message: p.message, table: p.table })),
     ],
     requiresSchemaChange: plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
+    ...(plan.names === undefined ? {} : { names: plan.names }),
     ...(warnings.length === 0 ? {} : { warnings: [...warnings] }),
   };
 }
