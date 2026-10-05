@@ -70,6 +70,10 @@ export interface CodeUnlock {
   table: string;
   column: string;
   link: string;
+  /** The code is the row's own: `table` is the read table and `link` its key. */
+  self?: true | undefined;
+  /** With `self`: the code's length without its prefix; any other length is refused before the lookup. */
+  length?: number | undefined;
   where?: readonly (CodeLookupWhere | { column: string; not_before?: 'now' | 'today'; not_after?: 'now' | 'today'; or_empty?: true; eq?: unknown })[] | undefined;
 }
 

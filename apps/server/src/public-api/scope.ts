@@ -502,6 +502,9 @@ const resourceSchema = z
         table: z.string().min(1).max(256),
         column: columnSchema,
         link: columnSchema,
+        /** The code is the row's own (`table` is the resource's own, `link` its key); `length` is the code's, without its prefix. */
+        self: z.literal(true).optional(),
+        length: z.number().int().min(4).max(16).optional(),
         where: z
           .array(
             z.union([

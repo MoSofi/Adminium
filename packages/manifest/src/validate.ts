@@ -194,9 +194,21 @@ export function isManifestOnly(manifest: Manifest): boolean {
 
 /** `sampleData.skipWhenShared` names the app's own tables, its `table` is one it shares, and no table left in links to a skipped one. */
 function sampleDataIssues(manifest: Manifest): ManifestIssue[] {
-  const rule = manifest.kind === 'app' ? manifest.sampleData?.skipWhenShared : undefined;
-  if (rule === undefined) return [];
   const out: ManifestIssue[] = [];
+  if (manifest.kind === 'app') {
+    // Rows for an add-on: one the app names, in a file of its own.
+    const named = new Set([...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].map((need) => need.key));
+    for (const [key, section] of Object.entries(manifest.sampleData?.addOns ?? {})) {
+      if (!named.has(key)) {
+        out.push({ path: `sampleData.addOns.${key}`, message: `"${key}" is not an add-on this app names: add it to addOns.requires or addOns.suggests` });
+      }
+      if (section.file === manifest.sampleData?.file) {
+        out.push({ path: `sampleData.addOns.${key}.file`, message: `rows for "${key}" are a file of their own, not the app's own sample file` });
+      }
+    }
+  }
+  const rule = manifest.kind === 'app' ? manifest.sampleData?.skipWhenShared : undefined;
+  if (rule === undefined) return out;
   const tables = new Map((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
   const shared = tables.get(rule.table);
   if (shared === undefined) {

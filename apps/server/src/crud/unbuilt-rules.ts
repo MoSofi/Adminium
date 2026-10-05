@@ -15,10 +15,18 @@
  * before anything is read: an entry whose filter is not built yet would
  * otherwise answer as a plain list of the whole table.
  *
+ * A WORD OF THE MANIFEST ITSELF may be ahead of the server too: a block an
+ * add-on declares, a key of a public entry. A manifest that uses one is
+ * refused before anything is made of it — install, update, a folder apply and
+ * the folder check all ask `unbuiltInManifest` — with the release that runs
+ * the word, so the answer is "needs Adminium <release>", never half an app.
+ *
  * Each detector is removed in the change that builds its rule. A release
- * ships with both lists empty (a test says so).
+ * ships with no word it claims to run itself (a test says so).
  */
-import { AppError } from '../errors.js';
+import { installFloorWords } from '@adminium/manifest';
+
+import { AppError, ValidationFailedError } from '../errors.js';
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 
 export interface UnbuiltTableRule {
@@ -39,8 +47,78 @@ export interface UnbuiltEntryRule {
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 
-/** The public entry keys whose behaviour is not built yet: none. */
-export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
+/** The public entry keys whose behaviour is not built yet. */
+export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
+  // A row opened by its own code: the length check and its own guess budget come with the add-on install.
+  { rule: 'unlock_by.self', on: (entry) => (entry['unlock_by'] as { self?: unknown } | undefined)?.self === true },
+];
+
+/** The release that installs an add-on like an app, and runs the words that come with it. */
+const ADD_ON_INSTALL_RELEASE = '0.3.18';
+
+/**
+ * The words of a manifest this server reads and does not run yet, each with
+ * the release that runs it. A word is taken out in the change that builds it.
+ */
+export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
+  // An add-on's own blocks: what it declares in an app's words.
+  pages: ADD_ON_INSTALL_RELEASE,
+  roles: ADD_ON_INSTALL_RELEASE,
+  optionLists: ADD_ON_INSTALL_RELEASE,
+  emailTemplates: ADD_ON_INSTALL_RELEASE,
+  outbox: ADD_ON_INSTALL_RELEASE,
+  documents: ADD_ON_INSTALL_RELEASE,
+  sampleData: ADD_ON_INSTALL_RELEASE,
+  publicAccess: ADD_ON_INSTALL_RELEASE,
+  publicKeys: ADD_ON_INSTALL_RELEASE,
+  navGroups: ADD_ON_INSTALL_RELEASE,
+  addOns: ADD_ON_INSTALL_RELEASE,
+  'requiredSchema.prefixed': ADD_ON_INSTALL_RELEASE,
+  seeds: ADD_ON_INSTALL_RELEASE,
+  'table.indexes': ADD_ON_INSTALL_RELEASE,
+  'addOn.settingsTable': ADD_ON_INSTALL_RELEASE,
+  // Links from a table into an add-on's, and a column that holds a table's name.
+  'column.addOnLink': ADD_ON_INSTALL_RELEASE,
+  'column.tableRef': ADD_ON_INSTALL_RELEASE,
+  'sampleData.addOns': ADD_ON_INSTALL_RELEASE,
+  'unlockBy.self': ADD_ON_INSTALL_RELEASE,
+};
+
+export interface UnbuiltWord {
+  /** The word as the manifest writes it (`pages`, `column.addOnLink`). */
+  word: string;
+  /** Dotted path to where the document writes it. */
+  path: string;
+  /** The release of Adminium that runs it. */
+  release: string;
+}
+
+/**
+ * Every word of a manifest document, of either kind, that this server does
+ * not run yet. Pure: no database, no server — the folder check calls it too.
+ */
+export function unbuiltInManifest(document: unknown, words: Readonly<Record<string, string>> = UNBUILT_MANIFEST_WORDS): UnbuiltWord[] {
+  return installFloorWords(document).flatMap((found) => {
+    const release = words[found.word];
+    return release === undefined ? [] : [{ ...found, release }];
+  });
+}
+
+/**
+ * Refuses a manifest that uses a word this server does not run yet: 422, the
+ * same reason an older server gives a newer app, naming the release to move
+ * to and each word with its place.
+ */
+export function refuseUnbuiltManifest(document: unknown, subject: string, serverVersion: string, words?: Readonly<Record<string, string>>): void {
+  const found = unbuiltInManifest(document, words);
+  if (found.length === 0) return;
+  const release = found.map((word) => word.release).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0] as string;
+  const named = [...new Set(found.map((word) => `"${word.word}"`))].join(', ');
+  throw new ValidationFailedError(
+    `${subject} uses ${named}, which Adminium ${release} runs and this Adminium ${serverVersion} does not. Take ${found.length === 1 ? 'it' : 'them'} out, or move to Adminium ${release}.`,
+    { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: release, serverVersion, words: found },
+  );
+}
 
 /** 501: the table (or entry) declares a rule this server cannot keep yet. */
 export class RuleNotBuiltError extends AppError {

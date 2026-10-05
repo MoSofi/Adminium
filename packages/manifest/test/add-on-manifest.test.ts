@@ -52,7 +52,8 @@ const DHL = {
   license: 'MIT',
   description: { key: 'x.dhl', fallback: 'Book a collection with a carrier.' },
   categories: ['delivery'],
-  compatibility: { minAdminiumVersion: '1.0.0' },
+  // The floor the released add-ons carry: before the one that names a page under its add-on's key.
+  compatibility: { minAdminiumVersion: '0.3.1' },
   capabilities: ['outbound-http', 'file-storage'],
   settings: [
     { key: 'api_key', type: 'string', secret: true },
@@ -131,11 +132,12 @@ describe('the add-on branch', () => {
     if (isAddOnManifest(parsed)) expect(parsed.addOn.connect.kind).toBe('api-key');
   });
 
-  it('makes it IMPOSSIBLE for an add-on to declare pages or a frontend', () => {
-    expect(addOnManifestSchema.safeParse({ ...DHL, pages: [] }).success).toBe(false);
+  it('makes it IMPOSSIBLE for an add-on to declare a frontend, or a block under a floor that cannot read it', () => {
     expect(
       addOnManifestSchema.safeParse({ ...DHL, frontends: [{ side: 'customer', kind: 'spa' }] }).success,
     ).toBe(false);
+    // A list of generated pages is never empty, and this manifest's floor is before the one that reads `roles`.
+    expect(addOnManifestSchema.safeParse({ ...DHL, pages: [] }).success).toBe(false);
     expect(addOnManifestSchema.safeParse({ ...DHL, roles: [] }).success).toBe(false);
   });
 

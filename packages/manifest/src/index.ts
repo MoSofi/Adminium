@@ -48,6 +48,13 @@ export {
   MAX_TABLE_NAME,
   prefixFor,
   appReferenceIssues,
+  ADD_ON_INSTALL_FLOOR,
+  MAX_SEED_ROWS,
+  installsLikeAnApp,
+  indexSetIssues,
+  tableIndexesSchema,
+  addOnTableSchema,
+  type AddOnTable,
   columnRulesSchema,
   stampSetSchema,
   stampTriggerSchema,
@@ -278,6 +285,7 @@ export {
   byStaySchema,
   isoDurationMs,
   sampleBundleIssues,
+  sampleSectionIssues,
   sampleBundleSchema,
   sampleDirective,
   sampleRowSchema,
@@ -317,3 +325,4 @@ export {
   type ComposeResult,
   type PartOrigin,
 } from './compose.js';
+export { ADD_ON_INSTALL_BLOCKS, installFloorWords, type ManifestWord } from './words.js';

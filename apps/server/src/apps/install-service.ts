@@ -120,6 +120,7 @@ import { installAppDocuments } from '../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EndpointService } from '../public-api/endpoint-service.js';
 import type { SnapshotView } from '../crud/identifiers.js';
+import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import type { DsnCrypto } from '@adminium/meta';
 import { pageLayoutSchema } from '@adminium/engine/config';
 import { APP_VERSION } from '../version.js';
@@ -655,6 +656,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { reason: 'WRONG_KIND' },
       );
     }
+    // A word this server reads and does not run yet: refused whole, never installed in part.
+    refuseUnbuiltManifest(document, `"${validated.manifest.key}"`, serverVersion);
     return validated.manifest;
   }
 

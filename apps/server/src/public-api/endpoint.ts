@@ -403,12 +403,19 @@ export const publicEndpointDefinitionSchema = z
      * Rows readable only with a code that unlocks them: a row of `table` whose
      * `column` holds the typed code and whose `link` points at the row. No
      * row answers without one.
+     *
+     * With `self`, the code is the row's own: `table` is the endpoint's own
+     * table and `link` its key, so the code finds the one row it sits in.
+     * `length` is the code's length without its prefix; a code of any other
+     * length is refused before it is looked up.
      */
     unlock_by: z
       .object({
         table: z.string().min(1).max(256),
         column: columnSchema,
         link: columnSchema,
+        self: z.literal(true).optional(),
+        length: z.number().int().min(4).max(16).optional(),
         where: z
           .array(
             z.union([
@@ -592,6 +599,8 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       table: def.unlock_by.table,
       column: def.unlock_by.column,
       link: def.unlock_by.link,
+      ...(def.unlock_by.self === undefined ? {} : { self: def.unlock_by.self }),
+      ...(def.unlock_by.length === undefined ? {} : { length: def.unlock_by.length }),
       ...(def.unlock_by.where === undefined ? {} : { where: def.unlock_by.where.map((condition) => ({ ...condition })) }),
     };
   }
@@ -981,6 +990,8 @@ export function definitionToResource(
       table: u.table,
       column: u.column,
       link: u.link,
+      ...(u.self === undefined ? {} : { self: u.self }),
+      ...(u.length === undefined ? {} : { length: u.length }),
       ...(u.where === undefined
         ? {}
         : {
@@ -1133,11 +1144,20 @@ function unlockIssues(def: PublicEndpointDefinition, table: ResolvedTable, view:
   for (const [name, column] of [['column', unlock.column], ['link', unlock.link], ...(unlock.where ?? []).map((w) => ['where', w.column] as const)] as const) {
     if (!codes.columns.has(column)) out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${unlock.table}`, column: `unlock_by.${name}` });
   }
-  const link = view.model.relations.find(
-    (r) => r.through === null && r.from.tableId === codes.id && r.from.columns.length === 1 && r.from.columns[0] === unlock.link,
-  );
-  if (codes.columns.has(unlock.link) && link?.to.tableId !== table.id) {
-    out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `${unlock.table}.${unlock.link} does not point at ${def.source}`, column: 'unlock_by.link' });
+  if (unlock.self === true) {
+    // The row's own code: the codes table is the endpoint's own, found by its key. No link to follow.
+    const key = codes.table.primaryKey.length === 1 ? codes.table.primaryKey[0] : undefined;
+    if (codes.id !== table.id || key === undefined || unlock.link !== key) {
+      out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `a row opened by its own code names its own table and its key: ${def.source}`, column: 'unlock_by.link' });
+    }
+  } else {
+    if (unlock.length !== undefined) out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: 'a length is said of a row opened by its own code (self)', column: 'unlock_by.length' });
+    const link = view.model.relations.find(
+      (r) => r.through === null && r.from.tableId === codes.id && r.from.columns.length === 1 && r.from.columns[0] === unlock.link,
+    );
+    if (codes.columns.has(unlock.link) && link?.to.tableId !== table.id) {
+      out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `${unlock.table}.${unlock.link} does not point at ${def.source}`, column: 'unlock_by.link' });
+    }
   }
   const code = codes.table.columns.find((column) => column.name === unlock.column);
   if (code !== undefined) {

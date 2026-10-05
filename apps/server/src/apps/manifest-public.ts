@@ -299,9 +299,10 @@ function definitionOf(
       ? {}
       : {
           unlock_by: {
-            table: nested.unlockBy?.table ?? idOf(entry.unlockBy.table),
-            column: entry.unlockBy.column,
-            link: entry.unlockBy.link,
+            // A row opened by its own code: the codes table is the entry's own, found by its key.
+            ...('self' in entry.unlockBy
+              ? { table: idOf(entry.table), column: entry.unlockBy.column, link: key, self: true as const, ...(entry.unlockBy.length === undefined ? {} : { length: entry.unlockBy.length }) }
+              : { table: (nested.unlockBy !== undefined && 'table' in nested.unlockBy ? nested.unlockBy.table : undefined) ?? idOf(entry.unlockBy.table), column: entry.unlockBy.column, link: entry.unlockBy.link }),
             ...(entry.unlockBy.where === undefined
               ? {}
               : {

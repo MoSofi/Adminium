@@ -39,11 +39,13 @@ import {
 } from '@adminium/manifest';
 import { auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
+import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 import { needsOf } from './needs.js';
 import type { AddOnSchemaTarget } from './schema-target.js';
 import type { AddOnStore } from './store.js';
+import { APP_VERSION } from '../version.js';
 
 /** The host a stock deployment's own pages hang off — the dashboard's rail. */
 export const DASHBOARD_HOST = 'dashboard';
@@ -107,6 +109,8 @@ export function parseAddOnDocument(
   key: string,
   hosts: readonly HostApp[] = [],
 ): { manifest: AddOnManifest; warnings: string[] } {
+  // A word this server reads and does not run yet: refused whole, never installed in part.
+  refuseUnbuiltManifest(document, `"${key}"`, APP_VERSION);
   const hostTables = tablesOfHosts(hosts);
   const result = validateManifest(document, {
     // Every host this check knows: the ones being attached, and the dashboard.

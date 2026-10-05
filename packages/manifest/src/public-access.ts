@@ -636,8 +636,24 @@ export const publicAccessSchema = z
      * (a presale code revealing its ticket type).
      */
     unlockBy: z
-      .object({ table: refSchema, column: refSchema, link: refSchema, where: codeWhereSchema.optional() })
-      .strict()
+      .union([
+        z.object({ table: refSchema, column: refSchema, link: refSchema, where: codeWhereSchema.optional() }).strict(),
+        /**
+         * A row that opens only with ITS OWN code, sent in the `x-adminium-code`
+         * header (a gift card's balance): `column` is the code column of the
+         * entry's own table. `length` is the code's length without its
+         * prefix; a code of any other length is refused before it is looked up.
+         */
+        z
+          .object({
+            header: z.literal(true),
+            column: refSchema,
+            self: z.literal(true),
+            length: z.number().int().min(4).max(16).optional(),
+            where: codeWhereSchema.optional(),
+          })
+          .strict(),
+      ])
       .optional(),
     /** Image columns any visitor may see, through the rows this entry reads. */
     pictures: z.array(refSchema).min(1).max(4).optional(),
@@ -1382,6 +1398,38 @@ function unlockIssues(
     if (entry[name] !== undefined) out.push({ path: at(name), message: 'an unlock is its own entry' });
   }
   if (entry.kind === 'availability') out.push({ path: at('kind'), message: 'an unlock is its own entry' });
+  if ('self' in unlock) {
+    // The code is the row's own: the same checks, on the entry's table, and no link to follow.
+    const code = index.column(entry.table, unlock.column) as (ColumnShape & { unique?: true; rules?: { code?: unknown; normalize?: string } }) | undefined;
+    if (code === undefined) {
+      out.push({ path: at('unlockBy', 'column'), message: `"${entry.table}" has no column "${unlock.column}"` });
+    } else {
+      if (code.type !== 'text' || (code.unique !== true && code.rules?.code === undefined)) {
+        out.push({ path: at('unlockBy', 'column'), message: `a code finds one row: make "${entry.table}.${code.ref}" unique` });
+      }
+      if (code.rules?.code === undefined && code.rules?.normalize !== 'code') {
+        out.push({ path: at('unlockBy', 'column'), message: `"${entry.table}.${code.ref}" is compared as a code: give it normalize "code"` });
+      }
+      if (shareCodeColumns(entries, entry.table).includes(code.ref)) {
+        out.push({ path: at('unlockBy', 'column'), message: "a shared link's code is never looked up" });
+      }
+      // The code opens the row; the row never shows it back.
+      if ((entry.select ?? []).includes(code.ref)) {
+        out.push({ path: at('select'), message: `"${entry.table}.${code.ref}" opens the row, so the row does not show it: take it out of select` });
+      }
+    }
+    (unlock.where ?? []).forEach((condition, k) => {
+      const path = at('unlockBy', 'where', k);
+      const filter = index.column(entry.table, condition.column);
+      if (filter === undefined) out.push({ path: [...path, 'column'], message: `"${entry.table}" has no column "${condition.column}"` });
+      else if ('eq' in condition) {
+        if (!valueFits(filter, condition.eq)) out.push({ path: [...path, 'eq'], message: `${JSON.stringify(condition.eq)} is not a value of "${entry.table}.${filter.ref}"` });
+      } else if (filter.type !== 'date' && filter.type !== 'timestamptz') {
+        out.push({ path: [...path, 'column'], message: `"${entry.table}.${filter.ref}" is not a date` });
+      }
+    });
+    return out;
+  }
   if (index.table(unlock.table) === undefined) {
     out.push({ path: at('unlockBy', 'table'), message: `"${unlock.table}" is not a table of this app` });
     return out;

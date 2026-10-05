@@ -212,7 +212,7 @@ describe('the cross-references it checks', () => {
     expect(issuesOf({ ...full, sampleData: { file: '../etc/passwd.json' } }).length).toBeGreaterThan(0);
   });
 
-  it('an add-on cannot prefix its tables', () => {
+  it('an add-on prefixes its tables only from the floor that reads it', () => {
     const addOn = {
       kind: 'add-on',
       manifestVersion: 1,
@@ -227,7 +227,8 @@ describe('the cross-references it checks', () => {
       addOn: { attaches: [{ app: '*', range: '*' }], provides: [], consumes: [], events: [], connect: { kind: 'none' }, scopes: [] },
       requiredSchema: { prefixed: true, tables: [tables[0]] },
     };
-    expect(issuesOf(addOn).join('\n')).toContain('cannot be prefixed');
+    expect(issuesOf(addOn).join('\n')).toContain('"requiredSchema.prefixed" is read by Adminium 0.3.18 and later');
+    expect(issuesOf({ ...addOn, compatibility: { minAdminiumVersion: '0.3.18' } })).toEqual([]);
   });
 });
 

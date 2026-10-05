@@ -273,6 +273,12 @@ export const addOnBlockSchema = z
       .min(1)
       .max(8)
       .optional(),
+    /**
+     * One of the add-on's own tables that holds a single row: its settings.
+     * Adminium makes the row from the columns' defaults at install and hands
+     * it to the add-on's deciding code. `@adminium/manifest` checks the table.
+     */
+    settingsTable: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref').optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

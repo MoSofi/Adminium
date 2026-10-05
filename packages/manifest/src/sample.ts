@@ -17,6 +17,9 @@
  *   `{"@day": 3}`              a date in the venue's own zone
  *   `{"@t": {"en-US": "…"}}`   the adding person's language
  *   `{"@asset": "<label>"}`    a file from `assets`, added to the Files library
+ *   `{"@table": "<table>"}`    that table's stored name, for a column that
+ *                               holds one (`rules.tableRef`): the name it has
+ *                               on this install, whichever app made the table
  *
  * A `@day` may add `"@workdays": true`: its days count Monday to Friday, and
  * day 0 on a weekend is the Monday after — so "today's" busy day is never a
@@ -58,11 +61,18 @@
  * settings: the row is added only when the table has none, and otherwise its
  * `@label` names the row already there — the operator's own settings stay.
  *
+ * AN APP'S ROWS FOR AN ADD-ON. An app that names an add-on may ship a second
+ * file of the same format with a top-level `addOn`: rows of that add-on's
+ * tables (its items, its recipes — never its history), and rows of the app's
+ * own tables that link into them, each marked `"own": true`. It is named by
+ * the manifest's `sampleData.addOns.<key>.file` and loaded only while the
+ * add-on is there. `sampleSectionIssues` checks one.
+ *
  * Pure: a format and its checks, no I/O. The server resolves the directives.
  */
 import { z } from 'zod';
 
-import type { Manifest } from './schema.js';
+import type { AddOnManifest, AppManifest, Manifest } from './schema.js';
 
 export const SAMPLE_FORMAT = 'adminium.sample/1';
 
@@ -104,6 +114,7 @@ const directive = z.union([
     .strict(),
   z.object({ '@t': z.record(z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/), z.string()).refine((m) => Object.keys(m).length > 0) }).strict(),
   z.object({ '@asset': label }).strict(),
+  z.object({ '@table': z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table') }).strict(),
 ]);
 
 const plain = z.union([z.string(), z.number(), z.boolean(), z.null()]);
@@ -155,6 +166,8 @@ export const sampleBundleSchema = z
   .object({
     format: z.literal(SAMPLE_FORMAT),
     app: z.string().min(1),
+    /** An app's rows for an add-on it names: the add-on's key. Absent in a manifest's own bundle. */
+    addOn: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'an add-on key').optional(),
     /** The weekday the sample's `@week` days count from (the day it was written for), in the week nearest the adding day. */
     weekAnchor: z.enum(SAMPLE_WEEKDAYS).optional(),
     assets: z
@@ -165,6 +178,8 @@ export const sampleBundleSchema = z
         z
           .object({
             ref: z.string().min(1),
+            /** In an app's rows for an add-on: a table of the app itself, one that links into the add-on. */
+            own: z.literal(true).optional(),
             /** The table's rows go in only when it holds none (a kitchen's opening hours, set before the sample). */
             onlyIfEmpty: z.literal(true).optional(),
             rows: z.array(sampleRowSchema).min(1).max(5000),
@@ -188,6 +203,7 @@ export function sampleDirective(value: unknown):
   | { kind: 'month'; months: number; dom: number; time: string | null }
   | { kind: 't'; texts: Record<string, string> }
   | { kind: 'asset'; label: string }
+  | { kind: 'table'; ref: string }
   | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -212,6 +228,7 @@ export function sampleDirective(value: unknown):
     return { kind: 't', texts: record['@t'] as Record<string, string> };
   }
   if (typeof record['@asset'] === 'string') return { kind: 'asset', label: record['@asset'] };
+  if (typeof record['@table'] === 'string') return { kind: 'table', ref: record['@table'] };
   return null;
 }
 
@@ -269,14 +286,93 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
   if (bundle.app !== manifest.key) {
     issues.push({ path: 'app', message: `The bundle is for "${bundle.app}", not "${manifest.key}".` });
   }
-  const declared = new Map((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
+  if (bundle.addOn !== undefined) {
+    issues.push({ path: 'addOn', message: `This file holds rows for the add-on "${bundle.addOn}": name it in sampleData.addOns, not as the manifest's own sample file.` });
+  }
+  bundle.tables.forEach((table, t) => {
+    if (table.own === true) issues.push({ path: `tables.${String(t)}.own`, message: '"own" marks a table of the app in its rows for an add-on; a manifest\'s own sample file takes none.' });
+  });
+  const declared = new Map<string, DeclaredTable>((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
+  issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false }));
+  return issues;
+}
+
+/** What the row checks read of a table. */
+type DeclaredTable = NonNullable<Manifest['requiredSchema']>['tables'][number];
+
+/**
+ * An app's rows for an add-on it names (`sampleData.addOns.<key>.file`):
+ * the file is for this app and that add-on, the app names the add-on, a
+ * table marked `own` is the app's and links into the add-on, and — when the
+ * add-on's manifest is at hand — every other table is one of the add-on's.
+ * A `@ref` may name a row of the app's or the add-on's own sample, so a label
+ * this file does not hold is left for the load to find.
+ */
+export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addOn?: AddOnManifest): SampleIssue[] {
+  const issues: SampleIssue[] = [];
+  if (bundle.app !== app.key) issues.push({ path: 'app', message: `The file is for "${bundle.app}", not "${app.key}".` });
+  const key = bundle.addOn;
+  if (key === undefined) {
+    issues.push({ path: 'addOn', message: 'Rows for an add-on say which: write "addOn": "<its key>" at the top of the file.' });
+    return issues;
+  }
+  if (addOn !== undefined && addOn.key !== key) issues.push({ path: 'addOn', message: `The file is for the add-on "${key}", not "${addOn.key}".` });
+  const named = [...(app.addOns?.requires ?? []), ...(app.addOns?.suggests ?? [])].some((need) => need.key === key);
+  if (!named) issues.push({ path: 'addOn', message: `"${key}" is not an add-on this app names: add it to addOns.requires or addOns.suggests.` });
+
+  const own = new Map<string, DeclaredTable>(app.requiredSchema.tables.map((table) => [table.ref, table]));
+  const theirs = addOn === undefined ? null : new Map<string, DeclaredTable>((addOn.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
+  const declared = new Map<string, DeclaredTable>();
+  bundle.tables.forEach((table, t) => {
+    const at = `tables.${String(t)}`;
+    if (table.own === true) {
+      const shape = own.get(table.ref);
+      if (shape === undefined) {
+        issues.push({ path: `${at}.ref`, message: `"${table.ref}" is not a table this app declares.` });
+      } else if (!shape.columns.some((column) => column.rules?.addOnLink?.addOn === key)) {
+        issues.push({ path: `${at}.own`, message: `"${table.ref}" has no column that links into "${key}" (rules.addOnLink), so its rows belong in the app's own sample file.` });
+      } else {
+        declared.set(table.ref, shape);
+      }
+      return;
+    }
+    if (theirs === null) return; // checked when the add-on's manifest is at hand
+    const shape = theirs.get(table.ref);
+    if (shape === undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is not a table of "${key}". A table of the app itself is marked "own": true.` });
+    else declared.set(table.ref, shape);
+  });
+  const twice = bundle.tables.map((table) => table.ref).filter((ref, i, all) => all.indexOf(ref) !== i);
+  for (const ref of new Set(twice)) issues.push({ path: 'tables', message: `"${ref}" is listed twice.` });
+  // A `@table` names a table of the app: the add-on's rows say which of the app's rows they belong to.
+  issues.push(...rowIssues(bundle, declared, { names: new Set(own.keys()), what: 'app', otherLabels: true }));
+  return issues;
+}
+
+/**
+ * The checks every row of a file gets, over the tables `declared` knows. A
+ * table it does not know is skipped: the caller has said why, or cannot see it.
+ */
+function rowIssues(
+  bundle: SampleBundle,
+  declared: ReadonlyMap<string, DeclaredTable>,
+  opts: {
+    /** The tables a `@table` may name. */
+    names: ReadonlySet<string>;
+    what: 'app' | 'add-on';
+    /** Whether a `@ref` may name a row of another file (so an unknown label is not an error here). */
+    otherLabels: boolean;
+  },
+): SampleIssue[] {
+  const issues: SampleIssue[] = [];
   const seen = new Set<string>();
   // The labels of a table whose rows may all be left out: nothing may point at them.
   const mayBeLeftOut = new Set(bundle.tables.filter((table) => table.onlyIfEmpty === true).flatMap((table) => table.rows.map((row) => row['@label']).filter((l): l is string => typeof l === 'string')));
   for (const [t, table] of bundle.tables.entries()) {
     const shape = declared.get(table.ref);
     if (shape === undefined) {
-      issues.push({ path: `tables.${String(t)}.ref`, message: `"${table.ref}" is not a table this app declares.` });
+      if (!opts.otherLabels) issues.push({ path: `tables.${String(t)}.ref`, message: `"${table.ref}" is not a table this ${opts.what} declares.` });
+      // Its labels still count: a later row may point at one.
+      for (const row of table.rows) if (typeof row['@label'] === 'string') seen.add(row['@label']);
       continue;
     }
     const columns = new Set(shape.columns.map((column) => column.ref));
@@ -342,7 +438,7 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
               }
               if (!columns.has(name)) issues.push({ path: `${at}.@byStay.${branch}.${name}`, message: `"${table.ref}" has no column "${name}".` });
               const found = sampleDirective(part);
-              if (found?.kind === 'ref' && !seen.has(found.label)) {
+              if (found?.kind === 'ref' && !seen.has(found.label) && !opts.otherLabels) {
                 issues.push({ path: `${at}.@byStay.${branch}.${name}`, message: `"${found.label}" is not an earlier row: a referenced row must come first.` });
               }
             }
@@ -369,7 +465,7 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
               }
               if (!columns.has(name)) issues.push({ path: `${at}.@byClock.${branch}.${name}`, message: `"${table.ref}" has no column "${name}".` });
               const found = sampleDirective(part);
-              if (found?.kind === 'ref' && !seen.has(found.label)) {
+              if (found?.kind === 'ref' && !seen.has(found.label) && !opts.otherLabels) {
                 issues.push({ path: `${at}.@byClock.${branch}.${name}`, message: `"${found.label}" is not an earlier row: a referenced row must come first.` });
               }
             }
@@ -393,7 +489,12 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
           continue;
         }
         const found = sampleDirective(value);
-        if (found?.kind === 'ref' && !seen.has(found.label)) {
+        if (found?.kind === 'table') {
+          const holds = shape.columns.find((c) => c.ref === column);
+          if (!opts.names.has(found.ref)) issues.push({ path: `${at}.${column}`, message: `"${found.ref}" is not a table this ${opts.what} declares.` });
+          else if (holds?.rules?.tableRef !== true) issues.push({ path: `${at}.${column}`, message: `"${table.ref}.${column}" does not hold a table's name (rules.tableRef), so it takes no "@table".` });
+        }
+        if (found?.kind === 'ref' && !seen.has(found.label) && !opts.otherLabels) {
           issues.push({
             path: `${at}.${column}`,
             message: `"${found.label}" is not an earlier row: a referenced row must come first.`,

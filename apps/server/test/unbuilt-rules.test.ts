@@ -10,13 +10,17 @@ import type { EffectiveTable } from '../src/connections/effective-schema.js';
 import {
   RuleNotBuiltError,
   UNBUILT_ENTRY_RULES,
+  UNBUILT_MANIFEST_WORDS,
   UNBUILT_TABLE_RULES,
+  refuseUnbuiltManifest,
   refuseUnbuiltTable,
   unbuiltEntryRuleOf,
+  unbuiltInManifest,
   unbuiltRuleOf,
   type UnbuiltEntryRule,
   type UnbuiltTableRule,
 } from '../src/crud/unbuilt-rules.js';
+import { APP_VERSION } from '../src/version.js';
 
 const table = (extra: Record<string, unknown>) => ({ id: 'main.orders', name: 'orders', columns: [], ...extra }) as unknown as EffectiveTable;
 const RULES: UnbuiltTableRule[] = [
@@ -70,9 +74,74 @@ describe('the entries this server does not run yet', () => {
   });
 });
 
+describe('a manifest that uses a word this server does not run yet', () => {
+  const ADD_ON = {
+    kind: 'add-on',
+    key: 'kit',
+    pages: [{ ref: 'kit-items' }],
+    roles: [],
+    requiredSchema: { prefixed: true, tables: [{ ref: 'items', indexes: [['name']], columns: [{ ref: 'link', rules: { tableRef: true } }] }] },
+  };
+  const APP = {
+    kind: 'app',
+    key: 'shop',
+    pages: [{ ref: 'orders' }],
+    roles: [],
+    requiredSchema: { prefixed: true, tables: [{ ref: 'lines', columns: [{ ref: 'item_id', rules: { addOnLink: { addOn: 'kit', table: 'items' } } }] }] },
+    publicAccess: [{ table: 'lines', methods: ['GET'], unlockBy: { header: true, column: 'code', self: true } }],
+  };
+
+  it('names each word, where it is written and the release that runs it', () => {
+    expect(unbuiltInManifest(ADD_ON)).toEqual([
+      { word: 'pages', path: 'pages', release: '0.3.18' },
+      { word: 'roles', path: 'roles', release: '0.3.18' },
+      { word: 'requiredSchema.prefixed', path: 'requiredSchema.prefixed', release: '0.3.18' },
+      { word: 'table.indexes', path: 'requiredSchema.tables.0.indexes', release: '0.3.18' },
+      { word: 'column.tableRef', path: 'requiredSchema.tables.0.columns.0.rules.tableRef', release: '0.3.18' },
+    ]);
+  });
+
+  it('an app\'s own pages, roles and prefix are no such word; its link into an add-on is', () => {
+    expect(unbuiltInManifest(APP).map((found) => found.word)).toEqual(['column.addOnLink', 'unlockBy.self']);
+    expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] })).toEqual([]);
+  });
+
+  it('is refused whole, with the release to move to', () => {
+    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.17')).toThrowError(
+      '"shop" uses "column.addOnLink", "unlockBy.self", which Adminium 0.3.18 runs and this Adminium 0.3.17 does not. Take them out, or move to Adminium 0.3.18.',
+    );
+    try {
+      refuseUnbuiltManifest(APP, '"shop"', '0.3.17');
+    } catch (error) {
+      expect(error).toMatchObject({ statusCode: 422, code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', serverVersion: '0.3.17' } });
+      expect((error as { details: { words: unknown[] } }).details.words).toHaveLength(2);
+    }
+    // A word built since is let through: the list is the only thing that refuses.
+    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.18', {})).not.toThrow();
+  });
+
+  it('a self-unlock stored by hand serves nothing either', () => {
+    expect(unbuiltEntryRuleOf({ source: 'cards', unlock_by: { table: 'cards', column: 'code', link: 'id', self: true } })).toBe('unlock_by.self');
+    expect(unbuiltEntryRuleOf({ source: 'ticket_types', unlock_by: { table: 'codes', column: 'code', link: 'type_id' } })).toBeNull();
+  });
+});
+
 describe('a release', () => {
-  it('ships with every rule built: both lists of rules not run yet are empty', () => {
+  /** Numeric order of two versions; a pre-release sorts before its release. */
+  const before = (a: string, b: string): boolean => {
+    const [coreA, preA] = a.split('-');
+    const [coreB, preB] = b.split('-');
+    const order = (coreA as string).localeCompare(coreB as string, undefined, { numeric: true });
+    return order !== 0 ? order < 0 : preA !== undefined && preB === undefined;
+  };
+
+  it('ships with every word it says it runs: none of the words not run yet names this version or an earlier one', () => {
+    const due = Object.entries(UNBUILT_MANIFEST_WORDS).filter(([, release]) => !before(APP_VERSION, release));
+    expect(due).toEqual([]);
+  });
+
+  it('refuses no table rule that is built', () => {
     expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual([]);
-    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual([]);
+    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['unlock_by.self']);
   });
 });
