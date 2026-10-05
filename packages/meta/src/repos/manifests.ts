@@ -79,7 +79,12 @@ export interface InstallManifestInput {
 }
 
 /** `installing` → `installed` ⇄ `disabled`; `error` is kept for a broken row. */
-export const MANIFEST_STATUSES = ['installing', 'installed', 'disabled', 'error'] as const;
+/**
+ * `updating`: an add-on whose install, update or uninstall is under way. Its
+ * code is not asked anything until the row says `installed` again, in this
+ * process (which also holds a gate) and in every other.
+ */
+export const MANIFEST_STATUSES = ['installing', 'installed', 'disabled', 'error', 'updating'] as const;
 export type ManifestStatus = (typeof MANIFEST_STATUSES)[number];
 
 /** The decrypted credential envelope, as the connect routes hand it over. */

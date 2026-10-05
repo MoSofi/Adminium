@@ -689,6 +689,12 @@ export async function seedBundledPackages(
    * itself is already generic over the store; only the words were not.
    */
   noun = 'add-on',
+  /**
+   * Told of every package staged here, with the hash of its tarball: the
+   * build vouches for these bytes, which is what lets an add-on's deciding
+   * code run (`decider-trust.ts`). A failure to record is logged, never fatal.
+   */
+  onSeeded?: (pkg: { key: string; version: string; integrity: string }) => Promise<void>,
 ): Promise<{ seeded: string[]; skipped: string[]; failed: string[] }> {
   const seeded: string[] = [];
   const skipped: string[] = [];
@@ -741,13 +747,14 @@ export async function seedBundledPackages(
     try {
       const tarball = await readFile(join(bundleDir, name));
       const expected = (await readFile(join(bundleDir, `${name}.integrity`), 'utf8')).trim();
-      await store.stage({
+      const staged = await store.stage({
         key,
         version,
         tarball: new Uint8Array(tarball),
         expectedIntegrity: expected,
       });
       seeded.push(`${key}@${version}`);
+      await onSeeded?.({ key, version, integrity: staged.tree.integrity }).catch((err: unknown) => log(`bundled ${noun} was seeded, but could not be recorded as trusted`, { name, error: String(err) }));
     } catch (err) {
       // Per-package, deliberately: one corrupt bundle entry must not cost the
       // deployment the other five. The failure is reported and the loop

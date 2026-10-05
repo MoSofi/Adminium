@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { gzipSync } from 'fflate';
-import { auditRepo, createSqliteMetaDb, firstRun, jobsRepo, type MetaDb } from '@adminium/meta';
+import { auditRepo, createSqliteMetaDb, firstRun, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Catalog, CatalogClient, CatalogEntry } from '../src/add-ons/catalog.js';
@@ -236,6 +236,8 @@ describe('add-on-download', () => {
     expect(rows[0]?.changes).toMatchObject({
       after: { key: 'design-studio', version: '1.0.0', source: 'download' },
     });
+    // The catalogue named these bytes and the store checked them: code of this package that decides inside a save may run.
+    expect(await settingsRepo(meta).get('addOns.deciderTrust')).toEqual({ 'design-studio@1.0.0': INTEGRITY });
   });
 
   it('refuses a release above this server, before fetching a byte', async () => {
@@ -333,6 +335,8 @@ describe('add-on-download', () => {
     // The same action the upload route records for the same refusal.
     expect(rows.map((r) => r.action)).toEqual(['add-on.verify-refused']);
     expect(rows[0]?.changes).toMatchObject({ after: { reason: 'INTEGRITY_MISMATCH' } });
+    // Bytes the catalogue did not name are vouched for by nobody.
+    expect(await settingsRepo(meta).get('addOns.deciderTrust')).toEqual({});
     expect(await store.keys()).toEqual([]);
   });
 

@@ -672,6 +672,18 @@ export const SETTINGS_REGISTRY = {
     null,
     'Public origin that links in outbound email point at',
   ),
+  /*
+   * The add-on packages whose deciding code may run here, beside the ones the
+   * build bundles: `<key>@<version>` → the hash of the tarball, written when
+   * the bundled seed stages one and when a catalogue download has verified
+   * one against the feed. A package uploaded by hand is never written here.
+   * Not portable: it describes this server's store, not its configuration.
+   */
+  'addOns.deciderTrust': def<Record<string, string>>(
+    z.record(z.string().regex(/^[a-z][a-z0-9-]{1,79}@[0-9A-Za-z.+-]{1,64}$/), z.string().regex(/^sha512-[A-Za-z0-9+/=]{20,120}$/)),
+    {},
+    'Add-on packages trusted to run deciding code: key@version → tarball hash',
+  ),
 } as const;
 
 export type SettingsRegistry = typeof SETTINGS_REGISTRY;

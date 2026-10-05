@@ -47,6 +47,7 @@
 import { SLOT_REGISTRY, hasContractVersion } from '@adminium/add-on-contracts';
 import type { AddOnManifest } from '@adminium/manifest';
 
+import { DECIDER_CONTRACTS, deciderTrusted, loadDecider, type DeciderKind, type InstalledDecider, type TrustSources } from './decide.js';
 import type { AddOnHttpClient } from './egress.js';
 import type { AddOnStore } from './store.js';
 
@@ -56,7 +57,9 @@ export type LoadRefusal =
   | 'UNDECLARED_PATH'
   | 'TREE_MODIFIED'
   | 'IMPORT_FAILED'
-  | 'CONTRACT_UNKNOWN';
+  | 'CONTRACT_UNKNOWN'
+  // Code that decides inside a save, in a package whose bytes nobody vouches for.
+  | 'UNTRUSTED_DECIDER';
 
 export interface LoadProblem {
   addOnKey: string;
@@ -98,6 +101,13 @@ export interface AddOnRuntimeState {
   slots: Map<string, SlotFillEntry[]>;
   conflicts: SlotConflict[];
   problems: LoadProblem[];
+  /** Add-on key -> its code that decides inside a save, compiled (never imported; see `decide.ts`). */
+  deciders: Map<string, InstalledDecider[]>;
+}
+
+/** The loaded code of an add-on that answers one kind of question, or null. */
+export function deciderFor(state: Pick<AddOnRuntimeState, 'deciders'> | null, addOnKey: string, kind: DeciderKind): InstalledDecider | null {
+  return state?.deciders.get(addOnKey)?.find((decider) => decider.kinds.includes(kind)) ?? null;
 }
 
 /** What the registry needs to know about one installed add-on. */
@@ -120,6 +130,12 @@ export interface BuildRuntimeOptions {
    * {@link importServerHalf}, which is the D4 path.
    */
   importModule?: ((absolutePath: string) => Promise<unknown>) | undefined;
+  /**
+   * Whose deciding code may run: the bundled pins, what the seed and the
+   * catalogue recorded, and a developer's list. Absent, none is trusted and
+   * every deciding add-on is unavailable, by name.
+   */
+  trust?: TrustSources | undefined;
   log?: ((message: string, data?: Record<string, unknown>) => void) | undefined;
 }
 
@@ -157,6 +173,7 @@ export async function importServerHalf(
  */
 export async function buildAddOnRuntime(opts: BuildRuntimeOptions): Promise<AddOnRuntimeState> {
   const providers = new Map<string, ProviderEntry[]>();
+  const deciders = new Map<string, InstalledDecider[]>();
   const problems: LoadProblem[] = [];
   const offered: SlotFillEntry[] = [];
 
@@ -187,6 +204,46 @@ export async function buildAddOnRuntime(opts: BuildRuntimeOptions): Promise<AddO
             `"${manifest.key}" implements ${key(provided.contract, provided.version)}, which ` +
             'this build does not know. Upgrade the add-on, or Adminium.',
         });
+        continue;
+      }
+
+      // Code that decides inside a save is compiled and run in a bare context, never imported.
+      const decides = DECIDER_CONTRACTS[provided.contract];
+      if (decides !== undefined) {
+        const contract = key(provided.contract, provided.version);
+        try {
+          const { bytes, sha256 } = await opts.store.readVerifiedFile(manifest.key, version, provided.server);
+          const { integrity } = await opts.store.verifyTree(manifest.key, version);
+          if (opts.trust === undefined || !deciderTrusted({ key: manifest.key, version, integrity }, opts.trust)) {
+            problems.push({
+              addOnKey: manifest.key,
+              reason: 'UNTRUSTED_DECIDER',
+              contract,
+              message:
+                `"${manifest.key}" ${version} ships code that decides inside a save, and this package is neither one this ` +
+                'build bundles nor one downloaded from the catalogue, so that code was not loaded.',
+            });
+            opts.log?.('add-on deciding code is not trusted', { key: manifest.key, version });
+            continue;
+          }
+          const mine = deciders.get(manifest.key) ?? [];
+          // One file may answer both questions: it is compiled once.
+          const decider = mine.find((loaded) => loaded.sha256 === sha256) ?? loadDecider({ key: manifest.key, version, path: provided.server, bytes });
+          if (!decider.kinds.includes(decides)) throw new Error(`"${manifest.key}" provides ${contract}, and ${provided.server} exports no "${decides}".`);
+          if (!mine.includes(decider)) deciders.set(manifest.key, [...mine, decider]);
+        } catch (error) {
+          const reason: LoadRefusal = (error as { reason?: string }).reason === 'TREE_MODIFIED' ? 'TREE_MODIFIED' : 'IMPORT_FAILED';
+          problems.push({
+            addOnKey: manifest.key,
+            reason,
+            contract,
+            message:
+              reason === 'TREE_MODIFIED'
+                ? `"${manifest.key}" was modified on disk after it was installed, so its deciding code was not loaded.`
+                : `"${manifest.key}" failed to load: ${error instanceof Error ? error.message : String(error)}`,
+          });
+          opts.log?.('add-on deciding code failed to load', { key: manifest.key, reason });
+        }
         continue;
       }
 
@@ -260,7 +317,7 @@ export async function buildAddOnRuntime(opts: BuildRuntimeOptions): Promise<AddO
     slots.set(slotId, sorted);
   }
 
-  return { providers, slots, conflicts, problems };
+  return { providers, slots, conflicts, problems, deciders };
 }
 
 /**

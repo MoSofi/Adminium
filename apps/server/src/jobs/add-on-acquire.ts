@@ -39,6 +39,7 @@ import {
   type CatalogClient,
   type CatalogEntry,
 } from '../add-ons/catalog.js';
+import { recordDeciderTrust } from '../add-ons/decider-trust.js';
 import type { AddOnStore } from '../add-ons/store.js';
 import { APP_VERSION } from '../version.js';
 import { JobCancelledError, type JobHandlerContext, type JobRegistry } from './registry.js';
@@ -260,6 +261,8 @@ export function registerAddOnAcquireHandlers(
         throw err;
       }
 
+      // The store has just checked these bytes against the catalogue's own hash: its deciding code may run.
+      await recordDeciderTrust(deps.meta, { key, version, integrity: staged.tree.integrity });
       ctx.progress(100, { step: 'staged', message: `${label} is ready to install` });
       await audit(
         deps,

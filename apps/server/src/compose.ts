@@ -94,6 +94,8 @@ import {
   seedBundledPackages,
   type AddOnStore,
 } from './add-ons/store.js';
+import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
+import { recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -1103,8 +1105,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     .pruneTemp()
     .then(async (pruned) => {
       if (pruned > 0) app.log.info({ pruned }, 'pruned orphaned add-on staging directories');
-      const seed = await seedBundledPackages(addOnStore, resolve(BUNDLED_ADD_ONS_DIR), (m, d) =>
-        app.log.warn(d, m),
+      const seed = await seedBundledPackages(
+        addOnStore,
+        resolve(BUNDLED_ADD_ONS_DIR),
+        (m, d) => app.log.warn(d, m),
+        'add-on',
+        (pkg) => recordDeciderTrust(meta, pkg),
       );
       if (seed.seeded.length > 0) app.log.info({ seeded: seed.seeded }, 'seeded bundled add-ons');
       if (seed.failed.length > 0) app.log.error({ failed: seed.failed }, 'bundled add-ons failed to seed');
@@ -2448,6 +2454,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * `runtime.ts` has claimed since wave 26 and that round trip has been
    * unable to demonstrate.
    */
+  /*
+   * An add-on's install, update or uninstall goes through its gate: the row
+   * says `updating` while it runs, and the add-ons are loaded again after.
+   * And code that decides may leave a rejected promise behind: dropped, logged.
+   */
+  bindDeciderGates({
+    status: async (addOnKey) => {
+      const rows = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).list('add-on');
+      return rows.find((entry) => entry.row.manifestKey === addOnKey)?.row.status ?? null;
+    },
+    setStatus: async (addOnKey, status) => {
+      const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+      const row = (await repo.list('add-on')).find((entry) => entry.row.manifestKey === addOnKey);
+      if (row !== undefined) await repo.setStatus(row.row.id, status);
+    },
+    rebuild: () => rebuildAddOnRuntime(),
+  });
+  installRejectionGuard((message, data) => app.log.error(data, message));
+
   rebuildAddOnRuntime = async () => {
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
     const installedAddOns = await repo.list('add-on');
@@ -2471,6 +2496,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const runtime = await buildAddOnRuntime({
       store: addOnStore,
       installed: parsed.map((p) => ({ manifest: p.manifest, version: p.row.version })),
+      // Read at every build: a download a moment ago is trusted by the time its add-on is installed.
+      trust: await trustSources(meta),
       log: (message, data) => app.log.warn(data, message),
     });
     // Published where the document pipeline and `GET /documents/kinds` read it.
