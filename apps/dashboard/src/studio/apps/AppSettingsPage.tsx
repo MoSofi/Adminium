@@ -214,7 +214,7 @@ function Loaded({ app }: { app: InstalledApp }) {
 
   const staff = app.sides.find((side) => side.side === 'staff');
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const section = appSectionsOf(bootstrap).find((entry) => entry.appKey === app.key) ?? null;
+  const section = appSectionsOf(bootstrap).find((entry) => entry.kind !== 'add-on' && entry.appKey === app.key) ?? null;
 
   return (
     <div className="flex max-w-[1080px] flex-col gap-4">

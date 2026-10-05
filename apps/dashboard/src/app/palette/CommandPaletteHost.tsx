@@ -194,7 +194,8 @@ export function CommandPaletteHost({
      */
     const appItems: CommandItem[] = appSectionsOf(bootstrap).flatMap((section) => {
       const pages = section.groups.flatMap((group) =>
-        group.items.map((item): CommandItem => {
+        // Pages opened by their slug; an add-on's page of its own code is reached from the rail.
+        group.items.filter((item) => item.addOnPage === undefined).map((item): CommandItem => {
           const Icon = lucideByName(item.icon);
           return {
             id: `nav:${item.slug}`,

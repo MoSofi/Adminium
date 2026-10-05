@@ -63,7 +63,8 @@ export interface AddOnDto {
   settings: AddOnSettingDeclaration[];
   /** The stored NON-SECRET values. A credential is never read back. */
   settingValues: Record<string, unknown>;
-  bundles: { path: string; url: string; integrity: string }[];
+  /** `ref`: the one page this address serves the code of, when that page is kept behind its own permission. */
+  bundles: { path: string; url: string; integrity: string; ref?: string }[];
   /**
    * The installed apps that name it, and how — read before any click, so a
    * refusal or a feature that stops can be said first. Absent from an older

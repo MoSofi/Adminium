@@ -35,6 +35,8 @@ import {
 import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
 import { addOnManifestSchema } from '@adminium/manifest';
 
+import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
+
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -169,8 +171,10 @@ export function buildNavTree(
   locale: string = 'en-US',
   /** Keys of apps an operator switched off. */
   disabledApps: ReadonlySet<string> = new Set(),
-  /** Keys of the installed, switched-on apps: their pages go to their own sections. */
+  /** Keys of the installed, switched-on apps — and add-ons — with a section: their pages go there. */
   sectionApps: ReadonlySet<string> = new Set(),
+  /** Which of those keys are add-ons: a page of one says so, and names no app. */
+  addOnKeys: ReadonlySet<string> = new Set(),
 ): {
   nav: BootstrapNavTree;
   hidden: BootstrapNavItem[];
@@ -203,7 +207,8 @@ export function buildNavTree(
         row.connectionId === null ? null : (connections.get(row.connectionId)?.name ?? null),
       currency: row.connectionId === null ? null : (connections.get(row.connectionId)?.currency ?? null),
       sourceTable: row.sourceTable,
-      appKey: row.appKey ?? null,
+      appKey: row.appKey != null && addOnKeys.has(row.appKey) ? null : (row.appKey ?? null),
+      addOnKey: row.appKey != null && addOnKeys.has(row.appKey) ? row.appKey : null,
     };
     // A switched-off app's pages are off too, whatever their connection.
     if (row.appKey != null && disabledApps.has(row.appKey)) {
@@ -302,7 +307,7 @@ export async function unmetFeaturePages(
  */
 
 /** The add-ons switched on for the dashboard, by key, with their manifests. */
-export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifest: unknown }[]> {
+export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifestKey: string; version: string; manifest: unknown }[]> {
   const order = (
     await meta.db
       .selectFrom('adminium_manifest_attachments as a')
@@ -316,8 +321,8 @@ export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifest:
       .execute()
   ).map((row) => row.id);
   if (order.length === 0) return [];
-  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifest']).where('id', 'in', order).execute();
-  return inIdOrder(order, rows).map((row) => ({ manifest: row.manifest }));
+  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest']).where('id', 'in', order).execute();
+  return inIdOrder(order, rows).map((row) => ({ manifestKey: row.manifestKey, version: row.version, manifest: row.manifest }));
 }
 
 /** The installed apps, by key, with their manifests. */
@@ -554,7 +559,16 @@ export function buildUnavailableApps(
  *    heading with no rows for a viewer who is not an admin — so the rail is
  *    where it is handled, over the rows it is actually about to draw.
  */
-export function buildAddOnNav(installed: readonly { document: unknown }[]): BootstrapAddOnNav {
+export function buildAddOnNav(
+  installed: readonly { document: unknown }[],
+  /**
+   * Whether this reader may open a page that is kept behind its own
+   * permission (`page:<ref>:view`). Asked only for an add-on built for a
+   * server that installs it like an app; an earlier add-on's pages are open to
+   * anybody signed in, as they always were. Absent: everything may be opened.
+   */
+  mayOpen: (ref: string) => boolean = () => true,
+): BootstrapAddOnNav {
   const pages: BootstrapAddOnPage[] = [];
   const declared: BootstrapAddOnGroup[] = [];
 
@@ -563,9 +577,12 @@ export function buildAddOnNav(installed: readonly { document: unknown }[]): Boot
     if (!parsed.success) continue;
     const manifest = parsed.data;
     const addOnKey = manifest.key;
+    const gated = pagesAreGated(manifest);
+    const sectionGroups = addOnSectionGroups(manifest);
 
     for (const page of manifest.addOn.pages ?? []) {
-      if (page.nav === undefined) continue;
+      // A page kept behind a permission is not told to a reader who lacks it: no row, and no link to it either.
+      if (gated && !mayOpen(page.ref)) continue;
       pages.push({
         addOnKey,
         ref: page.ref,
@@ -573,10 +590,13 @@ export function buildAddOnNav(installed: readonly { document: unknown }[]): Boot
         fallback: page.title.fallback,
         icon: page.icon,
         client: page.client,
-        group: page.nav.group ?? DEFAULT_NAV_GROUP,
-        order: page.nav.order,
-        adminOnly: page.nav.adminOnly ?? false,
+        group: page.nav?.group ?? DEFAULT_NAV_GROUP,
+        order: page.nav?.order ?? 0,
+        adminOnly: page.nav?.adminOnly ?? false,
         detail: page.detail ?? false,
+        inSection: page.nav?.group !== undefined && sectionGroups.has(page.nav.group),
+        // No place in the rail: listed so a link to it knows the reader may open it, and drawn nowhere.
+        unlisted: page.nav === undefined,
       });
     }
 
@@ -593,7 +613,10 @@ export function buildAddOnNav(installed: readonly { document: unknown }[]): Boot
 
   pages.sort((a, b) => a.order - b.order || a.addOnKey.localeCompare(b.addOnKey) || a.ref.localeCompare(b.ref));
 
+  // A group whose every page sits in its add-on's own section heads nothing in the shared rail.
+  const used = new Set(pages.filter((page) => !page.inSection && !page.unlisted).map((page) => page.group));
   const groups = declared
+    .filter((group) => used.has(group.key) || !pages.some((page) => page.group === group.key))
     // First declarer owns the label: two add-ons may ask for one group, which
     // is the feature working. `enabledForHost` orders by key, so the winner is
     // stable rather than whichever row the database returned first.
@@ -601,6 +624,70 @@ export function buildAddOnNav(installed: readonly { document: unknown }[]): Boot
     .sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
 
   return { groups, pages };
+}
+
+/** The groups of an add-on's own section a page of its code may sit in: named by both its lists of groups. */
+function addOnSectionGroups(manifest: { navGroups?: readonly { key: string }[] | undefined; addOn: { navGroups?: readonly { key: string }[] | undefined } }): Set<string> {
+  const own = new Set((manifest.addOn.navGroups ?? []).map((group) => group.key));
+  return new Set((manifest.navGroups ?? []).map((group) => group.key).filter((key) => own.has(key)));
+}
+
+/**
+ * Each add-on's own section: its generated pages and the pages of its code
+ * that name one of its section's groups, in one order (by `order`, then ref).
+ * The groups are the manifest's top-level `navGroups`, whose labels win; a
+ * generated page that names none comes first, under no heading. An add-on
+ * with nothing to draw has no section. Its pages of code that name a
+ * built-in group stay in the shared rail, where they always were.
+ */
+export function buildAddOnSections(input: {
+  addOns: readonly { key: string; version: string; document: unknown }[];
+  appItems: ReadonlyMap<string, readonly { group: string | null; item: BootstrapNavItem }[]>;
+  /** The pages of code this reader is told about, as `buildAddOnNav` listed them. */
+  codePages: readonly BootstrapAddOnPage[];
+  locale: string;
+}): BootstrapAppSection[] {
+  const out: BootstrapAppSection[] = [];
+  for (const addOn of input.addOns) {
+    const parsed = addOnManifestSchema.safeParse(addOn.document);
+    if (!parsed.success) continue;
+    const manifest = parsed.data;
+    const declared = [...(manifest.navGroups ?? [])].sort((a, b) => a.order - b.order);
+    const known = new Set(declared.map((group) => group.key));
+    const rows: { group: string | null; item: BootstrapNavItem }[] = [
+      ...(input.appItems.get(addOn.key) ?? []),
+      ...input.codePages
+        .filter((page) => page.addOnKey === addOn.key && page.inSection)
+        .map((page) => ({
+          group: page.group,
+          item: {
+            pageId: page.ref,
+            slug: '',
+            labelKey: page.labelKey,
+            fallback: page.fallback,
+            icon: page.icon,
+            order: page.order,
+            connectionId: null,
+            connectionName: null,
+            currency: null,
+            sourceTable: null,
+            appKey: null,
+            addOnKey: addOn.key,
+            addOnPage: { key: addOn.key, ref: page.ref },
+          } satisfies BootstrapNavItem,
+        })),
+    ].sort((a, b) => a.item.order - b.item.order || (a.item.addOnPage?.ref ?? a.item.slug).localeCompare(b.item.addOnPage?.ref ?? b.item.slug));
+    const groups: BootstrapAppSection['groups'] = [];
+    const loose = rows.filter((row) => row.group === null || !known.has(row.group)).map((row) => row.item);
+    if (loose.length > 0) groups.push({ key: '', label: null, items: loose });
+    for (const group of declared) {
+      const items = rows.filter((row) => row.group === group.key).map((row) => row.item);
+      if (items.length > 0) groups.push({ key: group.key, label: pickLabel(group.label, input.locale) ?? group.key, items });
+    }
+    if (groups.length === 0) continue;
+    out.push({ kind: 'add-on', appKey: addOn.key, label: manifest.name, version: addOn.version, groups, staff: null });
+  }
+  return out;
 }
 
 export async function bootstrapHandler(
@@ -715,6 +802,25 @@ export async function bootstrapHandler(
       navGroups,
     };
   });
+  /*
+   * The add-ons with a section of their own: each one installed like an app
+   * (its floor says so) that is switched on for the dashboard. Which pages of
+   * its code this reader may open is asked once, here.
+   */
+  const addOnDocuments = addOns.map((row) => ({ key: row.manifestKey, version: row.version, document: readJson(row.manifest) }));
+  const sectionAddOns = addOnDocuments.filter((row) => {
+    const parsed = addOnManifestSchema.safeParse(row.document);
+    return parsed.success && pagesAreGated(parsed.data);
+  });
+  const openCodePages = new Set<string>();
+  for (const row of sectionAddOns) {
+    const parsed = addOnManifestSchema.safeParse(row.document);
+    for (const page of parsed.success ? (parsed.data.addOn.pages ?? []) : []) {
+      if (typeof request.can !== 'function' || (await request.can(addOnPagePermission(page.ref)))) openCodePages.add(page.ref);
+    }
+  }
+  const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref));
+  const addOnKeys = new Set(sectionAddOns.map((row) => row.key));
   const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);
   const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(
     visibleRows.filter((row) => !withheld.includes(row)),
@@ -722,7 +828,8 @@ export async function bootstrapHandler(
     pausedConnectionIds,
     prefs.locale,
     disabledApps,
-    new Set(sectionApps.map((app) => app.key)),
+    new Set([...sectionApps.map((app) => app.key), ...addOnKeys]),
+    addOnKeys,
   );
   /*
    * Whose staff screens this reader may open: without `app:<key>:staff`, an
@@ -758,7 +865,7 @@ export async function bootstrapHandler(
       },
       csrfToken: csrfTokenFor(ctx, request),
       hostedApps,
-      addOnNav: buildAddOnNav(addOns.map((row) => ({ document: readJson(row.manifest) }))),
+      addOnNav,
       hiddenPages: hidden,
       pausedPages: paused,
       unavailableApps: hasSurfaces
@@ -774,16 +881,20 @@ export async function bootstrapHandler(
               .flat()
               .map(({ item }) => ({ ...item, ...unmet.get(item.appKey!)!.get(item.slug)! })),
           }),
-      appSections: buildAppSections({
-        apps: sectionApps,
-        appItems,
-        hosted: hostedApps,
-        surfaces: hasSurfaces ? request.server.surfaces : [],
-        settings: placements,
-        locale: prefs.locale,
-        protocol: request.protocol,
-        mayOpenStaff,
-      }),
+      appSections: [
+        ...buildAppSections({
+          apps: sectionApps,
+          appItems,
+          hosted: hostedApps,
+          surfaces: hasSurfaces ? request.server.surfaces : [],
+          settings: placements,
+          locale: prefs.locale,
+          protocol: request.protocol,
+          mayOpenStaff,
+        }),
+        // After the apps: an add-on is what an app is extended with.
+        ...buildAddOnSections({ addOns: sectionAddOns, appItems, codePages: addOnNav.pages, locale: prefs.locale }),
+      ],
       ...(project === null ? {} : { project }),
     },
   };

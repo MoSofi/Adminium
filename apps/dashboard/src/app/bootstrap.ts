@@ -66,6 +66,10 @@ export interface AddOnNavPage {
   order: number;
   adminOnly: boolean;
   detail: boolean;
+  /** Drawn in its add-on's own section: the shared groups do not draw it again. Absent from an older server. */
+  inSection?: boolean;
+  /** No place in the rail: listed so a link to it knows this reader may open it. Absent from an older server. */
+  unlisted?: boolean;
 }
 
 export interface AddOnNavGroup {
@@ -112,6 +116,10 @@ export interface NavItem {
   sourceTable?: string | null;
   /** The installed app whose page this is. Optional for fixtures predating it. */
   appKey?: string | null;
+  /** The installed add-on whose page this is; such a page names no app. */
+  addOnKey?: string | null;
+  /** A page that is the add-on's own code: it opens at the add-on's page route, and has no slug. */
+  addOnPage?: { key: string; ref: string };
 }
 
 export interface NavTree {
@@ -377,6 +385,8 @@ export function hostedAppsOf(bootstrap: BootstrapData): HostedApp[] {
 
 /** An installed app's own sidebar section. */
 export interface AppSection {
+  /** An add-on's section; `appKey` is then the add-on's key. */
+  kind?: 'add-on';
   appKey: string;
   label: string;
   version: string;
@@ -399,9 +409,9 @@ export function appSectionsOf(bootstrap: BootstrapData): AppSection[] {
   return bootstrap.appSections ?? [];
 }
 
-/** Every page the apps' sections list. */
+/** Every page the sections list that is opened by its slug: an add-on's page of its own code is not one. */
 export function appPagesOf(bootstrap: BootstrapData): NavItem[] {
-  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items));
+  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items.filter((item) => item.addOnPage === undefined)));
 }
 
 /** The add-on rail rows and groups, never undefined — see the field's note. */

@@ -182,6 +182,28 @@ describe('mounting an add-on page', () => {
     expect(link?.getAttribute('rel')).toBe('modulepreload');
   });
 
+  it('loads a page kept behind its own permission from that page\'s own address, never from a file\'s shared one', async () => {
+    // The same file is also a slot fill's: the list names it twice, and only the entry with the page's ref is the page's.
+    const own = { path: BUNDLE.path, url: '/api/v1/add-ons/invoices/pages/documents/bundle', integrity: 'sha256-cGFnZQ==', ref: 'documents' };
+    const other = { ...own, url: '/api/v1/add-ons/invoices/pages/other/bundle', ref: 'other' };
+    stubFetch({ addOns: [{ ...INSTALLED, bundles: [BUNDLE, other, own] }] });
+    restoreImporter = setAddOnModuleImporter(() => Promise.resolve({ default: () => <p>ok</p> }));
+    await renderAt('/add-ons/invoices/documents');
+    await screen.findByText('ok');
+    const link = document.head.querySelector('link[data-adminium-add-on]');
+    expect(link?.getAttribute('href')).toBe(own.url);
+    expect(link?.getAttribute('integrity')).toBe(own.integrity);
+  });
+
+  it('never takes another page\'s address for a file two pages share', async () => {
+    const other = { path: BUNDLE.path, url: '/api/v1/add-ons/invoices/pages/other/bundle', integrity: 'sha256-cGFnZQ==', ref: 'other' };
+    stubFetch({ addOns: [{ ...INSTALLED, bundles: [other] }] });
+    await renderAt('/add-ons/invoices/documents');
+    // No address is this page's: it says the package does not ship it, and loads nothing.
+    await screen.findByRole('heading');
+    expect(document.head.querySelector(`link[href="${other.url}"]`)).toBeNull();
+  });
+
   it('resolves the add-on root to its first page', async () => {
     stubFetch();
     restoreImporter = setAddOnModuleImporter(() => Promise.resolve({ default: () => <p>root</p> }));

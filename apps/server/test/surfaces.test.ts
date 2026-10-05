@@ -396,7 +396,7 @@ describe('bootstrap hostedApps', () => {
   it('offers no staff entry to someone who may not open the staff screens', () => {
     const [section] = buildAppSections({
       apps: [{ key: 'clients', version: '2.0.0', name: 'Clients', navGroups: [] }],
-      appItems: new Map([['clients', [{ group: null, item: { pageId: 'p', slug: 'clients-home', labelKey: 'nav.clients-home', fallback: 'Home', icon: 'house', order: 0, connectionId: null, connectionName: null, currency: null, sourceTable: null, appKey: 'clients' } }]]]),
+      appItems: new Map([['clients', [{ group: null, item: { pageId: 'p', slug: 'clients-home', labelKey: 'nav.clients-home', fallback: 'Home', icon: 'house', order: 0, connectionId: null, connectionName: null, currency: null, sourceTable: null, appKey: 'clients', addOnKey: null } }]]]),
       hosted: buildHostedApps([staffSurface(MANIFEST)], NONE, 'en-US'),
       surfaces: [staffSurface(MANIFEST)],
       settings: NONE,

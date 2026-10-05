@@ -29,6 +29,9 @@ export const addOnKeyParams = z.object({ key: addOnKey });
  * path, so the route cannot be used to read an arbitrary file out of a package
  * even before the store's own containment check sees it.
  */
+/** `GET /add-ons/:key/pages/:ref/bundle`. */
+export const addOnPageBundleParams = z.object({ key: addOnKey, ref: z.string().min(1).max(80) });
+
 export const addOnBundleParams = z.object({
   key: addOnKey,
   /**
@@ -149,6 +152,13 @@ export const addOnDto = z.object({
       path: z.string(),
       url: z.string(),
       integrity: z.string().regex(/^sha256-[A-Za-z0-9+/]+={0,2}$/),
+      /**
+       * Set on the code of one page that is kept behind its own permission:
+       * the page's ref. Its `url` is that page's own, and answers 403 to a
+       * reader who may not open the page. Absent on a slot fill, and on the
+       * pages of an add-on from before, which share their file's address.
+       */
+      ref: z.string().optional(),
     }),
   ),
   /**

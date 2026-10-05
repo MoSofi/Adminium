@@ -81,6 +81,8 @@ import {
   jobsRepo,
 } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+
+import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import {
@@ -130,7 +132,7 @@ import {
 } from '../../jobs/add-on-acquire.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { attachAppDocuments } from '../../documents/app-documents.js';
-import { AddOnUntrustedError, AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ForbiddenError, AddOnUntrustedError, AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { settingValueIssues } from '../../apps/settings-values.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -138,6 +140,7 @@ import { getPrincipal } from '../../rbac/principal.js';
 import { APP_VERSION } from '../../version.js';
 import {
   addOnBundleParams,
+  addOnPageBundleParams,
   addOnKeyParams,
   addOnListReply,
   catalogBrowseReply,
@@ -378,6 +381,54 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     ];
   }
 
+  /**
+   * What `/bundle/*` serves. For an add-on that keeps its pages behind a
+   * permission each, only its slot fills: a page's code has its own address,
+   * which asks for the page's permission. For every other add-on, slot fills
+   * and pages alike, as before.
+   */
+  function openBundlePathsOf(manifest: AddOnManifest): string[] {
+    return pagesAreGated(manifest) ? [...new Set((manifest.addOn.slots ?? []).map((slot) => slot.client))] : bundlePathsOf(manifest.addOn);
+  }
+
+  /** Every file a host may be told to load, with its address: one per slot file, and — behind a permission — one per page. */
+  function bundleEntriesOf(manifest: AddOnManifest): { path: string; url: string; ref?: string }[] {
+    const open = openBundlePathsOf(manifest).map((path) => ({ path, url: `/api/v1/add-ons/${manifest.key}/bundle/${path}` }));
+    if (!pagesAreGated(manifest)) return open;
+    return [...open, ...(manifest.addOn.pages ?? []).map((page) => ({ path: page.client, url: `/api/v1/add-ons/${manifest.key}/pages/${page.ref}/bundle`, ref: page.ref }))];
+  }
+
+  /** One file of an installed package, re-hashed against the pin recorded when it was unpacked. */
+  async function sendBundle(reply: FastifyReply, key: string, version: string, file: string): Promise<FastifyReply> {
+    let bytes: Buffer;
+    let sha256: string;
+    try {
+      // "Checked on read": the bytes are re-hashed against the pin
+      // recorded at unpack, so a package edited on the data volume after
+      // install is refused rather than served into a host page.
+      ({ bytes, sha256 } = await deps.store.readVerifiedFile(
+        key,
+        version,
+        file,
+      ));
+    } catch {
+      throw new ValidationFailedError(
+        `The installed bundle for "${key}" no longer matches the bytes that were verified ` +
+          'when it was installed, so it will not be served.',
+      );
+    }
+
+    return reply
+      .header('content-type', 'text/javascript; charset=utf-8')
+      .header('x-adminium-integrity', sriFor(sha256))
+      // Immutable: the URL carries no version, but the bytes are pinned to
+      // the installed version's hash and an upgrade changes the integrity
+      // the host is told to pin — so a stale cache fails the pin rather
+      // than silently serving the old half of a half-upgraded add-on.
+      .header('cache-control', 'no-cache')
+      .send(bytes);
+  }
+
   /** Who did it, for the audit rows the shared installer writes. */
   /** Whether a staged package provides a contract whose code decides inside a save, with nobody vouching for its bytes. */
   async function shipsDeciderUntrusted(staged: StagedPackage): Promise<boolean> {
@@ -523,21 +574,20 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
        */
       bundles: (
         await Promise.all(
-          bundlePathsOf(block).map(async (path) => {
-            const url = `/api/v1/add-ons/${manifest.key}/bundle/${path}`;
+          bundleEntriesOf(manifest).map(async ({ path, url, ref }) => {
             try {
               const sha256 = await deps.store.pinnedSha256(
                 manifest.key,
                 installed.row.version,
                 path,
               );
-              return { path, url, integrity: sriFor(sha256) };
+              return { path, url, integrity: sriFor(sha256), ...(ref === undefined ? {} : { ref }) };
             } catch {
               return null;
             }
           }),
         )
-      ).filter((bundle): bundle is { path: string; url: string; integrity: string } => bundle !== null),
+      ).filter((bundle): bundle is { path: string; url: string; integrity: string; ref?: string } => bundle !== null),
       usedBy: needsDto(usedBy ?? (await needsOf(deps.meta, manifest.key))),
     };
   }
@@ -1430,37 +1480,38 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // for `package.json` or a stray file is a 404 rather than a served
         // byte — the store's containment check is the second line, not the
         // first.
-        if (!bundlePathsOf(manifest.addOn).includes(file)) {
+        // And for an add-on that keeps its pages behind a permission, not a page's code: that has its own address.
+        if (!openBundlePathsOf(manifest).includes(file)) {
           throw new NotFoundError(`"${key}" does not ship a bundle at "${file}".`);
         }
+        return sendBundle(reply, key, installed.row.version, file);
+      },
+    );
 
-        let bytes: Buffer;
-        let sha256: string;
-        try {
-          // "Checked on read": the bytes are re-hashed against the pin
-          // recorded at unpack, so a package edited on the data volume after
-          // install is refused rather than served into a host page.
-          ({ bytes, sha256 } = await deps.store.readVerifiedFile(
-            key,
-            installed.row.version,
-            file,
-          ));
-        } catch {
-          throw new ValidationFailedError(
-            `The installed bundle for "${key}" no longer matches the bytes that were verified ` +
-              'when it was installed, so it will not be served.',
-          );
+    app.get(
+      '/add-ons/:key/pages/:ref/bundle',
+      {
+        // Signed in, and then the page's own permission — asked below, once the page is known.
+        preHandler: app.requireAuth,
+        schema: { params: addOnPageBundleParams },
+      },
+      async (request, reply) => {
+        const { key, ref } = request.params;
+        const installed = await manifests.findByKey(key);
+        if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
+        const manifest = parseManifest(installed.document, key);
+        const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
+        if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
+        /*
+         * THE GATE. The code of a page is the page: whoever is handed it can
+         * run it. A server with no permission layer answers as it does for
+         * every other page (yes); an add-on from before has no permission to
+         * ask for.
+         */
+        if (pagesAreGated(manifest) && typeof request.can === 'function' && !(await request.can(addOnPagePermission(ref)))) {
+          throw new ForbiddenError(`You may not open the page "${ref}".`, 'FORBIDDEN', { page: ref });
         }
-
-        return reply
-          .header('content-type', 'text/javascript; charset=utf-8')
-          .header('x-adminium-integrity', sriFor(sha256))
-          // Immutable: the URL carries no version, but the bytes are pinned to
-          // the installed version's hash and an upgrade changes the integrity
-          // the host is told to pin — so a stale cache fails the pin rather
-          // than silently serving the old half of a half-upgraded add-on.
-          .header('cache-control', 'no-cache')
-          .send(bytes);
+        return sendBundle(reply, key, installed.row.version, page.client);
       },
     );
 

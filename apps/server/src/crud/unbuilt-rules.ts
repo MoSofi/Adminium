@@ -102,18 +102,12 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
  */
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // An add-on's own blocks: what it declares in an app's words.
-  pages: ADD_ON_INSTALL_RELEASE,
-  roles: ADD_ON_INSTALL_RELEASE,
-  optionLists: ADD_ON_INSTALL_RELEASE,
   emailTemplates: ADD_ON_INSTALL_RELEASE,
   outbox: ADD_ON_INSTALL_RELEASE,
-  documents: ADD_ON_INSTALL_RELEASE,
   sampleData: ADD_ON_INSTALL_RELEASE,
   publicAccess: ADD_ON_INSTALL_RELEASE,
   publicKeys: ADD_ON_INSTALL_RELEASE,
-  navGroups: ADD_ON_INSTALL_RELEASE,
   addOns: ADD_ON_INSTALL_RELEASE,
-  'requiredSchema.prefixed': ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
   'sampleData.addOns': ADD_ON_INSTALL_RELEASE,
@@ -162,6 +156,15 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'seeds',
   'addOn.settingsTable',
   'table.indexes',
+  // What an add-on declares in an app's words and Adminium writes at its install: its tables under its own prefix,
+  // its option lists, its generated pages and its section of the rail, its roles (a page of its code is opened only
+  // by a role that holds it), the documents its rows print.
+  'requiredSchema.prefixed',
+  'optionLists',
+  'pages',
+  'navGroups',
+  'roles',
+  'documents',
 ];
 
 export interface UnbuiltWord {

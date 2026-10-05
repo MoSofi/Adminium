@@ -317,11 +317,19 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
         const Icon = lucideByName(item.icon);
         return (
           <li key={item.pageId}>
-            <Link to="/p/$slug" params={{ slug: item.slug }} className={NAV_LINK_CLASS}>
-              <Icon className="size-[18px] shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{t(item.labelKey, item.fallback)}</span>
-              {item.badge === 'unread-count' ? <UnreadCountBadge /> : null}
-            </Link>
+            {item.addOnPage === undefined ? (
+              <Link to="/p/$slug" params={{ slug: item.slug }} className={NAV_LINK_CLASS}>
+                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{t(item.labelKey, item.fallback)}</span>
+                {item.badge === 'unread-count' ? <UnreadCountBadge /> : null}
+              </Link>
+            ) : (
+              // A page that is an add-on's own code, in its add-on's section.
+              <Link to="/add-ons/$key/$" params={{ key: item.addOnPage.key, _splat: item.addOnPage.ref }} className={NAV_LINK_CLASS}>
+                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{t(item.labelKey, item.fallback)}</span>
+              </Link>
+            )}
           </li>
         );
       })}
@@ -489,7 +497,8 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
    * being a row that 403s when clicked.
    */
   const addOnNav = addOnNavOf(bootstrap);
-  const visibleAddOnPages = addOnNav.pages.filter((page) => admin || !page.adminOnly);
+  // A page drawn in its add-on's own section, or with no place in the rail at all, is no row of the shared groups.
+  const visibleAddOnPages = addOnNav.pages.filter((page) => (admin || !page.adminOnly) && page.inSection !== true && page.unlisted !== true);
   const addOnPagesFor = (group: string): readonly AddOnNavPage[] =>
     visibleAddOnPages.filter((page) => page.group === group);
 

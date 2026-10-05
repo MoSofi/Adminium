@@ -2135,6 +2135,32 @@
                                               "type": "null"
                                             }
                                           ]
+                                        },
+                                        "addOnKey": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "addOnPage": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "ref": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "key",
+                                            "ref"
+                                          ],
+                                          "additionalProperties": false
                                         }
                                       },
                                       "required": [
@@ -2148,7 +2174,8 @@
                                         "connectionName",
                                         "currency",
                                         "sourceTable",
-                                        "appKey"
+                                        "appKey",
+                                        "addOnKey"
                                       ],
                                       "additionalProperties": false
                                     }
@@ -2326,6 +2353,12 @@
                                   },
                                   "detail": {
                                     "type": "boolean"
+                                  },
+                                  "inSection": {
+                                    "type": "boolean"
+                                  },
+                                  "unlisted": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -2338,7 +2371,9 @@
                                   "group",
                                   "order",
                                   "adminOnly",
-                                  "detail"
+                                  "detail",
+                                  "inSection",
+                                  "unlisted"
                                 ],
                                 "additionalProperties": false
                               }
@@ -2429,6 +2464,32 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "addOnKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addOnPage": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "ref": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "ref"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -2442,7 +2503,8 @@
                               "connectionName",
                               "currency",
                               "sourceTable",
-                              "appKey"
+                              "appKey",
+                              "addOnKey"
                             ],
                             "additionalProperties": false
                           }
@@ -2526,6 +2588,32 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "addOnKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addOnPage": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "ref": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "ref"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -2539,7 +2627,8 @@
                               "connectionName",
                               "currency",
                               "sourceTable",
-                              "appKey"
+                              "appKey",
+                              "addOnKey"
                             ],
                             "additionalProperties": false
                           }
@@ -2580,6 +2669,12 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "add-on"
+                                ]
+                              },
                               "appKey": {
                                 "type": "string"
                               },
@@ -2686,6 +2781,32 @@
                                                 "type": "null"
                                               }
                                             ]
+                                          },
+                                          "addOnKey": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "addOnPage": {
+                                            "type": "object",
+                                            "properties": {
+                                              "key": {
+                                                "type": "string"
+                                              },
+                                              "ref": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "key",
+                                              "ref"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         },
                                         "required": [
@@ -2699,7 +2820,8 @@
                                           "connectionName",
                                           "currency",
                                           "sourceTable",
-                                          "appKey"
+                                          "appKey",
+                                          "addOnKey"
                                         ],
                                         "additionalProperties": false
                                       }
@@ -2928,6 +3050,32 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "addOnKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addOnPage": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "ref": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "ref"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -2941,7 +3089,8 @@
                               "connectionName",
                               "currency",
                               "sourceTable",
-                              "appKey"
+                              "appKey",
+                              "addOnKey"
                             ],
                             "additionalProperties": false
                           }
@@ -3026,6 +3175,32 @@
                                   }
                                 ]
                               },
+                              "addOnKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addOnPage": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "ref": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "ref"
+                                ],
+                                "additionalProperties": false
+                              },
                               "feature": {
                                 "type": "string"
                               },
@@ -3048,6 +3223,7 @@
                               "currency",
                               "sourceTable",
                               "appKey",
+                              "addOnKey",
                               "feature",
                               "needs"
                             ],
@@ -91614,6 +91790,9 @@
                               "integrity": {
                                 "type": "string",
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              },
+                              "ref": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -91961,6 +92140,9 @@
                                 "integrity": {
                                   "type": "string",
                                   "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                                },
+                                "ref": {
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -92333,6 +92515,9 @@
                               "integrity": {
                                 "type": "string",
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              },
+                              "ref": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -93341,6 +93526,9 @@
                               "integrity": {
                                 "type": "string",
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              },
+                              "ref": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -93488,6 +93676,36 @@
             },
             "in": "path",
             "name": "*",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/pages/{ref}/bundle": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "ref",
             "required": true
           }
         ],
@@ -93754,6 +93972,9 @@
                               "integrity": {
                                 "type": "string",
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              },
+                              "ref": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -94236,6 +94457,9 @@
                               "integrity": {
                                 "type": "string",
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              },
+                              "ref": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -94600,6 +94824,9 @@
                               "integrity": {
                                 "type": "string",
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              },
+                              "ref": {
+                                "type": "string"
                               }
                             },
                             "required": [

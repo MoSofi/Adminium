@@ -80,6 +80,8 @@ describe('a manifest that uses a word this server does not run yet', () => {
     key: 'kit',
     pages: [{ ref: 'kit-items' }],
     roles: [],
+    sampleData: { file: 'seeds/sample.json' },
+    publicAccess: [{ table: 'items', methods: ['GET'] }],
     requiredSchema: { prefixed: true, tables: [{ ref: 'items', indexes: [['name']], columns: [{ ref: 'link', rules: { tableRef: true } }] }] },
   };
   const APP = {
@@ -93,10 +95,10 @@ describe('a manifest that uses a word this server does not run yet', () => {
 
   it('names each word, where it is written and the release that runs it', () => {
     expect(unbuiltInManifest(ADD_ON)).toEqual([
-      { word: 'pages', path: 'pages', release: '0.3.18' },
-      { word: 'roles', path: 'roles', release: '0.3.18' },
-      { word: 'requiredSchema.prefixed', path: 'requiredSchema.prefixed', release: '0.3.18' },
+      { word: 'sampleData', path: 'sampleData', release: '0.3.18' },
+      { word: 'publicAccess', path: 'publicAccess', release: '0.3.18' },
     ]);
+    // Its pages, its roles, its prefix, its index and its stored table name are words this server runs.
   });
 
   it('an app\'s own pages, roles and prefix are no such word; its link into an add-on is', () => {

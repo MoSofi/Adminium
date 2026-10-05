@@ -67,6 +67,8 @@ describe('buildAddOnNav', () => {
         order: 20,
         adminOnly: false,
         detail: false,
+        inSection: false,
+        unlisted: false,
       },
     ]);
   });
@@ -78,9 +80,9 @@ describe('buildAddOnNav', () => {
     expect(nav.pages[0]?.group).toBe('library');
   });
 
-  it('leaves out a page that asked for no rail row', () => {
+  it('lists a page that asked for no rail row as unlisted: a link to it can tell it is there, and no row is drawn', () => {
     const nav = buildAddOnNav([manifest('invoices', { pages: [page({ nav: undefined })] })]);
-    expect(nav.pages).toEqual([]);
+    expect(nav.pages).toMatchObject([{ ref: 'documents', unlisted: true, inSection: false, group: 'library', order: 0 }]);
   });
 
   it('sorts by order, then by add-on key, so two add-ons do not swap between boots', () => {

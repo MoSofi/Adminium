@@ -67,8 +67,20 @@ export const bootstrapNavItem = z.object({
    *  client's (connectionId, table) → slug map so record pages can cross-link
    *  related rows. Null for source-less pages. */
   sourceTable: z.string().nullable(),
-  /** The installed app whose page this is; null for everyone else's pages. */
+  /** The installed app whose page this is; null for everyone else's pages — an add-on's among them. */
   appKey: z.string().nullable(),
+  /**
+   * The installed add-on whose page this is; null on every other item. The
+   * one mark of an add-on's page: such an item's `appKey` is null, so nothing
+   * that takes `appKey` for an app asks an app's route about an add-on.
+   */
+  addOnKey: z.string().nullable(),
+  /**
+   * Set on a page that is the add-on's own code, not a generated one: it
+   * opens at the add-on's page route. `pageId` is then its ref and `slug` is
+   * empty.
+   */
+  addOnPage: z.object({ key: z.string(), ref: z.string() }).optional(),
 });
 export type BootstrapNavItem = z.infer<typeof bootstrapNavItem>;
 
@@ -121,6 +133,13 @@ export const bootstrapAddOnPage = z.object({
   adminOnly: z.boolean(),
   /** The page owns `/add-ons/<key>/<ref>/*` as well as its own path. */
   detail: z.boolean(),
+  /** Drawn in its add-on's own section, so the rail's shared groups do not draw it a second time. */
+  inSection: z.boolean(),
+  /**
+   * A page with no place in the rail: listed so a link to it can tell that
+   * this reader may open it, and drawn as no row anywhere.
+   */
+  unlisted: z.boolean(),
 });
 export type BootstrapAddOnPage = z.infer<typeof bootstrapAddOnPage>;
 
@@ -181,6 +200,8 @@ export type BootstrapHostedApp = z.infer<typeof bootstrapHostedApp>;
  * language, like the hosted sections'.
  */
 export const bootstrapAppSection = z.object({
+  /** Set on an add-on's section; `appKey` then holds the add-on's key. Absent on an app's. */
+  kind: z.literal('add-on').optional(),
   appKey: z.string(),
   label: z.string(),
   version: z.string(),

@@ -91,7 +91,8 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
   const [state, setState] = useState<MountState>({ status: 'loading' });
 
   const installed = addOns.data?.find((addOn) => addOn.key === page.addOnKey);
-  const bundle = installed?.bundles.find((file) => file.path === page.client);
+  // A page kept behind its own permission has an address of its own, named by its ref; any other shares its file's.
+  const bundle = installed?.bundles.find((file) => file.ref === page.ref) ?? installed?.bundles.find((file) => file.ref === undefined && file.path === page.client);
 
   useEffect(() => {
     if (bundle === undefined) return;

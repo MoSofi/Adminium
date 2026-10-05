@@ -88,12 +88,20 @@ describe('a word this server does not run yet', () => {
     expect(installed.statusCode, installed.body).toBe(200);
   });
 
-  it('an add-on with pages of its own is refused at its install, and makes no table', async () => {
+  it('an add-on with sample data of its own is refused at its install, and makes no table', async () => {
+    const h = (openAddOns = await addOnHarness('sqlite'));
+    await h.stageAddOn({ ...KIT, sampleData: { file: 'seeds/sample.json' } }, { bundled: true });
+    const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'kit', version: '1.0.0', attachTo: [] } });
+    expect(installed.statusCode, installed.body).toBe(422);
+    expect(installed.body).toContain('uses \\"sampleData\\", which Adminium 0.3.18 runs');
+    expect((await h.tableNames()).filter((name) => name.includes('items'))).toEqual([]);
+  });
+
+  it('the same add-on without it installs: its prefixed table and its page are words this server runs', async () => {
     const h = (openAddOns = await addOnHarness('sqlite'));
     await h.stageAddOn(KIT, { bundled: true });
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'kit', version: '1.0.0', attachTo: [] } });
-    expect(installed.statusCode, installed.body).toBe(422);
-    expect(installed.body).toContain('uses \\"pages\\", \\"requiredSchema.prefixed\\", which Adminium 0.3.18 runs');
-    expect((await h.tableNames()).filter((name) => name.includes('items'))).toEqual([]);
+    expect(installed.statusCode, installed.body).toBe(200);
+    expect(await h.tableNames()).toContain('kit_items');
   });
 });
