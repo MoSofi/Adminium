@@ -5,8 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { validateManifest } from '../src/index.js';
+import { ledgerIndexes, validateManifest, type Manifest } from '../src/index.js';
 import { KIT } from './add-on-kit-fixture.js';
+import { LEDGER_KIT } from './ledger-kit-fixture.js';
 
 type Doc = Record<string, unknown>;
 
@@ -109,5 +110,50 @@ describe('the floor', () => {
     expect(issues).toContain('seeds: "seeds" is read by Adminium 0.3.18 and later');
     expect(issues).toContain('requiredSchema.tables.0.indexes: "table.indexes" is read by');
     expect(issues).toContain('addOn.settingsTable: "addOn.settingsTable" is read by');
+  });
+});
+
+describe('a ledger\'s own tables', () => {
+  const ledgerKit = (over: Doc = {}, tables?: (tables: Doc[]) => Doc[]): Doc => {
+    const doc = structuredClone(LEDGER_KIT) as unknown as { requiredSchema: { prefixed: true; tables: Doc[] } };
+    if (tables !== undefined) doc.requiredSchema.tables = tables(doc.requiredSchema.tables);
+    return { ...(doc as unknown as Doc), ...over };
+  };
+
+  it('a seed for a ledger table or a receipt table is refused', () => {
+    const entries = issuesOf(ledgerKit({ seeds: [{ table: 'entries', rows: [{ amount: '1.000' }] }] })).join('\n');
+    expect(entries).toContain('seeds.0.table: "entries" is a table of the ledger "units", which only postings write: a seed never fills it');
+    const receipts = issuesOf(ledgerKit({ seeds: [{ table: 'postings', rows: [{ ledger: 'units' }] }] })).join('\n');
+    expect(receipts).toContain('"postings" is the receipt table of the ledger "units"');
+    expect(issuesOf(ledgerKit({ seeds: [{ table: 'accounts', rows: [{ name: 'Flour' }] }] }))).toEqual([]);
+  });
+
+  it('the derived receipt key is the six columns in order, with the indexes a guard, the timed job and a reverse read by', () => {
+    const result = validateManifest(ledgerKit());
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    expect(ledgerIndexes(result.manifest as Manifest)).toEqual([
+      { table: 'postings', columns: ['source_table', 'source_row', 'source_line', 'posting', 'phase', 'round'], unique: true },
+      { table: 'postings', columns: ['line_table', 'source_line'], unique: false },
+      { table: 'postings', columns: ['held_until'], unique: false },
+      { table: 'entries', columns: ['receipt_id'], unique: false },
+      { table: 'holds', columns: ['receipt_id'], unique: false },
+    ]);
+  });
+
+  it('an app, and an add-on with no ledger, derive none', () => {
+    const result = validateManifest(structuredClone(KIT));
+    expect(result.ok && ledgerIndexes(result.manifest as Manifest)).toEqual([]);
+  });
+
+  it('passes the MySQL bound for the fixture\'s widths; a receipt table with 255-wide source columns is refused', () => {
+    expect(issuesOf(ledgerKit())).toEqual([]);
+    const wide = (tables: Doc[]) =>
+      tables.map((table) =>
+        table['ref'] === 'postings'
+          ? { ...table, columns: (table['columns'] as Doc[]).map((column) => (['source_table', 'source_row', 'source_line'].includes(String(column['ref'])) ? { ...column, maxLength: 255 } : column)) }
+          : table,
+      );
+    const issues = issuesOf(ledgerKit({}, wide)).join('\n');
+    expect(issues).toContain('the key of the receipt table "postings" (source_table 255, source_row 255, source_line 255, posting 40, phase, round) takes 3356 bytes, and MySQL indexes at most 3072');
   });
 });

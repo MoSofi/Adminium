@@ -45,7 +45,7 @@ import {
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
 import { installFloorWords } from './words.js';
-import { ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, type Ledger, type LedgerTableShape } from './ledgers.js';
+import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, type Ledger, type LedgerScopeTable, type LedgerTableShape } from './ledgers.js';
 
 export { compareSemver };
 
@@ -2893,7 +2893,8 @@ export const addOnManifestSchema = z
       for (const issue of addOnPageRefIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
     if (!installsLikeAnApp(m)) return;
-    for (const issue of addOnInstallIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    // An issue with a code of its own carries it in `params`, where the validator reads it back.
+    for (const issue of addOnInstallIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path, ...(issue.code === undefined ? {} : { params: { code: issue.code } }) });
   })
   .superRefine((m, ctx) => {
     // `addOn.shapes` is typed loosely in the contracts package (it cannot see
@@ -3016,8 +3017,8 @@ export function ledgersOf(m: Manifest): Ledger[] {
 }
 
 /** Everything wrong with an add-on that installs like an app, beyond what its blocks say of themselves. */
-function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; message: string }[] {
-  const out: { path: (string | number)[]; message: string }[] = [];
+function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; message: string; code?: string }[] {
+  const out: { path: (string | number)[]; message: string; code?: string }[] = [];
   const tables = m.requiredSchema?.tables ?? [];
   const byRef = new Map(tables.map((table) => [table.ref, table]));
 
@@ -3030,11 +3031,14 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
   if (m.addOn.ledgers !== undefined) {
     const providers = (m.addOn.provides ?? []).filter((entry) => entry.contract === 'posting-rows');
     if (providers.length !== 1) out.push({ path: ['addOn', 'provides'], message: 'an add-on with ledgers provides the contract "posting-rows" exactly once' });
-    ledgers.forEach((ledger, l) => {
+    for (const ledger of ledgers) {
       const receipts = byRef.get(ledger.receipts);
-      if (receipts === undefined) out.push({ path: ['addOn', 'ledgers', l, 'receipts'], message: `"${ledger.receipts}" is not one of this add-on's tables` });
-      else out.push(...receiptTableIssues(receipts as LedgerTableShape, (...rest) => ['requiredSchema', 'tables', tables.indexOf(receipts), ...rest]));
-    });
+      if (receipts !== undefined) out.push(...receiptTableIssues(receipts as LedgerTableShape, (...rest) => ['requiredSchema', 'tables', tables.indexOf(receipts), ...rest]));
+    }
+    // A ledger stays inside its own tables: each issue carries its code.
+    for (const issue of ledgerIssues({ tables: tables as readonly LedgerScopeTable[], ledgers, settingsTable: m.addOn.settingsTable })) {
+      out.push({ path: issue.path, message: issue.message, code: issue.code });
+    }
   }
 
   // Blocks that name tables need tables to name.
@@ -3057,6 +3061,11 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
       return;
     }
     const columns = new Set(table.columns.map((column) => column.ref));
+    // History is the sample's business, never a seed's: a ledger's rows come from postings.
+    const ledger = ledgers.find((candidate) => candidate.receipts === seed.table || candidate.writes[seed.table] !== undefined);
+    if (ledger !== undefined) {
+      out.push({ path: ['seeds', i, 'table'], message: `"${seed.table}" is ${ledger.receipts === seed.table ? 'the receipt table' : 'a table'} of the ledger "${ledger.id}", which only postings write: a seed never fills it` });
+    }
     if ((seed.rows?.length ?? 0) > MAX_SEED_ROWS) out.push({ path: ['seeds', i, 'rows'], message: `a table is seeded with at most ${String(MAX_SEED_ROWS)} rows` });
     (seed.rows ?? []).forEach((row, r) => {
       for (const [name, value] of Object.entries(row)) {

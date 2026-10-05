@@ -352,6 +352,11 @@ export {
   readFromSchema,
   receiptTableIssues,
   switchedOffSchema,
+  LEDGER_ISSUE_CODES,
+  ledgerIssues,
+  type LedgerIssue,
+  type LedgerIssueCode,
+  type LedgerScopeTable,
   type Ledger,
   type LedgerAction,
   type LedgerInputType,
@@ -363,3 +368,4 @@ export {
   type PostingPoint,
   type SwitchedOff,
 } from './ledgers.js';
+export { ledgerIndexIssues, ledgerIndexes, type LedgerIndex } from './ledger-indexes.js';

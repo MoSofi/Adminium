@@ -517,3 +517,233 @@ export function receiptTableIssues(table: LedgerTableShape, at: (...rest: (strin
   }
   return out;
 }
+
+// ── a ledger stays inside its own tables ─────────────────────────────────────
+
+/** What the scope checks read of a table, beyond {@link LedgerTableShape}. */
+export interface LedgerScopeTable extends LedgerTableShape {
+  columns: readonly (LedgerTableShape['columns'][number] & {
+    unique?: true | undefined;
+    rules?:
+      | (NonNullable<LedgerTableShape['columns'][number]['rules']> & {
+          rollup?: { from?: string; cap?: true | undefined; balance?: { column: string; minus?: readonly string[] | undefined } | undefined } | undefined;
+          formula?: unknown;
+          stamp?: unknown;
+          sequence?: { gapless?: true | undefined } | undefined;
+          code?: unknown;
+          copy?: { follow?: unknown } | undefined;
+        })
+      | undefined;
+  })[];
+  unique?: readonly (readonly string[])[] | undefined;
+  booking?: unknown;
+  capacity?: unknown;
+}
+
+export const LEDGER_ISSUE_CODES = [
+  'LEDGER_OUT_OF_SCOPE',
+  'LEDGER_WRITES_DECIDED',
+  'LEDGER_UPDATE_KEY',
+  'LEDGER_READ_CHAIN',
+  'LEDGER_LOCK',
+  'LEDGER_TABLE_GUARDED',
+  'LEDGER_DECIDES_TYPE',
+] as const;
+export type LedgerIssueCode = (typeof LEDGER_ISSUE_CODES)[number];
+
+export interface LedgerIssue {
+  code: LedgerIssueCode;
+  path: (string | number)[];
+  message: string;
+}
+
+/** The kinds of a table's limits, however it spells them (one rule, or a list). */
+function capacityKinds(capacity: unknown): string[] {
+  if (capacity === undefined || capacity === null) return [];
+  const rules = Array.isArray(capacity) ? capacity : [capacity];
+  return rules.map((rule) => String((rule as { kind?: unknown }).kind ?? 'slot'));
+}
+
+/**
+ * Everything that would let a ledger reach outside what it declares: a table
+ * that is not the add-on's own, a written column Adminium decides, an update
+ * that could name more than one row, a read whose key comes from nowhere, a
+ * capped total nobody locks, a table another guard already rules, an amount
+ * decided that is no number.
+ *
+ * `addOn.scopes` grants nothing and refuses nothing at run time; a ledger is
+ * bounded by these checks and by the same ones made again on every answer.
+ */
+export function ledgerIssues(m: { tables: readonly LedgerScopeTable[]; ledgers: readonly Ledger[]; settingsTable?: string | undefined }): LedgerIssue[] {
+  const out: LedgerIssue[] = [];
+  const tables = new Map(m.tables.map((table) => [table.ref, table]));
+  const column = (table: LedgerScopeTable | undefined, ref: string) => table?.columns.find((candidate) => candidate.ref === ref);
+  const settings = m.settingsTable === undefined ? undefined : tables.get(m.settingsTable);
+
+  /** The tables whose capped total a row of `ref` feeds: the parent, with the total's column. */
+  const cappedParents = (ref: string): LedgerScopeTable[] =>
+    m.tables.filter((parent) =>
+      parent.columns.some((candidate) => {
+        const rollup = candidate.rules?.rollup;
+        if (rollup?.from !== ref) return false;
+        // Capped itself, or taken away in a balance another capped total keeps.
+        return rollup.cap === true || parent.columns.some((other) => other.rules?.rollup?.cap === true && other.rules.rollup.balance?.minus?.includes(candidate.ref) === true);
+      }),
+    );
+
+  m.ledgers.forEach((ledger, l) => {
+    const at = (...rest: (string | number)[]) => ['addOn', 'ledgers', l, ...rest];
+    const outside = (ref: string, path: (string | number)[], what: string) => {
+      if (tables.has(ref)) return false;
+      out.push({ code: 'LEDGER_OUT_OF_SCOPE', path, message: `${what} "${ref}" is not one of this add-on's own tables: a ledger reads and writes its own tables and no others` });
+      return true;
+    };
+
+    // Rule 1 (the receipt table), and rule 6: a ledger table is ruled by its ledger alone.
+    outside(ledger.receipts, at('receipts'), 'the receipt table');
+    for (const [ref, scope] of Object.entries(ledger.writes)) {
+      const path = at('writes', ref);
+      if (outside(ref, path, 'the written table')) continue;
+      const table = tables.get(ref)!;
+      if (ref === ledger.receipts) out.push({ code: 'LEDGER_OUT_OF_SCOPE', path, message: `"${ref}" is the receipt table, which Adminium alone writes: take it out of "writes"` });
+      if (table.booking !== undefined) out.push({ code: 'LEDGER_TABLE_GUARDED', path, message: `"${ref}" carries a booking rule, so it cannot be a ledger table` });
+      const kinds = capacityKinds(table.capacity).filter((kind) => kind === 'slot' || kind === 'night');
+      if (kinds.length > 0) out.push({ code: 'LEDGER_TABLE_GUARDED', path, message: `"${ref}" carries a ${kinds[0]} limit, so it cannot be a ledger table (a parent limit may stay)` });
+      const gapless = table.columns.find((candidate) => candidate.rules?.sequence?.gapless === true);
+      if (gapless !== undefined) out.push({ code: 'LEDGER_TABLE_GUARDED', path, message: `"${ref}.${gapless.ref}" is numbered without gaps, so "${ref}" cannot be a ledger table` });
+
+      // Rule 2: what an answer may write is never what Adminium decides.
+      const decided = (ref2: string): string | null => {
+        const found = column(table, ref2);
+        if (found === undefined) return `"${ref}" has no column "${ref2}"`;
+        if (found.role === 'pk') return `"${ref}.${ref2}" is the table's key`;
+        if (ref2 === 'receipt_id') return `"${ref}.receipt_id" links a row to its receipt, which Adminium fills`;
+        const rules = found.rules;
+        for (const rule of ['rollup', 'formula', 'stamp', 'sequence', 'code', 'copy'] as const) if (rules?.[rule] !== undefined) return `"${ref}.${ref2}" is decided by its ${rule} rule`;
+        if (table.columns.some((other) => other.rules?.rollup?.balance?.column === ref2)) return `"${ref}.${ref2}" is a balance Adminium keeps`;
+        return null;
+      };
+      (scope.insert ?? []).forEach((ref2, i) => {
+        const why = decided(ref2);
+        if (why !== null) out.push({ code: 'LEDGER_WRITES_DECIDED', path: [...path, 'insert', i], message: `${why}: an answer never writes it` });
+      });
+      (scope.update?.set ?? []).forEach((ref2, i) => {
+        const why = decided(ref2);
+        if (why !== null) out.push({ code: 'LEDGER_WRITES_DECIDED', path: [...path, 'update', 'set', i], message: `${why}: an answer never writes it` });
+      });
+      // Rule 3: an update names one row — by the table's key, or by one of its unique sets.
+      if (scope.update !== undefined) {
+        const by = [...scope.update.by].sort().join('\u0000');
+        const key = table.columns.filter((candidate) => candidate.role === 'pk').map((candidate) => candidate.ref);
+        const sets = [key, ...table.columns.filter((candidate) => candidate.unique === true).map((candidate) => [candidate.ref]), ...(table.unique ?? []).map((set) => [...set])];
+        if (!sets.some((set) => set.length > 0 && [...set].sort().join('\u0000') === by)) {
+          out.push({ code: 'LEDGER_UPDATE_KEY', path: [...path, 'update', 'by'], message: `an update names one row of "${ref}": by its key (${key.join(', ') || 'none'}) or by one of its unique sets, not by ${scope.update.by.join(', ')}` });
+        }
+      }
+    }
+
+    for (const [name, action] of Object.entries(ledger.actions)) {
+      const here = (...rest: (string | number)[]) => at('actions', name, ...rest);
+      const written = action.writes ?? Object.keys(ledger.writes);
+      (action.writes ?? []).forEach((ref, i) => {
+        if (ledger.writes[ref] === undefined) out.push({ code: 'LEDGER_OUT_OF_SCOPE', path: here('writes', i), message: `the action "${name}" writes "${ref}", which the ledger's "writes" does not list` });
+      });
+
+      // Rule 4: every key of a read comes from something known before it.
+      const readTables = new Map<string, LedgerScopeTable | undefined>();
+      /** How many reads deep a read is: one more than the deepest read it takes a key from. */
+      const depth = new Map<string, number>();
+      action.reads.forEach((read, r) => {
+        const path = here('reads', r);
+        const table = outside(read.table, [...path, 'table'], 'the read table') ? undefined : tables.get(read.table);
+        if (read.by.length === 0) out.push({ code: 'LEDGER_READ_CHAIN', path: [...path, 'by'], message: `the read "${read.as}" names no key: a ledger read finds its rows by at least one column` });
+        let deepest = 0;
+        read.by.forEach((by, b) => {
+          const at2 = [...path, 'by', b];
+          if (table !== undefined && column(table, by.column) === undefined) out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'column'], message: `"${read.table}" has no column "${by.column}"` });
+          for (const from of Array.isArray(by.from) ? by.from : [by.from]) {
+            const [head, name2, part] = from.split('.') as [string, string, string | undefined];
+            if (head === 'input') {
+              const type = action.inputs[name2];
+              if (type === undefined) out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: `"${from}": the action "${name}" takes no input "${name2}"` });
+              else if ((part !== undefined) !== (type === 'rowRef')) {
+                out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: type === 'rowRef' ? `"${name2}" is a row of any table: read it as "input.${name2}.table" or "input.${name2}.row"` : `"${name2}" is ${type}: read it as "input.${name2}"` });
+              }
+            } else if (head === 'source' || head === 'uses') {
+              // The fixed words: the source row, and what a price question recorded.
+            } else if (head === 'receipt') {
+              if (!action.phases.includes('reverse')) out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: `"receipt.id" is the round being given back: the action "${name}" has no "reverse" phase` });
+            } else if (head === 'setting') {
+              if (settings === undefined) out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: `"${from}": this add-on declares no settings table (addOn.settingsTable)` });
+              else if (column(settings, name2) === undefined) out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: `"${from}": "${settings.ref}" has no column "${name2}"` });
+            } else if (!readTables.has(head)) {
+              out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: `"${from}": no read named "${head}" comes before "${read.as}"` });
+            } else {
+              const earlier = readTables.get(head);
+              if (earlier !== undefined && column(earlier, name2) === undefined) out.push({ code: 'LEDGER_READ_CHAIN', path: [...at2, 'from'], message: `"${from}": "${earlier.ref}" has no column "${name2}"` });
+              deepest = Math.max(deepest, depth.get(head) ?? 1);
+            }
+          }
+        });
+        for (const [w, condition] of (read.where ?? []).entries()) {
+          if (table !== undefined && column(table, condition.column) === undefined) out.push({ code: 'LEDGER_READ_CHAIN', path: [...path, 'where', w, 'column'], message: `"${read.table}" has no column "${condition.column}"` });
+        }
+        if (deepest + 1 > 3) out.push({ code: 'LEDGER_READ_CHAIN', path, message: `the read "${read.as}" is four reads deep: a chain of reads is at most three` });
+        readTables.set(read.as, table);
+        depth.set(read.as, deepest + 1);
+      });
+      const allow = action.unavailable?.allow;
+      if (allow !== undefined) {
+        const read = readTables.get(allow.read);
+        const flag = column(read, allow.column);
+        if (!readTables.has(allow.read)) out.push({ code: 'LEDGER_READ_CHAIN', path: here('unavailable', 'allow', 'read'), message: `the action "${name}" has no read "${allow.read}"` });
+        else if (read !== undefined && (flag === undefined || !(flag.type === 'bool' || flag.type === 'int') || flag.nullable === true)) {
+          out.push({ code: 'LEDGER_READ_CHAIN', path: here('unavailable', 'allow', 'column'), message: `"${read.ref}.${allow.column}" says yes or no for every row: a bool, or a whole number 0 or 1, that is not nullable` });
+        }
+      }
+
+      // Rule 5: what a lock is named by, and every capped total the action's rows feed.
+      const locked = new Set<string>();
+      action.locks.forEach((lock, k) => {
+        const path = here('locks', k);
+        if (!readTables.has(lock.read)) {
+          out.push({ code: 'LEDGER_LOCK', path: [...path, 'read'], message: `the action "${name}" has no read "${lock.read}" to name a lock by` });
+        } else {
+          const read = readTables.get(lock.read);
+          if (read !== undefined && column(read, lock.column) === undefined) out.push({ code: 'LEDGER_LOCK', path: [...path, 'column'], message: `"${read.ref}" has no column "${lock.column}"` });
+        }
+        if (!outside(lock.table, [...path, 'table'], 'the locked table')) locked.add(lock.table);
+      });
+      for (const ref of written) {
+        if (!tables.has(ref)) continue;
+        for (const parent of cappedParents(ref)) {
+          // The parent itself, or a table it always belongs to (an item stands for all of its levels).
+          const stands = [parent.ref, ...parent.columns.filter((candidate) => candidate.type === 'fk' && candidate.nullable !== true && candidate.references !== undefined).map((candidate) => candidate.references as string)];
+          if (stands.some((candidate) => locked.has(candidate))) continue;
+          out.push({ code: 'LEDGER_LOCK', path: here('locks'), message: `the action "${name}" writes "${ref}", whose rows a capped total of "${parent.ref}" adds up: lock "${parent.ref}"${stands.length > 1 ? ` (or ${stands.slice(1).map((candidate) => `"${candidate}"`).join(', ')}, which it always belongs to)` : ''}` });
+        }
+      }
+
+      // Rule 7: an amount Adminium decides is a number, between zero and a number it reads.
+      (action.decides ?? []).forEach((rule, d) => {
+        const path = here('decides', d);
+        const numeric = (type: LedgerInputType | undefined) => type === 'decimal' || type === 'number';
+        const type = action.inputs[rule.input];
+        if (!numeric(type)) out.push({ code: 'LEDGER_DECIDES_TYPE', path: [...path, 'input'], message: type === undefined ? `the action "${name}" takes no input "${rule.input}"` : `"${rule.input}" is ${type}: an amount Adminium decides is a decimal or a number` });
+        if ('input' in rule.max) {
+          const max = action.inputs[rule.max.input];
+          if (max === undefined || !['decimal', 'decimal?', 'number', 'number?'].includes(max)) out.push({ code: 'LEDGER_DECIDES_TYPE', path: [...path, 'max', 'input'], message: `the ceiling "${rule.max.input}" is not a decimal or a number input of the action "${name}"` });
+        } else if (!readTables.has(rule.max.read)) {
+          out.push({ code: 'LEDGER_DECIDES_TYPE', path: [...path, 'max', 'read'], message: `the action "${name}" has no read "${rule.max.read}" to take a ceiling from` });
+        } else {
+          const read = readTables.get(rule.max.read);
+          const ceiling = column(read, rule.max.column);
+          if (read !== undefined && (ceiling === undefined || !['decimal', 'money', 'int', 'bigint', 'float'].includes(ceiling.type))) {
+            out.push({ code: 'LEDGER_DECIDES_TYPE', path: [...path, 'max', 'column'], message: `"${read.ref}.${rule.max.column}" is not a number to take a ceiling from` });
+          }
+        }
+      });
+    }
+  });
+  return out;
+}

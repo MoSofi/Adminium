@@ -72,7 +72,7 @@
  */
 import { z } from 'zod';
 
-import type { AddOnManifest, AppManifest, Manifest } from './schema.js';
+import { ledgersOf, type AddOnManifest, type AppManifest, type Manifest } from './schema.js';
 
 export const SAMPLE_FORMAT = 'adminium.sample/1';
 
@@ -294,6 +294,48 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
   });
   const declared = new Map<string, DeclaredTable>((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
   issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false }));
+  issues.push(...ledgerOrderIssues(bundle, manifest, declared));
+  return issues;
+}
+
+/**
+ * An add-on's own sample may hold its ledger's history: rows of its ledger
+ * tables and of its receipt table, written as they are (nothing is posted).
+ * They are listed AFTER every table their rows name, receipts before ledger
+ * rows — the removal runs in reverse, so it takes them out first, before the
+ * rows a foreign key of theirs points at.
+ */
+function ledgerOrderIssues(bundle: SampleBundle, manifest: Manifest, declared: ReadonlyMap<string, DeclaredTable>): SampleIssue[] {
+  const issues: SampleIssue[] = [];
+  const position = new Map(bundle.tables.map((table, t) => [table.ref, t]));
+  for (const ledger of ledgersOf(manifest)) {
+    const written = Object.keys(ledger.writes);
+    const receipts = position.get(ledger.receipts);
+    for (const ref of [ledger.receipts, ...written]) {
+      const t = position.get(ref);
+      const shape = declared.get(ref);
+      if (t === undefined || shape === undefined) continue;
+      const what = ref === ledger.receipts ? 'the receipt table' : 'a ledger table';
+      for (const column of shape.columns) {
+        const named = column.type === 'fk' ? column.references : undefined;
+        if (named === undefined || named === ref) continue;
+        const listed = position.get(named);
+        if (listed !== undefined && listed > t) {
+          issues.push({ path: `tables.${String(t)}.ref`, message: `"${ref}" is ${what} of "${ledger.id}": list it after "${named}", which its rows name (${column.ref}).` });
+        }
+      }
+      if (ref !== ledger.receipts && receipts !== undefined && receipts > t) {
+        issues.push({ path: `tables.${String(t)}.ref`, message: `"${ref}" is a ledger table of "${ledger.id}": list the receipt table "${ledger.receipts}" before it.` });
+      }
+    }
+    // Everything else comes first: a ledger's history is the last thing a sample adds.
+    const first = Math.min(...[ledger.receipts, ...written].map((ref) => position.get(ref) ?? Number.POSITIVE_INFINITY));
+    bundle.tables.forEach((table, t) => {
+      if (t > first && table.ref !== ledger.receipts && !written.includes(table.ref) && !ledgersOf(manifest).some((other) => other.receipts === table.ref || other.writes[table.ref] !== undefined)) {
+        issues.push({ path: `tables.${String(t)}.ref`, message: `"${table.ref}" comes after the history of the ledger "${ledger.id}": list a ledger's receipt and ledger tables last.` });
+      }
+    });
+  }
   return issues;
 }
 
@@ -338,7 +380,10 @@ export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addO
     }
     if (theirs === null) return; // checked when the add-on's manifest is at hand
     const shape = theirs.get(table.ref);
+    // An add-on's history is its own to write: an app brings what a ledger counts, never what it counted.
+    const ledger = addOn === undefined ? undefined : ledgersOf(addOn).find((candidate) => candidate.receipts === table.ref || candidate.writes[table.ref] !== undefined);
     if (shape === undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is not a table of "${key}". A table of the app itself is marked "own": true.` });
+    else if (ledger !== undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is ${ledger.receipts === table.ref ? 'the receipt table' : 'a table'} of "${key}"'s ledger "${ledger.id}", which only postings write: an app's rows for an add-on hold none of its history.` });
     else declared.set(table.ref, shape);
   });
   const twice = bundle.tables.map((table) => table.ref).filter((ref, i, all) => all.indexOf(ref) !== i);

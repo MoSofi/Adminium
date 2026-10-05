@@ -113,7 +113,7 @@ describe('the receipt table', () => {
   });
 
   it('is one of the add-on\'s own tables', () => {
-    expect(issuesOf(kit({ ledger: { receipts: 'receipts' } })).join('\n')).toContain('addOn.ledgers.0.receipts: "receipts" is not one of this add-on\'s tables');
+    expect(issuesOf(kit({ ledger: { receipts: 'receipts' } })).join('\n')).toContain('addOn.ledgers.0.receipts: the receipt table "receipts" is not one of this add-on\'s own tables');
   });
 });
 

@@ -16,6 +16,7 @@ import {
   type Manifest,
 } from './schema.js';
 import { plainTextLengthWarnings } from './public-access.js';
+import { ledgerIndexIssues } from './ledger-indexes.js';
 import { tableShapeIssues } from './table-shapes.js';
 
 export interface ManifestIssue {
@@ -126,10 +127,11 @@ export function validateManifest(
   if (!parsed.success) {
     return {
       ok: false,
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.map(String).join('.'),
-        message: issue.message,
-      })),
+      issues: parsed.error.issues.map((issue) => {
+        // A check with a code of its own (a ledger's scope) hands it through the issue's params.
+        const code = issue.code === 'custom' ? (issue as { params?: { code?: unknown } }).params?.code : undefined;
+        return { path: issue.path.map(String).join('.'), message: issue.message, ...(typeof code === 'string' ? { code } : {}) };
+      }),
       warnings: [],
     };
   }
@@ -175,6 +177,8 @@ export function validateManifest(
   );
 
   issues.push(...sampleDataIssues(manifest));
+  // The receipt key Adminium makes must be one every database can index.
+  issues.push(...ledgerIndexIssues(manifest));
   // A table shared under a shape Adminium writes down is what that shape says.
   if (manifest.kind === 'app') issues.push(...tableShapeIssues(manifest));
 
