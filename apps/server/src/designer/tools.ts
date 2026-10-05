@@ -563,7 +563,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     const yes = answer.type === 'add-on' && answer.accept;
     addOnAnswers.set(turnKey + key, yes ? 'yes' : 'no');
     if (!yes) return none(`The person said no to the add-on "${key}". Build without it, and say what is left out.`, 'declined');
-    const result = await getter.get(key, ctx.handle.by, ctx.signal, { version: offer.version });
+    const result = await getter.get(key, ctx.handle.by, ctx.signal, { version: offer.version, appKey });
     if (!result.ok) return none(`${result.why} Tell the person in their own words; build the rest meanwhile.`, 'failed');
     return { got: true, name: result.name, version: result.version, fresh: true };
   };

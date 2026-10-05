@@ -858,7 +858,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
     }
 
-    const elsewhere = manifest.kind === 'app' ? await installedElsewhere(manifest.key, manifest.name, connectionId) : null;
+    const elsewhere = likeApp ? await installedElsewhere(manifest.key, manifest.name, connectionId, manifest.kind) : null;
 
     // The other apps' names, for a refusal or an offer that names one.
     const appNames = others.some((r) => r.shape !== null) ? await installedAppNames() : new Map<string, string>();
@@ -1044,8 +1044,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     key: string,
     name: string,
     connectionId: string | null,
+    kind: 'app' | 'add-on' = 'app',
   ): Promise<{ problem: PlanProblem; connectionId: string; connectionName: string } | null> {
-    const earlier = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+    const earlier = (await manifests.list(kind)).find((m) => m.row.manifestKey === key);
     const there = earlier?.row.connectionId ?? null;
     if (there === null || there === connectionId) return null;
     const connectionName = (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(there))?.name ?? there;
@@ -1057,8 +1058,11 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         table: key,
         connectionId: there,
         message:
-          `"${name}" is already installed on the connection "${connectionName}". An app runs on one connection: ` +
-          'update it there, or uninstall it there before installing it on another.',
+          kind === 'app'
+            ? `"${name}" is already installed on the connection "${connectionName}". An app runs on one connection: ` +
+              'update it there, or uninstall it there before installing it on another.'
+            : `"${name}" already keeps its tables on the connection "${connectionName}". An add-on keeps them in one database: ` +
+              'update it there, or uninstall it there before installing it on another.',
       },
     };
   }

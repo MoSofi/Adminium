@@ -40,7 +40,7 @@ export interface AddOnGetter {
   /** Turn the list of adminium.dev on and read it, as the page's switch does. Nothing is downloaded. */
   switchOn(by: Actor, signal: AbortSignal): Promise<{ ok: true } | { ok: false; why: string }>;
   /** Download (when it is not here) and install, at the version the person was shown: a list that moved since is refused, not followed. */
-  get(key: string, by: Actor, signal: AbortSignal, opts: { version: string }): Promise<GetAddOnResult>;
+  get(key: string, by: Actor, signal: AbortSignal, opts: { version: string; appKey?: string | undefined }): Promise<GetAddOnResult>;
 }
 
 export interface AddOnGetterDeps {
@@ -50,6 +50,12 @@ export interface AddOnGetterDeps {
   serverVersion: string;
   /** `manifests.manage`; on a live server, a Super Admin. */
   allowed(by: Actor): Promise<boolean>;
+  /**
+   * The database of the app a turn is building: where an add-on that keeps
+   * tables of its own goes. The card has no picker, so on a project with two
+   * databases this is the only way such an add-on has somewhere to go.
+   */
+  connectionFor?: ((appKey: string) => Promise<string | null>) | undefined;
   /** How long a job may take before the turn stops waiting for it. */
   jobTimeoutMs?: number;
   pollMs?: number;
@@ -154,7 +160,8 @@ export function createAddOnGetter(deps: AddOnGetterDeps): AddOnGetter {
         if (failed !== null) return { ok: false, why: `${found.name} could not be downloaded: ${failed}` };
       }
       try {
-        await installAddOn(deps.installer, { key, version: found.version, attachTo: [], actor: { id: by.id, label: by.label } });
+        const connectionId = opts.appKey === undefined ? null : ((await deps.connectionFor?.(opts.appKey)) ?? null);
+        await installAddOn(deps.installer, { key, version: found.version, attachTo: [], ...(connectionId === null ? {} : { connectionId }), actor: { id: by.id, label: by.label } });
       } catch (error) {
         return { ok: false, why: `${found.name} was downloaded and could not be installed: ${error instanceof Error ? error.message : String(error)}` };
       }

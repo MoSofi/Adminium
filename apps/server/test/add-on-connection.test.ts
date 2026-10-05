@@ -93,6 +93,22 @@ describe('where an add-on\'s tables go', () => {
   });
 });
 
+describe('an add-on already installed', () => {
+  it('asked about for another database, the plan says where it is and that it stays there', async () => {
+    h = await withKit();
+    const second = await h.addConnection('Second');
+    expect((await install(h, { connectionId: h.connectionId })).statusCode).toBe(200);
+    const reply = await plan(h, { connectionId: second });
+    expect(reply.statusCode, reply.body).toBe(200);
+    expect(reply.json().plan.installable).toBe(false);
+    const problem = reply.json().plan.problems.find((candidate: { code: string }) => candidate.code === 'APP_INSTALLED_ELSEWHERE');
+    expect(problem.message).toBe('"Ledger kit" already keeps its tables on the connection "Studio". An add-on keeps them in one database: update it there, or uninstall it there before installing it on another.');
+    // Asked about where it is, there is no such problem.
+    const here = await plan(h, { connectionId: h.connectionId });
+    expect(here.json().plan.problems.filter((candidate: { code: string }) => candidate.code === 'APP_INSTALLED_ELSEWHERE')).toEqual([]);
+  });
+});
+
 describe.each(LEGS)('what an install would make — %s', (dialect, available) => {
   it.runIf(available)('is listed with its database and its identity, and nothing is written', async () => {
     h = await withKit(dialect);

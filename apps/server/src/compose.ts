@@ -2021,6 +2021,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           installer: addOnInstaller,
           catalog: addOnCatalog,
           serverVersion: APP_VERSION,
+          // Where the app a turn builds keeps its data: its installed row's database, else the one the project gives it.
+          connectionFor: async (appKey) => {
+            const installed = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).findByKey(appKey);
+            if (installed !== null && installed.row.connectionId !== null) return installed.row.connectionId;
+            const database = opts.project?.apps?.[appKey]?.database ?? opts.project?.databases?.[0];
+            return database === undefined ? null : ((await manager.connections.findByProjectKey(database))?.id ?? null);
+          },
           allowed: async (by) => {
             if (by.id === null) return false;
             const set = await permissionsOf(by.id);

@@ -104,16 +104,16 @@ const catalog = (): CatalogClient => ({
   },
 });
 
-const getter = () =>
-  createAddOnGetter({
-    meta,
-    installer: { meta, store, credentialCrypto: { encrypt: (v: string) => v, decrypt: (v: string) => v } } as unknown as AddOnInstallerDeps,
-    catalog: catalog(),
-    serverVersion: '0.3.16',
-    allowed: async () => may,
-    pollMs: 5,
-    jobTimeoutMs: 4000,
-  });
+const getterDeps = () => ({
+  meta,
+  installer: { meta, store, credentialCrypto: { encrypt: (v: string) => v, decrypt: (v: string) => v } } as unknown as AddOnInstallerDeps,
+  catalog: catalog(),
+  serverVersion: '0.3.16',
+  allowed: async () => may,
+  pollMs: 5,
+  jobTimeoutMs: 4000,
+});
+const getter = () => createAddOnGetter(getterDeps());
 
 beforeEach(async () => {
   meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -188,6 +188,20 @@ describe('getting one', () => {
     expect(await store.versions('design-studio')).toEqual(['1.0.0']);
     expect(installAddOn).toHaveBeenCalledTimes(1);
     expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], actor: OWNER });
+  });
+
+  it('an add-on got while an app is being built goes to that app\'s database, named to the installer', async () => {
+    await store.writeCatalogCache(CATALOG, Date.now());
+    const asked: string[] = [];
+    const withApp = createAddOnGetter({ ...getterDeps(), connectionFor: async (appKey) => (asked.push(appKey), appKey === 'shop' ? 'conn_shop' : null) });
+    expect((await withApp.get('design-studio', OWNER, signal(), { ...V, appKey: 'shop' })).ok).toBe(true);
+    expect(asked).toEqual(['shop']);
+    expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], connectionId: 'conn_shop', actor: OWNER });
+    // An app with no database yet, or no app at all: nothing is named, and the installer asks or works it out.
+    installAddOn.mockClear();
+    await withApp.get('design-studio', OWNER, signal(), { ...V, appKey: 'new-app' });
+    await withApp.get('design-studio', OWNER, signal(), V);
+    expect(installAddOn.mock.calls.map((call) => (call[1] as { connectionId?: string }).connectionId)).toEqual([undefined, undefined]);
   });
 
   it('does not follow a list that moved between the card and the yes', async () => {
