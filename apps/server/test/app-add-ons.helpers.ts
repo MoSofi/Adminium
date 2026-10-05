@@ -27,6 +27,8 @@ import type { CatalogClient } from '../src/add-ons/catalog.js';
 import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { createAddOnSchemaTarget } from '../src/add-ons/schema-target.js';
 import { createAddOnStore, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
+import type { InstallCore } from '../src/add-ons/install-core.js';
+import { createAppInstallService, type AppRoutesDeps } from '../src/apps/install-service.js';
 import { createInstalledApps } from '../src/apps/installed.js';
 import { createAppSchemaTarget, type AppSchemaTarget } from '../src/apps/schema-target.js';
 import { createAppStore } from '../src/apps/store.js';
@@ -244,7 +246,10 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     rebuildRuntime: async () => {
       rebuilds += 1;
     },
+    // The app install service, once the routes below have their deps: what installs an add-on "like an app".
+    core: (): InstallCore | null => installCore,
   };
+  let installCore: InstallCore | null = null;
   const catalog = {
     isEnabled: async () => catalogState.on,
     networkFeaturesAllowed: () => true,
@@ -265,22 +270,22 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
   await app.register(
     addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog, ...(runtime === undefined ? {} : { runtime }) }),
   );
-  await app.register(
-    appRoutes({
-      meta,
+  const appDeps: AppRoutesDeps = {
+    meta,
+    store: appStore,
+    installed: createInstalledApps({
       store: appStore,
-      installed: createInstalledApps({
-        store: appStore,
-        list: async () => (await manifests.list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version, status: m.row.status })),
-      }),
-      credentialCrypto: CRYPTO,
-      directoryKeys: () => [],
-      serverVersion: '0.4.0',
-      schemaTarget,
-      addOns: { installer, catalog, bundledDir },
-      ...(runtime === undefined ? {} : { addOnRuntime: runtime }),
+      list: async () => (await manifests.list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version, status: m.row.status })),
     }),
-  );
+    credentialCrypto: CRYPTO,
+    directoryKeys: () => [],
+    serverVersion: '0.4.0',
+    schemaTarget,
+    addOns: { installer, catalog, bundledDir },
+    ...(runtime === undefined ? {} : { addOnRuntime: runtime }),
+  };
+  await app.register(appRoutes(appDeps));
+  installCore = createAppInstallService(appDeps).core;
   let pipeline: RenderDeps | null = null;
   if (runtime !== undefined) {
     // Imported here: that module imports this one.

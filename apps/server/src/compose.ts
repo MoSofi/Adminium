@@ -147,6 +147,7 @@ import { storageCryptoFromSecret } from './files/crypto.js';
 import { createSpool } from './files/spool.js';
 import { createFileStore } from './files/store.js';
 import { FOLDER_SOURCE, createAppInstallService, type AppRoutesDeps } from './apps/install-service.js';
+import type { InstallCore } from './add-ons/install-core.js';
 import { createSampleDataService, findSampleApp, registerSampleDataHandler, type SampleDataDeps } from './apps/sample-data.js';
 import {
   enqueueCatalogRefresh,
@@ -1169,6 +1170,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * would be two chances to forget a step.
    */
   let rebuildAddOnRuntime: () => Promise<void> = () => Promise.resolve();
+  // What installs an add-on "like an app": the app install service, once it exists.
+  let installCore: InstallCore | null = null;
 
   /*
    * The document pipeline. Assembled ONCE and handed to both entry points —
@@ -1806,6 +1809,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
         }),
         rebuildRuntime: () => rebuildAddOnRuntime(),
+        core: () => installCore,
       };
       // The same client the acquisition jobs use, so the routes' gate check
       // and the jobs' cannot disagree about whether browsing is on.
@@ -1848,6 +1852,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         },
       };
       await api.register(appRoutes(appDeps));
+      // One service for the folder's apps, the Designer and the add-on installer: it keeps no state between calls.
+      const appService = createAppInstallService(appDeps);
+      installCore = appService.core;
       /*
        * The apps the project folder carries are installed and re-applied by
        * the same service the routes above install with, as a caller with no
@@ -1859,7 +1866,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         projectApps = createProjectApps({
           mode: project.mode,
           built: appsBuild,
-          service: createAppInstallService(appDeps),
+          service: appService,
           meta,
           apps: project.apps,
           databases: project.databases ?? [],
@@ -1995,7 +2002,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // The skills, read once: the same files a coding agent reads.
         const designerSkills = createSkills();
         const designerVersions = createVersions(root);
-        const designerService = createAppInstallService(appDeps);
+        const designerService = appService;
         /*
          * An add-on from inside a turn: the page's download job and the page's
          * installer, for the person who started the turn. They must hold
@@ -2238,6 +2245,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // Without this a provider installed at 10am is unreachable until the
           // process restarts, round trip cannot pass.
           rebuildRuntime: () => rebuildAddOnRuntime(),
+          core: () => installCore,
           // Read after that rebuild, so an add-on connected to an installed
           // app makes the app's documents it draws there and then.
           runtime: () => addOnRuntime,

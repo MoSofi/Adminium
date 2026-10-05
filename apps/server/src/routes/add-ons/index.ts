@@ -102,6 +102,7 @@ import {
   upgradeAddOn,
   type Actor,
 } from '../../add-ons/install.js';
+import type { InstallCore } from '../../add-ons/install-core.js';
 import { needsByAddOn, needsOf, type AppNeed } from '../../add-ons/needs.js';
 import {
   AddOnOAuthError,
@@ -201,6 +202,8 @@ export interface AddOnRoutesDeps {
    * at all; absent, the routes behave as they did before.
    */
   rebuildRuntime?: (() => Promise<void>) | undefined;
+  /** Installing an add-on "like an app": the app install service, bound late (`add-ons/install-core.ts`). */
+  core?: (() => InstallCore | null) | undefined;
   /**
    * The add-on runtime as it stands, read AFTER a rebuild: connecting an add-on
    * to an installed app makes the app's documents that add-on draws, and only
@@ -497,6 +500,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     credentialCrypto: deps.credentialCrypto,
     schemaTarget: deps.schemaTarget,
     rebuildRuntime: deps.rebuildRuntime,
+    core: deps.core,
   };
 
   /** The connect block of an oauth2 manifest, narrowed. */

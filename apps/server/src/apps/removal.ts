@@ -33,8 +33,12 @@ import {
   pagesRepo,
   permissionsRepo,
   projectAppsRepo,
+  publicEndpointsRepo,
+  publicKeysRepo,
   rolesRepo,
+  settingsRepo,
   type AppTableRecord,
+  type InstalledManifest,
   type MetaDb,
   type ProjectAppRemovalChange,
   type ProjectAppRemovals,
@@ -44,7 +48,7 @@ import { uninstallAppDocuments } from '../documents/app-documents.js';
 import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { isUntouched } from '../pages/generated-stamp.js';
 import type { EditBody } from '../schema-ddl/programmatic.js';
-import { addOnTablesByName } from './add-ons.js';
+import { addOnTablesByName, addOnsKeptBy } from './add-ons.js';
 import { builtOnTables } from './app-shapes.js';
 import { removeOutbox } from './manifest-outbox.js';
 import { forgetAppRoleGrants, roleSlugFor } from './manifest-roles.js';
@@ -55,6 +59,16 @@ export interface RemovalDeps {
   meta: MetaDb;
   credentialCrypto: { encrypt(v: string): string; decrypt(v: string): string };
   schemaTarget?: AppSchemaTarget | undefined;
+  /** A public key that stopped: whoever holds it in memory forgets it. */
+  invalidateKey?: ((keyId: string) => void) | undefined;
+  /** The installed apps' names by key, for saying who else uses a table. */
+  names?: (() => Promise<Map<string, string>>) | undefined;
+}
+
+/** Whether an uninstall also deletes the tables it may, and who asks. */
+export interface DropOptions {
+  dropTables: boolean;
+  superAdmin: boolean;
 }
 
 /** What went between two manifests of one app. Refs, never real table names. */
@@ -267,7 +281,167 @@ export function createRemovals(deps: RemovalDeps) {
     await tables.setState(record.id, as);
   }
 
+  /** The real table ids a drop names, in the database as it is read. */
+  const dropEdit =
+    (doomed: readonly { record: AppTableRecord }[]) =>
+    (model: DatabaseModel): EditBody => ({
+      dropTables: doomed.map(
+        (entry) =>
+          model.tables.find((t) => t.name === entry.record.tableName && (t.schema === model.defaultSchema || t.schema === null))?.id ??
+          model.tables.find((t) => t.name === entry.record.tableName)?.id ??
+          entry.record.tableName,
+      ),
+    });
+
+  /** What an uninstall would remove and keep: the dialog's list, and the uninstall's own. */
+  async function listOf(row: InstalledManifest) {
+    const key = row.row.manifestKey;
+    const connectionId = row.row.connectionId;
+    const pageRows = await pagesRepo(deps.meta).listByManifest(row.row.id);
+    const keys = (await publicKeysRepo(deps.meta).list()).filter((candidate) => candidate.managedBy === key && candidate.revokedAt === null);
+    const endpoints =
+      connectionId === null ? [] : (await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).filter((endpoint) => endpoint.managedBy === key);
+    const roles = [];
+    for (const role of (await rolesRepo(deps.meta).list()).filter((candidate) => candidate.appKey === key)) {
+      const members = await deps.meta.db.selectFrom('adminium_user_roles').select('userId').where('roleId', '=', role.id).execute();
+      const apiKeys = await deps.meta.db.selectFrom('adminium_api_keys').select('id').where('roleId', '=', role.id).execute();
+      roles.push({ role, members: members.map((m) => m.userId), apiKeys: apiKeys.map((k) => k.id) });
+    }
+    // An add-on's table is never an app's to drop, even one the app made first.
+    const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto });
+    const records =
+      connectionId === null
+        ? []
+        : (await tables.forInstall(connectionId, key)).filter(
+            (record) => (record.role === 'app' || record.role === 'sample-ledger') && record.state !== 'dropped' && record.state !== 'pending',
+          );
+    const others =
+      connectionId === null
+        ? []
+        : (await tables.forConnection(connectionId)).filter((record) => record.appKey !== key && record.state !== 'dropped' && record.state !== 'released');
+    const domains = await settingsRepo(deps.meta).get('surfaces.domains');
+    // The add-ons connected to it: kept, only their link to it goes.
+    const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key);
+    // The other apps that use a table too (a shared menu), by name: the dialog says who keeps it.
+    const sharing = others.filter((other) => other.role === 'app' && records.some((record) => record.tableName === other.tableName));
+    const appNames = sharing.length === 0 || deps.names === undefined ? new Map<string, string>() : await deps.names();
+    const sharedWith = (tableName: string) =>
+      [...new Set(sharing.filter((other) => other.tableName === tableName).map((other) => other.appKey))]
+        .sort()
+        .map((other) => ({ key: other, name: appNames.get(other) ?? other }));
+    return {
+      key,
+      connectionId,
+      addOns,
+      pages: {
+        removed: pageRows.filter((page) => isUntouched(page.config)),
+        kept: pageRows.filter((page) => !isUntouched(page.config)),
+      },
+      keys,
+      endpoints,
+      roles,
+      tables: records.map((record) => ({
+        record,
+        sharedWith: sharedWith(record.tableName),
+        // Made by this app, and no other app's record names it.
+        droppable: record.owned && record.state === 'created' && !others.some((other) => other.tableName === record.tableName) && !addOnTables.has(record.tableName),
+      })),
+      hosts: Object.entries(domains)
+        .filter(([, target]) => target.appKey === key)
+        .map(([host]) => host),
+    };
+  }
+  type UninstallList = Awaited<ReturnType<typeof listOf>>;
+
+  /**
+   * EVERYTHING THAT COULD REFUSE THE DROP IS ASKED FIRST. Discarding data is
+   * Super Admin's alone in the schema editor, and a plan can refuse a table;
+   * finding either out after the keys, pages and roles had gone would leave
+   * half an uninstall behind.
+   */
+  async function checkDrop(list: UninstallList, opts: DropOptions): Promise<void> {
+    const doomed = opts.dropTables ? list.tables.filter((entry) => entry.droppable) : [];
+    if (doomed.length === 0) return;
+    if (!opts.superAdmin) {
+      throw new ForbiddenError('Deleting an app’s tables and data requires Super Admin.', 'FORBIDDEN', { reason: 'DROP_NEEDS_SUPER_ADMIN' });
+    }
+    if (deps.schemaTarget === undefined || list.connectionId === null) {
+      throw new ValidationFailedError('This server has no connection layer to drop tables in.', { reason: 'DDL_UNAVAILABLE' });
+    }
+    const check = await deps.schemaTarget.planEdit(list.connectionId, dropEdit(doomed), { superAdmin: opts.superAdmin });
+    if (check.refusals.length > 0) {
+      throw new AppError(422, 'SCHEMA_EDIT_REFUSED', 'These tables cannot be dropped on this database.', { refusals: check.refusals });
+    }
+  }
+
+  /**
+   * What an uninstall removes, IN ORDER, each step idempotent, so a failure
+   * part way can be run again and finishes the rest.
+   */
+  async function remove(list: UninstallList, opts: DropOptions & { createdBy: string | null }) {
+    const doomed = opts.dropTables ? list.tables.filter((entry) => entry.droppable) : [];
+    /*
+     * 1. Its own keys stop, THEN its endpoints go: an endpoint a live key
+     *    still grants cannot be removed.
+     */
+    for (const managed of list.keys) {
+      await publicKeysRepo(deps.meta).revoke(managed.id);
+      deps.invalidateKey?.(managed.id);
+    }
+    for (const endpoint of list.endpoints) await publicEndpointsRepo(deps.meta).remove(endpoint.id);
+    /*
+     * 2. Pages: one nobody touched goes, with its grants (a grant is a
+     *    polymorphic string no FK reaches); one somebody edited stays, as
+     *    their own ordinary page.
+     */
+    const pagePermissions = permissionsRepo(deps.meta);
+    for (const page of list.pages.removed) {
+      await pagePermissions.revokeAllForResource('page', page.id);
+      await pagesRepo(deps.meta).delete(page.id);
+    }
+    for (const page of list.pages.kept) await pagesRepo(deps.meta).releaseFromManifest(page.id);
+    /*
+     * 3. Its roles. Deleting a role CASCADES: its members lose it and its
+     *    `adm_sk_` keys are hard-deleted, not revoked — which is why the
+     *    dialog listed them and the audit row names them.
+     */
+    for (const entry of list.roles) {
+      await deps.meta.db.deleteFrom('adminium_roles').where('id', '=', entry.role.id).execute();
+    }
+    await forgetAppRoleGrants(deps.meta, list.roles.map((entry) => entry.role.slug));
+    /*
+     * 4. The column rules it wrote, while they are still as it wrote them.
+     *    One the operator changed, switched off or re-saved differently is
+     *    theirs, and stays.
+     */
+    const rulesRemoved =
+      list.connectionId === null ? 0 : await removeManifestRules(deps.meta, list.tables.map((entry) => entry.record), list.connectionId);
+    // Its emails: the outbox definition, and the templates nobody edited.
+    const emailsRemoved = await removeOutbox(deps.meta, list.key);
+    // The document profiles it made; an operator's own stay.
+    if (list.connectionId !== null) await uninstallAppDocuments(deps.meta, list.connectionId, list.key);
+    /*
+     * 5. Its tables: dropped only when asked, and only the ones it made and
+     *    nothing else names. Every other table is kept and its record
+     *    released, so a reinstall recognises it.
+     */
+    const dropped: string[] = [];
+    if (doomed.length > 0 && deps.schemaTarget !== undefined && list.connectionId !== null) {
+      await deps.schemaTarget.edit(list.connectionId, dropEdit(doomed), { superAdmin: opts.superAdmin, createdBy: opts.createdBy });
+      for (const entry of doomed) {
+        await tables.setState(entry.record.id, 'dropped');
+        dropped.push(entry.record.tableName);
+      }
+    }
+    const kept = list.tables.filter((entry) => !dropped.includes(entry.record.tableName));
+    for (const entry of kept) await tables.setState(entry.record.id, 'released');
+    return { rulesRemoved, emailsRemoved, dropped, kept };
+  }
+
   return {
+    listOf,
+    checkDrop,
+    remove,
     /**
      * After a manifest was applied: remove what can simply go, and record
      * what would lose data.
@@ -573,3 +747,5 @@ export function createRemovals(deps: RemovalDeps) {
 }
 
 export type Removals = ReturnType<typeof createRemovals>;
+/** What an uninstall would remove and keep. */
+export type UninstallList = Awaited<ReturnType<Removals['listOf']>>;

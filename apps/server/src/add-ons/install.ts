@@ -29,6 +29,7 @@
  */
 import {
   compareSemver,
+  installsLikeAnApp,
   isAddOnManifest,
   planInstall,
   satisfiesSemverRange,
@@ -42,6 +43,7 @@ import { auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, 
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
+import type { InstallCore } from './install-core.js';
 import { needsOf } from './needs.js';
 import type { AddOnSchemaTarget } from './schema-target.js';
 import type { AddOnStore } from './store.js';
@@ -67,6 +69,12 @@ export interface AddOnInstallerDeps {
   credentialCrypto: { encrypt(v: string): string; decrypt(v: string): string };
   schemaTarget?: AddOnSchemaTarget | undefined;
   rebuildRuntime?: (() => Promise<void>) | undefined;
+  /**
+   * Installing "like an app" (an add-on that keeps tables of its own, with
+   * pages, roles and rules): the app install service, bound late. Absent or
+   * null, an add-on that needs it is refused, by name.
+   */
+  core?: (() => InstallCore | null) | undefined;
 }
 
 /** Who did it, for the audit rows. */
@@ -285,10 +293,26 @@ export function hostProblems(manifest: AddOnManifest, hosts: readonly HostApp[])
  * show a refusal before anyone agrees to anything.
  */
 export async function planAddOn(
-  deps: Pick<AddOnInstallerDeps, 'schemaTarget'>,
+  deps: Pick<AddOnInstallerDeps, 'schemaTarget' | 'core'>,
   manifest: AddOnManifest,
   input: { attachTo: readonly string[]; hosts?: readonly HostApp[]; connectionId?: string | undefined; warnings?: readonly string[] },
 ): Promise<AddOnPlanned> {
+  // An add-on that installs like an app is planned the way an app is: on one connection, under its own prefix.
+  if (installsLikeAnApp(manifest)) {
+    const core = deps.core?.() ?? null;
+    if (core === null || input.connectionId === undefined) {
+      throw new ValidationFailedError(
+        core === null
+          ? `"${manifest.key}" keeps tables of its own, which this instance cannot install: nothing that installs an app is wired into the add-on installer here.`
+          : `"${manifest.key}" keeps tables of its own: say which database it is installed in.`,
+        { code: core === null ? 'ADD_ON_DDL_REQUIRED' : 'ADD_ON_SCHEMA_CONNECTION' },
+      );
+    }
+    const planned = await core.planFor(manifest, input.connectionId);
+    const extra = hostProblems(manifest, input.hosts ?? []);
+    const plan: InstallPlan = { ...planned.plan, installable: planned.plan.installable && extra.length === 0 };
+    return { plan, dto: toDto(plan, extra, input.warnings ?? []) };
+  }
   const tables = (await deps.schemaTarget?.read(input.attachTo, input.connectionId)) ?? [];
   const pure = planInstall(manifest, { tables });
   const extra = hostProblems(manifest, input.hosts ?? []);

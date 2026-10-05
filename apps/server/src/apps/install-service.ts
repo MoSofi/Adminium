@@ -75,6 +75,7 @@ import {
   type AppCatalogClient,
 } from './catalog.js';
 import { createAppFiles, type AppFiles } from './app-files.js';
+import type { InstallActor, InstallCore, InstallHost } from '../add-ons/install-core.js';
 import { createRemovals } from './removal.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
 import {
@@ -411,28 +412,7 @@ export function updateRefusal(manifest: Manifest, from: string): ValidationFaile
   );
 }
 
-/** Who an install or update is done by. */
-export interface InstallActor {
-  /** The user's id, or null when no user stands behind it. */
-  id: string | null;
-  /** How the audit log names them. */
-  label: string;
-  /** `system` when no person stands behind it (an app applied from the project folder). A user when absent. */
-  kind?: 'user' | 'system' | undefined;
-  /** Whether they may open the row-ceiling door a schema edit can need. */
-  superAdmin: () => Promise<boolean>;
-  /** Whether they hold a permission; a server with no permission layer answers yes. */
-  can: (permission: string) => Promise<boolean>;
-}
-
-/** What the helpers take from the server they run in. */
-export interface InstallHost {
-  log: { info(obj: object, msg: string): void; warn(obj: object, msg: string): void };
-  /** Tell open dashboards; absent where there is no realtime hub. */
-  publish?: ((channel: 'config-changed', event: string, payload: Record<string, unknown>) => void) | undefined;
-  /** Placement and status are what the surface gate reads; absent where nothing caches them. */
-  invalidateSurfaceSettings?: (() => void) | undefined;
-}
+export type { InstallActor, InstallHost } from '../add-ons/install-core.js';
 
 export type InstallInput = z.infer<typeof installAppBody> & {
   /** `folder` for an app the project folder carries: no package stands behind its row. A package when absent. */
@@ -498,7 +478,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   const serverVersion = deps.serverVersion ?? APP_VERSION;
   const files = deps.files ?? createAppFiles({ store: deps.store });
   /** What a folder app's manifest no longer declares: cleaned, or asked about. */
-  const removals = createRemovals({ meta: deps.meta, credentialCrypto: deps.credentialCrypto, schemaTarget: deps.schemaTarget });
+  const removals = createRemovals({
+    meta: deps.meta,
+    credentialCrypto: deps.credentialCrypto,
+    schemaTarget: deps.schemaTarget,
+    invalidateKey: (keyId) => deps.publicAccess?.invalidateKey?.(keyId),
+    names: () => installedAppNames(),
+  });
 
   /** The sides a staged tree actually carries, in serve order. */
   function sidesOf(files: Record<string, string>): SurfaceSide[] {
@@ -720,7 +706,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
   /** The add-on installer's deps, once. */
   function addOnDeps() {
-    return deps.addOns === undefined ? undefined : { ...deps.addOns, serverVersion };
+    // The installer it is handed, able to install an add-on "like an app" through this service.
+    return deps.addOns === undefined ? undefined : { ...deps.addOns, installer: { ...deps.addOns.installer, core: () => core }, serverVersion };
   }
 
   /**
@@ -1474,6 +1461,58 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       host.log.warn({ err: error, manifestRowId }, 'app installed, but its pages were not written');
       return undefined;
     }
+  }
+
+  /**
+   * Records the tables a checked plan makes and takes, BEFORE any is made: a
+   * table to create as `pending` (it becomes `created` the moment it exists),
+   * one it takes as `adopted`, one it uses with another app as `shared`.
+   * Answers the record id of each table still to be made, by its ref.
+   */
+  async function recordTables(input: {
+    key: string;
+    manifest: Manifest;
+    rowId: string;
+    connectionId: string;
+    checked: { plan: InstallPlan; shapeRecords: ReadonlyMap<string, { builtOn: string; shapeColumns: string[] }> };
+    prefix: string | null;
+  }): Promise<Map<string, string>> {
+    const { key, manifest, rowId, connectionId, checked, prefix } = input;
+    const records = appTablesRepo(deps.meta);
+    const pending = new Map<string, string>();
+    for (const table of checked.plan.create) {
+      // Owned: the live read a moment ago did not find it.
+      const record = await records.record({
+        appKey: key,
+        manifestId: rowId,
+        connectionId,
+        ref: table.ref,
+        tableName: table.table ?? table.ref,
+        owned: true,
+        state: 'pending',
+        prefix,
+        // The shape it is declared with, so another app can find it to share; none clears an old one.
+        shape: tableShapeOf(manifest, table.ref),
+        ...shapeRecordOf(checked.shapeRecords, table.ref),
+      });
+      pending.set(table.ref, record.id);
+    }
+    for (const table of checked.plan.reuse) {
+      const shared = checked.plan.tables?.find((t) => t.ref === table.ref)?.action === 'share';
+      await records.record({
+        appKey: key,
+        manifestId: rowId,
+        connectionId,
+        ref: table.ref,
+        tableName: table.table ?? table.ref,
+        owned: false,
+        state: shared ? 'shared' : 'adopted',
+        prefix,
+        shape: tableShapeOf(manifest, table.ref),
+        ...shapeRecordOf(checked.shapeRecords, table.ref),
+      });
+    }
+    return pending;
   }
 
   /**
@@ -2239,47 +2278,15 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         await tableRecords.attach(connectionId, key, rowId);
         const pending = new Map<string, string>();
         const prefix = manifest.requiredSchema?.prefixed === true ? (answers.altPrefix ?? prefixFor(key)) : null;
-        const recordTables = async (): Promise<void> => {
-          for (const table of tablesPlan.plan.create) {
-            // Owned: the live read a moment ago did not find it.
-            const record = await tableRecords.record({
-              appKey: key,
-              manifestId: rowId,
-              connectionId,
-              ref: table.ref,
-              tableName: table.table ?? table.ref,
-              owned: true,
-              state: 'pending',
-              prefix,
-              // The shape it is declared with, so another app can find it to share; none clears an old one.
-              shape: tableShapeOf(manifest, table.ref),
-              ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
-            });
-            pending.set(table.ref, record.id);
-          }
-          for (const table of tablesPlan.plan.reuse) {
-            const shared = tablesPlan.plan.tables?.find((t) => t.ref === table.ref)?.action === 'share';
-            await tableRecords.record({
-              appKey: key,
-              manifestId: rowId,
-              connectionId,
-              ref: table.ref,
-              tableName: table.table ?? table.ref,
-              owned: false,
-              state: shared ? 'shared' : 'adopted',
-              prefix,
-              shape: tableShapeOf(manifest, table.ref),
-              ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
-            });
-          }
-        };
         applied = await applyTables(
           tablesPlan,
           manifest,
           connectionId,
           { superAdmin: await actor.superAdmin(), createdBy: userId },
           {
-            afterRenames: recordTables,
+            afterRenames: async () => {
+              for (const [ref, id] of await recordTables({ key, manifest, rowId, connectionId, checked: tablesPlan, prefix })) pending.set(ref, id);
+            },
             onCreated: async (ref) => {
               const id = pending.get(ref);
               if (id !== undefined) await tableRecords.setState(id, 'created');
@@ -2693,7 +2700,30 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     };
   }
 
+  /**
+   * What the add-on installer may ask of this service: the port carries no
+   * schema target, so the two members that need it take this server's own.
+   */
+  const core: InstallCore = {
+    planFor: (manifest, connectionId) => planFor(manifest, connectionId),
+    checkedPlan: async (key, manifest, connectionId, verb, expectedChecksum) => {
+      const { plan, existing, shapeRecords } = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum);
+      return { plan, existing, shapeRecords };
+    },
+    recordTables,
+    applyTables: (checked, manifest, connectionId, opts, hooks) => {
+      // `checkedPlan` answered these tables, so the target is there: it refuses without one.
+      if (deps.schemaTarget === undefined) throw new ValidationFailedError('This server has no connection layer to create tables in.', { reason: 'DDL_UNAVAILABLE' });
+      return applyTables({ plan: checked.plan, existing: [...checked.existing], target: deps.schemaTarget }, manifest, connectionId, opts, hooks);
+    },
+    createTables: (key, manifest, connectionId, verb, opts, expectedChecksum) => createTables(key, manifest, connectionId, verb, opts, expectedChecksum),
+    writePages,
+    publicAccessOf: (manifest, connectionId, names, actor, installed) => publicAccessOf(manifest, connectionId, names, actor, installed),
+    removals: { listOf: removals.listOf, checkDrop: removals.checkDrop, remove: removals.remove },
+  };
+
   return {
+    core,
     manifests,
     serverVersion,
     files,
@@ -2716,6 +2746,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     publicAccessRecorder,
     writePages,
     createTables,
+    recordTables,
     applyTables,
     checkedPlan,
     auditAppEvent,

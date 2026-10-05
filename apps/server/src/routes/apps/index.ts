@@ -50,11 +50,8 @@ import {
   auditRepo,
   connectionTenantConfig,
   pagesRepo,
-  permissionsRepo,
   projectAppsRepo,
   publicEndpointsRepo,
-  publicKeysRepo,
-  rolesRepo,
   SecretSettingRefused,
   settingsRepo,
   snapshotsRepo,
@@ -68,8 +65,6 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { AddOnCatalogError, pickLocalized } from '../../add-ons/catalog.js';
 import {
   addOnPlanProblems,
-  addOnTablesByName,
-  addOnsKeptBy,
 } from '../../apps/add-ons.js';
 import {
   APP_CATALOG_ENABLED_SETTING,
@@ -80,10 +75,9 @@ import {
   type UnavailableApp,
 } from '../../apps/catalog.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
-import type { EditBody } from '../../schema-ddl/programmatic.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   appEntryFromCache,
   APP_CATALOG_REFRESH_KIND,
@@ -96,19 +90,13 @@ import { forgetAppSurfaceSettings, NO_SURFACE_SETTINGS, sideOffOf } from '../../
 import { validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { settingValueIssues, settingValuesWithDefaults } from '../../apps/settings-values.js';
-import { isUntouched } from '../../pages/generated-stamp.js';
 import {
   createSampleDataService,
   enqueueSampleAdd,
   findSampleApp,
 } from '../../apps/sample-data.js';
-import { ownRules, removeManifestRules, shapeRules } from '../../apps/manifest-rules.js';
+import { ownRules, shapeRules } from '../../apps/manifest-rules.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
-import {
-  forgetAppRoleGrants,
-} from '../../apps/manifest-roles.js';
-import { removeOutbox } from '../../apps/manifest-outbox.js';
-import { uninstallAppDocuments } from '../../documents/app-documents.js';
 import { liveRowCounts } from '../../apps/table-counts.js';
 import {
   createAppInstallService,
@@ -202,7 +190,6 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     oldNamesOf,
     renameEdit,
     planFor,
-    installedAppNames,
     publicAccessOf,
     auditAppEvent,
   } = service;
@@ -1207,87 +1194,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     }
 
     /** What an uninstall would remove and keep — the dialog's list, and the route's own. */
-    async function uninstallPlanOf(row: InstalledApp) {
-      const key = row.row.manifestKey;
-      const connectionId = row.row.connectionId;
-      const pageRows = await pagesRepo(deps.meta).listByManifest(row.row.id);
-      const keys = (await publicKeysRepo(deps.meta).list()).filter(
-        (candidate) => candidate.managedBy === key && candidate.revokedAt === null,
-      );
-      const endpoints =
-        connectionId === null
-          ? []
-          : (await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).filter(
-              (endpoint) => endpoint.managedBy === key,
-            );
-      const roles = [];
-      for (const role of (await rolesRepo(deps.meta).list()).filter((candidate) => candidate.appKey === key)) {
-        const members = await deps.meta.db
-          .selectFrom('adminium_user_roles')
-          .select('userId')
-          .where('roleId', '=', role.id)
-          .execute();
-        const apiKeys = await deps.meta.db
-          .selectFrom('adminium_api_keys')
-          .select('id')
-          .where('roleId', '=', role.id)
-          .execute();
-        roles.push({ role, members: members.map((m) => m.userId), apiKeys: apiKeys.map((k) => k.id) });
-      }
-      const recordsRepo = appTablesRepo(deps.meta);
-      // An add-on's table is never an app's to drop, even one the app made first.
-      const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto });
-      const records =
-        connectionId === null
-          ? []
-          : (await recordsRepo.forInstall(connectionId, key)).filter(
-              (record) =>
-                (record.role === 'app' || record.role === 'sample-ledger') &&
-                record.state !== 'dropped' &&
-                record.state !== 'pending',
-            );
-      const others =
-        connectionId === null
-          ? []
-          : (await recordsRepo.forConnection(connectionId)).filter(
-              (record) => record.appKey !== key && record.state !== 'dropped' && record.state !== 'released',
-            );
-      const domains = await settingsRepo(deps.meta).get('surfaces.domains');
-      // The add-ons connected to it: kept, only their link to it goes.
-      const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key);
-      // The other apps that use a table too (a shared menu), by name: the dialog says who keeps it.
-      const sharing = others.filter((other) => other.role === 'app' && records.some((record) => record.tableName === other.tableName));
-      const appNames = sharing.length === 0 ? new Map<string, string>() : await installedAppNames();
-      const sharedWith = (tableName: string) =>
-        [...new Set(sharing.filter((other) => other.tableName === tableName).map((other) => other.appKey))]
-          .sort()
-          .map((other) => ({ key: other, name: appNames.get(other) ?? other }));
-      return {
-        key,
-        connectionId,
-        addOns,
-        pages: {
-          removed: pageRows.filter((page) => isUntouched(page.config)),
-          kept: pageRows.filter((page) => !isUntouched(page.config)),
-        },
-        keys,
-        endpoints,
-        roles,
-        tables: records.map((record) => ({
-          record,
-          sharedWith: sharedWith(record.tableName),
-          // Made by this app, and no other app's record names it.
-          droppable:
-            record.owned &&
-            record.state === 'created' &&
-            !others.some((other) => other.tableName === record.tableName) &&
-            !addOnTables.has(record.tableName),
-        })),
-        hosts: Object.entries(domains)
-          .filter(([, target]) => target.appKey === key)
-          .map(([host]) => host),
-      };
-    }
+    const uninstallPlanOf = (row: InstalledApp) => service.removals.listOf(row);
 
     // ── Sample data ────────────────────────────────────────────────────────
 
@@ -1964,103 +1871,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
         const plan = await uninstallPlanOf(row);
         const superAdmin = await isSuperAdmin(request);
-        const doomed = dropTables ? plan.tables.filter((entry) => entry.droppable) : [];
-        const dropEdit = (model: DatabaseModel): EditBody => ({
-          dropTables: doomed.map(
-            (entry) =>
-              model.tables.find(
-                (t) => t.name === entry.record.tableName && (t.schema === model.defaultSchema || t.schema === null),
-              )?.id ??
-              model.tables.find((t) => t.name === entry.record.tableName)?.id ??
-              entry.record.tableName,
-          ),
-        });
-        /*
-         * EVERYTHING THAT COULD REFUSE THE DROP IS ASKED FIRST. Discarding data
-         * is Super Admin's alone in the schema editor, and a plan can refuse a
-         * table; finding either out after the keys, pages and roles had gone
-         * would leave half an uninstall behind.
-         */
-        if (doomed.length > 0) {
-          if (!superAdmin) {
-            throw new ForbiddenError('Deleting an app’s tables and data requires Super Admin.', 'FORBIDDEN', {
-              reason: 'DROP_NEEDS_SUPER_ADMIN',
-            });
-          }
-          if (deps.schemaTarget === undefined || plan.connectionId === null) {
-            throw new ValidationFailedError('This server has no connection layer to drop tables in.', {
-              reason: 'DDL_UNAVAILABLE',
-            });
-          }
-          const check = await deps.schemaTarget.planEdit(plan.connectionId, dropEdit, { superAdmin });
-          if (check.refusals.length > 0) {
-            throw new AppError(422, 'SCHEMA_EDIT_REFUSED', 'These tables cannot be dropped on this database.', {
-              refusals: check.refusals,
-            });
-          }
-        }
-
-        /*
-         * IN ORDER, each step idempotent, so a failure part way can be run
-         * again and finishes the rest.
-         *
-         * 1. Its own keys stop, THEN its endpoints go: an endpoint a live key
-         *    still grants cannot be removed.
-         */
-        for (const managed of plan.keys) {
-          await publicKeysRepo(deps.meta).revoke(managed.id);
-          deps.publicAccess?.invalidateKey?.(managed.id);
-        }
-        for (const endpoint of plan.endpoints) await publicEndpointsRepo(deps.meta).remove(endpoint.id);
-        /*
-         * 2. Pages: one nobody touched goes, with its grants (a grant is a
-         *    polymorphic string no FK reaches); one somebody edited stays, as
-         *    their own ordinary page.
-         */
-        const pagePermissions = permissionsRepo(deps.meta);
-        for (const page of plan.pages.removed) {
-          await pagePermissions.revokeAllForResource('page', page.id);
-          await pagesRepo(deps.meta).delete(page.id);
-        }
-        for (const page of plan.pages.kept) await pagesRepo(deps.meta).releaseFromManifest(page.id);
-        /*
-         * 3. Its roles. Deleting a role CASCADES: its members lose it and its
-         *    `adm_sk_` keys are hard-deleted, not revoked — which is why the
-         *    dialog listed them and the audit row names them.
-         */
-        for (const entry of plan.roles) {
-          await deps.meta.db.deleteFrom('adminium_roles').where('id', '=', entry.role.id).execute();
-        }
-        await forgetAppRoleGrants(deps.meta, plan.roles.map((entry) => entry.role.slug));
-        /*
-         * 4. The column rules it wrote, while they are still as it wrote them.
-         *    One the operator changed, switched off or re-saved differently is
-         *    theirs, and stays.
-         */
-        const rulesRemoved =
-          plan.connectionId === null
-            ? 0
-            : await removeManifestRules(deps.meta, plan.tables.map((entry) => entry.record), plan.connectionId);
-        // Its emails: the outbox definition, and the templates nobody edited.
-        const emailsRemoved = await removeOutbox(deps.meta, key);
-        // The document profiles it made; an operator's own stay.
-        if (plan.connectionId !== null) await uninstallAppDocuments(deps.meta, plan.connectionId, key);
-        /*
-         * 5. Its tables: dropped only when asked, with the key typed back, and
-         *    only the ones this app made and nothing else names. Every other
-         *    table is kept and its record released, so a reinstall recognises
-         *    it.
-         */
-        const dropped: string[] = [];
-        if (doomed.length > 0 && deps.schemaTarget !== undefined && plan.connectionId !== null) {
-          await deps.schemaTarget.edit(plan.connectionId, dropEdit, { superAdmin, createdBy: userId });
-          for (const entry of doomed) {
-            await appTablesRepo(deps.meta).setState(entry.record.id, 'dropped');
-            dropped.push(entry.record.tableName);
-          }
-        }
-        const kept = plan.tables.filter((entry) => !dropped.includes(entry.record.tableName));
-        for (const entry of kept) await appTablesRepo(deps.meta).setState(entry.record.id, 'released');
+        // Everything that could refuse the drop is asked first; then the steps, in order (`apps/removal.ts`).
+        await service.removals.checkDrop(plan, { dropTables, superAdmin });
+        const { rulesRemoved, emailsRemoved, dropped, kept } = await service.removals.remove(plan, { dropTables, superAdmin, createdBy: userId });
         // Its own settings go with it; a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clear(key);
         /*
