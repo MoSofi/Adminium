@@ -49,7 +49,7 @@ import type {
   TableClass,
 } from './plan-model.js';
 import { typeConflict } from './plan-types.js';
-import type { Manifest, RequiredColumn, RequiredTable } from './schema.js';
+import { installsLikeAnApp, type Manifest, type RequiredColumn, type RequiredTable } from './schema.js';
 
 export type {
   ContextTableAction as TableAction,
@@ -658,7 +658,7 @@ export function planWithContext(
   }
 
   // 5. Role slugs fit their column.
-  if (manifest.kind === 'app') {
+  if (manifest.kind === 'app' || installsLikeAnApp(manifest)) {
     for (const role of manifest.roles ?? []) {
       const slug = `${manifest.key}-${role.key}`;
       if (slug.length > ROLE_SLUG_LIMIT) {

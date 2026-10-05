@@ -59,7 +59,7 @@ import type {
   SchemaModelView,
 } from './plan-model.js';
 import { typeConflict } from './plan-types.js';
-import type { Manifest, RequiredColumn, RequiredTable } from './schema.js';
+import { installsLikeAnApp, type Manifest, type RequiredColumn, type RequiredTable } from './schema.js';
 
 export type {
   ExistingColumnView,
@@ -119,6 +119,8 @@ export function planInstall(
   if (context !== undefined) return planWithContext(manifest, model, context);
   const required = manifest.requiredSchema?.tables ?? [];
   const noun = manifest.kind === 'app' ? 'app' : 'add-on';
+  // An add-on that installs like an app keeps tables of its OWN: a table found under one of its names is judged as an app's is.
+  const ownTables = manifest.kind === 'app' || installsLikeAnApp(manifest);
   const existingByRef = new Map(model.tables.map((t) => [t.ref, t]));
   const declared = new Set(required.map((t) => t.ref));
 
@@ -163,7 +165,7 @@ export function planInstall(
      * Apps only: an add-on reuses its HOST's tables to read and reference
      * them, and the host's own required columns are the host's business.
      */
-    if (existing !== undefined && manifest.kind === 'app') {
+    if (existing !== undefined && ownTables) {
       const declaredColumns = new Set(table.columns.map((c) => c.ref));
       const blocking = existing.columns
         .filter(
@@ -203,7 +205,7 @@ export function planInstall(
      */
     // Apps only, like FOREIGN_TABLE below: an add-on reuses its HOST's tables,
     // and keeps its own refusal for a host missing columns.
-    if (existing !== undefined && manifest.kind === 'app' && missingColumns.length > 0) {
+    if (existing !== undefined && ownTables && missingColumns.length > 0) {
       const list = missingColumns.map((ref) => `"${ref}"`).join(', ');
       problems.push({
         code: 'COLUMNS_REQUIRED',
@@ -215,7 +217,7 @@ export function planInstall(
           `or install against a different database.`,
       });
     }
-    if (existing !== undefined && manifest.kind === 'app') {
+    if (existing !== undefined && ownTables) {
       for (const column of table.columns) {
         const have = existing.columns.find((c) => c.ref === column.ref);
         const conflict = have === undefined ? null : typeConflict(column, have, model.dialect);
