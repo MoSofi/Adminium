@@ -2,7 +2,7 @@
 /**
  * Provider contract registry v1 — CLOSED.
  *
- * Four, not eight. A contract that has no implementation is a guess about a
+ * Few, not many. A contract that has no implementation is a guess about a
  * future add-on; the only way a contract gets in is alongside the add-on that
  * implements it. The fourth was bought on a seven-exhibit dossier, not on a
  * shape somebody liked.
@@ -60,6 +60,20 @@ export const CONTRACT_REGISTRY = [
     version: 1,
     summary:
       'Kinds of document an add-on can describe (an outline of slots, labelled in eight locales) and render to bytes (html, pdf — per kind). Consumed by the engine document pipeline; the first contract Adminium itself resolves at runtime.',
+    implementations: 2,
+  },
+  {
+    /*
+     * THE FIFTH: CODE THAT DECIDES INSIDE A SAVE. An add-on that keeps a
+     * ledger of its own answers what rows the ledger gains when a host row
+     * reaches a point; Adminium reads first, calls once, checks the answer
+     * and writes it in the same transaction. Consumed by the write path, and
+     * loaded only from a package Adminium can vouch for.
+     */
+    id: 'posting-rows',
+    version: 1,
+    summary:
+      'The rows a ledger gains when a host row reaches a point: a synchronous, pure answer from the inputs and reads Adminium hands over, written by Adminium inside the same save.',
     implementations: 2,
   },
 ] as const satisfies readonly ContractDefinition[];

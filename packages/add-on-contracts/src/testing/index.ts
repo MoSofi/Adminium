@@ -823,3 +823,5 @@ export function describeDocumentRenderer(
     });
   });
 }
+
+export { postingRowsConformance, type PostingRowsCase, type PostingRowsConformanceOptions } from './posting-rows.js';

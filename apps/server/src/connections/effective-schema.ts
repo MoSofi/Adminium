@@ -20,7 +20,7 @@ import type {
 } from '@adminium/engine';
 import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
 import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type StateCondition, type TimeCondition } from '@adminium/manifest';
-import type { SchemaOverride } from '@adminium/meta';
+import type { SchemaOverride, StoredPosting } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
 export interface ColumnOptionItem {
@@ -129,6 +129,34 @@ export interface ColumnRollupRule {
   balance?: { column: string; of: string; minus?: string[] };
   /** A write that would take a balance this total feeds below zero is refused. */
   cap?: true;
+  /** With `cap`: not judged for a row whose yes/no column is true. A reader that misses it caps. */
+  capUnless?: { column: string };
+}
+
+/**
+ * `column.addOnLink`: a link into a table of an add-on, with no foreign key.
+ * `tableId` and `key` are the add-on's real table and its key column once
+ * the add-on is found on this connection; `null` while it is not — the link
+ * is then inert, and so is a lookup through it.
+ */
+export interface ColumnAddOnLink {
+  addOn: string;
+  /** The add-on's own short name for the table. */
+  table: string;
+  tableId: string | null;
+  key: string | null;
+}
+
+/** `column.plainText`: text with no link and no address — a name (`true`), or a note with its own bounds. */
+export type ColumnPlainText = true | { digits?: number; max?: number };
+
+/** A table's posting as it is stored (the manifest's own keys; a sibling table by its id in the snapshot). */
+export type TablePosting = StoredPosting;
+
+/** `table.switchedOff`: the postings (and the price rule) the owner switched off on this table. */
+export interface TableSwitchedOff {
+  postings: string[];
+  adjust?: true;
 }
 
 /**
@@ -502,6 +530,24 @@ export interface EffectiveColumn extends ColumnModel {
   retryKey?: true;
   /** `column.lookup`: filled from a code a person types. */
   lookup?: ColumnLookupRule;
+  /**
+   * A `column.lookup` among the codes of an add-on's table, as it is stored
+   * (`table` is `{addOn, table}`): carried, and acted on only once the add-on
+   * is found — it then becomes `lookup`.
+   */
+  addOnLookup?: Omit<ColumnLookupRule, 'table'> & { table: { addOn: string; table: string } };
+  /** `column.addOnLink`: a link into an add-on's table. */
+  addOnLink?: ColumnAddOnLink;
+  /** `column.tableRef`: the column holds a table's stored name. */
+  tableRef?: true;
+  /** `column.announce`: a change of this formula column is told after the save. */
+  announce?: true;
+  /** `column.codeLast4`: the last four characters of the code in `of`. */
+  codeLast4?: { of: string };
+  /** `column.plainText`: no link, no address. */
+  plainText?: ColumnPlainText;
+  /** `column.customerKey`: a keyed hash of the address in `of`. */
+  customerKey?: { of: string };
   /** `column.bounds`: a date never later than today, never earlier than another date. */
   bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: EffectiveDateBound };
 }
@@ -534,6 +580,10 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
    * `lock.except`.
    */
   states?: TableStatesRule;
+  /** What a row of the table hands to an add-on's ledger (`table.postings`). */
+  postings?: TablePosting[];
+  /** The postings the owner switched off (`table.switchedOff`). */
+  switchedOff?: TableSwitchedOff;
   /** Rows of other tables that lock this table's rows (`lockedWhenReferencedBy`, resolved). */
   lockedBy?: LockedByReference[];
   /** The parents whose state this table's rows are tied to. */
@@ -1285,6 +1335,47 @@ export function applyOverrides(
         if (table !== undefined) table.states = value as unknown as TableStatesRule;
         break;
       }
+      case 'table.postings': {
+        // A manifest's row and an owner's may both be there: the table carries every posting of both.
+        if (table !== undefined) table.postings = [...(table.postings ?? []), ...((value as unknown as { postings: TablePosting[] }).postings ?? [])];
+        break;
+      }
+      case 'table.switchedOff': {
+        if (table === undefined) break;
+        const stored = value as unknown as TableSwitchedOff;
+        table.switchedOff = { postings: [...(stored.postings ?? [])], ...(stored.adjust === true ? { adjust: true as const } : {}) };
+        break;
+      }
+      case 'column.addOnLink': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.addOnLink = { addOn: String(value.addOn), table: String(value.table), tableId: null, key: null };
+        break;
+      }
+      case 'column.tableRef': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.tableRef = true;
+        break;
+      }
+      case 'column.announce': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.announce = true;
+        break;
+      }
+      case 'column.codeLast4': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.codeLast4 = { of: String(value.of) };
+        break;
+      }
+      case 'column.plainText': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.plainText = value.plainText as ColumnPlainText;
+        break;
+      }
+      case 'column.customerKey': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.customerKey = { of: String(value.of) };
+        break;
+      }
       case 'column.normalize': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.normalize = value.normalize as 'trim' | 'email' | 'code';
@@ -1449,7 +1540,10 @@ export function applyOverrides(
       }
       case 'column.lookup': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) column.lookup = value as unknown as ColumnLookupRule;
+        if (column === undefined) break;
+        // Among an add-on's codes: carried as stored, and inert until that add-on's table is found.
+        if (typeof value.table === 'string') column.lookup = value as unknown as ColumnLookupRule;
+        else column.addOnLookup = value as unknown as NonNullable<EffectiveColumn['addOnLookup']>;
         break;
       }
       case 'llm.label': {

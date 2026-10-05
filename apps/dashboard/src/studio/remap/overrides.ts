@@ -126,6 +126,18 @@ export type RemapOverride =
   /** A text value stored trimmed, or trimmed and in lower case. */
   | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' | 'code' } }
   | { op: 'column.retryKey'; tableName: string; columnName: string; value: { retryKey: true } }
+  /*
+   * Rules an app's or an add-on's install keeps on a column: a link into an
+   * add-on's table, a column holding a table's stored name, a total whose
+   * change is told, the last four of a code, plain text, a customer's key.
+   * Each is kept whole through a save, with its column; none is edited here.
+   */
+  | { op: 'column.addOnLink'; tableName: string; columnName: string; value: { addOn: string; table: string } }
+  | { op: 'column.tableRef'; tableName: string; columnName: string; value: { tableRef: true } }
+  | { op: 'column.announce'; tableName: string; columnName: string; value: { announce: true } }
+  | { op: 'column.codeLast4'; tableName: string; columnName: string; value: { of: string } }
+  | { op: 'column.plainText'; tableName: string; columnName: string; value: { plainText: true | { digits?: number; max?: number } } }
+  | { op: 'column.customerKey'; tableName: string; columnName: string; value: { of: string } }
   /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
   | {
       op: 'column.bounds';
@@ -150,6 +162,9 @@ export type RemapOverride =
   | { op: 'table.booking'; tableName: string; value: Record<string, unknown> }
   /** A document's states, moves and locks, one per table. Kept whole through a save; not edited here. */
   | { op: 'table.states'; tableName: string; value: Record<string, unknown> }
+  /** What a row hands to an add-on's ledger, and the owner's switch on it. Kept whole through a save. */
+  | { op: 'table.postings'; tableName: string; value: { postings: Record<string, unknown>[] } }
+  | { op: 'table.switchedOff'; tableName: string; value: { postings: string[]; adjust?: true } }
   | {
       op: 'relation.add';
       tableName: string;
@@ -202,6 +217,13 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   // Kept by an app's install; a Studio save carries it back with its column.
   'column.perNight',
   'column.yesNo',
+  // Kept by an install too: without its column a save would send it to the table, and two of one table would be one.
+  'column.addOnLink',
+  'column.tableRef',
+  'column.announce',
+  'column.codeLast4',
+  'column.plainText',
+  'column.customerKey',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

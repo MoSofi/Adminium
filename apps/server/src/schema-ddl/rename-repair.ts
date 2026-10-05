@@ -172,6 +172,51 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       const next = renamedInFormula(rule['formula'], from, to);
       return JSON.stringify(next) === JSON.stringify(rule['formula']) ? value : { ...rule, formula: next };
     }
+    case 'column.customerKey':
+    case 'column.codeLast4':
+      // The address a key is worked out from, the code its last four are taken of: columns of this row.
+      return same(rule['of']) ? { ...rule, of: to } : value;
+    case 'column.rollup': {
+      // The yes/no that lifts the cap is this table's; what is added up is the child's.
+      const lift = rule['capUnless'] as Record<string, unknown> | undefined;
+      return lift !== undefined && same(lift['column']) ? { ...rule, capUnless: { ...lift, column: to } } : value;
+    }
+    case 'table.postings': {
+      // Everything a posting reads of its own table: its link to the parent, what it maps, the columns
+      // that leave a line out or fire a point of the line's own. A column of the parent is that table's.
+      const mapped = (mapping: unknown): unknown => (same(mapping) ? to : mapping);
+      const record = (entries: unknown): unknown =>
+        typeof entries === 'object' && entries !== null ? Object.fromEntries(Object.entries(entries as Record<string, unknown>).map(([key, mapping]) => [key, mapped(mapping)])) : entries;
+      const next = {
+        ...rule,
+        postings: ((rule['postings'] ?? []) as Record<string, unknown>[]).map((posting) => {
+          const lines = posting['via'] !== undefined;
+          const phase = (name: 'reserve' | 'post' | 'reverse'): Record<string, unknown> => {
+            const on = (posting[name] as { on?: Record<string, unknown> } | undefined)?.on;
+            // Under `via` a column point is the parent's unless it says `own`.
+            if (on === undefined || !same(on['column']) || (lines && on['own'] !== true)) return {};
+            return { [name]: { on: { ...on, column: to } } };
+          };
+          const only = posting['only'] as Record<string, unknown> | undefined;
+          return {
+            ...posting,
+            ...(same(posting['via']) ? { via: to } : {}),
+            ...phase('reserve'),
+            ...phase('post'),
+            ...phase('reverse'),
+            map: record(posting['map']),
+            ...(posting['multipliers'] === undefined ? {} : { multipliers: record(posting['multipliers']) }),
+            ...(posting['heldUntil'] === undefined ? {} : { heldUntil: mapped(posting['heldUntil']) }),
+            ...(same(posting['unlessSet']) ? { unlessSet: to } : {}),
+            ...(only !== undefined && same(only['column']) ? { only: { ...only, column: to } } : {}),
+            ...(Array.isArray(posting['refuses'])
+              ? { refuses: (posting['refuses'] as Record<string, unknown>[]).map((refusal) => (refusal['table'] === undefined && same(refusal['column']) ? { ...refusal, column: to } : refusal)) }
+              : {}),
+          };
+        }),
+      };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
+    }
     default:
       return value;
   }

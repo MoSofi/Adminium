@@ -5,7 +5,7 @@
  * a table carrying none writes as ever, and a public entry whose rule now
  * runs (a person found by address) is served, with the key's sign-in.
  */
-import { publicEndpointsRepo, publicScopesRepo } from '@adminium/meta';
+import { overridesRepo, publicEndpointsRepo, publicScopesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { RuleNotBuiltError } from '../src/crud/unbuilt-rules.js';
@@ -31,6 +31,33 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
     await expect(w.writes.delete({ target: w.targetOf('stays'), pk: { id: 999_999 }, context: w.desk, announce: async () => {} })).resolves.toBe(0);
     const rule = await w.create('rate_rules', { name: 'August', amount: 20 }).catch((error: unknown) => error);
     expect(rule).not.toBeInstanceOf(RuleNotBuiltError);
+  });
+
+  it.runIf(available)('a table given a posting by hand takes no creates or changes, and a delete still clears up', async () => {
+    // Stored the way Studio's rule save stores one: no install would write it yet.
+    const before = await writerFor(h!);
+    const tableName = before.targetOf('rate_rules').table.id;
+    const row = await overridesRepo(h!.meta).create({
+      connectionId: h!.connectionId,
+      op: 'table.postings',
+      tableName,
+      columnName: null,
+      value: { postings: [{ id: 'by-hand', into: { addOn: 'kit', ledger: 'units', action: 'use' }, post: { on: { create: true } }, map: { account: 'name' } }] },
+      origin: 'user',
+      createdBy: null,
+    });
+    try {
+      const w = await writerFor(h!);
+      const refused = await w.create('rate_rules', { name: 'September', amount: 10 }).catch((error: unknown) => error);
+      expect(refused).toBeInstanceOf(RuleNotBuiltError);
+      expect(refused).toMatchObject({ statusCode: 501, code: 'RULE_NOT_BUILT', details: { table: tableName, rule: 'postings' } });
+      await expect(w.writes.delete({ target: w.targetOf('rate_rules'), pk: { id: 999_999 }, context: w.desk, announce: async () => {} })).resolves.toBe(0);
+      // A table that carries none still writes.
+      const type = await w.create('room_types', { name: 'Loft', base_rate: 90 }).catch((error: unknown) => error);
+      expect(type).not.toBeInstanceOf(RuleNotBuiltError);
+    } finally {
+      await overridesRepo(h!.meta).delete(row.id);
+    }
   });
 
   it.runIf(available)('serves an entry that finds its person by address, now that it runs, and keeps the sign-in', async () => {

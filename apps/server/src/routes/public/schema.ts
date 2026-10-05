@@ -428,6 +428,18 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_SOLD_OUT',
   /** No room of the type asked for is free on one of the nights (409). `params.column` names it. */
   'PUBLIC_NO_ROOM',
+  /**
+   * What a line asks for is out of stock (409): an add-on's stock ledger
+   * refused it. On a create with child rows, `child`, `index` and `path` name
+   * the row; `left` says how much there is only where the owner lets it.
+   */
+  'PUBLIC_OUT_OF_STOCK',
+  /**
+   * A card or a voucher code was refused (409): `params.reason` is always
+   * `not-valid`, whatever the cause — never its balance, status or expiry.
+   * `params.column` names the column the code was typed into.
+   */
+  'PUBLIC_CARD_REFUSED',
   /** A guest cancelling closer to the time than the venue allows online (409). */
   'PUBLIC_TOO_LATE',
   /**

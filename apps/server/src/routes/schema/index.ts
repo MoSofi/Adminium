@@ -35,7 +35,7 @@ import {
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { outboxWrittenColumns } from '../../outbox/moves.js';
 import { shareCodesOn } from '../../public-api/share-codes.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -305,7 +305,13 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.retryKey' ||
           item.op === 'column.bounds' ||
           item.op === 'column.lookup' ||
-          item.op === 'column.perNight'
+          item.op === 'column.perNight' ||
+          item.op === 'column.announce' ||
+          item.op === 'column.tableRef' ||
+          item.op === 'column.addOnLink' ||
+          item.op === 'column.codeLast4' ||
+          item.op === 'column.plainText' ||
+          item.op === 'column.customerKey'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.
@@ -333,6 +339,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.booking') {
           const issue = bookingRuleIssue(item.value, table, model);
+          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
+        }
+        if (item.op === 'table.postings') {
+          const issue = postingsRuleIssue(item.value, table, model);
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'table.states') {

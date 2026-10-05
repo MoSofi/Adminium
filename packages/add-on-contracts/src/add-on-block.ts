@@ -279,6 +279,17 @@ export const addOnBlockSchema = z
      * it to the add-on's deciding code. `@adminium/manifest` checks the table.
      */
     settingsTable: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref').optional(),
+    /**
+     * Ledgers: tables of the add-on's own that only Adminium writes, from
+     * rows the add-on's `posting-rows` provider works out. Only the id is
+     * typed here: the rest is the manifest's own vocabulary, which this
+     * package cannot import, so `@adminium/manifest` checks each entry.
+     */
+    ledgers: z
+      .array(z.looseObject({ id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a ledger id is kebab-case') }))
+      .min(1)
+      .max(4)
+      .optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

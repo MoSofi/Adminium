@@ -45,6 +45,7 @@ import {
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
 import { installFloorWords } from './words.js';
+import { ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, type Ledger, type LedgerTableShape } from './ledgers.js';
 
 export { compareSemver };
 
@@ -620,6 +621,8 @@ export const columnRulesSchema = z
           .optional(),
         /** A child write that would take the balance below zero is refused. */
         cap: z.literal(true).optional(),
+        /** With `cap`: the cap is not judged for a row whose yes/no `column` is true (an item that may be sold below zero). */
+        capUnless: z.object({ column: refSchema }).strict().optional(),
       })
       .strict()
       .optional(),
@@ -690,6 +693,25 @@ export const columnRulesSchema = z
      * the table is renamed.
      */
     tableRef: z.literal(true).optional(),
+    /**
+     * A formula column over a total of its own row whose change is told
+     * after the save commits (a stock level going low), so a rule or a
+     * screen may act on it. Up to four on a table.
+     */
+    announce: z.literal(true).optional(),
+    /**
+     * Text a person types that may hold no link and no address, on every
+     * write whoever makes it: `true` for a name (no digits, 80 characters),
+     * or how many digits and characters a note may hold.
+     */
+    plainText: z.union([z.literal(true), z.object({ digits: z.number().int().min(0).max(20).optional(), max: z.number().int().min(1).max(1000).optional() }).strict()]).optional(),
+    /**
+     * A keyed hash of the address in `of`, written by Adminium: what a
+     * customer is told apart by where the address itself must not travel.
+     */
+    customerKey: z.object({ of: refSchema }).strict().optional(),
+    /** The last four characters of the code in `of`, written by Adminium: what a list shows of a code it never shows. */
+    codeLast4: z.object({ of: refSchema }).strict().optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -887,6 +909,8 @@ export const requiredTableSchema = z
      * sets: up to six sets of 1 to 4 columns a list is filtered or sorted by.
      */
     indexes: tableIndexesSchema.optional(),
+    /** What a row of this table hands to an add-on's ledger, and when (see `ledgers.ts`). */
+    postings: postingsSchema.optional(),
   })
   .strict()
   .refine(
@@ -1024,6 +1048,7 @@ export const shapePartSchema = z
     columns: z.array(requiredColumnSchema).min(1).max(60),
     states: statesSchema.optional(),
     indexes: tableIndexesSchema.optional(),
+    postings: postingsSchema.optional(),
   })
   .strict()
   .refine((p) => new Set(p.columns.map((c) => c.ref)).size === p.columns.length, {
@@ -1771,6 +1796,8 @@ export function appReferenceIssues(
     addOns?: AddOnNeeds | undefined;
     documents?: readonly AppDocument[] | undefined;
     pages?: readonly { feature?: string | undefined }[] | undefined;
+    /** An add-on's own ledgers, parsed: its tables' postings may go into them. Present (even empty) only for an add-on. */
+    ledgers?: readonly Ledger[] | undefined;
   },
   /**
    * When the tables are an add-on's shape rather than an app's: the add-on's
@@ -2039,6 +2066,27 @@ export function appReferenceIssues(
           const capped = table.columns.some((x) => x.rules?.rollup?.balance?.minus?.includes(column.ref) === true);
           if (!capped) out.push({ path: here('rollup', 'cap'), message: 'a cap needs a balance: declare one here, or subtract this total in one' });
         }
+        if (r.capUnless !== undefined) {
+          const flag = index.column(table.ref, r.capUnless.column);
+          if (r.cap !== true) out.push({ path: here('rollup', 'capUnless'), message: 'capUnless lifts a cap: say "cap": true beside it' });
+          if (flag === undefined) out.push({ path: here('rollup', 'capUnless', 'column'), message: `"${table.ref}" has no column "${r.capUnless.column}"` });
+          else if (flag.type !== 'bool' || flag.nullable === true) out.push({ path: here('rollup', 'capUnless', 'column'), message: `"${table.ref}.${flag.ref}" says yes or no for every row: a bool that is not nullable` });
+        }
+        // One scale: a balance, what it starts from, what it takes away and what is summed are all the same decimals.
+        if (r.balance !== undefined && child !== undefined && r.sum !== undefined) {
+          const scaleOf = (found: { type: string; scale?: number | 'currency' | undefined } | undefined) => (found === undefined || !['decimal', 'money'].includes(found.type) ? undefined : (found.scale ?? 'default'));
+          const parts: [string, ReturnType<typeof scaleOf>][] = [
+            [`${table.ref}.${r.balance.column}`, scaleOf(index.column(table.ref, r.balance.column) as never)],
+            [`${table.ref}.${r.balance.of}`, scaleOf(index.column(table.ref, r.balance.of) as never)],
+            ...(r.balance.minus ?? []).map((ref): [string, ReturnType<typeof scaleOf>] => [`${table.ref}.${ref}`, scaleOf(index.column(table.ref, ref) as never)]),
+            [`${table.ref}.${column.ref}`, scaleOf(column as never)],
+            [`${r.from}.${r.sum}`, scaleOf(index.column(r.from, r.sum) as never)],
+          ];
+          const scales = new Set(parts.map(([, scale]) => scale).filter((scale) => scale !== undefined));
+          if (scales.size > 1 && r.times === undefined) {
+            out.push({ path: here('rollup', 'balance'), message: `a balance and its parts keep one scale: ${parts.filter(([, scale]) => scale !== undefined).map(([name, scale]) => `${name} ${scale === 'default' ? '(none said)' : String(scale)}`).join(', ')}` });
+          }
+        }
         out.push(...rollupCountIssues(r, column.type, here));
       }
       if (rules.stamp !== undefined) {
@@ -2199,9 +2247,74 @@ export function appReferenceIssues(
       if (rules.tableRef !== undefined && (column.type !== 'text' || column.maxLength === undefined)) {
         out.push({ path: here('tableRef'), message: 'a table name is kept in a text column with maxLength' });
       }
+      if (rules.plainText !== undefined && column.type !== 'text') {
+        out.push({ path: here('plainText'), message: 'plain text is a rule of a text column' });
+      }
+      if (rules.announce !== undefined) {
+        // Told from the settle, which has the row before and after only for a formula over one of its own totals.
+        const reads = rules.formula === undefined ? [] : formulaColumns(rules.formula);
+        const total = reads.some((ref) => {
+          const read = index.column(table.ref, ref) as { rules?: ColumnRules } | undefined;
+          return read?.rules?.rollup !== undefined || table.columns.some((x) => x.rules?.rollup?.balance?.column === ref);
+        });
+        if (rules.formula === undefined || !total) {
+          out.push({ path: here('announce'), message: 'a change is announced of a formula column that reads a total of its own row (a rollup, or its balance)' });
+        }
+        if (column.type === 'money') out.push({ path: here('announce'), message: 'a money total is not announced: announce a flag or a state worked out from it (an int)' });
+      }
+      if (rules.customerKey !== undefined) {
+        const of = index.column(table.ref, rules.customerKey.of);
+        if (column.type !== 'text' || column.maxLength !== 64 || column.nullable !== true) {
+          out.push({ path: here('customerKey'), message: 'a customer key is a nullable text column of 64 characters' });
+        }
+        if (of === undefined) out.push({ path: here('customerKey', 'of'), message: `"${table.ref}" has no column "${rules.customerKey.of}"` });
+        else if (of.type !== 'text' || of.ref === column.ref) out.push({ path: here('customerKey', 'of'), message: `"${table.ref}.${of.ref}" is not a text column holding an address` });
+        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        if (others.length > 0) out.push({ path: here('customerKey'), message: `a customer key is worked out from its address, not also decided by ${others.join(', ')}` });
+        decide(table.ref, column.ref);
+      }
+      if (rules.codeLast4 !== undefined) {
+        const of = index.column(table.ref, rules.codeLast4.of) as { ref: string; rules?: ColumnRules } | undefined;
+        if (column.type !== 'text' || column.nullable !== true) out.push({ path: here('codeLast4'), message: 'the last four of a code are kept in a nullable text column' });
+        if (of === undefined) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}" has no column "${rules.codeLast4.of}"` });
+        else if (of.rules?.code === undefined || of.ref === column.ref) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}.${of.ref}" is not a code Adminium makes (rules.code)` });
+        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        if (others.length > 0) out.push({ path: here('codeLast4'), message: `the last four of a code are copied from it, not also decided by ${others.join(', ')}` });
+        decide(table.ref, column.ref);
+      }
     });
     if (table.columns.filter((column) => column.rules?.lookup !== undefined).length > 2) {
       out.push({ path: at('columns'), message: 'a table resolves at most two typed codes' });
+    }
+    if (table.columns.filter((column) => column.rules?.announce !== undefined).length > 4) {
+      out.push({ path: at('columns'), message: 'a table announces at most four columns' });
+    }
+    if (table.postings !== undefined) {
+      // What a posting makes Adminium's own: how long a hold lasts, and an amount its ledger decides — on the row, or on the parent its lines belong to.
+      for (const posting of table.postings) {
+        const parentRef = posting.via === undefined ? undefined : table.columns.find((x) => x.ref === posting.via)?.references;
+        const own = (mapping: unknown) => {
+          if (typeof mapping === 'string') decide(table.ref, mapping);
+          else if (parentRef !== undefined && typeof mapping === 'object' && mapping !== null && 'parent' in mapping) decide(parentRef, String((mapping as { parent: unknown }).parent));
+        };
+        if (posting.heldUntil !== undefined) own(posting.heldUntil);
+        const action = (m.ledgers ?? []).find((ledger) => ledger.id === posting.into.ledger && posting.into.addOn === m.key)?.actions[posting.into.action];
+        for (const rule of action?.decides ?? []) if (posting.map[rule.input] !== undefined) own(posting.map[rule.input]);
+      }
+      out.push(
+        ...postingIssues(
+          table as LedgerTableShape,
+          {
+            key: shapeOf?.addOn ?? m.key,
+            kind: shapeOf !== undefined || m.ledgers !== undefined ? 'add-on' : 'app',
+            tables: tables as ReadonlyMap<string, LedgerTableShape>,
+            named: new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)),
+            features: new Map((m.addOns?.features ?? []).map((feature) => [feature.id, feature.requires])),
+            ledgers: m.ledgers ?? [],
+          },
+          at,
+        ),
+      );
     }
     if (table.capacity !== undefined) out.push(...capacityIssues(table, table.capacity, index, at));
     if (table.booking !== undefined) {
@@ -2657,6 +2770,7 @@ export interface RequiredTableShape {
   booking?: z.infer<typeof bookingSchema> | undefined;
   states?: States | undefined;
   builtOn?: string | undefined;
+  postings?: z.infer<typeof postingsSchema> | undefined;
 }
 
 /**
@@ -2846,7 +2960,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -2854,6 +2968,7 @@ export function installsLikeAnApp(m: Manifest): boolean {
       table.booking !== undefined ||
       table.unique !== undefined ||
       table.indexes !== undefined ||
+      table.postings !== undefined ||
       table.columns.some((column) => column.rules !== undefined),
   );
 }
@@ -2883,14 +2998,44 @@ function addOnPageRefIssues(m: { key: string; pages?: readonly { ref: string }[]
   return out;
 }
 
+/** An add-on's ledgers as the manifest's own schema reads them; what does not parse is reported and left out. */
+function parsedLedgers(raw: readonly unknown[], out: { path: (string | number)[]; message: string }[]): Ledger[] {
+  const parsed = ledgersSchema.safeParse(raw);
+  if (parsed.success) return parsed.data;
+  for (const issue of parsed.error.issues) {
+    out.push({ path: ['addOn', 'ledgers', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+  }
+  return [];
+}
+
+/** An add-on's ledgers, typed. Empty for an app, and for an add-on that declares none. */
+export function ledgersOf(m: Manifest): Ledger[] {
+  if (m.kind !== 'add-on' || m.addOn.ledgers === undefined) return [];
+  const parsed = ledgersSchema.safeParse(m.addOn.ledgers);
+  return parsed.success ? parsed.data : [];
+}
+
 /** Everything wrong with an add-on that installs like an app, beyond what its blocks say of themselves. */
 function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; message: string }[] {
   const out: { path: (string | number)[]; message: string }[] = [];
   const tables = m.requiredSchema?.tables ?? [];
   const byRef = new Map(tables.map((table) => [table.ref, table]));
 
-  out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] } }));
+  // `addOn.ledgers` is typed loosely in the contracts package (it cannot see these words); it is checked in full here.
+  const ledgers = m.addOn.ledgers === undefined ? [] : parsedLedgers(m.addOn.ledgers, out);
+  out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] }, ledgers }));
   if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)));
+
+  // A ledger is served by the add-on's one `posting-rows` provider, and its receipt table is the one Adminium writes.
+  if (m.addOn.ledgers !== undefined) {
+    const providers = (m.addOn.provides ?? []).filter((entry) => entry.contract === 'posting-rows');
+    if (providers.length !== 1) out.push({ path: ['addOn', 'provides'], message: 'an add-on with ledgers provides the contract "posting-rows" exactly once' });
+    ledgers.forEach((ledger, l) => {
+      const receipts = byRef.get(ledger.receipts);
+      if (receipts === undefined) out.push({ path: ['addOn', 'ledgers', l, 'receipts'], message: `"${ledger.receipts}" is not one of this add-on's tables` });
+      else out.push(...receiptTableIssues(receipts as LedgerTableShape, (...rest) => ['requiredSchema', 'tables', tables.indexOf(receipts), ...rest]));
+    });
+  }
 
   // Blocks that name tables need tables to name.
   if (m.requiredSchema === undefined) {

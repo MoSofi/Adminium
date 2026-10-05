@@ -72,6 +72,7 @@ import {
   type PublicEndpointDefinition,
   type PublicMethod,
 } from './endpoint.js';
+import { ruleDecidedColumns } from '../crud/decided-columns.js';
 import { DECIDED_COLUMN_OPS, managedEditIssues, managedGrantIssues } from './managed-key.js';
 import {
   compileScope,
@@ -364,10 +365,15 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       const balance = o.op === 'column.rollup' ? (o.value['balance'] as { column?: unknown } | undefined) : undefined;
       return typeof balance?.column === 'string' ? [balance.column] : [];
     });
+    // What the table's postings, and its lines' postings, make Adminium's: read from the model, which knows the links.
+    const view = await deps.viewFor(connectionId);
+    const table = view?.model.tables.find((candidate) => candidate.id === source);
+    const byRules = view === null || view === undefined || table === undefined ? [] : [...ruleDecidedColumns(table, view.model)];
     return new Set([
       ...rows.filter((o) => DECIDED_COLUMN_OPS.includes(o.op)).flatMap((o) => (o.columnName === null ? [] : [o.columnName])),
       ...(typeof flag?.flag === 'string' ? [flag.flag] : []),
       ...balances,
+      ...byRules,
     ]);
   }
 

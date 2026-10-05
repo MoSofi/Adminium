@@ -66,6 +66,17 @@ export const PUBLIC_ERROR_CODES = [
   /** No room of the type asked for is free on one of the nights (409). */
   'PUBLIC_NO_ROOM',
   /**
+   * What a line asks for is out of stock (409). On a create with child rows,
+   * `error.params.child`, `index` and `path` name the line; `left` says how
+   * much there is only where the venue shows it.
+   */
+  'PUBLIC_OUT_OF_STOCK',
+  /**
+   * A gift card or a voucher code was refused (409). `error.params.reason`
+   * is always `not-valid`; `error.params.column` names where it was typed.
+   */
+  'PUBLIC_CARD_REFUSED',
+  /**
    * Too late for this change online — a cancellation, a refund, a check-in
    * past its window (409); the venue still can. `error.params.at`, when
    * present, is when the window closed.

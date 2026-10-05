@@ -163,6 +163,12 @@ export const stateMoveSchema = z.union([
        * for that move only. Only on a move marked `undo`.
        */
       clears: z.array(refSchema).min(1).max(8).optional(),
+      /**
+       * The move is made only by a ledger's own planned update (an order
+       * received when its last line is in): no person and no role makes it,
+       * no button offers it, and no timed rule reaches it.
+       */
+      planned: z.literal(true).optional(),
     })
     .strict(),
 ]);
@@ -510,6 +516,11 @@ export function statesIssues<C extends ColumnShape>(
           out.push({ path: at('moves', from, m, 'roles'), message: `"${role}" is not one of the app's roles` });
         }
       }
+      if (move.planned === true) {
+        // Made by a ledger's planned update alone: nothing a person does, so nothing a person's move carries.
+        if (move.undo === true) out.push({ path: at('moves', from, m, 'planned'), message: 'an undo is made by a person, a planned move by a ledger: a move is one or the other' });
+        if (move.roles !== undefined) out.push({ path: at('moves', from, m, 'roles'), message: 'a planned move is made by no role: take "roles" out' });
+      }
       // An undo takes back a listed move: the one from where it goes to where it starts.
       if (move.undo === true && !(states.moves[to] ?? []).some((back) => moveTarget(back) === from)) {
         out.push({ path: at('moves', from, m, 'undo'), message: `no listed move goes from "${to}" to "${from}", so this move takes nothing back` });
@@ -731,6 +742,7 @@ function conditionedMoveIssues<C extends ColumnShape>(
     const move = listed(timed.from, timed.to);
     if (move === undefined) out.push({ path: here('to'), message: `no listed move goes from "${timed.from}" to "${timed.to}"` });
     else if (typeof move === 'object' && move.undo === true) out.push({ path: here('to'), message: `the move from "${timed.from}" to "${timed.to}" is an undo, which only a person makes` });
+    else if (typeof move === 'object' && move.planned === true) out.push({ path: here('to'), message: `the move from "${timed.from}" to "${timed.to}" is planned, which only a ledger's own update makes` });
     if ((states.timed ?? []).some((other, j) => j < i && other.from === timed.from)) {
       out.push({ path: here('from'), message: `another timed move already leaves "${timed.from}"` });
     }

@@ -697,6 +697,62 @@ const codeWhere = z
   )
   .max(4);
 
+/** A table of an add-on: the add-on's key and the table's short name. */
+const addOnTable = z.object({ addOn: z.string().min(1).max(80), table: ruleColumn }).strict();
+
+/** A ledger, action, posting or feature id. */
+const ledgerId = z.string().min(1).max(40);
+const postingScalar = z.union([z.string().max(256), z.number(), z.boolean()]);
+
+/** The moment a posting's phase fires (the manifest's `Point`). */
+const storedPostingPoint = z.union([
+  z.object({ create: z.literal(true) }).strict(),
+  z.object({ to: z.array(stateName).min(1).max(16), from: z.array(stateName).min(1).max(16).optional() }).strict(),
+  z.object({ column: ruleColumn, in: z.array(postingScalar).min(1).max(16), from: z.array(postingScalar).min(1).max(16).optional(), own: z.literal(true).optional() }).strict(),
+  z.object({ column: ruleColumn, set: z.literal(true), own: z.literal(true).optional() }).strict(),
+]);
+
+/** What an input is filled from (the manifest's `Mapping`). */
+const storedPostingMapping = z.union([
+  ruleColumn,
+  z.object({ row: z.literal(true) }).strict(),
+  z.object({ parent: ruleColumn }).strict(),
+  z.object({ setting: ruleColumn }).strict(),
+  z.object({ value: postingScalar }).strict(),
+]);
+
+const storedPostingPhase = z.object({ on: storedPostingPoint }).strict();
+
+/** One posting as it is stored: the manifest's own keys, every one of them. */
+export const storedPosting = z
+  .object({
+    id: ledgerId,
+    into: z.object({ addOn: z.string().min(1).max(80), ledger: ledgerId, action: ledgerId }).strict(),
+    needs: ledgerId.optional(),
+    via: ruleColumn.optional(),
+    reserve: storedPostingPhase.optional(),
+    post: storedPostingPhase.optional(),
+    reverse: storedPostingPhase.optional(),
+    map: z.record(z.string().min(1).max(40), storedPostingMapping),
+    multipliers: z.record(z.string().min(1).max(40), storedPostingMapping).optional(),
+    heldUntil: storedPostingMapping.optional(),
+    refuses: z
+      .array(z.object({ table: ruleTable.optional(), via: ruleColumn.optional(), column: ruleColumn, set: z.literal(true) }).strict())
+      .min(1)
+      .max(4)
+      .optional(),
+    unlessSet: ruleColumn.optional(),
+    only: z
+      .union([
+        z.object({ column: ruleColumn, eq: postingScalar }).strict(),
+        z.object({ column: ruleColumn, in: z.array(postingScalar).min(1).max(16) }).strict(),
+        z.object({ column: ruleColumn, set: z.literal(true) }).strict(),
+      ])
+      .optional(),
+  })
+  .strict();
+export type StoredPosting = z.infer<typeof storedPosting>;
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -911,7 +967,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z
       .object({
         from: ruleColumn,
-        table: ruleTable,
+        /** A table by its id in the snapshot; or a table of an add-on by the add-on's key and the table's short name, found when the rule is read. */
+        table: z.union([ruleTable, addOnTable]),
         column: ruleColumn,
         where: codeWhere.optional(),
         scope: z
@@ -1030,6 +1087,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .optional(),
       /** A write that would take the balance below zero is refused. */
       cap: z.literal(true).optional(),
+      /** With `cap`: not judged for a row whose yes/no column is true. */
+      capUnless: z.object({ column: z.string().min(1).max(128) }).strict().optional(),
     }).refine((v) => (v.sum === undefined) !== (v.count === undefined), { message: 'a total adds up `sum` or counts rows (`count: true`), not both' }),
   }),
   /*
@@ -1140,6 +1199,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                 undo: z.literal(true).optional(),
                 /** An undo's further columns it empties, open to the lock for that move only. */
                 clears: z.array(ruleColumn).min(1).max(8).optional(),
+                /** Made only by a ledger's own planned update: no person, no role, no button, no timed rule. */
+                planned: z.literal(true).optional(),
               }),
             ]),
           )
@@ -1176,6 +1237,36 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       ...statesTiming,
     }),
   }),
+  /*
+   * What a row of the table hands to an add-on's ledger, and when. Kept as
+   * the manifest spells it; a sibling table a posting names (`refuses`) is its
+   * id in the snapshot. Every key is listed: a key left out here would be
+   * dropped from the stored rule without a word.
+   */
+  z.object({
+    op: z.literal('table.postings'),
+    value: z.object({ postings: z.array(storedPosting).min(1).max(6) }).strict(),
+  }),
+  /* The owner's switch on a posting (or on the price rule), apart from the rule so an app update never switches it back on. */
+  z.object({
+    op: z.literal('table.switchedOff'),
+    value: z.object({ postings: z.array(ledgerId).max(6), adjust: z.literal(true).optional() }).strict(),
+  }),
+  /* A formula column over one of its row's totals whose change is told after the save. */
+  z.object({ op: z.literal('column.announce'), value: z.object({ announce: z.literal(true) }).strict() }),
+  /* A text column holding a table's stored name, rewritten when the table is renamed. */
+  z.object({ op: z.literal('column.tableRef'), value: z.object({ tableRef: z.literal(true) }).strict() }),
+  /* A link into a table of an add-on, by the add-on's key and the table's short name: no foreign key, found when the rule is read. */
+  z.object({ op: z.literal('column.addOnLink'), value: addOnTable }),
+  /* The last four characters of the code in `of`, written by Adminium. */
+  z.object({ op: z.literal('column.codeLast4'), value: z.object({ of: ruleColumn }).strict() }),
+  /* Text that may hold no link and no address: a name (`true`), or how many digits and characters a note may hold. */
+  z.object({
+    op: z.literal('column.plainText'),
+    value: z.object({ plainText: z.union([z.literal(true), z.object({ digits: z.number().int().min(0).max(20).optional(), max: z.number().int().min(1).max(1000).optional() }).strict()]) }).strict(),
+  }),
+  /* A keyed hash of the address in `of`, written by Adminium. */
+  z.object({ op: z.literal('column.customerKey'), value: z.object({ of: ruleColumn }).strict() }),
   z.object({
     op: z.literal('relation.add'),
     value: z.object({

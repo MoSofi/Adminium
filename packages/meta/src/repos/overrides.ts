@@ -53,6 +53,12 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.bounds',
   'column.lookup',
   'column.perNight',
+  'column.announce',
+  'column.tableRef',
+  'column.addOnLink',
+  'column.codeLast4',
+  'column.plainText',
+  'column.customerKey',
 ]);
 
 export interface SchemaOverride {

@@ -36,12 +36,70 @@ import { randomInt } from 'node:crypto';
 
 import { sql, type Kysely } from 'kysely';
 
+import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { clearedLinks, resolveLookups, type LookupOptions } from './code-lookup.js';
 import type { ColumnCode, ColumnSequence, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import type { WriteAction } from './write-context.js';
+
+/**
+ * The inputs of a ledger action that Adminium decides (an amount a card may
+ * pay), by where a posting goes; `null` when the ledger is not at hand.
+ */
+export type DecidedInputs = (into: { addOn: string; ledger: string; action: string }) => readonly string[] | null;
+
+/**
+ * THE COLUMNS A TABLE'S RULES MAKE ADMINIUM'S, beside each column's own rule.
+ *
+ * A posting hands columns of a row to an add-on's ledger. Two kinds of them
+ * are written by Adminium and by nobody else: the column a posting's
+ * `heldUntil` reads (a guest never sets how long a hold lasts), and a column
+ * mapped to an input the ledger's action decides. Either may sit on the row
+ * itself, or — for a posting whose rows are lines (`via`) — on the parent the
+ * lines belong to (`{parent: <column>}`).
+ *
+ * One function, so every reader that asks "may a guest write this column"
+ * gives the same answer: a public entry's check, the key a manifest grants,
+ * the definition an operator edits.
+ */
+export function ruleDecidedColumns(
+  table: Pick<EffectiveTable, 'id' | 'postings'>,
+  model: Pick<EffectiveModel, 'tables' | 'relations'>,
+  decides?: DecidedInputs,
+): Set<string> {
+  const out = new Set<string>();
+  const decidedOf = (posting: NonNullable<EffectiveTable['postings']>[number]): ReadonlySet<string> => new Set(decides?.(posting.into) ?? []);
+  // The table's own postings: a column of the row itself.
+  for (const posting of table.postings ?? []) {
+    if (typeof posting.heldUntil === 'string') out.add(posting.heldUntil);
+    const decided = decidedOf(posting);
+    for (const [input, mapping] of Object.entries(posting.map)) {
+      if (decided.has(input) && typeof mapping === 'string') out.add(mapping);
+    }
+  }
+  // Postings of the tables whose rows are this table's lines: a column of the parent.
+  for (const child of model.tables) {
+    for (const posting of child.postings ?? []) {
+      if (posting.via === undefined) continue;
+      const toHere = model.relations.some(
+        (relation) => relation.through === null && relation.from.tableId === child.id && relation.from.columns.length === 1 && relation.from.columns[0] === posting.via && relation.to.tableId === table.id,
+      );
+      if (!toHere) continue;
+      const ofParent = (mapping: unknown): string | null =>
+        typeof mapping === 'object' && mapping !== null && typeof (mapping as { parent?: unknown }).parent === 'string' ? (mapping as { parent: string }).parent : null;
+      const held = ofParent(posting.heldUntil);
+      if (held !== null) out.add(held);
+      const decided = decidedOf(posting);
+      for (const [input, mapping] of Object.entries(posting.map)) {
+        const column = ofParent(mapping);
+        if (decided.has(input) && column !== null) out.add(column);
+      }
+    }
+  }
+  return out;
+}
 
 /** The meta store's counters, as far as a write uses them (`documentSequencesRepo`). */
 export interface SequenceStore {

@@ -297,6 +297,14 @@ export const PUBLIC_CODE_GUESSES = {
   key: { max: 60, windowMs: 60_000 },
 } as const;
 
+/**
+ * The rungs wrong codes are counted on, each with the limits above. A code
+ * that is money (a gift card, a voucher) has a rung of its own, so guessing
+ * at cards never spends the tries a discount code has, nor the other way.
+ */
+export const PUBLIC_GUESS_RUNGS = { code: 'guess', card: 'guess-card' } as const;
+export type PublicGuessRung = keyof typeof PUBLIC_GUESS_RUNGS;
+
 /** How long a code that worked is remembered for its visitor. */
 export const PUBLIC_CODE_KNOWN_MS = 60 * 60_000;
 

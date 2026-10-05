@@ -26,6 +26,13 @@
  *    by the caller that holds a rollup (`from` elsewhere is a column or a
  *    fill's source).
  *
+ * ONE FORM IS NOT A TABLE OF THIS MANIFEST: `{addOn, table}` — exactly those
+ * two keys — names a table of an add-on by the add-on's key and the table's
+ * own short name (a link into it, a lookup among its codes). It is kept as it
+ * is written and resolved when the rule is read, against that add-on's own
+ * install; mapped here it would be swapped for a table of this manifest that
+ * happens to share the name, or reported missing.
+ *
  * And it says which refs did not resolve, so each writer can refuse or skip
  * by name instead of storing a table that is not there (the live-model check).
  */
@@ -40,6 +47,10 @@ export interface MappedRefs<T> {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** `{addOn, table}` and nothing else: a table of an add-on, never one of this manifest's. */
+export const isAddOnTable = (value: unknown): value is { addOn: string; table: string } =>
+  isRecord(value) && Object.keys(value).length === 2 && typeof value['addOn'] === 'string' && typeof value['table'] === 'string';
 
 /**
  * `value` with every table ref replaced by `map(ref)`. A ref the map has no
@@ -61,6 +72,7 @@ export function mapTableRefs<T>(value: T, map: Map, opts: { refKeys?: readonly s
   const walk = (node: unknown, top: boolean): unknown => {
     if (Array.isArray(node)) return node.map((item) => walk(item, false));
     if (!isRecord(node)) return node;
+    if (isAddOnTable(node)) return { ...node };
     const out: Record<string, unknown> = {};
     for (const [key, child] of Object.entries(node)) {
       if (keys.has(key) && typeof child === 'string' && (key === 'table' || top)) out[key] = real(child);

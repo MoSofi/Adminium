@@ -175,6 +175,30 @@ describe('buildPutDocument — exact server contract', () => {
     expect(buildPutDocument(baseline, new Map())).toEqual({ overrides: [{ op: 'column.perNight', tableName: 'public.stays', columnName: 'room_total', value }] });
   });
 
+  it('carries the rules an install keeps back, each with its own column, and a table\'s postings whole', () => {
+    const rows = [
+      row({ op: 'column.addOnLink', tableName: 'public.order_lines', columnName: 'item_id', value: { addOn: 'kit', table: 'items' } }),
+      row({ op: 'column.addOnLink', tableName: 'public.order_lines', columnName: 'batch_id', value: { addOn: 'kit', table: 'batches' } }),
+      row({ op: 'column.tableRef', tableName: 'public.links', columnName: 'source_table', value: { tableRef: true } }),
+      row({ op: 'column.announce', tableName: 'public.items', columnName: 'low', value: { announce: true } }),
+      row({ op: 'column.codeLast4', tableName: 'public.cards', columnName: 'last4', value: { of: 'code' } }),
+      row({ op: 'column.plainText', tableName: 'public.order_lines', columnName: 'note', value: { plainText: { digits: 4, max: 80 } } }),
+      row({ op: 'column.customerKey', tableName: 'public.orders', columnName: 'buyer_key', value: { of: 'buyer_email' } }),
+      row({ op: 'table.postings', tableName: 'public.order_lines', value: { postings: [{ id: 'line', into: { addOn: 'kit', ledger: 'units', action: 'use' }, via: 'order_id', reserve: { on: { create: true } }, map: { account: 'item_id' } }] } }),
+      row({ op: 'table.switchedOff', tableName: 'public.order_lines', value: { postings: ['line'] } }),
+    ];
+    const put = buildPutDocument(baselineFromRows(rows), new Map());
+    expect(put.overrides).toHaveLength(rows.length);
+    // Two links of one table are two rows: keyed by their column, sent with it.
+    expect(put.overrides.filter((item) => item.op === 'column.addOnLink').map((item) => item.columnName).sort()).toEqual(['batch_id', 'item_id']);
+    for (const item of put.overrides) {
+      const sent = rows.find((candidate) => candidate.op === item.op && (candidate.columnName ?? undefined) === item.columnName);
+      expect(sent, `${item.op} ${String(item.columnName)}`).toBeDefined();
+      expect(item.value).toEqual(sent!.value);
+      expect(item.columnName === undefined).toBe(item.op.startsWith('table.'));
+    }
+  });
+
   it('keeps disabled rows disabled and drops removed baseline ops', () => {
     const baseline = baselineFromRows([
       row({ op: 'table.label', tableName: 'public.customers', value: { label: 'Customers' } }),

@@ -33,8 +33,8 @@ import type { SourceDatabase } from '../../connections/manager.js';
 /** The header a read carries a typed code in. */
 export const CODE_HEADER = 'x-adminium-code';
 
-/** The reasons a refusal gives a typed code that missed. */
-const MISSES: ReadonlySet<string> = new Set(['unknown', 'used-up']);
+/** The reasons a refusal gives a typed code that missed: a discount code not found or used up, a card or a voucher not valid. */
+export const MISSES: ReadonlySet<string> = new Set(['unknown', 'used-up', 'not-valid']);
 
 /** The code a read carries, or null: a header, never the query string. */
 export function typedCodeOf(request: FastifyRequest): string | null {
@@ -124,7 +124,7 @@ export function guessRung(limiter: PublicRateLimiter, admit: (reply: FastifyRepl
   };
 }
 
-/** Whether a refusal answered a typed code as a miss (`unknown`, `used-up`). */
+/** Whether a refusal answered a typed code as a miss (one of `MISSES`). */
 export function missedCode(error: unknown): boolean {
   const params = (error as { params?: { reason?: unknown } } | null)?.params;
   return typeof params?.reason === 'string' && MISSES.has(params.reason);

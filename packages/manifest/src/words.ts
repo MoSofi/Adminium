@@ -56,6 +56,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (schema['prefixed'] === true) out.push({ word: 'requiredSchema.prefixed', path: 'requiredSchema.prefixed' });
     const block = isDoc(document['addOn']) ? document['addOn'] : {};
     if (block['settingsTable'] !== undefined) out.push({ word: 'addOn.settingsTable', path: 'addOn.settingsTable' });
+    if (block['ledgers'] !== undefined) out.push({ word: 'addOn.ledgers', path: 'addOn.ledgers' });
   } else if (isDoc(document['sampleData']) && document['sampleData']['addOns'] !== undefined) {
     out.push({ word: 'sampleData.addOns', path: 'sampleData.addOns' });
   }
@@ -64,12 +65,24 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (!isDoc(table)) return;
     const at = `requiredSchema.tables.${String(t)}`;
     if (table['indexes'] !== undefined) out.push({ word: 'table.indexes', path: `${at}.indexes` });
+    if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
+    if (isDoc(table['states'])) {
+      for (const [from, moves] of Object.entries(isDoc(table['states']['moves']) ? table['states']['moves'] : {})) {
+        list(moves).forEach((move, m) => {
+          if (isDoc(move) && move['planned'] === true) out.push({ word: 'states.planned', path: `${at}.states.moves.${from}.${String(m)}.planned` });
+        });
+      }
+    }
     list(table['columns']).forEach((column, c) => {
       const rules = isDoc(column) && isDoc(column['rules']) ? column['rules'] : null;
       if (rules === null) return;
       const here = `${at}.columns.${String(c)}.rules`;
       if (rules['addOnLink'] !== undefined) out.push({ word: 'column.addOnLink', path: `${here}.addOnLink` });
       if (rules['tableRef'] !== undefined) out.push({ word: 'column.tableRef', path: `${here}.tableRef` });
+      for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
+        if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
+      }
+      if (isDoc(rules['rollup']) && rules['rollup']['capUnless'] !== undefined) out.push({ word: 'rollup.capUnless', path: `${here}.rollup.capUnless` });
       if (isDoc(rules['lookup']) && isDoc(rules['lookup']['table'])) out.push({ word: 'column.addOnLink', path: `${here}.lookup.table` });
     });
   });

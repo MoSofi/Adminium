@@ -205,7 +205,16 @@ export class ConflictError extends AppError {
       // More child rows follow the changed row than one write moves (`details.table`, `count`).
       | 'FOLLOW_TOO_MANY'
       // A desk's save came to another figure than the price it showed (`details.column`, `total`): nothing kept.
-      | 'PRICE_CHANGED' = 'CONFLICT',
+      | 'PRICE_CHANGED'
+      // An add-on with tables, several databases, and none named: `details.connections` lists them.
+      | 'ADD_ON_SCHEMA_CONNECTION'
+      // An uninstall while something posts into the add-on: `details.postings`, `details.features`.
+      | 'ADD_ON_IN_USE'
+      // An add-on install or update stopped part way; `details.stage` says where. The same call resumes it.
+      | 'ADD_ON_INSTALL_INCOMPLETE'
+      | 'ADD_ON_UPDATE_INCOMPLETE'
+      // A rule an app or an add-on ships is switched off or copied, never deleted.
+      | 'AUTOMATION_MANAGED' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);
@@ -268,5 +277,78 @@ export class RateLimitedError extends AppError {
 
   constructor(message = 'Too many requests. Try again shortly.', details?: unknown) {
     super(429, 'RATE_LIMITED', message, details);
+  }
+}
+
+/**
+ * Why a posting was refused, beyond what the ledger's own code says
+ * (`out-of-stock`, `not-valid`, … — the add-on contract's reasons). These are
+ * Adminium's own.
+ */
+export const POSTING_ENGINE_REASONS = [
+  // The add-on's code threw, timed out, or answered outside what its ledger declares.
+  'planner-failed',
+  // More rows read or written than one posting may.
+  'too-large',
+  // The add-on is switched off, updating, without its files, or not one Adminium can vouch for.
+  'add-on-unavailable',
+  // The row's posting is still open: put it back first.
+  'receipt-open',
+  // A door that writes many rows at once cannot post: change the rows one at a time.
+  'one-at-a-time',
+  // Project code changes this table inside the save, so the posting cannot be planned ahead.
+  'hooked',
+  // A ledger table carries a booking guard or a number without gaps.
+  'guarded',
+  // A column the open posting read has changed.
+  'mapped-changed',
+  // A card may not pay for a card.
+  'card-pays-card',
+] as const;
+export type PostingEngineReason = (typeof POSTING_ENGINE_REASONS)[number];
+
+/**
+ * 409 `POSTING_REFUSED`: a ledger refused what a row asked of it, or a
+ * posting rule did. `details.reason` is one of the add-on contract's reasons
+ * or one of `POSTING_ENGINE_REASONS`; `left` and `item` are told only to a
+ * caller who may read the ledger's own tables.
+ */
+export class PostingRefusedError extends AppError {
+  override readonly name = 'PostingRefusedError';
+
+  constructor(
+    message: string,
+    details: {
+      reason: string;
+      ledger?: string;
+      posting?: string;
+      line?: number;
+      path?: (string | number)[];
+      left?: string;
+      item?: string;
+      rows?: number;
+      table?: string;
+      column?: string;
+      phase?: 'reserve' | 'post' | 'reverse';
+    },
+  ) {
+    super(409, 'POSTING_REFUSED', message, details);
+  }
+}
+
+/**
+ * 422 `ADD_ON_UNTRUSTED`: a package whose code would decide inside a save,
+ * from a source Adminium cannot vouch for. It is stored and never run.
+ */
+export class AddOnUntrustedError extends AppError {
+  override readonly name = 'AddOnUntrustedError';
+
+  constructor(key: string, version: string) {
+    super(
+      422,
+      'ADD_ON_UNTRUSTED',
+      `"${key}" ${version} carries code that decides inside a save, and this package is neither one Adminium ships nor one from its catalogue. It is stored, and nothing of it runs.`,
+      { key, version, stored: true },
+    );
   }
 }

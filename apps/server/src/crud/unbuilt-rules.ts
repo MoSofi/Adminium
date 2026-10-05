@@ -45,7 +45,28 @@ export interface UnbuiltEntryRule {
   on: (entry: Readonly<Record<string, unknown>>) => boolean;
 }
 
-export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
+export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
+  // A posting hands rows to an add-on's ledger: written unposted, the ledger would be wrong for good.
+  { rule: 'postings', on: (table) => (table.postings?.length ?? 0) > 0 },
+  // A move only a ledger's own update makes: until that judge runs, anybody could make it.
+  {
+    rule: 'states.planned',
+    on: (table) => Object.values(table.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && (move as { planned?: unknown }).planned === true)),
+  },
+  // A link into an add-on's table, and a typed code found there: a value kept unjudged may name no row.
+  { rule: 'column.addOnLink', on: (table) => table.columns.some((column) => column.addOnLink !== undefined || column.addOnLookup !== undefined) },
+  // A cap lifted for some rows: the parent that says so, and the child whose rows it judges.
+  {
+    rule: 'rollup.capUnless',
+    on: (table, model) =>
+      table.columns.some((column) => column.rollup?.capUnless !== undefined) ||
+      (model?.tables ?? []).some((parent) => parent.columns.some((column) => column.rollup?.capUnless !== undefined && column.rollup.from === table.id)),
+  },
+  // A change told after the save: a rule waiting on it would never run.
+  { rule: 'column.announce', on: (table) => table.columns.some((column) => column.announce === true) },
+  // A table's stored name: kept by a rename only once the repair knows the column.
+  { rule: 'column.tableRef', on: (table) => table.columns.some((column) => column.tableRef === true) },
+];
 
 /** The public entry keys whose behaviour is not built yet. */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
@@ -82,6 +103,15 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   'column.tableRef': ADD_ON_INSTALL_RELEASE,
   'sampleData.addOns': ADD_ON_INSTALL_RELEASE,
   'unlockBy.self': ADD_ON_INSTALL_RELEASE,
+  // Ledgers and what posts into them.
+  'addOn.ledgers': ADD_ON_INSTALL_RELEASE,
+  'table.postings': ADD_ON_INSTALL_RELEASE,
+  'states.planned': ADD_ON_INSTALL_RELEASE,
+  'rollup.capUnless': ADD_ON_INSTALL_RELEASE,
+  'column.announce': ADD_ON_INSTALL_RELEASE,
+  'column.plainText': ADD_ON_INSTALL_RELEASE,
+  'column.customerKey': ADD_ON_INSTALL_RELEASE,
+  'column.codeLast4': ADD_ON_INSTALL_RELEASE,
 };
 
 export interface UnbuiltWord {

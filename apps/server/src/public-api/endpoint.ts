@@ -30,8 +30,9 @@
 import { formulaColumns, linkedConditionSchema, stateConditionSchema } from '@adminium/manifest';
 import { z } from 'zod';
 
-import type { EffectiveColumn } from '../connections/effective-schema.js';
+import type { EffectiveColumn, EffectiveModel } from '../connections/effective-schema.js';
 import { columnPolicyFor } from '../connections/effective-schema.js';
+import { ruleDecidedColumns } from '../crud/decided-columns.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { ANONYMOUS_PER_IP_HOUR, copyPlainText, plainColumns, plainTextListSchema } from './anonymous-caps.js';
@@ -764,13 +765,20 @@ function decidedByAdminium(column: EffectiveColumn): boolean {
     column.rollup !== undefined ||
     column.stamp !== undefined ||
     column.lookup !== undefined ||
-    column.perNight !== undefined
+    column.perNight !== undefined ||
+    column.customerKey !== undefined ||
+    column.codeLast4 !== undefined
   );
 }
 
-/** The columns of a table Adminium decides: its columns' own rules, a balance, and a booking's late flag. */
-function decidedColumnsOf(table: ResolvedTable): Set<string> {
+/**
+ * The columns of a table Adminium decides: its columns' own rules, a balance,
+ * a booking's late flag, and — with the model at hand — what its postings and
+ * its lines' postings make Adminium's (`ruleDecidedColumns`).
+ */
+function decidedColumnsOf(table: ResolvedTable, model?: Pick<EffectiveModel, 'tables' | 'relations'>): Set<string> {
   const out = new Set(table.table.columns.filter(decidedByAdminium).map((c) => c.name));
+  for (const column of ruleDecidedColumns(table.table, model ?? { tables: [table.table], relations: [] })) out.add(column);
   for (const column of table.table.columns) if (column.rollup?.balance !== undefined) out.add(column.rollup.balance.column);
   const flag = table.table.booking?.cancel?.flag;
   if (flag !== undefined) out.add(flag);
@@ -1410,7 +1418,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     def.writable ?? definitionToResource(ref, def, def.methods, table).writable;
   const pk = new Set(table.primaryKey);
   const owned = new Set(table.table.columns.filter(serverOwned).map((c) => c.name));
-  const decided = decidedColumnsOf(table);
+  const decided = decidedColumnsOf(table, ctx.view?.model);
   if (def.methods.some((m) => WRITING_METHODS.has(m))) {
     for (const column of writable) {
       if (pk.has(column) || owned.has(column)) {

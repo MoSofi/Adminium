@@ -36,6 +36,8 @@ export const DECIDED_COLUMN_OPS: readonly string[] = [
   'column.format',
   'column.lookup',
   'column.perNight',
+  'column.customerKey',
+  'column.codeLast4',
 ];
 
 const WRITE_METHODS: ReadonlySet<PublicMethod> = new Set(['POST', 'PATCH', 'PUT', 'DELETE', 'BATCH']);

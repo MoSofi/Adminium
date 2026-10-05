@@ -20,6 +20,9 @@
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
 import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, undoMoveIssues, type States } from '@adminium/manifest';
 
+import { storedPosting } from '@adminium/meta';
+import { z } from 'zod';
+
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
 
 /**
@@ -97,7 +100,7 @@ export interface RelatedRules {
 }
 
 /** The rules through which Adminium fills a column itself: nobody is asked for it. */
-const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup', 'column.perNight']);
+const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup', 'column.perNight', 'column.customerKey', 'column.codeLast4']);
 
 /** Whether a rule saved beside this one has Adminium fill the column. */
 function filledByRule(related: RelatedRules | undefined, column: string): boolean {
@@ -143,7 +146,13 @@ export function columnRuleIssue(
     | 'column.retryKey'
     | 'column.bounds'
     | 'column.lookup'
-    | 'column.perNight',
+    | 'column.perNight'
+    | 'column.announce'
+    | 'column.tableRef'
+    | 'column.addOnLink'
+    | 'column.codeLast4'
+    | 'column.plainText'
+    | 'column.customerKey',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -458,9 +467,68 @@ export function columnRuleIssue(
       return null;
     }
 
+    case 'column.announce': {
+      // Told from the settle, which has the row before and after only for a formula column.
+      const formula = (related?.rules ?? []).some((rule) => rule.op === 'column.formula' && rule.columnName === column.name);
+      if (related !== undefined && !formula) return `A change is announced of a formula column; ${name} has no formula.`;
+      return null;
+    }
+
+    case 'column.tableRef': {
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `A table's name is kept in text; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.addOnLink': {
+      // No foreign key: the add-on may not be there. The column holds the key of a row of its table.
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot link into an add-on's table.`;
+      if (!column.nullable) return `A link into an add-on's table may be empty; ${name} is never empty.`;
+      if (!TEXTUAL_TYPES.has(column.logicalType) && column.logicalType !== 'integer' && column.logicalType !== 'bigint') {
+        return `A link into an add-on's table is a whole number or text; ${name} is ${column.logicalType}.`;
+      }
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const linked = model.relations.some((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.includes(column.name));
+      if (linked) return `${name} is a foreign key already, so it cannot also link into an add-on's table.`;
+      return null;
+    }
+
+    case 'column.codeLast4': {
+      if (!TEXTUAL_TYPES.has(column.logicalType)) return `The last four of a code are kept in text; ${name} is ${column.logicalType}.`;
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const of = String(value['of']);
+      if (of === column.name || table?.columns.some((c) => c.name === of) !== true) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(of)} to take the last four of.`;
+      const coded = (related?.rules ?? []).some((rule) => rule.op === 'column.code' && rule.columnName === of);
+      if (related !== undefined && !coded) return `${JSON.stringify(of)} is not a code Adminium makes, so there is nothing to take the last four of.`;
+      return null;
+    }
+
+    case 'column.plainText': {
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `Plain text is a rule of a text column; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.customerKey': {
+      if (!TEXTUAL_TYPES.has(column.logicalType) || !column.nullable) return `A customer key is kept in text that may be empty; ${name} is not.`;
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const of = table?.columns.find((c) => c.name === String(value['of']));
+      if (of === undefined || of.name === column.name) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(value['of'])} holding an address.`;
+      if (!TEXTUAL_TYPES.has(of.logicalType)) return `An address is text; ${JSON.stringify(of.name)} is ${of.logicalType}.`;
+      return null;
+    }
+
     case 'column.lookup': {
       // A link filled from a typed code: the link itself, the column typed into, and the codes' column.
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      if (typeof value['table'] !== 'string') {
+        // Among an add-on's codes: this database cannot see them, so the column says where it links.
+        const into = value['table'] as { addOn?: unknown; table?: unknown };
+        const link = (related?.rules ?? []).find((rule) => rule.op === 'column.addOnLink' && rule.columnName === column.name)?.value as { addOn?: unknown; table?: unknown } | undefined;
+        if (related !== undefined && (link === undefined || link.addOn !== into.addOn || link.table !== into.table)) {
+          return `A code looked up in an add-on's table fills a column that links there; ${name} carries no such link.`;
+        }
+        const typed = table?.columns.find((c) => c.name === String(value['from']));
+        if (typed === undefined) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(value['from'])} to type a code into.`;
+        if (!TEXTUAL_TYPES.has(typed.logicalType)) return `A code is typed into text; ${JSON.stringify(typed.name)} is ${typed.logicalType}.`;
+        return null;
+      }
       const targetId = String(value['table']);
       const relation = model.relations.find(
         (r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
@@ -590,7 +658,15 @@ export function columnRuleIssue(
       if ((value['sum'] === undefined) === (value['count'] === undefined)) return 'A total adds up a column or counts rows, not both.';
       if (value['count'] === true) {
         if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') return `A count needs a whole-number column; ${name} is ${column.logicalType}.`;
-        if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined) return 'A count takes nothing to multiply, no balance and no cap.';
+        if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined || value['capUnless'] !== undefined) return 'A count takes nothing to multiply, no balance and no cap.';
+      }
+      const capUnless = value['capUnless'] as Value | undefined;
+      if (capUnless !== undefined) {
+        // Lifts the cap for one row: a yes/no of this table that is never empty.
+        if (value['cap'] !== true) return 'A cap is lifted only where there is one: capUnless needs cap.';
+        const flag = parent?.columns.find((c) => c.name === String(capUnless['column']));
+        if (flag === undefined) return `${parent?.name ?? 'This table'} has no column ${JSON.stringify(capUnless['column'])} to lift the cap by.`;
+        if (flag.nullable || !(flag.logicalType === 'boolean' || flag.logicalType === 'integer')) return `${parent?.name}.${flag.name} must say yes or no for every row to lift a cap.`;
       }
       for (const part of [value['sum'], value['times']]) {
         if (part === undefined) continue;
@@ -1158,6 +1234,61 @@ export function bookingRuleIssue(raw: unknown, table: TableModel, model: Databas
     const { table: id, column } = setting as { table: string; column: string };
     const source = model.tables.find((candidate) => candidate.id === id);
     if (source?.columns.some((c) => c.name === column) !== true) return `There is no column ${JSON.stringify(column)} in ${JSON.stringify(id)} to read.`;
+  }
+  return null;
+}
+
+/**
+ * The reason a table's postings cannot be kept as they are stored, or `null`:
+ * every column a posting names is a column of the table (or, under `via`, of
+ * the row the lines belong to), `via` links the two, and a sibling table it
+ * names is there.
+ *
+ * Whether a posting fits the ledger it goes into is judged with that add-on's
+ * manifest at hand, where the rule is installed or saved; this is what the
+ * database alone can say.
+ */
+export function postingsRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const parsed = z.object({ postings: z.array(storedPosting).min(1).max(6) }).strict().safeParse(raw);
+  if (!parsed.success) return `The postings of ${table.name} are not spelled as Adminium stores them: ${parsed.error.issues[0]?.message ?? 'invalid'}.`;
+  const has = (of: TableModel, column: string): boolean => of.columns.some((c) => c.name === column);
+  const seen = new Set<string>();
+  for (const posting of parsed.data.postings) {
+    const named = `The posting ${JSON.stringify(posting.id)}`;
+    if (seen.has(posting.id)) return `Two postings of ${table.name} share the id ${JSON.stringify(posting.id)}.`;
+    seen.add(posting.id);
+    if (posting.reserve === undefined && posting.post === undefined) return `${named} says neither when it reserves nor when it posts.`;
+    if (table.primaryKey.length !== 1) return `${named} needs rows it can name: ${table.name} has no single-column key.`;
+    let parent: TableModel | undefined;
+    if (posting.via !== undefined) {
+      const link = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === posting.via);
+      parent = link === undefined ? undefined : model.tables.find((candidate) => candidate.id === link.to.tableId);
+      if (parent === undefined) return `${named} reads its rows as lines through ${JSON.stringify(posting.via)}, which links ${table.name} to no table.`;
+    }
+    for (const phase of ['reserve', 'post', 'reverse'] as const) {
+      const point = posting[phase]?.on;
+      if (point === undefined || 'create' in point || 'to' in point) continue;
+      const judged = parent !== undefined && point.own !== true ? parent : table;
+      if (!has(judged, point.column)) return `${named} fires on ${JSON.stringify(point.column)}, which is not a column of ${judged.name}.`;
+    }
+    const mappings: unknown[] = [...Object.values(posting.map), ...Object.values(posting.multipliers ?? {}), ...(posting.heldUntil === undefined ? [] : [posting.heldUntil])];
+    for (const mapping of mappings) {
+      if (typeof mapping === 'string') {
+        if (!has(table, mapping)) return `${named} reads ${JSON.stringify(mapping)}, which is not a column of ${table.name}.`;
+      } else if (typeof mapping === 'object' && mapping !== null && 'parent' in mapping) {
+        const column = String((mapping as { parent: unknown }).parent);
+        if (parent === undefined) return `${named} reads a column of its parent, and its rows are lines of nothing (no via).`;
+        if (!has(parent, column)) return `${named} reads ${JSON.stringify(column)}, which is not a column of ${parent.name}.`;
+      }
+    }
+    for (const column of [posting.unlessSet, posting.only?.column]) {
+      if (column !== undefined && !has(table, column)) return `${named} reads ${JSON.stringify(column)}, which is not a column of ${table.name}.`;
+    }
+    for (const refusal of posting.refuses ?? []) {
+      const sibling = refusal.table === undefined ? table : model.tables.find((candidate) => candidate.id === refusal.table);
+      if (sibling === undefined) return `${named} names the table ${JSON.stringify(refusal.table)}, which is not in this database.`;
+      if (!has(sibling, refusal.column)) return `${named} reads ${JSON.stringify(refusal.column)}, which is not a column of ${sibling.name}.`;
+    }
   }
   return null;
 }
