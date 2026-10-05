@@ -19,6 +19,7 @@ import {
   switchLocale,
   tagForLocale,
   uiWordsReady,
+  wordsReady,
   type I18nInstance,
   type LocaleId,
 } from '@adminium/i18n';
@@ -119,7 +120,10 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   // paint, so the first widget a page draws has them already rather than waiting on the fetch.
   setTimeout(() => {
     const current = getI18nInstance();
-    if (current !== null) void uiWordsReady(current);
+    if (current === null) return;
+    void uiWordsReady(current);
+    // And four screens' words of `common`: a dashboard page draws through the builder, so the home page asks for them.
+    void wordsReady(current, 'common');
   }, 0);
   // On Electron the native menu is localized by the SPA — resolve the labels
   // now that i18n is ready and push them to the shell. No-op off the desktop

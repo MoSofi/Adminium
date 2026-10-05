@@ -19,6 +19,7 @@ import { Alert, Button, Card, CardBody, CardHeader, IconTile, KeyValueList } fro
 
 import { isDesktopRuntime } from '../lib/desktop-runtime.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { aboutQuery, updateCheckQuery, type AboutData, type MetaEngine } from './aboutApi.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
@@ -102,6 +103,8 @@ function UpdateNotice({ about }: { about: AboutData }): ReactNode {
 }
 
 export function AboutPage(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const { data: about } = useSuspenseQuery(aboutQuery());
   // The Electron shell adds desktop-only sections (versions, data dir,
   // secret-storage mode, in-app licence viewers, telemetry, diagnostics) and

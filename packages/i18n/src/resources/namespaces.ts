@@ -197,5 +197,24 @@ export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
  */
 export const UI_DEFERRED_GROUPS = ['widgets', 'templates'] as const;
 
+/**
+ * The groups of en-US `common` that do not ship eagerly either: the words of
+ * the dashboard builder, the knowledge base, the About page and the Team
+ * page — four screens behind lazy routes, whose English was about 5.8 KiB gz
+ * of every user's entry chunk. As with `ui`, the KEYS keep their address
+ * (`common:builder.…`), no other locale changes, and en-US's copy is its own
+ * chunk (`en-us/common-deferred.ts`), merged in by `wordsReady(i18n,
+ * 'common')`, which each of those screens waits for before it renders.
+ *
+ * The same contract: nothing on the first paint and nothing on the server
+ * reads a key in these groups (the entry-budget check refuses a build whose
+ * entry names one).
+ */
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team'] as const;
+
+/** The namespaces en-US delivers in two parts, and the groups of each that come later. */
+export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;
+export type SplitNamespace = keyof typeof DEFERRED_GROUPS;
+
 /** A single namespace's message tree (nested string leaves). */
 export type ResourceBundle = { readonly [key: string]: string | ResourceBundle };

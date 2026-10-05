@@ -25,6 +25,7 @@ import project from './en-us/project.js';
 import reportBuilder from './en-us/reportBuilder.js';
 import roles from './en-us/roles.js';
 import studio from './en-us/studio.js';
+import commonDeferred from './en-us/common-deferred.js';
 import uiDeferred from './en-us/ui-deferred.js';
 
 import { EN_US_EAGER } from './eager.js';
@@ -34,11 +35,14 @@ export {
   DEFERRED_NAMESPACES,
   EAGER_NAMESPACES,
   NAMESPACES,
+  COMMON_DEFERRED_GROUPS,
+  DEFERRED_GROUPS,
   UI_DEFERRED_GROUPS,
   type DeferredNamespace,
   type EagerNamespace,
   type Namespace,
   type ResourceBundle,
+  type SplitNamespace,
 } from './namespaces.js';
 export { EN_US_EAGER } from './eager.js';
 
@@ -46,6 +50,8 @@ export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   ...EN_US_EAGER,
   // The whole `ui`: the eager part and the widget and template groups the runtime loads later.
   ui: { ...EN_US_EAGER.ui, ...uiDeferred },
+  // And the whole `common`: the eager part and the four screens' groups.
+  common: { ...EN_US_EAGER.common, ...commonDeferred },
   assistant,
   addOns,
   apiDocs,

@@ -41,6 +41,7 @@ import {
   type DocRecord,
 } from '@adminium/widgets';
 import { t } from '../../i18n/t.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { useSavePersonalLayout, useSaveSharedLayout } from '../layout/useLayoutPersistence.js';
 import { viewsApi } from '../views/viewsApi.js';
@@ -57,6 +58,8 @@ import type { PageTemplateProps } from '../template-types.js';
 export const BUILDER_AUTOSAVE_DEBOUNCE_MS = 900;
 
 export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTemplateProps) {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const pageId = page.id;
   const queryClient = useQueryClient();
   const state = useMemo(() => builderPageStateOf(page), [page]);

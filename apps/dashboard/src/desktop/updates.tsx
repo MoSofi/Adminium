@@ -43,6 +43,7 @@ import { useNavigate } from '@tanstack/react-router';
 import type { DesktopUpdateEvent } from '@adminium/desktop/api';
 
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { useAppToasts } from '../pages/toasts.js';
 
@@ -221,6 +222,8 @@ export function useDesktopUpdateFlow(): DesktopUpdateFlow {
  * pending, and one toast per version is a notice, not nagging.
  */
 export function DesktopUpdateToaster(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const toasts = useAppToasts();
   const navigate = useNavigate();
   const notified = useRef<Set<string>>(new Set());

@@ -23,6 +23,15 @@
   },
   "history": [
     {
+      "when": "2026-10-05",
+      "by": "loading four screens' en-US words with their screens: the `builder`, `kb`, `about` and `team` groups of `common` are their own chunk (`en-us/common-deferred`), as the widget and template words of `ui` have been since 2026-09-28",
+      "from": 282002,
+      "measured": "275,562 bytes (269.1 KiB gz), down from 281,168 measured on the same tree: 5,606 bytes gz out of the entry. The ratchet is NOT lowered here (it stays 282,002): the room, 6,440 bytes, is for the entry edits that follow, and the ratchet is brought down to the measured weight plus 2,000 when they have landed.",
+      "why": "The margin was 834 bytes, under the 1,024 a local build keeps against CI's own measurement, before work that adds to the eager `errors` catalogue and to the sidebar. Attributed through the entry's source map before and after: `en-us/common.js` 54,521 -> 37,430 raw; `en-us/common-deferred.js` attributes ZERO; the loader grew (`ui-words.js` 427 -> 896 raw, one for both namespaces), `deferred-counts.js` is 86 raw, `create-i18n.js` +38, `router.tsx` +16. Nothing else moved by more than a byte.",
+      "cost": "One chunk fetch (`common-deferred`) just after the first paint, as for the widget words: a dashboard page draws through the builder, so the home page needs them, and asking early keeps it from waiting on a second round trip. Each of the screens waits for it behind the Suspense boundary it already had (`useCommonWords`, apps/dashboard/src/i18n/commonWords.ts). The keys keep their address (`common:about.…`), so no call site, no other locale and no stored rewording changed. The entry check refuses a build whose entry names a key of the four groups.",
+      "alsoFixed": "A namespace's deferred groups were taken for present as soon as each group had ONE key in the store, so an owner who had reworded a widget word and a template word (both applied at boot) kept the rest of both groups' catalogue text out for the session: every call site then showed its inline English. The loader now counts a group's texts (`deferred-counts`, generated) instead of looking for the group."
+    },
+    {
       "when": "2026-09-29",
       "by": "the ratchet catching up with the deferred `ui.widgets` / `ui.templates` chunk: en-US widget and page-template words load on demand from `en-us/ui-deferred` since 2026-09-28, not in the entry",
       "from": 298471,

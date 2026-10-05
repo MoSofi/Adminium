@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/ui.json (its widgets and templates groups: en-US's deferred part of `ui`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/ui.json (its widgets, templates groups: en-US's deferred part of `ui`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)

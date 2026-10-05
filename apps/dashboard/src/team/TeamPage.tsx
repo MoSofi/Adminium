@@ -59,6 +59,7 @@ import { emailSendGate, useCapabilities } from '../app/capabilities.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
 import { rolesQuery, type RoleListItem } from './rolesApi.js';
 import {
@@ -436,6 +437,8 @@ function RolesDialog(props: {
 // --- page --------------------------------------------------------------------
 
 export function TeamPage(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const queryClient = useQueryClient();
   const { data: bootstrap } = useQuery(bootstrapQuery());
   const [filters, setFilters] = useState<UserFilters>(EMPTY_USER_FILTERS);
