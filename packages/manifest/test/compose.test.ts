@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { MANIFEST_PART_FIELDS, appManifestSchema, composeManifest, locateIssue, splitManifest, validateManifest, type ManifestPartFile } from '../src/index.js';
+import { MANIFEST_PART_FIELDS, appManifestSchema, composeManifest, installFloorWords, locateIssue, splitManifest, validateManifest, type ManifestPartFile } from '../src/index.js';
 import { LEDGER_HOST } from './ledger-kit-fixture.js';
 
 const json = (value: unknown): string => JSON.stringify(value);
@@ -185,10 +185,21 @@ describe('splitting one manifest into parts', () => {
 
   it('a manifest using every new word composes back to itself', () => {
     const document = structuredClone(LEDGER_HOST) as unknown as Record<string, unknown> & { requiredSchema: { tables: Record<string, unknown>[] } };
-    document.requiredSchema.tables[0] = { ...document.requiredSchema.tables[0], indexes: [['status', 'hold_until']] };
+    const actions = [
+      { id: 'ready', label: { 'en-US': 'Mark ready' }, move: { to: 'ready' }, tone: 'primary', set: { hold_until: { now: true } } },
+      { id: 'list', label: 'Back to the list', link: { page: 'orders', param: 'order' }, in: ['placed'] },
+    ];
+    const orders = document.requiredSchema.tables[0] as { states: Record<string, unknown> };
+    document.requiredSchema.tables[0] = { ...orders, indexes: [['status', 'hold_until']], states: { ...orders.states, actions } };
+    const config = {
+      tabs: { order_lines: { empty: 'No lines yet', noNew: true } },
+      layout: { toolbar: { links: [{ label: 'Count', href: '/p/orders', icon: 'clipboard-check', tone: 'primary' }, { label: 'New', href: '/p/orders', icon: 'plus' }] } },
+    };
+    const grants = [{ addOn: 'ledger-kit', table: 'accounts', actions: ['read', 'update'], limit: { readable: ['id', 'balance'], writable: ['note'] } }];
     const full = {
       ...document,
-      roles: [{ key: 'desk', name: 'Desk', permissions: ['table:@orders:read'] }],
+      pages: [{ ...(document['pages'] as Record<string, unknown>[])[0], config }],
+      roles: [{ key: 'desk', name: 'Desk', permissions: ['table:@orders:read'], tables: grants }],
       sampleData: { file: 'seeds/ledger-host.sample.json', addOns: { 'ledger-kit': { file: 'seeds/ledger-host.ledger-kit.sample.json' } } },
       automations: [
         {
@@ -217,6 +228,14 @@ describe('splitting one manifest into parts', () => {
     const table = (ref: string) => ((composed.ok ? composed.document['requiredSchema'] : {}) as { tables: Record<string, unknown>[] }).tables.find((candidate) => candidate['ref'] === ref) as Record<string, unknown>;
     expect(table('order_lines')['postings']).toEqual((full.requiredSchema.tables.find((candidate) => candidate['ref'] === 'order_lines') as Record<string, unknown>)['postings']);
     expect(table('orders')['indexes']).toEqual([['status', 'hold_until']]);
+    expect((table('orders')['states'] as Record<string, unknown>)['actions']).toEqual(actions);
+    const whole = (composed.ok ? composed.document : {}) as { roles: Record<string, unknown>[]; pages: Record<string, unknown>[]; sampleData: unknown };
+    expect(whole.roles[0]!['tables']).toEqual(grants);
+    expect(whole.pages[0]!['config']).toEqual(config);
+    expect(whole.sampleData).toEqual(full.sampleData);
+    // The fixture uses the words it says it does: each is one the walker names.
+    const words = installFloorWords(full).map((found) => found.word);
+    for (const word of ['automations', 'table.postings', 'table.indexes', 'states.actions', 'roles.tables', 'config.tabs', 'toolbar.links', 'sampleData.addOns', 'column.customerKey']) expect(words, word).toContain(word);
   });
 
   it('has released manifests to try', () => {

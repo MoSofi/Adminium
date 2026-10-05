@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { installFloorWords, lookUpOf, stateActionKind, validateManifest, type Manifest } from '../src/index.js';
 import { BULK, CARD_ACTIONS, DESK, DESK_HOST, LOOK_UP } from './desk-fixture.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests reach into a manifest freely
 type Doc = Record<string, any>;
 
 /** The messages a changed copy of a fixture is refused with; none when it validates. */

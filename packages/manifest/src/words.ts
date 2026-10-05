@@ -16,7 +16,7 @@
 
 export interface ManifestWord {
   /** The word as a refusal names it: `pages`, `requiredSchema.prefixed`, `column.addOnLink`. */
-  word: string;
+  word: ManifestWordName;
   /** Dotted path to where the document writes it. */
   path: string;
 }
@@ -42,6 +42,49 @@ export const ADD_ON_INSTALL_BLOCKS = [
   'automations',
   'addOns',
 ] as const;
+
+/**
+ * Every word the walker can name. The walker's own type: a word it names and
+ * this list lacks does not compile. A server keeps one answer per name — it
+ * runs the word, or it refuses a manifest that uses it — and its tests read
+ * this list to see that none is left without one.
+ */
+export const INSTALL_FLOOR_WORD_NAMES = [
+  ...ADD_ON_INSTALL_BLOCKS,
+  'requiredSchema.prefixed',
+  'addOn.settingsTable',
+  'addOn.ledgers',
+  'addOn.adjuster',
+  'addOn.words',
+  'addOn.recordTabs',
+  'addOn.hostApi.2',
+  'addOn.lookUp',
+  'ledger.decides',
+  'table.indexes',
+  'table.postings',
+  'table.adjust',
+  'states.actions',
+  'states.planned',
+  'column.addOnLink',
+  'column.tableRef',
+  'column.announce',
+  'column.plainText',
+  'column.customerKey',
+  'column.codeLast4',
+  'rollup.capUnless',
+  'roles.tables',
+  'toolbar.links',
+  'config.tabs',
+  'config.bulk',
+  'sampleData.addOns',
+  'email.onlyWith',
+  'email.onlyWithout',
+  'outbox.pages.app',
+  'rows.pair',
+  'unlockBy.self',
+  'availability.words',
+] as const;
+export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
 /** Every word of `document` that needs the install floor, in document order. */
 export function installFloorWords(document: unknown): ManifestWord[] {

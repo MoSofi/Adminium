@@ -21,6 +21,7 @@ import { packageTarball } from './app-bundle-helpers.js';
 import { installHarness, type Harness } from './app-install-harness.js';
 import { manifestOf, modelOf, store } from './rule-round-trip.helpers.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests reach into a manifest freely
 type Doc = Record<string, any>;
 
 const KIT = manifestOf(structuredClone(DESK));
@@ -90,7 +91,7 @@ describe('the stored buttons of a record page', () => {
 });
 
 describe('the words a server reads and does not run yet', () => {
-  const NEW = ['states.actions', 'toolbar.links', 'config.tabs', 'config.bulk', 'roles.tables', 'addOn.lookUp'];
+  const NEW = ['states.actions', 'toolbar.links', 'config.tabs', 'config.bulk', 'roles.tables', 'addOn.lookUp'] as const;
   const found = (doc: unknown) => unbuiltInManifest(doc).map((word) => `${word.word} ${word.release}`);
 
   it('each names the release that runs it', () => {

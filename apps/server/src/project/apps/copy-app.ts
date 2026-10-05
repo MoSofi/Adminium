@@ -32,6 +32,38 @@ export interface RenameResult {
 /** `my-shop` → `my_shop`: how the engine prefixes a table. */
 export const tablePrefix = (key: string): string => key.split('-').join('_');
 
+/**
+ * A sample file under the new key: the app's own (`seeds/<key>.sample.json`)
+ * and each one it carries for an add-on (`seeds/<key>.<add-on>.sample.json`).
+ * Null for any other path.
+ */
+export function sampleFileFor(path: string, from: string, to: string): string | null {
+  if (!path.startsWith(`seeds/${from}.`) || !path.endsWith('.sample.json')) return null;
+  const middle = path.slice(`seeds/${from}.`.length, -'sample.json'.length);
+  return /^([a-z][a-z0-9-]*\.)?$/.test(middle) ? `seeds/${to}.${middle}sample.json` : null;
+}
+
+/** A document with its object keys in one order and its tables and pages by ref: what two spellings of one manifest share. */
+function canonical(value: unknown, byRef = false): unknown {
+  if (Array.isArray(value)) {
+    const list = value.map((item) => canonical(item));
+    return byRef ? [...list].sort((a, b) => (String((a as Json)['ref']) < String((b as Json)['ref']) ? -1 : 1)) : list;
+  }
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.keys(value as Json)
+      .sort()
+      .map((key) => [key, canonical((value as Json)[key], key === 'tables' || key === 'pages')]),
+  );
+}
+
+/** The top-level fields of `before` that `after` does not hold as they were. */
+export function lostFields(before: Json, after: Json): string[] {
+  const a = canonical(before) as Json;
+  const b = canonical(after) as Json;
+  return Object.keys(a).filter((key) => JSON.stringify(a[key]) !== JSON.stringify(b[key]));
+}
+
 /** `old-x` → `new-x` when the value is the old key and a hyphen and more; null otherwise. */
 function rekey(value: string, from: string, to: string): string | null {
   return value.startsWith(`${from}-`) ? `${to}-${value.slice(from.length + 1)}` : null;
@@ -56,12 +88,19 @@ export function renameManifest(document: Json, to: string, name: string): Rename
     const next = rekey(template.key, from, to);
     if (next !== null) templates.set(template.key, next);
   }
-  const seeds = `seeds/${from}.sample.json`;
+  // A rule the app ships is kept under the app's key, as a page and a template are.
+  const rules = new Map<string, string>();
+  for (const rule of (document['automations'] as { key?: unknown }[] | undefined) ?? []) {
+    if (typeof rule.key !== 'string') continue;
+    const next = rekey(rule.key, from, to);
+    if (next !== null) rules.set(rule.key, next);
+  }
 
   const text = (value: string): string => {
-    const whole = pages.get(value) ?? templates.get(value);
+    const whole = pages.get(value) ?? templates.get(value) ?? rules.get(value);
     if (whole !== undefined) return whole;
-    if (value === seeds) return `seeds/${to}.sample.json`;
+    const sample = sampleFileFor(value, from, to);
+    if (sample !== null) return sample;
     if (value.startsWith(`mft.${from}.`)) return `mft.${to}.${value.slice(from.length + 5)}`;
     if (value.startsWith(`/a/${from}/`)) return `/a/${to}/${value.slice(from.length + 4)}`;
     // A permission on one of the app's own pages: `page:@<ref>:<verb>`.
@@ -176,7 +215,7 @@ export function renameSource(path: string, text: string, from: string, to: strin
   }
   swap('a text key', new RegExp(`${quote}mft\\.${K}\\.`, 'g'), (_all, q) => `${q as string}mft.${to}.`);
   // The sample file, imported by its name.
-  swap('the sample file', new RegExp(`seeds/${K}\\.sample\\.json`, 'g'), () => `seeds/${to}.sample.json`);
+  swap('the sample file', new RegExp(`seeds/${K}\\.((?:[a-z][a-z0-9-]*\\.)?)sample\\.json`, 'g'), (_all, addOn) => `seeds/${to}.${addOn as string}sample.json`);
   swap('the app’s own address', new RegExp(`/apps/${K}/`, 'g'), () => `/apps/${to}/`);
   swap('the app’s dashboard address', new RegExp(`/a/${K}/`, 'g'), () => `/a/${to}/`);
   return { text: out, changes };
@@ -245,12 +284,18 @@ export function planCopy(source: ReadonlyMap<string, Buffer>, opts: { to: string
 
   // The manifest as part files: a model edits a table's file, not 900 KB of JSON.
   const parts = splitManifest(renamed.manifest);
-  if (!composeManifest(parts).ok) problems.push('The renamed manifest cannot be written as part files.');
+  const composed = composeManifest(parts);
+  if (!composed.ok) problems.push('The renamed manifest cannot be written as part files.');
+  else {
+    // A field the parts have no file for would be left behind without a word.
+    const lost = lostFields(renamed.manifest, composed.document);
+    if (lost.length > 0) problems.push(`The renamed manifest lost a field when it was written as part files: ${lost.join(', ')}.`);
+  }
   for (const part of parts) files.set(`manifest/${part.path}`, Buffer.from(part.text, 'utf8'));
 
   for (const [path, bytes] of source) {
     if (path === 'manifest.json' || isDropped(path)) continue;
-    const target = path === `seeds/${from}.sample.json` ? `seeds/${opts.to}.sample.json` : path;
+    const target = sampleFileFor(path, from, opts.to) ?? path;
     const isText = path === 'package.json' || /^seeds\/.*\.sample\.json$/.test(path) || isRenamedSource(path);
     if (!isText) {
       files.set(target, bytes);

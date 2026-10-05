@@ -346,7 +346,7 @@ export {
   type ComposeResult,
   type PartOrigin,
 } from './compose.js';
-export { ADD_ON_INSTALL_BLOCKS, installFloorWords, type ManifestWord } from './words.js';
+export { ADD_ON_INSTALL_BLOCKS, INSTALL_FLOOR_WORD_NAMES, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
 export {
   LEDGERS_MAX,
   LEDGER_ACTIONS_MAX,

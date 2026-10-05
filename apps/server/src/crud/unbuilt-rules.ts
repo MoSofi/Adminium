@@ -24,7 +24,7 @@
  * Each detector is removed in the change that builds its rule. A release
  * ships with no word it claims to run itself (a test says so).
  */
-import { installFloorWords } from '@adminium/manifest';
+import { installFloorWords, type ManifestWordName } from '@adminium/manifest';
 
 import { AppError, ValidationFailedError } from '../errors.js';
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
@@ -98,9 +98,11 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
 
 /**
  * The words of a manifest this server reads and does not run yet, each with
- * the release that runs it. A word is taken out in the change that builds it.
+ * the release that runs it. The change that builds a word moves it from here
+ * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
+ * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // An add-on's own blocks: what it declares in an app's words.
   pages: ADD_ON_INSTALL_RELEASE,
   roles: ADD_ON_INSTALL_RELEASE,
@@ -157,6 +159,9 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   'addOn.adjuster': PRICE_QUESTION_RELEASE,
   'ledger.decides': PRICE_QUESTION_RELEASE,
 };
+
+/** The newer words of a manifest this server runs: nothing is refused for using one. */
+export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [];
 
 export interface UnbuiltWord {
   /** The word as the manifest writes it (`pages`, `column.addOnLink`). */
