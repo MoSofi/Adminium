@@ -49,7 +49,7 @@ export function stockKitManifest(): Record<string, unknown> {
     optionLists: { zones: { label: { 'en-US': 'Zones' }, values: [{ value: 'shelf', label: 'Shelf' }, { value: 'cellar' }] } },
     pages: [{ ref: 'stock-kit-items', template: 'page-crud', title: { key: 'stock.items', fallback: 'Items' }, nav: { group: 'manage', icon: 'box', order: 1 }, bindings: { main: 'items' } }],
     roles: [
-      { key: 'manager', name: 'Stock manager', permissions: ['table:@items:read', 'table:@items:update', 'table:@takes:read', 'table:@takes:create', 'page:@stock-kit-items:view', 'page:@stock-kit-count:view'] },
+      { key: 'manager', name: 'Stock manager', permissions: ['table:@items:read', 'table:@items:update', 'table:@takes:read', 'table:@takes:create', 'page:@stock-kit-items:view', 'page:@stock-kit-count:view', 'addOn:stock-kit:settings'] },
       { key: 'reader', name: 'Stock reader', permissions: ['table:@items:read', 'page:@stock-kit-items:view'] },
     ],
   };

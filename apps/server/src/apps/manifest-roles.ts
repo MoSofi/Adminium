@@ -121,7 +121,9 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
          */
         const addOn = ADD_ON_SETTINGS.exec(grant)![1]!;
         const named = [...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].some((need) => need.key === addOn);
-        if (!named) refuse(`"${grant}" names an add-on the app neither requires nor suggests`);
+        // An add-on's own role may be given the add-on's own settings: that is what its manager is for.
+        const own = (manifest as Manifest).kind === 'add-on' && addOn === manifest.key;
+        if (!named && !own) refuse(`"${grant}" names an add-on the app neither requires nor suggests`);
       } else if (!APP.test(grant)) {
         refuse(`"${grant}" is not a grant an app can give (table:@…, page:@… or app:@:staff)`);
       }

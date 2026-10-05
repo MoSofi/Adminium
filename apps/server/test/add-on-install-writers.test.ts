@@ -5,9 +5,10 @@
  * its roles. The rules hold from the first write; the pages are seen only by
  * the add-on's own roles; and whoever installed it holds its first role.
  */
-import { optionListsRepo, overridesRepo, pagesRepo, permissionsRepo, rolesRepo } from '@adminium/meta';
+import { optionListsRepo, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { addOnSettingsGrantHeld } from '../src/rbac/add-on-grant.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { stockKitManifest } from './fixtures/stock-kit/index.js';
 import { LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -116,6 +117,24 @@ describe('who sees an add-on\'s pages', () => {
     const held = (await roles.rolesForUser(h.owner.id)).map((role) => role.slug);
     expect(held).toContain('stock-kit-manager');
     expect(held).not.toContain('stock-kit-reader');
+  });
+
+  it('its manager may save its own settings while it is installed, and no other add-on\'s; its reader may not', async () => {
+    const made = await installed('sqlite');
+    h = made.harness;
+    const roles = rolesRepo(h.meta);
+    const people = usersRepo(h.meta);
+    const manager = await people.create({ email: 'manager@test', name: 'Manager' });
+    const reader = await people.create({ email: 'reader@test', name: 'Reader' });
+    await roles.assignToUser(manager.id, (await roles.findBySlug('stock-kit-manager'))!.id);
+    await roles.assignToUser(reader.id, (await roles.findBySlug('stock-kit-reader'))!.id);
+    const held = (user: { id: string }, addOn = 'stock-kit') => addOnSettingsGrantHeld(h!.meta, { kind: 'user', id: user.id, label: 'x' }, addOn);
+    expect(await held(manager)).toBe(true);
+    expect(await held(reader)).toBe(false);
+    expect(await held(manager, 'invoices')).toBe(false);
+    // Only while it is installed: an add-on being changed answers no.
+    await h.meta.db.updateTable('adminium_manifests').set({ status: 'updating' }).where('manifestKey', '=', 'stock-kit').execute();
+    expect(await held(manager)).toBe(false);
   });
 
   it('a role or a page whose name the owner already uses is a problem said before anything is made, never merged into', async () => {

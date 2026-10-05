@@ -14,7 +14,9 @@
  *  - a role of the workspace's own (no app) holds it as given — someone who
  *    may manage roles gave it by name;
  *  - an app's role holds it only while that app is installed and the add-on
- *    is installed, connected to that app, and switched on there.
+ *    is installed, connected to that app, and switched on there;
+ *  - an add-on's own role holds its own add-on's settings while the add-on is
+ *    installed (its role exists for nothing else), and no other add-on's.
  *
  * Switching the app off already suspends its roles (the resolver); this adds
  * the add-on's side of the same question.
@@ -38,6 +40,17 @@ export async function addOnSettingsGrantHeld(meta: MetaDb, principal: RbacPrinci
     const row = await permissions.find(role.id, 'app', addOnSettingsRef(addOnKey));
     if ((row?.actions as { staff?: boolean } | undefined)?.staff !== true) continue;
     if (role.appKey === null) return true;
+    if (role.appKey === addOnKey) {
+      const own = await meta.db
+        .selectFrom('adminium_manifests')
+        .select('id')
+        .where('manifestKey', '=', addOnKey)
+        .where('kind', '=', 'add-on')
+        .where('status', '=', 'installed')
+        .executeTakeFirst();
+      if (own !== undefined) return true;
+      continue;
+    }
     const app = await meta.db
       .selectFrom('adminium_manifests')
       .select('id')
