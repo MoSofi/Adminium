@@ -88,9 +88,9 @@ describe('the compiled resource and the scope document', () => {
   });
 
   it('the compiled scope a request is judged by carries words', () => {
-    const compiled = compileScope({ version: 1, side: 'customer', resources: [resource] });
+    const compiled = compileScope({ version: 1, side: 'customer', timezone: 'UTC', resources: [resource] });
     expect(compiled.byRef.get('menu_items_availability')?.words).toEqual({ addOn: 'inventory', id: 'stock' });
-    const plain = compileScope({ version: 1, side: 'customer', resources: [{ ...resource, words: undefined }] });
+    const plain = compileScope({ version: 1, side: 'customer', timezone: 'UTC', resources: [{ ...resource, words: undefined }] });
     expect(plain.byRef.get('menu_items_availability')?.words).toBeUndefined();
   });
 
