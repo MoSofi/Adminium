@@ -825,5 +825,12 @@ export function describeDocumentRenderer(
   });
 }
 
-export { postingRowsConformance, type PostingRowsCase, type PostingRowsConformanceOptions } from './posting-rows.js';
+export {
+  postingCaseIssues,
+  postingRowsConformance,
+  postingSourceIssues,
+  type PostingRowsCase,
+  type PostingRowsConformanceOptions,
+  type PostingRowsLedger,
+} from './posting-rows.js';
 export { priceAdjustConformance, type PriceAdjustCase, type PriceAdjustConformanceOptions } from './price-adjust.js';

@@ -114,7 +114,7 @@ describe('what a ledger declares it writes', () => {
 });
 
 postingRowsConformance(provider, {
-  ledgers: { units: { writes: WRITES } },
+  ledgers: { units: { writes: WRITES, sums: { entries: ['amount'] } } },
   cases: [
     { name: 'a line within the balance is taken', input: input(), expect: { rows: [{ op: 'insert', table: 'entries', values: { amount: '2.000', kind: 'use' } }], refusals: [] } },
     { name: 'a line over the balance is refused with what is left', input: input({ lines: [{ line: '41', lineTable: 'shop:order_lines', inputs: { account: 3, quantity: '9.000' }, multipliers: {}, round: 1 }] }), expect: { rows: [], refusals: [{ line: '41', reason: 'out-of-stock', left: '5.000' }] } },
