@@ -631,6 +631,12 @@ export const publicAccessSchema = z
     /** Availability of a parent limit: the column of the pool's rows a page asks by (an event's ticket types). */
     under: refSchema.optional(),
     /**
+     * Availability answered by an add-on's stock words (`<add-on key>:<words
+     * id>`) in place of a limit of the table: each row asked about is `in`,
+     * `low` or `out`, with how many are left only where the owner shows it.
+     */
+    words: z.string().regex(/^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$/, '<add-on key>:<words id>').optional(),
+    /**
      * Rows readable only with a code that unlocks them: a row of `table`
      * whose `column` holds the typed code, and whose `link` points at the row
      * (a presale code revealing its ticket type).
@@ -710,6 +716,8 @@ interface PublicAccessContext {
   mailsOnCreate?: (table: string) => boolean;
   /** Whether the table carries a capacity or a booking rule to answer availability from. */
   answersAvailability: (table: string) => boolean;
+  /** The add-ons whose stock words an entry may be answered by: the ones the manifest names, and itself when it is one. Absent: not checked. */
+  addOns?: ReadonlySet<string> | undefined;
   /** The table's limits, as it declares them (absent: the caller does not say). */
   capacityOf?: (table: string) => Capacity | undefined;
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
@@ -1326,11 +1334,22 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         }
       }
     }
-    if (entry.kind === 'availability') {
+    if (entry.words !== undefined) {
+      // Answered by an add-on's stock words, not by a limit of the table: its own entry, shaped by nothing else.
+      const [addOn] = entry.words.split(':') as [string, string];
+      if (entry.kind !== 'availability') out.push({ path: at('words'), message: 'stock words answer an availability entry: write "kind": "availability" beside them' });
+      for (const name of ['rule', 'showLeft', 'under', 'claim', 'unlockBy'] as const) {
+        if (entry[name] !== undefined) out.push({ path: at(name), message: `an entry answered by stock words takes no "${name}": the add-on's own settings say what is shown` });
+      }
+      if (ctx.addOns !== undefined && !ctx.addOns.has(addOn)) {
+        out.push({ path: at('words'), message: `"${addOn}" is not an add-on this manifest names: add it to addOns.requires or addOns.suggests` });
+      }
+      if (entry.methods.some((method) => method !== 'GET')) out.push({ path: at('methods'), message: 'availability is read-only' });
+    } else if (entry.kind === 'availability') {
       if (!ctx.answersAvailability(entry.table)) out.push({ path: at('kind'), message: `"${entry.table}" declares no capacity or booking to answer from` });
       if (entry.methods.some((method) => method !== 'GET')) out.push({ path: at('methods'), message: 'availability is read-only' });
     }
-    out.push(...availabilityShapeIssues(entry, ctx, at));
+    if (entry.words === undefined) out.push(...availabilityShapeIssues(entry, ctx, at));
     if (entry.unlockBy !== undefined) out.push(...unlockIssues(entry, entry.unlockBy, entries, ctx, at));
     if (entry.pictures !== undefined) out.push(...pictureIssues(entry, entry.pictures, entries, ctx, at));
   });

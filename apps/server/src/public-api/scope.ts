@@ -374,6 +374,8 @@ const resourceSchema = z
     showLeft: z.union([z.object({ below: z.number().int().min(1) }).strict(), z.object({ belowShare: z.number().int().min(1).max(100) }).strict()]).optional(),
     /** On an availability resource of a parent limit: the column of the pools' rows a page asks by. */
     under: columnSchema.optional(),
+    /** On an availability resource answered by an add-on's stock words: the add-on's key and the words' id. */
+    words: z.object({ addOn: z.string().min(1).max(80), id: z.string().min(1).max(40) }).strict().optional(),
     /** The email sent when a guest creates a row (see the endpoint's `confirm`). */
     confirm: z.record(z.string(), z.unknown()).optional(),
     /** The only values a caller may write into these columns. */
@@ -715,6 +717,8 @@ export interface CompiledResource {
   capacityRule?: number;
   showLeft?: { below: number } | { belowShare: number };
   under?: string;
+  /** Answered by an add-on's stock words, in place of a limit of the table. */
+  words?: { addOn: string; id: string };
   /** The confirmation a guest's create sends, or null. */
   confirm: Record<string, unknown> | null;
   /*
@@ -1515,6 +1519,7 @@ export function compileScope(
       ...(r.capacityRule === undefined ? {} : { capacityRule: r.capacityRule }),
       ...(r.showLeft === undefined ? {} : { showLeft: { ...r.showLeft } }),
       ...(r.under === undefined ? {} : { under: r.under }),
+      ...(r.words === undefined ? {} : { words: { addOn: r.words.addOn, id: r.words.id } }),
       confirm: r.confirm ?? null,
       children: new Map(Object.entries(r.children ?? {})),
       agrees: [...(r.agrees ?? [])],

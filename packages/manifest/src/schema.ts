@@ -47,7 +47,7 @@ import { compareSemver, parseSemverRange } from './semver.js';
 import { installFloorWords } from './words.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
-import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, type Ledger, type LedgerScopeTable, type LedgerTableShape } from './ledgers.js';
+import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 
 export { compareSemver };
 
@@ -2393,6 +2393,7 @@ export function appReferenceIssues(
       index,
       decided: (table) => decided.get(table) ?? new Set(),
       answersAvailability: (table) => tables.get(table)?.capacity !== undefined || tables.get(table)?.booking !== undefined,
+      addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),
       capacityOf: (table) => tables.get(table)?.capacity,
       figures: figureColumns(m.requiredSchema.tables),
       mailsOnCreate: (table) => (m.outbox?.producers ?? []).some((producer) => 'onCreate' in producer && producer.onCreate.table === table),
@@ -3009,7 +3010,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -3058,6 +3059,13 @@ function parsedLedgers(raw: readonly unknown[], out: { path: (string | number)[]
   return [];
 }
 
+/** An add-on's stock words, typed. Empty for an app, and for an add-on that declares none. */
+export function wordsOf(m: Manifest): StockWords[] {
+  if (m.kind !== 'add-on' || m.addOn.words === undefined) return [];
+  const parsed = wordsListSchema.safeParse(m.addOn.words);
+  return parsed.success ? parsed.data : [];
+}
+
 /** An add-on's adjuster, typed; null for an app, and for an add-on that declares none. */
 export function adjusterOf(m: Manifest): Adjuster | null {
   if (m.kind !== 'add-on' || m.addOn.adjuster === undefined) return null;
@@ -3082,6 +3090,16 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
   const ledgers = m.addOn.ledgers === undefined ? [] : parsedLedgers(m.addOn.ledgers, out);
   out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] }, ledgers }));
   if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)));
+
+  // Stock words: a question asked of one of the add-on's own ledgers.
+  if (m.addOn.words !== undefined) {
+    const parsed = wordsListSchema.safeParse(m.addOn.words);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'words', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(...wordsIssues({ words: parsed.data, ledgers, tables: tables as readonly LedgerTableShape[], settingsTable: m.addOn.settingsTable }));
+    }
+  }
 
   // The adjuster is typed loosely in the contracts package too: its words are checked here.
   if (m.addOn.adjuster !== undefined) {

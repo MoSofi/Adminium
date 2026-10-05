@@ -183,6 +183,8 @@ function definitionOf(
         ? {}
         : { show_left: 'below' in entry.showLeft ? { below: entry.showLeft.below } : { below_share: entry.showLeft.belowShare } }),
       ...(entry.under === undefined ? {} : { under: entry.under }),
+      // Answered by an add-on's stock words: the add-on's key and the words' id, as the entry names them.
+      ...(entry.words === undefined ? {} : { words: { add_on: entry.words.slice(0, entry.words.indexOf(':')), id: entry.words.slice(entry.words.indexOf(':') + 1) } }),
     } as PublicEndpointDefinition;
   }
   // No `select`: every column, but a code Adminium makes or a column the app keeps secret — shown only where named.

@@ -332,9 +332,11 @@ export function wideningOf(before: unknown, after: PublicScopeDocument): Widenin
     const parentChanged = prior?.visibleWith !== undefined && JSON.stringify(prior.visibleWith) !== JSON.stringify(r.visibleWith);
     // A code's unlock dropped or changed lets rows out that a code kept; a picture newly shown lets its file out.
     const unlockChanged = prior !== undefined && (JSON.stringify(prior.unlockBy) !== JSON.stringify(r.unlockBy) || (r.pictures ?? []).some((c) => !(prior.pictures ?? []).includes(c)));
+    // An entry newly answered by an add-on's stock words (or by other words) tells what it did not tell before.
+    const wordsChanged = prior !== undefined && r.words !== undefined && JSON.stringify(prior.words) !== JSON.stringify(r.words);
     const rows =
       prior !== undefined &&
-      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged || unlockChanged || treeLoosened(prior, r));
+      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged || unlockChanged || wordsChanged || treeLoosened(prior, r));
     if (methods.length > 0 || columns.length > 0 || rows) out.push({ ref: r.ref, methods, columns, rows });
   }
   return out;

@@ -142,7 +142,7 @@ describe('a release', () => {
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
     expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef', 'adjust']);
-    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['unlock_by.self']);
+    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['unlock_by.self', 'words']);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {

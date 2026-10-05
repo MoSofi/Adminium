@@ -59,6 +59,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['settingsTable'] !== undefined) out.push({ word: 'addOn.settingsTable', path: 'addOn.settingsTable' });
     if (block['ledgers'] !== undefined) out.push({ word: 'addOn.ledgers', path: 'addOn.ledgers' });
     if (block['adjuster'] !== undefined) out.push({ word: 'addOn.adjuster', path: 'addOn.adjuster' });
+    if (block['words'] !== undefined) out.push({ word: 'addOn.words', path: 'addOn.words' });
     // An amount Adminium decides for a ledger's action (what a card may pay).
     list(block['ledgers']).forEach((ledger, l) => {
       for (const [name, action] of Object.entries(isDoc(ledger) && isDoc(ledger['actions']) ? ledger['actions'] : {})) {
@@ -122,6 +123,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && isDoc(entry['unlockBy']) && entry['unlockBy']['self'] === true) {
       out.push({ word: 'unlockBy.self', path: `publicAccess.${String(e)}.unlockBy` });
     }
+    if (isDoc(entry) && entry['words'] !== undefined) out.push({ word: 'availability.words', path: `publicAccess.${String(e)}.words` });
   });
   return out;
 }

@@ -91,6 +91,8 @@ export const publicAvailabilityReply = z.object({
     z.array(
       z.object({ pool: z.string(), state: z.enum(['open', 'full', 'closed']), left: z.number().int().optional(), earliest: z.string().nullable().optional() }),
     ),
+    // An entry answered by an add-on's stock words: each row asked about, in the order asked; `left` only where the owner shows it.
+    z.array(z.object({ id: z.string(), state: z.enum(['in', 'low', 'out']), left: z.number().int().optional() })),
   ]),
   /** A night limit asked with `earliest`: the first arrival of the same length where any fitting pool is open. */
   earliest: z.string().nullable().optional(),

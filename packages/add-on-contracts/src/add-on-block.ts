@@ -296,6 +296,17 @@ export const addOnBlockSchema = z
      * manifest's own, so `@adminium/manifest` checks the whole of it.
      */
     adjuster: z.record(z.string(), z.unknown()).optional(),
+    /**
+     * Stock words: a question a page may ask of a ledger without writing
+     * anything — "is this in, low or out?". Only the id is typed here; the
+     * rest names the manifest's own ledgers and settings, which
+     * `@adminium/manifest` checks.
+     */
+    words: z
+      .array(z.looseObject({ id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a words id is kebab-case') }))
+      .min(1)
+      .max(4)
+      .optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

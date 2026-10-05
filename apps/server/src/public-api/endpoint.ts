@@ -401,6 +401,12 @@ export const publicEndpointDefinitionSchema = z
     /** Availability of a parent limit: the column of the pools' rows a page asks by. */
     under: columnSchema.optional(),
     /**
+     * Availability answered by an add-on's stock words in place of a limit of
+     * the table: the add-on's key and the words' id. Each row asked about is
+     * in, low or out.
+     */
+    words: z.object({ add_on: z.string().min(1).max(80), id: z.string().min(1).max(40) }).strict().optional(),
+    /**
      * Rows readable only with a code that unlocks them: a row of `table` whose
      * `column` holds the typed code and whose `link` points at the row. No
      * row answers without one.
@@ -595,6 +601,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.capacity_rule !== undefined) out['capacity_rule'] = def.capacity_rule;
   if (def.show_left !== undefined) out['show_left'] = { ...def.show_left };
   if (def.under !== undefined) out['under'] = def.under;
+  if (def.words !== undefined) out['words'] = { add_on: def.words.add_on, id: def.words.id };
   if (def.unlock_by !== undefined) {
     out['unlock_by'] = {
       table: def.unlock_by.table,
@@ -934,6 +941,7 @@ export function definitionToResource(
     if (def.capacity_rule !== undefined) resource.capacityRule = def.capacity_rule;
     if (def.show_left !== undefined) resource.showLeft = 'below' in def.show_left ? { below: def.show_left.below } : { belowShare: def.show_left.below_share };
     if (def.under !== undefined) resource.under = def.under;
+    if (def.words !== undefined) resource.words = { addOn: def.words.add_on, id: def.words.id };
   }
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
   // What a write must send and may send: said only of a resource that takes one, or a key
@@ -1355,15 +1363,20 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     const capacity = table.table.capacity;
     const rules = table.table.capacityRules ?? [];
     if ([...methods].some((m) => m !== 'GET')) push('ENDPOINT_AVAILABILITY_READ_ONLY', 'availability answers GET only');
-    if (capacity === undefined && rules.length === 0 && table.table.booking === undefined) {
+    if (def.words !== undefined) {
+      // Answered by an add-on's stock words: no limit of the table is read, so nothing that shapes one is said.
+      for (const [name, value] of [['capacity_rule', def.capacity_rule], ['show_left', def.show_left], ['under', def.under], ['claim', def.claim], ['unlock_by', def.unlock_by]] as const) {
+        if (value !== undefined) push('ENDPOINT_AVAILABILITY_SHAPE', `${name} is not said of availability answered by stock words`, name);
+      }
+    } else if (capacity === undefined && rules.length === 0 && table.table.booking === undefined) {
       push('ENDPOINT_AVAILABILITY_NO_LIMIT', `${def.source} has no booking limit to answer availability from`);
     } else if (capacity?.resource !== undefined || rules.some((rule) => rule.kind === 'slot' && rule.resource !== undefined)) {
       // A booking rule answers per person; a capacity limit per table or room does not yet.
       push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
     }
-    issues.push(...availabilityShapeIssues(def, table, view as SnapshotView).map((issue) => ({ ...issue, ref })));
+    if (def.words === undefined) issues.push(...availabilityShapeIssues(def, table, view as SnapshotView).map((issue) => ({ ...issue, ref })));
   } else {
-    for (const [name, value] of [['capacity_rule', def.capacity_rule], ['show_left', def.show_left], ['under', def.under]] as const) {
+    for (const [name, value] of [['capacity_rule', def.capacity_rule], ['show_left', def.show_left], ['under', def.under], ['words', def.words]] as const) {
       if (value !== undefined) push('ENDPOINT_AVAILABILITY_SHAPE', `${name} shapes an availability answer, and this endpoint reads rows`, name);
     }
   }

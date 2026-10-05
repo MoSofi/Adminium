@@ -87,6 +87,8 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
   // A row opened by its own code: the length check and its own guess budget come with the add-on install.
   { rule: 'unlock_by.self', on: (entry) => (entry['unlock_by'] as { self?: unknown } | undefined)?.self === true },
+  // Availability answered by an add-on's stock words: read as a plain limit it would answer every row as free.
+  { rule: 'words', on: (entry) => entry['words'] !== undefined },
 ];
 
 /** The release that installs an add-on like an app, and runs the words that come with it. */
@@ -136,6 +138,9 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   'email.onlyWithout': ADD_ON_INSTALL_RELEASE,
   'outbox.pages.app': ADD_ON_INSTALL_RELEASE,
   'rows.pair': ADD_ON_INSTALL_RELEASE,
+  // Stock words, and a public entry answered by them.
+  'addOn.words': ADD_ON_INSTALL_RELEASE,
+  'availability.words': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
   'addOn.adjuster': PRICE_QUESTION_RELEASE,

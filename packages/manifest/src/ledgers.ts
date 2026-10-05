@@ -747,3 +747,63 @@ export function ledgerIssues(m: { tables: readonly LedgerScopeTable[]; ledgers: 
   });
   return out;
 }
+
+// ── stock words ──────────────────────────────────────────────────────────────
+
+/**
+ * A question asked of a ledger's action with nothing written: one line per
+ * row asked about, a quantity of one, answered `in`, `low` or `out`. `input`
+ * is the action's input that takes the row asked about; `showLeftBelow` names
+ * the settings column holding the owner's "show how many are left below".
+ */
+export const wordsSchema = z
+  .object({
+    id: kebab,
+    ledger: kebab,
+    action: kebab,
+    input: inputName,
+    showLeftBelow: z.object({ setting: refSchema }).strict().optional(),
+  })
+  .strict();
+export type StockWords = z.infer<typeof wordsSchema>;
+
+export const wordsListSchema = z
+  .array(wordsSchema)
+  .min(1)
+  .max(4)
+  .refine((words) => new Set(words.map((one) => one.id)).size === words.length, { message: 'two words share an id' });
+
+/** The most rows one words question asks about. */
+export const WORDS_IDS_MAX = 60;
+
+/** Everything wrong with an add-on's stock words that its own manifest can see. */
+export function wordsIssues(m: { words: readonly StockWords[]; ledgers: readonly Ledger[]; tables: readonly LedgerTableShape[]; settingsTable?: string | undefined }): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const settings = m.settingsTable === undefined ? undefined : m.tables.find((table) => table.ref === m.settingsTable);
+  m.words.forEach((words, w) => {
+    const at = (...rest: (string | number)[]) => ['addOn', 'words', w, ...rest];
+    const ledger = m.ledgers.find((candidate) => candidate.id === words.ledger);
+    if (ledger === undefined) {
+      out.push({ path: at('ledger'), message: `this add-on declares no ledger "${words.ledger}"` });
+      return;
+    }
+    const action = ledger.actions[words.action];
+    if (action === undefined) {
+      out.push({ path: at('action'), message: `the ledger "${ledger.id}" has no action "${words.action}"` });
+      return;
+    }
+    // The question is "what if one were taken now": the action's own taking phase, with a quantity of one.
+    if (!action.phases.includes('post')) out.push({ path: at('action'), message: `words ask what a "post" of the action would do, and "${words.action}" has no "post" phase` });
+    if (action.inputs['quantity'] === undefined) out.push({ path: at('action'), message: `words ask about a quantity of one, and "${words.action}" takes no input "quantity"` });
+    const input = action.inputs[words.input];
+    if (input === undefined) out.push({ path: at('input'), message: `the action "${words.action}" takes no input "${words.input}"` });
+    else if (input !== 'rowRef' && input !== 'link') out.push({ path: at('input'), message: `words name the input that takes the row asked about: a row of any table (rowRef) or a link, and "${words.input}" is ${input}` });
+    if (words.showLeftBelow !== undefined) {
+      const column = settings?.columns.find((candidate) => candidate.ref === words.showLeftBelow!.setting);
+      if (settings === undefined) out.push({ path: at('showLeftBelow', 'setting'), message: 'this add-on declares no settings table (addOn.settingsTable) to keep the number in' });
+      else if (column === undefined) out.push({ path: at('showLeftBelow', 'setting'), message: `"${settings.ref}" has no column "${words.showLeftBelow.setting}"` });
+      else if (!['int', 'bigint', 'decimal'].includes(column.type)) out.push({ path: at('showLeftBelow', 'setting'), message: `"${settings.ref}.${column.ref}" holds a number: how many may be left before the figure is shown` });
+    }
+  });
+  return out;
+}
