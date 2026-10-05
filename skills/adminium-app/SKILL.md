@@ -40,8 +40,8 @@ the request does not need. Keep `publisher` as it is.
 ## 2. Which file holds what
 
 Read `references/projects/apps--the-manifest-as-parts.md` for the full table. In short: the app
-itself in `app.json`; one table per file; one page per file; `roles.json`, `settings.json`,
-`option-lists.json` and `documents.json` are the bare array or object; `access.json`,
+in `app.json`; one table per file; one page per file; `roles.json`, `settings.json`,
+`option-lists.json`, `documents.json` and `automations.json` are the bare array or object; `access.json`,
 `emails.json` and `sample.json` are objects holding their named fields. A file that is not a part
 is an error, and a table or page file is named after its `ref`.
 
@@ -59,7 +59,7 @@ Rules that catch people:
   prints a `!` for it (unless a rule fills it). Give it a default or make it nullable. When you
   mean it to be required, leave it: a `!` is advice, and you say which ones are meant.
 - A page's `ref` is its address in the dashboard, shared by every installed app: start it with
-  the app's key.
+  its key.
 - A page's `nav.group` names a `key` in `app.json`'s `navGroups`.
 - A `page-board` needs a status column with at least two of Adminium's workflow words as values
   (`new`, `in_progress`, `done`, …; the list is in the page task guide). Otherwise the page is
@@ -82,7 +82,7 @@ that list is the app's whole public surface.
 ## 5. Sample data
 
 `seeds/sample.json` (format `adminium.sample/1`) holds a few believable rows per table, parents
-before children. Keep it small. **run** adds it once; an install adds it only when asked.
+before children. **run** adds it once; an install adds it only when asked.
 
 ## 6. Run it, prove it, pack it
 

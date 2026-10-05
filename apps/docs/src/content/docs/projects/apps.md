@@ -201,6 +201,7 @@ is written:
 | `settings.json` | `settings`, as the array |
 | `option-lists.json` | `optionLists`, as the object |
 | `documents.json` | `documents`, as the array |
+| `automations.json` | `automations`, as the array |
 
 Only `app.json`, one table and one page are required. A part you do not need is simply not there.
 A file that is none of these is an error, so a misspelt name cannot be silently left out, and

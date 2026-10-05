@@ -1568,6 +1568,53 @@ A code nothing renews is put back by an undo as it was. A code a change of hands
 put back: undoing the hand-over makes a code neither holder had. See
 [Undo a status move](/guides/apps/undo-a-status-move/).
 
+### Buttons on a record
+
+`states.actions` lists the buttons a generated record page offers on a row, in the app's own
+words: up to 12, each with a kebab-case `id` and a `label` (one text, or one per language). A
+manifest that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"states": {
+  "column": "status", "initial": "draft",
+  "moves": { "draft": ["sent"], "sent": ["received"] },
+  "actions": [
+    { "id": "send", "label": "Send", "move": { "to": "sent" }, "tone": "primary",
+      "confirm": "Send this order to the supplier?", "set": { "sent_at": { "now": true } } },
+    { "id": "send-again", "label": "Send again", "set": { "resent_at": { "now": true } }, "in": ["sent"] },
+    { "id": "receive", "label": "Receive", "link": { "page": "shop-receipts", "param": "order" }, "in": ["sent"] },
+    { "id": "note", "label": "Add a note", "in": ["sent", "received"],
+      "child": { "table": "order_notes", "via": "order_id", "form": ["text"] }, "set": { "kind": "desk" } }
+  ]
+}
+```
+
+An action is one of four forms:
+
+| Form | Keys | What the button does |
+|---|---|---|
+| A move | `move: { "to" }`, `set`?, `ask`?, `confirm`? | Moves the row to the state. It is offered in every state that lists a move there. |
+| A write | `set`, `in`, `ask`?, `confirm`? | Writes columns and moves nothing. |
+| A link | `link: { "page" \| "addOnPage", "param" }`, `in` | Opens another page with the row's key as `param`. `page` is a page of the manifest; `addOnPage` is `<ref>` (a page of the same add-on) or `<add-on key>:<ref>`. |
+| A child row | `child: { "table", "via", "form" }`, `set`?, `in`, `confirm`? | Opens a small form (up to 6 columns) and adds a row of the child table, linked through `via`. |
+
+`in` lists the states the button is shown in. `tone` is `primary`, `neutral` (the default) or
+`danger`. `ask` names up to 4 columns typed in the confirm before the action is made. `set` is
+always a key of the action itself: on a move or a write it names columns of the row, on a child
+row it names columns of the new row. A value is a text, a number or a yes/no the column takes, or
+`{ "now": true }` on a `timestamptz` column of the row: the moment the action is made.
+
+Checked against the manifest:
+
+- A move goes to a state some listed move reaches by hand. A state only a `planned` move reaches
+  has no button.
+- A column the action sets or asks for is the row's to write: not the state column, not the key,
+  not a column Adminium fills. A column kept from staff is never asked for.
+- Where the table is [locked](#states) in a state the button is shown in, or moves to, each column
+  it writes is listed in `lock.except`.
+- A child row's table has a foreign key `via` to this table. `via` is neither typed nor set.
+- A column is set or typed, not both.
+
 ### Shared tables
 
 Two apps may use one table between them: a restaurant's point of sale and its online ordering
@@ -1760,6 +1807,37 @@ out, and its chip says so; the page never fails.
 **Updates.** A page nobody has edited is rebuilt when the app is updated. A page the operator
 edited is left as they left it. Uninstalling an app does not delete its pages.
 
+### Tab words, filters and bulk actions
+
+A `page-crud` page bound to a table may say three more things in its `config`. A manifest that
+uses `tabs` or `bulk` sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"config": {
+  "tabs": { "receipts": { "empty": "Nothing received yet", "emptyBody": "A receipt shows here.", "noNew": true } },
+  "filters": [{ "column": "status", "control": "any-of" }, { "column": "ordered_on" }],
+  "bulk": [{
+    "id": "reorder", "label": "Reorder",
+    "child": { "table": "reorder_requests", "via": "point_id", "form": ["note"] },
+    "set": { "source": "list" },
+    "where": { "column": "state", "eq": "low" },
+    "confirm": { "title": "Reorder {count} items?", "body": "One request is made for each.", "columns": ["name", "on_hand"] },
+    "done": "{count} requested"
+  }]
+}
+```
+
+| Key | Rule |
+|---|---|
+| `tabs` | Keyed by a child table: one with a foreign key to the page's table. `empty` and `emptyBody` are what the tab says while it holds no row; `noNew: true` takes its "New" away, for rows made elsewhere. It words a tab the page already has: it adds none and renames none. |
+| `filters` | Up to 6 columns of the page's table, each once. `control` is `one-of` or `any-of` for a choice, `yes-no`, `record` for a link, `date-range` or `number-range`; left out, the column's type decides. A free text column and the key cannot be filtered. |
+| `bulk` | Up to 2 actions on the rows ticked in the list. Each adds one row of `child.table` per ticked row, linked through `via`, with `form` (up to 4 columns) typed once for all of them and `set` written on each. `where` keeps only the ticked rows that hold a value. `confirm.columns` (up to 8) are shown for each row before anything is made. |
+
+A bulk action's `confirm.title`, `confirm.body` and `done` may name `{count}`, the number of rows,
+and nothing else. Its `where` and `confirm.columns` never name a secret column or a code kept from
+staff. A dashboard page's toolbar takes `layout.toolbar.links` in place of `link`: one or two
+links of the same shape, at most one of them with `"tone": "primary"`.
+
 ### navGroups
 
 `navGroups` names the headings inside the app's sidebar section. Up to 12.
@@ -1903,6 +1981,27 @@ their columns, one unlimited read of the table reads it all, and a Super Admin i
 
 A role that signs in a staff-bound browser key (a check-in tablet; see [publicKeys](#publickeys))
 must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`.
+
+### A role on an add-on's tables
+
+An app's role may reach tables of an add-on the app names in [`addOns`](#add-ons), with `tables`.
+A manifest that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"tables": [
+  { "addOn": "inventory", "table": "transfers", "actions": ["read", "create", "update"],
+    "limit": { "creatable": ["from_place_id", "to_place_id", "note"], "writable": ["status"] } },
+  { "addOn": "inventory", "table": "stock_points", "actions": ["read"],
+    "limit": { "readable": ["id", "item_id", "place_id", "on_hand"] } }
+]
+```
+
+Up to 12 entries, one per table. `addOn` is the add-on's key and `table` its own name for the
+table. `actions` are `read`, `create` and `update`, never a delete, an export or an import.
+`limit` is the object a role's [`limits`](#roles) hold for one table, and narrows only an action
+the entry gives: `readable` needs `read`, `writable` needs `update`, `creatable` needs `create`.
+The grant is live while the add-on is connected to the app; the add-on's table and column names
+are checked then. An add-on's own roles grant its tables through `permissions`, not `tables`.
 
 ## Settings
 
@@ -3250,6 +3349,38 @@ tables. A column's `references` names another part of the same shape (`"document
 another of the add-on's shapes (`"quote@1/document"`). A rule in a part that reads a setting reads
 one of the add-on's own (`{ "addOn": "<its key>", "setting" }`), since the add-on cannot know an
 app's settings row.
+
+### What a typed code may find
+
+`addOn.lookUp` says which of the add-on's tables a typed or scanned code is looked for in, and
+what the answer may carry. Adminium reads the row; the add-on's code does not. A manifest that
+uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"lookUp": {
+  "kinds": [
+    { "id": "gift-card", "table": "gift_cards", "code": "code", "prefix": "GC-",
+      "show": ["label", "status", "balance"],
+      "rows": { "table": "card_ledger", "via": "card_id", "columns": ["at", "kind", "amount"] } },
+    { "id": "pack", "table": "vouchers", "code": "code", "prefix": "PK-",
+      "where": [{ "column": "worth", "eq": "pack" }], "show": ["status", "uses_left"] }
+  ],
+  "address": { "table": "gift_cards", "column": "owner_email", "show": ["status", "balance"] }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `kinds` | 1–6, tried in order. `table` is one of the add-on's own; `code` is a text column with a `code` rule, or a unique one. |
+| `prefix` | Two capitals and a dash. A typed value that starts with it is that kind's and no other's; no two kinds share one. |
+| `where` | Up to 2 conditions `{ "column", "eq" }` or `{ "column", "in" }` on the row. Two kinds that read one table differ by it. |
+| `show` | 1–16 columns of the found row the answer carries. |
+| `rows` | One table of history, newest first: `via` is its foreign key to `table`, `columns` 1–8 of its columns. |
+| `address` | Rows found by a customer's address instead of a code. `column` carries `normalize: "email"`. |
+
+An answer never carries the code column, a `secret` column or a code kept from staff: a page shows
+what was typed. A document kind may also be drawn on `a6`, a card of 105 × 148 mm, beside `a4`,
+`letter` and `receipt-80mm`.
 
 ## Validation
 

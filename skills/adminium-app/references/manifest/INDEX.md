@@ -32,12 +32,15 @@
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7096 |
 | `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 6659 |
 | `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 2077 |
+| `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
 | `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 3754 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
-| `references/manifest/pages.md` | Pages | 6528 |
+| `references/manifest/pages.md` | Pages | 5885 |
+| `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
+| `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/frontends.md` | Frontends | 2101 |
-| `references/manifest/roles.md` | Roles | 5402 |
+| `references/manifest/roles.md` | Roles | 6640 |
 | `references/manifest/settings.md` | Settings | 1211 |
 | `references/manifest/add-ons.md` | Add-ons | 3247 |
 | `references/manifest/documents.md` | Documents | 7183 |
@@ -70,5 +73,5 @@
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/sample-data.md` | Sample data | 7630 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 4715 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 6479 |
 | `references/manifest/validation.md` | Validation | 3648 |

@@ -66444,6 +66444,61 @@
                           "href"
                         ],
                         "additionalProperties": false
+                      },
+                      "links": {
+                        "minItems": 1,
+                        "maxItems": 2,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 60
+                            },
+                            "labels": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 60
+                              }
+                            },
+                            "href": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "icon": {
+                              "type": "string",
+                              "enum": [
+                                "arrow-right",
+                                "clipboard-list",
+                                "external-link",
+                                "package-plus",
+                                "clipboard-check",
+                                "plus",
+                                "gift"
+                              ]
+                            },
+                            "tone": {
+                              "type": "string",
+                              "enum": [
+                                "primary"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "href"
+                          ],
+                          "additionalProperties": false
+                        }
                       }
                     }
                   }
@@ -66584,6 +66639,61 @@
                                     "href"
                                   ],
                                   "additionalProperties": false
+                                },
+                                "links": {
+                                  "minItems": 1,
+                                  "maxItems": 2,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 60
+                                      },
+                                      "labels": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string",
+                                          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 60
+                                        }
+                                      },
+                                      "href": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 300
+                                      },
+                                      "icon": {
+                                        "type": "string",
+                                        "enum": [
+                                          "arrow-right",
+                                          "clipboard-list",
+                                          "external-link",
+                                          "package-plus",
+                                          "clipboard-check",
+                                          "plus",
+                                          "gift"
+                                        ]
+                                      },
+                                      "tone": {
+                                        "type": "string",
+                                        "enum": [
+                                          "primary"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "label",
+                                      "href"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "additionalProperties": false
@@ -79888,6 +79998,61 @@
                           "href"
                         ],
                         "additionalProperties": false
+                      },
+                      "links": {
+                        "minItems": 1,
+                        "maxItems": 2,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 60
+                            },
+                            "labels": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 60
+                              }
+                            },
+                            "href": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "icon": {
+                              "type": "string",
+                              "enum": [
+                                "arrow-right",
+                                "clipboard-list",
+                                "external-link",
+                                "package-plus",
+                                "clipboard-check",
+                                "plus",
+                                "gift"
+                              ]
+                            },
+                            "tone": {
+                              "type": "string",
+                              "enum": [
+                                "primary"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "href"
+                          ],
+                          "additionalProperties": false
+                        }
                       }
                     }
                   }
@@ -80028,6 +80193,61 @@
                                     "href"
                                   ],
                                   "additionalProperties": false
+                                },
+                                "links": {
+                                  "minItems": 1,
+                                  "maxItems": 2,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 60
+                                      },
+                                      "labels": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string",
+                                          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 60
+                                        }
+                                      },
+                                      "href": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 300
+                                      },
+                                      "icon": {
+                                        "type": "string",
+                                        "enum": [
+                                          "arrow-right",
+                                          "clipboard-list",
+                                          "external-link",
+                                          "package-plus",
+                                          "clipboard-check",
+                                          "plus",
+                                          "gift"
+                                        ]
+                                      },
+                                      "tone": {
+                                        "type": "string",
+                                        "enum": [
+                                          "primary"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "label",
+                                      "href"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "additionalProperties": false
@@ -102093,6 +102313,35 @@
                             },
                             "required": [
                               "pool",
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "in",
+                                  "low",
+                                  "out"
+                                ]
+                              },
+                              "left": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "id",
                               "state"
                             ],
                             "additionalProperties": false
