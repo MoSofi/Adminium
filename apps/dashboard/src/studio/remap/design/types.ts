@@ -177,6 +177,9 @@ export interface ApplyResult {
     endpoints?: number;
     scopes?: number;
     appTables?: number;
+    /** Rows of the database that named the table by its id and follow it. Absent from a server before that repair. */
+    tableRefs?: number;
+    tableRefsFailed?: number;
   } | null;
   /** Tables this apply created — the inclusion offer's subject (D11). */
   createdTables: string[];

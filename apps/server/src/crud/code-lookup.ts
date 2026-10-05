@@ -93,12 +93,14 @@ export function codeLookupsOf(view: Pick<SnapshotView, 'model'> | undefined, tab
       (r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
     );
     const codes = view.model.tables.find((t) => t.id === rule.table);
-    if (relation === undefined || codes === undefined) continue;
+    // A link into an add-on's table has no foreign key: the key is the one that link resolved to, for that same table.
+    const key = relation?.to.columns[0] ?? (column.addOnLink?.tableId === rule.table ? column.addOnLink.key : null);
+    if (key === null || key === undefined || codes === undefined) continue;
     out.push({
       column: column.name,
       from: rule.from,
       table: rule.table,
-      key: relation.to.columns[0]!,
+      key,
       code: rule.column,
       spelling: spellingOf(codes.columns?.find((c) => c.name === rule.column)),
       where: rule.where ?? [],

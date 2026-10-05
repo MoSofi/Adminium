@@ -9232,6 +9232,12 @@
                             },
                             "appTables": {
                               "type": "number"
+                            },
+                            "tableRefs": {
+                              "type": "number"
+                            },
+                            "tableRefsFailed": {
+                              "type": "number"
                             }
                           },
                           "required": [
@@ -9242,7 +9248,9 @@
                             "diagramLayout",
                             "endpoints",
                             "scopes",
-                            "appTables"
+                            "appTables",
+                            "tableRefs",
+                            "tableRefsFailed"
                           ],
                           "additionalProperties": false
                         },

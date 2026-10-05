@@ -51,11 +51,12 @@ import {
 import { sha256Hex } from '@adminium/engine';
 import type { MetaDb, StepOutcome } from '@adminium/meta';
 import { overridesRepo, schemaChangesRepo } from '@adminium/meta';
+import type { Kysely } from 'kysely';
 
 import { ConflictError, ForbiddenError, ValidationFailedError } from '../errors.js';
 import { compileStep, resetRails, sessionRails, type CompileContext } from './compile.js';
 import { preflight, type CeilingGate, type PreflightInput } from './preflight.js';
-import { repairAfterRename, type RenameRepairResult } from './rename-repair.js';
+import { countTableRefs, repairAfterRename, repairTableRefs, type RenameRepairResult } from './rename-repair.js';
 import { rebuildColumnMapping, runSqliteRebuild } from './sqlite-rebuild.js';
 
 export interface PlanServiceInput {
@@ -272,6 +273,7 @@ async function planWithRelations(
     connectionId: input.connectionId,
     steps: planned.steps,
     ...(input.countRows === undefined ? {} : { countRows: input.countRows }),
+    tableRefRows: (tableId) => countTableRefs({ meta: input.meta, connectionId: input.connectionId, tableId, db: input.db as Kysely<unknown> }).catch(() => 0),
     ...(input.privileges === undefined ? {} : { privileges: input.privileges }),
     ...(input.ceilingDoor === undefined ? {} : { ceilingDoor: input.ceilingDoor }),
   });
@@ -962,6 +964,11 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
       columnRenames: succeededColumnRenames,
       crypto: input.crypto,
     });
+    // Rows of the database itself that name a renamed table by its id follow it too, now that the rules do.
+    if (tableRenames.length > 0) {
+      const refs = await repairTableRefs({ meta: input.meta, connectionId: input.connectionId, renames: tableRenames, db: input.db as Kysely<unknown> });
+      repaired = { ...repaired, tableRefs: refs.rows, tableRefsFailed: refs.failed };
+    }
   }
 
   /*

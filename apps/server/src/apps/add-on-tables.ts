@@ -37,17 +37,35 @@ interface ModelTable {
   primaryKey?: readonly string[] | null | undefined;
 }
 
-let revision = 0;
-
 /**
- * Counts each time what is installed, attached or switched may have changed
- * in this process. A view of a database is kept until its snapshot or its
- * rules move; a link into an add-on also moves when the add-on arrives, goes
- * or is switched, so the keepers of those views read this beside the rest.
+ * A stamp that moves whenever what is installed, attached, switched or
+ * recorded may have changed: an add-on arriving or going, a row's status, an
+ * attachment made, removed or switched, a table record written or renamed, a
+ * database read again. A view of a database is kept until its snapshot or its
+ * rules move; a link into an add-on moves with these too, so whoever keeps
+ * such a view reads this beside the rest.
+ *
+ * It is read from the store, not counted in this process: a second server
+ * process, and an install done from the project folder, move it just the same.
+ * One statement.
  */
-export const addOnInstallsRevision = (): number => revision;
-export function addOnInstallsChanged(): void {
-  revision += 1;
+export async function addOnInstallsStamp(meta: MetaDb): Promise<string> {
+  const row = await meta.db
+    .selectNoFrom((eb) => [
+      eb.selectFrom('adminium_manifests').select((e) => e.fn.countAll<number>().as('n')).as('manifests'),
+      // A sum, not the newest: a row written by a process whose clock runs behind still moves it.
+      eb.selectFrom('adminium_manifests').select((e) => e.fn.sum('updatedAt').as('at')).as('manifestsAt'),
+      eb.selectFrom('adminium_manifest_attachments').select((e) => e.fn.countAll<number>().as('n')).as('attachments'),
+      eb.selectFrom('adminium_manifest_attachments').select((e) => e.fn.count<number>('disabledAt').as('n')).as('switchedOff'),
+      eb.selectFrom('adminium_manifest_attachments').select((e) => e.fn.max('createdAt').as('at')).as('attachmentsAt'),
+      eb.selectFrom('adminium_manifest_attachments').select((e) => e.fn.max('disabledAt').as('at')).as('switchedOffAt'),
+      eb.selectFrom('adminium_app_tables').select((e) => e.fn.countAll<number>().as('n')).as('records'),
+      eb.selectFrom('adminium_app_tables').select((e) => e.fn.sum('updatedAt').as('at')).as('recordsAt'),
+      eb.selectFrom('adminium_schema_snapshots').select((e) => e.fn.countAll<number>().as('n')).as('snapshots'),
+      eb.selectFrom('adminium_schema_snapshots').select((e) => e.fn.max('createdAt').as('at')).as('snapshotsAt'),
+    ])
+    .executeTakeFirstOrThrow();
+  return [row.manifests, row.manifestsAt, row.attachments, row.switchedOff, row.attachmentsAt, row.switchedOffAt, row.records, row.recordsAt, row.snapshots, row.snapshotsAt].map((part) => String(part ?? '')).join(':');
 }
 
 export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: { tables: readonly ModelTable[] }): Promise<AddOnTables> {

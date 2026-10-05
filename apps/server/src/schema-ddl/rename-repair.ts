@@ -38,7 +38,8 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { MetaDb } from '@adminium/meta';
-import { connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo, snapshotsRepo } from '@adminium/meta';
+import { appTablesRepo, connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo, snapshotsRepo } from '@adminium/meta';
+import { sql, type Kysely } from 'kysely';
 
 import { mapTableRefs } from '../apps/real-refs.js';
 import { applyOverrides, columnPolicyFor } from '../connections/effective-schema.js';
@@ -71,6 +72,10 @@ export interface RenameRepairResult {
   scopes: number;
   /** An installed app's table records naming it. */
   appTables: number;
+  /** Rows of the database itself that named a renamed table by its id, rewritten to the new one. */
+  tableRefs: number;
+  /** Columns holding such rows that could not be rewritten: their rows now name no table. */
+  tableRefsFailed: number;
 }
 
 /**
@@ -280,6 +285,8 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
     endpoints: 0,
     scopes: 0,
     appTables: 0,
+    tableRefs: 0,
+    tableRefsFailed: 0,
   };
   const columnRenames = input.columnRenames ?? [];
   if (renames.length === 0 && columnRenames.length === 0) return result;
@@ -562,4 +569,81 @@ function renamedCardQueries(config: Record<string, unknown>, byOldId: ReadonlyMa
   };
   const next = visit(config) as Record<string, unknown>;
   return changed ? next : config;
+}
+
+// ─── rows of the database that name a table ──────────────────────────────────
+
+/** One column whose rows may name a renamed table, and the two names. */
+export interface TableRefRewrite {
+  /** The id of the table that holds the column. */
+  table: string;
+  column: string;
+  from: string;
+  to: string;
+}
+
+export interface TableRefRepairInput {
+  meta: MetaDb;
+  connectionId: string;
+  /** Qualified ids: what each table was called, and what it is called now. */
+  renames: readonly { from: string; to: string }[];
+}
+
+/**
+ * The rewrites a rename asks of the database's own rows.
+ *
+ * A column marked `column.tableRef` holds a table's stored name. A table some
+ * manifest MADE is stored by its maker and short name, which a rename does
+ * not change (the record follows the table). A table nobody made is stored by
+ * its id — and the id is its name, so those rows are rewritten. One rewrite
+ * per marked column per such table.
+ *
+ * Read after the meta repair or before the rename: a record is looked for
+ * under both names, and a marked column is found on the table as the rule
+ * rows name it at that moment.
+ */
+export async function tableRefRewrites(input: TableRefRepairInput): Promise<TableRefRewrite[]> {
+  if (input.renames.length === 0) return [];
+  const marked = (await overridesRepo(input.meta).listForConnection(input.connectionId, { status: 'active' })).filter((row) => row.op === 'column.tableRef' && row.columnName !== null);
+  if (marked.length === 0) return [];
+  const records = await appTablesRepo(input.meta).forConnection(input.connectionId);
+  const made = (name: string): boolean => records.some((record) => record.tableName === name && record.owned && record.state !== 'dropped');
+  const out: TableRefRewrite[] = [];
+  for (const rename of input.renames) {
+    if (made(bare(rename.from)) || made(bare(rename.to))) continue;
+    for (const row of marked) out.push({ table: row.tableName, column: row.columnName as string, from: rename.from, to: rename.to });
+  }
+  return out;
+}
+
+const refEquals = (rewrite: TableRefRewrite) => sql`${sql.ref(rewrite.column)} = ${rewrite.from}`;
+
+/** How many rows a rename of `tableId` would rewrite. Asked before the rename, for the review. */
+export async function countTableRefs(input: Omit<TableRefRepairInput, 'renames'> & { tableId: string; db: Kysely<unknown> }): Promise<number> {
+  let rows = 0;
+  for (const rewrite of await tableRefRewrites({ ...input, renames: [{ from: input.tableId, to: input.tableId }] })) {
+    const counted = await sql<{ n: number | string | bigint }>`select count(*) as n from ${sql.table(rewrite.table)} where ${refEquals(rewrite)}`.execute(input.db);
+    rows += Number(counted.rows[0]?.n ?? 0);
+  }
+  return rows;
+}
+
+/**
+ * Rewrites them, on the database's own handle, one statement per column —
+ * after the rename and after Adminium's own references followed it. A column
+ * that cannot be rewritten is counted, never thrown: the rename has happened,
+ * and its rows read as naming no table until somebody fixes them.
+ */
+export async function repairTableRefs(input: TableRefRepairInput & { db: Kysely<unknown> }): Promise<{ rows: number; failed: number }> {
+  let rows = 0;
+  let failed = 0;
+  for (const rewrite of await tableRefRewrites(input)) {
+    try {
+      const done = await sql`update ${sql.table(rewrite.table)} set ${sql.ref(rewrite.column)} = ${rewrite.to} where ${refEquals(rewrite)}`.execute(input.db);
+      rows += Number(done.numAffectedRows ?? 0n);
+    } catch {
+      failed += 1;
+    }
+  }
+  return { rows, failed };
 }

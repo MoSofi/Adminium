@@ -97,7 +97,6 @@ import {
 } from './add-ons/store.js';
 import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
 import { recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
-import { addOnInstallsChanged } from './apps/add-on-tables.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -2483,8 +2482,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   installRejectionGuard((message, data) => app.log.error(data, message));
 
   rebuildAddOnRuntime = async () => {
-    // What is installed, attached or switched moved: a kept view of a database resolves its add-on links again.
-    addOnInstallsChanged();
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
     // Only an add-on whose install finished is loaded: one still `installing`, or being changed, answers nothing.
     const installedAddOns = (await repo.list('add-on')).filter((entry) => isLoadable(entry.row.status));

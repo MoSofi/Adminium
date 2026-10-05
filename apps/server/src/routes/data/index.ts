@@ -30,7 +30,7 @@ import { builtinOptionValues } from '@adminium/engine/config';
 import type { Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { addOnInstallsRevision, addOnTablesFor } from '../../apps/add-on-tables.js';
+import { addOnInstallsStamp, addOnTablesFor } from '../../apps/add-on-tables.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, plausibleAddress, subjectOf } from '../../public-api/claim-code.js';
 import { linkSubject } from '../../public-api/sign-in-link.js';
@@ -370,7 +370,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * That is finding C7's stale memo wearing a different hat.
      */
     const listRevision = await lists.revision();
-    const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}:${listRevision}:${String(addOnInstallsRevision())}`;
+    const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}:${listRevision}:${await addOnInstallsStamp(deps.meta)}`;
     const cached = viewCache.get(connectionId);
     if (cached !== undefined && cached.stamp === stamp) return cached.view;
     const model = snapshot.schema as DatabaseModel;

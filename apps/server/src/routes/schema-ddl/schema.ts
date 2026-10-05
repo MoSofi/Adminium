@@ -225,6 +225,8 @@ export const applyReply = z.object({
       endpoints: z.number(),
       scopes: z.number(),
       appTables: z.number(),
+      tableRefs: z.number(),
+      tableRefsFailed: z.number(),
     })
     .nullable(),
   /**

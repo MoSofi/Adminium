@@ -1619,12 +1619,17 @@ export function applyOverrides(
   if (opts.addOnTables !== undefined) {
     for (const table of effective.tables) {
       for (const column of table.columns as EffectiveColumn[]) {
-        const link = column.addOnLink ?? (column.addOnLookup === undefined ? undefined : { addOn: column.addOnLookup.table.addOn, table: column.addOnLookup.table.table });
-        if (link === undefined) continue;
-        const found = opts.addOnTables(link.addOn, link.table, tableId(table as unknown as TableModel));
-        if (column.addOnLink !== undefined) column.addOnLink = { ...column.addOnLink, tableId: found?.tableId ?? null, key: found?.key ?? null };
-        // A lookup among the add-on's rows is an ordinary lookup once its table is known.
-        if (column.addOnLookup !== undefined && found !== null && found !== undefined) column.lookup = { ...column.addOnLookup, table: found.tableId };
+        if (column.addOnLink === undefined && column.addOnLookup === undefined) continue;
+        const from = tableId(table as unknown as TableModel);
+        if (column.addOnLink !== undefined) {
+          const found = opts.addOnTables(column.addOnLink.addOn, column.addOnLink.table, from);
+          column.addOnLink = { ...column.addOnLink, tableId: found?.tableId ?? null, key: found?.key ?? null };
+        }
+        // A lookup among the add-on's rows is an ordinary lookup once its table is known: the table IT names, not the link's.
+        if (column.addOnLookup !== undefined) {
+          const found = opts.addOnTables(column.addOnLookup.table.addOn, column.addOnLookup.table.table, from);
+          if (found !== null) column.lookup = { ...column.addOnLookup, table: found.tableId };
+        }
       }
     }
   }

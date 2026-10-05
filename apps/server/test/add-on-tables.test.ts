@@ -5,13 +5,15 @@
  * not its own — or the link an app's and the add-on not attached to that app,
  * or switched off there. Inert is an answer, never an error.
  */
-import { appTablesRepo, connectionsRepo, createSqliteMetaDb, firstRun, manifestsRepo, type MetaDb, type SchemaOverride } from '@adminium/meta';
+import { appTablesRepo, connectionsRepo, createSqliteMetaDb, firstRun, manifestsRepo, snapshotsRepo, type MetaDb, type SchemaOverride } from '@adminium/meta';
 import { applyClassification, parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { addOnInstallsChanged, addOnInstallsRevision, addOnTablesFor } from '../src/apps/add-on-tables.js';
+import { addOnInstallsStamp, addOnTablesFor } from '../src/apps/add-on-tables.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
+import { codeLookupsOf } from '../src/crud/code-lookup.js';
+import { SnapshotView } from '../src/crud/identifiers.js';
 
 const CRYPTO = { encrypt: (v: string) => v, decrypt: (v: string) => v };
 let CONN = '';
@@ -103,10 +105,30 @@ describe('a link into an add-on\'s table', () => {
     expect(resolve('inventory', 'items', null)).toEqual(ITEMS);
   });
 
-  it('a kept view is told when what is installed may have changed', () => {
-    const before = addOnInstallsRevision();
-    addOnInstallsChanged();
-    expect(addOnInstallsRevision()).toBe(before + 1);
+  it('a kept view is told when what is installed may have changed, from the store itself', async () => {
+    const manifests = manifestsRepo(meta, CRYPTO);
+    const seen = new Set<string>();
+    /** The stamp after a change; a change that leaves it as it was is the failure. */
+    const moved = async (what: string) => {
+      const stamp = await addOnInstallsStamp(meta);
+      expect(seen.has(stamp), what).toBe(false);
+      seen.add(stamp);
+    };
+    await moved('nothing installed');
+    const { addOn } = await world({ status: 'installing' });
+    await moved('an app and an add-on arrived');
+    expect(await addOnInstallsStamp(meta)).toBe([...seen].at(-1));
+    await manifests.setStatus(addOn.row.id, 'installed', addOn.row.updatedAt + 5);
+    await moved('the install finished');
+    await manifests.setAttachmentEnabled(addOn.row.id, 'shop', false);
+    await moved('switched off for the app');
+    const record = (await appTablesRepo(meta).forInstall(CONN, 'inventory'))[0]!;
+    await appTablesRepo(meta).setState(record.id, 'released', record.updatedAt + 5);
+    await moved('a table record changed');
+    await snapshotsRepo(meta).create({ connectionId: CONN, source: 'introspection', schema: MODEL, checksum: 'c1' } as never);
+    await moved('the database was read again');
+    await manifests.uninstall(addOn.row.id);
+    await moved('the add-on left');
   });
 });
 
@@ -129,5 +151,31 @@ describe('the effective schema of a table that links into an add-on', () => {
       expect(column(model, 'item_name').lookup).toBeUndefined();
       expect(column(model, 'item_name').addOnLookup).toBeDefined();
     }
+  });
+
+  /** A typed code that fills the link itself: both rules sit on the linking column. */
+  const TYPED = [rule('column.addOnLink', 'item_id', { addOn: 'inventory', table: 'items' }), rule('column.lookup', 'item_id', { from: 'item_name', table: { addOn: 'inventory', table: 'items' }, column: 'name' })];
+  const lookups = (model: ReturnType<typeof applyOverrides>) => {
+    const view = new SnapshotView(CONN, model);
+    return codeLookupsOf(view, view.model.tables.find((candidate) => candidate.name === 'shop_lines'));
+  };
+
+  it('a typed code finds a row of the add-on by the key the link resolved to, with no foreign key between them', async () => {
+    const { resolve } = await world();
+    expect(lookups(applyOverrides(MODEL, TYPED, { addOnTables: resolve }))).toEqual([
+      { column: 'item_id', from: 'item_name', table: 'public.inventory_items', key: 'id', code: 'name', spelling: { kept: true }, where: [], scope: [] },
+    ]);
+    // The link resolves to the add-on's moves; the lookup is into its items: no key says how the two meet.
+    const crossed = [rule('column.addOnLink', 'item_id', { addOn: 'inventory', table: 'moves' }), TYPED[1]!];
+    const model = applyOverrides(MODEL, crossed, { addOnTables: resolve });
+    expect(column(model, 'item_id').addOnLink?.tableId).toBe('public.inventory_moves');
+    expect(column(model, 'item_id').lookup?.table).toBe('public.inventory_items');
+    expect(lookups(model)).toEqual([]);
+  });
+
+  it('a typed code looks nothing up while the link is inert', async () => {
+    const { resolve } = await world({ attach: false });
+    expect(lookups(applyOverrides(MODEL, TYPED, { addOnTables: resolve }))).toEqual([]);
+    expect(lookups(applyOverrides(MODEL, TYPED))).toEqual([]);
   });
 });

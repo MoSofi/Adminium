@@ -97,7 +97,6 @@ describe('a manifest that uses a word this server does not run yet', () => {
       { word: 'roles', path: 'roles', release: '0.3.18' },
       { word: 'requiredSchema.prefixed', path: 'requiredSchema.prefixed', release: '0.3.18' },
       { word: 'table.indexes', path: 'requiredSchema.tables.0.indexes', release: '0.3.18' },
-      { word: 'column.tableRef', path: 'requiredSchema.tables.0.columns.0.rules.tableRef', release: '0.3.18' },
     ]);
   });
 
@@ -141,13 +140,13 @@ describe('a release', () => {
   });
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
-    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef', 'adjust']);
+    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'adjust']);
     expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['unlock_by.self', 'words']);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {
     const words = Object.keys(UNBUILT_MANIFEST_WORDS);
-    expect(words).toEqual(expect.arrayContaining(['table.postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'column.tableRef', 'table.adjust']));
+    expect(words).toEqual(expect.arrayContaining(['table.postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'table.adjust']));
   });
 });
 
@@ -155,13 +154,14 @@ describe('a table that carries one of the new rules', () => {
   const column = (name: string, extra: Record<string, unknown> = {}) => ({ name, ...extra });
   const carrying = (extra: Record<string, unknown>) => unbuiltRuleOf(table(extra));
 
-  it('takes no writes: a posting, a planned move, a link into an add-on, an announced total, a stored table name', () => {
+  it('takes no writes: a posting, a planned move, a link into an add-on, an announced total', () => {
     expect(carrying({ postings: [{ id: 'line' }] })).toBe('postings');
     expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: [{ to: 'filed', planned: true }] } } })).toBe('states.planned');
     expect(carrying({ columns: [column('item_id', { addOnLink: { addOn: 'kit', table: 'items', tableId: null, key: null } })] })).toBe('column.addOnLink');
     expect(carrying({ columns: [column('item_id', { addOnLookup: { from: 'typed', table: { addOn: 'kit', table: 'items' }, column: 'code' } })] })).toBe('column.addOnLink');
     expect(carrying({ columns: [column('low', { announce: true })] })).toBe('column.announce');
-    expect(carrying({ columns: [column('source_table', { tableRef: true })] })).toBe('column.tableRef');
+    // A column that keeps a table's name is built: it stops no write.
+    expect(carrying({ columns: [column('source_table', { tableRef: true })] })).toBeNull();
     expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: ['sent', { to: 'done' }] } }, columns: [column('name')] })).toBeNull();
   });
 

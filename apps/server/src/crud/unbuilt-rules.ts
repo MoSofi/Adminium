@@ -67,8 +67,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
   },
   // A change told after the save: a rule waiting on it would never run.
   { rule: 'column.announce', on: (table) => columnsOf(table).some((column) => column.announce === true) },
-  // A table's stored name: kept by a rename only once the repair knows the column.
-  { rule: 'column.tableRef', on: (table) => columnsOf(table).some((column) => column.tableRef === true) },
   // A price rule: the order's table, and each child table whose rows are its lines, its codes or its refunds.
   // Written unpriced, an order would be saved at full price with a code on it and nobody told.
   {
@@ -119,9 +117,8 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   seeds: ADD_ON_INSTALL_RELEASE,
   'table.indexes': ADD_ON_INSTALL_RELEASE,
   'addOn.settingsTable': ADD_ON_INSTALL_RELEASE,
-  // Links from a table into an add-on's, and a column that holds a table's name.
+  // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
-  'column.tableRef': ADD_ON_INSTALL_RELEASE,
   'sampleData.addOns': ADD_ON_INSTALL_RELEASE,
   'unlockBy.self': ADD_ON_INSTALL_RELEASE,
   // Ledgers and what posts into them.
@@ -161,7 +158,10 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
 };
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
-export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [];
+export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
+  // A column that keeps a table's name: a rename of that table rewrites its rows.
+  'column.tableRef',
+];
 
 export interface UnbuiltWord {
   /** The word as the manifest writes it (`pages`, `column.addOnLink`). */

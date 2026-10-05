@@ -383,6 +383,46 @@ describe('renaming a table keeps the app whole (D33, criterion 13)', () => {
     expect(applied.body.status).toBe('applied');
     expect(applied.body.repaired).not.toBeNull();
   });
+
+  it('rewrites the rows that name the table by its id, and says how many before it does', async () => {
+    const cols = (extra: Record<string, unknown>[]) => [{ name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } }, ...extra];
+    const made = await planAndApply({
+      upsertTables: [
+        { name: 'ref_target', columns: cols([{ name: 'note', logicalType: 'text' }]), primaryKey: ['id'] },
+        { name: 'ref_log', columns: cols([{ name: 'source_table', logicalType: 'text' }, { name: 'said', logicalType: 'text' }]), primaryKey: ['id'] },
+      ],
+    });
+    expect(made.body.status).toBe('applied');
+    // `ref_log.source_table` keeps a table's name; two of its rows name the table about to be renamed.
+    await overridesRepo(t.meta).create({ connectionId, op: 'column.tableRef', tableName: 'main.ref_log', columnName: 'source_table', value: { tableRef: true }, origin: 'user' });
+    const raw = new BetterSqlite3(file);
+    raw.exec(`INSERT INTO ref_log (source_table, said) VALUES ('main.ref_target', 'main.ref_target'), ('main.ref_target', 'x'), ('main.clients', 'x'), ('shop:orders', 'x'), (NULL, 'x')`);
+    raw.close();
+
+    const edit = {
+      renames: { tables: [{ from: 'main.ref_target', to: 'ref_moved' }], columns: [] },
+      upsertTables: [{ id: 'main.ref_target', name: 'ref_moved', columns: cols([{ name: 'note', logicalType: 'text' }]), primaryKey: ['id'] }],
+    };
+    const plan = await t.app.inject({ method: 'POST', url: `/api/v1/connections/${connectionId}/schema/plan`, headers: asUser(t.users.admin), payload: { ...edit, baseSnapshotId: await snapshotId() } });
+    expect(plan.statusCode, plan.body).toBe(200);
+    const said = (plan.json() as { steps: { kind: string; consequences: { kind: string; message: string }[] }[] }).steps.find((step) => step.kind === 'rename-table')!.consequences;
+    expect(said.filter((consequence) => consequence.kind === 'repaired').map((consequence) => consequence.message)).toContainEqual(expect.stringMatching(/^2 rows name this table/));
+
+    const applied = await planAndApply(edit);
+    expect(applied.body.status).toBe('applied');
+    expect(applied.body.repaired).toMatchObject({ tableRefs: 2, tableRefsFailed: 0 });
+    const after = new BetterSqlite3(file);
+    const rows = after.prepare('SELECT source_table, said FROM ref_log ORDER BY id').all() as { source_table: string | null; said: string }[];
+    after.close();
+    // The marked column follows; the same text in a column nobody marked is left alone, and so is every other name.
+    expect(rows).toEqual([
+      { source_table: 'main.ref_moved', said: 'main.ref_target' },
+      { source_table: 'main.ref_moved', said: 'x' },
+      { source_table: 'main.clients', said: 'x' },
+      { source_table: 'shop:orders', said: 'x' },
+      { source_table: null, said: 'x' },
+    ]);
+  });
 });
 
 /**

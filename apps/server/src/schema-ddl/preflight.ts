@@ -55,6 +55,8 @@ export interface PreflightInput {
   steps: readonly DdlStep[];
   /** Capped exact count for one table; wired to the adapter's `count()`. */
   countRows?: (tableId: string) => Promise<{ value: number; capped: boolean } | null>;
+  /** How many rows of the database name this table by its id, in a column kept for a table's name. Absent = not asked. */
+  tableRefRows?: (tableId: string) => Promise<number>;
   /** The live connection, for the privilege probe. Absent = skip it. */
   privileges?: {
     db: Parameters<typeof checkPrivileges>[0];
@@ -310,6 +312,14 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
             'meaning and answer list move with it in the same operation.',
       refs: [],
     });
+    const naming = step.kind === 'rename-table' && input.tableRefRows !== undefined ? await input.tableRefRows(step.table) : 0;
+    if (naming > 0) {
+      add(step.id, {
+        kind: 'repaired',
+        message: `${String(naming)} ${naming === 1 ? 'row names' : 'rows name'} this table in a column that keeps a table’s name; ${naming === 1 ? 'it is' : 'they are'} rewritten to the new name in the same operation.`,
+        refs: [],
+      });
+    }
     add(step.id, {
       kind: 'not-repaired',
       message:

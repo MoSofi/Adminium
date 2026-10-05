@@ -232,6 +232,8 @@ describe('what a rename repairs (D33)', () => {
       endpoints: 0,
       scopes: 0,
       appTables: 0,
+      tableRefs: 0,
+      tableRefsFailed: 0,
     });
   });
 });
