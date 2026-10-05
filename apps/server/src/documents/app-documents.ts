@@ -23,12 +23,13 @@
  * of document it does not draw — a mistake in the app, found before anything
  * is written.
  */
-import type { AppManifest } from '@adminium/manifest';
+import type { AppManifest, Manifest } from '@adminium/manifest';
 import { appTablesRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { ownsBlocks } from '../apps/owns-blocks.js';
 import { AppError } from '../errors.js';
 import {
   availabilityOf,
@@ -50,6 +51,29 @@ const NO_SECRETS = {
 };
 
 /**
+ * The add-ons that may draw a document for an owner.
+ *
+ * For an app: the add-ons attached to it and switched on there. For an add-on
+ * that keeps documents of its own: ITSELF, while it is installed (what it
+ * prints for its own rows needs nobody's leave), and each add-on it suggests
+ * that is installed and not switched off as a whole.
+ */
+export async function drawersFor(meta: MetaDb, ownerKey: string): Promise<Set<string>> {
+  const manifests = manifestsRepo(meta, NO_SECRETS);
+  const owner = await manifests.findByKey(ownerKey);
+  if (owner === null || owner.row.kind !== 'add-on') return new Set((await manifests.enabledForHost(ownerKey)).map((m) => m.row.manifestKey));
+  const out = new Set<string>();
+  if (owner.row.status === 'installed') out.add(ownerKey);
+  const suggests = (owner.document as { addOns?: { suggests?: { key?: unknown }[] } } | null)?.addOns?.suggests ?? [];
+  for (const need of suggests) {
+    if (typeof need.key !== 'string') continue;
+    const other = await manifests.findByKey(need.key);
+    if (other !== null && other.row.kind === 'add-on' && other.row.status === 'installed') out.add(need.key);
+  }
+  return out;
+}
+
+/**
  * What the app's add-ons can draw now: those attached to it and switched on,
  * and the kinds each one's loaded provider draws.
  */
@@ -58,7 +82,7 @@ export async function addOnAvailability(
   appKey: string,
   runtime: () => AddOnRuntimeState | null,
 ): Promise<AddOnAvailability> {
-  const attached = new Set((await manifestsRepo(meta, NO_SECRETS).enabledForHost(appKey)).map((m) => m.row.manifestKey));
+  const attached = await drawersFor(meta, appKey);
   const providerOf = (addOnKey: string) => {
     const state = runtime();
     const entry = state === null ? null : providerByKey(state, DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION, addOnKey);
@@ -108,7 +132,9 @@ export async function installAppDocuments(input: {
     availability: await addOnAvailability(input.meta, input.manifest.key, input.runtime),
     createdBy: input.createdBy,
   });
-  if (result.refused.length > 0) {
+  // An app asking an attached add-on for a kind it does not draw is a mistake in the app, found before
+  // anything is written. An add-on's own documents never stop its install: what cannot be drawn is listed.
+  if (result.refused.length > 0 && (input.manifest as Manifest).kind === 'app') {
     throw new AppError(
       422,
       'DOCUMENT_KIND_UNKNOWN',
@@ -232,10 +258,11 @@ export async function ownedDocumentOff(
 ): Promise<{ addOn: string; feature: string | null; reason: string } | null> {
   if (profile.ownerApp === null) return null;
   const installed = await manifestsRepo(meta, NO_SECRETS).findByKey(profile.ownerApp);
-  const manifest = installed?.document as AppManifest | undefined;
-  if (installed === null || manifest?.kind !== 'app') {
+  const document = installed?.document as Manifest | undefined;
+  if (installed === null || document === undefined || !ownsBlocks(document)) {
     return { addOn: profile.addOnKey, feature: null, reason: `the app "${profile.ownerApp}" is not installed` };
   }
+  const manifest = document;
   const view = await loadSnapshotView(meta, profile.connectionId).catch(() => null);
   if (view === null) return { addOn: profile.addOnKey, feature: null, reason: "the app's tables cannot be read right now" };
   const names = await appTablesRepo(meta).realNames(profile.connectionId, profile.ownerApp);
@@ -264,6 +291,6 @@ export async function appDocumentDetached(meta: MetaDb, manifest: AppManifest, t
   const addOn = addOnKey ?? entry?.addOn;
   if (addOn === undefined) return true;
   const feature = entry?.feature === undefined ? undefined : manifest.addOns?.features?.find((f) => f.id === entry.feature);
-  const attached = new Set((await manifestsRepo(meta, NO_SECRETS).enabledForHost(manifest.key)).map((m) => m.row.manifestKey));
+  const attached = await drawersFor(meta, manifest.key);
   return [addOn, ...(feature?.requires ?? [])].some((key) => !attached.has(key));
 }

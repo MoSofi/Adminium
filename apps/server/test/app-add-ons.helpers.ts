@@ -166,6 +166,8 @@ export interface HarnessOptions {
   documents?: { runtime: () => AddOnRuntimeState | null } | undefined;
   /** The words a staged add-on is refused for; the server's own list when absent. `{}` refuses none. */
   unbuiltWords?: Readonly<Record<string, string>> | undefined;
+  /** Runs each time a route asks for the add-ons to be loaded again: the harness's stand-in for the server's reload. */
+  onRebuild?: (() => void) | undefined;
 }
 
 export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}): Promise<Harness> {
@@ -254,6 +256,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     schemaTarget: createAddOnSchemaTarget({ meta, manager, credentialCrypto: CRYPTO }),
     rebuildRuntime: async () => {
       rebuilds += 1;
+      opts.onRebuild?.();
     },
     // The app install service, once the routes below have their deps: what installs an add-on "like an app".
     core: (): InstallCore | null => installCore,

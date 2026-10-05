@@ -261,6 +261,7 @@ export const installAddOnReply = z.object({
   rules: z.unknown().optional(),
   roles: z.unknown().optional(),
   outbox: z.unknown().optional(),
+  documents: z.unknown().optional(),
 });
 
 /** Enable or disable on one host (PATCH). */

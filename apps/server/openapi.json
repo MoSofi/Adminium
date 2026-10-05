@@ -92623,7 +92623,8 @@
                     "pages": {},
                     "rules": {},
                     "roles": {},
-                    "outbox": {}
+                    "outbox": {},
+                    "documents": {}
                   },
                   "required": [
                     "addOn",

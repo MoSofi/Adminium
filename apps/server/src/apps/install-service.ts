@@ -78,6 +78,7 @@ import {
 } from './catalog.js';
 import { createAppFiles, type AppFiles } from './app-files.js';
 import type { InstallActor, InstallCore, InstallHost } from '../add-ons/install-core.js';
+import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { createRemovals } from './removal.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
@@ -1412,7 +1413,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        * `documents`, owned by the app. An update changes them in place; one
        * that cannot be made (its add-on is not here) is said, never half-made.
        */
-      if (connectionId !== null && manifest.kind === 'app') {
+      if (connectionId !== null && ownsBlocks(manifest)) {
         const documents = await installAppDocuments({
           meta: deps.meta,
           manifest,
@@ -2748,6 +2749,18 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     createTables: (key, manifest, connectionId, verb, opts, expectedChecksum) => createTables(key, manifest, connectionId, verb, opts, expectedChecksum),
     writePages,
     publicAccessOf: (manifest, connectionId, names, actor, installed) => publicAccessOf(manifest, connectionId, names, actor, installed),
+    makeDocuments: async (manifest, connectionId, userId) =>
+      ownsBlocks(manifest)
+        ? installAppDocuments({
+            meta: deps.meta,
+            manifest,
+            connectionId,
+            view: (await deps.publicAccess?.viewFor(connectionId)) ?? (await loadSnapshotView(deps.meta, connectionId).catch(() => null)),
+            names: await appTablesRepo(deps.meta).realNames(connectionId, manifest.key),
+            runtime: deps.addOnRuntime ?? (() => null),
+            createdBy: userId,
+          })
+        : undefined,
     removals: { listOf: removals.listOf, checkDrop: removals.checkDrop, remove: removals.remove },
   };
 

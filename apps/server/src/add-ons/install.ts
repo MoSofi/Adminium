@@ -621,6 +621,13 @@ async function installLikeAnApp(
     await manifests.setStatus(row.row.id, 'installed');
     // Loaded before any save is let back in: the next one runs this version's code.
     await deps.rebuildRuntime?.();
+    // What it prints for its own rows: made now that its own code is loaded. Never what stops an install.
+    try {
+      const documents = await core.makeDocuments(manifest, connectionId, input.actor.id);
+      if (documents !== undefined) written = { ...written, documents };
+    } catch (error) {
+      where.log.warn({ err: error, addOn: key }, 'the add-on is installed, but its document profiles were not made');
+    }
     return { ...row, row: { ...row.row, status: 'installed' } };
   };
 

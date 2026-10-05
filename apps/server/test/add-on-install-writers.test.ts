@@ -5,9 +5,10 @@
  * its roles. The rules hold from the first write; the pages are seen only by
  * the add-on's own roles; and whoever installed it holds its first role.
  */
-import { optionListsRepo, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { documentProfilesRepo, manifestsRepo, optionListsRepo, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { drawersFor } from '../src/documents/app-documents.js';
 import { addOnSettingsGrantHeld } from '../src/rbac/add-on-grant.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { stockKitManifest } from './fixtures/stock-kit/index.js';
@@ -196,7 +197,6 @@ describe.each(LEGS)('an app that needs an add-on with tables of its own — %s',
     expect(reply.statusCode, reply.body).toBe(200);
     const names = await h.tableNames();
     expect(names).toEqual(expect.arrayContaining(['items', 'stock_kit_items', 'stock_kit_takes']));
-    const { manifestsRepo } = await import('@adminium/meta');
     const kit = await manifestsRepo(h.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).findByKey('stock-kit');
     expect(kit?.row).toMatchObject({ status: 'installed', connectionId: h.connectionId });
     expect(kit?.attachments.map((attachment) => attachment.attachedTo)).toContain('shop');
@@ -207,5 +207,82 @@ describe.each(LEGS)('an app that needs an add-on with tables of its own — %s',
     const list = await h.inject({ method: 'GET', url: '/apps/shop/uninstall-plan' });
     expect(list.statusCode, list.body).toBe(200);
     expect(list.json().tables).toEqual([{ table: 'items', droppable: true }]);
+  });
+});
+
+describe('what an add-on prints for its own rows', () => {
+  /** The stock kit with a label it draws itself, and a document another add-on would draw. */
+  const withDocuments = (): Record<string, unknown> => ({
+    ...stockKitManifest(),
+    addOns: { suggests: [{ key: 'invoices', range: '>=1.0.0', reason: { 'en-US': 'Prints purchase orders.' } }] },
+    documents: [
+      { kind: 'stock-label', addOn: 'stock-kit', table: 'items', name: 'Stock label', mapping: { title: { column: 'name' } } },
+      { kind: 'purchase-order', addOn: 'invoices', table: 'items', name: 'Purchase order', mapping: { title: { column: 'name' } } },
+    ],
+  });
+  /** A loaded add-on that draws the kinds named. */
+  const drawing = (addOnKey: string, kinds: string[]) => ({
+    addOnKey,
+    contract: 'document-render',
+    version: 1,
+    module: { key: addOnKey, kinds: () => kinds.map((id) => ({ id, formats: ['html'], paper: ['a4'] })), describe: () => ({ slots: [{ id: 'title', type: 'text' }] }), render: () => Promise.resolve([]) },
+  });
+
+  it('is made at its install, once its own code is loaded — by itself, with nobody attached', async () => {
+    const state = { providers: new Map<string, unknown[]>(), slots: new Map(), conflicts: [], problems: [], deciders: new Map() };
+    // Its code is loaded when the install says so, and not a moment before.
+    h = await addOnHarness('sqlite', {
+      unbuiltWords: {},
+      documents: { runtime: () => state as never },
+      onRebuild: () => state.providers.set('document-render@1', [drawing('stock-kit', ['stock-label'])]),
+    });
+    await h.stageAddOn(withDocuments());
+    const reply = await install(h);
+    expect(reply.statusCode, reply.body).toBe(200);
+    const profiles = await documentProfilesRepo(h.meta).listOwnedBy(h.connectionId, 'stock-kit');
+    expect(profiles.map((profile) => [profile.kind, profile.addOnKey])).toEqual([['stock-label', 'stock-kit']]);
+    // The other document waits for the add-on that draws it: said, and nothing made for it.
+    expect(JSON.stringify(reply.json().documents.skipped)).toContain('purchase-order');
+    expect(reply.json().documents.made).toHaveLength(1);
+    // An add-on it suggests that is not installed draws nothing for it.
+    expect([...(await drawersFor(h.meta, 'stock-kit'))]).toEqual(['stock-kit']);
+  });
+
+  it('never stops its install: with nothing loaded that draws it, the add-on is installed and the document is listed as skipped', async () => {
+    h = await addOnHarness('sqlite', { unbuiltWords: {}, documents: { runtime: () => null } });
+    await h.stageAddOn(withDocuments());
+    const reply = await install(h);
+    expect(reply.statusCode, reply.body).toBe(200);
+    expect(await documentProfilesRepo(h.meta).listOwnedBy(h.connectionId, 'stock-kit')).toEqual([]);
+    expect(JSON.stringify(reply.json().documents.skipped)).toContain('stock-label');
+  });
+
+  it('a suggested add-on that is here and does not draw the kind is listed, and the install still finishes', async () => {
+    const state = { providers: new Map<string, unknown[]>(), slots: new Map(), conflicts: [], problems: [], deciders: new Map() };
+    h = await addOnHarness('sqlite', {
+      unbuiltWords: {},
+      documents: { runtime: () => state as never },
+      onRebuild: () => state.providers.set('document-render@1', [drawing('stock-kit', ['stock-label']), drawing('invoices', ['invoice'])]),
+    });
+    await h.stageAddOn(withDocuments());
+    const manifests = manifestsRepo(h.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v });
+    // Suggested and not installed: it draws nothing for this owner.
+    expect([...(await drawersFor(h.meta, 'stock-kit'))]).toEqual([]);
+    await manifests.install({ manifestKey: 'invoices', version: '1.0.8', kind: 'add-on', source: 'marketplace', document: { kind: 'add-on', key: 'invoices' } });
+    const reply = await install(h);
+    expect(reply.statusCode, reply.body).toBe(200);
+    expect([...(await drawersFor(h.meta, 'stock-kit'))].sort()).toEqual(['invoices', 'stock-kit']);
+    expect(reply.json().documents.refused).toEqual([]);
+    expect(JSON.stringify(reply.json().documents.skipped)).toContain('does not draw a \\"purchase-order\\" document');
+    expect((await documentProfilesRepo(h.meta).listOwnedBy(h.connectionId, 'stock-kit')).map((profile) => profile.kind)).toEqual(['stock-label']);
+  });
+
+  it('who may draw for an owner: an app\'s attached add-ons; an add-on itself while installed, and what it suggests', async () => {
+    const made = await installed('sqlite');
+    h = made.harness;
+    expect([...(await drawersFor(h.meta, 'stock-kit'))]).toEqual(['stock-kit']);
+    await h.meta.db.updateTable('adminium_manifests').set({ status: 'updating' }).where('manifestKey', '=', 'stock-kit').execute();
+    expect([...(await drawersFor(h.meta, 'stock-kit'))]).toEqual([]);
+    expect([...(await drawersFor(h.meta, 'an-app-with-nothing-attached'))]).toEqual([]);
   });
 });

@@ -103,6 +103,12 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
     ownFolder?: boolean,
   ): Promise<Readonly<Record<string, unknown>> | undefined>;
   publicAccessOf(manifest: Manifest, connectionId: string, names: Readonly<Record<string, string>>, actor: InstallActor, installed?: boolean): Promise<unknown>;
+  /**
+   * The owner's document profiles, made or brought up to date with the
+   * add-ons loaded as they are NOW. An add-on's install calls it once its own
+   * code is loaded: what it prints for its own rows can be made only then.
+   */
+  makeDocuments(manifest: Manifest, connectionId: string, userId: string | null): Promise<unknown>;
   removals: {
     listOf(row: InstalledManifest): Promise<List>;
     checkDrop(list: List, opts: CoreDropOptions): Promise<void>;

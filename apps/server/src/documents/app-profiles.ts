@@ -47,7 +47,7 @@
  */
 import { isDeepStrictEqual } from 'node:util';
 
-import type { AppDocument, AppManifest, ColumnRules, ShapeDefinition, SlotMapping as ManifestSlotMapping } from '@adminium/manifest';
+import type { AppDocument, AppManifest, ColumnRules, Manifest, ShapeDefinition, SlotMapping as ManifestSlotMapping } from '@adminium/manifest';
 import { shapeDefinitionSchema, shapeKey } from '@adminium/manifest';
 import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
@@ -544,7 +544,10 @@ export async function makeAppProfiles(input: {
   for (const candidate of plan.planned.filter(needs)) {
     const verdict = input.availability === undefined ? ({ state: 'on' } as const) : availabilityOf(candidate, input.manifest, input.availability);
     if (verdict.state !== 'on') {
-      (verdict.state === 'off' ? result.skipped : result.refused).push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
+      // An add-on only SUGGESTS the add-ons that draw for it: one that is here and does not draw the kind
+      // leaves that one document off, and never holds back the documents the owner draws itself.
+      const off = verdict.state === 'off' || (input.manifest as Manifest).kind === 'add-on';
+      (off ? result.skipped : result.refused).push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
       continue;
     }
     const slots = input.availability?.slotsOf?.(candidate.addOn, candidate.kind) ?? null;

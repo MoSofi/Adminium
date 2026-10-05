@@ -1362,13 +1362,13 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           },
         });
         await makeAppDocuments(request, key, attachTo);
-        const { pages, rules, roles, outbox } = written ?? {};
+        const { pages, rules, roles, outbox, documents } = written ?? {};
         return {
           addOn: await toDto(installed),
           plan,
           connectionId: connectionId ?? null,
           schema: { created, reused: reused ?? plan.reuse.map((table) => table.ref) },
-          ...(written === undefined ? {} : { pages, rules, roles, outbox }),
+          ...(written === undefined ? {} : { pages, rules, roles, outbox, documents }),
         };
       },
     );
