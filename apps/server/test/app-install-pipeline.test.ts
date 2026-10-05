@@ -3865,10 +3865,11 @@ for (const [dialect, available] of legs) {
       expect((await publicKeysRepo(h.meta).list()).filter((k) => k.managedBy === 'pos')).toHaveLength(1);
 
       // Uninstalled: the key is revoked and the endpoints are gone.
+      const droppedBefore = INVALIDATED_KEYS.filter((id) => id === made.keyId).length;
       expect((await h.app.inject({ method: 'DELETE', url: '/apps/pos' })).statusCode).toBe(200);
       expect((await publicKeysRepo(h.meta).findById(made.keyId))!.revokedAt).not.toBeNull();
-      // …and stops at once: the resolver's cached scope is dropped.
-      expect(INVALIDATED_KEYS).toContain(made.keyId);
+      // …and stops at once: the resolver's cached scope is dropped by the uninstall itself, not by an earlier step.
+      expect(INVALIDATED_KEYS.filter((id) => id === made.keyId).length).toBe(droppedBefore + 1);
       expect(await endpoints()).toEqual([]);
     }, 60_000);
 
