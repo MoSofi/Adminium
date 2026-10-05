@@ -15815,6 +15815,18 @@
     "status": "mt",
     "srcHash": "fd6c3ebf7bef"
   },
+  "studio.addOns.consent.database": {
+    "status": "mt",
+    "srcHash": "4181ad49a228"
+  },
+  "studio.addOns.consent.databaseHelp": {
+    "status": "mt",
+    "srcHash": "e0a38ce9172c"
+  },
+  "studio.addOns.consent.databasePick": {
+    "status": "mt",
+    "srcHash": "89346141c29b"
+  },
   "studio.addOns.consent.hosts": {
     "status": "mt",
     "srcHash": "c236ea8ff0e4"
@@ -15834,6 +15846,26 @@
   "studio.addOns.error": {
     "status": "mt",
     "srcHash": "8d886c0ba6f2"
+  },
+  "studio.addOns.incomplete.body": {
+    "status": "mt",
+    "srcHash": "19e678b0269f"
+  },
+  "studio.addOns.incomplete.finish": {
+    "status": "mt",
+    "srcHash": "ac2117989391"
+  },
+  "studio.addOns.incomplete.seeds": {
+    "status": "mt",
+    "srcHash": "71a558fa5b6c"
+  },
+  "studio.addOns.incomplete.tables": {
+    "status": "mt",
+    "srcHash": "5e907c8058e4"
+  },
+  "studio.addOns.incomplete.writers": {
+    "status": "mt",
+    "srcHash": "2525de5bdfd5"
   },
   "studio.addOns.installed.connected": {
     "status": "mt",
@@ -15899,6 +15931,22 @@
     "status": "mt",
     "srcHash": "3f2cb8ba988f"
   },
+  "studio.addOns.plan.database": {
+    "status": "mt",
+    "srcHash": "11cd2a13a504"
+  },
+  "studio.addOns.plan.documents": {
+    "status": "mt",
+    "srcHash": "a720afbbf757"
+  },
+  "studio.addOns.plan.lists": {
+    "status": "mt",
+    "srcHash": "e29ce00862ca"
+  },
+  "studio.addOns.plan.makesTitle": {
+    "status": "mt",
+    "srcHash": "bc37c40b6e30"
+  },
   "studio.addOns.plan.needsColumns": {
     "status": "mt",
     "srcHash": "582951b94e1d"
@@ -15911,9 +15959,21 @@
     "status": "mt",
     "srcHash": "faf3f9716af5"
   },
+  "studio.addOns.plan.pages": {
+    "status": "mt",
+    "srcHash": "5d490697f021"
+  },
   "studio.addOns.plan.reuse": {
     "status": "mt",
     "srcHash": "14cadda492d1"
+  },
+  "studio.addOns.plan.roles": {
+    "status": "mt",
+    "srcHash": "ca82dc386af5"
+  },
+  "studio.addOns.plan.seeds": {
+    "status": "mt",
+    "srcHash": "94a516ca3358"
   },
   "studio.addOns.plan.willCreate": {
     "status": "mt",
@@ -15958,6 +16018,10 @@
   "studio.addOns.sideload.title": {
     "status": "mt",
     "srcHash": "f34d1ee61d3b"
+  },
+  "studio.addOns.sideload.untrusted": {
+    "status": "mt",
+    "srcHash": "64808a9c87a9"
   },
   "studio.addOns.sideload.uploaded.body": {
     "status": "mt",

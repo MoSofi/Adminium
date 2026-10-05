@@ -69,9 +69,19 @@
       "hosts": "Verbinden mit",
       "loading": "Wird ermittelt, was das bewirken würde …",
       "subtitle": "Was dieses Add-on tun wird, bevor es das tun kann.",
-      "title": "{name} installieren"
+      "title": "{name} installieren",
+      "database": "Welche Datenbank?",
+      "databaseHelp": "Dieses Add-on führt eigene Tabellen, und alle liegen in einer Datenbank. Später lässt es sich nicht verschieben.",
+      "databasePick": "Datenbank wählen"
     },
     "error": "Etwas ist schiefgelaufen",
+    "incomplete": {
+      "tables": "beim Anlegen seiner Tabellen",
+      "seeds": "beim Hinzufügen der Zeilen, mit denen seine Tabellen beginnen",
+      "writers": "beim Hinzufügen seiner Seiten, Rollen und Regeln",
+      "finish": "beim Abschließen",
+      "body": "Die Installation wurde {stage} angehalten. Nichts wurde rückgängig gemacht, und nichts ist verloren: Installieren Sie es erneut, um sie abzuschließen."
+    },
     "installed": {
       "connected": "Verbunden",
       "disconnect": "Trennen",
@@ -98,7 +108,14 @@
       "noData": "Dieses Add-on liest und schreibt keine eigenen Tabellen.",
       "reuse": "Dieses Add-on verwendet Tabellen, die Sie bereits haben:",
       "willCreate": "Dadurch werden Tabellen in Ihrer Datenbank angelegt",
-      "willCreateBody": "Bei der Installation werden diese Tabellen angelegt. Eine spätere Deinstallation lässt sie und ihre Daten unberührt."
+      "willCreateBody": "Bei der Installation werden diese Tabellen angelegt. Eine spätere Deinstallation lässt sie und ihre Daten unberührt.",
+      "database": "Seine Tabellen kommen in die Datenbank „{name}“.",
+      "pages": "Seiten: {names}.",
+      "roles": "Rollen: {names}. Sie erhalten die erste, damit Sie seine Seiten öffnen können.",
+      "lists": "Auswahllisten: {names}.",
+      "documents": "Dokumentlayouts: {count}.",
+      "seeds": "Seine Tabellen beginnen mit einigen eigenen Zeilen, die Sie ändern können.",
+      "makesTitle": "Die Installation fügt außerdem hinzu"
     },
     "settings": {
       "badJson": "Das ist kein gültiges JSON und wurde nicht gespeichert.",
@@ -115,7 +132,8 @@
       "uploaded": {
         "title": "{name} {version} hochgeladen",
         "body": "Installieren Sie es über die Liste oben."
-      }
+      },
+      "untrusted": "Das Paket ist gespeichert und kann installiert werden, aber Adminium weiß nicht, von wem es stammt: Der Teil, der beim Speichern eines Datensatzes Entscheidungen trifft, wird nicht ausgeführt."
     },
     "subtitle": "Zusätzliche Funktionen für Ihre Apps – Versand, Grafik, Daten. Jedes sagt vor der Installation, was es benötigt.",
     "title": "Add-ons",

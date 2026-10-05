@@ -7,7 +7,7 @@
 import { Alert } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import type { InstallPlan } from './addOnsApi.js';
+import type { InstallMakes, InstallPlan } from './addOnsApi.js';
 
 /**
  * The plan, rendered as prose an operator can act on.
@@ -78,5 +78,36 @@ export function PlanSummary({ plan }: { plan: InstallPlan }) {
       {t('studio:addOns.plan.reuse', 'This add-on will use tables you already have:')}{' '}
       <strong>{plan.reuse.map((table) => table.ref).join(', ')}</strong>
     </p>
+  );
+}
+
+/**
+ * What an install makes beside its tables, and where the tables go — said
+ * before consent, by name: the pages somebody will see in the sidebar, the
+ * roles that open them, the lists of choices, the rows its tables start with.
+ * Nothing for an add-on that makes none of these.
+ */
+export function MakesSummary({ makes, database }: { makes: InstallMakes | undefined; database: string | null }) {
+  const lines: string[] = [];
+  if (database !== null) lines.push(t('studio:addOns.plan.database', 'Its tables go in the database “{name}”.', { name: database }));
+  if (makes !== undefined) {
+    if (makes.pages.length > 0) lines.push(t('studio:addOns.plan.pages', 'Pages: {names}.', { names: makes.pages.map((page) => page.title).join(', ') }));
+    if (makes.roles.length > 0) {
+      lines.push(t('studio:addOns.plan.roles', 'Roles: {names}. You are given the first one, so you can open its pages.', { names: makes.roles.map((role) => role.name).join(', ') }));
+    }
+    if (makes.lists.length > 0) lines.push(t('studio:addOns.plan.lists', 'Lists of choices: {names}.', { names: makes.lists.join(', ') }));
+    if (makes.documents > 0) lines.push(t('studio:addOns.plan.documents', 'Document layouts: {count}.', { count: makes.documents }));
+    if (makes.seeds) lines.push(t('studio:addOns.plan.seeds', 'Its tables start with a few rows of their own, which are yours to change.'));
+  }
+  if (lines.length === 0) return null;
+  return (
+    <div data-part="add-on-plan-makes">
+      <p className="text-sm font-semibold text-fg">{t('studio:addOns.plan.makesTitle', 'Installing also adds')}</p>
+      <ul className="list-disc ps-4 text-sm text-fg-muted">
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </div>
   );
 }

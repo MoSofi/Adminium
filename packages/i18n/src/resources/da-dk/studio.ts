@@ -79,9 +79,19 @@ export default {
       "hosts": "Attach to",
       "loading": "Working out what this would do…",
       "subtitle": "What this add-on will do, before it can do it.",
-      "title": "Install {name}"
+      "title": "Install {name}",
+      "database": "Hvilken database?",
+      "databaseHelp": "Denne tilføjelse har sine egne tabeller, og de ligger alle i én database. Den kan ikke flyttes senere.",
+      "databasePick": "Vælg en database"
     },
     "error": "Something went wrong",
+    "incomplete": {
+      "tables": "under oprettelsen af dens tabeller",
+      "seeds": "under tilføjelsen af de rækker, dens tabeller begynder med",
+      "writers": "under tilføjelsen af dens sider, roller og regler",
+      "finish": "under afslutningen",
+      "body": "Installationen stoppede {stage}. Intet blev fortrudt, og intet er gået tabt: installer den igen for at afslutte."
+    },
     "installed": {
       "connected": "Connected",
       "disconnect": "Disconnect",
@@ -108,7 +118,14 @@ export default {
       "noData": "This add-on reads and writes no tables of its own.",
       "reuse": "This add-on will use tables you already have:",
       "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
+      "database": "Dens tabeller lægges i databasen “{name}”.",
+      "pages": "Sider: {names}.",
+      "roles": "Roller: {names}. Du får den første, så du kan åbne dens sider.",
+      "lists": "Valglister: {names}.",
+      "documents": "Dokumentlayout: {count}.",
+      "seeds": "Dens tabeller begynder med nogle få rækker, som du kan ændre.",
+      "makesTitle": "Installationen tilføjer også"
     },
     "settings": {
       "badJson": "Det er ikke gyldig JSON, så intet blev gemt.",
@@ -125,7 +142,8 @@ export default {
       "uploaded": {
         "title": "{name} {version} er uploadet",
         "body": "Installer det fra listen ovenfor."
-      }
+      },
+      "untrusted": "Pakken er gemt og kan installeres, men Adminium ved ikke, hvem der har lavet den: den del, der træffer afgørelser, mens en post gemmes, bliver ikke kørt."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

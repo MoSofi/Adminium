@@ -79,9 +79,19 @@ export default {
       "hosts": "Attach to",
       "loading": "Working out what this would do…",
       "subtitle": "What this add-on will do, before it can do it.",
-      "title": "Install {name}"
+      "title": "Install {name}",
+      "database": "使用哪個資料庫？",
+      "databaseHelp": "此附加元件有自己的資料表，而且全部放在同一個資料庫中。之後無法移動。",
+      "databasePick": "選擇資料庫"
     },
     "error": "Something went wrong",
+    "incomplete": {
+      "tables": "建立資料表時",
+      "seeds": "新增資料表的初始列時",
+      "writers": "新增頁面、角色和規則時",
+      "finish": "收尾時",
+      "body": "安裝在{stage}停止。沒有復原任何內容，也沒有遺失任何內容：再次安裝即可完成。"
+    },
     "installed": {
       "connected": "Connected",
       "disconnect": "Disconnect",
@@ -108,7 +118,14 @@ export default {
       "noData": "This add-on reads and writes no tables of its own.",
       "reuse": "This add-on will use tables you already have:",
       "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
+      "database": "它的資料表會放在資料庫「{name}」中。",
+      "pages": "頁面：{names}。",
+      "roles": "角色：{names}。你會取得第一個角色，以便開啟它的頁面。",
+      "lists": "選項清單：{names}。",
+      "documents": "文件版面：{count}。",
+      "seeds": "它的資料表會帶有幾列初始資料，你可以修改。",
+      "makesTitle": "安裝還會新增"
     },
     "settings": {
       "badJson": "這不是有效的 JSON，因此未儲存。",
@@ -125,7 +142,8 @@ export default {
       "uploaded": {
         "title": "已上傳 {name} {version}",
         "body": "請在上方清單中安裝。"
-      }
+      },
+      "untrusted": "套件已儲存，可以安裝，但 Adminium 不知道它的製作者：其中在儲存記錄時做出決定的部分不會執行。"
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

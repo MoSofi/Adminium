@@ -79,9 +79,19 @@ export default {
       "hosts": "Attach to",
       "loading": "Working out what this would do…",
       "subtitle": "What this add-on will do, before it can do it.",
-      "title": "Install {name}"
+      "title": "Install {name}",
+      "database": "Which database?",
+      "databaseHelp": "This add-on keeps tables of its own, and they all go in one database. It cannot be moved later.",
+      "databasePick": "Choose a database"
     },
     "error": "Something went wrong",
+    "incomplete": {
+      "tables": "making its tables",
+      "seeds": "adding the rows its tables start with",
+      "writers": "adding its pages, roles and rules",
+      "finish": "finishing",
+      "body": "The install stopped while {stage}. Nothing was undone, and nothing is lost: install it again to finish."
+    },
     "installed": {
       "connected": "Connected",
       "disconnect": "Disconnect",
@@ -108,7 +118,14 @@ export default {
       "noData": "This add-on reads and writes no tables of its own.",
       "reuse": "This add-on will use tables you already have:",
       "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
+      "database": "Its tables go in the database “{name}”.",
+      "pages": "Pages: {names}.",
+      "roles": "Roles: {names}. You are given the first one, so you can open its pages.",
+      "lists": "Lists of choices: {names}.",
+      "documents": "Document layouts: {count}.",
+      "seeds": "Its tables start with a few rows of their own, which are yours to change.",
+      "makesTitle": "Installing also adds"
     },
     "settings": {
       "badJson": "That is not valid JSON, so it was not saved.",
@@ -125,7 +142,8 @@ export default {
       "uploaded": {
         "title": "Uploaded {name} {version}",
         "body": "Install it from the list above."
-      }
+      },
+      "untrusted": "The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

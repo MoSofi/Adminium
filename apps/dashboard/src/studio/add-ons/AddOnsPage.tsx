@@ -57,7 +57,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
 import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
-import { PlanSummary } from './PlanSummary.js';
+import { MakesSummary, PlanSummary } from './PlanSummary.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
 import {
@@ -72,7 +72,8 @@ import {
   getAddOnJob,
   setCatalogEnabled,
   uploadAddOn,
-  fetchInstallPlan,
+  checkInstall,
+  connectionChoices,
   installAddOn,
   refreshCatalog,
   saveAddOnSettings,
@@ -82,7 +83,8 @@ import {
   type AddOnDto,
   type AddOnUse,
   type CatalogEntry,
-  type InstallPlan,
+  type ConnectionChoice,
+  type InstallCheck,
   type StagedPackage,
 } from './addOnsApi.js';
 
@@ -117,27 +119,64 @@ function UsedByLine({ uses }: { uses: readonly AddOnUse[] }) {
   );
 }
 
+/**
+ * An install that stopped part way, or a package stored but not trusted, in
+ * words a person can act on. Null for any other failure: its own message stands.
+ */
+function installStoppedWords(caught: unknown): string | null {
+  if (!(caught instanceof ApiError)) return null;
+  const details = (caught.details ?? {}) as { stage?: unknown; addOn?: unknown; key?: unknown };
+  if (caught.code === 'ADD_ON_INSTALL_INCOMPLETE') {
+    const stage =
+      details.stage === 'tables'
+        ? t('studio:addOns.incomplete.tables', 'making its tables')
+        : details.stage === 'seeds'
+          ? t('studio:addOns.incomplete.seeds', 'adding the rows its tables start with')
+          : details.stage === 'writers'
+            ? t('studio:addOns.incomplete.writers', 'adding its pages, roles and rules')
+            : t('studio:addOns.incomplete.finish', 'finishing');
+    return t('studio:addOns.incomplete.body', 'The install stopped while {stage}. Nothing was undone, and nothing is lost: install it again to finish.', { stage });
+  }
+  if (caught.code === 'ADD_ON_UNTRUSTED') {
+    return t(
+      'studio:addOns.sideload.untrusted',
+      'The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run.',
+    );
+  }
+  return null;
+}
+
 /** The consent dialog — the security surface, not decoration. */
 function ConsentDialog({
   entry,
-  plan,
+  check,
+  choices,
+  chosen,
   hosts,
   busy,
+  onChoose,
   onCancel,
   onConfirm,
 }: {
   entry: CatalogEntry;
-  plan: InstallPlan | null;
+  /** Null while it is being worked out, and until a database is chosen where there is a choice. */
+  check: InstallCheck | null;
+  /** The databases its tables may go in, when the server asked which. */
+  choices: ConnectionChoice[] | null;
+  chosen: string | null;
   hosts: string[];
   busy: boolean;
+  onChoose: (connectionId: string) => void;
   onCancel: () => void;
   onConfirm: (attachTo: string[]) => void;
 }) {
   const [attachTo, setAttachTo] = useState<string[]>(hosts);
+  const plan = check?.plan ?? null;
   const blocked =
     plan === null ||
     !plan.installable ||
     plan.reuse.some((table) => table.missingColumns.length > 0);
+  const asking = choices !== null && chosen === null;
   return (
     <Modal
       open
@@ -156,12 +195,35 @@ function ConsentDialog({
       />
       <ModalBody>
         <div className="flex flex-col gap-3">
-          {plan === null ? (
+          {choices !== null && (
+            <FormField
+              label={t('studio:addOns.consent.database', 'Which database?')}
+              helper={t(
+                'studio:addOns.consent.databaseHelp',
+                'This add-on keeps tables of its own, and they all go in one database. It cannot be moved later.',
+              )}
+            >
+              <Select value={chosen ?? ''} disabled={busy} onChange={(event) => event.target.value !== '' && onChoose(event.target.value)} data-part="add-on-database">
+                <option value="" disabled>
+                  {t('studio:addOns.consent.databasePick', 'Choose a database')}
+                </option>
+                {choices.map((choice) => (
+                  <option key={choice.id} value={choice.id}>
+                    {choice.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          )}
+          {asking ? null : plan === null ? (
             <p className="text-sm text-fg-muted">
               {t('studio:addOns.consent.loading', 'Working out what this would do…')}
             </p>
           ) : (
-            <PlanSummary plan={plan} />
+            <>
+              <PlanSummary plan={plan} />
+              {plan.installable && <MakesSummary makes={check?.makes} database={check?.makes === undefined ? null : (check.connectionName ?? null)} />}
+            </>
           )}
           {hosts.length > 0 && (
             <FormField label={t('studio:addOns.consent.hosts', 'Attach to')}>
@@ -593,9 +655,13 @@ export function AddOnsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [consent, setConsent] = useState<{ entry: CatalogEntry; plan: InstallPlan | null } | null>(
-    null,
-  );
+  const [consent, setConsent] = useState<{
+    entry: CatalogEntry;
+    check: InstallCheck | null;
+    /** The databases to choose from, once the server asked which; and the one chosen. */
+    choices: ConnectionChoice[] | null;
+    chosen: string | null;
+  } | null>(null);
   const [progress, setProgress] = useState<{ pct: number; message: string | null } | null>(null);
   const [vetoed, setVetoed] = useState(false);
   /** An app needs the add-on: refused (it requires it) or warned (a feature of it stops). */
@@ -649,7 +715,7 @@ export function AddOnsPage() {
         await refresh();
         return undefined;
       }
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(installStoppedWords(caught) ?? (caught instanceof Error ? caught.message : String(caught)));
       return undefined;
     } finally {
       setBusy(false);
@@ -747,18 +813,26 @@ export function AddOnsPage() {
     }
   };
 
-  const openConsent = (entry: CatalogEntry): void => {
-    setConsent({ entry, plan: null });
+  /** Work out what an install would do — in the database chosen, once one had to be. */
+  const check = (entry: CatalogEntry, choices: ConnectionChoice[] | null, chosen: string | null): void => {
+    setConsent({ entry, check: null, choices, chosen });
     void (async () => {
       try {
-        const plan = await fetchInstallPlan(entry.key);
-        setConsent((current) => (current?.entry.key === entry.key ? { entry, plan } : current));
+        const found = await checkInstall(entry.key, chosen ?? undefined);
+        setConsent((current) => (current?.entry.key === entry.key && current.chosen === chosen ? { entry, check: found, choices, chosen } : current));
       } catch (caught) {
+        // Several databases and none named: the dialog asks which, with the server's own list.
+        const asked = connectionChoices(caught);
+        if (asked !== null && asked.length > 0 && chosen === null) {
+          setConsent((current) => (current?.entry.key === entry.key ? { entry, check: null, choices: asked, chosen: null } : current));
+          return;
+        }
         setError(caught instanceof Error ? caught.message : String(caught));
         setConsent(null);
       }
     })();
   };
+  const openConsent = (entry: CatalogEntry): void => check(entry, null, null);
 
   /*
    * ONE CLICK. Install on a row the list offers: the package is fetched and
@@ -1003,14 +1077,26 @@ export function AddOnsPage() {
       {consent !== null && (
         <ConsentDialog
           entry={consent.entry}
-          plan={consent.plan}
+          check={consent.check}
+          choices={consent.choices}
+          chosen={consent.chosen}
           hosts={byKey.get(consent.entry.key)?.attachments.map((a) => a.attachedTo) ?? []}
           busy={busy}
+          onChoose={(connectionId) => check(consent.entry, consent.choices, connectionId)}
           onCancel={() => setConsent(null)}
           onConfirm={(attachTo) => {
-            const entry = consent.entry;
+            const { entry, chosen, check: agreed } = consent;
             setConsent(null);
-            void run(() => installAddOn({ key: entry.key, version: entry.version, attachTo }));
+            void run(() =>
+              installAddOn({
+                key: entry.key,
+                version: entry.version,
+                attachTo,
+                ...(chosen === null ? {} : { connectionId: chosen }),
+                // The plan the person just read: a database that moved since is said, not built on.
+                ...(agreed?.checksum === undefined ? {} : { planChecksum: agreed.checksum }),
+              }),
+            );
           }}
         />
       )}

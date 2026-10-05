@@ -102,14 +102,19 @@ interface StubOptions {
   plan?: InstallPlan;
   /** What the sideload route answers — by default, the package it read. */
   upload?: { status: number; body: unknown };
+  /** Answers a request first, when it has an answer of its own for it. */
+  respond?: (method: string, url: string, body: unknown) => { status: number; body: unknown; after?: Promise<void> } | undefined;
 }
 
 function stubFetch(options: StubOptions = {}) {
-  const calls: { method: string; url: string }[] = [];
+  const calls: { method: string; url: string; body?: unknown }[] = [];
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
-    calls.push({ method, url });
+    const sent: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
+    calls.push({ method, url, body: sent });
+    const own = options.respond?.(method, url, sent);
+    if (own !== undefined) return (own.after ?? Promise.resolve()).then(() => jsonResponse(own.status, own.body));
 
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(
@@ -688,4 +693,139 @@ describe('AddOnsPage', () => {
     });
   });
 
+
+  describe('an add-on that keeps tables of its own', () => {
+    const SHOP = { id: 'conn_shop', name: 'Shop' };
+    const ARCHIVE = { id: 'conn_old', name: 'Archive' };
+    const MAKES = { pages: [{ ref: 'kit-items', title: 'Items' }, { ref: 'kit-count', title: 'Count' }], roles: [{ key: 'manager', name: 'Stock manager' }], lists: ['zones'], documents: 2, seeds: true };
+    const asked = { status: 409, body: { error: { code: 'ADD_ON_SCHEMA_CONNECTION', message: 'Which database?', requestId: 'r', details: { connections: [SHOP, ARCHIVE] } } } };
+    const planned = (connection: { id: string; name: string }) => ({
+      status: 200,
+      body: { plan: makePlan({ touchesData: true, create: [{ ref: 'items', columns: [] }] }), connectionId: connection.id, connectionName: connection.name, checksum: `sum-${connection.id}`, makes: MAKES },
+    });
+    /** Two databases: the first check is answered with the list, a check that names one with its plan. */
+    const twoDatabases: StubOptions['respond'] = (method, url, body) => {
+      if (method === 'GET' && url.endsWith('/holiday-calendars/plan')) return asked;
+      if (method === 'POST' && url === '/api/v1/add-ons/plan') return planned((body as { connectionId: string }).connectionId === SHOP.id ? SHOP : ARCHIVE);
+      return undefined;
+    };
+
+    it('picks a database when asked, shows what will be made there, and installs in the one chosen', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ respond: twoDatabases });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      const pick = await within(dialog).findByLabelText('Which database?');
+      // Until one is chosen there is no plan to agree to, and nothing to install.
+      expect((within(dialog).getByRole('button', { name: 'Install' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(within(dialog).queryByText(/Working out/)).toBeNull();
+      expect(within(pick).getAllByRole('option').map((option) => option.textContent)).toEqual(['Choose a database', 'Shop', 'Archive']);
+
+      await user.selectOptions(pick, SHOP.id);
+      expect(await within(dialog).findByText('Its tables go in the database “Shop”.')).toBeTruthy();
+      expect(within(dialog).getByText('Pages: Items, Count.')).toBeTruthy();
+      expect(within(dialog).getByText(/^Roles: Stock manager\. You are given the first one/)).toBeTruthy();
+      expect(within(dialog).getByText('Lists of choices: zones.')).toBeTruthy();
+      expect(within(dialog).getByText('Document layouts: 2.')).toBeTruthy();
+      expect(within(dialog).getByText(/start with a few rows/)).toBeTruthy();
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/plan')?.body).toMatchObject({ key: 'holiday-calendars', connectionId: SHOP.id });
+
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')).toBe(true));
+      // The database chosen, and the identity of the plan that was read.
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')?.body).toMatchObject({ key: 'holiday-calendars', connectionId: SHOP.id, planChecksum: 'sum-conn_shop' });
+    });
+
+    it('choosing another database asks again, and the install carries the last one chosen', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ respond: twoDatabases });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      const pick = await within(dialog).findByLabelText('Which database?');
+      await user.selectOptions(pick, SHOP.id);
+      await within(dialog).findByText('Its tables go in the database “Shop”.');
+      await user.selectOptions(pick, ARCHIVE.id);
+      expect(await within(dialog).findByText('Its tables go in the database “Archive”.')).toBeTruthy();
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')).toBe(true));
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')?.body).toMatchObject({ connectionId: ARCHIVE.id, planChecksum: 'sum-conn_old' });
+    });
+
+    it('an answer that comes late for a database no longer chosen is not what the dialog shows or installs', async () => {
+      const user = userEvent.setup();
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const { calls } = await renderPage({
+        respond: (method, url, body) => {
+          const answer = twoDatabases(method, url, body);
+          // The first database's plan is slow to come.
+          return answer !== undefined && method === 'POST' && (body as { connectionId?: string }).connectionId === SHOP.id ? { ...answer, after: held } : answer;
+        },
+      });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      const pick = await within(dialog).findByLabelText('Which database?');
+      await user.selectOptions(pick, SHOP.id);
+      await user.selectOptions(pick, ARCHIVE.id);
+      await within(dialog).findByText('Its tables go in the database “Archive”.');
+      release();
+      await waitFor(() => expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/plan')).toHaveLength(2));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(within(dialog).queryByText('Its tables go in the database “Shop”.')).toBeNull();
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')).toBe(true));
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')?.body).toMatchObject({ connectionId: ARCHIVE.id, planChecksum: 'sum-conn_old' });
+    });
+
+    it('with one database nobody is asked: the plan says where, and the install names no database', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ respond: (method, url) => (method === 'GET' && url.endsWith('/holiday-calendars/plan') ? planned(SHOP) : undefined) });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(await within(dialog).findByText('Its tables go in the database “Shop”.')).toBeTruthy();
+      expect(within(dialog).queryByLabelText('Which database?')).toBeNull();
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')).toBe(true));
+      const sent = calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')?.body as Record<string, unknown>;
+      expect(sent).toMatchObject({ planChecksum: 'sum-conn_shop' });
+      expect(sent).not.toHaveProperty('connectionId');
+    });
+
+    it('an add-on that makes nothing beside tables is shown no list of what else is added', async () => {
+      const user = userEvent.setup();
+      await renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      await within(dialog).findByText(/reads and writes no tables of its own/);
+      expect(within(dialog).queryByText('Installing also adds')).toBeNull();
+    });
+
+    it('an install that stopped part way says at which step, and that the same button finishes it', async () => {
+      const user = userEvent.setup();
+      await renderPage({
+        respond: (method, url) =>
+          method === 'POST' && url === '/api/v1/add-ons'
+            ? { status: 409, body: { error: { code: 'ADD_ON_INSTALL_INCOMPLETE', message: 'raw server words', requestId: 'r', details: { addOn: 'holiday-calendars', stage: 'seeds', created: ['items'], pending: [] } } } }
+            : undefined,
+      });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      await within(dialog).findByText(/reads and writes no tables of its own/);
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      expect(await screen.findByText('The install stopped while adding the rows its tables start with. Nothing was undone, and nothing is lost: install it again to finish.')).toBeTruthy();
+      expect(screen.queryByText('raw server words')).toBeNull();
+    });
+
+    it('a package stored but not trusted says it is stored, and what will not run', async () => {
+      const user = userEvent.setup();
+      await renderPage({ upload: { status: 422, body: { error: { code: 'ADD_ON_UNTRUSTED', message: 'raw server words', requestId: 'r', details: { key: 'kit', version: '1.0.0', stored: true } } } } });
+      await screen.findByRole('button', { name: 'Upload' });
+      await user.upload(screen.getByLabelText('Package file (.tgz)'), new File([new Uint8Array([1, 2, 3])], 'kit.tgz', { type: 'application/gzip' }));
+      await user.type(screen.getByLabelText(/Integrity/), 'sha512-abc==');
+      await user.click(screen.getByRole('button', { name: 'Upload' }));
+      expect(await screen.findByText(/The package is stored and can be installed, but Adminium does not know who made it/)).toBeTruthy();
+    });
+  });
 });

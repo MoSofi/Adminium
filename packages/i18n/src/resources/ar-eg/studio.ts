@@ -79,9 +79,19 @@ export default {
       "hosts": "Attach to",
       "loading": "Working out what this would do…",
       "subtitle": "What this add-on will do, before it can do it.",
-      "title": "Install {name}"
+      "title": "Install {name}",
+      "database": "أي قاعدة بيانات؟",
+      "databaseHelp": "لهذه الإضافة جداول خاصة بها، وكلها في قاعدة بيانات واحدة. لا يمكن نقلها لاحقًا.",
+      "databasePick": "اختر قاعدة بيانات"
     },
     "error": "Something went wrong",
+    "incomplete": {
+      "tables": "أثناء إنشاء جداولها",
+      "seeds": "أثناء إضافة الصفوف التي تبدأ بها جداولها",
+      "writers": "أثناء إضافة صفحاتها وأدوارها وقواعدها",
+      "finish": "أثناء الإنهاء",
+      "body": "توقف التثبيت {stage}. لم يُتراجع عن شيء ولم يُفقد شيء: ثبّتها مرة أخرى للإكمال."
+    },
     "installed": {
       "connected": "Connected",
       "disconnect": "Disconnect",
@@ -108,7 +118,14 @@ export default {
       "noData": "This add-on reads and writes no tables of its own.",
       "reuse": "This add-on will use tables you already have:",
       "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
+      "database": "ستوضع جداولها في قاعدة البيانات «{name}».",
+      "pages": "الصفحات: {names}.",
+      "roles": "الأدوار: {names}. ستحصل على الأول لتتمكن من فتح صفحاتها.",
+      "lists": "قوائم الاختيارات: {names}.",
+      "documents": "تخطيطات المستندات: {count}.",
+      "seeds": "تبدأ جداولها بعدد قليل من الصفوف، ويمكنك تغييرها.",
+      "makesTitle": "يضيف التثبيت أيضًا"
     },
     "settings": {
       "badJson": "هذا ليس JSON صالحاً، فلم يُحفظ شيء.",
@@ -125,7 +142,8 @@ export default {
       "uploaded": {
         "title": "تم رفع {name} {version}",
         "body": "ثبّته من القائمة أعلاه."
-      }
+      },
+      "untrusted": "الحزمة محفوظة ويمكن تثبيتها، لكن Adminium لا يعرف من أنشأها: لن يعمل الجزء الذي يتخذ القرارات أثناء حفظ السجل."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

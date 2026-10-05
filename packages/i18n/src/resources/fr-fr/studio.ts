@@ -79,9 +79,19 @@ export default {
       "hosts": "Attacher à",
       "loading": "Analyse de ce que cela ferait…",
       "subtitle": "Ce que ce module fera, avant qu’il puisse le faire.",
-      "title": "Installer {name}"
+      "title": "Installer {name}",
+      "database": "Quelle base de données ?",
+      "databaseHelp": "Ce module complémentaire a ses propres tables, et elles vont toutes dans une seule base de données. Il ne pourra pas être déplacé ensuite.",
+      "databasePick": "Choisir une base de données"
     },
     "error": "Une erreur est survenue",
+    "incomplete": {
+      "tables": "pendant la création de ses tables",
+      "seeds": "pendant l’ajout des lignes de départ de ses tables",
+      "writers": "pendant l’ajout de ses pages, rôles et règles",
+      "finish": "pendant la finalisation",
+      "body": "L’installation s’est arrêtée {stage}. Rien n’a été annulé et rien n’est perdu : installez-le de nouveau pour terminer."
+    },
     "installed": {
       "connected": "Connecté",
       "disconnect": "Déconnecter",
@@ -108,7 +118,14 @@ export default {
       "noData": "Ce module ne lit ni n’écrit de tables qui lui soient propres.",
       "reuse": "Ce module utilisera des tables que vous avez déjà :",
       "willCreate": "Cela créera des tables dans votre base de données",
-      "willCreateBody": "L’installation crée ces tables. Une désinstallation ultérieure les laisse intactes, ainsi que leurs données."
+      "willCreateBody": "L’installation crée ces tables. Une désinstallation ultérieure les laisse intactes, ainsi que leurs données.",
+      "database": "Ses tables vont dans la base de données « {name} ».",
+      "pages": "Pages : {names}.",
+      "roles": "Rôles : {names}. Le premier vous est attribué, pour que vous puissiez ouvrir ses pages.",
+      "lists": "Listes de choix : {names}.",
+      "documents": "Mises en page de documents : {count}.",
+      "seeds": "Ses tables commencent avec quelques lignes, que vous pouvez modifier.",
+      "makesTitle": "L’installation ajoute aussi"
     },
     "settings": {
       "badJson": "Ce n’est pas du JSON valide ; rien n’a été enregistré.",
@@ -125,7 +142,8 @@ export default {
       "uploaded": {
         "title": "{name} {version} téléversé",
         "body": "Installez-le depuis la liste ci-dessus."
-      }
+      },
+      "untrusted": "Le paquet est enregistré et peut être installé, mais Adminium ne sait pas qui l’a créé : la partie qui prend des décisions pendant l’enregistrement d’une fiche ne s’exécutera pas."
     },
     "subtitle": "Des capacités supplémentaires pour vos applications — expédition, graphisme, données. Chacune indique ce dont elle a besoin avant l’installation.",
     "title": "Modules",

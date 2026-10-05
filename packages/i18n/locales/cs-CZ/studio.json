@@ -69,9 +69,19 @@
       "hosts": "Attach to",
       "loading": "Working out what this would do…",
       "subtitle": "What this add-on will do, before it can do it.",
-      "title": "Install {name}"
+      "title": "Install {name}",
+      "database": "Která databáze?",
+      "databaseHelp": "Tento doplněk má vlastní tabulky a všechny jsou v jedné databázi. Později ho nelze přesunout.",
+      "databasePick": "Vyberte databázi"
     },
     "error": "Something went wrong",
+    "incomplete": {
+      "tables": "při vytváření jeho tabulek",
+      "seeds": "při přidávání řádků, kterými jeho tabulky začínají",
+      "writers": "při přidávání jeho stránek, rolí a pravidel",
+      "finish": "při dokončování",
+      "body": "Instalace se zastavila {stage}. Nic nebylo vráceno zpět a nic se neztratilo: nainstalujte ho znovu a instalace se dokončí."
+    },
     "installed": {
       "connected": "Connected",
       "disconnect": "Disconnect",
@@ -98,7 +108,14 @@
       "noData": "This add-on reads and writes no tables of its own.",
       "reuse": "This add-on will use tables you already have:",
       "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
+      "database": "Jeho tabulky budou v databázi „{name}“.",
+      "pages": "Stránky: {names}.",
+      "roles": "Role: {names}. První dostanete vy, abyste mohli otevřít jeho stránky.",
+      "lists": "Seznamy voleb: {names}.",
+      "documents": "Rozvržení dokumentů: {count}.",
+      "seeds": "Jeho tabulky začínají s několika vlastními řádky, které můžete změnit.",
+      "makesTitle": "Instalace také přidá"
     },
     "settings": {
       "badJson": "Toto není platný JSON, takže se nic neuložilo.",
@@ -115,7 +132,8 @@
       "uploaded": {
         "title": "Nahráno: {name} {version}",
         "body": "Nainstalujte ho ze seznamu výše."
-      }
+      },
+      "untrusted": "Balíček je uložen a lze ho nainstalovat, ale Adminium neví, kdo ho vytvořil: jeho část, která rozhoduje při ukládání záznamu, se nespustí."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

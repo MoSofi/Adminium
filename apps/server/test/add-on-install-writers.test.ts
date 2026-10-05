@@ -166,6 +166,32 @@ describe('who sees an add-on\'s pages', () => {
   });
 });
 
+describe('what an add-on\'s install would make, asked before it is made', () => {
+  it('names its pages, its roles and its lists, says where its tables go, and writes nothing', async () => {
+    h = await addOnHarness('sqlite', { unbuiltWords: {} });
+    await h.stageAddOn({ ...stockKitManifest(), seeds: [{ table: 'items', rows: [{ name: 'Flour' }] }] });
+    const reply = await h.inject({ method: 'POST', url: '/add-ons/plan', payload: { key: 'stock-kit', attachTo: [] } });
+    expect(reply.statusCode, reply.body).toBe(200);
+    const body = reply.json();
+    expect(body.makes).toEqual({
+      // The generated page, then the page of its own code.
+      pages: [{ ref: 'stock-kit-items', title: 'Items' }, { ref: 'stock-kit-count', title: 'Count' }],
+      roles: [{ key: 'manager', name: 'Stock manager' }, { key: 'reader', name: 'Stock reader' }],
+      lists: ['zones'],
+      documents: 0,
+      seeds: true,
+    });
+    expect(body.connectionId).toBe(h.connectionId);
+    expect(typeof body.connectionName).toBe('string');
+    expect(body.connectionName.length).toBeGreaterThan(0);
+    expect((await h.tableNames()).filter((name) => name.startsWith('stock_kit_'))).toEqual([]);
+    expect(await pagesRepo(h.meta).findBySlug(h.connectionId, 'stock-kit-items')).toBeNull();
+    // Without starting rows or a settings table it says so.
+    await h.stageAddOn({ ...stockKitManifest(), version: '1.0.1' });
+    expect((await h.inject({ method: 'POST', url: '/add-ons/plan', payload: { key: 'stock-kit', version: '1.0.1', attachTo: [] } })).json().makes.seeds).toBe(false);
+  });
+});
+
 describe.each(LEGS)('an app that needs an add-on with tables of its own — %s', (dialect, available) => {
   /** An app with a table called `items` of its own, under no prefix, that requires the kit. */
   const SHOP = {

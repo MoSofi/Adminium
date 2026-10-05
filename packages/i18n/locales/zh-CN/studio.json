@@ -69,9 +69,19 @@
       "hosts": "Attach to",
       "loading": "Working out what this would do…",
       "subtitle": "What this add-on will do, before it can do it.",
-      "title": "Install {name}"
+      "title": "Install {name}",
+      "database": "使用哪个数据库？",
+      "databaseHelp": "此附加组件有自己的表，并且全部放在同一个数据库中。之后无法移动。",
+      "databasePick": "选择数据库"
     },
     "error": "Something went wrong",
+    "incomplete": {
+      "tables": "创建表时",
+      "seeds": "添加表的初始行时",
+      "writers": "添加页面、角色和规则时",
+      "finish": "收尾时",
+      "body": "安装在{stage}停止。没有撤销任何内容，也没有丢失任何内容：再次安装即可完成。"
+    },
     "installed": {
       "connected": "Connected",
       "disconnect": "Disconnect",
@@ -98,7 +108,14 @@
       "noData": "This add-on reads and writes no tables of its own.",
       "reuse": "This add-on will use tables you already have:",
       "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
+      "database": "它的表将放在数据库“{name}”中。",
+      "pages": "页面：{names}。",
+      "roles": "角色：{names}。你会获得第一个角色，以便打开它的页面。",
+      "lists": "选项列表：{names}。",
+      "documents": "文档版式：{count}。",
+      "seeds": "它的表会带有几行初始数据，你可以修改。",
+      "makesTitle": "安装还会添加"
     },
     "settings": {
       "badJson": "这不是有效的 JSON，因此未保存。",
@@ -115,7 +132,8 @@
       "uploaded": {
         "title": "已上传 {name} {version}",
         "body": "请在上方列表中安装。"
-      }
+      },
+      "untrusted": "软件包已保存，可以安装，但 Adminium 不知道它的制作者：其中在保存记录时做出决定的部分不会运行。"
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

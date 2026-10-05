@@ -22,7 +22,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api, csrfHeaders } from '../../app/api.js';
+import { api, ApiError, csrfHeaders } from '../../app/api.js';
 
 export const ADD_ONS_QUERY_KEY = ['add-ons'] as const;
 export const ADD_ON_CATALOG_QUERY_KEY = ['add-ons', 'catalog'] as const;
@@ -169,9 +169,55 @@ export const addOnCatalogQuery = queryOptions({
   queryFn: () => api.get<CatalogBrowse>('/api/v1/add-ons/catalog'),
 });
 
+/** What an install makes beside tables: named before anyone agrees to it. Only for an add-on with tables of its own. */
+export interface InstallMakes {
+  pages: { ref: string; title: string }[];
+  roles: { key: string; name: string }[];
+  lists: string[];
+  documents: number;
+  seeds: boolean;
+}
+
+/** A check of a staged package: the plan, and — for an add-on with tables of its own — where they go and what else is made. */
+export interface InstallCheck {
+  plan: InstallPlan;
+  connectionId?: string | null;
+  connectionName?: string | null;
+  /** The plan's identity: handed back at the install, so a database that moved in between is said, not built on. */
+  checksum?: string;
+  makes?: InstallMakes;
+}
+
+/** A database an add-on's tables may go in, as the server lists them when there is a choice. */
+export interface ConnectionChoice {
+  id: string;
+  name: string;
+}
+
+/**
+ * The check for a staged package, BEFORE anything is installed. With several
+ * databases and none named, the server answers 409 `ADD_ON_SCHEMA_CONNECTION`
+ * with the list: {@link connectionChoices} reads it.
+ */
+export async function checkInstall(key: string, connectionId?: string): Promise<InstallCheck> {
+  if (connectionId === undefined) return api.get<InstallCheck>(`/api/v1/add-ons/${key}/plan`);
+  return api.post<InstallCheck>('/api/v1/add-ons/plan', { key, attachTo: [], connectionId });
+}
+
+/** The databases to choose from, when a check or an install was refused for want of a choice; null for any other failure. */
+export function connectionChoices(caught: unknown): ConnectionChoice[] | null {
+  if (!(caught instanceof ApiError) || caught.code !== 'ADD_ON_SCHEMA_CONNECTION') return null;
+  const listed = (caught.details as { connections?: unknown } | undefined)?.connections;
+  if (!Array.isArray(listed)) return [];
+  return listed.flatMap((entry) => {
+    const { id, name } = (entry ?? {}) as { id?: unknown; name?: unknown };
+    return typeof id === 'string' ? [{ id, name: typeof name === 'string' && name !== '' ? name : id }] : [];
+  });
+}
+
 /** The plan for a staged package, BEFORE anything is installed. */
 export async function fetchInstallPlan(key: string): Promise<InstallPlan> {
-  return (await api.get<{ plan: InstallPlan }>(`/api/v1/add-ons/${key}/plan`)).plan;
+  return (await checkInstall(key)).plan;
 }
 
 export async function refreshCatalog(): Promise<{ jobId: string }> {
@@ -186,6 +232,10 @@ export async function installAddOn(input: {
   key: string;
   version: string;
   attachTo: string[];
+  /** The database its tables go in, when there was a choice. */
+  connectionId?: string;
+  /** The identity of the plan the person agreed to. */
+  planChecksum?: string;
 }): Promise<{ addOn: AddOnDto; plan: InstallPlan }> {
   return api.post('/api/v1/add-ons', input);
 }
@@ -285,14 +335,12 @@ export async function uploadAddOn(
     body: file,
   });
   const body = (await response.json().catch(() => null)) as
-    | (StagedPackage & { error?: { message?: unknown } })
+    | (StagedPackage & { error?: { message?: unknown; code?: unknown; details?: unknown } })
     | null;
   if (!response.ok) {
-    throw new Error(
-      typeof body?.error?.message === 'string'
-        ? body.error.message
-        : `Upload failed with status ${String(response.status)}.`,
-    );
+    const message = typeof body?.error?.message === 'string' ? body.error.message : `Upload failed with status ${String(response.status)}.`;
+    // With the server's code when it gave one: a package stored but not trusted is said in the page's own words.
+    throw typeof body?.error?.code === 'string' ? new ApiError(response.status, body.error.code, message, null, body.error.details) : new Error(message);
   }
   if (body === null) throw new Error('The server returned nothing.');
   return body;

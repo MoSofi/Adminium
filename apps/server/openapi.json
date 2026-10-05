@@ -93027,8 +93027,81 @@
                         }
                       ]
                     },
+                    "connectionName": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "checksum": {
                       "type": "string"
+                    },
+                    "makes": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "lists": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "documents": {
+                          "type": "number"
+                        },
+                        "seeds": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "roles",
+                        "lists",
+                        "documents",
+                        "seeds"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -93262,8 +93335,81 @@
                         }
                       ]
                     },
+                    "connectionName": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "checksum": {
                       "type": "string"
+                    },
+                    "makes": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "lists": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "documents": {
+                          "type": "number"
+                        },
+                        "seeds": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "roles",
+                        "lists",
+                        "documents",
+                        "seeds"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

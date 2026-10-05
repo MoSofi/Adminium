@@ -228,7 +228,28 @@ export const installPlanDto = z.object({
  * against and the plan's identity, which the install takes back
  * (`planChecksum`) so a database that moved in between is said, not built on.
  */
-export const installPlanReply = z.object({ plan: installPlanDto, connectionId: z.string().nullable().optional(), checksum: z.string().optional() });
+/**
+ * What an install makes beside tables, named so a person can agree to it
+ * before it happens: the pages (generated ones and the add-on's own), the
+ * roles, the lists of choices, how many document layouts, and whether its
+ * tables start with rows. Only for an add-on that installs like an app.
+ */
+export const installMakes = z.object({
+  pages: z.array(z.object({ ref: z.string(), title: z.string() })),
+  roles: z.array(z.object({ key: z.string(), name: z.string() })),
+  lists: z.array(z.string()),
+  documents: z.number(),
+  seeds: z.boolean(),
+});
+
+export const installPlanReply = z.object({
+  plan: installPlanDto,
+  connectionId: z.string().nullable().optional(),
+  /** That database's name, for the sentence that says where the tables go. */
+  connectionName: z.string().nullable().optional(),
+  checksum: z.string().optional(),
+  makes: installMakes.optional(),
+});
 
 /** Check a staged package before installing it: what it would make, and where. */
 export const planAddOnBody = z.object({

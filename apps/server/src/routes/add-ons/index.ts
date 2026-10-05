@@ -471,7 +471,23 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
     }
     const planned = await planAddOn(installer, manifest, { attachTo, hosts, connectionId, warnings });
-    return { plan: planned.dto, connectionId, ...(planned.checksum === undefined ? {} : { checksum: planned.checksum }) };
+    const connection = await deps.meta.db.selectFrom('adminium_connections').select('name').where('id', '=', connectionId).executeTakeFirst();
+    return {
+      plan: planned.dto,
+      connectionId,
+      connectionName: connection?.name ?? null,
+      ...(planned.checksum === undefined ? {} : { checksum: planned.checksum }),
+      makes: {
+        pages: [
+          ...(manifest.pages ?? []).map((page) => ({ ref: page.ref, title: page.title.fallback })),
+          ...(manifest.addOn.pages ?? []).map((page) => ({ ref: page.ref, title: page.title.fallback })),
+        ],
+        roles: (manifest.roles ?? []).map((role) => ({ key: role.key, name: role.name })),
+        lists: Object.keys(manifest.optionLists ?? {}),
+        documents: (manifest.documents ?? []).length,
+        seeds: (manifest.seeds ?? []).length > 0 || manifest.addOn.settingsTable !== undefined,
+      },
+    };
   }
 
   /**
