@@ -23,16 +23,16 @@
     "@adminium/meta": "workspace:*",
     "@adminium/server": "workspace:*",
     "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.62.1",
-    "@types/node": "22.15.3",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "22.20.5",
     "better-sqlite3": "^13.0.3",
-    "electron": "^44.4.5",
+    "electron": "^44.5.1",
     "esbuild": "^0.28.0",
     "eslint": "catalog:",
-    "mailparser": "^3.9.22",
-    "mysql2": "^3.23.3",
-    "pg": "^8.23.0",
-    "smtp-server": "^3.19.8",
+    "mailparser": "^3.9.33",
+    "mysql2": "^3.24.5",
+    "pg": "^8.23.1",
+    "smtp-server": "^3.19.16",
     "typescript": "catalog:"
   }
 }
