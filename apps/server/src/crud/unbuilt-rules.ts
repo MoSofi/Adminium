@@ -138,6 +138,13 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Record<string, string>> = {
   'email.onlyWithout': ADD_ON_INSTALL_RELEASE,
   'outbox.pages.app': ADD_ON_INSTALL_RELEASE,
   'rows.pair': ADD_ON_INSTALL_RELEASE,
+  // What a generated page says and offers beyond its form; a role's grant on an add-on's table; a typed code's look-up.
+  'states.actions': ADD_ON_INSTALL_RELEASE,
+  'toolbar.links': ADD_ON_INSTALL_RELEASE,
+  'config.tabs': ADD_ON_INSTALL_RELEASE,
+  'config.bulk': ADD_ON_INSTALL_RELEASE,
+  'roles.tables': ADD_ON_INSTALL_RELEASE,
+  'addOn.lookUp': ADD_ON_INSTALL_RELEASE,
   // Stock words, and a public entry answered by them.
   'addOn.words': ADD_ON_INSTALL_RELEASE,
   'availability.words': ADD_ON_INSTALL_RELEASE,

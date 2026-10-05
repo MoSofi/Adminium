@@ -26,6 +26,7 @@ import {
   type DocumentError,
   type DocumentKind,
   type DocumentOutline,
+  type DocumentPaper,
   type DocumentQrValue,
   type DocumentRenderer,
   type DocumentSubject,
@@ -526,7 +527,7 @@ export function describeDocumentRenderer(
       kind: kind.id,
       subject,
       formats,
-      paper: kind.paper[0] as 'a4' | 'letter' | 'receipt-80mm',
+      paper: kind.paper[0] as DocumentPaper,
       settings: fixtures.settings,
       ...(body === undefined ? {} : { body }),
     });

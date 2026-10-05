@@ -51,7 +51,28 @@ export const pageLayoutSchema = z.object({
         })
         .strict()
         .optional(),
+      /**
+       * One or two links in place of `link`: the same shape, more icons, and
+       * `tone: 'primary'` on the one that is the page's main action.
+       */
+      links: z
+        .array(
+          z
+            .object({
+              label: z.string().min(1).max(60),
+              labels: z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.string().min(1).max(60)).optional(),
+              href: z.string().min(1).max(300),
+              icon: z.enum(['arrow-right', 'clipboard-list', 'external-link', 'package-plus', 'clipboard-check', 'plus', 'gift']).optional(),
+              tone: z.literal('primary').optional(),
+            })
+            .strict(),
+        )
+        .min(1)
+        .max(2)
+        .optional(),
     })
+    .refine((toolbar) => toolbar.link === undefined || toolbar.links === undefined, { message: 'a toolbar has one link (link) or up to two (links), not both' })
+    .refine((toolbar) => (toolbar.links ?? []).filter((link) => link.tone === 'primary').length <= 1, { message: 'at most one link is the primary one' })
     .optional(),
 });
 

@@ -680,6 +680,7 @@ const REFERENCE_OUTLINES: Readonly<Record<string, DocumentOutline>> = {
 const PAPER_PT: Readonly<Record<string, { width: number; height: number }>> = {
   a4: { width: 595, height: 842 },
   letter: { width: 612, height: 792 },
+  a6: { width: 298, height: 420 },
   'receipt-80mm': { width: 227, height: 600 },
 };
 

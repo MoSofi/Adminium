@@ -74,3 +74,30 @@ describe('pageLayoutSchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('a page toolbar\'s links', () => {
+  const link = { label: 'Receive', href: '/p/receipts', icon: 'package-plus' };
+  const toolbar = (value: unknown) => pageLayoutSchema.safeParse({ version: 1, items: [], toolbar: value });
+
+  it('takes one link or two, with the wider icon list and one primary', () => {
+    const parsed = toolbar({ links: [{ ...link, tone: 'primary' }, { label: 'Count', labels: { 'de-DE': 'Zählen' }, href: '/p/counts', icon: 'clipboard-check' }] });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.toolbar?.links).toEqual([{ ...link, tone: 'primary' }, { label: 'Count', labels: { 'de-DE': 'Zählen' }, href: '/p/counts', icon: 'clipboard-check' }]);
+    expect(toolbar({ links: [link] }).success).toBe(true);
+  });
+
+  it('refuses none, three, two primaries, an unknown key or icon, and a link beside links', () => {
+    expect(toolbar({ links: [] }).success).toBe(false);
+    expect(toolbar({ links: [link, link, link] }).success).toBe(false);
+    expect(toolbar({ links: [{ ...link, tone: 'primary' }, { ...link, tone: 'primary' }] }).success).toBe(false);
+    expect(toolbar({ links: [{ ...link, colour: 'red' }] }).success).toBe(false);
+    expect(toolbar({ links: [{ ...link, icon: 'rocket' }] }).success).toBe(false);
+    expect(toolbar({ links: [{ ...link, tone: 'danger' }] }).success).toBe(false);
+    expect(toolbar({ link: { label: 'Receive', href: '/p/receipts' }, links: [link] }).success).toBe(false);
+  });
+
+  it('the one link a toolbar always took still parses, with its three icons', () => {
+    expect(toolbar({ link: { label: 'Receive', href: '/p/receipts', icon: 'clipboard-list' } }).success).toBe(true);
+    expect(toolbar({ link: { label: 'Receive', href: '/p/receipts', icon: 'gift' } }).success).toBe(false);
+  });
+});

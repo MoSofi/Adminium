@@ -304,8 +304,21 @@ export function realRuleRefs(
   appKey?: string,
 ): { value: Record<string, unknown>; missing: string[] } {
   if (NAMING_OPS.has(op)) return { value, missing: [] };
-  const mapped = mapTableRefs(value, realId, { refKeys: refKeysOf(op) });
-  if (op !== 'table.states' || appKey === undefined) return mapped;
+  // What a button sets is columns and their values, never a table: it is kept out of the mapping (a column may be called "table").
+  const written = op === 'table.states' && Array.isArray(value['actions']) ? (value['actions'] as Record<string, unknown>[]).map((action) => action['set']) : [];
+  const bare = written.length === 0 ? value : { ...value, actions: (value['actions'] as Record<string, unknown>[]).map(({ set: _set, ...rest }) => rest) };
+  const mapped = mapTableRefs(bare, realId, { refKeys: refKeysOf(op) });
+  if (op !== 'table.states') return mapped;
+  // A button's words are kept as every label is: one string, or a map keyed by locale. Its child table was mapped above.
+  const actions = (mapped.value as { actions?: Record<string, unknown>[] }).actions;
+  if (actions !== undefined) {
+    const words = (action: Record<string, unknown>, key: string) => (action[key] === undefined ? {} : { [key]: storedLabel(action[key] as string | Record<string, string>) });
+    mapped.value = {
+      ...mapped.value,
+      actions: actions.map((action, a) => ({ ...action, ...words(action, 'label'), ...words(action, 'confirm'), ...(written[a] === undefined ? {} : { set: written[a] }) })),
+    };
+  }
+  if (appKey === undefined) return mapped;
   const states = mapped.value as unknown as States;
   const moves = Object.fromEntries(
     Object.entries(states.moves).map(([from, list]) => [

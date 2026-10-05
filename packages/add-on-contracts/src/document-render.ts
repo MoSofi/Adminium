@@ -103,8 +103,8 @@ export const localizedTextSchema = z
 export const DOCUMENT_FORMATS = ['html', 'pdf'] as const;
 export type DocumentFormat = (typeof DOCUMENT_FORMATS)[number];
 
-/** The paper a kind is drawn for. `receipt-80mm` is a till roll, not a sheet. */
-export const DOCUMENT_PAPERS = ['a4', 'letter', 'receipt-80mm'] as const;
+/** The paper a kind is drawn for. `a6` is a card (105 × 148 mm); `receipt-80mm` is a till roll, not a sheet. */
+export const DOCUMENT_PAPERS = ['a4', 'letter', 'a6', 'receipt-80mm'] as const;
 export type DocumentPaper = (typeof DOCUMENT_PAPERS)[number];
 
 /**

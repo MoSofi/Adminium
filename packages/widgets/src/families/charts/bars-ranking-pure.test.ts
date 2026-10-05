@@ -53,6 +53,12 @@ describe('config schemas', () => {
     }
     expect(chartBulletConfigSchema.parse({}).emptyState?.titleKey).toBe('widgets.charts.bullet.emptyTitle');
     expect(chartRankingBarsConfigSchema.parse({}).emptyState?.titleKey).toBe('widgets.charts.rankingBars.emptyTitle');
+    // A ranking that draws a pair names its two figures, in every language; none is named by default.
+    expect(chartRankingBarsConfigSchema.parse({}).series).toBeUndefined();
+    const series = [{ label: 'Value', labels: { 'de-DE': 'Wert' } }, { label: 'Units' }];
+    expect(chartRankingBarsConfigSchema.parse({ series }).series).toEqual(series);
+    expect(chartRankingBarsConfigSchema.safeParse({ series: [...series, { label: 'Third' }] }).success).toBe(false);
+    expect(chartRankingBarsConfigSchema.safeParse({ series: [{ labels: {} }] }).success).toBe(false);
   });
 
   it('applies field defaults (pareto cutline, ranking n)', () => {

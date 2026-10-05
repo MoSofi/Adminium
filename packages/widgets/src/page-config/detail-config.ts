@@ -31,6 +31,17 @@ export const crudDetailTabSchema = z.object({
   fkColumn: z.string().min(1).optional(),
   /** Humanized label; consumers fall back to the table name when absent. */
   label: z.string().min(1).optional(),
+  /** What the tab says while it holds no row, in the page's language and the others it is read in. */
+  empty: z
+    .object({
+      title: z.string().min(1).max(120),
+      titles: z.record(z.string(), z.string().min(1).max(120)).optional(),
+      body: z.string().min(1).max(300).optional(),
+      bodies: z.record(z.string(), z.string().min(1).max(300)).optional(),
+    })
+    .optional(),
+  /** The tab offers no "New": its rows are made elsewhere (by a button of the record, by a posting). */
+  noNew: z.boolean().optional(),
 });
 export type CrudDetailTabConfig = z.infer<typeof crudDetailTabSchema>;
 

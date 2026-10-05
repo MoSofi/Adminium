@@ -313,6 +313,12 @@ export const addOnBlockSchema = z
       .optional(),
     /** Tabs on other tables' record pages that list this add-on's rows for the record (see `record-tabs.ts`). */
     recordTabs: recordTabsSchema.optional(),
+    /**
+     * What a typed or scanned code may find: the tables that hold codes and
+     * the columns an answer may carry. Typed loosely here: it names the
+     * manifest's own tables, so `@adminium/manifest` checks the whole of it.
+     */
+    lookUp: z.record(z.string(), z.unknown()).optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

@@ -283,7 +283,24 @@ export interface TableStatesRule {
   effects?: StateEffect[];
   /** What a new row must meet to be created. */
   create?: CreateRequires;
+  /** The buttons a record page offers on a row. */
+  actions?: StateActionRule[];
 }
+
+/** A label as the store keeps it: one string, or one per locale (`en_US`). */
+export type StoredWords = string | Record<string, string>;
+
+/**
+ * One button of a record page: a move, a write that moves nothing, a link to
+ * another page, or a small form adding a row of a child table (its id in the
+ * snapshot). `set` names columns of the row, or of the new child row.
+ */
+export type StateActionRule =
+  | { id: string; label: StoredWords; move: { to: string }; tone?: StateActionTone; confirm?: StoredWords; set?: Record<string, string | number | boolean | { now: true }>; ask?: string[] }
+  | { id: string; label: StoredWords; set: Record<string, string | number | boolean | { now: true }>; in: string[]; tone?: StateActionTone; confirm?: StoredWords; ask?: string[] }
+  | { id: string; label: StoredWords; link: { page?: string; addOnPage?: string; param: string }; in: string[]; tone?: StateActionTone }
+  | { id: string; label: StoredWords; child: { table: string; via: string; form: string[] }; set?: Record<string, string | number | boolean>; in: string[]; tone?: StateActionTone; confirm?: StoredWords };
+export type StateActionTone = 'primary' | 'neutral' | 'danger';
 
 /** One side of `column.bounds`: another date, held `when` the row meets conditions, `strict` for the same day. */
 export interface EffectiveDateBound {

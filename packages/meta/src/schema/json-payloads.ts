@@ -380,6 +380,65 @@ export type ConnectionSettings = z.infer<typeof connectionSettingsSchema>;
 
 const toneSchema = z.string();
 
+/** A value a state action writes: a scalar, or the moment the action is made. */
+const actionSet = z.record(z.string().min(1), z.union([z.string(), z.number(), z.boolean(), z.object({ now: z.literal(true) }).strict()]));
+const actionId = z.string().regex(/^[a-z][a-z0-9-]{0,39}$/);
+const actionTone = z.enum(['primary', 'neutral', 'danger']);
+const actionWords = () =>
+  z.union([z.string().min(1).max(300), z.record(localeSchema, z.string().min(1).max(300)).refine((labels) => Object.keys(labels).length > 0, 'a label needs at least one locale')]);
+
+/**
+ * A button of a generated record page, as the manifest spells it: a move, a
+ * write that moves nothing, a link to another page, or a small form adding a
+ * child row (its table by its id in the snapshot). Every object is strict: a
+ * key left out here would be dropped from the stored rule without a word.
+ */
+const storedStateAction = () =>
+  z.union([
+    z
+      .object({
+        id: actionId,
+        label: actionWords(),
+        move: z.object({ to: z.string().min(1).max(40) }).strict(),
+        tone: actionTone.optional(),
+        confirm: actionWords().optional(),
+        set: actionSet.optional(),
+        ask: z.array(z.string().min(1)).min(1).max(4).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        id: actionId,
+        label: actionWords(),
+        set: actionSet,
+        in: z.array(z.string().min(1).max(40)).min(1).max(16),
+        tone: actionTone.optional(),
+        confirm: actionWords().optional(),
+        ask: z.array(z.string().min(1)).min(1).max(4).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        id: actionId,
+        label: actionWords(),
+        link: z.object({ page: z.string().min(1).max(80).optional(), addOnPage: z.string().min(1).max(161).optional(), param: z.string().regex(/^[a-z][a-z0-9_]{0,23}$/) }).strict(),
+        in: z.array(z.string().min(1).max(40)).min(1).max(16),
+        tone: actionTone.optional(),
+      })
+      .strict(),
+    z
+      .object({
+        id: actionId,
+        label: actionWords(),
+        child: z.object({ table: z.string().min(1), via: z.string().min(1), form: z.array(z.string().min(1)).max(6) }).strict(),
+        set: z.record(z.string().min(1), z.union([z.string(), z.number(), z.boolean()])).optional(),
+        in: z.array(z.string().min(1).max(40)).min(1).max(16),
+        tone: actionTone.optional(),
+        confirm: actionWords().optional(),
+      })
+      .strict(),
+  ]);
+
 /**
  * A label as a person reads it: one string, or one per locale (`{en_US: …,
  * de_DE: …}`) for an app that ships its tables' names in every language it
@@ -1311,6 +1370,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .min(1)
         .max(8)
         .optional(),
+      /** The buttons a record page offers on a row. */
+      actions: z.array(storedStateAction()).min(1).max(12).optional(),
       ...statesTiming,
     }),
   }),

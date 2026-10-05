@@ -63,6 +63,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['recordTabs'] !== undefined) out.push({ word: 'addOn.recordTabs', path: 'addOn.recordTabs' });
     // Pages that also need the data kit.
     if (block['hostApi'] === 2) out.push({ word: 'addOn.hostApi.2', path: 'addOn.hostApi' });
+    if (block['lookUp'] !== undefined) out.push({ word: 'addOn.lookUp', path: 'addOn.lookUp' });
     // An amount Adminium decides for a ledger's action (what a card may pay).
     list(block['ledgers']).forEach((ledger, l) => {
       for (const [name, action] of Object.entries(isDoc(ledger) && isDoc(ledger['actions']) ? ledger['actions'] : {})) {
@@ -81,6 +82,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['indexes'] !== undefined) out.push({ word: 'table.indexes', path: `${at}.indexes` });
     if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
     if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
+    if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     if (isDoc(table['states'])) {
       for (const [from, moves] of Object.entries(isDoc(table['states']['moves']) ? table['states']['moves'] : {})) {
         list(moves).forEach((move, m) => {
@@ -102,6 +104,18 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     });
   });
 
+  list(document['roles']).forEach((role, r) => {
+    if (isDoc(role) && role['tables'] !== undefined) out.push({ word: 'roles.tables', path: `roles.${String(r)}.tables` });
+  });
+  // A dashboard's second toolbar link, a ranking's named pair, a record page's tab words, a list's bulk action.
+  list(document['pages']).forEach((page, p) => {
+    const config = isDoc(page) && isDoc(page['config']) ? page['config'] : {};
+    const here = `pages.${String(p)}.config`;
+    const toolbar = isDoc(config['layout']) && isDoc(config['layout']['toolbar']) ? config['layout']['toolbar'] : {};
+    if (toolbar['links'] !== undefined) out.push({ word: 'toolbar.links', path: `${here}.layout.toolbar.links` });
+    if (config['tabs'] !== undefined) out.push({ word: 'config.tabs', path: `${here}.tabs` });
+    if (config['bulk'] !== undefined) out.push({ word: 'config.bulk', path: `${here}.bulk` });
+  });
   // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table-and-row pair.
   const outbox = isDoc(document['outbox']) ? document['outbox'] : {};
   if (isDoc(outbox['pages']) && outbox['pages']['app'] !== undefined) out.push({ word: 'outbox.pages.app', path: 'outbox.pages.app' });

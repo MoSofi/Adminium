@@ -26,10 +26,12 @@ import { bookingIssues, bookingSchema } from './booking.js';
 import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
 import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument } from './documents.js';
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
+import { lookUpIssues, lookUpSchema, type LookUp, type LookUpTable } from './look-up.js';
 import { pageCalendarIssues } from './page-calendar.js';
+import { pageConfigIssues } from './page-config.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
 import { codeWhereSchema, personalColumn, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
-import { roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
+import { roleAddOnTableIssues, roleAddOnTablesSchema, roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
@@ -1191,6 +1193,8 @@ export const roleSchema = z
     screensOnly: z.boolean().optional(),
     /** Per table, what the role's update there may write (roles.ts). */
     limits: roleLimitsSchema.optional(),
+    /** Grants on tables of add-ons the app names (roles.ts): live while that add-on is connected to the app. */
+    tables: roleAddOnTablesSchema.optional(),
   })
   .strict();
 
@@ -1802,12 +1806,14 @@ export function appReferenceIssues(
     emailTemplates?: readonly z.infer<typeof emailTemplateSchema>[] | undefined;
     addOns?: AddOnNeeds | undefined;
     documents?: readonly AppDocument[] | undefined;
-    pages?: readonly { feature?: string | undefined }[] | undefined;
+    pages?: readonly { ref?: string | undefined; feature?: string | undefined }[] | undefined;
     /** An add-on's own ledgers, parsed: its tables' postings may go into them. Present (even empty) only for an add-on. */
     ledgers?: readonly Ledger[] | undefined;
     automations?: readonly ManifestAutomation[] | undefined;
     /** `add-on` for an add-on's own blocks; absent or `app` for an app's. */
     kind?: string | undefined;
+    /** An add-on's code page refs (`addOn.pages`), which a state action's link may open. */
+    codePages?: readonly string[] | undefined;
   },
   /**
    * When the tables are an add-on's shape rather than an app's: the add-on's
@@ -2373,6 +2379,8 @@ export function appReferenceIssues(
             bookedOf: (ref) => tables.get(ref)?.booking !== undefined,
             lineOf: (ref) => [...tables.values()].find((other) => other.states?.children?.[ref] !== undefined)?.ref,
             outboxTable: m.outbox?.table,
+            pages: new Set((m.pages ?? []).flatMap((page) => ('ref' in page && typeof page.ref === 'string' ? [page.ref] : []))),
+            codePages: new Set(m.codePages ?? []),
           },
           (...rest) => at('states', ...rest),
         ),
@@ -2409,6 +2417,17 @@ export function appReferenceIssues(
   out.push(...slotPartyIssues(m));
   out.push(...outboxIssues(m, index));
   out.push(...roleLimitIssues(m.roles ?? [], index));
+  // A role's grants on an add-on's tables: an app's to give, on the add-ons it names.
+  if ((m.roles ?? []).some((role) => (role as { tables?: unknown }).tables !== undefined)) {
+    const roles = (m.roles ?? []) as readonly { key: string; tables?: z.infer<typeof roleAddOnTablesSchema> }[];
+    if (m.kind === 'add-on') {
+      roles.forEach((role, r) => {
+        if (role.tables !== undefined) out.push({ path: ['roles', r, 'tables'], message: 'an add-on\'s role grants its own tables (permissions): "tables" is how an app\'s role reaches an add-on\'s' });
+      });
+    } else {
+      out.push(...roleAddOnTableIssues(roles, new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key))));
+    }
+  }
   // The rules it ships: about its own tables, roles and templates, and only what a rule can do.
   if (m.automations !== undefined) {
     out.push(
@@ -2895,6 +2914,10 @@ export const appManifestSchema = z
     for (const issue of pageCalendarIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
+    // A records page's tab words, filters and bulk actions, against the app's own tables.
+    for (const issue of pageConfigIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
+      ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    }
   });
 
 /**
@@ -3068,6 +3091,13 @@ export function wordsOf(m: Manifest): StockWords[] {
   return parsed.success ? parsed.data : [];
 }
 
+/** What an add-on lets a typed code find, typed; null for an app, and for an add-on that declares none. */
+export function lookUpOf(m: Manifest): LookUp | null {
+  if (m.kind !== 'add-on' || m.addOn.lookUp === undefined) return null;
+  const parsed = lookUpSchema.safeParse(m.addOn.lookUp);
+  return parsed.success ? parsed.data : null;
+}
+
 /** An add-on's adjuster, typed; null for an app, and for an add-on that declares none. */
 export function adjusterOf(m: Manifest): Adjuster | null {
   if (m.kind !== 'add-on' || m.addOn.adjuster === undefined) return null;
@@ -3090,8 +3120,18 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
 
   // `addOn.ledgers` is typed loosely in the contracts package (it cannot see these words); it is checked in full here.
   const ledgers = m.addOn.ledgers === undefined ? [] : parsedLedgers(m.addOn.ledgers, out);
-  out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] }, ledgers }));
-  if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)));
+  out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] }, ledgers, codePages: (m.addOn.pages ?? []).map((page) => page.ref) }));
+  if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)), ...pageConfigIssues(m.pages, tableIndex(tables)));
+
+  // The look-up is typed loosely in the contracts package: its tables and columns are checked here.
+  if (m.addOn.lookUp !== undefined) {
+    const parsed = lookUpSchema.safeParse(m.addOn.lookUp);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'lookUp', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(...lookUpIssues(parsed.data, tables as unknown as readonly LookUpTable[]));
+    }
+  }
 
   // Stock words: a question asked of one of the add-on's own ledgers.
   if (m.addOn.words !== undefined) {

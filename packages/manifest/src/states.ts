@@ -71,6 +71,8 @@
  */
 import { z } from 'zod';
 
+import { stateActionIssues, stateActionsSchema } from './state-actions.js';
+
 import {
   momentIssues,
   momentOffsetSchema,
@@ -382,6 +384,8 @@ export const statesSchema = z
     effects: z.array(stateEffectSchema).min(1).max(8).optional(),
     /** What a new row must meet to be created (see {@link createRequiresSchema}). */
     create: createRequiresSchema.optional(),
+    /** The buttons a generated record page offers for a row (see `state-actions.ts`). */
+    actions: stateActionsSchema.optional(),
   })
   .strict();
 export type States = z.infer<typeof statesSchema>;
@@ -423,6 +427,9 @@ interface StatesContext<C extends ColumnShape> {
   lineOf?: ((table: string) => string | undefined) | undefined;
   /** The app's outbox table, whose rows move only by the outbox's own moves. */
   outboxTable?: string | undefined;
+  /** The manifest's generated page refs and, for an add-on, its code page refs: what a state action's link may open. */
+  pages?: ReadonlySet<string> | undefined;
+  codePages?: ReadonlySet<string> | undefined;
 }
 
 /** A column of the table as the judge of an undo's `clears` needs it. */
@@ -627,6 +634,25 @@ export function statesIssues<C extends ColumnShape>(
     if (typeof entry !== 'string') entry.in.forEach((state, s) => known(state, at('onlyLater', i, 'in', s)));
   });
   out.push(...conditionedMoveIssues(table, states, ctx, at, values));
+  // The buttons a record page offers: moves a person may make, columns that are the row's to set, a child that is one.
+  if (states.actions !== undefined) {
+    out.push(
+      ...stateActionIssues(
+        states.actions,
+        {
+          table,
+          states,
+          column: (of, ref) => index.column(of, ref) as unknown as { ref: string; type: string } | undefined,
+          hasTable: (of) => index.table(of) !== undefined,
+          decided: (ref) => ctx.decided?.(ref) === true,
+          keptFromReaders: (ref) => ctx.keptFromReaders?.(ref) ?? null,
+          pages: ctx.pages ?? new Set(),
+          codePages: ctx.codePages ?? new Set(),
+        },
+        at,
+      ),
+    );
+  }
   return out;
 }
 

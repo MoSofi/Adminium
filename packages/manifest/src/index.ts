@@ -53,6 +53,7 @@ export {
   installsLikeAnApp,
   ledgersOf,
   adjusterOf,
+  lookUpOf,
   wordsOf,
   indexSetIssues,
   tableIndexesSchema,
@@ -85,7 +86,22 @@ export {
   type RequiredTableShape,
   type ShapeDefinition,
 } from './schema.js';
-export { roleLimitSchema, roleLimitsSchema, type RoleLimit } from './roles.js';
+export { ROLE_ADD_ON_ACTIONS, roleAddOnTableSchema, roleAddOnTablesSchema, roleLimitSchema, roleLimitsSchema, type RoleAddOnTable, type RoleLimit } from './roles.js';
+export { lookUpIssues, lookUpKindSchema, lookUpSchema, type LookUp, type LookUpKind, type LookUpTable } from './look-up.js';
+export {
+  PAGE_FILTER_CONTROLS,
+  pageBulkActionSchema,
+  pageBulkSchema,
+  pageConfigIssues,
+  pageFilterControls,
+  pageFiltersSchema,
+  pageTabsSchema,
+  type PageBulkAction,
+  type PageFilterControl,
+  type PageFilters,
+  type PageTabs,
+} from './page-config.js';
+export { STATE_ACTIONS_MAX, stateActionIssues, stateActionKind, stateActionSchema, stateActionsSchema, type StateAction, type StateActionsContext } from './state-actions.js';
 
 export {
   validateManifest,

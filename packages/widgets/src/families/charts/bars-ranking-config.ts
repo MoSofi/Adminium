@@ -41,6 +41,11 @@ export const chartRankingBarsConfigSchema = widgetSharedConfigSchema.extend({
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(80).max(600).default(220),
   emptyState: emptyStateField('widgets.charts.rankingBars.emptyTitle', 'widgets.charts.rankingBars.emptyBody'),
+  /** What a ranking's figures are called when it draws a pair (an amount and a count), in the page's language and the others. */
+  series: z
+    .array(z.object({ label: z.string().min(1).max(60), labels: z.record(z.string(), z.string().min(1).max(60)).optional() }))
+    .max(2)
+    .optional(),
 });
 export type ChartRankingBarsConfig = z.infer<typeof chartRankingBarsConfigSchema>;
 
