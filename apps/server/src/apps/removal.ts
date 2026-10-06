@@ -188,7 +188,9 @@ export function createRemovals(deps: RemovalDeps) {
       (other) => other.appKey !== record.appKey && other.tableName === record.tableName && other.state !== 'dropped' && other.state !== 'released',
     );
     if (others.length > 0) return false;
-    return !(await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto })).has(record.tableName);
+    // Another add-on's table is never this manifest's to drop; an add-on's own table is its own.
+    const holder = (await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto })).get(record.tableName);
+    return holder === undefined || holder === record.appKey;
   }
 
   /**
@@ -346,7 +348,7 @@ export function createRemovals(deps: RemovalDeps) {
         record,
         sharedWith: sharedWith(record.tableName),
         // Made by this app, and no other app's record names it.
-        droppable: record.owned && record.state === 'created' && !others.some((other) => other.tableName === record.tableName) && !addOnTables.has(record.tableName),
+        droppable: record.owned && record.state === 'created' && !others.some((other) => other.tableName === record.tableName) && (addOnTables.get(record.tableName) ?? key) === key,
       })),
       hosts: Object.entries(domains)
         .filter(([, target]) => target.appKey === key)

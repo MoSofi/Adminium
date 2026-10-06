@@ -83,6 +83,7 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
+import { addOnUninstallPlan, uninstallAddOn } from '../../add-ons/uninstall.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import {
@@ -173,6 +174,8 @@ import {
   patchAddOnBody,
   patchAddOnReply,
   uninstallAddOnReply,
+  uninstallAddOnBody,
+  uninstallAddOnPlanReply,
   type AddOnDto,
   addOnSettingsBody,
   addOnSettingsReply,
@@ -1960,12 +1963,26 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    app.get(
+      '/add-ons/:key/uninstall-plan',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: addOnKeyParams, response: { 200: uninstallAddOnPlanReply } },
+      },
+      async (request) => {
+        // What the dialog says before anybody confirms: what goes, what stays, what may be dropped, and what stands in the way.
+        const plan = await addOnUninstallPlan(installer, request.params.key);
+        const requiring = (await needsOf(deps.meta, request.params.key)).filter((need) => need.need === 'requires');
+        return { ...plan, requiredBy: requiring.map((need) => ({ app: need.app, name: need.appName })) };
+      },
+    );
+
     app.delete(
       '/add-ons/:key',
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         config: { audit: audited('rbac') },
-        schema: { params: addOnKeyParams, response: { 200: uninstallAddOnReply } },
+        schema: { params: addOnKeyParams, body: uninstallAddOnBody, response: { 200: uninstallAddOnReply } },
       },
       async (request) => {
         const { key } = request.params;
@@ -1983,51 +2000,32 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (requiring.length > 0) throw requiredByError(key, requiring, 'removed');
         const features = needs.filter((need) => need.need === 'feature');
 
-        // In the order that makes the promise true: the meta rows go
-        // (credentials with them, by cascade), and NOTHING touches the data
-        // source. Tables the add-on brought stay, with their rows.
         /*
-         * The half, BEFORE the manifest row goes.
+         * The shared removal. For an add-on that keeps tables of its own:
+         * everything it declared beside them goes the way an app's does, its
+         * tables stay unless a Super Admin asks otherwise, and the row leaves
+         * `installed` first. For every other add-on, as before: its row, its
+         * credentials (by cascade) and its package — NOTHING touches the
+         * data source.
          *
-         * Disables this add-on's document profiles and drops its settings.
-         * The ORDER is the point: a profile disabled after the manifest row
-         * had already gone would leave a window in which a write could enqueue
-         * a render for a provider that no longer exists. Documents and
-         * profiles themselves survive — keeps the customer's data, and a
-         * mapping is work an operator did.
+         * `onAddOnRemoved` runs BEFORE the row goes: a document profile
+         * disabled after it would leave a window in which a write could
+         * enqueue a render for a provider that no longer exists.
          */
-        await deps.onAddOnRemoved?.(key);
-
-        await manifests.uninstall(installed.row.id);
-
-        // The package directory is store hook. Deliberately after the
-        // meta delete: a failure here leaves bytes on disk, which is a tidiness
-        // problem, whereas the reverse order could leave an installed add-on
-        // whose code is gone.
-        let packageRemoved = true;
-        try {
-          await deps.store.removeKey(key);
-        } catch {
-          packageRemoved = false;
-        }
-
-        await auditRepo(deps.meta).append({
-          actorKind: 'user',
-          actorId: request.user?.id ?? null,
-          actorLabel: request.user?.email ?? 'unknown',
-          category: 'add-on',
-          action: 'add-on.uninstalled',
-          changes: {
-            after: { key, version: installed.row.version, packageRemoved, tablesKept: true },
-          },
+        const done = await uninstallAddOn(installer, {
+          key,
+          dropTables: request.body?.dropTables,
+          confirmKey: request.body?.confirmKey,
+          actor: actorOf(request),
+          beforeRowGoes: async () => deps.onAddOnRemoved?.(key),
         });
-
-        // The runtime is rebuilt WHOLE, never patched: a partially
-        // updated provider map is worse than a stale one, because a stale one
-        // is at least consistent with itself.
-        await deps.rebuildRuntime?.();
-
-        return { key, tablesKept: true, packageRemoved, ...(features.length === 0 ? {} : { features: needsDto(features) }) };
+        return {
+          key,
+          tablesKept: done.dropped.length === 0,
+          packageRemoved: done.packageRemoved,
+          ...(features.length === 0 ? {} : { features: needsDto(features) }),
+          ...(done.likeApp ? { removed: done.removed, kept: done.kept, dropped: done.dropped } : {}),
+        };
       },
     );
   };

@@ -58,6 +58,7 @@ import { featureWords } from '../apps/addOnWords.js';
 import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
 import { MakesSummary, PlanSummary } from './PlanSummary.js';
+import { UninstallSummary, uninstallAllowed } from './UninstallSummary.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
 import {
@@ -78,13 +79,17 @@ import {
   refreshCatalog,
   saveAddOnSettings,
   setAddOnEnabled,
+  fetchUninstallPlan,
+  fetchUpdatePlan,
   uninstallAddOn,
-  upgradeAddOn,
+  updateAddOn,
   type AddOnDto,
   type AddOnUse,
   type CatalogEntry,
   type ConnectionChoice,
   type InstallCheck,
+  type UninstallPlan,
+  type UpdatePlan,
   type StagedPackage,
 } from './addOnsApi.js';
 
@@ -92,6 +97,8 @@ import {
 type Pending =
   | { kind: 'disconnect'; addOn: AddOnDto }
   | { kind: 'uninstall'; addOn: AddOnDto }
+  /** An update that adds to the add-on's own tables: what it adds is read before it runs. */
+  | { kind: 'update'; entry: CatalogEntry; plan: UpdatePlan }
   | { kind: 'discard'; entry: CatalogEntry };
 
 /**
@@ -136,6 +143,9 @@ function installStoppedWords(caught: unknown): string | null {
             ? t('studio:addOns.incomplete.writers', 'adding its pages, roles and rules')
             : t('studio:addOns.incomplete.finish', 'finishing');
     return t('studio:addOns.incomplete.body', 'The install stopped while {stage}. Nothing was undone, and nothing is lost: install it again to finish.', { stage });
+  }
+  if (caught.code === 'ADD_ON_UPDATE_INCOMPLETE') {
+    return t('studio:addOns.incomplete.update', 'The update stopped part way. Nothing was undone, and until it is finished the add-on does nothing: update it again to finish.');
   }
   if (caught.code === 'ADD_ON_UNTRUSTED') {
     return t(
@@ -655,6 +665,8 @@ export function AddOnsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  /** What the removal being confirmed would take and keep; and the deliberate drop of its tables. */
+  const [removal, setRemoval] = useState<{ plan: UninstallPlan | null; drop: boolean; typed: string }>({ plan: null, drop: false, typed: '' });
   const [consent, setConsent] = useState<{
     entry: CatalogEntry;
     check: InstallCheck | null;
@@ -739,8 +751,26 @@ export function AddOnsPage() {
         },
       });
     } else {
+      setRemoval({ plan: null, drop: false, typed: '' });
       setPending({ kind: 'uninstall', addOn });
+      // What it takes with it, read before anybody confirms. A server that cannot say leaves the plain question.
+      const plain: UninstallPlan = { key: addOn.key, version: addOn.version, likeApp: false, pages: { removed: [], kept: [] }, roles: [], tables: [], inUse: { postings: [], features: [] }, requiredBy: [] };
+      void fetchUninstallPlan(addOn.key).then(
+        // An answer that is not a plan (an older server) is no reason to stand in the way of a plain removal.
+        (plan) => setRemoval((current) => ({ ...current, plan: Array.isArray(plan?.inUse?.postings) && Array.isArray(plan.tables) ? plan : plain })),
+        () => setRemoval((current) => ({ ...current, plan: plain })),
+      );
     }
+  };
+
+  /** Update: straight away when no table changes; otherwise what it adds is shown first. */
+  const askUpdate = (entry: CatalogEntry): void => {
+    void (async () => {
+      const plan = await run(() => fetchUpdatePlan(entry.key));
+      if (plan === undefined) return;
+      if (plan.plan.requiresSchemaChange) setPending({ kind: 'update', entry, plan });
+      else await run(() => updateAddOn(entry.key, plan.checksum));
+    })();
   };
 
   /** Switching it off for one app: refused when that app requires it, warned when a feature of it stops. */
@@ -944,9 +974,7 @@ export function AddOnsPage() {
         }}
         onInstall={openConsent}
         onDiscard={(entry) => setPending({ kind: 'discard', entry })}
-        onUpgrade={(entry) => {
-          void run(() => upgradeAddOn(entry.key));
-        }}
+        onUpgrade={askUpdate}
       />
 
       <SideloadCard busy={busy} onUpload={(file, input) => run(() => uploadAddOn(file, input))} />
@@ -1121,7 +1149,9 @@ export function AddOnsPage() {
               ? t('studio:addOns.confirm.disconnectTitle', 'Disconnect this add-on')
               : pending.kind === 'uninstall'
                 ? t('studio:addOns.confirm.uninstallTitle', 'Uninstall this add-on')
-                : t('studio:addOns.confirm.discardTitle', 'Discard this download')
+                : pending.kind === 'update'
+                  ? t('studio:addOns.confirm.updateTitle', 'Update to {version}', { version: pending.plan.to })
+                  : t('studio:addOns.confirm.discardTitle', 'Discard this download')
             }
           />
           <ModalBody>
@@ -1132,14 +1162,41 @@ export function AddOnsPage() {
                   'Its keys are deleted and it stops making calls. Every table and every row it created stays exactly as it is, and you can reconnect at any time.',
                 )
               : pending.kind === 'uninstall'
-                ? t(
-                    'studio:addOns.confirm.uninstallBody',
+                ? (
+                    <div className="flex flex-col gap-3">
+                      <p>
+                        {t(
+                          'studio:addOns.confirm.uninstallBody',
                     'Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.',
+                        )}
+                      </p>
+                      {removal.plan !== null && (
+                        <UninstallSummary
+                          plan={removal.plan}
+                          drop={removal.drop}
+                          typed={removal.typed}
+                          onDrop={(drop) => setRemoval((current) => ({ ...current, drop, typed: '' }))}
+                          onTyped={(typed) => setRemoval((current) => ({ ...current, typed }))}
+                        />
+                      )}
+                    </div>
                   )
-                : t(
-                    'studio:addOns.confirm.discardBody',
+                : pending.kind === 'update'
+                  ? (
+                      <div className="flex flex-col gap-3">
+                        <p>
+                          {t(
+                            'studio:addOns.confirm.updateBody',
+                            'This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.',
+                          )}
+                        </p>
+                        <PlanSummary plan={pending.plan.plan} />
+                      </div>
+                    )
+                  : t(
+                      'studio:addOns.confirm.discardBody',
                     'The downloaded files are deleted. Nothing was installed, so nothing else changes — you can download it again whenever you like.',
-                  )
+                    )
             }
           </ModalBody>
           <ModalFooter>
@@ -1147,15 +1204,17 @@ export function AddOnsPage() {
               {t('studio:addOns.confirm.cancel', 'Cancel')}
             </Button>
             <Button
-              variant={pending.kind === 'uninstall' ? 'destructive' : 'destructiveSoft'}
-              disabled={busy}
+              variant={pending.kind === 'uninstall' ? 'destructive' : pending.kind === 'update' ? 'primary' : 'destructiveSoft'}
+              disabled={busy || (pending.kind === 'uninstall' && !uninstallAllowed(removal.plan, removal.drop, removal.typed)) || (pending.kind === 'update' && !pending.plan.plan.installable)}
               onClick={() => {
                 const current = pending;
+                const drop = removal.drop ? { confirmKey: removal.typed } : undefined;
                 setPending(null);
                 void run<unknown>(
                   () => {
                     if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
-                    if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key);
+                    if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key, drop);
+                    if (current.kind === 'update') return updateAddOn(current.entry.key, current.plan.checksum);
                     return discardStaged(current.entry.key, current.entry.version);
                   },
                   current.kind === 'uninstall'
@@ -1168,7 +1227,9 @@ export function AddOnsPage() {
                 ? t('studio:addOns.confirm.disconnect', 'Disconnect')
                 : pending.kind === 'uninstall'
                   ? t('studio:addOns.confirm.uninstall', 'Uninstall')
-                  : t('studio:addOns.confirm.discard', 'Discard')}
+                  : pending.kind === 'update'
+                    ? t('studio:addOns.confirm.update', 'Update')
+                    : t('studio:addOns.confirm.discard', 'Discard')}
             </Button>
           </ModalFooter>
         </Modal>

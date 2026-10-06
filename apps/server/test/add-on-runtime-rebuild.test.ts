@@ -190,15 +190,18 @@ describe('the add-on routes call the hooks at all', () => {
       new URL('../src/routes/add-ons/index.ts', import.meta.url),
       'utf8',
     );
-    // Enable/disable, uninstall, and an upload of the installed version (files
-    // put back after a data directory was lost) in the routes; install,
-    // upgrade and attach in the installer both the add-on and the app routes
-    // call, and the install of an add-on that keeps tables of its own (which
-    // loads its code before any save is let back in), and the update of one
-    // (the same, for the version it moved to) — eight rebuild sites.
-    expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(3);
+    // Enable/disable, and an upload of the installed version (files put back
+    // after a data directory was lost) in the routes; install, upgrade and
+    // attach in the installer both the add-on and the app routes call, and
+    // the install of an add-on that keeps tables of its own (which loads its
+    // code before any save is let back in), and the update of one (the same,
+    // for the version it moved to); the uninstall, in the removal the route
+    // calls — eight rebuild sites.
+    expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(2);
     const installer = await readFile(new URL('../src/add-ons/install.ts', import.meta.url), 'utf8');
     expect(installer.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(5);
+    const removal = await readFile(new URL('../src/add-ons/uninstall.ts', import.meta.url), 'utf8');
+    expect(removal.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(1);
     expect(routes).toContain('rebuildRuntime: deps.rebuildRuntime');
     expect(routes).toContain('deps.onAddOnRemoved?.(key)');
 

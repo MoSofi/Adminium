@@ -56,7 +56,10 @@
       "disconnectTitle": "Dieses Add-on trennen",
       "uninstall": "Deinstallieren",
       "uninstallBody": "Seine Schlüssel werden gelöscht und seine Dateien von diesem Server entfernt. Jede Tabelle und jede Zeile, die es angelegt hat, bleibt unverändert. Sie können es später erneut installieren.",
-      "uninstallTitle": "Dieses Add-on deinstallieren"
+      "uninstallTitle": "Dieses Add-on deinstallieren",
+      "updateTitle": "Auf {version} aktualisieren",
+      "updateBody": "Diese Version ändert die eigenen Tabellen des Add-ons. Nichts von dem, was Sie haben, wird entfernt; bis die Aktualisierung abgeschlossen ist, tut das Add-on nichts.",
+      "update": "Aktualisieren"
     },
     "connect": {
       "apiKey": "API-Schlüssel",
@@ -80,7 +83,8 @@
       "seeds": "beim Hinzufügen der Zeilen, mit denen seine Tabellen beginnen",
       "writers": "beim Hinzufügen seiner Seiten, Rollen und Regeln",
       "finish": "beim Abschließen",
-      "body": "Die Installation wurde {stage} angehalten. Nichts wurde rückgängig gemacht, und nichts ist verloren: Installieren Sie es erneut, um sie abzuschließen."
+      "body": "Die Installation wurde {stage} angehalten. Nichts wurde rückgängig gemacht, und nichts ist verloren: Installieren Sie es erneut, um sie abzuschließen.",
+      "update": "Die Aktualisierung wurde mittendrin angehalten. Nichts wurde rückgängig gemacht, und bis sie abgeschlossen ist, tut das Add-on nichts: Aktualisieren Sie es erneut, um sie abzuschließen."
     },
     "installed": {
       "connected": "Verbunden",
@@ -137,6 +141,18 @@
     },
     "subtitle": "Zusätzliche Funktionen für Ihre Apps – Versand, Grafik, Daten. Jedes sagt vor der Installation, was es benötigt.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "Es wird noch verwendet",
+      "inUsePosting": "Eine Regel auf „{table}“ übergibt ihm Zeilen.",
+      "inUsePrice": "Die Preisregel auf „{table}“ fragt es nach Preisen.",
+      "inUseFeature": "{app} verwendet es für „{feature}“. Schalten Sie es zuerst für {app} aus.",
+      "pages": "Seine Seiten werden entfernt: {names}.",
+      "pagesKept": "Seiten, die Sie bearbeitet haben, bleiben als Ihre eigenen: {names}.",
+      "roles": "Seine Rollen werden entfernt: {names}. Wer eine davon hat, verliert sie ({count}).",
+      "tables": "Seine Tabellen bleiben, mit jeder Zeile: {names}.",
+      "drop": "Auch seine Tabellen und alles darin löschen. Das lässt sich nicht rückgängig machen.",
+      "type": "Geben Sie {key} ein, um seine Tabellen zu löschen"
+    },
     "upgradeNote": "Beim Aktualisieren bleiben die Hosts, mit denen ein Add-on verbunden ist, und die bestehende Verbindung erhalten.",
     "veto": {
       "body": "Die Einstellung ist gespeichert, aber Netzwerkfunktionen sind für diesen Server aus, und das gilt. Geladene Add-ons laufen weiter, und Sie können eins hochladen.",

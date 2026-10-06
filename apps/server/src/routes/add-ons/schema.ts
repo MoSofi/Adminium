@@ -337,6 +337,39 @@ export const uninstallAddOnReply = z.object({
   packageRemoved: z.boolean(),
   /** The apps that used it for a feature, and the features that stopped. */
   features: z.array(appNeedDto).optional(),
+  /** For an add-on that kept tables of its own: how much of what it declared went, by kind. */
+  removed: z.object({ pages: z.number(), roles: z.number(), rules: z.number(), emails: z.number(), endpoints: z.number(), keys: z.number() }).optional(),
+  /** What stays: the pages somebody edited (now the owner's own), and its tables. */
+  kept: z.object({ pages: z.array(z.string()), tables: z.array(z.string()) }).optional(),
+  /** The tables that were dropped, when that was asked for. */
+  dropped: z.array(z.string()).optional(),
+});
+
+/** `DELETE /add-ons/:key`: nothing, or the deliberate drop of the tables it made. */
+export const uninstallAddOnBody = z
+  .object({
+    /** Also delete the tables it made, with their rows. Super Admin only. */
+    dropTables: z.boolean().optional(),
+    /** The add-on's key, typed. */
+    confirmKey: z.string().max(80).optional(),
+  })
+  // A removal with nothing to say sends no body at all, as it always did.
+  .nullish();
+
+/** `GET /add-ons/:key/uninstall-plan`: what a removal would take, keep and may drop, and what stands in its way. */
+export const uninstallAddOnPlanReply = z.object({
+  key: addOnKey,
+  version: z.string(),
+  likeApp: z.boolean(),
+  pages: z.object({ removed: z.array(z.string()), kept: z.array(z.string()) }),
+  roles: z.array(z.object({ slug: z.string(), members: z.number() })),
+  tables: z.array(z.object({ table: z.string(), droppable: z.boolean() })),
+  inUse: z.object({
+    postings: z.array(z.object({ table: z.string(), posting: z.string() })),
+    features: z.array(z.object({ app: z.string(), name: z.string(), feature: z.string() })),
+  }),
+  /** The apps that require it: while any does, it cannot be removed at all. */
+  requiredBy: z.array(z.object({ app: z.string(), name: z.string() })),
 });
 
 /**

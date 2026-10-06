@@ -66,7 +66,10 @@ export default {
       "disconnectTitle": "Disconnect this add-on",
       "uninstall": "Uninstall",
       "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "uninstallTitle": "Uninstall this add-on"
+      "uninstallTitle": "Uninstall this add-on",
+      "updateTitle": "Opdater til {version}",
+      "updateBody": "Denne version ændrer tilføjelsens egne tabeller. Intet af det, du har, fjernes; indtil opdateringen er færdig, gør tilføjelsen ingenting.",
+      "update": "Opdater"
     },
     "connect": {
       "apiKey": "API key",
@@ -90,7 +93,8 @@ export default {
       "seeds": "under tilføjelsen af de rækker, dens tabeller begynder med",
       "writers": "under tilføjelsen af dens sider, roller og regler",
       "finish": "under afslutningen",
-      "body": "Installationen stoppede {stage}. Intet blev fortrudt, og intet er gået tabt: installer den igen for at afslutte."
+      "body": "Installationen stoppede {stage}. Intet blev fortrudt, og intet er gået tabt: installer den igen for at afslutte.",
+      "update": "Opdateringen stoppede undervejs. Intet blev fortrudt, og indtil den er færdig, gør tilføjelsen ingenting: opdater den igen for at afslutte."
     },
     "installed": {
       "connected": "Connected",
@@ -147,6 +151,18 @@ export default {
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "Den er stadig i brug",
+      "inUsePosting": "En regel på “{table}” giver den rækker.",
+      "inUsePrice": "Prisreglen på “{table}” spørger den om priser.",
+      "inUseFeature": "{app} bruger den til “{feature}”. Slå den først fra for {app}.",
+      "pages": "Dens sider fjernes: {names}.",
+      "pagesKept": "Sider, du har redigeret, bliver som dine egne: {names}.",
+      "roles": "Dens roller fjernes: {names}. Personer, der har en af dem, mister den ({count}).",
+      "tables": "Dens tabeller bliver, med alle rækker: {names}.",
+      "drop": "Slet også dens tabeller og alt i dem. Det kan ikke fortrydes.",
+      "type": "Skriv {key} for at slette dens tabeller"
+    },
     "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",

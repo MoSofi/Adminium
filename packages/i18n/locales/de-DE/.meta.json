@@ -15795,6 +15795,18 @@
     "status": "mt",
     "srcHash": "ed0128562108"
   },
+  "studio.addOns.confirm.update": {
+    "status": "mt",
+    "srcHash": "fb91e24fa52d"
+  },
+  "studio.addOns.confirm.updateBody": {
+    "status": "mt",
+    "srcHash": "7213b72e0bb6"
+  },
+  "studio.addOns.confirm.updateTitle": {
+    "status": "mt",
+    "srcHash": "ac9d89181b1c"
+  },
   "studio.addOns.connect.apiKey": {
     "status": "mt",
     "srcHash": "cf678cab87dc"
@@ -15862,6 +15874,10 @@
   "studio.addOns.incomplete.tables": {
     "status": "mt",
     "srcHash": "5e907c8058e4"
+  },
+  "studio.addOns.incomplete.update": {
+    "status": "mt",
+    "srcHash": "ab003307a907"
   },
   "studio.addOns.incomplete.writers": {
     "status": "mt",
@@ -16038,6 +16054,46 @@
   "studio.addOns.title": {
     "status": "src",
     "srcHash": "41b634ed2413"
+  },
+  "studio.addOns.uninstall.drop": {
+    "status": "mt",
+    "srcHash": "e7f91738c4cf"
+  },
+  "studio.addOns.uninstall.inUseFeature": {
+    "status": "mt",
+    "srcHash": "2549ce904bef"
+  },
+  "studio.addOns.uninstall.inUsePosting": {
+    "status": "mt",
+    "srcHash": "3ea0b2baf72e"
+  },
+  "studio.addOns.uninstall.inUsePrice": {
+    "status": "mt",
+    "srcHash": "55256eff344b"
+  },
+  "studio.addOns.uninstall.inUseTitle": {
+    "status": "mt",
+    "srcHash": "1a01359412e3"
+  },
+  "studio.addOns.uninstall.pages": {
+    "status": "mt",
+    "srcHash": "f4be48d57da9"
+  },
+  "studio.addOns.uninstall.pagesKept": {
+    "status": "mt",
+    "srcHash": "8fadebe487fc"
+  },
+  "studio.addOns.uninstall.roles": {
+    "status": "mt",
+    "srcHash": "10170af29b04"
+  },
+  "studio.addOns.uninstall.tables": {
+    "status": "mt",
+    "srcHash": "27229fa5ff17"
+  },
+  "studio.addOns.uninstall.type": {
+    "status": "mt",
+    "srcHash": "08226d13c13d"
   },
   "studio.addOns.upgradeNote": {
     "status": "mt",

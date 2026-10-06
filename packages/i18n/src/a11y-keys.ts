@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2723 entries. */
+/** `namespace:key` — 2726 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1418,6 +1418,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:addOns.confirm.discardTitle',
   'studio:addOns.confirm.disconnectTitle',
   'studio:addOns.confirm.uninstallTitle',
+  'studio:addOns.confirm.updateTitle',
   'studio:addOns.connect.apiKey',
   'studio:addOns.consent.close',
   'studio:addOns.consent.database',
@@ -1435,6 +1436,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:addOns.sideload.uploaded.title',
   'studio:addOns.subtitle',
   'studio:addOns.title',
+  'studio:addOns.uninstall.inUseTitle',
+  'studio:addOns.uninstall.type',
   'studio:addOns.veto.title',
   'studio:apiKeys.builder.auth.label',
   'studio:apiKeys.builder.filters.remove',

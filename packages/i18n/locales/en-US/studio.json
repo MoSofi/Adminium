@@ -56,7 +56,10 @@
       "disconnectTitle": "Disconnect this add-on",
       "uninstall": "Uninstall",
       "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "uninstallTitle": "Uninstall this add-on"
+      "uninstallTitle": "Uninstall this add-on",
+      "updateTitle": "Update to {version}",
+      "updateBody": "This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.",
+      "update": "Update"
     },
     "connect": {
       "apiKey": "API key",
@@ -80,7 +83,8 @@
       "seeds": "adding the rows its tables start with",
       "writers": "adding its pages, roles and rules",
       "finish": "finishing",
-      "body": "The install stopped while {stage}. Nothing was undone, and nothing is lost: install it again to finish."
+      "body": "The install stopped while {stage}. Nothing was undone, and nothing is lost: install it again to finish.",
+      "update": "The update stopped part way. Nothing was undone, and until it is finished the add-on does nothing: update it again to finish."
     },
     "installed": {
       "connected": "Connected",
@@ -137,6 +141,18 @@
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "It is still in use",
+      "inUsePosting": "A rule on “{table}” hands rows to it.",
+      "inUsePrice": "The price rule on “{table}” asks it for prices.",
+      "inUseFeature": "{app} uses it for “{feature}”. Switch it off for {app} first.",
+      "pages": "Its pages go: {names}.",
+      "pagesKept": "Pages you edited stay, as your own: {names}.",
+      "roles": "Its roles go: {names}. People who hold one lose it ({count}).",
+      "tables": "Its tables stay, with every row: {names}.",
+      "drop": "Also delete its tables and everything in them. This cannot be undone.",
+      "type": "Type {key} to delete its tables"
+    },
     "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",

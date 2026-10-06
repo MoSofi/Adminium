@@ -98,7 +98,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | Group | Ops | |
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
-| `/api/v1/add-ons/*` | 23 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
+| `/api/v1/add-ons/*` | 24 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
@@ -203,6 +203,7 @@ POST /api/v1/add-ons/{key}/connect/oauth/complete
 PATCH /api/v1/add-ons/{key}
 DELETE /api/v1/add-ons/{key}
 PUT /api/v1/add-ons/{key}/settings
+GET /api/v1/add-ons/{key}/uninstall-plan
 ```
 
 ### `/api-docs`

@@ -56,7 +56,10 @@
       "disconnectTitle": "Disconnect this add-on",
       "uninstall": "Uninstall",
       "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "uninstallTitle": "Uninstall this add-on"
+      "uninstallTitle": "Uninstall this add-on",
+      "updateTitle": "更新到 {version}",
+      "updateBody": "此版本會變更附加元件自己的資料表。你現有的內容不會被移除；在更新完成之前，附加元件不會執行任何動作。",
+      "update": "更新"
     },
     "connect": {
       "apiKey": "API key",
@@ -80,7 +83,8 @@
       "seeds": "新增資料表的初始列時",
       "writers": "新增頁面、角色和規則時",
       "finish": "收尾時",
-      "body": "安裝在{stage}停止。沒有復原任何內容，也沒有遺失任何內容：再次安裝即可完成。"
+      "body": "安裝在{stage}停止。沒有復原任何內容，也沒有遺失任何內容：再次安裝即可完成。",
+      "update": "更新中途停止。沒有復原任何內容；在完成之前，附加元件不會執行任何動作：再次更新即可完成。"
     },
     "installed": {
       "connected": "Connected",
@@ -137,6 +141,18 @@
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "它仍在使用中",
+      "inUsePosting": "「{table}」上的一條規則會把資料列交給它。",
+      "inUsePrice": "「{table}」上的價格規則會向它詢問價格。",
+      "inUseFeature": "{app} 將它用於「{feature}」。請先為 {app} 關閉它。",
+      "pages": "它的頁面將被移除：{names}。",
+      "pagesKept": "你編輯過的頁面會保留為你自己的頁面：{names}。",
+      "roles": "它的角色將被移除：{names}。擁有其中角色的人會失去該角色（{count}）。",
+      "tables": "它的資料表會保留，每一列都在：{names}。",
+      "drop": "同時刪除它的資料表及其中的所有內容。此操作無法復原。",
+      "type": "輸入 {key} 以刪除它的資料表"
+    },
     "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",

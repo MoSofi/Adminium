@@ -704,7 +704,7 @@ describe('AddOnsPage', () => {
       body: { plan: makePlan({ touchesData: true, create: [{ ref: 'items', columns: [] }] }), connectionId: connection.id, connectionName: connection.name, checksum: `sum-${connection.id}`, makes: MAKES },
     });
     /** Two databases: the first check is answered with the list, a check that names one with its plan. */
-    const twoDatabases: StubOptions['respond'] = (method, url, body) => {
+    const twoDatabases: NonNullable<StubOptions['respond']> = (method, url, body) => {
       if (method === 'GET' && url.endsWith('/holiday-calendars/plan')) return asked;
       if (method === 'POST' && url === '/api/v1/add-ons/plan') return planned((body as { connectionId: string }).connectionId === SHOP.id ? SHOP : ARCHIVE);
       return undefined;
@@ -826,6 +826,137 @@ describe('AddOnsPage', () => {
       await user.type(screen.getByLabelText(/Integrity/), 'sha512-abc==');
       await user.click(screen.getByRole('button', { name: 'Upload' }));
       expect(await screen.findByText(/The package is stored and can be installed, but Adminium does not know who made it/)).toBeTruthy();
+    });
+  });
+
+  describe('removing and updating an add-on that keeps tables of its own', () => {
+    const KIT = makeAddOn({ key: 'stock-kit', name: 'Stock kit', version: '1.0.0', connectKind: 'none', connected: false, attachments: [], networkAllow: [] });
+    const PLAN = {
+      key: 'stock-kit',
+      version: '1.0.0',
+      likeApp: true,
+      pages: { removed: ['stock-kit-items'], kept: ['stock-kit-notes'] },
+      roles: [{ slug: 'stock-kit-manager', members: 2 }, { slug: 'stock-kit-reader', members: 1 }],
+      tables: [{ table: 'stock_kit_items', droppable: true }, { table: 'stock_kit_takes', droppable: true }],
+      inUse: { postings: [], features: [] },
+      requiredBy: [],
+    };
+    const withPlan = (plan: unknown): NonNullable<StubOptions['respond']> => (method, url) => (method === 'GET' && url.endsWith('/stock-kit/uninstall-plan') ? { status: 200, body: plan } : undefined);
+    const removal = (calls: { method: string; url: string; body?: unknown }[]) => calls.find((c) => c.method === 'DELETE' && c.url === '/api/v1/add-ons/stock-kit');
+
+    it('says what goes and what stays before anybody confirms, and removes it with its tables kept', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: [KIT], entries: [], respond: withPlan(PLAN) });
+      await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(await within(dialog).findByText('Its pages go: stock-kit-items.')).toBeTruthy();
+      expect(within(dialog).getByText('Pages you edited stay, as your own: stock-kit-notes.')).toBeTruthy();
+      expect(within(dialog).getByText('Its roles go: stock-kit-manager, stock-kit-reader. People who hold one lose it (3).')).toBeTruthy();
+      expect(within(dialog).getByText('Its tables stay, with every row: stock_kit_items, stock_kit_takes.')).toBeTruthy();
+      await user.click(within(dialog).getByRole('button', { name: 'Uninstall' }));
+      await waitFor(() => expect(removal(calls)).toBeTruthy());
+      // Nothing was asked to be dropped.
+      expect(removal(calls)?.body).toBeUndefined();
+    });
+
+    it('deletes its tables only once the box is ticked and its key typed', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: [KIT], entries: [], respond: withPlan(PLAN) });
+      await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(await within(dialog).findByRole('checkbox'));
+      const confirm = within(dialog).getByRole('button', { name: 'Uninstall' }) as HTMLButtonElement;
+      expect(confirm.disabled).toBe(true);
+      const field = within(dialog).getByLabelText('Type stock-kit to delete its tables');
+      await user.type(field, 'stock');
+      expect(confirm.disabled).toBe(true);
+      await user.type(field, '-kit');
+      expect(confirm.disabled).toBe(false);
+      await user.click(confirm);
+      await waitFor(() => expect(removal(calls)).toBeTruthy());
+      expect(removal(calls)?.body).toEqual({ dropTables: true, confirmKey: 'stock-kit' });
+    });
+
+    it('cannot be removed while a rule still hands rows to it, and says which', async () => {
+      const user = userEvent.setup();
+      const inUse = { ...PLAN, inUse: { postings: [{ table: 'shipments', posting: 'ship' }, { table: 'carts', posting: 'price' }], features: [{ app: 'shop', name: 'Shop', feature: 'stock' }] } };
+      const { calls } = await renderPage({ installed: [KIT], entries: [], respond: withPlan(inUse) });
+      await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(await within(dialog).findByText('It is still in use')).toBeTruthy();
+      expect(within(dialog).getByText('A rule on “shipments” hands rows to it.')).toBeTruthy();
+      expect(within(dialog).getByText('The price rule on “carts” asks it for prices.')).toBeTruthy();
+      expect(within(dialog).getByText('Shop uses it for “stock”. Switch it off for Shop first.')).toBeTruthy();
+      expect((within(dialog).getByRole('button', { name: 'Uninstall' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(within(dialog).queryByRole('checkbox')).toBeNull();
+      expect(removal(calls)).toBeUndefined();
+    });
+
+    it('nothing can be confirmed before what it takes with it has been read', async () => {
+      const user = userEvent.setup();
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await renderPage({ installed: [KIT], entries: [], respond: (method, url) => (method === 'GET' && url.endsWith('/stock-kit/uninstall-plan') ? { status: 200, body: PLAN, after: held } : undefined) });
+      await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+      const dialog = await screen.findByRole('dialog');
+      const confirm = within(dialog).getByRole('button', { name: 'Uninstall' }) as HTMLButtonElement;
+      expect(confirm.disabled).toBe(true);
+      release();
+      await waitFor(() => expect(confirm.disabled).toBe(false));
+    });
+
+    it('tables it only found and took are never offered for deletion', async () => {
+      const user = userEvent.setup();
+      await renderPage({ installed: [KIT], entries: [], respond: withPlan({ ...PLAN, tables: [{ table: 'shipments', droppable: false }] }) });
+      await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+      const dialog = await screen.findByRole('dialog');
+      await within(dialog).findByText('Its tables stay, with every row: shipments.');
+      expect(within(dialog).queryByRole('checkbox')).toBeNull();
+    });
+
+    it('an add-on that only ever had its files is asked the plain question, with nothing to tick', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: [KIT], entries: [], respond: withPlan({ ...PLAN, likeApp: false, pages: { removed: [], kept: [] }, roles: [], tables: [] }) });
+      await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+      const dialog = await screen.findByRole('dialog');
+      const confirm = within(dialog).getByRole('button', { name: 'Uninstall' }) as HTMLButtonElement;
+      await waitFor(() => expect(confirm.disabled).toBe(false));
+      expect(within(dialog).queryByRole('checkbox')).toBeNull();
+      await user.click(confirm);
+      await waitFor(() => expect(removal(calls)).toBeTruthy());
+    });
+
+    const NEWER = makeEntry({ key: 'stock-kit', name: 'Stock kit', version: '1.0.0', state: 'installed', upgradeTo: '1.0.1' });
+    const updatePlan = (requiresSchemaChange: boolean) => ({
+      status: 200,
+      body: { plan: makePlan({ addOnKey: 'stock-kit', version: '1.0.1', touchesData: true, requiresSchemaChange, create: requiresSchemaChange ? [{ ref: 'counts', columns: [] }] : [] }), from: '1.0.0', to: '1.0.1', connectionId: 'conn_shop', checksum: 'sum-1' },
+    });
+    const updating = (requiresSchemaChange: boolean): NonNullable<StubOptions['respond']> => (method, url) => (method === 'POST' && url.endsWith('/stock-kit/update/plan') ? updatePlan(requiresSchemaChange) : undefined);
+    const update = (calls: { method: string; url: string; body?: unknown }[]) => calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/stock-kit/update');
+
+    it('an update that changes no table runs at once, on the route that could have changed one', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: [KIT], entries: [NEWER], respond: updating(false) });
+      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      await waitFor(() => expect(update(calls)).toBeTruthy());
+      expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('an update that adds to its tables shows what it adds first, and runs only when confirmed', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: [KIT], entries: [NEWER], respond: updating(true) });
+      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Update to 1.0.1')).toBeTruthy();
+      expect(within(dialog).getByText(/changes the add-on’s own tables/)).toBeTruthy();
+      expect(within(dialog).getByText('counts')).toBeTruthy();
+      expect(update(calls)).toBeUndefined();
+      await user.click(within(dialog).getByRole('button', { name: 'Update' }));
+      await waitFor(() => expect(update(calls)).toBeTruthy());
+      expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1' });
     });
   });
 });

@@ -66,7 +66,10 @@ export default {
       "disconnectTitle": "Déconnecter ce module",
       "uninstall": "Désinstaller",
       "uninstallBody": "Ses clés sont supprimées et ses fichiers retirés de ce serveur. Chaque table et chaque ligne qu’il a créées restent telles quelles. Vous pourrez le réinstaller plus tard.",
-      "uninstallTitle": "Désinstaller ce module"
+      "uninstallTitle": "Désinstaller ce module",
+      "updateTitle": "Mettre à jour vers {version}",
+      "updateBody": "Cette version modifie les tables du module complémentaire. Rien de ce que vous avez n’est supprimé ; tant que la mise à jour n’est pas terminée, le module ne fait rien.",
+      "update": "Mettre à jour"
     },
     "connect": {
       "apiKey": "Clé API",
@@ -90,7 +93,8 @@ export default {
       "seeds": "pendant l’ajout des lignes de départ de ses tables",
       "writers": "pendant l’ajout de ses pages, rôles et règles",
       "finish": "pendant la finalisation",
-      "body": "L’installation s’est arrêtée {stage}. Rien n’a été annulé et rien n’est perdu : installez-le de nouveau pour terminer."
+      "body": "L’installation s’est arrêtée {stage}. Rien n’a été annulé et rien n’est perdu : installez-le de nouveau pour terminer.",
+      "update": "La mise à jour s’est arrêtée en cours de route. Rien n’a été annulé et, tant qu’elle n’est pas terminée, le module ne fait rien : relancez la mise à jour pour la terminer."
     },
     "installed": {
       "connected": "Connecté",
@@ -147,6 +151,18 @@ export default {
     },
     "subtitle": "Des capacités supplémentaires pour vos applications — expédition, graphisme, données. Chacune indique ce dont elle a besoin avant l’installation.",
     "title": "Modules",
+    "uninstall": {
+      "inUseTitle": "Il est encore utilisé",
+      "inUsePosting": "Une règle sur « {table} » lui transmet des lignes.",
+      "inUsePrice": "La règle de prix sur « {table} » lui demande des prix.",
+      "inUseFeature": "{app} l’utilise pour « {feature} ». Désactivez-le d’abord pour {app}.",
+      "pages": "Ses pages sont supprimées : {names}.",
+      "pagesKept": "Les pages que vous avez modifiées restent les vôtres : {names}.",
+      "roles": "Ses rôles sont supprimés : {names}. Les personnes qui en ont un le perdent ({count}).",
+      "tables": "Ses tables restent, avec toutes leurs lignes : {names}.",
+      "drop": "Supprimer aussi ses tables et tout leur contenu. Cette action est irréversible.",
+      "type": "Saisissez {key} pour supprimer ses tables"
+    },
     "upgradeNote": "La mise à jour conserve les hôtes auxquels un module est attaché ainsi que sa connexion existante.",
     "veto": {
       "body": "Le réglage est enregistré, mais les fonctions réseau sont coupées sur ce serveur et cela prime. Les modules déjà téléchargés fonctionnent, et vous pouvez en téléverser un.",

@@ -259,16 +259,50 @@ export async function setAddOnEnabled(
   return api.patch(`/api/v1/add-ons/${key}`, { attachedTo, enabled });
 }
 
+/** `drop`: also delete the tables it made, with the add-on's key typed — a Super Admin's deliberate act. */
 export async function uninstallAddOn(
   key: string,
+  drop?: { confirmKey: string },
 ): Promise<{ key: string; tablesKept: boolean; packageRemoved: boolean }> {
-  return api.delete(`/api/v1/add-ons/${key}`);
+  return drop === undefined ? api.delete(`/api/v1/add-ons/${key}`) : api.delete(`/api/v1/add-ons/${key}`, { dropTables: true, confirmKey: drop.confirmKey });
 }
 
-export async function upgradeAddOn(
+/** What removing an add-on would take, keep and may drop, and what stands in its way. */
+export interface UninstallPlan {
+  key: string;
+  version: string;
+  /** It keeps tables of its own: the lists below say what goes with it. False for an add-on that only ever had its files. */
+  likeApp: boolean;
+  pages: { removed: string[]; kept: string[] };
+  roles: { slug: string; members: number }[];
+  tables: { table: string; droppable: boolean }[];
+  inUse: { postings: { table: string; posting: string }[]; features: { app: string; name: string; feature: string }[] };
+  requiredBy: { app: string; name: string }[];
+}
+
+export async function fetchUninstallPlan(key: string): Promise<UninstallPlan> {
+  return api.get<UninstallPlan>(`/api/v1/add-ons/${key}/uninstall-plan`);
+}
+
+/** What an update would change in the add-on's own tables, before it does. */
+export interface UpdatePlan {
+  plan: InstallPlan;
+  from: string;
+  to: string;
+  connectionId: string | null;
+  checksum?: string;
+}
+
+export async function fetchUpdatePlan(key: string): Promise<UpdatePlan> {
+  return api.post<UpdatePlan>(`/api/v1/add-ons/${key}/update/plan`, {});
+}
+
+/** Update to the newest staged version; `planChecksum` is the identity of the plan that was read. */
+export async function updateAddOn(
   key: string,
+  planChecksum?: string,
 ): Promise<{ addOn: AddOnDto; from: string; to: string; pruned: string[] }> {
-  return api.post(`/api/v1/add-ons/${key}/upgrade`);
+  return api.post(`/api/v1/add-ons/${key}/update`, planChecksum === undefined ? {} : { planChecksum });
 }
 
 export async function discardStaged(key: string, version: string): Promise<void> {

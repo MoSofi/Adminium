@@ -56,7 +56,10 @@
       "disconnectTitle": "Disconnect this add-on",
       "uninstall": "Uninstall",
       "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "uninstallTitle": "Uninstall this add-on"
+      "uninstallTitle": "Uninstall this add-on",
+      "updateTitle": "التحديث إلى {version}",
+      "updateBody": "هذا الإصدار يغيّر جداول الإضافة نفسها. لن يُزال شيء مما لديك؛ وإلى أن ينتهي التحديث لا تفعل الإضافة شيئًا.",
+      "update": "تحديث"
     },
     "connect": {
       "apiKey": "API key",
@@ -80,7 +83,8 @@
       "seeds": "أثناء إضافة الصفوف التي تبدأ بها جداولها",
       "writers": "أثناء إضافة صفحاتها وأدوارها وقواعدها",
       "finish": "أثناء الإنهاء",
-      "body": "توقف التثبيت {stage}. لم يُتراجع عن شيء ولم يُفقد شيء: ثبّتها مرة أخرى للإكمال."
+      "body": "توقف التثبيت {stage}. لم يُتراجع عن شيء ولم يُفقد شيء: ثبّتها مرة أخرى للإكمال.",
+      "update": "توقف التحديث في منتصفه. لم يُتراجع عن شيء، وإلى أن يكتمل لا تفعل الإضافة شيئًا: حدّثها مرة أخرى للإكمال."
     },
     "installed": {
       "connected": "Connected",
@@ -137,6 +141,18 @@
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "ما زالت قيد الاستخدام",
+      "inUsePosting": "هناك قاعدة على «{table}» تسلّم إليها صفوفًا.",
+      "inUsePrice": "قاعدة السعر على «{table}» تسألها عن الأسعار.",
+      "inUseFeature": "يستخدمها {app} من أجل «{feature}». أوقفها أولًا لـ {app}.",
+      "pages": "ستُزال صفحاتها: {names}.",
+      "pagesKept": "الصفحات التي عدّلتها تبقى ملكًا لك: {names}.",
+      "roles": "ستُزال أدوارها: {names}. من يحمل أحدها يفقده ({count}).",
+      "tables": "تبقى جداولها بكل صفوفها: {names}.",
+      "drop": "احذف أيضًا جداولها وكل ما فيها. لا يمكن التراجع عن ذلك.",
+      "type": "اكتب {key} لحذف جداولها"
+    },
     "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",

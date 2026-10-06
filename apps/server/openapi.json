@@ -95822,6 +95822,32 @@
         }
       },
       "delete": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dropTables": {
+                        "type": "boolean"
+                      },
+                      "confirmKey": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -95920,6 +95946,66 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "removed": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "number"
+                        },
+                        "roles": {
+                          "type": "number"
+                        },
+                        "rules": {
+                          "type": "number"
+                        },
+                        "emails": {
+                          "type": "number"
+                        },
+                        "endpoints": {
+                          "type": "number"
+                        },
+                        "keys": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "roles",
+                        "rules",
+                        "emails",
+                        "endpoints",
+                        "keys"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "kept": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "tables"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "dropped": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
@@ -95998,6 +96084,187 @@
                     "key",
                     "values",
                     "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/uninstall-plan": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "likeApp": {
+                      "type": "boolean"
+                    },
+                    "pages": {
+                      "type": "object",
+                      "properties": {
+                        "removed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "kept": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "removed",
+                        "kept"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "members": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "members"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "droppable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "droppable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "inUse": {
+                      "type": "object",
+                      "properties": {
+                        "postings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "posting": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "posting"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "features": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "app": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "feature": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "app",
+                              "name",
+                              "feature"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "postings",
+                        "features"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "requiredBy": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "app": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "app",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "likeApp",
+                    "pages",
+                    "roles",
+                    "tables",
+                    "inUse",
+                    "requiredBy"
                   ],
                   "additionalProperties": false
                 }

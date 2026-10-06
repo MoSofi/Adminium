@@ -56,7 +56,10 @@
       "disconnectTitle": "Disconnect this add-on",
       "uninstall": "Uninstall",
       "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "uninstallTitle": "Uninstall this add-on"
+      "uninstallTitle": "Uninstall this add-on",
+      "updateTitle": "Aktualizovat na {version}",
+      "updateBody": "Tato verze mění vlastní tabulky doplňku. Nic z toho, co máte, se neodebere; dokud aktualizace neskončí, doplněk nic nedělá.",
+      "update": "Aktualizovat"
     },
     "connect": {
       "apiKey": "API key",
@@ -80,7 +83,8 @@
       "seeds": "při přidávání řádků, kterými jeho tabulky začínají",
       "writers": "při přidávání jeho stránek, rolí a pravidel",
       "finish": "při dokončování",
-      "body": "Instalace se zastavila {stage}. Nic nebylo vráceno zpět a nic se neztratilo: nainstalujte ho znovu a instalace se dokončí."
+      "body": "Instalace se zastavila {stage}. Nic nebylo vráceno zpět a nic se neztratilo: nainstalujte ho znovu a instalace se dokončí.",
+      "update": "Aktualizace se zastavila v polovině. Nic nebylo vráceno zpět a dokud nebude dokončena, doplněk nic nedělá: aktualizujte ho znovu a dokončí se."
     },
     "installed": {
       "connected": "Connected",
@@ -137,6 +141,18 @@
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "Stále se používá",
+      "inUsePosting": "Pravidlo na tabulce „{table}“ mu předává řádky.",
+      "inUsePrice": "Cenové pravidlo na tabulce „{table}“ se ho ptá na ceny.",
+      "inUseFeature": "{app} ho používá pro „{feature}“. Nejprve ho pro {app} vypněte.",
+      "pages": "Jeho stránky se odeberou: {names}.",
+      "pagesKept": "Stránky, které jste upravili, zůstanou jako vaše vlastní: {names}.",
+      "roles": "Jeho role se odeberou: {names}. Kdo některou má, přijde o ni ({count}).",
+      "tables": "Jeho tabulky zůstanou, se všemi řádky: {names}.",
+      "drop": "Smazat také jeho tabulky a vše, co v nich je. Tuto akci nelze vrátit zpět.",
+      "type": "Chcete-li smazat jeho tabulky, zadejte {key}"
+    },
     "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",

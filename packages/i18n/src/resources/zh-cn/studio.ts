@@ -66,7 +66,10 @@ export default {
       "disconnectTitle": "Disconnect this add-on",
       "uninstall": "Uninstall",
       "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "uninstallTitle": "Uninstall this add-on"
+      "uninstallTitle": "Uninstall this add-on",
+      "updateTitle": "更新到 {version}",
+      "updateBody": "此版本会更改附加组件自己的表。你现有的内容不会被移除；在更新完成之前，附加组件不会执行任何操作。",
+      "update": "更新"
     },
     "connect": {
       "apiKey": "API key",
@@ -90,7 +93,8 @@ export default {
       "seeds": "添加表的初始行时",
       "writers": "添加页面、角色和规则时",
       "finish": "收尾时",
-      "body": "安装在{stage}停止。没有撤销任何内容，也没有丢失任何内容：再次安装即可完成。"
+      "body": "安装在{stage}停止。没有撤销任何内容，也没有丢失任何内容：再次安装即可完成。",
+      "update": "更新中途停止。没有撤销任何内容；在完成之前，附加组件不会执行任何操作：再次更新即可完成。"
     },
     "installed": {
       "connected": "Connected",
@@ -147,6 +151,18 @@ export default {
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
+    "uninstall": {
+      "inUseTitle": "它仍在使用中",
+      "inUsePosting": "“{table}”上的一条规则会把行交给它。",
+      "inUsePrice": "“{table}”上的价格规则会向它询问价格。",
+      "inUseFeature": "{app} 将它用于“{feature}”。请先为 {app} 关闭它。",
+      "pages": "它的页面将被移除：{names}。",
+      "pagesKept": "你编辑过的页面会保留为你自己的页面：{names}。",
+      "roles": "它的角色将被移除：{names}。拥有其中角色的人会失去该角色（{count}）。",
+      "tables": "它的表会保留，每一行都在：{names}。",
+      "drop": "同时删除它的表及其中的所有内容。此操作无法撤销。",
+      "type": "输入 {key} 以删除它的表"
+    },
     "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
