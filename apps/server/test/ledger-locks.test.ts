@@ -137,6 +137,18 @@ describe.each(LEGS)('what a posting save stands on — %s', (dialect, available)
     await w.update('asks', second, { status: 'cancelled' });
     expect(await heldUntil('ask', second)).toEqual(['reserve:-', 'reverse:-']);
 
+    // A plan that takes what was held with no row to write still closes the hold: the clock must not give back what was taken.
+    const quiet = Number((await w.create('asks', { account_id: 1, qty: '1', status: 'draft', hold_until: until }))['id']);
+    await w.update('asks', quiet, { status: 'sent' });
+    await w.misbehave('nothing');
+    try {
+      await w.update('asks', quiet, { status: 'done' });
+    } finally {
+      await w.misbehave(null);
+    }
+    expect(await heldUntil('ask', quiet)).toEqual(['reserve:-', 'post:-']);
+    expect(await w.receiptsOf('ask', quiet)).toEqual(['reserve:1:planned:1', 'post:1:planned:0']);
+
     // A row with no time holds until it is moved on: nothing lets it go by the clock.
     const open = Number((await w.create('asks', { account_id: 1, qty: '1', status: 'draft' }))['id']);
     await w.update('asks', open, { status: 'sent' });

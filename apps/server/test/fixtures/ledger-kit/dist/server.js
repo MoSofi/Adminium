@@ -112,6 +112,7 @@ function rows(input) {
   if (wrong === 'promise') return Promise.resolve({ rows: [] });
   // Reaching for a module system: spelled so that this file itself names none.
   if (wrong === 'require') return globalThis['req' + 'uire']('node:fs');
+  if (wrong === 'nothing') return { rows: [] };
   if (input.mode === 'words') return words(input);
   if (input.phase === 'reverse') return reverse(input);
   if (input.action === 'tidy') return tidy(input);

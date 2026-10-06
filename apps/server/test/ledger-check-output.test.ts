@@ -116,4 +116,16 @@ describe('the plan an add-on answers', () => {
     expect(compareDecimalText('0.1', '0.09')).toBe(1);
     expect(compareDecimalText('007', '7')).toBe(0);
   });
+  it('a key is matched as the database would match it, a handed link reaches only the table it is read by, and an amount is decided once', () => {
+    // "0042" and 42 read alike and name two different rows.
+    const coded = input({ reads: { accounts: [{ id: '0042', balance: '4.500' }], mine: [] }, lines: [{ line: '', inputs: { account: '0042', quantity: null, due: '3.00', note: null } }] });
+    expect(cause(checkOutput(coded, plan([insert('entries', { account_id: '0042', amount: '1' })])))).toBe('ok');
+    expect(cause(checkOutput(coded, plan([insert('entries', { account_id: 42, amount: '1' })])))).toBe('scope-row');
+    expect(cause(checkOutput(input({ written: { holds: [{ id: '0012', account_id: 2, state: 'held' }] } }), plan([update('holds', { id: 12 }, { state: 'taken' })])))).toBe('scope-row');
+    // The account the row handed in is account 2 — not hold 2, which nothing showed.
+    expect(cause(checkOutput(input(), plan([insert('entries', { account_id: 2, amount: '1', hold_id: 2 })])))).toBe('scope-row');
+    // A handed link whose row no read returned is still that table's to point at.
+    expect(cause(checkOutput(input({ reads: { accounts: [], mine: [] } }), plan([insert('entries', { account_id: 2, amount: '1' })])))).toBe('ok');
+    expect(cause(checkOutput(input(), plan([], [{ line: '', input: 'quantity', value: '1' }, { line: '', input: 'quantity', value: '2' }])))).toBe('scope-decides');
+  });
 });

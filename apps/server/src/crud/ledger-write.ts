@@ -45,7 +45,6 @@ import type { Row } from './mask.js';
 import { instantOf, RecordLocked, StateMoveRefused } from './states.js';
 import type { WriteClock } from './write-clock.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
-import { sameValue } from './write-values.js';
 
 type Db = Kysely<SourceDatabase>;
 
@@ -99,6 +98,8 @@ export type CheckResult = { ok: true } | { ok: false; cause: ScopeCause; detail:
 export const RECEIPT_LINK = 'receipt_id';
 
 const fail = (cause: ScopeCause, detail: string): CheckResult => ({ ok: false, cause, detail });
+/** Whether a plan's key names the row a shown key names — as the database would match them, never as loosely as two values read alike ("0042" is not 42). */
+const sameKey = (shown: unknown, given: unknown): boolean => shown !== null && shown !== undefined && given !== null && given !== undefined && typeof given !== 'object' && String(shown) === String(given);
 const filled = (value: unknown): boolean => value !== null && value !== undefined && value !== '';
 
 /** Decimal text compared as a number, with no float in between. */
@@ -131,11 +132,19 @@ function knownKeys(input: CheckInput, table: string): unknown[] {
   const keyColumn = facts?.key.length === 1 ? facts.key[0]! : null;
   const keys: unknown[] = [];
   if (keyColumn !== null) for (const row of shownRows(input, table)) keys.push(row[keyColumn]);
-  // A link the host's row handed in.
+  // A link the host's row handed in — to this table: the one a read of the action finds by its key from that input.
+  const linked = new Set<string>();
+  for (const read of input.action.reads) {
+    if (read.table !== table) continue;
+    for (const by of read.by) {
+      if (by.column !== keyColumn) continue;
+      for (const from of Array.isArray(by.from) ? by.from : [by.from]) if (from.startsWith('input.')) linked.add(from.slice('input.'.length));
+    }
+  }
   for (const line of input.lines) {
     for (const [name, type] of Object.entries(input.action.inputs)) {
       const value = line.inputs[name];
-      if ((type === 'link' || type === 'link?') && filled(value) && typeof value !== 'object') keys.push(value);
+      if (linked.has(name) && (type === 'link' || type === 'link?') && filled(value) && typeof value !== 'object') keys.push(value);
     }
   }
   // A link of a row it was shown, to this same table.
@@ -195,14 +204,14 @@ export function checkOutput(input: CheckInput, output: PlannedOutput): CheckResu
         if (labels.get(label) !== target) return fail('scope-row', `${at}: "${column}" names "${label}", which no earlier row of "${target}" carries`);
         continue;
       }
-      if (!keysOf(target).some((key) => sameValue(key, value))) return fail('scope-row', `${at}: "${row.table}.${column}" names a row of "${target}" this call was not shown`);
+      if (!keysOf(target).some((key) => sameKey(key, value))) return fail('scope-row', `${at}: "${row.table}.${column}" names a row of "${target}" this call was not shown`);
     }
     // A `{'@row'}` anywhere but in a link names nothing.
     for (const [column, value] of Object.entries(values)) {
       if (typeof value === 'object' && value !== null && facts.links[column] === undefined) return fail('scope-row', `${at}: "${row.table}.${column}" is no link, so it takes no "@row"`);
     }
     if (row.op === 'update') {
-      const named = shownRows(input, row.table).some((shown) => Object.entries(row.key).every(([column, value]) => sameValue(shown[column], value)));
+      const named = shownRows(input, row.table).some((shown) => Object.entries(row.key).every(([column, value]) => sameKey(shown[column], value)));
       if (!named) return fail('scope-row', `${at}: the row of "${row.table}" it changes is not one this call was shown`);
     } else if (row.label !== undefined) {
       if (labels.has(row.label)) return fail('scope-row', `${at}: the label "${row.label}" is given twice`);
@@ -212,8 +221,11 @@ export function checkOutput(input: CheckInput, output: PlannedOutput): CheckResu
 
   // 4. What it was asked to decide, within the bounds Adminium reads itself.
   const lines = new Map(input.lines.map((line) => [line.line, line]));
+  const once = new Set<string>();
   for (const [i, decided] of (output.decides ?? []).entries()) {
     const at = `decides.${String(i)}`;
+    if (once.has(`${decided.line}\u0000${decided.input}`)) return fail('scope-decides', `${at}: "${decided.input}" is decided twice for one line`);
+    once.add(`${decided.line}\u0000${decided.input}`);
     const bounds = (input.action.decides ?? []).filter((entry) => entry.input === decided.input);
     if (bounds.length === 0) return fail('scope-decides', `${at}: "${decided.input}" is not an input this action decides`);
     if (!input.mapped.has(decided.input)) return fail('scope-decides', `${at}: the rule maps no column to "${decided.input}"`);
@@ -377,7 +389,8 @@ export class PlanFailed extends PostingRefusedError {
   }
 }
 
-const keyText = (table: ResolvedTable, row: Row): string => table.primaryKey.map((column) => String(row[column])).join('/');
+/** A row's key as a receipt writes it; `''` for a row not written yet (it has no receipt to be found by). */
+const keyText = (table: ResolvedTable, row: Row): string => (table.primaryKey.some((column) => row[column] === null || row[column] === undefined) ? '' : table.primaryKey.map((column) => String(row[column])).join('/'));
 
 /** What the checks read of the ledger's tables, from the add-on's own manifest and the tables' rules here. */
 function tableFacts(kit: LedgerKit, target: WriteTarget, ledger: ResolvedLedger, manifest: { requiredSchema?: { tables: readonly { ref: string; columns: readonly { ref: string; type: string; references?: string | undefined }[] }[] } | undefined }): Record<string, LedgerTableFacts> {
@@ -505,8 +518,9 @@ export function createLedgerWriter(kit: LedgerKit) {
       for (const [tableId, scope] of [...call.ledger.writes, [call.ledger.receipts.id, null] as const]) {
         const written = tables.get(tableId) ?? (await kit.withRights({ ...target, table: target.view.table(tableId) }));
         tables.set(tableId, written);
-        if (scope === null || judged.has(tableId) || (narrowed !== null && !narrowed.has(call.ledger.refOf(tableId)))) continue;
-        judged.add(tableId);
+        const once = `${call.ledger.id}\u0000${tableId}`;
+        if (scope === null || judged.has(once) || (narrowed !== null && !narrowed.has(call.ledger.refOf(tableId)))) continue;
+        judged.add(once);
         await refuseUnwritable(call, written, scope, input.context);
       }
     }
@@ -530,7 +544,9 @@ export function createLedgerWriter(kit: LedgerKit) {
           for (const name of lockNames(target.view.connectionId, call.ledger, call.action, reads)) out.set(name, { name, busy: 'CAPACITY_BUSY' });
           // A table it writes keeps a limit: the pools its rows will take from are named too — from the plan, asked once here with nothing held.
           const limited = [...call.ledger.writes.keys()].filter((tableId) => (call.action.writes === undefined || call.action.writes.includes(call.ledger.refOf(tableId))) && kit.limited(tables.get(tableId)!));
-          if (limited.length === 0 || !phaseDue(round, call.phase)) continue;
+          // (A round nobody planned is given back unasked.)
+          const nobody = call.phase === 'reverse' && [round.reserved, round.posted].every((receipt) => receipt === null || receipt.state === 'unplanned');
+          if (limited.length === 0 || !phaseDue(round, call.phase) || nobody) continue;
           let plan: PostingOutput;
           try {
             const written = call.phase === 'reverse' || (call.phase === 'post' && round.reserved !== null) ? await roundRows(target.db, call.ledger, roundIds) : {};
@@ -546,7 +562,9 @@ export function createLedgerWriter(kit: LedgerKit) {
             if (written === undefined || !limited.includes(written.table.id)) continue;
             if (planRow.op === 'insert') pooled.push({ target: written, row: withoutLabels(planRow.values), before: null });
             else {
-              const before = await kit.fetch(written, planRow.key);
+              const by = call.ledger.writes.get(written.table.id)?.update?.by ?? [];
+              if (Object.keys(planRow.key).sort().join(',') !== [...by].sort().join(',')) continue;
+              const before = await kit.fetch(written, planRow.key).catch(() => undefined);
               if (before !== undefined) pooled.push({ target: written, row: planRow.set, before });
             }
           }
@@ -623,7 +641,9 @@ export function createLedgerWriter(kit: LedgerKit) {
     peeked: Peek | null,
     input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock; only?: OnePhase | undefined },
   ): Promise<PostedOutcome[]> {
-    const { target, context, clock, row } = input;
+    const { target, context, clock } = input;
+    /** The row that posts, as it stands: an amount decided for it by one call is what the next one reads. */
+    let row = input.row;
     const fired = callsFor({ target, rules: input.rules, action: input.action, before: input.before, after: row, only: input.only });
     if (fired.length === 0) return [];
     const known = new Set((peeked?.calls ?? []).map(callKey));
@@ -727,7 +747,8 @@ export function createLedgerWriter(kit: LedgerKit) {
       if (!checked.ok) throw new PlanFailed(call, checked.cause, checked.detail);
 
       // The receipt, before any row it stands for: its own key is what stops the same phase written twice.
-      if (plan.rows.length === 0 && (plan.decides ?? []).length === 0 && phase !== 'reverse') {
+      // A plan with nothing in it leaves no receipt — unless the round holds something: taking what was held is then recorded, and its time let go.
+      if (plan.rows.length === 0 && (plan.decides ?? []).length === 0 && phase !== 'reverse' && round.reserved === null) {
         outcome.notes = (plan.notes ?? []).map((note: { line: string; note: string; item?: string | undefined }) => ({ ...note }));
         outcomes.push(outcome);
         continue;
@@ -760,8 +781,10 @@ export function createLedgerWriter(kit: LedgerKit) {
         ...updates.flatMap((item) => kit.starts(item.rules, [{ record: { ...item.before, ...item.set }, before: item.before }])),
       ];
       const balances = await kit.hold(within, holdStarts);
+      let writing: ResolvedTable = target.table;
       try {
         for (const item of inserts) {
+          writing = item.target.table;
           // A link to a row of this same plan is filled as the rows go in.
           const ready = await kit.prepare(item.target, resolveLabels(item.values, labels), ledgerContext, clock);
           const inserted = await kit.insert(item.target, ready.checked, ready.codes);
@@ -770,6 +793,7 @@ export function createLedgerWriter(kit: LedgerKit) {
           outcome.written.push({ table: item.target.table, row: inserted, before: null });
         }
         for (const item of updates) {
+          writing = item.target.table;
           const after = (await kit.change(item.target, item.set, item.key, item.before, ledgerContext, clock)) ?? { ...item.before, ...item.set };
           writtenRows.push({ rules: item.rules, record: after, before: item.before });
           outcome.written.push({ table: item.target.table, row: after, before: item.before });
@@ -777,7 +801,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       } catch (error) {
         // The plan's own row was refused by the table's rules or the database: the plan was wrong, not the person.
         if (error instanceof PostingRefusedError || error instanceof LockMoved) throw error;
-        if (error instanceof ValidationFailedError || error instanceof StateMoveRefused || error instanceof RecordLocked || readDbRefusal(error, target.table) !== null) throw new PlanFailed(call, 'scope-op', error instanceof Error ? error.message : String(error));
+        if (error instanceof ValidationFailedError || error instanceof StateMoveRefused || error instanceof RecordLocked || isUniqueViolation(error) || readDbRefusal(error, writing) !== null) throw new PlanFailed(call, 'scope-op', error instanceof Error ? error.message : String(error));
         throw error;
       }
       // The limits the plan's rows take from, judged once with every row of it written — under the pools' locks, named before the save began.
@@ -804,10 +828,15 @@ export function createLedgerWriter(kit: LedgerKit) {
         for (const decision of decisions) {
           const column = posting.map[decision.input];
           if (typeof column !== 'string') throw new PlanFailed(call, 'scope-decides', `"${decision.input}" is mapped to no column of the row`);
+          // Only a plain column of the row takes a decided amount: never its key, its state, or anything a rule of the table works out.
+          const own = input.rules;
+          if (target.table.primaryKey.includes(column) || own?.states?.column === column || (own?.numbered ?? []).includes(column) || (own?.formulas ?? []).some((formula) => formula.column === column)) {
+            throw new PlanFailed(call, 'scope-decides', `"${column}" is not a column an amount can be decided into`);
+          }
           set[column] = decision.value;
           outcome.decided.push({ line: decision.line, input: decision.input, column, value: decision.value });
         }
-        await kit.decide(within, Object.fromEntries(target.table.primaryKey.map((column) => [column, row[column]])), set, row);
+        row = (await kit.decide(within, Object.fromEntries(target.table.primaryKey.map((column) => [column, row[column]])), set, row)) ?? row;
       }
       const settleStarts = writtenRows.splice(0).flatMap((item) => kit.starts(item.rules, [{ record: item.record, before: item.before }]));
       try {

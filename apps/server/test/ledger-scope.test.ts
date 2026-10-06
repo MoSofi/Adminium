@@ -65,6 +65,28 @@ describe.each(LEGS)('a ledger\'s faults — %s', (dialect, available) => {
     expect(await counts()).toEqual(before);
   });
 
+  it.skipIf(!available)('a door that words every refusal its own way still leaves the record: a guest is told nothing, an operator which check', async () => {
+    events = [];
+    const at = w.target('tallies');
+    class Unnamed extends Error {}
+    await w.misbehave('second-account');
+    try {
+      const run = told().create({
+        target: at,
+        values: { account_id: 1, qty: '1' },
+        context: GUEST,
+        mapError: () => {
+          throw new Unnamed('refused');
+        },
+        announce: async () => undefined,
+      });
+      expect(await refusal(run)).toBeInstanceOf(Unnamed);
+    } finally {
+      await w.misbehave(null);
+    }
+    expect(events).toMatchObject([{ reason: 'planner-failed', cause: 'scope-row', posting: 'tally' }]);
+  });
+
   it.skipIf(!available)('an add-on that cannot be asked leaves one record; a plain "not enough" leaves none', async () => {
     events = [];
     expect(await refusal(w.create('tallies', { account_id: 1, qty: '1' }, DESK, w.service({ decider: () => null, refused: async (event) => void events.push(event) })))).toMatchObject({ details: { reason: 'add-on-unavailable' } });
