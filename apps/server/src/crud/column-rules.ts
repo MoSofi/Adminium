@@ -71,6 +71,8 @@ import type {
 } from '../connections/effective-schema.js';
 import type { LinePosting } from './ledger-points.js';
 import { holdsNul } from '../security/nul-bytes.js';
+import { PLAIN_TEXT_MAX } from '@adminium/manifest';
+import { linkFreeText, NAME_RULE, type PlainTextRule } from '../public-api/plain-text.js';
 import { codeLookupsOf, type CodeLookup } from './code-lookup.js';
 import { isNowType, renderNow } from './instants.js';
 import { clockOf } from './moments.js';
@@ -94,12 +96,23 @@ export type IssueCode =
   | 'invalid-character'
   // A code typed that finds no code the venue offers; one whose uses are all taken.
   | 'unknown'
-  | 'used-up';
+  | 'used-up'
+  // Text held to a name or a note that carries an address or too many digits; a link to a row that is not there.
+  | 'plain-text'
+  | 'not-found';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {
   code: IssueCode;
   n?: number;
+}
+
+/** A column that links a row to a row of an add-on's table (`addOnLink`), as its rule resolves here: inert while `tableId` is null. */
+export interface SoftLink {
+  column: string;
+  addOn: string;
+  tableId: string | null;
+  key: string | null;
 }
 
 /** What `details.fields` on a 422 carries: one issue per column. */
@@ -144,6 +157,8 @@ export interface ColumnCheck {
    * force on the next request and no write pays a meta-store read.
    */
   options?: readonly string[];
+  /** `column.plainText`: letters, spaces and sentence punctuation, so many digits, no address of any kind. */
+  plainText?: PlainTextRule;
   /** An admin's `column.required` — the one "required" the server enforces. */
   requiredByRule?: boolean;
   /** `column.requiredWhen`: required only while another column of the row holds one of `in`. */
@@ -379,6 +394,10 @@ export interface TableRules {
    * every writer's values.
    */
   readOnly?: string[];
+  /** `column.customerKey`: columns that keep a keyed hash of the address in another column of the row. Adminium's alone to write. */
+  customerKeys?: { column: string; of: string }[];
+  /** `column.addOnLink`: columns that link the row to a row of an add-on's table, with no foreign key behind them. */
+  addOnLinks?: SoftLink[];
   /**
    * A gapless running number and the text written from it: dropped from every
    * writer's values but an import's, which brings in history and its numbers.
@@ -700,10 +719,13 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       }
     }
     if (column.validation !== undefined) check.validation = column.validation;
+    // A name (`true`) or a note with bounds of its own: judged on every way of writing the row.
+    if (column.plainText !== undefined) check.plainText = column.plainText === true ? NAME_RULE : { digits: column.plainText.digits ?? 0, max: column.plainText.max ?? PLAIN_TEXT_MAX };
     // A check with nothing to say is still cheap, but keeping it out is what
     // makes "this table has no rules" provable.
     if (
       values !== undefined ||
+      check.plainText !== undefined ||
       options !== undefined ||
       check.requiredByRule === true ||
       check.requiredWhen !== undefined ||
@@ -742,11 +764,15 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const perNight = perNightOf(target);
   const follows = followsOf(target);
   const followReads = follows.length === 0 ? [] : followReadsOf(formulas, perNight, follows);
+  const customerKeys = columns.flatMap((column) => (column.customerKey === undefined ? [] : [{ column: column.name, of: column.customerKey.of }]));
+  const addOnLinks: SoftLink[] = columns.flatMap((column) => (column.addOnLink === undefined ? [] : [{ column: column.name, addOn: column.addOnLink.addOn, tableId: column.addOnLink.tableId, key: column.addOnLink.key }]));
   const readOnly = [
     ...ownRollups.map((r) => r.column),
     ...balances.map((b) => b.column),
     ...formulas.map((f) => f.column),
     ...(perNight === undefined ? [] : [perNight.column]),
+    // A customer's key is made from the address beside it, by Adminium: no writer's value for it is kept.
+    ...customerKeys.map((key) => key.column),
   ];
   const numbered = gapless.flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
   const currencyColumn = columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
@@ -783,7 +809,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     perNight === undefined &&
     follows.length === 0 &&
     ownPostings.length === 0 &&
-    linePostings.length === 0
+    linePostings.length === 0 &&
+    customerKeys.length === 0 &&
+    addOnLinks.length === 0
       ? null
       : {
           fills,
@@ -796,6 +824,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
           ...(ownRollups.length === 0 ? {} : { ownRollups }),
           ...(readOnly.length === 0 ? {} : { readOnly }),
+          ...(customerKeys.length === 0 ? {} : { customerKeys }),
+          ...(addOnLinks.length === 0 ? {} : { addOnLinks }),
           ...(balances.length === 0 ? {} : { balances }),
           ...(formulas.length === 0 ? {} : { formulas }),
           ...(scales.length === 0 ? {} : { scales }),
@@ -1207,6 +1237,8 @@ function validationIssue(rules: ColumnValidation, value: unknown): FieldIssue | 
 
 function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIssue | null {
   if (value === null || value === undefined) return null;
+  // A name or a note that may send nobody anywhere: no web or email address, no handle, only so many digits.
+  if (check.plainText !== undefined && value !== '' && !linkFreeText(value, check.plainText)) return { code: 'plain-text' };
   if (check.weekdays === true && weekdaysOf(value) === null) return { code: 'format' };
   if (check.clock === true && value !== '' && clockOf(value) === null) return { code: 'format' };
   if (check.validation !== undefined) {

@@ -91,7 +91,8 @@ describe('a manifest that uses a word this server does not run yet', () => {
     key: 'shop',
     pages: [{ ref: 'orders' }],
     roles: [],
-    requiredSchema: { prefixed: true, tables: [{ ref: 'lines', columns: [{ ref: 'item_id', rules: { addOnLink: { addOn: 'kit', table: 'items' } } }] }] },
+    // A link into an add-on runs now; the last four of a code, kept beside it, does not yet.
+    requiredSchema: { prefixed: true, tables: [{ ref: 'lines', columns: [{ ref: 'item_id', rules: { addOnLink: { addOn: 'kit', table: 'items' } } }, { ref: 'code_last4', rules: { codeLast4: { of: 'code' } } }] }] },
     publicAccess: [{ table: 'lines', methods: ['GET'], unlockBy: { header: true, column: 'code', self: true } }],
   };
 
@@ -102,14 +103,14 @@ describe('a manifest that uses a word this server does not run yet', () => {
     // Its pages, its roles, its prefix, its index, its stored table name, its public entries and its emails are words this server runs.
   });
 
-  it('an app\'s own pages, roles and prefix are no such word; its link into an add-on is', () => {
-    expect(unbuiltInManifest(APP).map((found) => found.word)).toEqual(['column.addOnLink']);
+  it('an app\'s own pages, roles, prefix and its link into an add-on are no such word; the last four of a code is', () => {
+    expect(unbuiltInManifest(APP).map((found) => found.word)).toEqual(['column.codeLast4']);
     expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] })).toEqual([]);
   });
 
   it('is refused whole, with the release to move to', () => {
     expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.17')).toThrowError(
-      '"shop" uses "column.addOnLink", which Adminium 0.3.18 runs and this Adminium 0.3.17 does not. Take it out, or move to Adminium 0.3.18.',
+      '"shop" uses "column.codeLast4", which Adminium 0.3.18 runs and this Adminium 0.3.17 does not. Take it out, or move to Adminium 0.3.18.',
     );
     try {
       refuseUnbuiltManifest(APP, '"shop"', '0.3.17');
@@ -142,13 +143,13 @@ describe('a release', () => {
   });
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
-    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['column.addOnLink', 'adjust']);
+    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['adjust']);
     expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['words']);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {
     const words = Object.keys(UNBUILT_MANIFEST_WORDS);
-    expect(words).toEqual(expect.arrayContaining(['column.addOnLink', 'table.adjust']));
+    expect(words).toEqual(expect.arrayContaining(['table.adjust']));
   });
 });
 
@@ -156,13 +157,13 @@ describe('a table that carries one of the new rules', () => {
   const column = (name: string, extra: Record<string, unknown> = {}) => ({ name, ...extra });
   const carrying = (extra: Record<string, unknown>) => unbuiltRuleOf(table(extra));
 
-  it('takes no writes: a link into an add-on, a typed code found there — and writes as ever with a rule that runs now', () => {
-    // A posting, a move kept for a ledger, an announced total: built, so they stop no write.
+  it('writes as ever with a rule that runs now: none of them stops a write', () => {
+    // A posting, a move kept for a ledger, an announced total, a link into an add-on and a typed code found there: built.
     expect(carrying({ postings: [{ id: 'line' }] })).toBeNull();
     expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: [{ to: 'filed', planned: true }] } } })).toBeNull();
     expect(carrying({ columns: [column('low', { announce: true })] })).toBeNull();
-    expect(carrying({ columns: [column('item_id', { addOnLink: { addOn: 'kit', table: 'items', tableId: null, key: null } })] })).toBe('column.addOnLink');
-    expect(carrying({ columns: [column('item_id', { addOnLookup: { from: 'typed', table: { addOn: 'kit', table: 'items' }, column: 'code' } })] })).toBe('column.addOnLink');
+    expect(carrying({ columns: [column('item_id', { addOnLink: { addOn: 'kit', table: 'items', tableId: null, key: null } })] })).toBeNull();
+    expect(carrying({ columns: [column('item_id', { addOnLookup: { from: 'typed', table: { addOn: 'kit', table: 'items' }, column: 'code' } })] })).toBeNull();
     // A column that keeps a table's name is built: it stops no write.
     expect(carrying({ columns: [column('source_table', { tableRef: true })] })).toBeNull();
     expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: ['sent', { to: 'done' }] } }, columns: [column('name')] })).toBeNull();

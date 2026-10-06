@@ -26163,6 +26163,10 @@
     "status": "mt",
     "srcHash": "6ef3550191d8"
   },
+  "ui.formDialog.issue.notFound": {
+    "status": "mt",
+    "srcHash": "10fa0fa86b0d"
+  },
   "ui.formDialog.issue.number": {
     "status": "mt",
     "srcHash": "12f3402c3e2e"
@@ -26174,6 +26178,10 @@
   "ui.formDialog.issue.phone": {
     "status": "mt",
     "srcHash": "2e90cd9557f2"
+  },
+  "ui.formDialog.issue.plainText": {
+    "status": "mt",
+    "srcHash": "ec223c4d11d5"
   },
   "ui.formDialog.issue.required": {
     "status": "mt",

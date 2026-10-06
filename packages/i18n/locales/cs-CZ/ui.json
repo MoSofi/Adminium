@@ -77,6 +77,8 @@
       "invalidCharacter": "Tento text obsahuje skrytý znak, který nelze uložit. Napište jej znovu.",
       "unknownCode": "Takový kód zde není k dispozici.",
       "usedUp": "Tento kód už byl použit tolikrát, kolikrát mohl.",
+      "plainText": "Použijte jen písmena, mezery a běžnou interpunkci: žádnou webovou ani e-mailovou adresu.",
+      "notFound": "Toto už neexistuje. Vyberte jiné.",
       "email": "Zadejte platnou e-mailovou adresu.",
       "url": "Zadejte platnou webovou adresu.",
       "phone": "Zadejte platné telefonní číslo.",

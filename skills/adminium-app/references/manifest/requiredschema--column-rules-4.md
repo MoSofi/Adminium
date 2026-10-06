@@ -2,88 +2,6 @@
 
 # Manifest spec: requiredSchema — Column rules
 
-A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
-that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
-
-| Field | Rule |
-|---|---|
-| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
-| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
-| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
-| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
-
-```json
-{ "ref": "paid", "type": "money", "default": 0,
-  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
-                         "where": { "column": "voided", "eq": false },
-                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
-                         "cap": true } } }
-```
-
-`of` may be another total of the row, so money given back is capped by money taken: two totals
-over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
-`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
-was taken is refused, and so is lowering a payment taken below what already went back.
-
-A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
-change to the parent that lowers `of` under what is already paid. Only a write that takes the
-balance below zero, or further below it, is refused: a row already negative from older data can
-still be edited or voided. Two payments at once are judged one after the other, so they cannot
-both pass.
-
-A write that touches several rows of a table feeding a capped total is refused with
-`BALANCE_ONE_AT_A_TIME`, because it cannot be judged row by row. Imports and sample data are
-settled but not capped: they record what already happened.
-
-A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
-still saves.
-
-#### Totals that count and climb
-
-A total may count its child rows instead of adding a column up: how many tickets an order holds,
-how many lines a kitchen ticket has.
-
-```json
-{ "ref": "ticket_count", "type": "int", "default": 0,
-  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
-                         "unlessSet": "refunded_at" } } }
-```
-
-A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
-column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
-for a sum.
-
-A total may also add up another table's totals: an option's price into its line, the line into
-its order, the order into the customer's lifetime total. Such totals **climb**, at most three
-tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
-other). A write that moves a total at the bottom settles every total above it in the same
-transaction: each level adds up what the level below has just written, then works out its
-formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
-create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
-writers take the rows in one order (the highest parent first), so they never wait on each other
-crosswise; a line moved to another order while a write was reading it is refused `409`
-`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
-
-Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
-never through a floating-point number.
-
-A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
-against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
-cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
-writable while the capped rows can exist: lock those columns with the table's
-[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
-written in or reached from.
-
-#### Formulas
-
-A `formula` works a number out from the other columns of the same row: a line's amount, a
-document's tax and total.
-
-```json
-{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
-  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
-```
-
 An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
 
 | Expression | Value |
@@ -116,3 +34,83 @@ A condition is one of:
 ```
 
 How a formula is worked out:
+
+- **Exactly.** Every value is read from its decimal text as an exact fraction, and nothing goes
+  through a floating-point number. `1 ÷ 3 × 3` is exactly 1, and a total is the same on Postgres,
+  MySQL and SQLite to the last minor unit.
+- **Rounded once**, half away from zero, to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places). A formula
+  column with no `scale` rounds to 0 places when it is an `int` or `bigint`, and to 4 when it is a
+  decimal. `round` inside a formula rounds that part early, where the arithmetic calls for it (a
+  tax rounded before it is added).
+- **Empty in, empty out.** An empty column makes the result empty unless `coalesce` says what to
+  read instead: a draft line with no rate yet has no amount, rather than an amount of 0 that looks
+  like a price.
+- **On every write.** A create works out every formula; an update works out the ones whose inputs
+  it changed, reading the stored row with the new values over it. A formula that reads another
+  formula column is worked out after it. A formula that reads a [rollup](https://docs.adminium.dev/reference/manifest/#totals-and-balances)
+  total is worked out again whenever the total moves.
+
+A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float` (a
+[`join`](https://docs.adminium.dev/reference/manifest/#joined-text) fills a `text` column). It reads only columns of its own table, and every
+column it counts with holds a number; `eq`, `neq` and `isNull` may name any column,
+`hoursBetween` names two different `timestamptz` columns and `daysBetween` two different `date`
+columns. It
+may not read itself, formulas may not read each other in a circle, and an expression nests at most
+8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
+`copy` or a `rollup`, which already keep in step when that other row changes.
+
+#### Hours between two moments
+
+`hoursBetween` works a time entry's hours out from its start and its stop:
+
+```json
+{ "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
+```
+
+09:15 → 11:45 is `2.50`; 22:30 → 01:15 the next day is `2.75`. The hours are exact and rounded
+once to the column's scale, like any formula, and they can be counted with further:
+`{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
+update that moves only the stop works the hours out again from the start as stored.
+
+- **The time that passed.** Hours are real elapsed time. A column that keeps a zone (Postgres
+  `timestamptz`, MySQL `TIMESTAMP`) holds the moment itself. One that keeps none (MySQL `DATETIME`,
+  which is what an app's `timestamptz` column becomes on MySQL, Postgres `timestamp`, and SQLite
+  text) is read on the Adminium server's clock, the clock Adminium writes such times on. So on a
+  server in Europe/London, 00:30 → 03:30 on the night the clocks go forward is `2.00`, and
+  00:30 → 02:30 on the night they go back is `3.00`, on every engine. Run the server in the zone the
+  times are kept in.
+- **A time written without a zone.** Sent for a column that keeps a zone, `2026-09-25 11:45` is
+  11:45 on the Adminium server's clock — the moment the hours are counted to and the moment that is
+  stored, whatever zone the database's session is in. A stop stamped `now` is that moment too.
+- **What SQLite keeps.** A start SQLite fills with `unixepoch()` (seconds since 1970) is read as
+  that moment, and so is a text with its zone after a space (`2026-09-25 09:15:00 +02:00`).
+- **Empty for a missing, impossible or backwards span.** An empty start or stop leaves the hours
+  empty, and so does a day or an hour the calendar does not have (30 February stays no time, not 2
+  March). So does a stop before its start: a negative number of hours would quietly take pay off a
+  total, so the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
+- **Too many to keep.** Hours the column cannot hold (centuries in a `numeric(6, 2)`) are refused,
+  `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
+  every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
+  result its column cannot hold is refused the same way.
+
+`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
+stay from its arrival to its departure. A night the clocks change is still one night. An empty
+date, or a `to` before its `from`, leaves the result empty.
+
+#### Joined text
+
+A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
+line's description.
+
+```json
+{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
+  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
+```
+
+A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
+is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
+no, or a time would be spelled differently by each database. An empty column is left out, and so
+is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
+result is trimmed, and empty when every column is. A join is the whole formula of its column,
+never a part of a sum.

@@ -87,6 +87,8 @@ export default {
       "invalidCharacter": "Ce texte contient un caractère invisible qui ne peut pas être enregistré. Saisissez-le à nouveau.",
       "unknownCode": "Aucun code de ce type n'est proposé ici.",
       "usedUp": "Ce code a été utilisé autant de fois que possible.",
+      "plainText": "Utilisez uniquement des lettres, des espaces et la ponctuation courante : pas d’adresse web ni d’adresse e-mail.",
+      "notFound": "Cet élément n’existe plus. Choisissez-en un autre.",
       "email": "Saisissez une adresse e-mail valide.",
       "url": "Saisissez une adresse web valide.",
       "phone": "Saisissez un numéro de téléphone valide.",

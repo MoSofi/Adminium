@@ -245,6 +245,7 @@ import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
+import { installCustomerKey } from './public-api/customer-key.js';
 import { ledgerRoutes } from './routes/ledgers/index.js';
 import { optionListsRoutes } from './routes/option-lists/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
@@ -974,6 +975,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   // What a posting did, told after its save: from every door, through the one place that knows who listens.
   app.decorate('ledgerPostings', (input: PostingsTold) => announcePostings(app, { ...input, watches: (connectionId, tableId) => ledgers.watches(connectionId, tableId), manager, meta }));
+  // A customer's key is made under this server's secret: said once, before any write service is built.
+  installCustomerKey(env.ADMINIUM_SECRET);
   const recordWrites = createWriteService({
     ledgers,
     // An app's outbox table takes only the moves a person may make: a sent message is never queued again.

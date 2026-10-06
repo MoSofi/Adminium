@@ -351,7 +351,7 @@ class PublicPriceChanged extends Error {
  * `needs-minimum`, `not-for-these-items` and `needs-sign-in` are what a guest is told of a typed discount
  * code beside `unknown` and `used-up`: each says what to do next and gives nothing away about the code.
  */
-const TREE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'too-short', 'too-small', 'too-large', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in']);
+const TREE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'too-short', 'too-small', 'too-large', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in', 'not-found']);
 
 /**
  * The state a row must be in for an update to touch it (`writable_when`), as
@@ -588,8 +588,8 @@ const BOOKING_REASONS: Readonly<Record<string, string>> = {
  * turn on what the stored row holds in another one (`requiredWhen`), which a
  * caller who may change a row need not be able to read.
  */
-const CREATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in']);
-const UPDATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'invalid-character', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in']);
+const CREATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in', 'not-found']);
+const UPDATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'invalid-character', 'unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in', 'not-found']);
 
 /** What a caller may be told of a refused value: the entry's writable columns, and the reasons above. */
 interface Told {
@@ -632,6 +632,12 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
     const reason = BOOKING_REASONS[code];
     const column = typeof details.column === 'string' ? details.column : Object.keys(details.fields ?? {})[0];
     if (reason !== undefined && column !== undefined) throw new PublicWriteRefused({ column, reason });
+  }
+  // A column of the table held to plain text (a name, a note): told by its column alone, as an entry's own plain-text list is.
+  if (told !== undefined && error instanceof ValidationFailedError) {
+    const fields = ((error.details as { fields?: unknown } | undefined)?.fields ?? {}) as Record<string, { code?: unknown } | undefined>;
+    const plain = Object.keys(fields).find((column) => fields[column]?.code === 'plain-text' && told.writable.has(column));
+    if (plain !== undefined) throw new PublicWriteRefused({ column: plain });
   }
   const named = told === undefined || !(error instanceof ValidationFailedError) ? null : namedIn((error.details as { fields?: unknown } | undefined)?.fields, told);
   throw named === null ? new PublicWriteRefused() : new PublicWriteRefused(named);

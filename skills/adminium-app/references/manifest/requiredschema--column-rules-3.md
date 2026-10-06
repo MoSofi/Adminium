@@ -2,71 +2,6 @@
 
 # Manifest spec: requiredSchema — Column rules
 
-| Rule | Shape | What it does |
-|---|---|---|
-| `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
-| `personal` | `true` or `false` | Whether the column is personal data, overriding the guess Adminium makes from the column's name. |
-| `secret` | `true` or `false` | Whether the column is a secret no response carries, to anyone, overriding the guess Adminium makes from the column's name (`api_token`, `password_hash`). An entry in [public access](https://docs.adminium.dev/reference/manifest/#public-access) that names no `select` leaves a `secret` column out, and a `code` column too. `false` is written only on a table the app's install made: on a table it reuses, a rule that would show a secret or take a personal column's mask off is skipped, the check step says so, and only an operator can show the column, in Studio, as Super Admin. A `secret` the operator set in Studio wins over the app's. On a column of an add-on's shape, only `true`. |
-
-Tones are the dashboard's badge colours: `neutral`, `accent`, `info`, `pos`, `warn` and `danger`.
-
-`copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `stamp`, `lookup` and
-`perNight` are values **Adminium decides**: they are filled on the server, so a browser never
-picks a price, a number, a code or a time. So are a rollup's `balance` column, a booking's
-late-cancellation [`flag`](https://docs.adminium.dev/reference/manifest/#booking) and a [late move's](https://docs.adminium.dev/reference/manifest/#late-moves) flag. None of them can be listed as `writable` in [public access](https://docs.adminium.dev/reference/manifest/#public-access), and
-a primary key cannot take `sequence` or `code`.
-
-One rule decides a column. The one pair allowed is a `copy` with a `default` behind it: the copy
-comes first, and the default fills the column when the copy comes back empty (a client's own tax
-rate, else the business's). A stamped column takes none of the others.
-
-The [outbox's](https://docs.adminium.dev/reference/manifest/#outbox) own columns that Adminium writes (`status`, `sentAt`, `error`,
-`skipReason`, `approvedBy`, `effectAt` and `effectError`) take none of these rules, nor `options`,
-`validation`, `required`, `requiredWhen`, `notAfter` or `notBefore`: a stamp of who approved a
-message would race Adminium for the column, and a rule that refuses a value would refuse what
-Adminium writes, so every message the desk makes would be refused, or stuck. Its `to` and
-`language`, which Adminium writes when it looks the address up, take none that decide a value, nor
-`options`, `required` or `requiredWhen` (a desk leaves `to` empty to have it looked up); a
-`validation` of the address a person types is fine. Nor may another column's rule read one of them
-where the read could refuse Adminium's write: a note `requiredWhen` the status is `sent`, a `formula`
-worked out from `effectAt`, a `notBefore` bound on `sentAt`. The install names the column, and a
-Studio save refuses the same rules on an installed outbox's columns.
-
-Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
-table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
-only.
-
-The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
-automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
-rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
-data are not [stamped](https://docs.adminium.dev/reference/manifest/#stamps), not [capped](https://docs.adminium.dev/reference/manifest/#totals-and-balances), and not held to `notAfter` or
-`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
-`notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
-A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
-`requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
-`VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
-holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
-code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
-refuses.
-
-The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
-was refused for itself, in a column the entry lets the caller write, `params` names the column and
-why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
-`invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
-names no column: a value already taken or pointing at a row that is not there, a value outside
-`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
-empty can turn on what the stored row holds.
-
-#### Required for some values
-
-`requiredWhen` asks for a column only while another column of the same row holds one of some
-values:
-
-```json
-{ "ref": "person_id", "type": "fk", "references": "people", "nullable": true,
-  "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
-```
-
 The row is judged as the write leaves it, whenever the write changes either column: a create or an
 update that leaves `person_id` empty while `kind` is `away` or `sick` is refused, and so is moving
 an event whose `person_id` is empty to `away`. A write that changes neither column is not judged —
@@ -98,3 +33,85 @@ enum, a number for a number column, `true` or `false` for a `bool`). The rule's 
 ```
 
 #### Totals and balances
+
+A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
+that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
+
+| Field | Rule |
+|---|---|
+| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
+| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
+| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
+| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
+
+```json
+{ "ref": "paid", "type": "money", "default": 0,
+  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
+                         "where": { "column": "voided", "eq": false },
+                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
+                         "cap": true } } }
+```
+
+`of` may be another total of the row, so money given back is capped by money taken: two totals
+over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
+`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
+was taken is refused, and so is lowering a payment taken below what already went back.
+
+A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
+change to the parent that lowers `of` under what is already paid. Only a write that takes the
+balance below zero, or further below it, is refused: a row already negative from older data can
+still be edited or voided. Two payments at once are judged one after the other, so they cannot
+both pass.
+
+A write that touches several rows of a table feeding a capped total is refused with
+`BALANCE_ONE_AT_A_TIME`, because it cannot be judged row by row. Imports and sample data are
+settled but not capped: they record what already happened.
+
+A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
+still saves.
+
+#### Totals that count and climb
+
+A total may count its child rows instead of adding a column up: how many tickets an order holds,
+how many lines a kitchen ticket has.
+
+```json
+{ "ref": "ticket_count", "type": "int", "default": 0,
+  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
+                         "unlessSet": "refunded_at" } } }
+```
+
+A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
+column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
+for a sum.
+
+A total may also add up another table's totals: an option's price into its line, the line into
+its order, the order into the customer's lifetime total. Such totals **climb**, at most three
+tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
+other). A write that moves a total at the bottom settles every total above it in the same
+transaction: each level adds up what the level below has just written, then works out its
+formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
+create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
+writers take the rows in one order (the highest parent first), so they never wait on each other
+crosswise; a line moved to another order while a write was reading it is refused `409`
+`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
+
+Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
+never through a floating-point number.
+
+A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
+against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
+cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
+writable while the capped rows can exist: lock those columns with the table's
+[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
+written in or reached from.
+
+#### Formulas
+
+A `formula` works a number out from the other columns of the same row: a line's amount, a
+document's tax and total.
+
+```json
+{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
+```

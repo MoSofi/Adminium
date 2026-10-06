@@ -83,7 +83,9 @@ cookie.
 undecryptable. They must be re-entered by hand.
 
 **Change it** and the same thing happens — this is not a rotation you can
-perform casually.
+perform casually. Every [customer key](/reference/manifest/#column-rules) a table keeps
+changes with it too: the keys already stored then match nobody, so whatever is
+counted per customer (one use of an offer each, the members of a group) starts again.
 
 **Share it** and anyone with a copy of your meta store can decrypt everything in
 it.

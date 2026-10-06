@@ -73,7 +73,9 @@ const withColumns = (table: Table, change: (column: Doc) => Doc, added: Doc[] = 
  */
 function withOwnRules(table: Table): Table {
   if (table.ref === 'entries') {
-    return withColumns(table, (column) => (column['ref'] === 'amount' ? { ...column, rules: { validation: { max: 100000 } } } : column), [
+    // A note is a note: letters and a few digits, never an address — whoever, or whatever, writes the row.
+    const ruled = (column: Doc): Doc => (column['ref'] === 'amount' ? { ...column, rules: { validation: { max: 100000 } } } : column['ref'] === 'note' ? { ...column, rules: { plainText: { digits: 4, max: 80 } } } : column);
+    return withColumns(table, ruled, [
       { ref: 'made_by', type: 'text', maxLength: 80, nullable: true, rules: { stamp: { set: 'user-name', on: 'create' } } },
     ]);
   }

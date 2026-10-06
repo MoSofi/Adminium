@@ -4,22 +4,70 @@
 
 | Rule | Shape | What it does |
 |---|---|---|
-| `options` | `{ "list": "<name>" }` or `{ "values": [{ "value", "label"?, "tone"? }] }` | The allowed values. `list` names one of the app's [option lists](https://docs.adminium.dev/reference/manifest/#option-lists), or a built-in list: `builtin:countries`, `builtin:us-states`, `builtin:gender`. Inline `values` take 1–500 entries. An inline value's `label` is a [label](https://docs.adminium.dev/reference/manifest/#conventions): a keyed one follows the reader's language in the form's choices, the filters, the list and dashboard cards, falling back to `en-US`. An app's option list keeps its `en-US` words. |
-| `enumLabels` | `{ "labels": { "<value>": label }, "tones"?: { "<value>": "<tone>" } }` | Display labels (and badge tones) for an enum's values. Each label is a [label](https://docs.adminium.dev/reference/manifest/#conventions): a keyed one follows the reader's language on pages (the list, the record and the form), and on dashboard cards, falling back to `en-US`. A page that sets its own labels or tones for the column keeps them. |
-| `required` | `true` | The server requires a value on every write. |
-| `requiredWhen` | `{ "column", "in" }` | The server requires a value only while another column of the same row holds one of the values in `in` (1–32): an away event names who is away, an event in the office names nobody. See [Required for some values](https://docs.adminium.dev/reference/manifest/#required-for-some-values). |
-| `validation` | `{ "format"?, "min"?, "max"?, "minLength"?, "maxLength"? }` | `format` is `email`, `url` or `phone`. |
-| `copy` | `{ "via", "from", "mode"?, "follow"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. With `"follow": true` it keeps in step when that row changes later; see [Copies that follow](https://docs.adminium.dev/reference/manifest/#copies-that-follow). `via` may itself be a copied column (a ticket's show, copied from its type): that copy runs first, in the same write. A column kept from readers is copied only into one kept the same way: a `secret` into a `secret`, a `personal` column into a `personal` one (or a `secret`), and a shared link's code never. The same holds for a stamp that copies a column of its row, and for a formula's inputs. |
-| `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere). |
-| `sequence` | `{ "start"?, "gapless"?, "startSetting"?, "scope"? }` | The next number in a running series. Without `gapless`, the column's own counter; `start` is at least 1. With `"gapless": true`, a number with no gaps and none repeated. See [Numbers without gaps](https://docs.adminium.dev/reference/manifest/#numbers-without-gaps). |
-| `format` | `{ "from", "prefix"?, "prefixSetting"?, "pad"? }` | A `text` column written from a gapless number of the same row: the prefix, then the digits padded with zeros (`INV-0042`). See [Numbers without gaps](https://docs.adminium.dev/reference/manifest/#numbers-without-gaps). |
-| `code` | `{ "length", "prefix"?, "renew"?, "hiddenFromStaff"? }` | A short random code, unique in the column. `renew` makes a new one when the row changes hands; see [Codes that renew](https://docs.adminium.dev/reference/manifest/#codes-that-renew). `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). A create that leaves it out or empty gets one, a sample row or an import too; a code they bring is kept, but a sample's code for a shared link's `column` is always made anew. A code is no secret by its rule alone: a name that reads like one (`share_token`) keeps it one, unless `secret: false` says otherwise or it is the column a shared link opens a row by, on a table the install made, which staff who read the table see. The public sees a code only where an entry's `select` names it, and a shared link's never. The audit log and the automation logs say `[code]` in its place, and the assistant never reads it. `hiddenFromStaff: true`: a code no desk hands out (an online order's own link) is left out of every staff read, for every role and Super Admin too: rows, exports, live updates and the history. The link still opens its row, and the app's emails still carry it to the row's holder. |
-| `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](https://docs.adminium.dev/reference/manifest/#formulas). |
-| `normalize` | `"trim"`, `"email"` or `"code"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case, `code` compared as a code (upper case, spaces and dashes left out) when a person types one; see [Typed codes](https://docs.adminium.dev/reference/manifest/#typed-codes). |
-| `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](https://docs.adminium.dev/reference/manifest/#typed-codes). |
-| `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](https://docs.adminium.dev/reference/manifest/#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](https://docs.adminium.dev/reference/manifest/#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](https://docs.adminium.dev/reference/manifest/#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](https://docs.adminium.dev/reference/manifest/#stamps). |
+| `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
+| `personal` | `true` or `false` | Whether the column is personal data, overriding the guess Adminium makes from the column's name. |
+| `secret` | `true` or `false` | Whether the column is a secret no response carries, to anyone, overriding the guess Adminium makes from the column's name (`api_token`, `password_hash`). An entry in [public access](https://docs.adminium.dev/reference/manifest/#public-access) that names no `select` leaves a `secret` column out, and a `code` column too. `false` is written only on a table the app's install made: on a table it reuses, a rule that would show a secret or take a personal column's mask off is skipped, the check step says so, and only an operator can show the column, in Studio, as Super Admin. A `secret` the operator set in Studio wins over the app's. On a column of an add-on's shape, only `true`. |
+
+Tones are the dashboard's badge colours: `neutral`, `accent`, `info`, `pos`, `warn` and `danger`.
+
+`copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `stamp`, `lookup` and
+`perNight` are values **Adminium decides**: they are filled on the server, so a browser never
+picks a price, a number, a code or a time. So are a rollup's `balance` column, a booking's
+late-cancellation [`flag`](https://docs.adminium.dev/reference/manifest/#booking) and a [late move's](https://docs.adminium.dev/reference/manifest/#late-moves) flag. None of them can be listed as `writable` in [public access](https://docs.adminium.dev/reference/manifest/#public-access), and
+a primary key cannot take `sequence` or `code`.
+
+One rule decides a column. The one pair allowed is a `copy` with a `default` behind it: the copy
+comes first, and the default fills the column when the copy comes back empty (a client's own tax
+rate, else the business's). A stamped column takes none of the others.
+
+The [outbox's](https://docs.adminium.dev/reference/manifest/#outbox) own columns that Adminium writes (`status`, `sentAt`, `error`,
+`skipReason`, `approvedBy`, `effectAt` and `effectError`) take none of these rules, nor `options`,
+`validation`, `required`, `requiredWhen`, `notAfter` or `notBefore`: a stamp of who approved a
+message would race Adminium for the column, and a rule that refuses a value would refuse what
+Adminium writes, so every message the desk makes would be refused, or stuck. Its `to` and
+`language`, which Adminium writes when it looks the address up, take none that decide a value, nor
+`options`, `required` or `requiredWhen` (a desk leaves `to` empty to have it looked up); a
+`validation` of the address a person types is fine. Nor may another column's rule read one of them
+where the read could refuse Adminium's write: a note `requiredWhen` the status is `sent`, a `formula`
+worked out from `effectAt`, a `notBefore` bound on `sentAt`. The install names the column, and a
+Studio save refuses the same rules on an installed outbox's columns.
+
+Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
+table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
+only.
+
+The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
+automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
+rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
+data are not [stamped](https://docs.adminium.dev/reference/manifest/#stamps), not [capped](https://docs.adminium.dev/reference/manifest/#totals-and-balances), and not held to `notAfter` or
+`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
+`notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
+A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
+`requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
+`VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
+holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
+code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
+refuses.
+
+The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
+was refused for itself, in a column the entry lets the caller write, `params` names the column and
+why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
+`invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
+names no column: a value already taken or pointing at a row that is not there, a value outside
+`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
+empty can turn on what the stored row holds.
+
+#### Required for some values
+
+`requiredWhen` asks for a column only while another column of the same row holds one of some
+values:
+
+```json
+{ "ref": "person_id", "type": "fk", "references": "people", "nullable": true,
+  "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
+```

@@ -45,12 +45,7 @@ export interface UnbuiltEntryRule {
   on: (entry: Readonly<Record<string, unknown>>) => boolean;
 }
 
-/** A table's columns; a target built by hand for a test or a tool may carry none. */
-const columnsOf = (table: EffectiveTable): EffectiveTable['columns'] => (table.columns as EffectiveTable['columns'] | undefined) ?? [];
-
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // A link into an add-on's table, and a typed code found there: a value kept unjudged may name no row.
-  { rule: 'column.addOnLink', on: (table) => columnsOf(table).some((column) => column.addOnLink !== undefined || column.addOnLookup !== undefined) },
   // A price rule: the order's table, and each child table whose rows are its lines, its codes or its refunds.
   // Written unpriced, an order would be saved at full price with a code on it and nobody told.
   {
@@ -85,11 +80,7 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // An add-on's own blocks: what it declares in an app's words.
   addOns: ADD_ON_INSTALL_RELEASE,
-  // A link from a table into an add-on's.
-  'column.addOnLink': ADD_ON_INSTALL_RELEASE,
-  // Two rules of a column judged as it is written.
-  'column.plainText': ADD_ON_INSTALL_RELEASE,
-  'column.customerKey': ADD_ON_INSTALL_RELEASE,
+  // The last four characters of a code, kept beside it.
   'column.codeLast4': ADD_ON_INSTALL_RELEASE,
   // Rules an app or an add-on ships.
   automations: ADD_ON_INSTALL_RELEASE,
@@ -154,6 +145,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'states.planned',
   'rollup.capUnless',
   'column.announce',
+  // A link from a table into an add-on's, judged as it is written; text held to a name or a note; a customer's key made from an address.
+  'column.addOnLink',
+  'column.plainText',
+  'column.customerKey',
 ];
 
 export interface UnbuiltWord {

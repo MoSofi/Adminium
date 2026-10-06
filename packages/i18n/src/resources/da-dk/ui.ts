@@ -87,6 +87,8 @@ export default {
       "invalidCharacter": "Denne tekst indeholder et skjult tegn, som ikke kan gemmes. Skriv den igen.",
       "unknownCode": "Der findes ingen kode som denne her.",
       "usedUp": "Denne kode er brugt så mange gange, som den kan.",
+      "plainText": "Brug kun bogstaver, mellemrum og almindelig tegnsætning: ingen web- eller e-mailadresse.",
+      "notFound": "Dette findes ikke længere. Vælg et andet.",
       "email": "Indtast en gyldig e-mailadresse.",
       "url": "Indtast en gyldig webadresse.",
       "phone": "Indtast et gyldigt telefonnummer.",

@@ -77,6 +77,8 @@
       "invalidCharacter": "Dieser Text enthält ein verstecktes Zeichen, das nicht gespeichert werden kann. Geben Sie ihn erneut ein.",
       "unknownCode": "Einen solchen Code gibt es hier nicht.",
       "usedUp": "Dieser Code wurde so oft verwendet, wie er kann.",
+      "plainText": "Verwenden Sie nur Buchstaben, Leerzeichen und übliche Satzzeichen: keine Web- oder E-Mail-Adresse.",
+      "notFound": "Das gibt es nicht mehr. Wählen Sie etwas anderes.",
       "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
       "url": "Geben Sie eine gültige Webadresse ein.",
       "phone": "Geben Sie eine gültige Telefonnummer ein.",

@@ -11,6 +11,7 @@ import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequenc
 
 import { SUPER_ADMIN_SLUG } from '../rbac/resolver.js';
 import type { WriteServiceOptions } from './write-service.js';
+import { installedCustomerKey } from '../public-api/customer-key.js';
 
 /**
  * One of an add-on's settings: the value the install saved, else the default
@@ -33,8 +34,10 @@ export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: stri
   return 'default' in declared ? declared.default : undefined;
 }
 
-export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf'> {
+export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey'> {
   return {
+    // A customer's key, under the secret the server said as it started: every service built from these stores makes the same one.
+    customerKey: installedCustomerKey,
     sequences: documentSequencesRepo(meta),
     timezoneOf: async (connectionId) => (await connectionTenantConfig(meta, connectionId))?.timezone ?? null,
     settings: {

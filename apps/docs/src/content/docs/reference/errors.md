@@ -369,7 +369,9 @@ takes the codes with the most to say.
 
 `details.fields` names each refused column with its `code`: `required`, `too-long`, `too-short`,
 `too-small`, `too-large` (with `n`, the bound), `format`, `invalid`, `invalid-character`,
-`out-of-range`, `not-allowed`, `unknown`, `used-up`.
+`out-of-range`, `not-allowed`, `unknown`, `used-up`, `plain-text` (a column held to
+[plain text](/reference/manifest/#column-rules) was given an address or too many digits) and
+`not-found` (a [link into an add-on's table](/reference/manifest/#column-rules) names no row there).
 
 - **A time of day a moment reads.** A column a [moment](/reference/manifest/#moments) reads its
   time of day from (`time: { column }`) is held to `HH:MM`. Anything else is `format`, since it

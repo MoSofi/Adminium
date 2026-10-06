@@ -66,11 +66,13 @@ export type DecidedInputs = (into: { addOn: string; ledger: string; action: stri
  * the definition an operator edits.
  */
 export function ruleDecidedColumns(
-  table: Pick<EffectiveTable, 'id' | 'postings' | 'adjust'>,
+  table: Pick<EffectiveTable, 'id' | 'postings' | 'adjust'> & { columns?: readonly { name: string; customerKey?: unknown }[] | undefined },
   model: Pick<EffectiveModel, 'tables' | 'relations'>,
   decides?: DecidedInputs,
 ): Set<string> {
   const out = new Set<string>();
+  // A customer's key: a keyed hash of the address beside it, which Adminium alone makes.
+  for (const column of table.columns ?? []) if (column.customerKey !== undefined) out.add(column.name);
   // A price rule: every reduction, who gave one by hand, whether the customer was proved, the links a
   // typed code fills, a refund's amount and tax — on the order's table, and on each child table the rule names.
   for (const order of model.tables.some((candidate) => candidate.id === table.id) ? model.tables : [...model.tables, table as EffectiveTable]) {

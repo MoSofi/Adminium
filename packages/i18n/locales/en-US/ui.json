@@ -77,6 +77,8 @@
       "invalidCharacter": "This text contains a hidden character that cannot be saved. Type it again.",
       "unknownCode": "No code like this is on offer here.",
       "usedUp": "This code has been used as many times as it can be.",
+      "plainText": "Use letters, spaces and ordinary punctuation only: no web or email address.",
+      "notFound": "This is no longer there. Choose another.",
       "email": "Enter a valid email address.",
       "url": "Enter a valid web address.",
       "phone": "Enter a valid phone number.",

@@ -34,7 +34,10 @@ const SHOP: Doc = {
         columns: [
           { ref: 'id', type: 'int', role: 'pk' },
           { ref: 'name', type: 'text', maxLength: 80 },
+          // A link into an add-on runs now; the last four of a code, kept beside it, does not yet.
           { ref: 'item_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'kit', table: 'items' } } },
+          { ref: 'code', type: 'text', maxLength: 32, rules: { code: { length: 12 } } },
+          { ref: 'code_last4', type: 'text', maxLength: 4, nullable: true, rules: { codeLast4: { of: 'code' } } },
         ],
       },
     ],
@@ -64,7 +67,7 @@ afterEach(async () => {
 });
 
 describe('a word this server does not run yet', () => {
-  it('an app that links into an add-on is refused at the upload, and makes no table', async () => {
+  it('an app that keeps the last four of a code is refused at the upload, and makes no table', async () => {
     const h = (open = await installHarness('sqlite'));
     const tarball = packageTarball({ 'manifest.json': JSON.stringify(SHOP), 'staff/index.html': '<!doctype html>' });
     const staged = await (h.inject as (request: Doc) => ReturnType<Harness['inject']>)({
@@ -75,15 +78,15 @@ describe('a word this server does not run yet', () => {
     });
     expect(staged.statusCode, staged.body).toBe(422);
     expect(JSON.parse(staged.body)).toMatchObject({
-      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', words: [{ word: 'column.addOnLink', path: 'requiredSchema.tables.0.columns.2.rules.addOnLink', release: '0.3.18' }] } },
+      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', words: [{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.4.rules.codeLast4', release: '0.3.18' }] } },
     });
     expect(await h.rows(`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'shop_%'`)).toEqual([]);
   });
 
-  it('the same app without the link installs', async () => {
+  it('the same app without it installs, its link into an add-on that is not there included', async () => {
     const h = (open = await installHarness('sqlite'));
     const tables = (SHOP['requiredSchema'] as { tables: { columns: { ref: string }[] }[] }).tables;
-    const plain = { ...SHOP, requiredSchema: { prefixed: true, tables: [{ ...tables[0], columns: tables[0]!.columns.filter((column) => column.ref !== 'item_id') }] } };
+    const plain = { ...SHOP, requiredSchema: { prefixed: true, tables: [{ ...tables[0], columns: tables[0]!.columns.filter((column) => column.ref !== 'code_last4') }] } };
     const installed = await h.install(plain);
     expect(installed.statusCode, installed.body).toBe(200);
   });

@@ -77,6 +77,8 @@
 
 import { withDeciders } from '../add-ons/decide.js';
 import { createLedgerWriter, type PostedOutcome, type TreeRowIn } from './ledger-write.js';
+import type { CustomerKeyOf } from '../public-api/customer-key.js';
+import { inertLinkWritten, softLinkIssues } from './soft-links.js';
 import type { LedgerRuntime } from '../ledgers/registry.js';
 import type { FastifyRequest } from 'fastify';
 import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type UpdateQueryBuilder, type UpdateResult } from 'kysely';
@@ -1643,6 +1645,12 @@ export interface WriteServiceOptions {
    */
   ledgers?: LedgerRuntime | undefined;
   /**
+   * A customer's key in a connection (`public-api/customer-key.ts`): what a
+   * column ruled `customerKey` is written with. A service without it refuses
+   * a write that would make one, rather than leave the key empty.
+   */
+  customerKey?: CustomerKeyOf | undefined;
+  /**
    * The meta store's counters, for a column with a running number. A table
    * with one, written through a service without them, is refused rather
    * than written unnumbered.
@@ -1840,7 +1848,27 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (rules === null || action === 'delete') return values;
     const currency = currencyFor(target);
     const priced = await priceValues(rules, action, target.db, values, stored, { origin, currency, named });
-    return workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null);
+    return keyCustomers(rules, action, target, workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null));
+  };
+
+  /**
+   * A customer's key, made from the address beside it: on a create, and on
+   * any change that writes the address. Worked out here, after every hook and
+   * with the formulas, because no writer's value for it is kept — a key is
+   * Adminium's alone to write. An empty address has no key.
+   */
+  const keyCustomers = (rules: TableRules | null, action: WriteAction, target: WriteTarget, values: Row): Row => {
+    const keys = (rules?.customerKeys ?? []).filter((key) => action === 'create' || Object.prototype.hasOwnProperty.call(values, key.of));
+    if (keys.length === 0) return values;
+    const keyOf = opts.customerKey;
+    // A wiring fault, never a refusal a person can act on: a row saved with no key would be counted as nobody's.
+    if (keyOf === undefined) throw new Error(`${target.table.name} keeps a customer key, and this write service was built without the function that makes one.`);
+    const out = { ...values };
+    for (const key of keys) {
+      const address = values[key.of];
+      out[key.column] = typeof address === 'string' && address.trim() !== '' ? keyOf(target.connectionId, address) : null;
+    }
+    return out;
   };
 
   const fill = (
@@ -1953,6 +1981,24 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /** CHECK, then the dates a rule keeps within dates; the caller's own refusal when there is one. */
+  /**
+   * A link into an add-on's table has no foreign key behind it, so it is
+   * judged here, on every way of writing the row but history (an import, an
+   * undo), which keeps what it names: a value for a link whose add-on is not
+   * there for this table is refused outright; one that names no row there is
+   * the column's own issue.
+   */
+  async function linkIssues(rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, mapError?: ((error: unknown) => never) | undefined): Promise<FieldIssues | null> {
+    if (action === 'delete' || context.origin === 'import' || context.origin === 'undo') return null;
+    const inert = inertLinkWritten(rules, values);
+    if (inert !== null) {
+      const error = new PostingRefusedError('The add-on this links to is not here for this table, so the link cannot be filled.', { reason: 'add-on-unavailable', column: inert.column });
+      if (mapError !== undefined) mapError(error);
+      throw error;
+    }
+    return softLinkIssues(target.db, rules, values);
+  }
+
   async function checkAllOrThrow(
     rules: TableRules | null,
     action: WriteAction,
@@ -1963,7 +2009,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
     const judged = judgedBy(rules, target, context);
-    const issues = mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored));
+    const issues = mergeIssues(
+      mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored)),
+      await linkIssues(rules, action, target, context, values, mapError),
+    );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
     if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
     const error = refusal(issues);
@@ -3108,7 +3157,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           continue;
         }
         const values = await formulate(rules, action, target, prepared, null, context.origin);
-        const issue = mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null));
+        const issue = mergeIssues(
+          mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null)),
+          await linkIssues(rules, action, target, context, values),
+        );
         issues.push(issue);
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null, clock) : null);
       }
@@ -3983,7 +4035,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (!withRules) return { values: brand(values), issues: null };
         const worked = await formulate(rules, action, target, values, record, context.origin);
         const judged = judgedBy(rules, target, context);
-        const issues = mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record));
+        const issues = mergeIssues(
+          mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record)),
+          await linkIssues(rules, action, target, context, worked),
+        );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
         const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
