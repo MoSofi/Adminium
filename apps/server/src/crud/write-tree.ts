@@ -41,6 +41,7 @@ import type { Kysely } from 'kysely';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { NamedLock } from './capacity/locks.js';
 import type { JudgedRow, PoolState } from './capacity/types.js';
+import type { PostedOutcome } from './ledger-write.js';
 import type { Row } from './mask.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
 
@@ -144,6 +145,8 @@ export interface TreeOutcome {
   capacity: PoolState[];
   /** A retry of a create already made: nothing was written; the stored rows are answered. */
   replayed: boolean;
+  /** What each posting of the tree did, when its rows hand anything to an add-on's ledger. */
+  postings?: PostedOutcome[] | undefined;
 }
 
 export type CreateTree = (input: CreateTreeInput) => Promise<TreeOutcome>;

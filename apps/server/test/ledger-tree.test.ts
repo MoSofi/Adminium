@@ -199,6 +199,81 @@ describe.each(LEGS)('an order\'s lines — %s', (dialect, available) => {
     expect(w.posted()).toMatchObject([{ posting: 'extra', phase: 'reserve' }]);
   });
 
+  /** An order made with its lines in one save, as a form or a guest's checkout sends it. */
+  const tree = (status: string, lines: { table: string; values: Record<string, unknown> }[], context = DESK) => {
+    const outcome: { error?: unknown; path?: readonly (string | number)[] } = {};
+    const counted = new Map<string, number>();
+    const run = w.writes.createTree({
+      root: {
+        name: 'orders',
+        target: w.target('orders'),
+        values: { status },
+        at: [],
+        children: lines.map((entry) => {
+          const index = counted.get(entry.table) ?? 0;
+          counted.set(entry.table, index + 1);
+          return { name: entry.table, target: w.target(entry.table), values: entry.values, via: { column: 'order_id', parentKey: 'id' }, at: [entry.table, index], children: [] };
+        }),
+      },
+      context,
+      mode: 'save',
+      announce: async () => undefined,
+      mapError: (error, at) => {
+        outcome.error = error;
+        outcome.path = at;
+        throw error;
+      },
+    });
+    return { run, outcome };
+  };
+
+  it.skipIf(!available)('an order made with its lines in one save: the lines of one rule are one call, each with its receipt', async () => {
+    const before = await held();
+    const made = await tree('placed', [
+      { table: 'order_lines', values: { account_id: 1, qty: '2' } },
+      { table: 'order_lines', values: { account_id: 1, qty: '1' } },
+      // An extra is held when the order is placed — and this one is made placed.
+      { table: 'order_extras', values: { account_id: 1, qty: '4' } },
+    ]).run;
+    const id = Number(made.root['id']);
+    expect(made.postings?.map((call) => `${call.posting}:${call.phase}:${String(call.lines.length)}`).sort()).toEqual(['extra:reserve:1', 'line:reserve:2']);
+    expect(await held()).toBe(before + 3);
+    expect((await receipts('line', id)).map((receipt) => receipt.at)).toEqual(['reserve:1:1', 'reserve:1:1']);
+    expect((await receipts('extra', id)).map((receipt) => receipt.at)).toEqual(['reserve:1:1']);
+    // Every receipt is under the order that was just made, by its real key.
+    expect(await w.count('ledger_kit_postings', `source_row = '${String(id)}' AND source_line <> ''`)).toBe(3);
+  });
+
+  it.skipIf(!available)('a tree whose third line is short writes nothing — not the order, not the other lines — and names the line', async () => {
+    const before = { orders: await w.count('orders'), lines: await w.count('order_lines'), holds: await w.count('ledger_kit_holds'), receipts: await w.count('ledger_kit_postings') };
+    const { run, outcome } = tree(
+      'placed',
+      [
+        { table: 'order_lines', values: { account_id: 1, qty: '1' } },
+        { table: 'order_lines', values: { account_id: 1, qty: '1' } },
+        { table: 'order_lines', values: { account_id: 2, qty: '50' } },
+      ],
+      GUEST,
+    );
+    expect(await refusal(run)).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'out-of-stock', posting: 'line', line: 2, path: ['order_lines', 2], item: 'Sugar' } });
+    // The door is told where: the third row of that list.
+    expect(outcome.path).toEqual(['order_lines', 2]);
+    expect({ orders: await w.count('orders'), lines: await w.count('order_lines'), holds: await w.count('ledger_kit_holds'), receipts: await w.count('ledger_kit_postings') }).toEqual(before);
+  });
+
+  it.skipIf(!available)('a tree whose rows hand nothing over is saved as ever; a voided line in it is left out', async () => {
+    const receiptsBefore = await w.count('ledger_kit_postings');
+    const quiet = await tree('draft', [{ table: 'order_extras', values: { account_id: 1, qty: '1' } }]).run;
+    expect(quiet.postings).toBeUndefined();
+    const mixed = await tree('draft', [
+      { table: 'order_lines', values: { account_id: 1, qty: '1' } },
+      { table: 'order_lines', values: { voided_at: 'made void' } },
+    ]).run;
+    expect(mixed.postings).toMatchObject([{ posting: 'line', phase: 'reserve' }]);
+    expect(mixed.postings![0]!.lines).toHaveLength(1);
+    expect(await w.count('ledger_kit_postings')).toBe(receiptsBefore + 1);
+  });
+
   it.skipIf(!available)('a line that belongs to no order hands nothing over', async () => {
     const receiptsBefore = await w.count('ledger_kit_postings');
     await w.create('order_lines', { account_id: 1, qty: '1' });

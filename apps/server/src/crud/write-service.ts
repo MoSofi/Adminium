@@ -76,7 +76,7 @@
  */
 
 import { withDeciders } from '../add-ons/decide.js';
-import { createLedgerWriter, type PostedOutcome } from './ledger-write.js';
+import { createLedgerWriter, type PostedOutcome, type TreeRowIn } from './ledger-write.js';
 import type { LedgerRuntime } from '../ledgers/registry.js';
 import type { FastifyRequest } from 'fastify';
 import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type UpdateQueryBuilder, type UpdateResult } from 'kysely';
@@ -2810,6 +2810,27 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /**
+   * A new row as it will stand, as far as can be told before it is written:
+   * filled, resolved, decided and worked out on the pool, with nothing
+   * checked and nothing claimed. What a tree's child hands to a ledger is
+   * mapped from this for the look before the locks (a quantity that is a
+   * default, a price that is a copy); the save maps it again from the row as
+   * written. Whatever cannot be prepared yet is left as sent.
+   */
+  async function previewRow(target: WriteTarget, values: Row, context: WriteContext, clock: WriteClock): Promise<Row> {
+    try {
+      const rules = rulesOf(target);
+      const zone = await zoneFor(rules, target);
+      const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone);
+      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), opts.settings);
+      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
+      return await formulate(rules, 'create', target, decided, null, context.origin);
+    } catch {
+      return values;
+    }
+  }
+
+  /**
    * A quote's running numbers: none claimed from the counter, none taken in a
    * series. A column that must hold one is given the counter's next as it
    * stands; any other is left empty (the reply never shows one).
@@ -3278,6 +3299,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
       }
 
+      // What the tree hands to an add-on's ledger, looked at before any lock: the root as prepared, each child as it will stand as far as can be told.
+      const about = { target: rootRow.target, context };
+      const treePosting = dry
+        ? null
+        : await at(rootRow.node, async () => {
+            const looked: TreeRowIn[] = [];
+            for (const row of everyRow) {
+              const rules = rulesOf(row.target);
+              looked.push({ target: { ...row.target, timezone: row.target.timezone ?? root.zone }, rules, row: row === rootRow ? (root.checked as Row) : await previewRow(row.target, peeked.get(row) ?? row.node.values, context, clock), path: row.node.at });
+            }
+            return ledgerWriter.audited(() => ledgerWriter.treePeek(looked, context), about);
+          });
+
       // 3. The locks a save names: every limit the rows may take from, and every series they number in.
       const lockNames = async (): Promise<NamedLock[]> => {
         if (dry) return [];
@@ -3293,7 +3327,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const series = everyRow.flatMap((row) =>
           seriesOf(rulesOf(row.target), row.target.table, row === rootRow ? root.checked : row.node.values).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })),
         );
-        return [...limits, ...series, ...(input.locks ?? [])];
+        return [...limits, ...series, ...(input.locks ?? []), ...(treePosting === null ? [] : await ledgerWriter.audited(() => treePosting.names(), about))];
       };
 
       /** The whole write, inside one transaction holding `names`. */
@@ -3428,6 +3462,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             });
           }
         }
+        // What the rows hand to a ledger: after their own totals, on the same transaction — a refusal undoes every row of the tree.
+        let posted: PostedOutcome[] = [];
+        if (!dry) {
+          const stand: TreeRowIn[] = [];
+          for (const row of everyRow) {
+            const rules = rulesOf(row.target);
+            const record = written.get(row)!;
+            stand.push({ target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, rules, row: keepsOwnTotals(rules) ? await readAgain(trx, row.target.table, record) : record, path: row.node.at });
+          }
+          try {
+            posted = await ledgerWriter.audited(() => ledgerWriter.treeStep(trx, treePosting, stand, { context, clock }), about);
+          } catch (error) {
+            if (error instanceof LockMoved) throw error;
+            const path = (error as { details?: { path?: unknown } }).details?.path;
+            return input.mapError(error, Array.isArray(path) ? (path as (string | number)[]) : rootRow.node.at);
+          }
+        }
         // Every row as its totals left it, sealed again over them.
         const rows: TreeWritten[] = [];
         for (const row of everyRow) {
@@ -3440,7 +3491,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           }
           rows.push({ node: row.node, record });
         }
-        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false };
+        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false, ...(posted.length === 0 ? {} : { postings: posted }) };
         // 11. The price the caller expected (a save only), then 12: commit — or a quote rolled back.
         if (!dry) await input.expect?.(trx, outcome.root, rows);
         if (dry) throw new TreeSignal('dry', outcome);
@@ -3450,7 +3501,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let outcome: TreeOutcome;
       try {
         // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
-        outcome = await conflicted(() => withLimitLocks(rootRow.target, lockNames, run, clock), (error) => input.mapError(error, []));
+        outcome = await conflicted(() => withDeciders(treePosting?.addOns ?? [], () => withLimitLocks(rootRow.target, lockNames, run, clock)), (error) => input.mapError(error, []));
       } catch (error) {
         if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
         if (!(error instanceof TreeSignal)) throw error;

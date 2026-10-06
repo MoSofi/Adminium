@@ -294,6 +294,15 @@ export interface PostingCall {
   late?: boolean | undefined;
 }
 
+/** One row of a create with child rows: the root first. */
+export interface TreeRowIn {
+  target: WriteTarget;
+  rules: TableRules | null;
+  /** The root as prepared, a child as previewed — or each as written. */
+  row: Row;
+  path?: readonly (string | number)[] | undefined;
+}
+
 /** One line of a call: the row whose columns are mapped, and the row its `{parent}` mappings read. */
 interface CallLine {
   /** Its key as a receipt writes it; `''` when the row is the source itself. */
@@ -674,17 +683,13 @@ export function createLedgerWriter(kit: LedgerKit) {
     if (scope.update !== undefined) await kit.refuseUngranted(written, 'update', scope.update.set);
   }
 
-  /** The calls this write fires on a row that is its own source; null when it hands nothing to any ledger now. */
-  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext; only?: OnePhase | undefined }): Promise<Peek | null> {
-    if (postingScope(input.rules) === null) return null;
-    await kit.ledgers?.refresh?.();
-    const live = callsFor(input);
-    if (live.length === 0) return null;
-    const { target } = input;
-    // Every table the plans may write, and each ledger's receipts: the role must hold them before a transaction is open.
+  type Job = { call: PostingCall; gathered: () => Promise<Gathered | null>; lenient?: boolean };
+
+  /** Every table the calls' plans may write, and each ledger's receipts, with what the role may do there — and nothing of them in the way of a save. */
+  async function writable(calls: readonly PostingCall[], target: WriteTarget, context: WriteContext): Promise<Map<string, WriteTarget>> {
     const tables = new Map<string, WriteTarget>();
     const judged = new Set<string>();
-    for (const call of live) {
+    for (const call of calls) {
       // An action that narrows the ledger's list writes only those tables: the others are not in its way.
       const narrowed = call.action.writes === undefined ? null : new Set(call.action.writes);
       for (const [tableId, scope] of [...call.ledger.writes, [call.ledger.receipts.id, null] as const]) {
@@ -693,59 +698,81 @@ export function createLedgerWriter(kit: LedgerKit) {
         const once = `${call.ledger.id}\u0000${tableId}`;
         if (scope === null || judged.has(once) || (narrowed !== null && !narrowed.has(call.ledger.refOf(tableId)))) continue;
         judged.add(once);
-        await refuseUnwritable(call, written, scope, input.context);
+        await refuseUnwritable(call, written, scope, context);
       }
     }
+    return tables;
+  }
+
+  /** The names the calls stand on, from a look on the pool with nothing held. */
+  async function namesFor(jobs: readonly Job[], target: WriteTarget, context: WriteContext, tables: ReadonlyMap<string, WriteTarget>): Promise<NamedLock[]> {
+    const out = new Map<string, NamedLock>();
+    for (const job of jobs) {
+      const { call } = job;
+      // Asked of nobody, it writes no row of the add-on's: there is nothing of it to stand on.
+      if (call.decider === null) continue;
+      const gathered = await job.gathered();
+      if (gathered === null) continue;
+      const settings = await ledgerSettings(call.ledger, target.db);
+      const source = { table: gathered.source.ref, row: gathered.source.key };
+      const receipts = gathered.source.key === '' ? [] : await receiptsOfSource(target.db, call.ledger, source);
+      let due: ReturnType<typeof dueLines>;
+      try {
+        due = dueLines(call, gathered, receipts, settings, target);
+      } catch (error) {
+        // A row previewed before it is written may lack what the save will fill: the save judges it, under its locks.
+        if (job.lenient === true && error instanceof ValidationFailedError) continue;
+        throw error;
+      }
+      if (due.length === 0) continue;
+      const roundIds = due.flatMap((entry) => [entry.round.reserved?.id, entry.round.posted?.id]).filter((id): id is string | number => id !== undefined);
+      const lines = due.map((entry) => ({ line: entry.line.key, lineTable: entry.line.ref, inputs: entry.mapped.inputs, multipliers: entry.mapped.multipliers, round: entry.round.round }));
+      const reads = await readOrRefuse(target.db, call, { lines, source, settings, receiptIds: roundIds });
+      for (const name of lockNames(target.view.connectionId, call.ledger, call.action, reads)) out.set(name, { name, busy: 'CAPACITY_BUSY' });
+      // A table it writes keeps a limit: the pools its rows will take from are named too — from the plan, asked once here with nothing held.
+      const limited = [...call.ledger.writes.keys()].filter((tableId) => (call.action.writes === undefined || call.action.writes.includes(call.ledger.refOf(tableId))) && kit.limited(tables.get(tableId)!));
+      // (A round nobody planned is given back unasked.)
+      const asked = due.filter((entry) => !(call.phase === 'reverse' && [entry.round.reserved, entry.round.posted].every((receipt) => receipt === null || receipt.state === 'unplanned')));
+      if (limited.length === 0 || asked.length === 0) continue;
+      let plan: PostingOutput;
+      try {
+        const written = call.phase === 'reverse' || (call.phase === 'post' && due.some((entry) => entry.round.reserved !== null)) ? await roundRows(target.db, call.ledger, roundIds) : {};
+        plan = askPlanner(call, 'peek', { target, context, at: new Date(), source, lines, reads, settings, written });
+      } catch (error) {
+        // Not a refusal yet: the save judges the plan under its locks, and fails there.
+        if (error instanceof PlanFailed || error instanceof PostingRefusedError) continue;
+        throw error;
+      }
+      const pooled: { target: WriteTarget; row: Row; before: Row | null }[] = [];
+      for (const planRow of plan.rows) {
+        const written = tables.get(call.ledger.table(planRow.table)?.id ?? '');
+        if (written === undefined || !limited.includes(written.table.id)) continue;
+        if (planRow.op === 'insert') pooled.push({ target: written, row: withoutLabels(planRow.values), before: null });
+        else {
+          const by = call.ledger.writes.get(written.table.id)?.update?.by ?? [];
+          if (Object.keys(planRow.key).sort().join(',') !== [...by].sort().join(',')) continue;
+          const before = await kit.fetch(written, planRow.key).catch(() => undefined);
+          if (before !== undefined) pooled.push({ target: written, row: planRow.set, before });
+        }
+      }
+      for (const lock of await kit.poolNames(pooled)) out.set(lock.name, lock);
+    }
+    return [...out.values()];
+  }
+
+  /** The calls this write fires on a row that is its own source; null when it hands nothing to any ledger now. */
+  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext; only?: OnePhase | undefined }): Promise<Peek | null> {
+    if (postingScope(input.rules) === null) return null;
+    await kit.ledgers?.refresh?.();
+    const live = callsFor(input);
+    if (live.length === 0) return null;
+    const { target } = input;
+    const tables = await writable(live, target, input.context);
     return {
       calls: live,
       tables,
       addOns: [...new Set(live.map((call) => call.ledger.addOn))].sort(),
-      async names(row) {
-        const out = new Map<string, NamedLock>();
-        for (const call of live) {
-          // Asked of nobody, it writes no row of the add-on's: there is nothing of it to stand on.
-          if (call.decider === null) continue;
-          const gathered = await gather(target.db, call, target, row, false);
-          if (gathered === null) continue;
-          const settings = await ledgerSettings(call.ledger, target.db);
-          const source = { table: gathered.source.ref, row: gathered.source.key };
-          const receipts = gathered.source.key === '' ? [] : await receiptsOfSource(target.db, call.ledger, source);
-          const due = dueLines(call, gathered, receipts, settings, target);
-          if (due.length === 0) continue;
-          const roundIds = due.flatMap((entry) => [entry.round.reserved?.id, entry.round.posted?.id]).filter((id): id is string | number => id !== undefined);
-          const lines = due.map((entry) => ({ line: entry.line.key, lineTable: entry.line.ref, inputs: entry.mapped.inputs, multipliers: entry.mapped.multipliers, round: entry.round.round }));
-          const reads = await readOrRefuse(target.db, call, { lines, source, settings, receiptIds: roundIds });
-          for (const name of lockNames(target.view.connectionId, call.ledger, call.action, reads)) out.set(name, { name, busy: 'CAPACITY_BUSY' });
-          // A table it writes keeps a limit: the pools its rows will take from are named too — from the plan, asked once here with nothing held.
-          const limited = [...call.ledger.writes.keys()].filter((tableId) => (call.action.writes === undefined || call.action.writes.includes(call.ledger.refOf(tableId))) && kit.limited(tables.get(tableId)!));
-          // (A round nobody planned is given back unasked.)
-          const asked = due.filter((entry) => !(call.phase === 'reverse' && [entry.round.reserved, entry.round.posted].every((receipt) => receipt === null || receipt.state === 'unplanned')));
-          if (limited.length === 0 || asked.length === 0) continue;
-          let plan: PostingOutput;
-          try {
-            const written = call.phase === 'reverse' || (call.phase === 'post' && due.some((entry) => entry.round.reserved !== null)) ? await roundRows(target.db, call.ledger, roundIds) : {};
-            plan = askPlanner(call, 'peek', { target, context: input.context, at: new Date(), source, lines, reads, settings, written });
-          } catch (error) {
-            // Not a refusal yet: the save judges the plan under its locks, and fails there.
-            if (error instanceof PlanFailed || error instanceof PostingRefusedError) continue;
-            throw error;
-          }
-          const pooled: { target: WriteTarget; row: Row; before: Row | null }[] = [];
-          for (const planRow of plan.rows) {
-            const written = tables.get(call.ledger.table(planRow.table)?.id ?? '');
-            if (written === undefined || !limited.includes(written.table.id)) continue;
-            if (planRow.op === 'insert') pooled.push({ target: written, row: withoutLabels(planRow.values), before: null });
-            else {
-              const by = call.ledger.writes.get(written.table.id)?.update?.by ?? [];
-              if (Object.keys(planRow.key).sort().join(',') !== [...by].sort().join(',')) continue;
-              const before = await kit.fetch(written, planRow.key).catch(() => undefined);
-              if (before !== undefined) pooled.push({ target: written, row: planRow.set, before });
-            }
-          }
-          for (const lock of await kit.poolNames(pooled)) out.set(lock.name, lock);
-        }
-        return [...out.values()];
-      },
+      names: (row) => namesFor(live.map((call) => ({ call, gathered: () => gather(target.db, call, target, row, false) })), target, input.context, tables),
     };
   }
 
@@ -815,14 +842,38 @@ export function createLedgerWriter(kit: LedgerKit) {
     peeked: Peek | null,
     input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock; only?: OnePhase | undefined },
   ): Promise<PostedOutcome[]> {
-    const { target, context, clock } = input;
+    const { target } = input;
     /** The row that posts, as it stands: an amount decided for it by one call is what the next one reads. */
     let row = input.row;
     const fired = callsFor({ target, rules: input.rules, action: input.action, before: input.before, after: row, only: input.only });
-    if (fired.length === 0) return [];
+    return runCalls(
+      trx,
+      peeked,
+      fired.map((call) => ({ call, gathered: () => gather(trx, call, target, row, true) })),
+      {
+        target,
+        context: input.context,
+        clock: input.clock,
+        creating: input.action === 'create',
+        decided: (line, after) => {
+          if (line.table.id === target.table.id && keyText(target.table, line.row) === keyText(target.table, row)) row = after;
+        },
+      },
+    );
+  }
+
+  /** The calls of a save, run one after the other on its transaction. */
+  async function runCalls(
+    trx: Db,
+    peeked: Pick<Peek, 'calls' | 'tables'> | null,
+    jobs: readonly Job[],
+    env: { target: WriteTarget; context: WriteContext; clock: WriteClock; creating: boolean; decided?: (line: CallLine, after: Row) => void; pathOf?: (line: CallLine) => readonly (string | number)[] | undefined },
+  ): Promise<PostedOutcome[]> {
+    const { target, context, clock } = env;
+    if (jobs.length === 0) return [];
     const known = new Set((peeked?.calls ?? []).map(callKey));
     // A line made later is looked for only under the locks: with nothing to run, nothing of it needs a name.
-    for (const call of fired) if (!known.has(callKey(call)) && call.late !== true) throw new LockMoved(`posting ${callKey(call)}`);
+    for (const { call } of jobs) if (!known.has(callKey(call)) && call.late !== true) throw new LockMoved(`posting ${callKey(call)}`);
     const ledgers = kit.ledgers!;
     const within: WriteTarget = { ...target, db: trx };
     const held = heldNames(trx);
@@ -831,13 +882,14 @@ export function createLedgerWriter(kit: LedgerKit) {
     const writtenRows: { rules: TableRules | null; record: Row; before: Row | null }[] = [];
     const receiptKey = (ledger: ResolvedLedger): string => ledger.receipts.primaryKey[0] ?? 'id';
 
-    for (const call of fired) {
+    for (const job of jobs) {
+      const { call } = job;
       const { ledger, posting, phase } = call;
       // Receipts first: the first statement on one of the add-on's tables, so the add-on is asked about once more.
       const now = await ledgers.versionNow(ledger.addOn);
       if (call.decider !== null && (now === null || now.status !== 'installed' || now.version !== call.decider.version)) throw writeConflict();
       // The row itself as it stands now; for a line, its parent — held, as every writer of the parent's lines holds it.
-      const gathered = await gather(trx, call, target, row, true);
+      const gathered = await job.gathered();
       if (gathered === null) continue;
       const source = { table: gathered.source.ref, row: gathered.source.key };
       const receipts = await receiptsOfSource(trx, ledger, source);
@@ -852,7 +904,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       const at = clock.locked(trx);
       const receiptsTarget: WriteTarget = { ...(peeked?.tables.get(ledger.receipts.id) ?? { ...target, table: ledger.receipts }), db: trx };
       // How long what this call takes is kept for: a hold, or a payment decided as the row is made — let go by the clock if nothing closes it first.
-      const kept = (phase === 'reserve' && call.action.holds === true) || (phase === 'post' && input.action === 'create' && call.action.decides !== undefined);
+      const kept = (phase === 'reserve' && call.action.holds === true) || (phase === 'post' && env.creating && call.action.decides !== undefined);
       const keptUntil = (line: CallLine): string | null => {
         const mapping = posting.heldUntil;
         if (!kept || mapping === undefined) return null;
@@ -961,6 +1013,7 @@ export function createLedgerWriter(kit: LedgerKit) {
           ...(first.item === undefined ? {} : { item: first.item }),
           // Which line of the rows it was handed, for a caller that sent several.
           ...(call.role === 'source' || position(first.line) < 0 ? {} : { line: position(first.line) }),
+          ...(position(first.line) < 0 || env.pathOf?.(gathered.lines[position(first.line)]!) === undefined ? {} : { path: [...env.pathOf(gathered.lines[position(first.line)]!)!] }),
         });
       }
 
@@ -1061,7 +1114,7 @@ export function createLedgerWriter(kit: LedgerKit) {
         const mine = decisions.filter((decision) => decision.line === entry.line.key);
         if (mine.length === 0) continue;
         const set: Row = {};
-        const own = entry.line.table.id === target.table.id ? input.rules : kit.rulesOf({ ...within, table: entry.line.table });
+        const own = kit.rulesOf({ ...within, table: entry.line.table });
         for (const decision of mine) {
           const column = posting.map[decision.input];
           if (typeof column !== 'string') throw new PlanFailed(call, 'scope-decides', `"${decision.input}" is mapped to no column of the row`);
@@ -1074,7 +1127,7 @@ export function createLedgerWriter(kit: LedgerKit) {
         }
         const after = await kit.decide({ ...within, table: entry.line.table }, Object.fromEntries(entry.line.table.primaryKey.map((column) => [column, entry.line.row[column]])), set, entry.line.row);
         // The row that posts, read again when it is the one decided for: the next call maps from it.
-        if (after !== null && entry.line.table.id === target.table.id && keyText(target.table, entry.line.row) === keyText(target.table, row)) row = after;
+        if (after !== null) env.decided?.(entry.line, after);
       }
       const settleStarts = writtenRows.splice(0).flatMap((item) => kit.starts(item.rules, [{ record: item.record, before: item.before }]));
       try {
@@ -1100,6 +1153,72 @@ export function createLedgerWriter(kit: LedgerKit) {
       if (isUniqueViolation(error)) throw writeConflict();
       throw error;
     }
+  }
+
+  /**
+   * A CREATE WITH ITS CHILD ROWS. The root may be a source, and the parent of
+   * lines; each child may be a line whose own making is a point. The lines
+   * of one rule and phase are handed over in ONE call, whether the point is
+   * the root's or each line's own. `rows`: the root first.
+   */
+  function treeJobs(rows: readonly TreeRowIn[], db: Db, held: boolean): Job[] {
+    const [root, ...children] = rows;
+    if (root === undefined || kit.ledgers === undefined) {
+      // No add-on runtime: a tree with a rule that would fire is refused, as a single row is.
+      for (const item of rows) callsFor({ target: item.target, rules: item.rules, action: 'create', before: null, after: item.row });
+      return [];
+    }
+    const refOf = (table: ResolvedTable): string => kit.ledgers!.refOf(root.target.view.connectionId, table.id);
+    const jobs: Job[] = [];
+    const source = (): Gathered['source'] => ({ table: root.target.table, ref: refOf(root.target.table), row: root.row, key: keyText(root.target.table, root.row) });
+    const linesOf = (call: PostingCall, table: ResolvedTable, items: readonly TreeRowIn[]): CallLine[] =>
+      items
+        .filter((item) => item.target.table.id === table.id && lineTaken(call.posting, item.row))
+        // A row not written yet has no key: its place among the rows stands for it, for this look only.
+        .map((item) => ({ key: keyText(table, item.row) || `#${String(rows.indexOf(item))}`, ref: refOf(table), table, row: item.row, parent: { table: root.target.table, row: root.row } }));
+    for (const call of callsFor({ target: root.target, rules: root.rules, action: 'create', before: null, after: root.row })) {
+      if (call.role === 'source') jobs.push({ call, gathered: async () => gather(db, call, root.target, root.row, held), lenient: !held });
+      // The root's own points, for the lines made with it.
+      else if (call.role === 'parent') jobs.push({ call, gathered: async () => ({ source: source(), lines: linesOf(call, call.link!.table, children) }), lenient: !held });
+    }
+    // Each line's own making: the lines of one rule in one call, their source the root they were made under.
+    const byRule = new Map<string, { call: PostingCall; items: TreeRowIn[] }>();
+    for (const item of children) {
+      for (const call of callsFor({ target: item.target, rules: item.rules, action: 'create', before: null, after: item.row })) {
+        if (call.role !== 'line' || call.late === true || call.link?.table.id !== root.target.table.id) continue;
+        const key = `${item.target.table.id}\u0000${callKey(call)}`;
+        const entry = byRule.get(key) ?? { call, items: [] };
+        entry.items.push(item);
+        byRule.set(key, entry);
+      }
+    }
+    for (const { call, items } of byRule.values()) jobs.push({ call, gathered: async () => ({ source: source(), lines: linesOf(call, items[0]!.target.table, items) }), lenient: !held });
+    return jobs;
+  }
+
+  /** What a tree hands to any ledger, looked at before its locks: null when nothing. `rows`: the root as prepared, its children as previewed. */
+  async function treePeek(rows: readonly TreeRowIn[], context: WriteContext): Promise<{ calls: PostingCall[]; tables: Map<string, WriteTarget>; addOns: string[]; names(): Promise<NamedLock[]> } | null> {
+    if (rows.every((item) => postingScope(item.rules) === null)) return null;
+    await kit.ledgers?.refresh?.();
+    const root = rows[0]!.target;
+    const jobs = treeJobs(rows, root.db, false);
+    if (jobs.length === 0) return null;
+    const calls = jobs.map((job) => job.call);
+    const tables = await writable(calls, root, context);
+    return { calls, tables, addOns: [...new Set(calls.map((call) => call.ledger.addOn))].sort(), names: () => namesFor(jobs, root, context, tables) };
+  }
+
+  /** The posting step of a tree, on its transaction, once every row of it is written and its totals settled. `rows`: as written. */
+  async function treeStep(trx: Db, peeked: Pick<Peek, 'calls' | 'tables'> | null, rows: readonly TreeRowIn[], env: { context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
+    if (rows.every((item) => postingScope(item.rules) === null)) return [];
+    const paths = new Map(rows.map((item) => [`${item.target.table.id}\u0000${keyText(item.target.table, item.row)}`, item.path]));
+    return runCalls(trx, peeked, treeJobs(rows, trx, true), {
+      target: rows[0]!.target,
+      context: env.context,
+      clock: env.clock,
+      creating: true,
+      pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`),
+    });
   }
 
   /**
@@ -1176,7 +1295,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     }
   }
 
-  return { watched, peek, postStep, guard, holdParents, audited };
+  return { watched, peek, postStep, treePeek, treeStep, guard, holdParents, audited };
 }
 
 const isLabel = (value: unknown): value is { '@row': string } => typeof value === 'object' && value !== null && '@row' in value;
