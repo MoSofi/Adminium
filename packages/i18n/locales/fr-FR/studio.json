@@ -2055,6 +2055,7 @@
         "rollupWhere": "en ne comptant que les lignes où {column} vaut {value}",
         "rollupBalance": "et tient {balance} = {of} − {minus} − ce total",
         "rollupCap": "Une écriture qui ferait passer le solde sous zéro est refusée.",
+        "rollupCapUnless": "Une écriture qui ferait passer le solde sous zéro est refusée, sauf si {column} est activé pour la ligne.",
         "stampToday": "la date",
         "stampClaim": "{column} de la personne connectée",
         "stampAddDays": "{date} plus {days} jours",

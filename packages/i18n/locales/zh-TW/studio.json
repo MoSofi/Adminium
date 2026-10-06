@@ -2055,6 +2055,7 @@
         "rollupWhere": "只統計 {column} 為 {value} 的列",
         "rollupBalance": "並保持 {balance} = {of} − {minus} − 此合計",
         "rollupCap": "會使餘額低於零的寫入將被拒絕。",
+        "rollupCapUnless": "會使餘額低於零的寫入將被拒絕，除非該列的 {column} 已開啟。",
         "stampToday": "當天日期",
         "stampClaim": "已登入者的 {column}",
         "stampAddDays": "{date} 加 {days} 天",

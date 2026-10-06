@@ -421,8 +421,6 @@ export interface LedgerKit {
   judge(db: Db, rows: readonly { target: WriteTarget; pk: Row; row: Row; before: Row | null }[], context: WriteContext, clock: WriteClock): Promise<void>;
   /** A row of a table read as it is, holding nothing; undefined when it is not there. */
   fetch(target: WriteTarget, key: Row): Promise<Row | undefined>;
-  /** The yes/no column of a table's row that lets one of its capped totals go below zero, when the rule names one. */
-  capUnless?(target: WriteTarget, total: string): string | undefined;
   /** A row of the add-on's that only Adminium writes (a receipt), changed as given. */
   updateRaw(target: WriteTarget, set: Row, key: Row): Promise<void>;
   /** Whether project code changes a row of the table before it is written. */
@@ -1169,7 +1167,6 @@ export function createLedgerWriter(kit: LedgerKit) {
               return found === null ? [] : (kit.rulesOf({ ...within, table: found })?.rollupsInto ?? []);
             },
             rows: (tableId) => call.action.reads.flatMap((read) => (ledger.table(read.table)?.id === tableId ? (reads[read.as] ?? []) : [])),
-            capUnless: (tableId, total) => kit.capUnless?.({ ...within, table: target.view.table(tableId) }, total),
           },
         );
         if (!fits.ok) {

@@ -2065,6 +2065,7 @@ export default {
         "rollupWhere": "nur Zeilen, in denen {column} {value} ist",
         "rollupBalance": "und hält {balance} = {of} − {minus} − diese Summe",
         "rollupCap": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt.",
+        "rollupCapUnless": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt, außer wenn {column} für die Zeile aktiviert ist.",
         "stampToday": "das Datum",
         "stampClaim": "{column} der angemeldeten Person",
         "stampAddDays": "{date} plus {days} Tage",

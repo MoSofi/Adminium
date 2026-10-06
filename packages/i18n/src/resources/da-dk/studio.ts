@@ -2065,6 +2065,7 @@ export default {
         "rollupWhere": "tæller kun rækker, hvor {column} er {value}",
         "rollupBalance": "og holder {balance} = {of} − {minus} − denne sum",
         "rollupCap": "En ændring, der ville bringe saldoen under nul, afvises.",
+        "rollupCapUnless": "En ændring, der ville bringe saldoen under nul, afvises, medmindre {column} er slået til for rækken.",
         "stampToday": "datoen",
         "stampClaim": "den indloggede persons {column}",
         "stampAddDays": "{date} plus {days} dage",

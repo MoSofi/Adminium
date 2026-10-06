@@ -830,9 +830,13 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
                             of: rollup.balance.of,
                             minus: (rollup.balance.minus ?? []).join(' − ') || '0',
                           }),
-                      rollup.cap === true
-                        ? t('studio:remap.rules.decided.rollupCap', 'A write that would take the balance below zero is refused.')
-                        : null,
+                      rollup.cap !== true
+                        ? null
+                        : rollup.capUnless === undefined
+                          ? t('studio:remap.rules.decided.rollupCap', 'A write that would take the balance below zero is refused.')
+                          : t('studio:remap.rules.decided.rollupCapUnless', 'A write that would take the balance below zero is refused, unless {column} is on for the row.', {
+                              column: rollup.capUnless.column,
+                            }),
                     ]
                       .filter((part) => part !== null)
                       .join('; '),

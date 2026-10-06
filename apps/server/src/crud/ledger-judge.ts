@@ -32,8 +32,6 @@ export interface JudgeModel {
   rollups(table: string): readonly RollupInto[];
   /** Every row of a table (by its id) that the call read. */
   rows(tableId: string): readonly ScalarRow[];
-  /** The yes/no column of a parent that lets a capped total of it go below zero, when it has one. */
-  capUnless?(tableId: string, total: string): string | undefined;
 }
 
 export type JudgeResult = { ok: true } | { ok: false; line: string; left: string; table: string };
@@ -95,8 +93,7 @@ export function judgePlanned(inserts: readonly JudgedInsert[], model: JudgeModel
       // The total is taken off the balance, whether it is the balance's own total or one of what it takes off.
       const after = stands - by;
       if (after >= 0n || after >= stands) continue;
-      const unless = model.capUnless?.(rollup.parent, rollup.column);
-      if (unless !== undefined && yes(parent[unless])) continue;
+      if (balance.capUnless !== undefined && yes(parent[balance.capUnless])) continue;
       return { ok: false, line, left: text(stands < 0n ? 0n : stands), table: rollup.parent };
     }
   }

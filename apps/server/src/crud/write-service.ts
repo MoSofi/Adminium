@@ -939,8 +939,12 @@ function amountOf(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** A yes/no as the three engines hand one back. */
+const lifted = (value: unknown): boolean => value === true || value === 1 || value === '1';
+
 /**
- * The refusal a capped balance gives, or null. A write may not take a
+ * The refusal a capped balance gives, or null. A balance whose rule names a
+ * yes/no column that lifts the cap is not judged for a row where it is on. A write may not take a
  * balance below zero, nor further below it; a row whose balance was already
  * below zero (old data, a rule added since) can still be written in any way
  * that does not lower it.
@@ -955,12 +959,15 @@ export async function capRefusal(
 ): Promise<ConflictError | null> {
   const capped = balances.filter((balance) => balance.cappedBy.length > 0);
   if (capped.length === 0) return null;
+  const lifts = capped.flatMap((balance) => (balance.capUnless === undefined ? [] : [balance.capUnless]));
   const after = (await db
     .selectFrom(table)
-    .select(capped.map((balance) => balance.column) as never)
+    .select([...new Set([...capped.map((balance) => balance.column), ...lifts])] as never)
     .where((eb) => eb(db.dynamic.ref(keyColumn), '=', key))
     .executeTakeFirst()) as Row | undefined;
   for (const balance of capped) {
+    // A row that says its cap is lifted (a yes/no: `true`, or 1 where the engine keeps one) may go below.
+    if (balance.capUnless !== undefined && lifted(after?.[balance.capUnless])) continue;
     const now = amountOf(after?.[balance.column]);
     const was = amountOf(before?.[balance.column]);
     if (now === null || now >= -1e-9 || (was !== null && now >= was - 1e-9)) continue;

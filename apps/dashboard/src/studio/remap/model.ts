@@ -59,6 +59,7 @@ export interface EffectiveColumn extends ColumnModel {
     where?: { column: string; eq: string | number | boolean };
     balance?: { column: string; of: string; minus?: string[] };
     cap?: true;
+    capUnless?: { column: string };
   };
   /** Decided by Adminium: the moment, or who did it, when something happens. */
   stamp?: StampRule;

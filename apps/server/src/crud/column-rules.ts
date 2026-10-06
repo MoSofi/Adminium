@@ -287,6 +287,12 @@ export interface TableBalance {
    * that moves one of them may not take this balance below zero.
    */
   cappedBy: string[];
+  /**
+   * A yes/no column of the same row that lifts the cap while it is on: every
+   * capped total that guards this balance names it. One that does not keeps
+   * the cap for all of them.
+   */
+  capUnless?: string;
 }
 
 /** A parent's total this table's rows feed (`column.rollup` on the parent). */
@@ -815,12 +821,15 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
 }
 
 /** The balances a table keeps, each with the capped totals that guard it. */
-function balancesOf(table: EffectiveTable): TableBalance[] {
+export function balancesOf(table: Pick<EffectiveTable, 'columns'>): TableBalance[] {
   const capped = new Set(table.columns.filter((c) => c.rollup?.cap === true).map((c) => c.name));
   return table.columns.flatMap((column) => {
     const balance = column.rollup?.balance;
     if (balance === undefined) return [];
     const minus = balance.minus ?? [];
+    const cappedBy = [column.name, ...minus].filter((name) => capped.has(name));
+    const lifts = new Set(cappedBy.map((name) => table.columns.find((c) => c.name === name)?.rollup?.capUnless?.column));
+    const lift = lifts.size === 1 ? [...lifts][0] : undefined;
     return [
       {
         column: balance.column,
@@ -828,7 +837,8 @@ function balancesOf(table: EffectiveTable): TableBalance[] {
         minus,
         total: column.name,
         scale: scaleOf(table.columns.find((c) => c.name === balance.column) ?? column),
-        cappedBy: [column.name, ...minus].filter((name) => capped.has(name)),
+        cappedBy,
+        ...(lift === undefined ? {} : { capUnless: lift }),
       },
     ];
   });

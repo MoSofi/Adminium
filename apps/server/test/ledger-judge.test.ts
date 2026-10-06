@@ -45,9 +45,11 @@ describe('would a plan fit', () => {
   });
 
   it('an account that allows it goes below zero; a total with no capped balance is not judged; a parent nobody read is not either', () => {
-    const allowed = model([{ id: 1, balance: '1.000', allow_below: true }], { capUnless: () => 'allow_below' });
-    expect(judgePlanned([entry(1, '9')], allowed)).toEqual({ ok: true });
-    expect(judgePlanned([entry(1, '9')], model([{ id: 1, balance: '1.000', allow_below: false }], { capUnless: () => 'allow_below' }))).toMatchObject({ ok: false });
+    const lifting = { rollups: () => [{ ...TAKEN, balances: [{ ...TAKEN.balances[0]!, capUnless: 'allow_below' }] } as RollupInto] };
+    expect(judgePlanned([entry(1, '9')], model([{ id: 1, balance: '1.000', allow_below: true }], lifting))).toEqual({ ok: true });
+    expect(judgePlanned([entry(1, '9')], model([{ id: 1, balance: '1.000', allow_below: false }], lifting))).toMatchObject({ ok: false });
+    // The switch is read only where the rule names it.
+    expect(judgePlanned([entry(1, '9')], model([{ id: 1, balance: '1.000', allow_below: true }]))).toMatchObject({ ok: false });
     expect(judgePlanned([{ table: 'holds', line: '', values: { account_id: 1, amount: '9', state: 'held' } }], model([{ id: 1, balance: '1.000' }]))).toEqual({ ok: true });
     expect(judgePlanned([entry(7, '9')], model([{ id: 1, balance: '1.000' }]))).toEqual({ ok: true });
   });

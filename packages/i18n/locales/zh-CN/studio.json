@@ -2055,6 +2055,7 @@
         "rollupWhere": "只统计 {column} 为 {value} 的行",
         "rollupBalance": "并保持 {balance} = {of} − {minus} − 此合计",
         "rollupCap": "会使余额低于零的写入将被拒绝。",
+        "rollupCapUnless": "会使余额低于零的写入将被拒绝，除非该行的 {column} 已开启。",
         "stampToday": "当天日期",
         "stampClaim": "已登录者的 {column}",
         "stampAddDays": "{date} 加 {days} 天",

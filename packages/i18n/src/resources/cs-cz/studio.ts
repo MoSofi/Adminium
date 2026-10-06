@@ -2065,6 +2065,7 @@ export default {
         "rollupWhere": "počítají se jen řádky, kde {column} je {value}",
         "rollupBalance": "a udržuje {balance} = {of} − {minus} − tento součet",
         "rollupCap": "Zápis, který by snížil zůstatek pod nulu, je odmítnut.",
+        "rollupCapUnless": "Zápis, který by snížil zůstatek pod nulu, je odmítnut, pokud není u řádku zapnuto {column}.",
         "stampToday": "datum",
         "stampClaim": "{column} přihlášené osoby",
         "stampAddDays": "{date} plus {days} dní",
