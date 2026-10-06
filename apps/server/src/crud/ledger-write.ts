@@ -357,6 +357,10 @@ export interface PostedOutcome {
    * here, never a failure.
    */
   quote?: { state: 'ok' | 'refused' | 'unavailable'; reason?: string; line?: number; path?: (string | number)[]; left?: string; item?: string } | undefined;
+  /** Which answer a customer hears of this ledger's own refusal: out of stock, or a refused card. */
+  family?: 'stock' | 'value' | undefined;
+  /** What is left as a customer may be told it (the owner's own setting), on a quote that was refused. */
+  publicLeft?: string | undefined;
 }
 
 /** One phase of one rule of a table, named: what `post` runs for a stored row. */
@@ -435,7 +439,8 @@ const ORIGINS: Readonly<Record<string, 'staff' | 'public' | 'system'>> = { publi
 export const postingOrigin = (context: Pick<WriteContext, 'origin'>): 'staff' | 'public' | 'system' => ORIGINS[context.origin] ?? 'staff';
 
 const refused = (reason: string, call: Pick<PostingCall, 'ledger' | 'posting'> | null, more: Record<string, unknown> = {}): PostingRefusedError =>
-  new PostingRefusedError(REFUSAL_WORDS[reason] ?? 'The add-on refused this.', { reason, ...(call === null ? {} : { ledger: call.ledger.id, posting: call.posting.id }), ...more });
+  // `family`: which of the two answers a customer hears (out of stock, a refused card) when the reason is the ledger's own.
+  new PostingRefusedError(REFUSAL_WORDS[reason] ?? 'The add-on refused this.', { reason, ...(call === null ? {} : { ledger: call.ledger.id, posting: call.posting.id, family: call.ledger.refusal }), ...more });
 
 const REFUSAL_WORDS: Readonly<Record<string, string>> = {
   'add-on-unavailable': 'The add-on this depends on cannot be asked right now, so this cannot be saved.',
@@ -953,7 +958,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       const { call } = job;
       const { ledger, posting, phase } = call;
       const answer = (quote: NonNullable<PostedOutcome['quote']>, more: Partial<PostedOutcome> = {}): PostedOutcome => ({
-        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: 0, rows: 0, version: ledger.version, state: 'planned', source: { table: '', row: '' }, lines: [], notes: [], written: [], decided: [], ...more, quote,
+        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: 0, rows: 0, version: ledger.version, state: 'planned', source: { table: '', row: '' }, lines: [], notes: [], written: [], decided: [], family: ledger.refusal, ...more, quote,
       });
       if (dry) {
         // A quote's ledger refusal is its answer; anything else it meets is an error, as for a save.
@@ -964,7 +969,8 @@ export function createLedgerWriter(kit: LedgerKit) {
           if (!(error instanceof PostingRefusedError)) throw error;
           const details = (error.details ?? {}) as { reason?: string; line?: number; path?: (string | number)[]; left?: string; item?: string };
           const reason = details.reason ?? 'planner-failed';
-          outcomes.push(answer({ state: reason === 'add-on-unavailable' ? 'unavailable' : 'refused', reason, ...(details.line === undefined ? {} : { line: details.line }), ...(details.path === undefined ? {} : { path: details.path }), ...(details.left === undefined ? {} : { left: details.left }), ...(details.item === undefined ? {} : { item: details.item }) }));
+          const shown = (error as { publicLeft?: unknown }).publicLeft;
+          outcomes.push(answer({ state: reason === 'add-on-unavailable' ? 'unavailable' : 'refused', reason, ...(details.line === undefined ? {} : { line: details.line }), ...(details.path === undefined ? {} : { path: details.path }), ...(details.left === undefined ? {} : { left: details.left }), ...(details.item === undefined ? {} : { item: details.item }) }, typeof shown === 'string' ? { publicLeft: shown } : {}));
         }
         continue;
       }
@@ -977,8 +983,15 @@ export function createLedgerWriter(kit: LedgerKit) {
     async function runOne(job: Job): Promise<PostedOutcome | null> {
       const { call } = job;
       const { ledger, posting, phase } = call;
+      /** A refusal that says what is left, with — beside it, for a public door alone — what the owner chose to show a customer of it. */
+      const toldLeft = (left: string | undefined, settings: ScalarRow, error: PostingRefusedError): PostingRefusedError => {
+        const declared = ((ledgers.manifestOf(target.view.connectionId, ledger.addOn)?.addOn as { words?: unknown } | undefined)?.words ?? []) as { ledger: string; action: string; showLeftBelow?: { setting: string } }[];
+        const shown = publicLeft(settings, declared.find((one) => one.ledger === ledger.id && one.action === posting.into.action), left, 'low');
+        if (shown !== undefined) Object.defineProperty(error, 'publicLeft', { value: shown, enumerable: false });
+        return error;
+      };
       const answer = (quote: NonNullable<PostedOutcome['quote']>, more: Partial<PostedOutcome> = {}): PostedOutcome => ({
-        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: 0, rows: 0, version: ledger.version, state: 'planned', source: { table: '', row: '' }, lines: [], notes: [], written: [], decided: [], ...more, quote,
+        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: 0, rows: 0, version: ledger.version, state: 'planned', source: { table: '', row: '' }, lines: [], notes: [], written: [], decided: [], family: ledger.refusal, ...more, quote,
       });
       // Receipts first: the first statement on one of the add-on's tables, so the add-on is asked about once more.
       const now = await ledgers.versionNow(ledger.addOn);
@@ -1128,13 +1141,13 @@ export function createLedgerWriter(kit: LedgerKit) {
       // A refusal fails the save — but never a giving back: what was written is always given back.
       const first = phase === 'reverse' ? undefined : plan.refusals?.[0];
       if (first !== undefined) {
-        throw refused(first.reason, call, {
+        throw toldLeft(first.left, settings, refused(first.reason, call, {
           ...(first.left === undefined ? {} : { left: first.left }),
           ...(first.item === undefined ? {} : { item: first.item }),
           // Which line of the rows it was handed, for a caller that sent several.
           ...(call.role === 'source' || position(first.line) < 0 ? {} : { line: position(first.line) }),
           ...(position(first.line) < 0 || env.pathOf?.(gathered.lines[position(first.line)]!) === undefined ? {} : { path: [...env.pathOf(gathered.lines[position(first.line)]!)!] }),
-        });
+        }));
       }
 
       const manifest = ledgers.manifestOf(target.view.connectionId, ledger.addOn);
@@ -1161,11 +1174,11 @@ export function createLedgerWriter(kit: LedgerKit) {
         );
         if (!fits.ok) {
           const at = position(fits.line);
-          throw refused(ledger.refusal === 'stock' ? 'out-of-stock' : 'over-limit', call, {
+          throw toldLeft(fits.left, settings, refused(ledger.refusal === 'stock' ? 'out-of-stock' : 'over-limit', call, {
             left: fits.left,
             ...(call.role === 'source' || at < 0 ? {} : { line: at }),
             ...(at < 0 || env.pathOf?.(gathered.lines[at]!) === undefined ? {} : { path: [...env.pathOf(gathered.lines[at]!)!] }),
-          });
+          }));
         }
         // An amount decided shows in the quote's own figures: written to its row, and gone with the quote.
         const quoted = answer({ state: 'ok' }, { source, round: asked[0]!.round.round, rows: plan.rows.length, lines: asked.map((entry) => entry.line.key), notes: (plan.notes ?? []).map((note: { line: string; note: string; item?: string | undefined }) => ({ ...note })) });

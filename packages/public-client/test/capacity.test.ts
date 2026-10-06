@@ -46,6 +46,27 @@ describe("a limit's questions", () => {
     expect(await bare.client.nightAvailability('stays_availability', { from: '2026-07-31', to: '2026-08-02' })).toEqual({ pools: [], earliest: null });
   });
 
+  it('reads a line out of stock and a refused card, and a quote\'s word from each ledger', async () => {
+    expect(PUBLIC_ERROR_CODES).toEqual(expect.arrayContaining(['PUBLIC_OUT_OF_STOCK', 'PUBLIC_CARD_REFUSED']));
+    const short = over(() => new Response(JSON.stringify({ error: { code: 'PUBLIC_OUT_OF_STOCK', params: { child: 'lines', index: 2, path: ['lines', 2], left: '3' }, message: 'x' } }), { status: 409 }));
+    const error = (await short.client.create('orders', {}).catch((e: unknown) => e)) as { outOfStock: unknown; cardRefused: unknown };
+    expect(error.outOfStock).toEqual({ child: 'lines', index: 2, path: ['lines', 2], left: '3' });
+    expect(error.cardRefused).toBeNull();
+    // A single row out of stock names no line; how many are left is told only when the server says.
+    const one = over(() => new Response(JSON.stringify({ error: { code: 'PUBLIC_OUT_OF_STOCK', message: 'x' } }), { status: 409 }));
+    expect(((await one.client.create('orders', {}).catch((e: unknown) => e)) as { outOfStock: unknown }).outOfStock).toEqual({});
+    const card = over(() => new Response(JSON.stringify({ error: { code: 'PUBLIC_CARD_REFUSED', params: { reason: 'not-valid', column: 'card_code' }, message: 'x' } }), { status: 409 }));
+    const refused = (await card.client.create('payments', {}).catch((e: unknown) => e)) as { outOfStock: unknown; cardRefused: unknown };
+    expect(refused.cardRefused).toEqual({ column: 'card_code' });
+    expect(refused.outOfStock).toBeNull();
+    // A quote carries each ledger's answer; with none, an empty list.
+    const quoted = over(() => ({ data: {}, capacity: [], exact: true, postings: [{ ledger: 'stock', state: 'refused', reason: 'out-of-stock', line: 1, path: ['lines', 1] }] }));
+    expect((await quoted.client.quote('orders', { values: {} })).postings).toEqual([{ ledger: 'stock', state: 'refused', reason: 'out-of-stock', line: 1, path: ['lines', 1] }]);
+    const plain = over(() => ({ data: {}, capacity: [], exact: true }));
+    expect((await plain.client.quote('orders', { values: {} })).postings).toEqual([]);
+    expect((await plain.client.quoteChange('orders', '1', {})).postings).toEqual([]);
+  });
+
   it('reads which line was sold out, and knows the two new codes', async () => {
     expect(PUBLIC_ERROR_CODES).toEqual(expect.arrayContaining(['PUBLIC_SOLD_OUT', 'PUBLIC_NO_ROOM']));
     const refused = over(

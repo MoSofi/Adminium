@@ -56,6 +56,30 @@ export function typesCode(table: ResolvedTable, values: Row): string[] {
   return out;
 }
 
+/**
+ * Whether a code the values type is money: typed into a lookup whose link is
+ * what one of the table's postings hands to a ledger (a gift card, a voucher).
+ * Such a guess is counted on a rung of its own, so guessing at cards never
+ * spends the tries a discount code has.
+ */
+export function typesCard(table: ResolvedTable, values: Row): boolean {
+  const mapped = new Set<string>();
+  for (const posting of table.table.postings ?? []) {
+    for (const mapping of Object.values(posting.map)) if (typeof mapping === 'string') mapped.add(mapping);
+  }
+  if (mapped.size === 0) return false;
+  return (table.table.columns ?? []).some((column) => {
+    if (column.lookup === undefined || !mapped.has(column.name)) return false;
+    const typed = values[column.lookup.from];
+    return typed !== null && typed !== undefined && !(typeof typed === 'string' && typed.trim() === '');
+  });
+}
+
+/** The same, anywhere in a create with its rows. */
+export function treeTypesCard(node: TreeNode): boolean {
+  return typesCard(node.target.table, node.values) || node.children.some(treeTypesCard);
+}
+
 /** The codes a create with its rows types anywhere in it. */
 export function treeTypesCode(node: TreeNode): string[] {
   return [...typesCode(node.target.table, node.values), ...node.children.flatMap(treeTypesCode)];

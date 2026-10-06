@@ -229,6 +229,33 @@ export class PublicApiError extends Error {
   }
 
   /** On a `PUBLIC_SOLD_OUT` refusal, which line it names; null on any other. */
+  /**
+   * What a line asked for is out of stock: which line of a create with child
+   * rows (`child`, `index`, `path`), and how many are left — only where the
+   * venue chose to show it. Null for any other refusal.
+   */
+  get outOfStock(): { child?: string; index?: number; path?: (string | number)[]; left?: string } | null {
+    if (this.code !== 'PUBLIC_OUT_OF_STOCK') return null;
+    const { child, index, path, left } = this.params;
+    return {
+      ...(typeof child === 'string' ? { child } : {}),
+      ...(typeof index === 'number' ? { index } : {}),
+      ...(Array.isArray(path) ? { path: path as (string | number)[] } : {}),
+      ...(typeof left === 'string' ? { left } : {}),
+    };
+  }
+
+  /**
+   * A gift card or a voucher code was refused: `column` names where it was
+   * typed, when the server says. Never why — the answer is the same for a
+   * card that does not exist and one that is empty. Null for any other refusal.
+   */
+  get cardRefused(): { column?: string } | null {
+    if (this.code !== 'PUBLIC_CARD_REFUSED') return null;
+    const { column } = this.params;
+    return typeof column === 'string' ? { column } : {};
+  }
+
   get soldOut(): PublicSoldOut | null {
     if (this.code !== 'PUBLIC_SOLD_OUT') return null;
     const { child, index, path, column } = this.params;
@@ -339,8 +366,25 @@ export interface TreeCreated<T = Row> {
   link: CreatedLink | null;
 }
 
+/**
+ * What a quote says of one add-on ledger the rows would hand something to
+ * (stock, a gift card): whether the save would go through. Refused, only
+ * what the save itself would say: `out-of-stock` (with the line, and how many
+ * are left where the venue shows it) or `not-valid` for a card or a code.
+ */
+export interface QuotePosting {
+  ledger: string;
+  state: 'ok' | 'refused' | 'unavailable';
+  reason?: 'out-of-stock' | 'not-valid';
+  path?: (string | number)[];
+  line?: number;
+  left?: string;
+}
+
 /** What a dry run answers: every figure the save would write, and how the places it takes stand. Nothing is kept. */
 export interface Quote<T = Row> {
+  /** What each add-on ledger would say of the order. Empty when it hands nothing to any. */
+  postings: QuotePosting[];
   data: T;
   children: Record<string, TreeReplyRow[]>;
   capacity: { pool: string; state: 'available' | 'full'; at?: string }[];
@@ -361,6 +405,8 @@ export interface QuoteNight {
 
 /** What a dry run of a change answers: the row as the change would leave it. Nothing is kept. */
 export interface ChangeQuote<T = Row> {
+  /** What each add-on ledger would say of the change. Empty when it hands nothing to any. */
+  postings: QuotePosting[];
   data: T;
   /** False when the app runs its own code on the change: the save may come out otherwise. */
   exact: boolean;
@@ -1397,15 +1443,15 @@ export function createPublicClient(
 
     async quote<T = Row>(ref: string, write: { values: Row; children?: TreeRows }) {
       const out = await request<Partial<Quote<T>> & { data: T }>(`/api/v1/public/records/${ref}/dry-run`, { method: 'POST', body: JSON.stringify(write) });
-      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [] };
+      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [], postings: out.postings ?? [] };
     },
 
     async quoteChange<T = Row>(ref: string, id: string, values: Row) {
-      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[]; children?: Record<string, { data: Row }[]> }>(
+      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[]; children?: Record<string, { data: Row }[]>; postings?: QuotePosting[] }>(
         `/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`,
         { method: 'POST', body: JSON.stringify({ values }) },
       );
-      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [], children: out.children ?? {} };
+      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [], children: out.children ?? {}, postings: out.postings ?? [] };
     },
 
     async replace<T = Row>(ref: string, id: string, values: Row) {

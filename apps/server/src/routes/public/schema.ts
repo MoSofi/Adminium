@@ -309,8 +309,26 @@ export const publicCreateReply = publicRecordReply.extend({
   link: publicCreatedLink.optional(),
 });
 
+/**
+ * What a quote says of each add-on ledger the rows would hand something to:
+ * whether it would go through. Refused, a customer is told only what a save
+ * would tell them — out of stock (with the line, and how many are left only
+ * where the venue shows it) or a card not valid — never of what, never why.
+ */
+export const publicPostingAnswers = z.array(
+  z.object({
+    ledger: z.string(),
+    state: z.enum(['ok', 'refused', 'unavailable']),
+    reason: z.enum(['out-of-stock', 'not-valid']).optional(),
+    path: z.array(z.union([z.string(), z.number()])).optional(),
+    line: z.number().int().min(0).optional(),
+    left: z.string().optional(),
+  }),
+);
+
 /** A dry run's reply: every figure a save would write, and how the limits it takes from stand. */
 export const publicDryRunReply = z.object({
+  postings: publicPostingAnswers.optional(),
   data: z.record(z.string(), z.unknown()),
   children: publicTreeReplyChildren.optional(),
   capacity: z.array(z.object({ pool: z.string(), state: z.enum(['available', 'full']), at: z.string().optional() })),
@@ -322,6 +340,7 @@ export const publicDryRunReply = z.object({
 
 /** A dry run of a change: the row as the change would leave it. */
 export const publicChangeQuoteReply = z.object({
+  postings: publicPostingAnswers.optional(),
   data: z.record(z.string(), z.unknown()),
   /** False when a before hook runs on the change: a dry run runs none, so the save may differ. */
   exact: z.boolean(),

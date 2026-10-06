@@ -330,6 +330,8 @@ export class PostingRefusedError extends AppError {
       table?: string;
       column?: string;
       phase?: 'reserve' | 'post' | 'reverse';
+      /** Which public answer the ledger's own refusals become. */
+      family?: 'stock' | 'value';
     },
   ) {
     super(409, 'POSTING_REFUSED', message, details);

@@ -51,7 +51,7 @@ import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { registerPictures } from './pictures.js';
-import { CODE_HEADER, GuessesSpent, guessRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
+import { CODE_HEADER, GuessesSpent, guessRung, rungOf, treeTypesCard, treeTypesCode, typedCodeOf, typesCard, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
@@ -71,6 +71,7 @@ import { publicWindows, withPublicWindows } from '../../public-api/moment-window
 import { timedRefusal } from '../../public-api/timed-refusals.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
+import { publicLedgerRefusal, publicPostings } from './ledger-refusals.js';
 import type { PostedOutcome } from '../../crud/ledger-write.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
@@ -307,7 +308,7 @@ class PublicWriteRefused extends Error {
  */
 class PublicSlotRefused extends Error {
   constructor(
-    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_SOLD_OUT' | 'PUBLIC_NO_ROOM' | 'PUBLIC_TOO_EARLY',
+    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_SOLD_OUT' | 'PUBLIC_NO_ROOM' | 'PUBLIC_TOO_EARLY' | 'PUBLIC_OUT_OF_STOCK' | 'PUBLIC_CARD_REFUSED',
     /** Which row of a create with child rows: its list, index and path. */
     readonly params?: Record<string, unknown>,
   ) {
@@ -322,7 +323,11 @@ class PublicSlotRefused extends Error {
               ? 'There is no room on those nights.'
               : code === 'PUBLIC_TOO_EARLY'
                 ? 'Too early for this change; `at` is the time it waits for.'
-                : 'That time is full.',
+                : code === 'PUBLIC_OUT_OF_STOCK'
+                  ? 'There is not enough left.'
+                  : code === 'PUBLIC_CARD_REFUSED'
+                    ? 'That card or code was not accepted.'
+                    : 'That time is full.',
     );
   }
 }
@@ -610,6 +615,9 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   const usedUp = error instanceof AppError && error.code === 'CAPACITY_FULL' && told !== undefined ? namedIn((error.details as { fields?: unknown } | undefined)?.fields, told) : null;
   if (usedUp !== null) throw new PublicWriteRefused(usedUp);
   if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
+  // A ledger's own no: out of stock, or a refused card — and nothing else of it. Any other refusal of a posting has no name here.
+  const ledger = publicLedgerRefusal(error);
+  if (ledger !== null) throw ledger.code === null ? new PublicWriteRefused() : new PublicSlotRefused(ledger.code, ledger.params);
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
   // A move or a change judged against the clock: told when it opens, or that it has closed.
@@ -1634,8 +1642,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   /** Codes typed: a guess reserved before the lookup, kept for a miss, handed back when the reply has gone (`code-guesses.ts`). */
   const guesses = guessRung(limiter, admit);
   /** Whether a visitor may try the codes typed: a guess held (else answered 429). */
-  const admitGuess = (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }, typed: readonly string[]): boolean =>
-    guesses.admit(request, reply, ok.key.keyId, typed);
+  const admitGuess = (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }, typed: readonly string[], rung: 'code' | 'card' = 'code'): boolean =>
+    guesses.admit(request, reply, ok.key.keyId, typed, rung);
 
   /** A write whose typed code missed (`unknown`, `used-up`): its guess spent. */
   const spendMiss = (request: FastifyRequest, _ok: { key: ResolvedKey }, error: unknown): void => {
@@ -2459,7 +2467,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // A code typed anywhere in it is a guess, a quote's too: a visitor whose guesses are spent is told so first.
       const typedCodes = treeTypesCode(root);
       const guessing = typedCodes.length > 0;
-      if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
+      if (guessing && !admitGuess(request, reply, ok, typedCodes, treeTypesCard(root) ? 'card' : 'code')) return reply;
 
       // A name that is only a name, signed in or not: one an account fills in is printed as the typed one would be.
       const caps = resource.anonymous;
@@ -2824,7 +2832,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const capacity = outcome.capacity.map((pool) => ({ pool: pool.key, state: pool.fits ? ('available' as const) : ('full' as const), ...(pool.at === undefined ? {} : { at: pool.at }) }));
         // A price by the night: the nights it is made of, each with its rate and what was added.
         const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => data[column] !== null && data[column] !== undefined);
-        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }) });
+        // What each ledger would say — and a card not valid is a guess spent, quote or not.
+        const told = publicPostings(outcome.postings);
+        if (told?.some((one) => one.reason === 'not-valid') === true) guesses.missed(request);
+        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }) });
       }
       // The person the address made, heard of once the whole write has committed.
       const made = madePerson as Row | null;
@@ -2889,7 +2900,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
         const typedCodes = typesCode(found.table, values);
         const guessing = typedCodes.length > 0;
-        if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes, typesCard(found.table, values) ? 'card' : 'code')) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
         // A signed-in person may hold only so many open rows: a found session
@@ -3175,7 +3186,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
         const typedCodes = typesCode(found.table, values);
         const guessing = typedCodes.length > 0;
-        if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes, typesCard(found.table, values) ? 'card' : 'code')) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this change needs is missing.', { column: missing });
         // A child's references are fixed when it is made: a change never moves it under another parent.
@@ -3520,7 +3531,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                     return { predicate: combinePredicates(mandatoryAt(child.where, own, ok.key.scope.timezone), claim.predicate) };
                   },
                 });
-          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }) });
+          const told = publicPostings(outcome.postings);
+          if (told?.some((one) => one.reason === 'not-valid') === true) guesses.missed(request);
+          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }), ...(told === undefined ? {} : { postings: told }) });
         }
         return reply.send({ data });
       };
