@@ -186,6 +186,54 @@ describe('adminium app check', () => {
     expect((await run('check')).code).toBe(0);
   });
 
+  it('tells an add-on in an app folder what it is, in one sentence', async () => {
+    const { prefixed: _prefixed, ...whole } = APP;
+    write({ 'apps/repairs/manifest.json': { ...whole, kind: 'add-on', addOn: { attaches: [{ app: '*' }], connect: { kind: 'none' } }, requiredSchema: { prefixed: true, tables: [JOBS] } } });
+    const { code, err } = await run('check');
+    expect(code).toBe(2);
+    expect(err).toContain('kind — is an add-on. An app folder holds an app. An add-on is a package: Studio → Add-ons installs it.');
+    // The one finding: never the validator's word about the folder's own publisher.
+    expect(err).not.toContain('publisher');
+  });
+
+  it('refuses a word this Adminium reads and does not run yet, where it is written', async () => {
+    parts({
+      'apps/repairs/manifest/app.json': { ...APP, compatibility: { minAdminiumVersion: '0.3.18' } },
+      'apps/repairs/manifest/add-ons.json': { suggests: [{ key: 'cards-kit', range: '*', reason: { 'en-US': 'Gift cards.' } }] },
+      'apps/repairs/manifest/tables/jobs.json': { ...JOBS, columns: [...JOBS.columns, { ref: 'card_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'cards-kit', table: 'cards' } } }] },
+    });
+    const { code, err } = await run('check');
+    expect(code).toBe(2);
+    expect(err).toMatch(/apps\/repairs\/manifest\/tables\/jobs\.json: columns\.3\.rules\.addOnLink — uses "column\.addOnLink", which Adminium 0\.3\.18 runs and this Adminium \S+ does not\. Take it out, or run this folder on Adminium 0\.3\.18\./);
+  });
+
+  it('says that the add-ons it names add to what the customer side may reach, and checks its rows for them', async () => {
+    const named = { ...APP, compatibility: { minAdminiumVersion: '0.3.18' } };
+    const naming = { 'apps/repairs/manifest/add-ons.json': { suggests: [{ key: 'cards-kit', range: '*', reason: { 'en-US': 'Gift cards.' } }] } };
+    parts({ ...naming, 'apps/repairs/manifest/access.json': { publicAccess: [{ table: 'jobs', methods: ['POST'], select: ['id'], writable: ['title'] }] } });
+    const plain = await run('check');
+    expect(plain.out + plain.err).toContain('jobs: add a row (title)');
+    expect(plain.out + plain.err).toContain('plus what cards-kit grants when it is connected');
+
+    // Its rows for the add-on: the file is there, is for that add-on, and says so.
+    parts({
+      ...naming,
+      'apps/repairs/manifest/app.json': named,
+      'apps/repairs/manifest/sample.json': { sampleData: { file: 'seeds/sample.json', addOns: { 'cards-kit': { file: 'seeds/cards.json' } } } },
+      'apps/repairs/seeds/sample.json': { format: 'adminium.sample/1', app: 'repairs', tables: [{ ref: 'jobs', rows: [{ title: 'Fix the door' }] }] },
+    });
+    const missing = await run('check');
+    expect(missing.code).toBe(2);
+    expect(missing.err).toContain('apps/repairs/seeds/cards.json — is named by sampleData.addOns.cards-kit.file and does not exist');
+    const cards = [{ ref: 'cards', rows: [{ label: 'For Mia' }] }];
+    write({ 'apps/repairs/seeds/cards.json': { format: 'adminium.sample/1', app: 'repairs', addOn: 'stock-kit', tables: cards } });
+    const other = await run('check');
+    expect(other.code).toBe(2);
+    expect(other.err).toContain('apps/repairs/seeds/cards.json: addOn — is "stock-kit", and the manifest lists this file under "cards-kit".');
+    write({ 'apps/repairs/seeds/cards.json': { format: 'adminium.sample/1', app: 'repairs', tables: cards } });
+    expect((await run('check')).err).toContain('Rows for an add-on say which');
+  });
+
   it('reads a single manifest.json too, refuses both forms at once, and a link among the parts', async () => {
     write({ 'apps/repairs/manifest.json': { ...APP, prefixed: undefined, requiredSchema: { tables: [JOBS], prefixed: true }, pages: [PAGE] } });
     expect((await run('check')).code).toBe(0);

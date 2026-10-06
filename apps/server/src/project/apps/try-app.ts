@@ -101,6 +101,11 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
   };
   const done = (kept: string | null): TryResult => ({ ok: steps.every((entry) => entry.ok), steps, kept });
 
+  // The add-ons handed to the try, by key (`<key>-<version>.tgz`).
+  const tried =
+    opts.addOnsDir !== undefined && existsSync(opts.addOnsDir)
+      ? [...new Set(readdirSync(opts.addOnsDir).flatMap((name) => /^(.+)-\d+\.\d+\.\d+[^/]*\.tgz$/.exec(name)?.slice(1, 2) ?? []))].sort()
+      : [];
   const dir = mkdtempSync(join(tmpdir(), `adminium-app-try-${key}-`));
   // An empty database of its own for the app's tables, apart from Adminium's.
   const sourceFile = join(dir, 'app.sqlite');
@@ -118,6 +123,14 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
   let runtime: Awaited<ReturnType<typeof defaultOpenRuntime>> | null = null;
   let app: Awaited<ReturnType<typeof composeServer>>['app'] | null = null;
   const kept = opts.keep === true ? dir : null;
+  /*
+   * The packages handed to this run are run by it: a stored package nobody
+   * vouches for decides nothing, and a try that refused every save that needs
+   * one would prove little. For this process and this run alone — the server
+   * is a throwaway and never a production one — and put back when it ends.
+   */
+  const trustedBefore = process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
+  if (tried.length > 0) process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = [...new Set([...(trustedBefore ?? '').split(',').filter((entry) => entry.trim() !== ''), ...tried])].join(',');
 
   try {
     runtime = await (opts.openRuntime ?? defaultOpenRuntime)(env, { blockLoopback: false });
@@ -201,7 +214,11 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
         const file = join(opts.addOnsDir, name);
         const integrity = existsSync(`${file}.integrity`) ? readFileSync(`${file}.integrity`, 'utf8').trim() : '';
         const staged = await call('POST', `/api/v1/add-ons/upload?expectedSha512=${encodeURIComponent(integrity)}`, { body: readFileSync(file) });
-        step(staged.status === 200, `the add-on package ${name} is accepted`, integrity === '' ? `${name}.integrity is missing` : refusal(staged));
+        // A package that decides inside a save and that nobody vouches for is stored all the same: this run trusts it (see the env above).
+        const error = record(record(staged.json)['error']);
+        const storedUntrusted = staged.status === 422 && error['code'] === 'ADD_ON_UNTRUSTED' && record(error['details'])['stored'] === true;
+        if (storedUntrusted) step(true, `the add-on package ${name} is stored; nobody vouches for it, and this run trusts it for the try alone`);
+        else step(staged.status === 200, `the add-on package ${name} is accepted`, integrity === '' ? `${name}.integrity is missing` : refusal(staged));
       }
     }
 
@@ -356,6 +373,8 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     step(false, 'the try ran to its end', error instanceof Error ? (error.stack ?? error.message) : String(error));
     return done(kept);
   } finally {
+    if (trustedBefore === undefined) delete process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
+    else process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = trustedBefore;
     if (app !== null) await app.close().catch(() => undefined);
     if (runtime !== null) await runtime.close().catch(() => undefined);
     if (opts.keep !== true) rmSync(dir, { recursive: true, force: true });

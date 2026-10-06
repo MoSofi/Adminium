@@ -15,15 +15,19 @@ import { join } from 'node:path';
 import {
   isAddOnManifest,
   locateIssue,
+  namedAddOns,
   sampleBundleIssues,
   sampleBundleSchema,
+  sampleSectionIssues,
   validateManifest,
+  type AddOnManifest,
   type AppManifest,
 } from '@adminium/manifest';
 
 import { addAndReadRefusal, anonymousAddAndRead, openToAnyone } from '../../apps/anonymous-access.js';
 import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
+import { unbuiltInManifest } from '../../crud/unbuilt-rules.js';
 import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
 import { hasOwnBuild } from './own-build.js';
@@ -54,23 +58,58 @@ function listed(words: readonly string[]): string {
  * What the app's customers may do, read off `publicAccess` — the only thing
  * the customer side can reach, whatever tables the app has.
  */
-export function accessInWords(manifest: AppManifest): string[] {
-  return (manifest.publicAccess ?? []).map((entry) => {
+export function accessInWords(manifest: AppManifest, addOns?: AddOnsInSight): string[] {
+  const columns = (list: readonly string[] | undefined): string => (list === undefined || list.length === 0 ? '' : ` (${list.join(', ')})`);
+  type Entry = NonNullable<AppManifest['publicAccess']>[number];
+  const inWords = (entry: Entry): string => {
     const does: string[] = [];
-    const columns = (list: readonly string[] | undefined): string => (list === undefined || list.length === 0 ? '' : ` (${list.join(', ')})`);
-    if (entry.kind === 'availability') does.push('see when it is free');
+    // Answered by an add-on's stock words: a yes or no about stock, never a row.
+    if (entry.kind === 'availability' && entry.words !== undefined) does.push(`see whether it is in stock (answered by ${entry.words.slice(0, entry.words.indexOf(':'))})`);
+    else if (entry.kind === 'availability') does.push('see when it is free');
     else if (entry.methods.includes('GET')) does.push(`read${columns(entry.select)}`);
     if (entry.methods.includes('POST')) does.push(`add a row${columns(entry.writable)}`);
     if (entry.methods.includes('PATCH')) does.push(`change${columns(entry.writable)}`);
-    const own = entry.claim !== undefined || entry.claimedBy !== undefined ? ', its own rows only' : '';
+    const own =
+      entry.unlockBy !== undefined && 'self' in entry.unlockBy
+        ? ', its own row by its code'
+        : entry.claim !== undefined || entry.claimedBy !== undefined
+          ? ', its own rows only'
+          : '';
     return `${entry.table}: ${listed(does)}${own}`;
-  });
+  };
+  const out = (manifest.publicAccess ?? []).map(inWords);
+  /*
+   * What the add-ons it names add: the customer side reaches those too, once
+   * each is connected and somebody allowed it, so a list without them would be
+   * false. With their manifests in sight, entry by entry; without, by name.
+   */
+  const named = namedAddOns(manifest.addOns).map((need) => need.key);
+  const unseen: string[] = [];
+  for (const key of named) {
+    const addOn = addOns?.get(key);
+    if (addOn === undefined) {
+      unseen.push(key);
+      continue;
+    }
+    const link = Object.keys(addOn.publicKeys ?? {})[0];
+    const through = (addOn.publicAccess ?? []).filter((entry) => entry.key === undefined || entry.key !== link);
+    if (through.length > 0) out.push(`${addOn.name} adds: ${through.map(inWords).join('; ')}`);
+  }
+  if (unseen.length > 0 && addOns === undefined) out.push(`plus what ${listed(unseen)} ${unseen.length === 1 ? 'grants' : 'grant'} when ${unseen.length === 1 ? 'it is' : 'they are'} connected`);
+  return out;
 }
+
+/** The add-ons a check can see, by key: the packages beside the project, or the ones installed. */
+export type AddOnsInSight = ReadonlyMap<string, AddOnManifest>;
 
 const error = (file: string, path: string, message: string): AppFinding => ({ level: 'error', file, path, message });
 
-/** Check `apps/<key>/`. `version` is the Adminium doing the checking. */
-export function checkApp(root: string, key: string, opts: { version: string }): AppCheck {
+/**
+ * Check `apps/<key>/`. `version` is the Adminium doing the checking; `addOns`
+ * the add-ons this check can see — without them, what needs an add-on's own
+ * manifest is left for the apply, and said as a note.
+ */
+export function checkApp(root: string, key: string, opts: { version: string; addOns?: AddOnsInSight | undefined }): AppCheck {
   const folder = readAppFolder(root, key);
   const findings: AppFinding[] = folder.problems.map((problem) => ({ ...problem, level: 'error' as const }));
   // An app with a build of its own keeps its screens where its build wants them: the manifest says which sides it has.
@@ -86,6 +125,11 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
     return { file: appPath(key, MANIFEST_PARTS_DIR, located.file), path: located.path };
   };
 
+  // Said before the validator, which would refuse the folder's own publisher first and never reach the plain sentence.
+  if ((folder.document as { kind?: unknown }).kind === 'add-on') {
+    findings.push(error(at('kind').file, 'kind', 'is an add-on. An app folder holds an app. An add-on is a package: Studio → Add-ons installs it.'));
+    return result(null);
+  }
   const validated = validateManifest(folder.document, { allowLocalPublisher: true });
   for (const warning of validated.warnings) findings.push({ level: 'warn', ...at(warning.path), message: warning.message });
   if (!validated.ok) {
@@ -97,6 +141,15 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
     return result(null);
   }
   const manifest = validated.manifest;
+  const addOns = opts.addOns;
+
+  // A word this Adminium reads and does not run yet: refused here, where it is written, not part way through an apply.
+  for (const word of unbuiltInManifest(folder.document)) {
+    const where = at(word.path);
+    findings.push(
+      error(where.file, where.path, `uses "${word.word}", which Adminium ${word.release} runs and this Adminium ${opts.version} does not. Take it out, or run this folder on Adminium ${word.release}.`),
+    );
+  }
 
   if (manifest.key !== key) {
     findings.push(error(at('key').file, 'key', `is "${manifest.key}", and the folder is apps/${key}. They must be the same.`));
@@ -158,6 +211,52 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
     }
   }
 
+  // Its rows for each add-on it names: there, readable, for that add-on, and about tables the two declare.
+  for (const [addOnKey, section] of Object.entries(manifest.sampleData?.addOns ?? {})) {
+    const where = appPath(key, section.file);
+    const file = join(folder.dir, section.file);
+    if (!existsSync(file)) {
+      findings.push(error(where, '', `is named by sampleData.addOns.${addOnKey}.file and does not exist.`));
+      continue;
+    }
+    try {
+      const parsed = sampleBundleSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')));
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) findings.push(error(where, issue.path.map(String).join('.'), issue.message));
+        continue;
+      }
+      if (parsed.data.addOn !== undefined && parsed.data.addOn !== addOnKey) {
+        findings.push(error(where, 'addOn', `is "${parsed.data.addOn}", and the manifest lists this file under "${addOnKey}".`));
+      }
+      for (const issue of sampleSectionIssues(parsed.data, manifest, addOns?.get(addOnKey))) findings.push(error(where, issue.path, issue.message));
+      if (addOns?.has(addOnKey) !== true) {
+        findings.push({ level: 'note', file: where, path: '', message: `its tables of "${addOnKey}" are checked when it is applied: that add-on is not in sight here.` });
+      }
+    } catch (cause) {
+      findings.push(error(where, '', `not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`));
+    }
+  }
+
+  // A link into an add-on's table: with the add-on in sight, the table is one of its, and the column can hold its key.
+  manifest.requiredSchema.tables.forEach((table, t) => {
+    table.columns.forEach((column, c) => {
+      const link = column.rules?.addOnLink;
+      const addOn = link === undefined ? undefined : addOns?.get(link.addOn);
+      if (link === undefined || addOn === undefined) return;
+      const where = at(`requiredSchema.tables.${String(t)}.columns.${String(c)}.rules.addOnLink`);
+      const target = (addOn.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === link.table);
+      if (target === undefined) {
+        findings.push(error(where.file, where.path, `links into "${link.addOn}.${link.table}", and ${addOn.name} ${addOn.version} has no such table.`));
+        return;
+      }
+      const keyType = target.columns.find((candidate) => candidate.role === 'pk')?.type ?? 'int';
+      const holds = keyType === 'text' ? column.type === 'text' : column.type === 'int' || column.type === 'bigint';
+      if (!holds) {
+        findings.push(error(where.file, where.path, `"${table.ref}.${column.ref}" is ${column.type}, and the key of "${link.addOn}.${link.table}" is ${keyType}: it cannot hold it (ADD_ON_LINK_MISMATCH).`));
+      }
+    });
+  });
+
   /*
    * What the install refuses of an app's own browser key, said here rather
    * than part way through an install. The validator does not know this one:
@@ -203,6 +302,18 @@ export function checkApp(root: string, key: string, opts: { version: string }): 
   for (const need of manifest.addOns?.requires ?? []) {
     findings.push({ level: 'note', file: at('addOns').file, path: 'requires', message: `needs the add-on "${need.key}" (${need.range}) on the Adminium it is installed on.` });
   }
+  // A suggested add-on a posting rests on: without it that posting does nothing, which is worth saying once.
+  const features = new Map((manifest.addOns?.features ?? []).map((feature) => [feature.id, feature.requires]));
+  const rested = new Set<string>();
+  for (const table of manifest.requiredSchema.tables) {
+    for (const posting of (table as { postings?: readonly { needs?: string; into: { addOn: string } }[] }).postings ?? []) {
+      if (posting.needs !== undefined && (features.get(posting.needs) ?? []).includes(posting.into.addOn)) rested.add(posting.into.addOn);
+    }
+  }
+  for (const need of manifest.addOns?.suggests ?? []) {
+    if (!rested.has(need.key)) continue;
+    findings.push({ level: 'note', file: at('addOns').file, path: 'suggests', message: `posts into the add-on "${need.key}" (${need.range}) when it is connected; without it those postings do nothing.` });
+  }
 
-  return result(findings.some((finding) => finding.level === 'error') ? null : manifest, accessInWords(manifest));
+  return result(findings.some((finding) => finding.level === 'error') ? null : manifest, accessInWords(manifest, addOns));
 }

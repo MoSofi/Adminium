@@ -365,6 +365,24 @@ describe('the Designer’s tools', () => {
     expect(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')).toBe(text);
   });
 
+  it('check the app with the add-ons it names in sight, when this server has them', async () => {
+    writeFileSync(join(root, 'apps/repairs/manifest/add-ons.json'), JSON.stringify({ suggests: [{ key: 'invoices', range: '*', reason: { 'en-US': 'Invoices.' } }] }));
+    writeFileSync(
+      join(root, 'apps/repairs/manifest/tables/bills.json'),
+      JSON.stringify({ ref: 'bills', columns: [{ ref: 'id', type: 'id', role: 'pk' }, { ref: 'invoice_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'invoices', table: 'ghosts' } } }] }),
+    );
+    // The link is a word of the next release: the folder says so, and the check goes on to judge it.
+    const appFile = join(root, 'apps/repairs/manifest/app.json');
+    writeFileSync(appFile, JSON.stringify({ ...(JSON.parse(readFileSync(appFile, 'utf8')) as Record<string, unknown>), compatibility: { minAdminiumVersion: '0.3.18' } }));
+    // Not on this server: what needs its manifest is left for the apply.
+    onServer.clear();
+    expect((await run('check_app')).content).not.toContain('has no such table');
+    // On this server: the link is judged against the add-on's own tables, now, in the file it is written in.
+    onServer.add('invoices');
+    const seen = await run('check_app');
+    expect(seen.content).toMatch(/apps\/repairs\/manifest\/tables\/bills\.json · columns\.1\.rules\.addOnLink · links into "invoices\.ghosts", and .* has no such table\./);
+  });
+
   it('check the app as the engine does, errors first', async () => {
     expect(await run('check_app')).toMatchObject({ label: 'Checked: no errors' });
     writeFileSync(join(root, 'apps/repairs/manifest/tables/broken.json'), '{"ref": "broken"}');

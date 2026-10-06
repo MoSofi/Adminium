@@ -24,6 +24,7 @@
  * server code is written, only after the person said yes in that turn. A bad
  * input is an answer the model can read and fix, never a crash of the turn.
  */
+import { isAddOnManifest, namedAddOns, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -759,7 +760,18 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       running: () => 'Checking the app',
       run: async () => {
-        const check = checkApp(deps.root, appKey, { version: deps.version });
+        // The add-ons the app names, as this server has them: what needs their own manifests is checked now, not at the apply.
+        const first = checkApp(deps.root, appKey, { version: deps.version });
+        const named = namedAddOns((first.folder.document as { addOns?: Parameters<typeof namedAddOns>[0] } | null)?.addOns).map((need) => need.key);
+        const inSight = new Map<string, AddOnManifest>();
+        const readAddOn = deps.readAddOn;
+        if (readAddOn !== undefined) {
+          for (const key of named) {
+            const read = validateManifest(await readAddOn(key).catch(() => null));
+            if (read.ok && isAddOnManifest(read.manifest)) inSight.set(key, read.manifest);
+          }
+        }
+        const check = named.length === 0 || readAddOn === undefined ? first : checkApp(deps.root, appKey, { version: deps.version, addOns: inSight });
         const order = { error: 0, warn: 1, note: 2 } as Record<string, number>;
         const findings = [...check.findings].sort((a, b) => (order[a.level] ?? 3) - (order[b.level] ?? 3));
         const errors = findings.filter((finding) => finding.level === 'error').length;
