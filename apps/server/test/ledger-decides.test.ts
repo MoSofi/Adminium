@@ -9,18 +9,13 @@
  * the row's own formulas worked out again.
  */
 import { overridesRepo } from '@adminium/meta';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PlanFailed } from '../src/crud/ledger-write.js';
 import { runTimedMoves } from '../src/states/timed-moves.js';
 import { ledgerKitDecidesManifest } from './fixtures/ledger-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 const PAY = { id: 'pay', into: { addOn: 'ledger-kit', ledger: 'units', action: 'pay' }, map: { account: 'account_id', due: 'due', amount: 'amount' }, post: { on: { create: true } }, reverse: { on: { column: 'status', in: ['void'] } } };
 

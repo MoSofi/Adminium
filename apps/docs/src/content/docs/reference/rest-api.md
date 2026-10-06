@@ -109,7 +109,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
-| `/api/v1/connections/*` | 23 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
+| `/api/v1/connections/*` | 26 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/data/*` | 21 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
 | `/api/v1/documents/*` | 13 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
@@ -124,6 +124,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/imports/*` | 6 | CSV/spreadsheet imports — upload, dry run, run, error report |
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
+| `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 15 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
 | `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
@@ -347,6 +348,9 @@ GET /api/v1/connections/{id}/schema/overrides
 PUT /api/v1/connections/{id}/schema/overrides
 GET /api/v1/connections/{id}/overrides
 PUT /api/v1/connections/{id}/overrides
+PUT /api/v1/connections/{id}/tables/{table}/postings/{posting}
+DELETE /api/v1/connections/{id}/tables/{table}/postings/{posting}
+PATCH /api/v1/connections/{id}/tables/{table}/postings/{posting}/switch
 POST /api/v1/connections/{id}/schema/plan
 POST /api/v1/connections/{id}/schema/apply
 POST /api/v1/connections/{id}/schema/adopt
@@ -534,6 +538,15 @@ GET /api/v1/jobs
 POST /api/v1/jobs
 GET /api/v1/jobs/{id}
 POST /api/v1/jobs/{id}/cancel
+```
+
+### `/ledgers`
+
+```http
+GET /api/v1/ledgers/{addOn}/{ledger}/postings
+GET /api/v1/ledgers/{addOn}/{ledger}/sources
+POST /api/v1/ledgers/{addOn}/{ledger}/make-items
+POST /api/v1/ledgers/{addOn}/{ledger}/catch-up
 ```
 
 ### `/llm`

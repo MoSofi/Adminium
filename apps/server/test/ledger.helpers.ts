@@ -4,9 +4,6 @@
  * owner's own that each carry a posting rule — and a write service wired the
  * way the server wires one: the kept installs, the add-on's real deciding
  * file, the store's own version.
- *
- * A test that writes through a posting table mocks `refuseUnbuiltTable`
- * itself (a mock is the test file's to declare).
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { overridesRepo, snapshotsRepo } from '@adminium/meta';
@@ -38,6 +35,8 @@ export interface LedgerWorld {
   runtime: LedgerRuntime;
   decider: InstalledDecider;
   target(name: string): WriteTarget;
+  /** Reads the rules again, after a route stored or switched one. */
+  reload(): Promise<void>;
   /** What the last save through `create` or `update` handed its door. */
   posted(): PostedOutcome[];
   create(name: string, values: Record<string, unknown>, context?: WriteContext, service?: RecordWriteService): Promise<Record<string, unknown>>;
@@ -88,7 +87,8 @@ export async function ledgerWorld(
     if (postings.length > 0) await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'table.postings', tableName: idOf(name), columnName: null, value: { postings }, origin: 'user' } as never);
   }
   await more?.(h, idOf);
-  const view = new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
+  const read = async () => new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
+  let view = await read();
   const { db, dialect: engine } = await h.manager.data(h.connectionId);
   const target = (name: string): WriteTarget => ({ connectionId: h.connectionId, view, table: view.table(idOf(name)), db, dialect: engine, timezone: 'Europe/London' });
   const installs = keepAddOnInstalls(h.meta, async () => model);
@@ -115,6 +115,9 @@ export async function ledgerWorld(
     runtime,
     decider,
     target,
+    reload: async () => {
+      view = await read();
+    },
     posted: () => posted,
     create(name, values, context = DESK, using = writes) {
       const at = target(name);

@@ -203,6 +203,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PATCH /api/v1/data/:connectionId/:table/:recordId': audited('rbac'), // record.update
   'DELETE /api/v1/data/:connectionId/:table/:recordId': audited('rbac'), // record.delete
   'POST /api/v1/data/:connectionId/:table/bulk': audited('rbac'), // record.bulk-*
+  'POST /api/v1/data/:connectionId/:table/one-by-one': audited('rbac'), // record.one-by-one, beside each row's own
   'POST /api/v1/data/undo/:token': audited('rbac'), // record.undo
 
   // ── Data-io (M7). The routes audit the request; the workers audit completion.

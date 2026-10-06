@@ -10,17 +10,12 @@
  * leaves no record: that is the ledger working.
  */
 import { overridesRepo } from '@adminium/meta';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { NO_RECORD_HOOKS } from '../src/crud/write-service.js';
 import type { LedgerRefusal } from '../src/ledgers/registry.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, GUEST, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 const TALLY = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', action: 'count' }, map: { account: 'account_id', quantity: 'qty' }, post: { on: { create: true } }, reverse: { on: { column: 'status', in: ['void'] } } };
 /** `use` writes holds too. */

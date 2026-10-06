@@ -33,16 +33,16 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
     expect(rule).not.toBeInstanceOf(RuleNotBuiltError);
   });
 
-  it.runIf(available)('a table given a posting by hand takes no creates or changes, and a delete still clears up', async () => {
+  it.runIf(available)('a table given a price rule by hand takes no creates or changes, and a delete still clears up', async () => {
     // Stored the way Studio's rule save stores one: no install would write it yet.
     const before = await writerFor(h!);
     const tableName = before.targetOf('rate_rules').table.id;
     const row = await overridesRepo(h!.meta).create({
       connectionId: h!.connectionId,
-      op: 'table.postings',
+      op: 'table.adjust',
       tableName,
       columnName: null,
-      value: { postings: [{ id: 'by-hand', into: { addOn: 'kit', ledger: 'units', action: 'use' }, post: { on: { create: true } }, map: { account: 'name' } }] },
+      value: { by: { addOn: 'kit' }, lines: [{ self: true, price: 'amount', discount: 'amount', what: [] }], order: { discount: 'amount' } },
       origin: 'user',
       createdBy: null,
     });
@@ -50,7 +50,7 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
       const w = await writerFor(h!);
       const refused = await w.create('rate_rules', { name: 'September', amount: 10 }).catch((error: unknown) => error);
       expect(refused).toBeInstanceOf(RuleNotBuiltError);
-      expect(refused).toMatchObject({ statusCode: 501, code: 'RULE_NOT_BUILT', details: { table: tableName, rule: 'postings' } });
+      expect(refused).toMatchObject({ statusCode: 501, code: 'RULE_NOT_BUILT', details: { table: tableName, rule: 'adjust' } });
       await expect(w.writes.delete({ target: w.targetOf('rate_rules'), pk: { id: 999_999 }, context: w.desk, announce: async () => {} })).resolves.toBe(0);
       // A table that carries none still writes.
       const type = await w.create('room_types', { name: 'Loft', base_rate: 90 }).catch((error: unknown) => error);

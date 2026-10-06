@@ -10,18 +10,13 @@
  * says `settled`, and no audit row of its own.
  */
 import Fastify, { type FastifyInstance } from 'fastify';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
 import { occurrenceKeyFor } from '../src/automations/matcher.js';
 import { announcePostings } from '../src/ledgers/announce.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, ledgerWorld, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 const TALLY = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', action: 'count' }, map: { account: 'account_id', quantity: 'qty' }, post: { on: { create: true } }, reverse: { on: { column: 'status', in: ['void'] } } };
 const ASK = { id: 'ask', into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, map: { account: 'account_id', quantity: 'qty' }, reserve: { on: { column: 'status', in: ['sent'] } }, post: { on: { column: 'status', in: ['done'] } } };

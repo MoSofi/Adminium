@@ -8,6 +8,7 @@
  *          reverse  the opposite of what the round wrote
  *   count  post     one entry per line; reverse as above
  *   tidy   post     the line's request moved to the state it names
+ *   adopt  post     a thing made of the line's row, by its name — none when one of that name is there
  *   pay    post     one entry per line, for the amount it decides: what is due, as far as the account goes
  *
  * A reserve, and any take a customer makes, is refused when the account has
@@ -93,6 +94,19 @@ function tidy(input) {
   return out;
 }
 
+/** A thing for each line's row, named as the line says — unless one of that name is there already. */
+function adopt(input) {
+  var out = { rows: [] };
+  var known = input.reads.known || [];
+  for (var i = 0; i < input.lines.length; i += 1) {
+    var line = input.lines[i];
+    var there = false;
+    for (var k = 0; k < known.length; k += 1) if (String(known[k].name) === String(line.inputs.name)) there = true;
+    if (!there) out.rows.push({ op: 'insert', table: 'things', line: line.line, values: { name: line.inputs.name } });
+  }
+  return out;
+}
+
 /** Each line pays what is due from its account, as far as the account goes. */
 function pay(input, wrong) {
   var out = { rows: [], decides: [] };
@@ -122,6 +136,7 @@ function rows(input) {
   if (input.mode === 'words') return words(input);
   if (input.phase === 'reverse') return reverse(input);
   if (input.action === 'tidy') return tidy(input);
+  if (input.action === 'adopt') return adopt(input);
   if (input.action === 'pay') return pay(input, wrong);
 
   var out = { rows: [], refusals: [], notes: [] };

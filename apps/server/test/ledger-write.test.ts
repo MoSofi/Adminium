@@ -11,7 +11,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { overridesRepo, snapshotsRepo } from '@adminium/meta';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadDecider } from '../src/add-ons/decide.js';
 import { keepAddOnInstalls } from '../src/apps/table-ref.js';
@@ -28,11 +28,6 @@ import { LEDGER_KIT_SERVER, ledgerKitFiles, ledgerKitManifest } from './fixtures
 import { LEGS } from './invoicing-install.helpers.js';
 
 // The server refuses a table with a posting until every door knows postings; this file is the write path's own proof.
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
-
 const RULE = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', action: 'count' }, map: { account: 'account_id', quantity: 'qty' }, post: { on: { create: true } }, reverse: { on: { column: 'status', in: ['void'] } } };
 /** A request by hand: held when it is sent, taken when it is done, given back when it is cancelled. */
 const ASK = {

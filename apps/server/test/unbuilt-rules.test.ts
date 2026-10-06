@@ -142,13 +142,13 @@ describe('a release', () => {
   });
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
-    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'adjust']);
+    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['column.addOnLink', 'adjust']);
     expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['words']);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {
     const words = Object.keys(UNBUILT_MANIFEST_WORDS);
-    expect(words).toEqual(expect.arrayContaining(['table.postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'table.adjust']));
+    expect(words).toEqual(expect.arrayContaining(['column.addOnLink', 'table.adjust']));
   });
 });
 
@@ -156,12 +156,13 @@ describe('a table that carries one of the new rules', () => {
   const column = (name: string, extra: Record<string, unknown> = {}) => ({ name, ...extra });
   const carrying = (extra: Record<string, unknown>) => unbuiltRuleOf(table(extra));
 
-  it('takes no writes: a posting, a planned move, a link into an add-on, an announced total', () => {
-    expect(carrying({ postings: [{ id: 'line' }] })).toBe('postings');
-    expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: [{ to: 'filed', planned: true }] } } })).toBe('states.planned');
+  it('takes no writes: a link into an add-on, a typed code found there — and writes as ever with a rule that runs now', () => {
+    // A posting, a move kept for a ledger, an announced total: built, so they stop no write.
+    expect(carrying({ postings: [{ id: 'line' }] })).toBeNull();
+    expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: [{ to: 'filed', planned: true }] } } })).toBeNull();
+    expect(carrying({ columns: [column('low', { announce: true })] })).toBeNull();
     expect(carrying({ columns: [column('item_id', { addOnLink: { addOn: 'kit', table: 'items', tableId: null, key: null } })] })).toBe('column.addOnLink');
     expect(carrying({ columns: [column('item_id', { addOnLookup: { from: 'typed', table: { addOn: 'kit', table: 'items' }, column: 'code' } })] })).toBe('column.addOnLink');
-    expect(carrying({ columns: [column('low', { announce: true })] })).toBe('column.announce');
     // A column that keeps a table's name is built: it stops no write.
     expect(carrying({ columns: [column('source_table', { tableRef: true })] })).toBeNull();
     expect(carrying({ states: { column: 'status', initial: 'draft', moves: { draft: ['sent', { to: 'done' }] } }, columns: [column('name')] })).toBeNull();
@@ -174,13 +175,13 @@ describe('a table that carries one of the new rules', () => {
     expect(() => refuseUnbuiltTable({ table: { id: 'main.orders', table: bare } })).not.toThrow();
   });
 
-  it('a cap lifted for some rows stops the parent and the child whose rows it judges', () => {
+  it('a cap lifted for some rows runs now: neither the parent nor the child whose rows it judges is stopped', () => {
     const parent = table({ id: 'main.accounts', columns: [column('taken', { rollup: { from: 'main.entries', via: 'account_id', sum: 'amount', cap: true, capUnless: { column: 'allow_below' } } })] });
     const child = table({ id: 'main.entries' });
     const other = table({ id: 'main.notes' });
     const model = { tables: [parent, child, other], relations: [] };
-    expect(unbuiltRuleOf(parent, undefined, model)).toBe('rollup.capUnless');
-    expect(unbuiltRuleOf(child, undefined, model)).toBe('rollup.capUnless');
+    expect(unbuiltRuleOf(parent, undefined, model)).toBeNull();
+    expect(unbuiltRuleOf(child, undefined, model)).toBeNull();
     expect(unbuiltRuleOf(other, undefined, model)).toBeNull();
   });
 });

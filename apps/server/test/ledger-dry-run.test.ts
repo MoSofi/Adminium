@@ -9,7 +9,7 @@
  * page keeps its figures and marks the line. No row of the add-on is
  * inserted, no receipt written, and the row quoted is as it was afterwards.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { postingAnswers, type PostedOutcome } from '../src/crud/ledger-write.js';
 import type { RecordWriteService } from '../src/crud/write-service.js';
@@ -17,11 +17,6 @@ import type { WriteContext } from '../src/crud/write-context.js';
 import { ledgerKitDecidesManifest } from './fixtures/ledger-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, GUEST, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 const TALLY = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', action: 'count' }, map: { account: 'account_id', quantity: 'qty' }, post: { on: { create: true } } };
 const ASK = { id: 'ask', into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, map: { account: 'account_id', quantity: 'qty' }, reserve: { on: { column: 'status', in: ['sent'] } }, post: { on: { column: 'status', in: ['done'] } }, reverse: { on: { column: 'status', in: ['cancelled'] } } };

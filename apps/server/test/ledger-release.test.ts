@@ -9,17 +9,12 @@
  * in time is left alone; one whose time has not come is left alone; a
  * receipt whose source table is gone is let go of, not tried every minute.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { PostedOutcome } from '../src/crud/ledger-write.js';
 import { runTimedMoves, type TimedMovesDeps } from '../src/states/timed-moves.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { ledgerWorld, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 /** Held when sent, taken when done; nothing but the clock gives it back. */
 const ASK = { id: 'ask', into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, map: { account: 'account_id', quantity: 'qty' }, reserve: { on: { column: 'status', in: ['sent'] } }, post: { on: { column: 'status', in: ['done'] } }, heldUntil: 'hold_until' };

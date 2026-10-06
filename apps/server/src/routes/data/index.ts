@@ -145,6 +145,7 @@ import {
 } from '../../crud/write-service.js';
 import { postingAnswers, type PostingAnswer } from '../../crud/ledger-write.js';
 import { tellPostings } from '../../ledgers/announce.js';
+import { answersFor, hideLedgerFigures } from '../../ledgers/tell.js';
 import { writeStores } from '../../crud/write-stores.js';
 import {
   dataRecordParams,
@@ -1938,9 +1939,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const late = () => Date.now() - started > (deps.oneByOneBudgetMs ?? 25_000);
         type Result = { id?: unknown; index?: number; ok: boolean; data?: Row; postings?: PostingAnswer[]; error?: { code: string; message?: string; reason?: string; details?: unknown } };
         const results: Result[] = [];
-        const refusedAs = (error: unknown): NonNullable<Result['error']> => {
+        const refusedAs = async (caught: unknown): Promise<NonNullable<Result['error']>> => {
           // Anything that is not a refusal is a fault of the server's: the call fails as a whole.
-          if (!(error instanceof AppError)) throw error;
+          if (!(caught instanceof AppError)) throw caught;
+          // A row's refusal leaves in the reply, not through the error hooks: what is left of a ledger's rows is for its readers here too,
+          // and what a caller's role may not read of the table is left out as it is from a single save's refusal.
+          await hideLedgerFigures(caught, (permission) => request.can(permission));
+          const error = scrubRefusal(caught, ctx.readView, ctx.readTable) as AppError;
           const reason = (error.details as { reason?: unknown } | undefined)?.reason;
           return { code: error.code, message: error.message, ...(typeof reason === 'string' ? { reason } : {}), ...(error.details === undefined ? {} : { details: error.details }) };
         };
@@ -1971,7 +1976,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               const key = ctx.table.primaryKey.length === 1 ? inserted[ctx.table.primaryKey[0]!] : Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
               results.push({ index, id: key, ok: true, data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), ...(told === undefined ? {} : { postings: told }) });
             } catch (error) {
-              results.push({ index, ok: false, error: refusedAs(error) });
+              results.push({ index, ok: false, error: await refusedAs(error) });
             }
           }
         } else {
@@ -2006,7 +2011,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               const told = postingAnswers(outcome.postings);
               results.push({ id, ok: true, ...(told === undefined ? {} : { postings: told }) });
             } catch (error) {
-              results.push({ id, ok: false, error: refusedAs(error) });
+              results.push({ id, ok: false, error: await refusedAs(error) });
             }
           }
         }
@@ -3061,7 +3066,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         // The desk's booking summary: the nights a price by the night is made of.
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight));
-        const told = postingAnswers(tree.outcome.postings);
+        const told = await answersFor((permission) => request.can(permission), tree.outcome.postings);
         return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }) };
       },
     );
@@ -3154,7 +3159,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const readable = (column: string) =>
           ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight);
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
-        const told = postingAnswers(outcome.postings);
+        const told = await answersFor((permission) => request.can(permission), outcome.postings);
         return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }) };
       },
     );

@@ -43,6 +43,25 @@ const TIDY = {
   writes: ['holds', 'requests'],
 };
 
+/** Makes a thing of a row of another table, named by the column the owner chose: once a row, and never twice for a name. */
+const ADOPT = {
+  inputs: { what: 'rowRef', name: 'text' },
+  phases: ['post'],
+  reads: [{ as: 'known', table: 'things', by: [{ column: 'name', from: 'input.name' }] }],
+  locks: [{ read: 'known', column: 'id', table: 'things' }],
+  writes: ['things'],
+};
+
+/** What `adopt` makes: a row of the kit's own for a row of somebody else's table, linked to the receipt of the call that made it. */
+const THINGS = {
+  ref: 'things',
+  columns: [
+    { ref: 'id', type: 'int', role: 'pk' },
+    { ref: 'name', type: 'text', maxLength: 80 },
+    { ref: 'receipt_id', type: 'fk', references: 'postings', nullable: true },
+  ],
+};
+
 type Table = Doc & { ref?: string; columns?: Doc[] };
 const withColumns = (table: Table, change: (column: Doc) => Doc, added: Doc[] = []): Table => ({ ...table, columns: [...(table.columns ?? []).map(change), ...added] });
 
@@ -88,8 +107,8 @@ export function ledgerKitManifest(): Doc {
   const kit = structuredClone(LEDGER_KIT) as unknown as Doc & { addOn: Doc; requiredSchema: { tables: Doc[] } };
   const [units] = structuredClone(kit.addOn['ledgers']) as [Doc & { writes: Doc; actions: Doc }];
   // The ledger may move a request too, and one action does nothing else: a planned change of a row with states.
-  units.writes = { ...units.writes, requests: { update: { by: ['id'], set: ['status'] } } };
-  units.actions = { ...units.actions, tidy: TIDY };
+  units.writes = { ...units.writes, requests: { update: { by: ['id'], set: ['status'] } }, things: { insert: ['name'] } };
+  units.actions = { ...units.actions, tidy: TIDY, adopt: ADOPT };
   kit.addOn = {
     ...kit.addOn,
     ledgers: [units],
@@ -98,7 +117,7 @@ export function ledgerKitManifest(): Doc {
   };
   // An index the kit declares itself, beside the ones its ledger is given.
   kit['roles'] = [{ key: 'manager', name: 'Ledger manager', permissions: ['table:@requests:read', 'table:@requests:update'] }];
-  kit.requiredSchema.tables = [...kit.requiredSchema.tables.map((table) => (table['ref'] === 'entries' ? { ...table, indexes: [['account_id', 'kind']] } : table)), SETTINGS].map(withOwnRules);
+  kit.requiredSchema.tables = [...kit.requiredSchema.tables.map((table) => (table['ref'] === 'entries' ? { ...table, indexes: [['account_id', 'kind']] } : table)), SETTINGS, THINGS].map(withOwnRules);
   return kit;
 }
 

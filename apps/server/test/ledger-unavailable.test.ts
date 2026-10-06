@@ -8,16 +8,11 @@
  * from says it may be taken unasked. Either way the receipt says nobody
  * planned it, and no row of the ledger is written until somebody can.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { RecordWriteService } from '../src/crud/write-service.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 /** `use` says an account that allows going below may be taken from unasked. */
 const ASK = {

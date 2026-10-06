@@ -29,6 +29,7 @@ import { deciderGate, type DeciderGate, type InstalledDecider } from '../add-ons
 import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { DeclaredPosting } from '../crud/ledger-points.js';
+import { storedPostingIssue } from './rules.js';
 
 export type { LedgerAction };
 export type WriteScope = Ledger['writes'][string];
@@ -98,6 +99,10 @@ export interface LedgerRuntime {
   holdingLedgers?(view: SnapshotView): ResolvedLedger[];
   /** The table a stored name stands for here, or null when it is not there any more. */
   tableOfRef?(connectionId: string, tableRef: string): string | null;
+  /** An installed add-on's ledger with its tables as they are here, whatever its code can answer; null when it or one of its tables is not there. */
+  ledgerOf?(view: SnapshotView, addOnKey: string, ledgerId: string): ResolvedLedger | null;
+  /** Whose rule a posting is: the app whose manifest stored it (`app` when it cannot be told which), or null for one the owner drew. */
+  ownerOf?(view: SnapshotView, table: ResolvedTable, posting: DeclaredPosting): string | null;
   /** Records a refusal an operator can act on (a plan that failed, a table that cannot be written): one audit row, after the save is gone. */
   refused?(event: LedgerRefusal): Promise<void>;
 }
@@ -128,6 +133,22 @@ export interface LedgerRuntimeDeps {
   /** Reads what is installed again when it moved (the kept instance's `fresh`). */
   refresh?: (() => Promise<unknown>) | undefined;
   refused?: ((event: LedgerRefusal) => Promise<void>) | undefined;
+}
+
+/**
+ * Whether a stored rule names only what is here, asked once a rule and
+ * version of its add-on: a rule that came by a project's file, or was stored
+ * before the add-on changed, may name an action, an input or a column this
+ * install does not have. Kept by the rule itself, so a rule read again (a
+ * view rebuilt) is judged again.
+ */
+const JUDGED = new WeakMap<object, Map<string, string | null>>();
+function ruleIssue(view: SnapshotView, table: ResolvedTable, posting: DeclaredPosting, addOn: { manifest: AddOnManifest; version: string }): string | null {
+  const known = JUDGED.get(posting) ?? new Map<string, string | null>();
+  JUDGED.set(posting, known);
+  const once = `${addOn.manifest.key}@${addOn.version}`;
+  if (!known.has(once)) known.set(once, table.table === undefined ? null : storedPostingIssue({ model: view.model, table: table.table, posting: posting as never, manifest: addOn.manifest }));
+  return known.get(once) ?? null;
 }
 
 /** The app whose manifest stored a rule on this table, or null for a rule the owner made. */
@@ -215,6 +236,8 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       if (typeof ledger === 'string') return cannot(ledger);
       const action = known;
       if (action === undefined) return cannot('no-such-action', { ledger });
+      // What the rule names must be here: one that names an input, a column, a setting or a state that is not is never half-run.
+      if (ruleIssue(view, table, posting, addOn) !== null) return cannot('rule-invalid', { ledger, action });
       const decider = deps.decider(posting.into.addOn);
       // Its file is gone or was changed, nobody vouches for it, or it did not load.
       if (decider === null) return cannot('no-decider', { ledger, action });
@@ -246,6 +269,14 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       return out;
     },
     tableOfRef: (connectionId, tableRef) => deps.installs().tableOfRef(connectionId, tableRef),
+    ledgerOf(view, addOnKey, ledgerId) {
+      const installs = deps.installs();
+      const addOn = installs.installed(view.connectionId, addOnKey);
+      if (addOn === null) return null;
+      const ledger = resolveLedger(installs, view, addOn, ledgerId);
+      return typeof ledger === 'string' ? null : ledger;
+    },
+    ownerOf: (view, table, posting) => (table.table?.managedPostings?.includes(posting.id) === true ? (ruleOwner(deps.installs(), view, table, posting) ?? 'app') : null),
     actionOf(view, addOnKey, ledgerId, actionId) {
       const installs = deps.installs();
       const addOn = installs.installed(view.connectionId, addOnKey);

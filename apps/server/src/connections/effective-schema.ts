@@ -1371,9 +1371,17 @@ export function applyOverrides(
       case 'table.postings': {
         // A manifest's row and an owner's may both be there: the table carries every posting of both.
         const added = (value as unknown as { postings: TablePosting[] }).postings ?? [];
-        if (table !== undefined) table.postings = [...(table.postings ?? []), ...added];
-        // Whose rule it is decides what "the add-on is not connected to this app" means for it.
-        if (table !== undefined && row.origin === 'app') table.managedPostings = [...(table.managedPostings ?? []), ...added.map((posting) => posting.id)];
+        if (table === undefined) break;
+        // One rule a name: where an app's rule and the owner's share one (an update brought a name the owner had used), the app's
+        // stands and the owner's is read as not there — two rules of one name would write the same receipt twice.
+        const ids = new Set(added.map((posting) => posting.id));
+        if (row.origin === 'app') {
+          table.postings = [...(table.postings ?? []).filter((posting) => !ids.has(posting.id)), ...added];
+          table.managedPostings = [...(table.managedPostings ?? []), ...added.map((posting) => posting.id)];
+        } else {
+          const managed = new Set(table.managedPostings ?? []);
+          table.postings = [...(table.postings ?? []), ...added.filter((posting) => !managed.has(posting.id))];
+        }
         break;
       }
       case 'table.adjust': {

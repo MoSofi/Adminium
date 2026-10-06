@@ -6,18 +6,13 @@
  * has a name on the public side: not which add-on, not which item, not why
  * a plan failed, not that the add-on could not be asked.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PostingRefusedError, ValidationFailedError } from '../src/errors.js';
 import { typesCard } from '../src/routes/public/code-guesses.js';
 import { publicLedgerRefusal, publicPostings } from '../src/routes/public/ledger-refusals.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, GUEST, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 const no = (details: Record<string, unknown>) => new PostingRefusedError('no', details as never);
 

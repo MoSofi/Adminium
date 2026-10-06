@@ -49,24 +49,8 @@ export interface UnbuiltEntryRule {
 const columnsOf = (table: EffectiveTable): EffectiveTable['columns'] => (table.columns as EffectiveTable['columns'] | undefined) ?? [];
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // A posting hands rows to an add-on's ledger: written unposted, the ledger would be wrong for good.
-  { rule: 'postings', on: (table) => (table.postings?.length ?? 0) > 0 },
-  // A move only a ledger's own update makes: until that judge runs, anybody could make it.
-  {
-    rule: 'states.planned',
-    on: (table) => Object.values(table.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && (move as { planned?: unknown }).planned === true)),
-  },
   // A link into an add-on's table, and a typed code found there: a value kept unjudged may name no row.
   { rule: 'column.addOnLink', on: (table) => columnsOf(table).some((column) => column.addOnLink !== undefined || column.addOnLookup !== undefined) },
-  // A cap lifted for some rows: the parent that says so, and the child whose rows it judges.
-  {
-    rule: 'rollup.capUnless',
-    on: (table, model) =>
-      columnsOf(table).some((column) => column.rollup?.capUnless !== undefined) ||
-      (model?.tables ?? []).some((parent) => columnsOf(parent).some((column) => column.rollup?.capUnless !== undefined && column.rollup.from === table.id)),
-  },
-  // A change told after the save: a rule waiting on it would never run.
-  { rule: 'column.announce', on: (table) => columnsOf(table).some((column) => column.announce === true) },
   // A price rule: the order's table, and each child table whose rows are its lines, its codes or its refunds.
   // Written unpriced, an order would be saved at full price with a code on it and nobody told.
   {
@@ -103,12 +87,7 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   addOns: ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
-  // Ledgers and what posts into them.
-  'addOn.ledgers': ADD_ON_INSTALL_RELEASE,
-  'table.postings': ADD_ON_INSTALL_RELEASE,
-  'states.planned': ADD_ON_INSTALL_RELEASE,
-  'rollup.capUnless': ADD_ON_INSTALL_RELEASE,
-  'column.announce': ADD_ON_INSTALL_RELEASE,
+  // Two rules of a column judged as it is written.
   'column.plainText': ADD_ON_INSTALL_RELEASE,
   'column.customerKey': ADD_ON_INSTALL_RELEASE,
   'column.codeLast4': ADD_ON_INSTALL_RELEASE,
@@ -168,6 +147,13 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // An add-on's own outbox table and its email templates: sent by the sender that sends an app's.
   'outbox',
   'emailTemplates',
+  // A ledger an add-on keeps and the rules that hand rows to it: a save that crosses a rule's point writes the ledger's rows with it.
+  // With them: a move only a ledger's own change makes, a cap a row may lift, a total whose change is told after the save.
+  'addOn.ledgers',
+  'table.postings',
+  'states.planned',
+  'rollup.capUnless',
+  'column.announce',
 ];
 
 export interface UnbuiltWord {

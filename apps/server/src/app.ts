@@ -29,6 +29,7 @@ import { hashPassword } from './auth/passwords.js';
 import { SESSION_COOKIE } from './auth/sessions.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
+import { hideLedgerFigures } from './ledgers/tell.js';
 import { isWriteConflict, writeConflict } from './crud/db-errors.js';
 import { isPrivilegeRefusal, privilegeRefusal } from './connections/privileges.js';
 import { scrubUrlForLog } from './log-scrub.js';
@@ -449,6 +450,12 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // The request id is echoed on every response.
   app.addHook('onSend', async (request, reply) => {
     void reply.header('x-request-id', request.id);
+  });
+
+  // What a ledger's refusal says is left, and of what, is for somebody who may read the ledger's own rows:
+  // taken out for everybody else before any route's refusal is answered (`ledgers/tell.ts`).
+  app.addHook('onError', async (request, _reply, error) => {
+    await hideLedgerFigures(error, typeof request.can === 'function' ? (permission) => request.can(permission) : undefined);
   });
 
   // Global error envelope.

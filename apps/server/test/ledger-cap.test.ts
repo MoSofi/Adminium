@@ -9,17 +9,12 @@
  * row, by a posting, and in the answer of a quote — while the account beside
  * it stays capped.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { EffectiveTable } from '../src/connections/effective-schema.js';
 import { balancesOf } from '../src/crud/column-rules.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 /** `count` writes what it is told, and gives it back when the row is undone. */
 const TALLY = {

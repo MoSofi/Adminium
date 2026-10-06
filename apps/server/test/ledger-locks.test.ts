@@ -12,16 +12,11 @@
  * And how long a hold is kept for is written on its receipt, emptied when
  * the hold is taken for good or given back.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { RecordWriteService } from '../src/crud/write-service.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 const TALLY = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', action: 'count' }, map: { account: 'account_id', quantity: 'qty' }, post: { on: { create: true } }, reverse: { on: { column: 'status', in: ['void'] } }, heldUntil: 'hold_until' };
 const ASK = {

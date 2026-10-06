@@ -89,7 +89,7 @@ describe('whether a posting is live', () => {
     expect(answer.ledger).toMatchObject({ addOn: 'ledger-kit', version: '1.0.0', id: 'units', refusal: 'stock' });
     expect(answer.ledger.receipts.id).toBe('public.ledger_kit_postings');
     expect(answer.ledger.settings?.id).toBe('public.ledger_kit_settings');
-    expect([...answer.ledger.writes.keys()].sort()).toEqual(['public.ledger_kit_entries', 'public.ledger_kit_holds', 'public.ledger_kit_requests']);
+    expect([...answer.ledger.writes.keys()].sort()).toEqual(['public.ledger_kit_entries', 'public.ledger_kit_holds', 'public.ledger_kit_requests', 'public.ledger_kit_things']);
     expect(answer.ledger.writes.get('public.ledger_kit_holds')).toEqual({ insert: ['account_id', 'amount', 'state'], update: { by: ['id'], set: ['state'] } });
     expect(answer.ledger.table('accounts')?.id).toBe('public.ledger_kit_accounts');
     expect(answer.ledger.table('ghosts')).toBeNull();

@@ -186,7 +186,7 @@ export function checkOutput(input: CheckInput, output: PlannedOutput): CheckResu
     } else {
       if (scope.update === undefined) return fail('scope-table', `${at}: "${row.table}" takes no update`);
       if (Object.keys(row.key).sort().join(',') !== [...scope.update.by].sort().join(',')) return fail('scope-table', `${at}: a row of "${row.table}" is named by ${scope.update.by.join(', ')}`);
-      for (const column of given) if (!scope.update.set.includes(column)) return fail('scope-table', `${at}: "${row.table}.${column}" is not a column an update may set`);
+      for (const column of given) if (!scope.update.set.includes(column)) return fail('scope-table', `${at}: "${row.table}.${column}" is not a column a change may give`);
     }
 
     // 3. Nothing Adminium decides, and never the receipt's own link.
@@ -361,7 +361,18 @@ export interface PostedOutcome {
   family?: 'stock' | 'value' | undefined;
   /** What is left as a customer may be told it (the owner's own setting), on a quote that was refused. */
   publicLeft?: string | undefined;
+  /** The tables a refused quote's `left` and `item` were read from: told only to somebody who may read them all. */
+  readers?: LedgerReaders | undefined;
 }
+
+/** The tables a figure of a ledger's refusal was read from. */
+export interface LedgerReaders {
+  connectionId: string;
+  tables: readonly string[];
+}
+
+/** Where a refusal's figures come from, when it carries any: beside its details, never in them. */
+export const readersOf = (error: unknown): LedgerReaders | undefined => (error as { ledgerReaders?: LedgerReaders } | null | undefined)?.ledgerReaders;
 
 /** One phase of one rule of a table, named: what `post` runs for a stored row. */
 export interface OnePhase {
@@ -968,7 +979,8 @@ export function createLedgerWriter(kit: LedgerKit) {
           const details = (error.details ?? {}) as { reason?: string; line?: number; path?: (string | number)[]; left?: string; item?: string };
           const reason = details.reason ?? 'planner-failed';
           const shown = (error as { publicLeft?: unknown }).publicLeft;
-          outcomes.push(answer({ state: reason === 'add-on-unavailable' ? 'unavailable' : 'refused', reason, ...(details.line === undefined ? {} : { line: details.line }), ...(details.path === undefined ? {} : { path: details.path }), ...(details.left === undefined ? {} : { left: details.left }), ...(details.item === undefined ? {} : { item: details.item }) }, typeof shown === 'string' ? { publicLeft: shown } : {}));
+          const readers = readersOf(error);
+          outcomes.push(answer({ state: reason === 'add-on-unavailable' ? 'unavailable' : 'refused', reason, ...(details.line === undefined ? {} : { line: details.line }), ...(details.path === undefined ? {} : { path: details.path }), ...(details.left === undefined ? {} : { left: details.left }), ...(details.item === undefined ? {} : { item: details.item }) }, { ...(typeof shown === 'string' ? { publicLeft: shown } : {}), ...(readers === undefined ? {} : { readers }) }));
         }
         continue;
       }
@@ -986,6 +998,12 @@ export function createLedgerWriter(kit: LedgerKit) {
         const declared = ((ledgers.manifestOf(target.view.connectionId, ledger.addOn)?.addOn as { words?: unknown } | undefined)?.words ?? []) as { ledger: string; action: string; showLeftBelow?: { setting: string } }[];
         const shown = publicLeft(settings, declared.find((one) => one.ledger === ledger.id && one.action === posting.into.action), left, 'low');
         if (shown !== undefined) Object.defineProperty(error, 'publicLeft', { value: shown, enumerable: false });
+        // What is left, and of what, is read from the rows the action stands on: told to whoever may read those tables.
+        // (Every table it reads or stands on: a figure may come from any of them. One that cannot be found here leaves nobody to tell.)
+        const named = [...new Set([...call.action.locks.map((lock) => lock.table), ...call.action.reads.map((read) => read.table)])];
+        const found = named.map((ref) => ledger.table(ref)?.id);
+        const tables = found.every((id): id is string => id !== undefined) ? found : [];
+        Object.defineProperty(error, 'ledgerReaders', { value: { connectionId: target.view.connectionId, tables } satisfies LedgerReaders, enumerable: false, configurable: true });
         return error;
       };
       const answer = (quote: NonNullable<PostedOutcome['quote']>, more: Partial<PostedOutcome> = {}): PostedOutcome => ({
@@ -1819,6 +1837,9 @@ export interface PostingAnswer {
   line?: number;
   path?: (string | number)[];
   notes?: { line: number; note: string }[];
+  /** What is left and of what, on a refused quote — only for somebody who may read the ledger's rows (`ledgers/tell.ts`). */
+  left?: string;
+  item?: string;
 }
 
 /**

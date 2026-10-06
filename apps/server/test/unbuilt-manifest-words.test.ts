@@ -88,12 +88,12 @@ describe('a word this server does not run yet', () => {
     expect(installed.statusCode, installed.body).toBe(200);
   });
 
-  it('an add-on with public entries of its own is refused at its install, and makes no table', async () => {
+  it('an add-on whose pages are built on the data kit, which this server does not hand out yet, is refused at its install, and makes no table', async () => {
     const h = (openAddOns = await addOnHarness('sqlite'));
-    await h.stageAddOn({ ...KIT, publicAccess: [{ table: 'items', methods: ['GET'], fields: ['id', 'name'] }] }, { bundled: true });
+    await h.stageAddOn({ ...KIT, addOn: { ...(KIT['addOn'] as Doc), hostApi: 2 } }, { bundled: true });
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'kit', version: '1.0.0', attachTo: [] } });
     expect(installed.statusCode, installed.body).toBe(422);
-    expect(installed.body).toContain('uses \\"publicAccess\\", which Adminium 0.3.18 runs');
+    expect(installed.body).toContain('uses \\"addOn.hostApi.2\\", which Adminium 0.3.18 runs');
     expect((await h.tableNames()).filter((name) => name.includes('items'))).toEqual([]);
   });
 

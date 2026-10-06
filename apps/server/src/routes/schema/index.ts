@@ -35,7 +35,8 @@ import {
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { outboxWrittenColumns } from '../../outbox/moves.js';
 import { shareCodesOn } from '../../public-api/share-codes.js';
-import { adjustRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
+import { LEDGER_RULE_OPS } from '../../ledgers/rules.js';
 import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -236,7 +237,20 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
     } as const;
     const putOverridesHandler = async (request: FastifyRequest) => {
       const connectionId = (request.params as { id: string }).id;
-      const body = request.body as OverridesPutBody;
+      /*
+       * THE RULES THAT HAND ROWS TO A LEDGER ARE NOT THIS DOCUMENT'S TO CHANGE.
+       *
+       * A table may hold two rows of its postings at once — the app's and the
+       * owner's — and both run. This document names a rule by its op, table
+       * and column, so it can carry only one of the two; saved whole, it would
+       * drop the other and hand the survivor the first one's origin. Those
+       * rules also have guards of their own (a rule rows still hold under
+       * keeps its shape; an app's is switched, never changed) that a save of
+       * everything at once would walk past. So whatever the body says of
+       * them is set aside, and the stored rows are kept exactly as they are:
+       * they change through their own routes, and through an install.
+       */
+      const body: OverridesPutBody = { overrides: (request.body as OverridesPutBody).overrides.filter((item) => !LEDGER_RULE_OPS.has(item.op)) };
       const snapshot = await mustLatest(connectionId);
       const model = snapshot.schema as DatabaseModel;
       const tables = new Map(model.tables.map((t) => [t.id, t]));
@@ -339,14 +353,6 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.booking') {
           const issue = bookingRuleIssue(item.value, table, model);
-          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
-        }
-        if (item.op === 'table.postings') {
-          const issue = postingsRuleIssue(item.value, table, model);
-          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
-        }
-        if (item.op === 'table.adjust') {
-          const issue = adjustRuleIssue(item.value, table, model);
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'table.states') {
@@ -506,9 +512,8 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         queue.push({ origin: row.origin, llmRunId: row.llmRunId });
         provenance.set(key, queue);
       }
-      const rows = await overrides.replaceForConnection(
-        connectionId,
-        body.overrides.map((item) => {
+      const rows = await overrides.replaceForConnection(connectionId, [
+        ...body.overrides.map((item) => {
           const kept = provenance.get(`${item.op}|${item.tableName}|${item.columnName ?? ''}`)?.shift();
           return {
             op: item.op,
@@ -519,7 +524,11 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
             ...(kept === undefined ? {} : { origin: kept.origin, llmRunId: kept.llmRunId }),
           };
         }),
-      );
+        // The ledger rules, row for row as they were stored: whose each is, on or off, and by whom.
+        ...before
+          .filter((row) => LEDGER_RULE_OPS.has(row.op))
+          .map((row) => ({ op: row.op, tableName: row.tableName, columnName: null, value: row.value, status: row.status, origin: row.origin, llmRunId: row.llmRunId, createdBy: row.createdBy })),
+      ]);
       await app.rbac.audit(request, {
         category: 'schema',
         action: 'schema.overrides.replace',

@@ -100,6 +100,13 @@ const DESCRIPTIONS = {
   invoices:
     'Invoice templates and invoices — the documents, their language variations, the starters, ' +
     'duplicates, and building an invoice from a template',
+  ledgers:
+    'The rules that hand rows to an add-on\'s ledger (stock, gift cards) — which tables post into it, ' +
+    'whether each rule runs, how many rows hold something under it and how many saves wait to be ' +
+    'worked out; the tables and columns a new rule may be drawn from; making the ledger\'s items ' +
+    'from a table\'s rows; and recording the saves let through while the add-on could not be asked. ' +
+    'Reading needs a session and the connection; the two runs need the grant that changes what a ' +
+    'table\'s columns mean. A rule itself is stored under /connections/:id/tables/:table/postings.',
   jobs: 'Background jobs — enqueue, poll, cancel',
   llm: 'LLM assist — provider config, runs, prompts, diffs, apply, undo',
   me: 'The signed-in user — profile, preferences, notifications, saved layouts',

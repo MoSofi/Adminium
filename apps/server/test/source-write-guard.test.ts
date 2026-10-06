@@ -27,6 +27,8 @@ const ALLOWED: Record<string, string> = {
     "a buyer's replaced hold: its end brought forward inside the new hold's own write, so it stops counting as a lapsed hold does; the move a lapse makes follows as an ordinary write",
   'crud/capacity/judge.ts':
     "a waitlist claim's release (`reserved.releaseTo`): the kept places it took move to their released state inside the claim's own write, under the pool's lock the judge holds — their state column only, with no audit row or live frame of their own",
+  'schema-ddl/rename-repair.ts':
+    "a renamed table's stored name, rewritten in the columns that keep one (a receipt's source and line): Adminium's own mend of its own text, on rows no rule of the table may refuse or decide",
   'apps/sample-data.ts':
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service",
 };

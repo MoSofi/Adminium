@@ -1285,9 +1285,34 @@ export function postingsRuleIssue(raw: unknown, table: TableModel, model: Databa
       if (column !== undefined && !has(table, column)) return `${named} reads ${JSON.stringify(column)}, which is not a column of ${table.name}.`;
     }
     for (const refusal of posting.refuses ?? []) {
+      if ((refusal.table === undefined) !== (refusal.via === undefined)) return `${named} names lines of another table by that table and its link to the same parent: both, or neither.`;
+      if (posting.via === undefined) return `${named} is refused by a sibling line, and its rows are lines of nothing (no via).`;
       const sibling = refusal.table === undefined ? table : model.tables.find((candidate) => candidate.id === refusal.table);
       if (sibling === undefined) return `${named} names the table ${JSON.stringify(refusal.table)}, which is not in this database.`;
       if (!has(sibling, refusal.column)) return `${named} reads ${JSON.stringify(refusal.column)}, which is not a column of ${sibling.name}.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Two tables of lines under one parent that each carry a posting of the same
+ * id: a receipt names the parent row, the line and the rule, never the lines'
+ * table, so a line of one would be taken for a line of the other. Names the
+ * two, or `null`.
+ */
+export function viaPostingClash(rows: readonly { tableName: string; value: unknown }[], model: DatabaseModel): string | null {
+  const seen = new Map<string, string>();
+  for (const row of rows) {
+    const postings = (row.value as { postings?: { id?: unknown; via?: unknown }[] } | null)?.postings ?? [];
+    for (const posting of postings) {
+      if (typeof posting.id !== 'string' || typeof posting.via !== 'string') continue;
+      const link = model.relations.find((r) => r.through === null && r.from.tableId === row.tableName && r.from.columns.length === 1 && r.from.columns[0] === posting.via);
+      if (link === undefined) continue;
+      const key = `${link.to.tableId}\u0000${posting.id}`;
+      const other = seen.get(key);
+      if (other !== undefined && other !== row.tableName) return `${other} and ${row.tableName} each have a posting ${JSON.stringify(posting.id)} for lines of ${link.to.tableId}: give the two different ids.`;
+      seen.set(key, row.tableName);
     }
   }
   return null;

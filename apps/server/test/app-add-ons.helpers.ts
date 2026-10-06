@@ -139,6 +139,8 @@ export interface Harness {
   owner: User;
   connectionId: string;
   addOnStore: AddOnStore;
+  /** Where the packages are kept: a server composed over this harness reads the same store. */
+  dataDir: string;
   bundledDir: string;
   /** How many times a route asked for the add-on runtime to be rebuilt. */
   rebuilds: () => number;
@@ -364,6 +366,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     owner,
     connectionId: connection.id,
     addOnStore,
+    dataDir,
     bundledDir,
     rebuilds: () => rebuilds,
     failNextTables: () => {

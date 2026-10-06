@@ -10,15 +10,10 @@
  * line made after the order's lines were already held is held in the save
  * that makes it.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, GUEST, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
-
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
 
 /** Held when the line is made, taken when the order is picked up, given back when it is cancelled. */
 const LINE = {

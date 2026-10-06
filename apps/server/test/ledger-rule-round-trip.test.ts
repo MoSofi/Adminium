@@ -12,7 +12,7 @@ import { validateOverrideInput, type SchemaOverride } from '@adminium/meta';
 import { describe, expect, it } from 'vitest';
 
 import { isAddOnTable, mapTableRefs } from '../src/apps/real-refs.js';
-import { columnRuleIssue, postingsRuleIssue } from '../src/connections/column-rules-validation.js';
+import { columnRuleIssue, postingsRuleIssue, viaPostingClash } from '../src/connections/column-rules-validation.js';
 import { applyOverrides, type EffectiveModel } from '../src/connections/effective-schema.js';
 import { ruleDecidedColumns } from '../src/crud/decided-columns.js';
 import { renamedInRule } from '../src/schema-ddl/rename-repair.js';
@@ -133,6 +133,30 @@ describe('a posting', () => {
     expect(postingsRuleIssue({ postings: [{ ...value.postings[0], heldUntil: { parent: 'gone' } }] }, table, lines)).toContain('"gone", which is not a column of ledger_host_orders');
     expect(postingsRuleIssue({ postings: [{ ...value.postings[0], via: 'qty' }] }, table, lines)).toContain('links ledger_host_order_lines to no table');
     expect(postingsRuleIssue({ postings: [{ ...value.postings[0], colour: 'red' }] }, table, lines)).toContain('not spelled as Adminium stores them');
+    // A sibling table is named with its link to the same parent, and only by a rule whose rows are lines.
+    const pays = lines.tables.find((candidate) => candidate.name === 'ledger_host_pays')!.id;
+    expect(postingsRuleIssue({ postings: [{ ...value.postings[0], refuses: [{ table: pays, column: 'gift_ref', set: true }] }] }, table, lines)).toContain('both, or neither');
+    expect(postingsRuleIssue({ postings: [{ ...value.postings[0], refuses: [{ via: 'order_id', column: 'gift_ref', set: true }] }] }, table, lines)).toContain('both, or neither');
+    const { via: _via, ...whole } = value.postings[0] as Doc & { via?: unknown };
+    expect(postingsRuleIssue({ postings: [{ ...whole, heldUntil: undefined, refuses: [{ column: 'gift_ref', set: true }] }] }, table, lines)).toContain('lines of nothing');
+  });
+
+  it('two tables of lines under one parent may not share a rule\'s id', () => {
+    const lines = modelOf(hostTables, 'ledger_host_');
+    const id = (name: string) => lines.tables.find((candidate) => candidate.name === name)!.id;
+    const rule = (posting: string, via: string | undefined) => ({ postings: [{ id: posting, ...(via === undefined ? {} : { via }) }] });
+    const rows = (second: string, via: string | null = 'order_id') => [
+      { tableName: id('ledger_host_order_lines'), value: rule('line', 'order_id') },
+      { tableName: id('ledger_host_pays'), value: rule(second, via ?? undefined) },
+    ];
+    expect(viaPostingClash(rows('line'), lines)).toContain('each have a posting "line" for lines of');
+    expect(viaPostingClash(rows('pay'), lines)).toBeNull();
+    // The same id on a rule that is no line of that parent is nobody's twin; nor is a table's own second row.
+    expect(viaPostingClash(rows('line', null), lines)).toBeNull();
+    expect(viaPostingClash([rows('line')[0]!, rows('line')[0]!], lines)).toBeNull();
+    // Payments that hang under another table are lines of another parent: the same id is no clash.
+    const elsewhere = { ...lines, relations: lines.relations.map((relation) => (relation.from.tableId === id('ledger_host_pays') ? { ...relation, to: { ...relation.to, tableId: id('ledger_host_visits') } } : relation)) };
+    expect(viaPostingClash(rows('line'), elsewhere)).toBeNull();
   });
 });
 

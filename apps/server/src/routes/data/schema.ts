@@ -210,6 +210,9 @@ export const postingAnswerSchema = z.object({
   line: z.number().int().min(0).optional(),
   path: z.array(z.union([z.string(), z.number()])).optional(),
   notes: z.array(z.object({ line: z.number().int().min(0), note: z.string() })).optional(),
+  /** On a refused quote, for a caller who may read the ledger's own rows: how much is left, and of what. */
+  left: z.string().optional(),
+  item: z.string().optional(),
 });
 
 export const recordDryRunReply = z.object({

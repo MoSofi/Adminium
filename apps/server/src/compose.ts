@@ -245,6 +245,7 @@ import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
+import { ledgerRoutes } from './routes/ledgers/index.js';
 import { optionListsRoutes } from './routes/option-lists/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
@@ -1678,6 +1679,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // beside the schema routes because a list and the rule that names it are
       // edited with the same grant.
       await api.register(optionListsRoutes({ meta }));
+      // The rules that hand rows to an add-on's ledger: read by its rules page, drawn and switched by the owner.
+      await api.register(ledgerRoutes({ manager, meta, ledgers, writes: recordWrites }));
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );

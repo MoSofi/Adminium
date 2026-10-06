@@ -10,7 +10,7 @@
  * Sample rows are brought in as history: adding them writes no receipt.
  */
 import { snapshotsRepo } from '@adminium/meta';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { createSampleDataService, findSampleOwner } from '../src/apps/sample-data.js';
 import { loadAddOnInstalls } from '../src/apps/table-ref.js';
@@ -19,11 +19,6 @@ import { ledgerKitFiles, ledgerKitManifest } from './fixtures/ledger-kit/index.j
 import { LEGS } from './invoicing-install.helpers.js';
 
 // The server refuses a table with a ledger's rules until every door knows them; this file is about the sample rows.
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
-
 let h: Harness | null = null;
 afterEach(async () => {
   await h?.close();

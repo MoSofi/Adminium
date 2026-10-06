@@ -9,7 +9,7 @@
  * must be one the table lists from where the row is — whoever is saving —
  * and a move the table keeps for its ledger alone is made by nothing else.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PlanFailed } from '../src/crud/ledger-write.js';
 import type { WriteContext } from '../src/crud/write-context.js';
@@ -17,11 +17,6 @@ import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, GUEST, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
 
 // The server refuses a table with a posting until every door knows postings; this file is the write path's own proof.
-vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
-  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
-  refuseUnbuiltTable: () => undefined,
-}));
-
 const TALLY = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', action: 'count' }, map: { account: 'account_id', quantity: 'qty' }, post: { on: { create: true } } };
 const ASK = {
   id: 'ask',
