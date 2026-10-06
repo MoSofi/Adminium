@@ -73,6 +73,7 @@ import { rehashSampleRow } from '../apps/sample-data.js';
 import { heldDue } from '../crud/ledger-receipts.js';
 import type { PostedOutcome } from '../crud/ledger-write.js';
 import type { LedgerRuntime } from '../ledgers/registry.js';
+import { tellPostings } from '../ledgers/announce.js';
 import { announceEffects } from './effects.js';
 
 export const TIMED_MOVES_SCHEDULE_NAME = 'app-timed-moves';
@@ -473,6 +474,8 @@ async function moveOne(deps: TimedMovesDeps, writes: RecordWriteService, one: Du
         origin: 'automation',
       });
       await announceEffects(deps.app, { connectionId: target.connectionId, view: target.view, effects: moved.effects, origin: 'automation', actor: ACTOR });
+      // What the move handed to a ledger (a hold let go as the order lapsed).
+      await tellPostings(deps.app, { connectionId: target.connectionId, view: target.view, postings: moved.postings, origin: 'automation', actor: ACTOR });
     },
   });
   if (outcome.count === 0) return false;

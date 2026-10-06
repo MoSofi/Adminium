@@ -88,6 +88,7 @@ import {
 } from './add-ons/runtime.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
+import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
 import { onMappingRulesChanged, syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
@@ -970,6 +971,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       });
     },
   });
+  // What a posting did, told after its save: from every door, through the one place that knows who listens.
+  app.decorate('ledgerPostings', (input: PostingsTold) => announcePostings(app, { ...input, watches: (connectionId, tableId) => ledgers.watches(connectionId, tableId), manager, meta }));
   const recordWrites = createWriteService({
     ledgers,
     // An app's outbox table takes only the moves a person may make: a sent message is never queued again.
@@ -1367,7 +1370,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     { jitterMs: AUTOMATION_WATCH_JITTER_MS },
   );
   // The moves an app's states make by themselves once a moment has passed: one job per connection a minute.
-  const timedMoves = { meta, manager, app, writes: recordWrites, log: app.log, ledgers };
+  const timedMoves = {
+    meta,
+    manager,
+    app,
+    writes: recordWrites,
+    log: app.log,
+    ledgers,
+    // A hold let go by the clock is told as any posting is.
+    released: (input: Pick<PostingsTold, 'connectionId' | 'view'> & { postings: NonNullable<PostingsTold['postings']> }) =>
+      tellPostings(app, { connectionId: input.connectionId, view: input.view, postings: input.postings, origin: 'automation', actor: { id: null, label: 'Timed move', kind: 'system' } }),
+  };
   registerTimedMovesHandler(jobs.registry, timedMoves);
   jobs.scheduler.registerSchedule(
     TIMED_MOVES_SCHEDULE_NAME,

@@ -337,6 +337,14 @@ export interface PostedOutcome {
   version: string;
   state: 'planned' | 'unplanned';
   source: { table: string; row: string };
+  /** The source row itself: its table here and its key. */
+  record?: { table: ResolvedTable; pk: Row } | undefined;
+  /**
+   * The rows whose announced figures the call's settle moved (an item that
+   * turned low): each with the announced columns as they were before. Told
+   * after the save, as a change of the row nobody made by hand.
+   */
+  announced?: { table: ResolvedTable; pk: Row; was: Row; changed: string[] }[] | undefined;
   /** The lines this call wrote a receipt for (`''`: the source row itself). */
   lines: string[];
   notes: { line: string; note: string; item?: string | undefined }[];
@@ -1035,7 +1043,11 @@ export function createLedgerWriter(kit: LedgerKit) {
           if (open !== null && open.heldUntil !== null) await kit.updateRaw(receiptsTarget, { held_until: null }, { [receiptKey(ledger)]: open.id });
         }
       };
-      const outcome: PostedOutcome = { addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: due[0]!.round.round, rows: 0, version: ledger.version, state: 'planned', source, lines: [], notes: [], written: [], decided: [] };
+      const outcome: PostedOutcome = {
+        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: due[0]!.round.round, rows: 0, version: ledger.version, state: 'planned', source,
+        record: { table: gathered.source.table, pk: Object.fromEntries(gathered.source.table.primaryKey.map((column) => [column, gathered.source.row[column]])) },
+        lines: [], notes: [], written: [], decided: [],
+      };
       const position = (key: string): number => gathered.lines.findIndex((line) => line.key === key);
 
       // A round nobody planned wrote nothing: giving it back writes nothing either, and nobody is asked.
@@ -1285,6 +1297,24 @@ export function createLedgerWriter(kit: LedgerKit) {
         if (after !== null) env.decided?.(entry.line, after);
       }
       const settleStarts = writtenRows.splice(0).flatMap((item) => kit.starts(item.rules, [{ record: item.record, before: item.before }]));
+      // The rows the settle is about to move whose table announces a figure: read as they stand, to tell afterwards which figure moved.
+      const watchedParents: { table: ResolvedTable; pk: Row; columns: string[]; was: Row }[] = [];
+      for (const start of settleStarts) {
+        let parent: ResolvedTable;
+        try {
+          parent = target.view.table(start.rollup.parent);
+        } catch {
+          continue;
+        }
+        const columns = (parent.table?.columns ?? []).filter((column) => column.announce === true).map((column) => column.name);
+        if (columns.length === 0) continue;
+        for (const key of start.keys) {
+          const pk = { [start.rollup.parentKey]: key };
+          if (watchedParents.some((seen) => seen.table.id === parent.id && String(seen.pk[start.rollup.parentKey]) === String(key))) continue;
+          const stands = await kit.fetch({ ...within, table: parent }, pk);
+          if (stands !== undefined) watchedParents.push({ table: parent, pk, columns, was: Object.fromEntries(columns.map((column) => [column, stands[column]])) });
+        }
+      }
       try {
         // One settle a call: each total once, each cap judged once against what was held.
         await kit.settle(within, settleStarts, balances);
@@ -1293,6 +1323,11 @@ export function createLedgerWriter(kit: LedgerKit) {
           throw refused(ledger.refusal === 'stock' ? 'out-of-stock' : 'over-limit', call, phase === 'reverse' ? { phase: 'reverse' } : {});
         }
         throw error;
+      }
+      for (const parent of watchedParents) {
+        const now = await kit.fetch({ ...within, table: parent.table }, parent.pk);
+        const changed = now === undefined ? [] : parent.columns.filter((column) => !unchanged(parent.was[column], now[column]));
+        if (changed.length > 0) (outcome.announced ??= []).push({ table: parent.table, pk: parent.pk, was: parent.was, changed });
       }
       outcome.rows = plan.rows.length;
       return outcome;

@@ -68,7 +68,9 @@ function withOwnRules(table: Table): Table {
     };
   }
   if (table.ref === 'accounts') {
-    return withColumns(table, (column) => column, [
+    // The flag reads the total, not the balance: a formula is worked out before the balances are, so one that read `balance` would see the one before this write.
+    const low = { if: [{ lte: [{ sub: ['opening', 'taken'] }, 'reorder_at'] }, 1, 0] };
+    return withColumns(table, (column) => (column['ref'] === 'low' ? { ...column, rules: { ...(column['rules'] as Doc), formula: low } } : column), [
       { ref: 'held', type: 'decimal', scale: 3, default: 0, rules: { rollup: { from: 'holds', via: 'account_id', sum: 'amount', where: { column: 'state', eq: 'held' } } } },
       { ref: 'max_holds', type: 'int', default: 100 },
     ]);

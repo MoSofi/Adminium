@@ -85,7 +85,12 @@ export interface RecordWriteEvent {
    * deleted their details; `undo` — a person took their own change back
    * (heard by an app's "these columns changed" emails alone).
    */
-  cause?: 'forget' | 'undo' | undefined;
+  /**
+   * `settled`: nobody changed the row — a figure of it that the app announces
+   * moved because rows under it were written (an item turned low). It has no
+   * key of its own to be heard once by: each such change is one event.
+   */
+  cause?: 'forget' | 'undo' | 'settled' | undefined;
 }
 
 /** What a rule dispatcher must offer; decorated by `automations/plugin.ts`. */

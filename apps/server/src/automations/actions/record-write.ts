@@ -51,6 +51,7 @@ import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 import { announceEffects } from '../../states/effects.js';
+import { tellPostings } from '../../ledgers/announce.js';
 
 type CreateAction = Extract<AutomationAction, { kind: 'record.create' }>;
 type UpdateAction = Extract<AutomationAction, { kind: 'record.update' }>;
@@ -229,6 +230,8 @@ export async function runUpdateAction(
             ruleId: ctx.rule.id,
             hops: ctx.hops + 1,
           });
+          // What the step handed to a ledger, told as the rule's doing too.
+          await tellPostings(ctx.app, { connectionId: ctx.source.connectionId, view: source.view, postings: outcome.postings, origin: 'automation', actor: { id: ctx.rule.id, label: ctx.rule.name }, ruleId: ctx.rule.id, hops: ctx.hops + 1 });
         }
       },
     }),

@@ -32,6 +32,7 @@ import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { FileReconciler } from '../../files/reconcile.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import { announceEffects } from '../../states/effects.js';
+import { tellPostings } from '../../ledgers/announce.js';
 import type { AnyRecord, ListOptions, ProjectDb, ProjectTable, RawDatabase, RecordId } from './define.js';
 
 export const DEFAULT_LIST_LIMIT = 100;
@@ -225,7 +226,10 @@ export function createProjectDb(deps: ProjectDbDeps, scope: ProjectDbScope): Pro
           target: resolved.target,
           values: valuesFor(resolved, values),
           context: scope.context,
-          announce: (stored) => announce(resolved, 'create', stored, null, stored),
+          announce: async (stored, _values, posted) => {
+            await announce(resolved, 'create', stored, null, stored);
+            await tellPostings(deps.app, { connectionId: resolved.connection.id, view: resolved.view, postings: posted, origin, ...attribution(scope.context), hops: scope.context.hops });
+          },
         });
         return row as R;
       },
@@ -242,8 +246,9 @@ export function createProjectDb(deps: ProjectDbDeps, scope: ProjectDbScope): Pro
           values: valuesFor(resolved, values),
           before,
           context: scope.context,
-          announce: async ({ after, effects }) => {
+          announce: async ({ after, effects, postings }) => {
             await announce(resolved, 'update', before, before, after ?? before);
+            await tellPostings(deps.app, { connectionId: resolved.connection.id, view: resolved.view, postings, origin, ...attribution(scope.context), hops: scope.context.hops });
             // The rows this move moved too, as changes of their own made by the same code.
             await announceEffects(deps.app, {
               connectionId: resolved.connection.id,

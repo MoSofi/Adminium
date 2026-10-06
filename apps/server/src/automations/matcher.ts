@@ -307,6 +307,8 @@ export function occurrenceKeyFor(
     return recordOccurrenceKey({ ruleId, table: event.table, pk });
   }
   if (event.action === 'update') {
+    // A figure moved by rows written under the row: no stamp of the row moved with it, so nothing tells this change from the last. Each is one occurrence.
+    if (event.cause === 'settled') return null;
     const stampColumn = changeStampColumn(event.table);
     // No `updated_at` means nothing distinguishes this update from the next,
     // and nothing else can produce it either (the poller cannot watch such a

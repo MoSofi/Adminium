@@ -70,6 +70,8 @@ import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWi
 import { publicWindows, withPublicWindows } from '../../public-api/moment-windows.js';
 import { timedRefusal } from '../../public-api/timed-refusals.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
+import { tellPostings } from '../../ledgers/announce.js';
+import type { PostedOutcome } from '../../crud/ledger-write.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -2983,8 +2985,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         let inserted: Row;
         const context = await publicWriteContext(request, ok);
         try {
-          const create = (on: WriteTarget, announce: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) =>
-            writes.create({
+          const create = (on: WriteTarget, told: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) => {
+            // The row's own announcement, then what it handed to a ledger.
+            const announce = async (row: Row, _values: Row, posted?: readonly PostedOutcome[]): Promise<void> => {
+              await told(row);
+              await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: posted, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
+            };
+            return writes.create({
               target: on,
               values,
               context,
@@ -3000,6 +3007,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               mapError: refuseWriteThrough(found.resource, 'create'),
               announce,
             });
+          };
           /*
            * Text no engine keeps alike is refused before a child's references
            * are looked up with it — the write service refuses it too, but only
@@ -3050,6 +3058,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               });
               inserted = outcome.root;
               if (made !== null) await announceCreate(made);
+              await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: outcome.postings, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
             } else {
             // The write service's own transaction: it holds a series without gaps before it opens.
             inserted = await writes.transaction(target, [values], async (tdb) => {
@@ -3390,7 +3399,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                     throw new PublicPriceChanged({ total: total === null ? null : ratioText(total, places) });
                   },
                 }),
-            announce: async ({ before, after, effects }) => {
+            announce: async ({ before, after, effects, postings }) => {
               await auditWrite(
                 request,
                 ok,
@@ -3427,6 +3436,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               });
               // The rows a guest's move moved too (a stay's room), as changes of their own.
               await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
+              // And what the change handed to a ledger.
+              await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
             },
           });
         } catch (error) {
