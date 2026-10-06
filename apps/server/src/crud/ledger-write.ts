@@ -428,6 +428,7 @@ const REFUSAL_WORDS: Readonly<Record<string, string>> = {
   'mapped-changed': 'What this row handed to the add-on is still open: put it back first, then change it.',
   'receipt-open': 'What this row handed to the add-on is still open: put it back first.',
   'card-pays-card': 'This cannot be paid for this way.',
+  'one-at-a-time': 'This is saved one row at a time: it hands something to an add-on.',
   hooked: 'Project code changes a table the add-on keeps, so nothing can be posted to it inside a save.',
   guarded: 'A table the add-on keeps takes a lock of its own, so nothing can be posted to it inside a save.',
   'out-of-stock': 'There is not enough left.',
@@ -1415,6 +1416,122 @@ export function createLedgerWriter(kit: LedgerKit) {
     }
   }
 
+  /** The columns of a table whose change can matter to a posting: a point's own, and what an open round froze. */
+  function watchedColumns(target: WriteTarget, rules: TableRules | null): Set<string> {
+    const out = new Set<string>();
+    const scope = postingScope(rules);
+    if (scope === null) return out;
+    const points = (posting: DeclaredPosting, own: boolean): void => {
+      for (const phase of ['reserve', 'post', 'reverse'] as const) {
+        const point = posting[phase]?.on;
+        if (point === undefined || 'create' in point || ownPoint(point) !== own) continue;
+        const column = 'to' in point ? rules?.states?.column : point.column;
+        if (column !== undefined) out.add(column);
+      }
+    };
+    for (const posting of scope.postings) {
+      points(posting, false);
+      points(posting, true);
+      for (const column of frozenColumns(posting).row) out.add(column);
+    }
+    for (const posting of scope.asLine) {
+      points(posting, true);
+      for (const column of frozenColumns(posting).row) out.add(column);
+    }
+    for (const line of scope.linePostings) {
+      points(line.posting, false);
+      for (const column of frozenColumns(line.posting).parent) out.add(column);
+    }
+    void target;
+    return out;
+  }
+
+  /**
+   * A DOOR THAT WRITES MANY ROWS AT ONCE CANNOT POST — a bulk edit, an undo,
+   * a form's child rows, a batch, an import's change of a stored row, a row
+   * moved by another row's effect. Each row of such a write is looked at on
+   * the pool before anything is written: a create that would hand something
+   * over, a change that crosses a point or touches what an open round froze,
+   * a delete of a row with an open round — refused, to be made one row at a
+   * time. Answers a row's own issue for an import (the import goes on);
+   * throws for every other door. `history`: rows brought in as they were (an
+   * import's creates, sample rows) hand nothing over and are never refused.
+   */
+  async function refuseBatch(input: {
+    target: WriteTarget;
+    rules: TableRules | null;
+    action: 'create' | 'update' | 'delete';
+    context: WriteContext;
+    rows: readonly { values: Row; match?: Row | undefined; record?: Row | null | undefined }[];
+    history?: boolean | undefined;
+    /** Said of the refusal, for a row moved by an effect. */
+    effect?: string | undefined;
+  }): Promise<(Record<string, { code: string }> | null)[]> {
+    const { target, rules, action } = input;
+    const none = input.rows.map(() => null);
+    if (postingScope(rules) === null || (await watched(target, rules)) === null) return none;
+    if (action === 'create' && input.history === true) return none;
+    const columns = watchedColumns(target, rules);
+    const out: (Record<string, { code: string }> | null)[] = [];
+    const stop = (posting: string | undefined, column?: string): Record<string, { code: string }> => {
+      // An import refuses the row and goes on; every other door refuses the write.
+      if (input.context.origin === 'import') return { [column ?? 'row']: { code: 'one-at-a-time' } };
+      throw new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', ...(posting === undefined ? {} : { posting }), ...(input.effect === undefined ? {} : { table: input.effect }) });
+    };
+    /** Whether a write of a row, as a single save, would hand anything over. */
+    const fires = async (before: Row | null, after: Row): Promise<string | null> => {
+      let calls: PostingCall[];
+      try {
+        calls = callsFor({ target, rules, action: action === 'create' ? 'create' : 'update', before, after });
+      } catch (error) {
+        if (error instanceof PostingRefusedError) return String((error.details as { posting?: string } | undefined)?.posting ?? '');
+        throw error;
+      }
+      for (const call of calls) {
+        if (call.late !== true) return call.posting.id;
+        // A line that would join a round its siblings reached.
+        const gathered = await gather(target.db, call, target, after, false);
+        if (gathered === null || gathered.source.key === '') continue;
+        const receipts = await receiptsOfSource(target.db, call.ledger, { table: gathered.source.ref, row: gathered.source.key });
+        if (gathered.lines.some((line) => phaseDue(roundOf(receipts, call.posting.id, line.key, line.ref), call.phase) && reached(receipts, call, line.key, line.ref))) return call.posting.id;
+      }
+      return null;
+    };
+    for (const row of input.rows) {
+      if (action === 'create') {
+        const posting = await fires(null, row.values);
+        out.push(posting === null ? null : stop(posting));
+        continue;
+      }
+      // The stored row is read only when the write can matter to a posting.
+      if (action === 'update' && !Object.keys(row.values).some((column) => columns.has(column))) {
+        out.push(null);
+        continue;
+      }
+      const stored = row.record !== undefined ? row.record : row.match === undefined ? null : ((await kit.fetch(target, row.match)) ?? null);
+      if (stored === null) {
+        out.push(null);
+        continue;
+      }
+      if (action === 'update') {
+        const posting = await fires(stored, { ...stored, ...row.values });
+        if (posting !== null) {
+          out.push(stop(posting));
+          continue;
+        }
+      }
+      try {
+        await guard(target.db, { target, rules, action, stood: stored, values: row.values });
+        out.push(null);
+      } catch (error) {
+        if (!(error instanceof PostingRefusedError)) throw error;
+        const details = (error.details ?? {}) as { posting?: string; column?: string };
+        out.push(stop(details.posting, details.column));
+      }
+    }
+    return out;
+  }
+
   /**
    * Runs a step of a save and, when a ledger refused it for a fault somebody
    * can act on, leaves one audit row saying which check failed — after the
@@ -1446,7 +1563,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     }
   }
 
-  return { watched, peek, postStep, quoteStep, treePeek, treeStep, treeQuote, guard, holdParents, audited };
+  return { watched, refuseBatch, peek, postStep, quoteStep, treePeek, treeStep, treeQuote, guard, holdParents, audited };
 }
 
 const isLabel = (value: unknown): value is { '@row': string } => typeof value === 'object' && value !== null && '@row' in value;

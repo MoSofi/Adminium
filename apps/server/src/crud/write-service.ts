@@ -85,7 +85,7 @@ import type { TablePrivileges } from '@adminium/engine/adapter';
 
 import { isChangeEffect, rollupValue, type MoveEffect } from '@adminium/manifest';
 
-import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
+import { AppError, ConflictError, ValidationFailedError, PostingRefusedError } from '../errors.js';
 import type { StateLink } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
@@ -2082,6 +2082,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const pk = { [link.key]: key };
     const before = (await fetchByPk(db, moved.table, pk)) ?? null;
     if (before === null) return null;
+    // A row moved by another row's move posts nothing: a move that would is made on its own.
+    await ledgerWriter.refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values: { [column]: state }, record: before }], effect: moved.table.name });
     const zone = await zoneFor(rules, moved);
     let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
     values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
@@ -3070,12 +3072,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (action !== 'delete') refuseUnbuiltTable(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
+      // Rows written through the statements post nothing: one that would hand something to a ledger is refused here, by name.
+      const unposted = await ledgerWriter.refuseBatch({ target, rules, action, context, rows: rows.map((values) => ({ values })), history: checkOpts?.capacity === 'unchecked' });
       const clock = writeClock(context);
       const now = clock.startedAt;
       const memo: CopyMemo = new Map();
       const out: (CheckedRow | null)[] = [];
       const issues: (FieldIssues | null)[] = [];
-      for (const row of rows) {
+      for (const [index, row] of rows.entries()) {
+        if (unposted[index] != null) {
+          issues.push(unposted[index] as FieldIssues);
+          out.push(null);
+          continue;
+        }
         const early = earlyIssues(target, row);
         if (early !== null) {
           issues.push(early);
@@ -3122,6 +3131,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // What the row hands to an add-on's ledger, looked at before any lock: null for a table with no rule that fires now.
       const about = { target, context };
       const posting = await ledgerStep(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: checked, context }), about, input.mapError);
+      // Inside a transaction somebody else opened no named lock can be taken (on one engine at all): a row that would post is made on its own.
+      if (posting !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', posting: posting.calls[0]!.posting.id })), about, input.mapError);
       let posted: PostedOutcome[] = [];
       const write = async (db: Db) => {
         const within = { ...target, db, timezone: zone, origin: context.origin };
@@ -3618,7 +3629,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // and what the change crosses is judged on the row as held. A quote posts nothing.
       const about = { target, context };
       const watching = await ledgerStep(() => ledgerWriter.watched(target, rules), about, input.mapError);
-      const posts = dry ? null : watching;
+      // Inside a transaction somebody else opened no named lock can be taken: a change that would post is made on its own, and any other goes on as ever.
+      const nested = !dry && watching !== null && inTransaction(target.db);
+      if (nested && before !== null) {
+        const stands = before;
+        await ledgerStep(
+          async () => {
+            const crossed = await ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'update', before: stands, after: { ...stands, ...checkedValues }, context });
+            if (crossed !== null) throw new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', posting: crossed.calls[0]!.posting.id });
+          },
+          about,
+          input.mapError,
+        );
+      }
+      const posts = dry || nested ? null : watching;
       /** What the change hands to a ledger, from the look each attempt takes before its locks. */
       let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
       let posted: PostedOutcome[] = [];
@@ -3932,6 +3956,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rows.map((row) => row.values),
         beforeOpts?.capacity,
       );
+      // …nor may it post: judged by the table's rules even for an undo, which carries none of its own.
+      const unposted = await ledgerWriter.refuseBatch({ target, rules: rulesOf(target), action, context, rows, history: beforeOpts?.capacity === 'unchecked' });
       const clock = writeClock(context);
       const now = clock.startedAt;
       const memo: CopyMemo = new Map();
@@ -3975,8 +4001,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
       if (!(await hooks.wants('before', action, target, context))) {
         const out: PreparedRow[] = [];
-        for (const row of rows) {
-          const unstorable = early(row);
+        for (const [index, row] of rows.entries()) {
+          const unstorable = (unposted[index] as FieldIssues | null | undefined) ?? early(row);
           if (unstorable !== null) {
             out.push({ values: brand(row.values), issues: unstorable, record: undefined });
             continue;
@@ -4006,8 +4032,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return out;
       }
       const prepared: PreparedRow[] = [];
-      for (const row of rows) {
-        const unstorable = early(row);
+      for (const [index, row] of rows.entries()) {
+        const unstorable = (unposted[index] as FieldIssues | null | undefined) ?? early(row);
         if (unstorable !== null) {
           prepared.push({ values: brand(row.values), record: undefined, issues: unstorable });
           continue;
