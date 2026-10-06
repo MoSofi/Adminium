@@ -200,11 +200,15 @@ describe('adminium app check', () => {
     parts({
       'apps/repairs/manifest/app.json': { ...APP, compatibility: { minAdminiumVersion: '0.3.18' } },
       'apps/repairs/manifest/add-ons.json': { suggests: [{ key: 'cards-kit', range: '*', reason: { 'en-US': 'Gift cards.' } }] },
-      'apps/repairs/manifest/tables/jobs.json': { ...JOBS, columns: [...JOBS.columns, { ref: 'card_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'cards-kit', table: 'cards' } } }] },
+      // A link into an add-on runs now; the last four of a code, kept beside it, does not yet.
+      'apps/repairs/manifest/tables/jobs.json': {
+        ...JOBS,
+        columns: [...JOBS.columns, { ref: 'card_code', type: 'text', maxLength: 32, rules: { code: { length: 12 } } }, { ref: 'card_last4', type: 'text', maxLength: 4, nullable: true, rules: { codeLast4: { of: 'card_code' } } }],
+      },
     });
     const { code, err } = await run('check');
     expect(code).toBe(2);
-    expect(err).toMatch(/apps\/repairs\/manifest\/tables\/jobs\.json: columns\.3\.rules\.addOnLink — uses "column\.addOnLink", which Adminium 0\.3\.18 runs and this Adminium \S+ does not\. Take it out, or run this folder on Adminium 0\.3\.18\./);
+    expect(err).toMatch(/apps\/repairs\/manifest\/tables\/jobs\.json: columns\.4\.rules\.codeLast4 — uses "column\.codeLast4", which Adminium 0\.3\.18 runs and this Adminium \S+ does not\. Take it out, or run this folder on Adminium 0\.3\.18\./);
   });
 
   it('says that the add-ons it names add to what the customer side may reach, and checks its rows for them', async () => {

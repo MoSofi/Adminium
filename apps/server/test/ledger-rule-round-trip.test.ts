@@ -235,7 +235,8 @@ describe('what a posting makes Adminium\'s own', () => {
   it('the column a hold lasts until, on the row or on the parent its lines belong to', () => {
     expect([...ruleDecidedColumns(tableOf(kitModel, 'ledger_kit_requests'), kitModel)]).toEqual(['hold_until']);
     // `order_lines` holds until its order's `hold_until`: decided on the order, not on the line.
-    expect([...ruleDecidedColumns(tableOf(hostModel, 'ledger_host_orders'), hostModel)]).toEqual(['hold_until']);
+    // (And the buyer's key, which Adminium makes from the address beside it.)
+    expect([...ruleDecidedColumns(tableOf(hostModel, 'ledger_host_orders'), hostModel)].sort()).toEqual(['buyer_key', 'hold_until']);
     expect([...ruleDecidedColumns(tableOf(hostModel, 'ledger_host_order_lines'), hostModel)]).toEqual([]);
     expect([...ruleDecidedColumns(tableOf(hostModel, 'ledger_host_visits'), hostModel)]).toEqual([]);
   });
