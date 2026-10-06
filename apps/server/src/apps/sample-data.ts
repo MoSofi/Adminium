@@ -56,6 +56,7 @@ import {
   sampleBundleIssues,
   sampleBundleSchema,
   sampleDirective,
+  sampleSectionIssues,
   shareCodeColumns,
   type Manifest,
   type SampleBundle,
@@ -110,6 +111,28 @@ export interface SampleDataDeps {
   files: FileStore;
   /** Tell open dashboards their data moved; absent in a bare composition. */
   publish?: ((connectionId: string) => Promise<void>) | undefined;
+}
+
+/** What an add is told. */
+export interface AddOptions {
+  locale: string;
+  userId: string | null;
+  userLabel: string;
+  progress?: (pct: number, message: string) => void;
+  now?: number;
+}
+
+/** One run of the row loop: an owner's own bundle, or the rows an app ships for one add-on. */
+interface AddPass {
+  bundle: SampleBundle;
+  /** The add-on a section's rows are for; absent for an owner's own bundle. */
+  section?: string | undefined;
+  /** Which ledger refs are this pass's to forget when a kept row was not taken back. */
+  owns: (ref: string) => boolean;
+  /** Labels of rows already in (the app's own, the add-on's sample): a section row may point at one. */
+  labels?: ReadonlyMap<string, unknown> | undefined;
+  /** Labels a section row points at that are not in: such a row is left out, with every row that names it. */
+  leftOut?: ReadonlySet<string> | undefined;
 }
 
 /** The installed app a sample-data call is about. */
@@ -796,33 +819,56 @@ function asDb(db: unknown): Kysely<SourceDatabase> {
 }
 
 /**
+ * Every sample list that names one stored row, across owners: the list's
+ * table, the entry's place in it and what it recorded. A row is named in its
+ * maker's own list by the maker's short name for the table, and in any other
+ * owner's list as `<maker>:<short name>` (an app's rows for an add-on).
+ */
+export async function ledgersListing(
+  meta: MetaDb,
+  db: Kysely<SourceDatabase>,
+  connectionId: string,
+  tableName: string,
+  pk: Row,
+): Promise<{ ledger: string; seq: number; colHashes: string }[]> {
+  const records = await appTablesRepo(meta).forConnection(connectionId);
+  const holders = records.filter((record) => record.role === 'app' && record.tableName === tableName && record.state !== 'dropped' && record.state !== 'pending');
+  const out: { ledger: string; seq: number; colHashes: string }[] = [];
+  for (const ledger of records.filter((record) => record.role === 'sample-ledger' && record.state === 'created')) {
+    const refs = [...new Set(holders.map((holder) => (holder.appKey === ledger.appKey ? holder.ref : `${holder.appKey}:${holder.ref}`)))];
+    if (refs.length === 0) continue;
+    const found = await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger.tableName)} WHERE table_ref IN (${sql.join(refs)}) AND pk = ${canonicalJson(pk)}`.execute(db).catch(() => ({ rows: [] as LedgerRow[] }));
+    for (const row of found.rows) out.push({ ledger: ledger.tableName, seq: Number(row.seq), colHashes: row.col_hashes });
+  }
+  return out;
+}
+
+/**
  * A sample row a write of Adminium's own moved (a timed move: a held sample
- * order expired) recorded again as it now stands, so "Remove sample data"
- * still takes it for the app's own rather than a row somebody changed. A row
- * no sample brought in is left alone.
+ * order expired; a total another owner's sample row fed) recorded again as
+ * it now stands — in EVERY list that names it — so "Remove sample data" still
+ * takes it for a sample row rather than a row somebody changed. A row no
+ * sample brought in is left alone.
  */
 export async function rehashSampleRow(
   meta: MetaDb,
   target: { connectionId: string; db: Kysely<SourceDatabase>; dialect: string; table: ResolvedTable },
   pk: Row,
 ): Promise<void> {
-  const records = await appTablesRepo(meta).forConnection(target.connectionId);
-  const own = records.find((record) => record.role === 'app' && record.tableName === target.table.name);
-  if (own === undefined) return;
-  const ledger = records.find((record) => record.role === 'sample-ledger' && record.appKey === own.appKey && record.state === 'created');
-  if (ledger === undefined) return;
   const db = asDb(target.db);
-  const found = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger.tableName)} WHERE table_ref = ${own.ref} AND pk = ${canonicalJson(pk)}`.execute(db)).rows[0];
-  if (found === undefined) return;
+  const listed = await ledgersListing(meta, db, target.connectionId, target.table.name, pk);
+  if (listed.length === 0) return;
   const now = await fetchByPk(db, target.table, pk);
   if (now === undefined) return;
-  const recordedAsDays = Object.prototype.hasOwnProperty.call(JSON.parse(found.col_hashes) as object, LEDGER_DATES_AS_DAYS);
-  const { rowHash, colHashes } = hashRow(now, target.table, target.dialect !== 'sqlite' && !recordedAsDays);
-  await db
-    .updateTable(ledger.tableName as never)
-    .set({ row_hash: rowHash, col_hashes: JSON.stringify(recordedAsDays ? { ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' } : colHashes) } as never)
-    .where('seq' as never, '=', found.seq as never)
-    .execute();
+  for (const entry of listed) {
+    const recordedAsDays = Object.prototype.hasOwnProperty.call(JSON.parse(entry.colHashes) as object, LEDGER_DATES_AS_DAYS);
+    const { rowHash, colHashes } = hashRow(now, target.table, target.dialect !== 'sqlite' && !recordedAsDays);
+    await db
+      .updateTable(entry.ledger as never)
+      .set({ row_hash: rowHash, col_hashes: JSON.stringify(recordedAsDays ? { ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' } : colHashes) } as never)
+      .where('seq' as never, '=', entry.seq as never)
+      .execute();
+  }
 }
 
 export function createSampleDataService(deps: SampleDataDeps) {
@@ -975,8 +1021,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const out = new Map<string, LedgerRow[]>();
     const everyRecord = await records.forConnection(connectionId);
     for (const ledger of everyRecord.filter((r) => r.role === 'sample-ledger' && r.state === 'created' && r.appKey !== app.key)) {
-      const theirs = await records.realNames(connectionId, ledger.appKey);
-      for (const row of await ledgerRows(handle, ledger.tableName)) {
+      // Each ledger is read with ITS names: its owner's own refs, and `<addOn>:<ref>` for the add-ons its rows name.
+      const listed = await ledgerRows(handle, ledger.tableName);
+      const theirs = await sampleNames(connectionId, ledger.appKey, prefixesIn(listed));
+      for (const row of listed) {
         const real = isSampleRow(row) ? theirs[row.table_ref] : undefined;
         if (real !== undefined) out.set(real, [...(out.get(real) ?? []), row]);
       }
@@ -1020,6 +1068,754 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return out;
   }
 
+  /** Ledger ref → real table for one owner's ledger: its own refs, and `<addOn>:<ref>` for each add-on its rows may be in. */
+  async function sampleNames(connectionId: string, ownerKey: string, addOnKeys: Iterable<string>): Promise<Record<string, string>> {
+    const out: Record<string, string> = { ...(await records.realNames(connectionId, ownerKey)) };
+    for (const key of new Set(addOnKeys)) {
+      for (const [ref, name] of Object.entries(await records.realNames(connectionId, key))) out[`${key}:${ref}`] = name;
+    }
+    return out;
+  }
+
+  /** The add-ons an app ships sample rows for. */
+  const sectionKeysOf = (app: SampleApp): string[] => (app.manifest.kind === 'app' ? Object.keys(app.manifest.sampleData?.addOns ?? {}) : []);
+
+  /** The add-on keys a ledger's own rows name (`inventory:links`), so an entry outlives the manifest dropping the key. */
+  const prefixesIn = (rows: readonly LedgerRow[]): string[] =>
+    rows.flatMap((row) => {
+      const ref = row.table_ref.startsWith(KEPT_PREFIX) ? row.table_ref.slice(KEPT_PREFIX.length) : row.table_ref;
+      const at = ref.indexOf(':');
+      return at > 0 ? [ref.slice(0, at)] : [];
+    });
+
+  /** Every name an owner's ledger can hold, as it stands: the manifest's sections and whatever its rows already name. */
+  async function namesOf(app: SampleApp, connectionId: string, handle: DataHandle): Promise<Record<string, string>> {
+    const ledger = await ledgerRecord(app, connectionId);
+    const rows = ledger === undefined ? [] : await ledgerRows(handle, ledger.tableName);
+    return sampleNames(connectionId, app.key, [...sectionKeysOf(app), ...prefixesIn(rows)]);
+  }
+
+  /** The add-on, when it is here for this app: installed in this database, attached to the app, switched on for it. */
+  async function liveAddOn(app: SampleApp, connectionId: string, addOnKey: string): Promise<SampleApp | null> {
+    const addOn = await findSampleOwner(deps.meta, addOnKey, 'add-on');
+    if (addOn === null || addOn.connectionId !== connectionId) return null;
+    const attached = await deps.meta.db
+      .selectFrom('adminium_manifest_attachments')
+      .select('disabledAt')
+      .where('manifestId', '=', addOn.manifestId)
+      .where('attachedTo', '=', app.key)
+      .executeTakeFirst();
+    return attached !== undefined && attached.disabledAt === null ? addOn : null;
+  }
+
+  /** The labels a ledger's sample rows carry, each with its row's key. */
+  async function labelsIn(owner: SampleApp, connectionId: string, handle: DataHandle): Promise<Map<string, unknown>> {
+    const out = new Map<string, unknown>();
+    const ledger = await ledgerRecord(owner, connectionId);
+    if (ledger === undefined) return out;
+    for (const row of await ledgerRows(handle, ledger.tableName)) {
+      const key = isSampleRow(row) && row.label !== null ? entryKey(row) : null;
+      if (key === null) continue;
+      const values = Object.values(key);
+      out.set(row.label as string, values.length === 1 ? values[0] : key);
+    }
+    return out;
+  }
+
+  /** An app's file of rows for one add-on, read and checked against both manifests; and whether a row of it points at the add-on's own sample. */
+  async function readSection(app: SampleApp, addOnKey: string, addOn: SampleApp) {
+    const file = app.manifest.kind === 'app' ? app.manifest.sampleData?.addOns?.[addOnKey]?.file : undefined;
+    if (file === undefined || app.manifest.kind !== 'app' || addOn.manifest.kind !== 'add-on') throw new NotFoundError(`"${app.key}" ships no rows for "${addOnKey}".`, { reason: 'NO_SAMPLE_DATA' });
+    // The APP's file, from wherever the app's files are: its store, or the folder a person edits.
+    const { bytes } = await appFiles.readVerifiedFile(app.key, app.version, file);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(bytes.toString('utf8'));
+    } catch {
+      throw new ValidationFailedError(`"${file}" is not JSON.`, { reason: 'SAMPLE_INVALID' });
+    }
+    const read = sampleBundleSchema.safeParse(parsed);
+    const issues = read.success ? sampleSectionIssues(read.data, app.manifest, addOn.manifest) : read.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message }));
+    if (!read.success || issues.length > 0) {
+      throw new ValidationFailedError(`"${file}" does not fit this app and "${addOnKey}".`, { reason: 'SAMPLE_INVALID', issues: issues.slice(0, 20) });
+    }
+    const section = read.data;
+    const labelsOf = (bundle: SampleBundle) => new Set(bundle.tables.flatMap((table) => table.rows.flatMap((row) => (typeof row['@label'] === 'string' ? [row['@label']] : []))));
+    const own = labelsOf(section);
+    const named = new Set(section.tables.flatMap((table) => table.rows.flatMap((row) => Object.entries(row).flatMap(([column, value]) => (ROW_DIRECTIVES.has(column) ? [] : refsIn(value))))));
+    const appBundleLabels = labelsOf(await loadBundle(app));
+    return { section, own, named, namesTheirSample: [...named].some((label) => !own.has(label) && !appBundleLabels.has(label)) };
+  }
+
+  /** The apps whose loaded section for this add-on points at a row of the add-on's own sample: those rows leave before that sample does. */
+  async function sectionsNaming(addOn: SampleApp, connectionId: string): Promise<SampleApp[]> {
+    const out: SampleApp[] = [];
+    const handle = await deps.manager.data(connectionId);
+    const keys = (await deps.meta.db.selectFrom('adminium_manifests').select('manifestKey').where('kind', '=', 'app').where('connectionId', '=', connectionId).orderBy('manifestKey', 'asc').execute()).map((row) => row.manifestKey);
+    for (const key of keys) {
+      const app = await findSampleApp(deps.meta, key);
+      const ledger = app === null ? undefined : await ledgerRecord(app, connectionId);
+      if (app === null || ledger === undefined || !sectionKeysOf(app).includes(addOn.key)) continue;
+      if (!(await ledgerRows(handle, ledger.tableName)).some((row) => isSampleRow(row) && row.table_ref.startsWith(`${addOn.key}:`))) continue;
+      if ((await readSection(app, addOn.key, addOn)).namesTheirSample) out.push(app);
+    }
+    return out;
+  }
+
+  /**
+   * The rows an app ships for one add-on, ready for the row loop — or null
+   * while they must wait: the add-on is not here for the app, the section is
+   * already in, or it points at a row of the add-on's own sample and that
+   * sample is not in yet.
+   *
+   * Its tables are entered in the app's ledger under `<addOn>:<ref>` (a table
+   * of the app's own, marked `own`, under its plain ref). A row may point at
+   * a row of the app's own sample or of the add-on's: one that is not in
+   * leaves the section row out, never fails the load.
+   */
+  async function sectionPass(app: SampleApp, connectionId: string, addOnKey: string): Promise<AddPass | null> {
+    const file = app.manifest.kind === 'app' ? app.manifest.sampleData?.addOns?.[addOnKey]?.file : undefined;
+    const addOn = file === undefined ? null : await liveAddOn(app, connectionId, addOnKey);
+    if (file === undefined || addOn === null) return null;
+    const handle = await deps.manager.data(connectionId);
+    const ledger = await ledgerRecord(app, connectionId);
+    const mine = ledger === undefined ? [] : await ledgerRows(handle, ledger.tableName);
+    // Loaded already: the app's ledger lists rows of it.
+    if (mine.some((row) => isSampleRow(row) && row.table_ref.startsWith(`${addOnKey}:`))) return null;
+
+    const { section, own, named, namesTheirSample } = await readSection(app, addOnKey, addOn);
+    const labels = await labelsIn(app, connectionId, handle);
+    const theirs = await labelsIn(addOn, connectionId, handle);
+    // A row that points at the ADD-ON's own sample: the whole file waits until that sample is in.
+    if (namesTheirSample && theirs.size === 0) return null;
+    for (const [label, key] of theirs) if (!labels.has(label)) labels.set(label, key);
+    return {
+      bundle: { ...section, assets: {}, tables: section.tables.map((table) => ({ ...table, ref: table.own === true ? table.ref : `${addOnKey}:${table.ref}` })) },
+      section: addOnKey,
+      owns: (ref) => ref.startsWith(`${addOnKey}:`),
+      labels,
+      leftOut: new Set([...named].filter((label) => !own.has(label) && !labels.has(label))),
+    };
+  }
+
+  /** Every section of an app that can load now. */
+  async function sectionsFor(app: SampleApp, connectionId: string): Promise<AddPass[]> {
+    const out: AddPass[] = [];
+    for (const key of sectionKeysOf(app)) {
+      const pass = await sectionPass(app, connectionId, key);
+      if (pass !== null) out.push(pass);
+    }
+    return out;
+  }
+
+  /** The sections of installed apps that were waiting for this add-on's sample: their own sample is in, their section is not. */
+  async function sectionsWaitingFor(addOn: SampleApp, connectionId: string): Promise<{ app: SampleApp; pass: AddPass }[]> {
+    const out: { app: SampleApp; pass: AddPass }[] = [];
+    const handle = await deps.manager.data(connectionId);
+    const keys = (await deps.meta.db.selectFrom('adminium_manifests').select('manifestKey').where('kind', '=', 'app').where('connectionId', '=', connectionId).orderBy('manifestKey', 'asc').execute()).map((row) => row.manifestKey);
+    for (const key of keys) {
+      const app = await findSampleApp(deps.meta, key);
+      if (app === null || !sectionKeysOf(app).includes(addOn.key)) continue;
+      const ledger = await ledgerRecord(app, connectionId);
+      // Only an app whose own sample is in: a section is part of the app's sample, never the first of it.
+      if (ledger === undefined || !(await ledgerRows(handle, ledger.tableName)).some(isSampleRow)) continue;
+      const pass = await sectionPass(app, connectionId, addOn.key);
+      if (pass !== null) out.push({ app, pass });
+    }
+    return out;
+  }
+
+  async function addPass(app: SampleApp, pass: AddPass, opts: AddOptions): Promise<{ counts: Record<string, number>; files: number }> {
+    const connectionId = await connectionOf(app);
+    const bundle = pass.bundle;
+    const now = opts.now ?? Date.now();
+    const handle = await deps.manager.data(connectionId);
+    const names = await namesOf(app, connectionId, handle);
+    const timeZone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
+    // An app's own rule about a shared table is about its own bundle; a section's tables are an add-on's.
+    const skipped = new Set([...(pass.section === undefined ? await skippedWhenShared(app, connectionId, handle, names) : []), ...(await skippedWhenFilled(bundle, handle, names))]);
+    opts.progress?.(5, 'Checked the sample data');
+
+    // Images first, into the Files library; to the bin if anything later fails.
+    const fileIds = new Map<string, string>();
+    const files = filesRepo(deps.meta);
+    try {
+      for (const [label, asset] of Object.entries(bundle.assets)) {
+        const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
+        if (actual !== asset.sha256) {
+          throw new ValidationFailedError(`The sample image "${asset.file}" is not the file the bundle names.`, {
+            reason: 'SAMPLE_INVALID',
+          });
+        }
+        const id = newId('file');
+        const filename = basename(asset.file);
+        const mime = MIME_BY_EXTENSION[extname(filename).toLowerCase()] ?? 'application/octet-stream';
+        const stored = await deps.files.write({ id, kind: 'upload', filename, mime, bytes });
+        await files.create({
+          id,
+          filename,
+          mime,
+          sizeBytes: stored.sizeBytes,
+          sha256: stored.sha256,
+          storageKey: stored.storageKey,
+          storage: stored.storage,
+          destinationId: stored.destinationId,
+          kind: 'upload',
+          entityConnectionId: connectionId,
+          uploadedBy: opts.userId,
+          attachedAt: now,
+        });
+        fileIds.set(label, id);
+      }
+      opts.progress?.(20, 'Added the images');
+      const sampleFileIds = new Set(fileIds.values());
+
+      const ledger = await ensureLedger(app, connectionId, handle);
+      const view = await viewFor(connectionId);
+      // How a row names one of the owner's own tables: read once, before the transaction.
+      const refIndex = await tableRefIndex(deps.meta, connectionId, view.model);
+      const tableRef = (ref: string): string | null => {
+        const real = names[ref];
+        const found = real === undefined ? undefined : view.model.tables.find((table) => table.name === real);
+        return found === undefined ? null : storedTableRef(refIndex, found.id);
+      };
+      /*
+       * What another installed app's sample already put in a table this app
+       * shares with it (two apps on one menu; a copy beside its original),
+       * by the identity this bundle would name it by. A bundle row that is
+       * the same row is taken as this app's own instead of written again.
+       */
+      const lentBy = new Map<string, LedgerRow[]>();
+      for (const [real, theirs] of await othersSampleRows(app, connectionId, handle)) {
+        const ref = Object.entries(names).find(([, name]) => name === real)?.[0];
+        const table = ref === undefined ? null : safeTable(view, real);
+        if (ref === undefined || table === null) continue;
+        for (const entry of theirs) {
+          const identity = entry.label === null ? null : identityOf(ref, entry.label, null, table);
+          // Every lister of a label: with an add-on's ledger in play, the add-on, an app and its copy may all list one row.
+          if (identity !== null) lentBy.set(identity, [...(lentBy.get(identity) ?? []), entry]);
+        }
+      }
+      const writes = createWriteService(writeStores(deps.meta));
+      const context: WriteContext = {
+        origin: 'import',
+        hops: 0,
+        actor: { kind: 'user', id: opts.userId, label: opts.userLabel },
+        request: null,
+      };
+      const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
+      const counts: Record<string, number> = {};
+      const explicitKeys = new Set<string>();
+      let reused = 0;
+      /** Rows taken from another app's sample rather than written. */
+      let takenShared = 0;
+
+      await handle.db.transaction().execute(async (trx) => {
+        const db = asDb(trx);
+        const labels = new Map<string, unknown>(pass.labels ?? []);
+        /** Whether THIS pass already has the row a label names: one only handed in (another list's row) may still be this very row. */
+        const has = (label: string): boolean => labels.has(label) && pass.labels?.get(label) !== labels.get(label);
+        /** The open times the sample's rows are placed on, per slot limit, found as each table comes (its hours may be the sample's own). */
+        const slotTimes = new Map<string, (Date | null)[]>();
+        const placers = new Map<string, SlotPlacer | null>();
+        /** The rows of tables that keep totals, settled once every row is in. */
+        const totals = new Map<string, { target: WriteTarget; rows: { seq: number; key: Row; record: Row }[] }>();
+        const entries = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger)} ORDER BY seq`.execute(db)).rows.map((row) => ({
+          ...row,
+          seq: Number(row.seq),
+        }));
+        /** The rows the last removal kept, by identity; each is taken back once at most. */
+        const keptBy = new Map<string, LedgerRow>();
+        /** Every kept row, by table: a parent taken back takes the rows its lock ties to it from here. */
+        const keptByTable = new Map<string, LedgerRow[]>();
+        for (const entry of entries) {
+          if (!entry.table_ref.startsWith(KEPT_PREFIX)) continue;
+          const ref = entry.table_ref.slice(KEPT_PREFIX.length);
+          const table = safeTable(view, names[ref] ?? ref);
+          if (table === null) continue;
+          let key: Row | null = null;
+          try {
+            key = JSON.parse(entry.pk) as Row;
+          } catch {
+            continue;
+          }
+          const identity = identityOf(ref, entry.label, key, table);
+          if (identity !== null && !keptBy.has(identity)) keptBy.set(identity, entry);
+          keptByTable.set(ref, [...(keptByTable.get(ref) ?? []), entry]);
+        }
+        const adopted = new Set<number>();
+        /** Files a row taken back still names: the sample's again, binned with it on the next removal. */
+        const adoptedFiles = new Set<string>();
+        /** The rows this add took back (`<table id>\u0000<key>`), each marked when it came back as a part: none of their parts is written. */
+        const takenBack = new Map<string, boolean>();
+        /** The labels of rows left out under a parent taken back that were not taken back themselves (changed, or gone). */
+        const leftOut = new Set<string>(pass.leftOut ?? []);
+        /** The kept rows that are part of a row (`partLinks`), by `<parent table id>\u0000<key>`: read once, on the first take-back. */
+        const tied = new Map<string, { entry: LedgerRow; ref: string; table: ResolvedTable; row: Row; ofParts: boolean }[]>();
+        let tiedRead = false;
+        const tiedTo = async (parent: string, key: unknown) => {
+          if (!tiedRead) {
+            tiedRead = true;
+            for (const [ref, kept] of keptByTable) {
+              const table = safeTable(view, names[ref] ?? ref);
+              const links = table === null ? [] : partLinks(view, table);
+              if (table === null || links.length === 0) continue;
+              for (const entry of kept) {
+                const row = await fetchByPk(db, table, JSON.parse(entry.pk) as Row);
+                if (row === undefined) continue;
+                for (const link of links) {
+                  const via = row[link.via];
+                  if (via === null || via === undefined) continue;
+                  const at = `${link.parent}\u0000${String(via)}`;
+                  tied.set(at, [...(tied.get(at) ?? []), { entry, ref, table, row, ofParts: link.ofParts }]);
+                }
+              }
+            }
+          }
+          return tied.get(`${parent}\u0000${String(key)}`) ?? [];
+        };
+        /*
+         * A kept row, taken back as it reads now: its entry is re-hashed
+         * (the same over the columns it had) and the rows after it point at
+         * it by its label. Its parts (a document's lines, a terms version's
+         * clauses, a line's chosen options) come back with it, each while it
+         * reads as the sample wrote it: a document keeps the lines it has,
+         * and the sample writes none under it (below), whatever its own lines
+         * read as today — in another locale, on another day.
+         */
+        const takeBack = async (entry: LedgerRow, current: Row, ref: string, resolved: ResolvedTable, label: string | null, asPart = false): Promise<void> => {
+          adopted.add(entry.seq);
+          const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+          const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
+          if (label !== null) labels.set(label, single ?? key);
+          // Hashed as it reads now, so recorded as every entry this add writes: dates as days.
+          const { rowHash, colHashes } = hashRow(current, resolved);
+          await db
+            .updateTable(ledger as never)
+            .set({
+              table_ref: ref,
+              row_hash: rowHash,
+              col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
+              created_at: now,
+            } as never)
+            .where('seq' as never, '=', entry.seq as never)
+            .execute();
+          if ((tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0) {
+            const bucket = totals.get(ref) ?? { target: { connectionId, view, table: resolved, db, dialect: handle.dialect }, rows: [] as { seq: number; key: Row; record: Row }[] };
+            bucket.rows.push({ seq: entry.seq, key, record: current });
+            totals.set(ref, bucket);
+          }
+          for (const value of Object.values(current)) if (isId(value, 'file')) adoptedFiles.add(value as string);
+          counts[ref] = (counts[ref] ?? 0) + 1;
+          if (single === undefined || single === null) return;
+          const part = asPart || lockTied(resolved, current);
+          takenBack.set(`${resolved.id}\u0000${String(single)}`, part);
+          for (const child of await tiedTo(resolved.id, single)) {
+            if (child.ofParts && !part) continue;
+            if (!adopted.has(child.entry.seq) && unchangedSince(child.entry, child.row, child.table, handle.dialect)) {
+              await takeBack(child.entry, child.row, child.ref, child.table, child.entry.label, true);
+            }
+          }
+        };
+        // Kept entries hold their seq; new ones count on from the last.
+        let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
+        /** The rows taken from another app's sample (`<table id>\u0000<key>`): their parts are taken with them, or left out. */
+        const sharedIn = new Set<string>();
+        /*
+         * Another app's sample row, taken as this app's own: entered in this
+         * ledger as it reads now, and named by its label for the rows after
+         * it. The row is not written to, and its files stay the other app's.
+         * Whether it is the same row was decided by the caller.
+         */
+        const takeShared = async (current: Row, ref: string, resolved: ResolvedTable, label: string): Promise<void> => {
+          const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+          const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
+          labels.set(label, single ?? key);
+          const { rowHash, colHashes } = hashRow(current, resolved);
+          seq += 1;
+          await db
+            .insertInto(ledger as never)
+            .values({
+              seq,
+              table_ref: ref,
+              pk: canonicalJson(key),
+              label,
+              row_hash: rowHash,
+              col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
+              created_at: now,
+            } as never)
+            .execute();
+          counts[ref] = (counts[ref] ?? 0) + 1;
+          if (single === undefined || single === null) return;
+          const at = `${resolved.id}\u0000${String(single)}`;
+          sharedIn.add(at);
+          // As a record taken back: the sample writes no part under it. Its parts are taken with it, below.
+          takenBack.set(at, lockTied(resolved, current));
+        };
+        /** The other app's row a bundle row names, when it is the same row: still as that sample wrote it, and holding what this one would write. */
+        const sameRowOf = async (identity: string | null, values: Row, resolved: ResolvedTable, asPart: boolean): Promise<Row | null> => {
+          // The first lister's entry whose row still reads as that ledger recorded it and holds what this row gives.
+          for (const lent of identity === null ? [] : (lentBy.get(identity) ?? [])) {
+            const key = entryKey(lent);
+            const current = key === null ? undefined : await fetchByPk(db, resolved, key);
+            if (current === undefined || !unchangedSince(lent, current, resolved, handle.dialect) || !holdsWhat(values, current, resolved)) continue;
+            // A part comes only with its record.
+            if (!asPart && isPart(view, resolved, current)) continue;
+            return current;
+          }
+          return null;
+        };
+        let done = 0;
+        for (const table of bundle.tables) {
+          // A shared table already holding real rows keeps these tables' sample rows out.
+          if (skipped.has(table.ref)) continue;
+          /*
+           * The totals so far, before the next table: its rows may copy one
+           * (a stage of a quote copies the quote's subtotal), and a copy
+           * reads the row as it stands. Settled again at the end, once
+           * every child row is in.
+           */
+          for (const { target: parent, rows } of totals.values()) {
+            await writes.settle('create', parent, rows.map((row) => ({ record: row.record, before: null })));
+          }
+          // The first open times this table's rows are timed on, read with the rows written so far (hours, closures) in.
+          const own = safeTable(view, names[table.ref] ?? table.ref);
+          for (const ask of slotAsks({ ...bundle, tables: [table] })) {
+            const earliest = now + isoDurationMs(ask.duration);
+            /*
+             * A row the last removal kept, and that is taken back as it is:
+             * it already holds its time, and the placer counts it there. It
+             * takes no second time (its place kept in the queue, empty).
+             */
+            const label = typeof ask.row['@label'] === 'string' ? ask.row['@label'] : null;
+            const identity = own === null ? null : identityOf(table.ref, label, ask.row as Row, own);
+            const kept = identity === null ? undefined : keptBy.get(identity);
+            if (kept !== undefined && own !== null) {
+              const current = await fetchByPk(db, own, JSON.parse(kept.pk) as Row);
+              if (current !== undefined && unchangedSince(kept, current, own, handle.dialect) && !isPart(view, own, current)) {
+                const key = slotKey(ask.table, earliest);
+                slotTimes.set(key, [...(slotTimes.get(key) ?? []), null]);
+                continue;
+              }
+            }
+            let placer = placers.get(ask.table);
+            if (placer === undefined) {
+              const on = safeTable(view, names[ask.table] ?? ask.table);
+              placer = on === null ? null : await slotPlacer({ connectionId, view, table: on, db, dialect: handle.dialect }, timeZone, now);
+              placers.set(ask.table, placer);
+            }
+            const key = slotKey(ask.table, earliest);
+            slotTimes.set(key, [...(slotTimes.get(key) ?? []), placer === null ? null : await placer.place(earliest, ask.row)]);
+          }
+          const resolved = view.table(names[table.ref] ?? table.ref);
+          const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
+          /*
+           * A table that keeps totals is settled once its rows are in. In an
+           * owner's own bundle that covers every total: the rows that feed one
+           * come with the row that keeps it. A section's rows may feed a total
+           * kept by a row that is NOT in the section (a take of the add-on's
+           * own item), so there the feeding rows are settled too.
+           */
+          const feeds = pass.section === undefined ? [] : (tableRulesFor({ view, table: resolved })?.rollupsInto ?? []);
+          const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0 || feeds.length > 0;
+          for (const row of table.rows) {
+            const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef };
+            const chosen = chooseSampleRow(row, ctx);
+            // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
+            if (chosen === null) {
+              done += 1;
+              continue;
+            }
+            /*
+             * A row that points at one left out goes too: it hung off a line
+             * the record no longer has as the sample wrote it. Read from the
+             * columns it would be written with (a branch not chosen does not
+             * count), and it still takes its place in the slot-time queues.
+             */
+            const pointsAtLeftOut = Object.entries(chosen).some(([column, value]) => !ROW_DIRECTIVES.has(column) && refsIn(value).some((named) => leftOut.has(named)));
+            if (leftOut.size > 0 && pointsAtLeftOut) {
+              releaseSlots(chosen, ctx);
+              if (typeof row['@label'] === 'string') leftOut.add(row['@label']);
+              done += 1;
+              continue;
+            }
+            const resolvedRow = resolveValues(chosen, ctx);
+            const values = spellInstants(resolvedRow, resolved);
+            const label = typeof row['@label'] === 'string' ? row['@label'] : null;
+            // A part of a row this add took back: that row came back with the parts it has.
+            const underTakenBack = partLinks(view, resolved).some((link) => {
+              const key = values[link.via];
+              const parentIsPart = key === null || key === undefined ? undefined : takenBack.get(`${link.parent}\u0000${String(key)}`);
+              return parentIsPart !== undefined && (!link.ofParts || parentIsPart);
+            });
+            if (underTakenBack) {
+              // Under a record taken from another app's sample, its part is taken the same way when it is the same row.
+              const underShared = partLinks(view, resolved).some((link) => values[link.via] !== null && values[link.via] !== undefined && sharedIn.has(`${link.parent}\u0000${String(values[link.via])}`));
+              const part = underShared && label !== null && !has(label) ? await sameRowOf(identityOf(table.ref, label, values, resolved), values, resolved, true) : null;
+              if (part !== null && label !== null) await takeShared(part, table.ref, resolved, label);
+              else if (label !== null && !has(label)) leftOut.add(label);
+              done += 1;
+              continue;
+            }
+            /*
+             * The row the last removal kept, taken back rather than written
+             * again — only while it reads as the sample wrote it. It keeps
+             * its own links: one to a kept parent the operator changed still
+             * names that parent, not the fresh copy. What the hash cannot
+             * tell apart is a row of the operator's that is identical in
+             * every column AND took the kept row's key after it was deleted
+             * (SQLite reuses the highest rowid). A part (a line, its options)
+             * is not taken back on its own: its record did not come back (it
+             * would have brought the part with it), so the part stays with
+             * the record the operator kept, and the sample writes its own
+             * under the fresh copy.
+             */
+            const identity = identityOf(table.ref, label, values, resolved);
+            const keptEntry = identity === null ? undefined : keptBy.get(identity);
+            if (keptEntry !== undefined && !adopted.has(keptEntry.seq)) {
+              keptBy.delete(identity!);
+              const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
+              if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect) && !isPart(view, resolved, current)) {
+                await takeBack(keptEntry, current, table.ref, resolved, label);
+                done += 1;
+                continue;
+              }
+            }
+            /*
+             * The same row, already put there by another installed app's
+             * sample (a menu two apps share; a copy beside its original):
+             * taken as this app's own, never written twice.
+             */
+            if (label !== null && !has(label)) {
+              const same = await sameRowOf(identity, values, resolved, false);
+              if (same !== null) {
+                await takeShared(same, table.ref, resolved, label);
+                takenShared += 1;
+                done += 1;
+                continue;
+              }
+            }
+            /*
+             * A row only for an empty table — the app's one settings row — is
+             * left out when the operator already has one; the rows after it
+             * point at theirs, which the sample never takes as its own.
+             */
+            if (row['@onlyIfEmpty'] === true) {
+              const existing = (await db.selectFrom(resolved.id as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
+              if (existing !== undefined) {
+                const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, existing[column]]));
+                const named = row['@label'];
+                if (typeof named === 'string') labels.set(named, resolved.primaryKey.length === 1 ? existing[resolved.primaryKey[0]!] : key);
+                done += 1;
+                continue;
+              }
+            }
+            if (resolved.primaryKey.some((column) => values[column] !== undefined)) explicitKeys.add(resolved.name);
+            // A shared link's code the sample gives is printed in the app's package for anyone to
+            // read: every sample row's link is made here, like a person's create (`empty-code`).
+            for (const column of shareCodeColumns(app.manifest.kind === 'app' ? (app.manifest.publicAccess ?? []) : [], table.ref)) delete values[column];
+            /*
+             * A code or a running number the table already holds — a row
+             * kept from an earlier add, or one of the operator's own — is
+             * left for Adminium to decide, as it would be on a person's
+             * create: the sample's own spelling is a nicety, a clash a refusal.
+             */
+            const rules = tableRulesFor({ view, table: resolved });
+            for (const decided of [...(rules?.codes ?? []), ...(rules?.sequences ?? [])]) {
+              const value = values[decided.column];
+              if (value === undefined || value === null) continue;
+              const taken = await db
+                .selectFrom(resolved.id as never)
+                .select(sql`1`.as('taken'))
+                .where(sql.ref(decided.column), '=', value as never)
+                .executeTakeFirst();
+              if (taken !== undefined) delete values[decided.column];
+            }
+            /*
+             * Any other one-of-a-kind value the table already holds is one of
+             * the operator's own records (their Monday opening hours, a day
+             * they already closed): the sample never overwrites it and never
+             * guesses around it, it stops — with the table, the column and
+             * the value named, not the database's own words. Nothing of the
+             * add is kept (it is one transaction).
+             */
+            for (const column of resolved.table.columns) {
+              const value = values[column.name];
+              if (!column.isUnique || column.isPrimaryKey || value === undefined || value === null) continue;
+              const taken = await db
+                .selectFrom(resolved.id as never)
+                .select(sql`1`.as('taken'))
+                .where(sql.ref(column.name), '=', value as never)
+                .executeTakeFirst();
+              if (taken !== undefined) throw sampleClash(table.ref, column.name, value);
+            }
+            // Sample data is history the operator asked for, not bookings to judge.
+            const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
+            const good = checked.rows[0];
+            if (good === null || good === undefined) {
+              throw new ValidationFailedError(`A sample row for "${table.ref}" was refused.`, {
+                reason: 'SAMPLE_ROW_REFUSED',
+                table: table.ref,
+                issues: checked.issues[0],
+              });
+            }
+            let stored: Row;
+            try {
+              stored = await insertRow(db, handle.dialect, resolved, good);
+            } catch (error) {
+              // A unique rule over several columns, which the check above cannot see.
+              if (isUniqueViolation(error)) throw sampleClash(table.ref, null, null);
+              throw error;
+            }
+            const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, stored[column]]));
+            if (label !== null) {
+              labels.set(label, resolved.primaryKey.length === 1 ? stored[resolved.primaryKey[0]!] : key);
+            }
+            // A picture the row names is the row's own from here on: only a file attached to its row is shown to visitors.
+            for (const value of Object.values(values)) {
+              if (typeof value === 'string' && sampleFileIds.has(value)) {
+                await files.attach(value, { connectionId, table: resolved.id, pk: key, label: pkLabel(resolved, key) }, now);
+              }
+            }
+            const { rowHash, colHashes } = hashRow(stored, resolved);
+            seq += 1;
+            if (keepsTotals) {
+              const bucket = totals.get(table.ref) ?? { target, rows: [] as { seq: number; key: Row; record: Row }[] };
+              bucket.rows.push({ seq, key, record: stored });
+              totals.set(table.ref, bucket);
+            }
+            await db
+              .insertInto(ledger as never)
+              .values({
+                seq,
+                table_ref: table.ref,
+                pk: canonicalJson(key),
+                label,
+                row_hash: rowHash,
+                col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
+                created_at: now,
+              } as never)
+              .execute();
+            counts[table.ref] = (counts[table.ref] ?? 0) + 1;
+            done += 1;
+            if (done % 25 === 0) opts.progress?.(20 + Math.round((done / total) * 70), `Wrote ${String(done)} of ${String(total)}`);
+          }
+        }
+        /*
+         * Totals last, from every child row: the rows went in one at a time
+         * and nothing settled them (a payment's visit, a visit's balance).
+         * Each settled row is hashed again as it now stands, or its removal
+         * would take the new total for an edit and keep the row.
+         */
+        for (const { target, rows } of totals.values()) {
+          await writes.settle('create', target, rows.map((row) => ({ record: row.record, before: null })));
+        }
+        // Hashed only once every total is settled: a line's settle climbs into its order, after the order's own.
+        for (const [ref, { target, rows }] of totals) {
+          for (const row of rows) {
+            const now = (await fetchByPk(db, target.table, row.key)) ?? row.record;
+            const { rowHash, colHashes } = hashRow(now, target.table);
+            await db
+              .updateTable(ledger as never)
+              .set({ row_hash: rowHash, col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }) } as never)
+              .where('seq' as never, '=', row.seq as never)
+              .where('table_ref' as never, '=', ref as never)
+              .execute();
+          }
+        }
+        /*
+         * A total a section row fed is kept by a row of another list (the
+         * add-on's own sample): recorded again there as it now stands, or that
+         * list's removal would take the new total for somebody's edit.
+         */
+        if (pass.section !== undefined) {
+          for (const { target, rows } of totals.values()) {
+            for (const rollup of tableRulesFor({ view, table: target.table })?.rollupsInto ?? []) {
+              const parent = safeTable(view, rollup.parent);
+              if (parent === null) continue;
+              for (const key of new Set(rows.map((row) => row.record[rollup.via]).filter((value) => value !== null && value !== undefined))) {
+                const kept = await fetchByPk(db, parent, { [rollup.parentKey]: key });
+                if (kept !== undefined) await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: parent }, { [rollup.parentKey]: kept[rollup.parentKey] });
+              }
+            }
+          }
+        }
+        // A kept row not taken back stays the operator's, and leaves the ledger.
+        const forgotten = entries
+          .filter((entry) => entry.table_ref.startsWith(KEPT_PREFIX) && !adopted.has(entry.seq) && pass.owns(entry.table_ref.slice(KEPT_PREFIX.length)))
+          .map((entry) => entry.seq);
+        for (let i = 0; i < forgotten.length; i += 500) {
+          await db
+            .deleteFrom(ledger as never)
+            .where('seq' as never, 'in', forgotten.slice(i, i + 500) as never)
+            .execute();
+        }
+        reused = adopted.size + takenShared;
+        for (const id of adoptedFiles) {
+          const file = await files.findById(id);
+          if (file === null || file.deletedAt !== null || file.entityConnectionId !== connectionId) continue;
+          seq += 1;
+          await db
+            .insertInto(ledger as never)
+            .values({
+              seq,
+              table_ref: FILE_REF,
+              pk: canonicalJson({ id }),
+              label: null,
+              row_hash: '',
+              col_hashes: '{}',
+              created_at: now,
+            } as never)
+            .execute();
+        }
+        for (const [label, id] of fileIds) {
+          seq += 1;
+          await db
+            .insertInto(ledger as never)
+            .values({
+              seq,
+              table_ref: FILE_REF,
+              pk: canonicalJson({ id }),
+              label,
+              row_hash: '',
+              col_hashes: '{}',
+              created_at: now,
+            } as never)
+            .execute();
+        }
+      });
+
+      // A row that named its own key leaves an identity sequence behind it.
+      if (handle.dialect === 'postgres') {
+        for (const tableName of explicitKeys) {
+          const resolved = view.table(tableName);
+          // Only a counting key has a sequence; a uuid key has none (and no MAX).
+          for (const column of resolved.primaryKey.filter((name) => INTEGER_TYPES.has(resolved.columns.get(name)?.logicalType ?? ''))) {
+            await sql`SELECT setval(pg_get_serial_sequence(${`${resolved.schema}.${resolved.name}`}, ${column}), COALESCE((SELECT MAX(${sql.ref(column)}) FROM ${sql.table(`${resolved.schema}.${resolved.name}`)}), 0) + 1, false) WHERE pg_get_serial_sequence(${`${resolved.schema}.${resolved.name}`}, ${column}) IS NOT NULL`.execute(
+              asDb(handle.db),
+            );
+          }
+        }
+      }
+      opts.progress?.(95, 'Written');
+
+      await auditRepo(deps.meta).append({
+        actorKind: 'user',
+        actorId: opts.userId,
+        actorLabel: opts.userLabel,
+        category: 'app',
+        action: 'app.sample-data.add',
+        connectionId,
+        changes: { after: { key: app.key, counts, reused, files: fileIds.size } },
+      });
+      await deps.publish?.(connectionId);
+      return { counts, files: fileIds.size };
+    } catch (error) {
+      for (const id of fileIds.values()) await files.markDeleted(id).catch(() => undefined);
+      throw error;
+    }
+  }
+
   return {
     /** Whether this app's sample data was ever added here (and may since have been removed by a person). */
     async everAdded(app: SampleApp): Promise<boolean> {
@@ -1032,7 +1828,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const ledger = await ledgerRecord(app, app.connectionId);
       if (ledger === undefined) return { offered, loaded: false, total: 0, addedAt: null, tables: [] };
       const handle = await deps.manager.data(app.connectionId);
-      const rows = (await ledgerRows(handle, ledger.tableName)).filter(isSampleRow);
+      const listed = await ledgerRows(handle, ledger.tableName);
+      // An entry whose table is gone (an add-on removed with its tables) is no sample row any more: not counted.
+      const names = await sampleNames(app.connectionId, app.key, [...sectionKeysOf(app), ...prefixesIn(listed)]);
+      const rows = listed.filter((row) => isSampleRow(row) && names[row.table_ref] !== undefined);
       const counts = new Map<string, number>();
       for (const row of rows) counts.set(row.table_ref, (counts.get(row.table_ref) ?? 0) + 1);
       const first = rows.reduce<number | null>((min, row) => {
@@ -1067,577 +1866,31 @@ export function createSampleDataService(deps: SampleDataDeps) {
       };
     },
 
-    async add(
-      app: SampleApp,
-      opts: {
-        locale: string;
-        userId: string | null;
-        userLabel: string;
-        progress?: (pct: number, message: string) => void;
-        now?: number;
-      },
-    ): Promise<{ counts: Record<string, number>; files: number }> {
+    /**
+     * Adds an owner's sample data: its own bundle, then — for an app — the
+     * rows it ships for each add-on that is here for it, each section in a
+     * transaction of its own (a section that fails leaves the app's own rows
+     * in). An add-on's own add also brings in the sections that were waiting
+     * for its sample.
+     */
+    async add(app: SampleApp, opts: AddOptions): Promise<{ counts: Record<string, number>; files: number }> {
       const connectionId = await connectionOf(app);
       const bundle = await loadBundle(app);
       const status = await this.status(app);
       if (status.loaded) {
         throw new ConflictError(`"${app.key}" already has its sample data. Remove it first to add it again.`, 'CONFLICT');
       }
-      const now = opts.now ?? Date.now();
-      const handle = await deps.manager.data(connectionId);
-      const names = await records.realNames(connectionId, app.key);
-      const timeZone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
-      const skipped = new Set([...(await skippedWhenShared(app, connectionId, handle, names)), ...(await skippedWhenFilled(bundle, handle, names))]);
-      opts.progress?.(5, 'Checked the sample data');
-
-      // Images first, into the Files library; to the bin if anything later fails.
-      const fileIds = new Map<string, string>();
-      const files = filesRepo(deps.meta);
-      try {
-        for (const [label, asset] of Object.entries(bundle.assets)) {
-          const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
-          if (actual !== asset.sha256) {
-            throw new ValidationFailedError(`The sample image "${asset.file}" is not the file the bundle names.`, {
-              reason: 'SAMPLE_INVALID',
-            });
-          }
-          const id = newId('file');
-          const filename = basename(asset.file);
-          const mime = MIME_BY_EXTENSION[extname(filename).toLowerCase()] ?? 'application/octet-stream';
-          const stored = await deps.files.write({ id, kind: 'upload', filename, mime, bytes });
-          await files.create({
-            id,
-            filename,
-            mime,
-            sizeBytes: stored.sizeBytes,
-            sha256: stored.sha256,
-            storageKey: stored.storageKey,
-            storage: stored.storage,
-            destinationId: stored.destinationId,
-            kind: 'upload',
-            entityConnectionId: connectionId,
-            uploadedBy: opts.userId,
-            attachedAt: now,
-          });
-          fileIds.set(label, id);
-        }
-        opts.progress?.(20, 'Added the images');
-        const sampleFileIds = new Set(fileIds.values());
-
-        const ledger = await ensureLedger(app, connectionId, handle);
-        const view = await viewFor(connectionId);
-        // How a row names one of the owner's own tables: read once, before the transaction.
-        const refIndex = await tableRefIndex(deps.meta, connectionId, view.model);
-        const tableRef = (ref: string): string | null => {
-          const real = names[ref];
-          const found = real === undefined ? undefined : view.model.tables.find((table) => table.name === real);
-          return found === undefined ? null : storedTableRef(refIndex, found.id);
-        };
-        /*
-         * What another installed app's sample already put in a table this app
-         * shares with it (two apps on one menu; a copy beside its original),
-         * by the identity this bundle would name it by. A bundle row that is
-         * the same row is taken as this app's own instead of written again.
-         */
-        const lentBy = new Map<string, LedgerRow>();
-        for (const [real, theirs] of await othersSampleRows(app, connectionId, handle)) {
-          const ref = Object.entries(names).find(([, name]) => name === real)?.[0];
-          const table = ref === undefined ? null : safeTable(view, real);
-          if (ref === undefined || table === null) continue;
-          for (const entry of theirs) {
-            const identity = entry.label === null ? null : identityOf(ref, entry.label, null, table);
-            if (identity !== null && !lentBy.has(identity)) lentBy.set(identity, entry);
-          }
-        }
-        const writes = createWriteService(writeStores(deps.meta));
-        const context: WriteContext = {
-          origin: 'import',
-          hops: 0,
-          actor: { kind: 'user', id: opts.userId, label: opts.userLabel },
-          request: null,
-        };
-        const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
-        const counts: Record<string, number> = {};
-        const explicitKeys = new Set<string>();
-        let reused = 0;
-        /** Rows taken from another app's sample rather than written. */
-        let takenShared = 0;
-
-        await handle.db.transaction().execute(async (trx) => {
-          const db = asDb(trx);
-          const labels = new Map<string, unknown>();
-          /** The open times the sample's rows are placed on, per slot limit, found as each table comes (its hours may be the sample's own). */
-          const slotTimes = new Map<string, (Date | null)[]>();
-          const placers = new Map<string, SlotPlacer | null>();
-          /** The rows of tables that keep totals, settled once every row is in. */
-          const totals = new Map<string, { target: WriteTarget; rows: { seq: number; key: Row; record: Row }[] }>();
-          const entries = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger)} ORDER BY seq`.execute(db)).rows.map((row) => ({
-            ...row,
-            seq: Number(row.seq),
-          }));
-          /** The rows the last removal kept, by identity; each is taken back once at most. */
-          const keptBy = new Map<string, LedgerRow>();
-          /** Every kept row, by table: a parent taken back takes the rows its lock ties to it from here. */
-          const keptByTable = new Map<string, LedgerRow[]>();
-          for (const entry of entries) {
-            if (!entry.table_ref.startsWith(KEPT_PREFIX)) continue;
-            const ref = entry.table_ref.slice(KEPT_PREFIX.length);
-            const table = safeTable(view, names[ref] ?? ref);
-            if (table === null) continue;
-            let key: Row | null = null;
-            try {
-              key = JSON.parse(entry.pk) as Row;
-            } catch {
-              continue;
-            }
-            const identity = identityOf(ref, entry.label, key, table);
-            if (identity !== null && !keptBy.has(identity)) keptBy.set(identity, entry);
-            keptByTable.set(ref, [...(keptByTable.get(ref) ?? []), entry]);
-          }
-          const adopted = new Set<number>();
-          /** Files a row taken back still names: the sample's again, binned with it on the next removal. */
-          const adoptedFiles = new Set<string>();
-          /** The rows this add took back (`<table id>\u0000<key>`), each marked when it came back as a part: none of their parts is written. */
-          const takenBack = new Map<string, boolean>();
-          /** The labels of rows left out under a parent taken back that were not taken back themselves (changed, or gone). */
-          const leftOut = new Set<string>();
-          /** The kept rows that are part of a row (`partLinks`), by `<parent table id>\u0000<key>`: read once, on the first take-back. */
-          const tied = new Map<string, { entry: LedgerRow; ref: string; table: ResolvedTable; row: Row; ofParts: boolean }[]>();
-          let tiedRead = false;
-          const tiedTo = async (parent: string, key: unknown) => {
-            if (!tiedRead) {
-              tiedRead = true;
-              for (const [ref, kept] of keptByTable) {
-                const table = safeTable(view, names[ref] ?? ref);
-                const links = table === null ? [] : partLinks(view, table);
-                if (table === null || links.length === 0) continue;
-                for (const entry of kept) {
-                  const row = await fetchByPk(db, table, JSON.parse(entry.pk) as Row);
-                  if (row === undefined) continue;
-                  for (const link of links) {
-                    const via = row[link.via];
-                    if (via === null || via === undefined) continue;
-                    const at = `${link.parent}\u0000${String(via)}`;
-                    tied.set(at, [...(tied.get(at) ?? []), { entry, ref, table, row, ofParts: link.ofParts }]);
-                  }
-                }
-              }
-            }
-            return tied.get(`${parent}\u0000${String(key)}`) ?? [];
-          };
-          /*
-           * A kept row, taken back as it reads now: its entry is re-hashed
-           * (the same over the columns it had) and the rows after it point at
-           * it by its label. Its parts (a document's lines, a terms version's
-           * clauses, a line's chosen options) come back with it, each while it
-           * reads as the sample wrote it: a document keeps the lines it has,
-           * and the sample writes none under it (below), whatever its own lines
-           * read as today — in another locale, on another day.
-           */
-          const takeBack = async (entry: LedgerRow, current: Row, ref: string, resolved: ResolvedTable, label: string | null, asPart = false): Promise<void> => {
-            adopted.add(entry.seq);
-            const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
-            const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
-            if (label !== null) labels.set(label, single ?? key);
-            // Hashed as it reads now, so recorded as every entry this add writes: dates as days.
-            const { rowHash, colHashes } = hashRow(current, resolved);
-            await db
-              .updateTable(ledger as never)
-              .set({
-                table_ref: ref,
-                row_hash: rowHash,
-                col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
-                created_at: now,
-              } as never)
-              .where('seq' as never, '=', entry.seq as never)
-              .execute();
-            if ((tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0) {
-              const bucket = totals.get(ref) ?? { target: { connectionId, view, table: resolved, db, dialect: handle.dialect }, rows: [] as { seq: number; key: Row; record: Row }[] };
-              bucket.rows.push({ seq: entry.seq, key, record: current });
-              totals.set(ref, bucket);
-            }
-            for (const value of Object.values(current)) if (isId(value, 'file')) adoptedFiles.add(value as string);
-            counts[ref] = (counts[ref] ?? 0) + 1;
-            if (single === undefined || single === null) return;
-            const part = asPart || lockTied(resolved, current);
-            takenBack.set(`${resolved.id}\u0000${String(single)}`, part);
-            for (const child of await tiedTo(resolved.id, single)) {
-              if (child.ofParts && !part) continue;
-              if (!adopted.has(child.entry.seq) && unchangedSince(child.entry, child.row, child.table, handle.dialect)) {
-                await takeBack(child.entry, child.row, child.ref, child.table, child.entry.label, true);
-              }
-            }
-          };
-          // Kept entries hold their seq; new ones count on from the last.
-          let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
-          /** The rows taken from another app's sample (`<table id>\u0000<key>`): their parts are taken with them, or left out. */
-          const sharedIn = new Set<string>();
-          /*
-           * Another app's sample row, taken as this app's own: entered in this
-           * ledger as it reads now, and named by its label for the rows after
-           * it. The row is not written to, and its files stay the other app's.
-           * Whether it is the same row was decided by the caller.
-           */
-          const takeShared = async (current: Row, ref: string, resolved: ResolvedTable, label: string): Promise<void> => {
-            const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
-            const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
-            labels.set(label, single ?? key);
-            const { rowHash, colHashes } = hashRow(current, resolved);
-            seq += 1;
-            await db
-              .insertInto(ledger as never)
-              .values({
-                seq,
-                table_ref: ref,
-                pk: canonicalJson(key),
-                label,
-                row_hash: rowHash,
-                col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
-                created_at: now,
-              } as never)
-              .execute();
-            counts[ref] = (counts[ref] ?? 0) + 1;
-            if (single === undefined || single === null) return;
-            const at = `${resolved.id}\u0000${String(single)}`;
-            sharedIn.add(at);
-            // As a record taken back: the sample writes no part under it. Its parts are taken with it, below.
-            takenBack.set(at, lockTied(resolved, current));
-          };
-          /** The other app's row a bundle row names, when it is the same row: still as that sample wrote it, and holding what this one would write. */
-          const sameRowOf = async (identity: string | null, values: Row, resolved: ResolvedTable, asPart: boolean): Promise<Row | null> => {
-            const lent = identity === null ? undefined : lentBy.get(identity);
-            const key = lent === undefined ? null : entryKey(lent);
-            if (lent === undefined || key === null) return null;
-            const current = await fetchByPk(db, resolved, key);
-            if (current === undefined || !unchangedSince(lent, current, resolved, handle.dialect) || !holdsWhat(values, current, resolved)) return null;
-            // A part comes only with its record.
-            if (!asPart && isPart(view, resolved, current)) return null;
-            return current;
-          };
-          let done = 0;
-          for (const table of bundle.tables) {
-            // A shared table already holding real rows keeps these tables' sample rows out.
-            if (skipped.has(table.ref)) continue;
-            /*
-             * The totals so far, before the next table: its rows may copy one
-             * (a stage of a quote copies the quote's subtotal), and a copy
-             * reads the row as it stands. Settled again at the end, once
-             * every child row is in.
-             */
-            for (const { target: parent, rows } of totals.values()) {
-              await writes.settle('create', parent, rows.map((row) => ({ record: row.record, before: null })));
-            }
-            // The first open times this table's rows are timed on, read with the rows written so far (hours, closures) in.
-            const own = safeTable(view, names[table.ref] ?? table.ref);
-            for (const ask of slotAsks({ ...bundle, tables: [table] })) {
-              const earliest = now + isoDurationMs(ask.duration);
-              /*
-               * A row the last removal kept, and that is taken back as it is:
-               * it already holds its time, and the placer counts it there. It
-               * takes no second time (its place kept in the queue, empty).
-               */
-              const label = typeof ask.row['@label'] === 'string' ? ask.row['@label'] : null;
-              const identity = own === null ? null : identityOf(table.ref, label, ask.row as Row, own);
-              const kept = identity === null ? undefined : keptBy.get(identity);
-              if (kept !== undefined && own !== null) {
-                const current = await fetchByPk(db, own, JSON.parse(kept.pk) as Row);
-                if (current !== undefined && unchangedSince(kept, current, own, handle.dialect) && !isPart(view, own, current)) {
-                  const key = slotKey(ask.table, earliest);
-                  slotTimes.set(key, [...(slotTimes.get(key) ?? []), null]);
-                  continue;
-                }
-              }
-              let placer = placers.get(ask.table);
-              if (placer === undefined) {
-                const on = safeTable(view, names[ask.table] ?? ask.table);
-                placer = on === null ? null : await slotPlacer({ connectionId, view, table: on, db, dialect: handle.dialect }, timeZone, now);
-                placers.set(ask.table, placer);
-              }
-              const key = slotKey(ask.table, earliest);
-              slotTimes.set(key, [...(slotTimes.get(key) ?? []), placer === null ? null : await placer.place(earliest, ask.row)]);
-            }
-            const resolved = view.table(names[table.ref] ?? table.ref);
-            const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
-            const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0;
-            for (const row of table.rows) {
-              const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef };
-              const chosen = chooseSampleRow(row, ctx);
-              // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
-              if (chosen === null) {
-                done += 1;
-                continue;
-              }
-              /*
-               * A row that points at one left out goes too: it hung off a line
-               * the record no longer has as the sample wrote it. Read from the
-               * columns it would be written with (a branch not chosen does not
-               * count), and it still takes its place in the slot-time queues.
-               */
-              const pointsAtLeftOut = Object.entries(chosen).some(([column, value]) => !ROW_DIRECTIVES.has(column) && refsIn(value).some((named) => leftOut.has(named)));
-              if (leftOut.size > 0 && pointsAtLeftOut) {
-                releaseSlots(chosen, ctx);
-                if (typeof row['@label'] === 'string') leftOut.add(row['@label']);
-                done += 1;
-                continue;
-              }
-              const resolvedRow = resolveValues(chosen, ctx);
-              const values = spellInstants(resolvedRow, resolved);
-              const label = typeof row['@label'] === 'string' ? row['@label'] : null;
-              // A part of a row this add took back: that row came back with the parts it has.
-              const underTakenBack = partLinks(view, resolved).some((link) => {
-                const key = values[link.via];
-                const parentIsPart = key === null || key === undefined ? undefined : takenBack.get(`${link.parent}\u0000${String(key)}`);
-                return parentIsPart !== undefined && (!link.ofParts || parentIsPart);
-              });
-              if (underTakenBack) {
-                // Under a record taken from another app's sample, its part is taken the same way when it is the same row.
-                const underShared = partLinks(view, resolved).some((link) => values[link.via] !== null && values[link.via] !== undefined && sharedIn.has(`${link.parent}\u0000${String(values[link.via])}`));
-                const part = underShared && label !== null && !labels.has(label) ? await sameRowOf(identityOf(table.ref, label, values, resolved), values, resolved, true) : null;
-                if (part !== null && label !== null) await takeShared(part, table.ref, resolved, label);
-                else if (label !== null && !labels.has(label)) leftOut.add(label);
-                done += 1;
-                continue;
-              }
-              /*
-               * The row the last removal kept, taken back rather than written
-               * again — only while it reads as the sample wrote it. It keeps
-               * its own links: one to a kept parent the operator changed still
-               * names that parent, not the fresh copy. What the hash cannot
-               * tell apart is a row of the operator's that is identical in
-               * every column AND took the kept row's key after it was deleted
-               * (SQLite reuses the highest rowid). A part (a line, its options)
-               * is not taken back on its own: its record did not come back (it
-               * would have brought the part with it), so the part stays with
-               * the record the operator kept, and the sample writes its own
-               * under the fresh copy.
-               */
-              const identity = identityOf(table.ref, label, values, resolved);
-              const keptEntry = identity === null ? undefined : keptBy.get(identity);
-              if (keptEntry !== undefined && !adopted.has(keptEntry.seq)) {
-                keptBy.delete(identity!);
-                const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
-                if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect) && !isPart(view, resolved, current)) {
-                  await takeBack(keptEntry, current, table.ref, resolved, label);
-                  done += 1;
-                  continue;
-                }
-              }
-              /*
-               * The same row, already put there by another installed app's
-               * sample (a menu two apps share; a copy beside its original):
-               * taken as this app's own, never written twice.
-               */
-              if (label !== null && !labels.has(label)) {
-                const same = await sameRowOf(identity, values, resolved, false);
-                if (same !== null) {
-                  await takeShared(same, table.ref, resolved, label);
-                  takenShared += 1;
-                  done += 1;
-                  continue;
-                }
-              }
-              /*
-               * A row only for an empty table — the app's one settings row — is
-               * left out when the operator already has one; the rows after it
-               * point at theirs, which the sample never takes as its own.
-               */
-              if (row['@onlyIfEmpty'] === true) {
-                const existing = (await db.selectFrom(resolved.id as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
-                if (existing !== undefined) {
-                  const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, existing[column]]));
-                  const named = row['@label'];
-                  if (typeof named === 'string') labels.set(named, resolved.primaryKey.length === 1 ? existing[resolved.primaryKey[0]!] : key);
-                  done += 1;
-                  continue;
-                }
-              }
-              if (resolved.primaryKey.some((column) => values[column] !== undefined)) explicitKeys.add(resolved.name);
-              // A shared link's code the sample gives is printed in the app's package for anyone to
-              // read: every sample row's link is made here, like a person's create (`empty-code`).
-              for (const column of shareCodeColumns(app.manifest.kind === 'app' ? (app.manifest.publicAccess ?? []) : [], table.ref)) delete values[column];
-              /*
-               * A code or a running number the table already holds — a row
-               * kept from an earlier add, or one of the operator's own — is
-               * left for Adminium to decide, as it would be on a person's
-               * create: the sample's own spelling is a nicety, a clash a refusal.
-               */
-              const rules = tableRulesFor({ view, table: resolved });
-              for (const decided of [...(rules?.codes ?? []), ...(rules?.sequences ?? [])]) {
-                const value = values[decided.column];
-                if (value === undefined || value === null) continue;
-                const taken = await db
-                  .selectFrom(resolved.id as never)
-                  .select(sql`1`.as('taken'))
-                  .where(sql.ref(decided.column), '=', value as never)
-                  .executeTakeFirst();
-                if (taken !== undefined) delete values[decided.column];
-              }
-              /*
-               * Any other one-of-a-kind value the table already holds is one of
-               * the operator's own records (their Monday opening hours, a day
-               * they already closed): the sample never overwrites it and never
-               * guesses around it, it stops — with the table, the column and
-               * the value named, not the database's own words. Nothing of the
-               * add is kept (it is one transaction).
-               */
-              for (const column of resolved.table.columns) {
-                const value = values[column.name];
-                if (!column.isUnique || column.isPrimaryKey || value === undefined || value === null) continue;
-                const taken = await db
-                  .selectFrom(resolved.id as never)
-                  .select(sql`1`.as('taken'))
-                  .where(sql.ref(column.name), '=', value as never)
-                  .executeTakeFirst();
-                if (taken !== undefined) throw sampleClash(table.ref, column.name, value);
-              }
-              // Sample data is history the operator asked for, not bookings to judge.
-              const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
-              const good = checked.rows[0];
-              if (good === null || good === undefined) {
-                throw new ValidationFailedError(`A sample row for "${table.ref}" was refused.`, {
-                  reason: 'SAMPLE_ROW_REFUSED',
-                  table: table.ref,
-                  issues: checked.issues[0],
-                });
-              }
-              let stored: Row;
-              try {
-                stored = await insertRow(db, handle.dialect, resolved, good);
-              } catch (error) {
-                // A unique rule over several columns, which the check above cannot see.
-                if (isUniqueViolation(error)) throw sampleClash(table.ref, null, null);
-                throw error;
-              }
-              const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, stored[column]]));
-              if (label !== null) {
-                labels.set(label, resolved.primaryKey.length === 1 ? stored[resolved.primaryKey[0]!] : key);
-              }
-              // A picture the row names is the row's own from here on: only a file attached to its row is shown to visitors.
-              for (const value of Object.values(values)) {
-                if (typeof value === 'string' && sampleFileIds.has(value)) {
-                  await files.attach(value, { connectionId, table: resolved.id, pk: key, label: pkLabel(resolved, key) }, now);
-                }
-              }
-              const { rowHash, colHashes } = hashRow(stored, resolved);
-              seq += 1;
-              if (keepsTotals) {
-                const bucket = totals.get(table.ref) ?? { target, rows: [] as { seq: number; key: Row; record: Row }[] };
-                bucket.rows.push({ seq, key, record: stored });
-                totals.set(table.ref, bucket);
-              }
-              await db
-                .insertInto(ledger as never)
-                .values({
-                  seq,
-                  table_ref: table.ref,
-                  pk: canonicalJson(key),
-                  label,
-                  row_hash: rowHash,
-                  col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
-                  created_at: now,
-                } as never)
-                .execute();
-              counts[table.ref] = (counts[table.ref] ?? 0) + 1;
-              done += 1;
-              if (done % 25 === 0) opts.progress?.(20 + Math.round((done / total) * 70), `Wrote ${String(done)} of ${String(total)}`);
-            }
-          }
-          /*
-           * Totals last, from every child row: the rows went in one at a time
-           * and nothing settled them (a payment's visit, a visit's balance).
-           * Each settled row is hashed again as it now stands, or its removal
-           * would take the new total for an edit and keep the row.
-           */
-          for (const { target, rows } of totals.values()) {
-            await writes.settle('create', target, rows.map((row) => ({ record: row.record, before: null })));
-          }
-          // Hashed only once every total is settled: a line's settle climbs into its order, after the order's own.
-          for (const [ref, { target, rows }] of totals) {
-            for (const row of rows) {
-              const now = (await fetchByPk(db, target.table, row.key)) ?? row.record;
-              const { rowHash, colHashes } = hashRow(now, target.table);
-              await db
-                .updateTable(ledger as never)
-                .set({ row_hash: rowHash, col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }) } as never)
-                .where('seq' as never, '=', row.seq as never)
-                .where('table_ref' as never, '=', ref as never)
-                .execute();
-            }
-          }
-          // A kept row not taken back stays the operator's, and leaves the ledger.
-          const forgotten = entries
-            .filter((entry) => entry.table_ref.startsWith(KEPT_PREFIX) && !adopted.has(entry.seq))
-            .map((entry) => entry.seq);
-          for (let i = 0; i < forgotten.length; i += 500) {
-            await db
-              .deleteFrom(ledger as never)
-              .where('seq' as never, 'in', forgotten.slice(i, i + 500) as never)
-              .execute();
-          }
-          reused = adopted.size + takenShared;
-          for (const id of adoptedFiles) {
-            const file = await files.findById(id);
-            if (file === null || file.deletedAt !== null || file.entityConnectionId !== connectionId) continue;
-            seq += 1;
-            await db
-              .insertInto(ledger as never)
-              .values({
-                seq,
-                table_ref: FILE_REF,
-                pk: canonicalJson({ id }),
-                label: null,
-                row_hash: '',
-                col_hashes: '{}',
-                created_at: now,
-              } as never)
-              .execute();
-          }
-          for (const [label, id] of fileIds) {
-            seq += 1;
-            await db
-              .insertInto(ledger as never)
-              .values({
-                seq,
-                table_ref: FILE_REF,
-                pk: canonicalJson({ id }),
-                label,
-                row_hash: '',
-                col_hashes: '{}',
-                created_at: now,
-              } as never)
-              .execute();
-          }
-        });
-
-        // A row that named its own key leaves an identity sequence behind it.
-        if (handle.dialect === 'postgres') {
-          for (const tableName of explicitKeys) {
-            const resolved = view.table(tableName);
-            // Only a counting key has a sequence; a uuid key has none (and no MAX).
-            for (const column of resolved.primaryKey.filter((name) => INTEGER_TYPES.has(resolved.columns.get(name)?.logicalType ?? ''))) {
-              await sql`SELECT setval(pg_get_serial_sequence(${`${resolved.schema}.${resolved.name}`}, ${column}), COALESCE((SELECT MAX(${sql.ref(column)}) FROM ${sql.table(`${resolved.schema}.${resolved.name}`)}), 0) + 1, false) WHERE pg_get_serial_sequence(${`${resolved.schema}.${resolved.name}`}, ${column}) IS NOT NULL`.execute(
-                asDb(handle.db),
-              );
-            }
-          }
-        }
-        opts.progress?.(95, 'Written');
-
-        await auditRepo(deps.meta).append({
-          actorKind: 'user',
-          actorId: opts.userId,
-          actorLabel: opts.userLabel,
-          category: 'app',
-          action: 'app.sample-data.add',
-          connectionId,
-          changes: { after: { key: app.key, counts, reused, files: fileIds.size } },
-        });
-        await deps.publish?.(connectionId);
-        return { counts, files: fileIds.size };
-      } catch (error) {
-        for (const id of fileIds.values()) await files.markDeleted(id).catch(() => undefined);
-        throw error;
+      const done = await addPass(app, { bundle, owns: (ref) => !ref.includes(':') }, opts);
+      const counts = { ...done.counts };
+      for (const section of await sectionsFor(app, connectionId)) {
+        const added = await addPass(app, section, opts);
+        for (const [ref, count] of Object.entries(added.counts)) counts[ref] = (counts[ref] ?? 0) + count;
       }
+      // The sections of apps that named this add-on's sample and were waiting for it.
+      if (app.manifest.kind === 'add-on') {
+        for (const waiting of await sectionsWaitingFor(app, connectionId)) await addPass(waiting.app, waiting.pass, opts);
+      }
+      return { counts, files: done.files };
     },
 
     /**
@@ -1651,8 +1904,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
       await runIntrospection({ manager: deps.manager, meta: deps.meta, connectionId });
       const handle = await deps.manager.data(connectionId);
       const view = await viewFor(connectionId);
-      const names = await records.realNames(connectionId, app.key);
-      const every = (await ledgerRows(handle, ledger.tableName)).filter(isSampleRow);
+      const listed = await ledgerRows(handle, ledger.tableName);
+      const names = await sampleNames(connectionId, app.key, [...sectionKeysOf(app), ...prefixesIn(listed)]);
+      // An entry whose table no longer resolves is not a sample row any more: listed nowhere.
+      const every = listed.filter((row) => isSampleRow(row) && safeTable(view, names[row.table_ref] ?? row.table_ref) !== null);
       // A row another installed app's sample lists too stays where it is, as that app's: not removed, not "kept".
       const shared = await alsoAnothers(app, connectionId, handle, view, names, every);
       const rows = every.filter((row) => !shared.has(row.seq));
@@ -1684,25 +1939,50 @@ export function createSampleDataService(deps: SampleDataDeps) {
       };
     },
 
+    /**
+     * Removes an owner's sample data. An add-on's goes after the sections
+     * that point at its rows: an app's rows for it that name a row of its
+     * sample leave first, so nothing of the add-on's is kept as "in use" by
+     * rows that were only ever sample rows themselves.
+     */
     async remove(
       app: SampleApp,
       opts: { keepChanged: boolean; userId: string | null; userLabel: string },
     ): Promise<{ removed: number; kept: number; byTable: Record<string, number> }> {
+      if (app.manifest.kind === 'add-on' && app.connectionId !== null) {
+        for (const held of await sectionsNaming(app, app.connectionId)) await removeRows(held, opts, (row) => row.table_ref.startsWith(`${app.key}:`));
+      }
+      return removeRows(app, opts);
+    },
+  };
+
+  /** The removal itself; `only` narrows it to some of the ledger's rows (one section), leaving the rest and the files as they are. */
+  async function removeRows(
+    app: SampleApp,
+    opts: { keepChanged: boolean; userId: string | null; userLabel: string },
+    only?: (row: LedgerRow) => boolean,
+  ): Promise<{ removed: number; kept: number; byTable: Record<string, number> }> {
+    {
       const connectionId = await connectionOf(app);
       const ledger = await ledgerRecord(app, connectionId);
       if (ledger === undefined) return { removed: 0, kept: 0, byTable: {} };
       await runIntrospection({ manager: deps.manager, meta: deps.meta, connectionId });
       const handle = await deps.manager.data(connectionId);
       const view = await viewFor(connectionId);
-      const names = await records.realNames(connectionId, app.key);
       const all = await ledgerRows(handle, ledger.tableName);
+      const names = await sampleNames(connectionId, app.key, [...sectionKeysOf(app), ...prefixesIn(all)]);
+      // An entry whose table no longer resolves (an add-on removed with its tables): out of the ledger, counted nowhere.
+      const ghosts = all.filter((row) => isSampleRow(row) && safeTable(view, names[row.table_ref] ?? row.table_ref) === null).map((row) => row.seq);
+      const resolved = all.filter((row) => isSampleRow(row) && !ghosts.includes(row.seq) && (only === undefined || only(row)));
       // A row another installed app's sample lists too is not this app's alone to delete: it leaves this ledger and stays.
-      const shared = await alsoAnothers(app, connectionId, handle, view, names, all.filter(isSampleRow));
-      const rows = all.filter((row) => isSampleRow(row) && !shared.has(row.seq));
+      const shared = await alsoAnothers(app, connectionId, handle, view, names, resolved);
+      const rows = resolved.filter((row) => !shared.has(row.seq));
       const analysis = await analyse(handle, view, names, rows, opts.keepChanged);
       const byTable: Record<string, number> = {};
       const removedSeqs: number[] = [];
       const kept: LedgerRow[] = [];
+      /** Rows of a section that fed a total kept elsewhere, as they read before they went. */
+      const fed: { table: ResolvedTable; record: Row }[] = [];
 
       await handle.db.transaction().execute(async (trx) => {
         const db = asDb(trx);
@@ -1742,12 +2022,31 @@ export function createSampleDataService(deps: SampleDataDeps) {
               );
             }
             byTable[row.table_ref] = (byTable[row.table_ref] ?? 0) + 1;
+            const was = analysis.current.get(row.seq);
+            // A row an app shipped for an add-on (`<addOn>:<ref>`), or any row of a removal narrowed to one section.
+            if ((only !== undefined || row.table_ref.includes(':')) && was !== undefined && was !== null && (tableRulesFor({ view, table })?.rollupsInto?.length ?? 0) > 0) fed.push({ table, record: was });
+          }
+        }
+        /*
+         * Rows an app shipped for an add-on left, and the rows that keep their
+         * totals may stay (the add-on's own items): those totals are worked
+         * out again, and the keepers recorded again in every list that names
+         * them. An owner's own rows need none of this: what kept a total
+         * leaves with them.
+         */
+        for (const { table, record } of fed) {
+          await createWriteService(writeStores(deps.meta)).settle('delete', { connectionId, view, table, db, dialect: handle.dialect }, [{ record, before: null }]);
+          for (const rollup of tableRulesFor({ view, table })?.rollupsInto ?? []) {
+            const parent = safeTable(view, rollup.parent);
+            const kept = parent === null || record[rollup.via] === null || record[rollup.via] === undefined ? undefined : await fetchByPk(db, parent, { [rollup.parentKey]: record[rollup.via] });
+            if (parent !== null && kept !== undefined) await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: parent }, { [rollup.parentKey]: kept[rollup.parentKey] });
           }
         }
         // The files' entries go too; a file a kept row still names stays in the library.
-        for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);
+        if (only === undefined) for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);
         // What another app's sample lists too: out of this ledger, never out of the table.
         for (const seq of shared) removedSeqs.push(seq);
+        for (const seq of ghosts) removedSeqs.push(seq);
         /*
          * A kept row's entry stays, marked, so it no longer counts as sample
          * data anywhere. A ref too long to mark is forgotten, as every kept
@@ -1782,7 +2081,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
         const current = table === null || key === null ? undefined : await fetchByPk(asDb(handle.db), table, key);
         for (const value of Object.values(current ?? {})) if (isId(value, 'file')) keptValues.add(value as string);
       }
-      for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) {
+      for (const row of only === undefined ? all.filter((entry) => entry.table_ref === FILE_REF) : []) {
         const id = (JSON.parse(row.pk) as { id: string }).id;
         if (!keptValues.has(id)) await files.markDeleted(id).catch(() => undefined);
       }
@@ -1798,8 +2097,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       });
       await deps.publish?.(connectionId);
       return { removed, kept: analysis.keep.size, byTable };
-    },
-  };
+    }
+  }
 }
 
 /**

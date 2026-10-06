@@ -75,7 +75,7 @@ import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, 
 import { sql, type Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import { canonicalJson } from '../apps/sample-data.js';
+import { ledgersListing } from '../apps/sample-data.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { slotInstant, withNamedLock } from '../crud/capacity-guard.js';
 import { withNamedLocks } from '../crud/capacity/locks.js';
@@ -331,20 +331,13 @@ export interface KindInput {
   resend?: boolean | undefined;
 }
 
-/** Whether a row is one the app added as sample data: its sample ledger lists it. */
+/**
+ * Whether a row is sample data: ANY list of sample rows on its database names
+ * it — its owner's own, or another owner's (an app's rows for an add-on are
+ * in the app's list; a row two samples share is in both).
+ */
 export async function isSampleRow(meta: MetaDb, db: Kysely<SourceDatabase>, box: LiveOutbox, table: ResolvedTable, key: Row): Promise<boolean> {
-  const records = await appTablesRepo(meta).forInstall(box.connectionId, box.appKey);
-  const ledger = records.find((record) => record.role === 'sample-ledger' && record.state === 'created');
-  const ref = records.find((record) => record.tableName === table.name)?.ref;
-  if (ledger === undefined || ref === undefined) return false;
-  const found = await db
-    .selectFrom(ledger.tableName as never)
-    .select(sql`1`.as('one'))
-    .where('table_ref' as never, '=', ref as never)
-    .where('pk' as never, '=', canonicalJson(key) as never)
-    .executeTakeFirst()
-    .catch(() => undefined);
-  return found !== undefined;
+  return (await ledgersListing(meta, db, box.connectionId, table.name, key)).length > 0;
 }
 
 export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {

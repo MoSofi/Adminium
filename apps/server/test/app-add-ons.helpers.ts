@@ -149,7 +149,7 @@ export interface Harness {
   addConnection: (label: string) => Promise<string>;
   /** Read the database again, as a person does after changing it by hand. */
   introspect: () => Promise<void>;
-  stageApp: (manifest: Record<string, unknown>) => Promise<void>;
+  stageApp: (manifest: Record<string, unknown>, files?: Record<string, string>) => Promise<void>;
   inject: (req: { method: string; url: string; payload?: unknown; as?: User | null }) => Promise<{ statusCode: number; body: string; json: () => Body }>;
   /** Stage an app and ask for its plan on the harness's connection. */
   plan: (manifest: Record<string, unknown>) => Promise<{ statusCode: number; json: () => Body; body: string }>;
@@ -328,11 +328,12 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
       headers: as === undefined ? {} : { 'x-test-user-id': as === null ? 'anonymous' : as.id },
     });
 
-  const stageApp: Harness['stageApp'] = async (manifest) => {
+  const stageApp: Harness['stageApp'] = async (manifest, files = {}) => {
     const tarball = packageTarball({
       'manifest.json': JSON.stringify(manifest),
       'staff/index.html': '<!doctype html><html><body></body></html>',
       'customer/index.html': '<!doctype html><html><body></body></html>',
+      ...files,
     });
     await appStore.stage({
       key: String(manifest['key']),

@@ -109,7 +109,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   addOns: ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
-  'sampleData.addOns': ADD_ON_INSTALL_RELEASE,
   'unlockBy.self': ADD_ON_INSTALL_RELEASE,
   // Ledgers and what posts into them.
   'addOn.ledgers': ADD_ON_INSTALL_RELEASE,
@@ -166,6 +165,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'documents',
   // An add-on's own sample rows, added to its own tables and taken out again.
   'sampleData',
+  // The rows an app ships for an add-on it names: added with the app's sample while that add-on is here for it.
+  'sampleData.addOns',
 ];
 
 export interface UnbuiltWord {
