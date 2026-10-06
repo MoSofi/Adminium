@@ -43,6 +43,30 @@ test.describe('the words of the screens behind lazy routes', () => {
     await expect(page.locator('main')).not.toContainText(/\babout\.[a-z]+\.[a-zA-Z.]+\b/);
   });
 
+  test('a slow chunk keeps the home page waiting, never the rail', async ({ page }) => {
+    // The home page is a dashboard, drawn by the builder: it waits for these words after the shell is on screen.
+    await page.addInitScript(() => {
+      const log: string[] = [];
+      (window as unknown as { __rail: string[] }).__rail = log;
+      let was = false;
+      new MutationObserver(() => {
+        const rail = document.querySelector<HTMLElement>('nav[aria-label="Primary"]');
+        const now = rail !== null && rail.offsetParent !== null;
+        if (now !== was) log.push(now ? 'shown' : 'gone');
+        was = now;
+      }).observe(document, { subtree: true, childList: true, attributes: true });
+    });
+    await page.route(CHUNK, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.continue();
+    });
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+    // The page's own words arrive with the chunk; by then the rail has been on screen the whole time.
+    await expect(page.locator('main').getByRole('button', { name: 'Edit' })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { __rail: string[] }).__rail)).toEqual(['shown']);
+  });
+
   test('each screen shows its own words', async ({ page }) => {
     await signIn(page);
     for (const [path, heading] of [

@@ -329,7 +329,11 @@ export function AppShell() {
             </Suspense>
           ) : null}
           <main className="min-h-0 flex-1">
-            <Outlet />
+            {/* A page that waits (for its words, its code, its data) waits HERE: with no boundary of its own
+                its wait would climb past the shell and take the rail and the top bar off the screen with it. */}
+            <Suspense fallback={null}>
+              <Outlet />
+            </Suspense>
           </main>
         </div>
       </PageActionsProvider>
