@@ -3464,7 +3464,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         // What the rows hand to a ledger: after their own totals, on the same transaction — a refusal undoes every row of the tree.
         let posted: PostedOutcome[] = [];
-        if (!dry) {
+        {
           const stand: TreeRowIn[] = [];
           for (const row of everyRow) {
             const rules = rulesOf(row.target);
@@ -3472,7 +3472,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             stand.push({ target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, rules, row: keepsOwnTotals(rules) ? await readAgain(trx, row.target.table, record) : record, parent: row.parent === null ? null : everyRow.indexOf(row.parent), path: row.node.at });
           }
           try {
-            posted = await ledgerWriter.audited(() => ledgerWriter.treeStep(trx, treePosting, stand, { context, clock }), about);
+            posted = dry ? await ledgerWriter.treeQuote(trx, stand, { context, clock }) : await ledgerWriter.audited(() => ledgerWriter.treeStep(trx, treePosting, stand, { context, clock }), about);
           } catch (error) {
             if (error instanceof LockMoved) throw error;
             const path = (error as { details?: { path?: unknown } }).details?.path;
@@ -3487,6 +3487,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (keepsOwnTotals(rules)) {
             const sealing = sealsOf(preparedOf.get(row) ?? record);
             if (sealing !== undefined && keyOf(row.target.table, record) !== null) await sealRows(trx, row.target.table, pkOf(row.target.table, record), sealing, writeSeals);
+            record = await readAgain(trx, row.target.table, record);
+          } else if (posted.some((call) => call.decided.length > 0) && keyOf(row.target.table, record) !== null) {
+            // …or as an amount decided for it left it.
             record = await readAgain(trx, row.target.table, record);
           }
           rows.push({ node: row.node, record });
@@ -3614,7 +3617,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A table that hands rows to an add-on's ledger there to be asked: every change of it is written under one lock call, its row held,
       // and what the change crosses is judged on the row as held. A quote posts nothing.
       const about = { target, context };
-      const posts = dry ? null : await ledgerStep(() => ledgerWriter.watched(target, rules), about, input.mapError);
+      const watching = await ledgerStep(() => ledgerWriter.watched(target, rules), about, input.mapError);
+      const posts = dry ? null : watching;
       /** What the change hands to a ledger, from the look each attempt takes before its locks. */
       let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
       let posted: PostedOutcome[] = [];
@@ -3729,6 +3733,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const peeked = posting;
           if (after !== null) posted = await ledgerStep(() => ledgerWriter.postStep(db, peeked, { target: { ...target, timezone: zone }, rules, action: 'update', before: stood, row: after, context, clock }), about, input.mapError);
         }
+        // A quote of a change that would post: what each ledger would say, with nothing of the add-on's written and no lock named.
+        if (dry && watching !== null && before !== null && changed > 0) {
+          const quotedRow = (await fetchByPk(db, target.table, pk)) ?? null;
+          if (quotedRow !== null) posted = await ledgerStep(() => ledgerWriter.quoteStep(db, { target: { ...target, timezone: zone }, rules, action: 'update', before, row: quotedRow, context, clock }), about, input.mapError);
+        }
         if (quoted && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           if (after !== null) await input.inside?.(db, after);
@@ -3805,7 +3814,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }, input.mapError);
       } catch (error) {
         if (!(error instanceof UpdateQuoted)) throw error;
-        return { before, after: error.after, values, count: error.count };
+        return { before, after: error.after, values, count: error.count, ...(posted.length === 0 ? {} : { postings: posted }) };
       }
       if (count === 0 && input.skipIfNone === true) return { before, after: null, values, count };
       const after = (await fetchByPk(target.db, target.table, pk)) ?? null;

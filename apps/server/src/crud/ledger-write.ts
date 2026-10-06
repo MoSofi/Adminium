@@ -33,6 +33,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { ConflictError, PostingRefusedError, ValidationFailedError } from '../errors.js';
 import type { LedgerRuntime, ResolvedLedger } from '../ledgers/registry.js';
 import { heldNames, LockMoved, type NamedLock } from './capacity/locks.js';
+import { judgePlanned } from './ledger-judge.js';
 import type { ClimbStart, HeldBalances } from './climb.js';
 import type { ColumnCode, TableRules } from './column-rules.js';
 import { readDbRefusal, writeConflict } from './db-errors.js';
@@ -340,6 +341,12 @@ export interface PostedOutcome {
   written: { table: ResolvedTable; row: Row; before: Row | null }[];
   /** Each amount Adminium decided, and the column of the source row it was written to. */
   decided: { line: string; input: string; column: string; value: string }[];
+  /**
+   * A quote's answer (a dry run): what a save would be told. Nothing was
+   * written to any table of the add-on, and a ledger's refusal is an answer
+   * here, never a failure.
+   */
+  quote?: { state: 'ok' | 'refused' | 'unavailable'; reason?: string; line?: number; path?: (string | number)[]; left?: string; item?: string } | undefined;
 }
 
 /** One phase of one rule of a table, named: what `post` runs for a stored row. */
@@ -394,6 +401,8 @@ export interface LedgerKit {
   judge(db: Db, rows: readonly { target: WriteTarget; pk: Row; row: Row; before: Row | null }[], context: WriteContext, clock: WriteClock): Promise<void>;
   /** A row of a table read as it is, holding nothing; undefined when it is not there. */
   fetch(target: WriteTarget, key: Row): Promise<Row | undefined>;
+  /** The yes/no column of a table's row that lets one of its capped totals go below zero, when the rule names one. */
+  capUnless?(target: WriteTarget, total: string): string | undefined;
   /** A row of the add-on's that only Adminium writes (a receipt), changed as given. */
   updateRaw(target: WriteTarget, set: Row, key: Row): Promise<void>;
   /** Whether project code changes a row of the table before it is written. */
@@ -532,7 +541,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** The calls a write of a row fires — as a source, as the parent of lines, as a line — from what is installed as memory holds it now. */
-  function callsFor(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; only?: OnePhase | undefined }): PostingCall[] {
+  function callsFor(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; only?: OnePhase | undefined; dry?: boolean | undefined }): PostingCall[] {
     const scope = postingScope(input.rules);
     if (scope === null) return [];
     const { only, target } = input;
@@ -565,7 +574,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     const ledgers = kit.ledgers;
     // A server with no add-on runtime cannot tell an idle rule from a live one: a write that fires one is refused, never written unposted.
     if (ledgers === undefined) {
-      if (fired.every((point) => point.late === true)) return [];
+      if (fired.every((point) => point.late === true) || input.dry === true) return [];
       throw refused('add-on-unavailable', null);
     }
     const calls: PostingCall[] = [];
@@ -592,10 +601,12 @@ export function createLedgerWriter(kit: LedgerKit) {
         if (state.state === 'off') continue;
         // What was taken is always let go, even when not so much as its receipt can be written.
         if (point.phase === 'reverse' || point.late === true) continue;
+        // A quote is answered, not failed: there is nothing here to answer with, so it says nothing of this rule.
+        if (input.dry === true) continue;
         throw refused('add-on-unavailable', null, { posting: point.posting.id });
       }
-      // An off rule starts no round; whether one is open to give back is read under the locks.
-      if (state.state === 'off' && point.phase !== 'reverse') continue;
+      // An off rule starts no round; whether one is open to give back is read under the locks. (A quote says that it is off.)
+      if (state.state === 'off' && point.phase !== 'reverse' && input.dry !== true) continue;
       // A phase the action does not have is asked of nobody.
       if (only !== undefined && !state.action.phases.includes(point.phase)) continue;
       calls.push({
@@ -790,7 +801,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   /** The add-on's code, asked for its plan. A failure of the code is the plan's failure, with the cause the audit keeps. */
   function askPlanner(
     call: PostingCall,
-    mode: 'peek' | 'save',
+    mode: 'peek' | 'save' | 'dry',
     input: { target: WriteTarget; context: WriteContext; at: Date; source: { table: string; row: string }; lines: readonly unknown[]; reads: Record<string, ScalarRow[]>; settings: ScalarRow; written: Record<string, ScalarRow[]> },
   ): PostingOutput {
     const planInput = {
@@ -878,13 +889,29 @@ export function createLedgerWriter(kit: LedgerKit) {
     trx: Db,
     peeked: Pick<Peek, 'calls' | 'tables'> | null,
     jobs: readonly Job[],
-    env: { target: WriteTarget; context: WriteContext; clock: WriteClock; creating: boolean; decided?: (line: CallLine, after: Row) => void; pathOf?: (line: CallLine) => readonly (string | number)[] | undefined },
+    env: {
+      target: WriteTarget;
+      context: WriteContext;
+      clock: WriteClock;
+      creating: boolean;
+      decided?: (line: CallLine, after: Row) => void;
+      pathOf?: (line: CallLine) => readonly (string | number)[] | undefined;
+      /**
+       * A QUOTE. Everything a save would do up to its first write of the
+       * add-on's: the reads (plain, holding nothing, under no named lock),
+       * the plan (`mode: 'dry'`), the checks, the cap worked out in memory.
+       * Nothing is inserted into any table of the add-on; an amount decided
+       * is written to the quote's own row, which the quote rolls back.
+       */
+      dry?: boolean;
+    },
   ): Promise<PostedOutcome[]> {
     const { target, context, clock } = env;
+    const dry = env.dry === true;
     if (jobs.length === 0) return [];
     const known = new Set((peeked?.calls ?? []).map(callKey));
     // A line made later is looked for only under the locks: with nothing to run, nothing of it needs a name.
-    for (const { call } of jobs) if (!known.has(callKey(call)) && call.late !== true) throw new LockMoved(`posting ${callKey(call)}`);
+    if (!dry) for (const { call } of jobs) if (!known.has(callKey(call)) && call.late !== true) throw new LockMoved(`posting ${callKey(call)}`);
     const ledgers = kit.ledgers!;
     const within: WriteTarget = { ...target, db: trx };
     const held = heldNames(trx);
@@ -896,22 +923,53 @@ export function createLedgerWriter(kit: LedgerKit) {
     for (const job of jobs) {
       const { call } = job;
       const { ledger, posting, phase } = call;
+      const answer = (quote: NonNullable<PostedOutcome['quote']>, more: Partial<PostedOutcome> = {}): PostedOutcome => ({
+        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: 0, rows: 0, version: ledger.version, state: 'planned', source: { table: '', row: '' }, lines: [], notes: [], written: [], decided: [], ...more, quote,
+      });
+      if (dry) {
+        // A quote's ledger refusal is its answer; anything else it meets is an error, as for a save.
+        try {
+          const told = await runOne(job);
+          if (told !== null) outcomes.push(told);
+        } catch (error) {
+          if (!(error instanceof PostingRefusedError)) throw error;
+          const details = (error.details ?? {}) as { reason?: string; line?: number; path?: (string | number)[]; left?: string; item?: string };
+          const reason = details.reason ?? 'planner-failed';
+          outcomes.push(answer({ state: reason === 'add-on-unavailable' ? 'unavailable' : 'refused', reason, ...(details.line === undefined ? {} : { line: details.line }), ...(details.path === undefined ? {} : { path: details.path }), ...(details.left === undefined ? {} : { left: details.left }), ...(details.item === undefined ? {} : { item: details.item }) }));
+        }
+        continue;
+      }
+      const done = await runOne(job);
+      if (done !== null) outcomes.push(done);
+    }
+    return outcomes;
+
+    /** One call: what it did, or null when it had nothing to do. */
+    async function runOne(job: Job): Promise<PostedOutcome | null> {
+      const { call } = job;
+      const { ledger, posting, phase } = call;
+      const answer = (quote: NonNullable<PostedOutcome['quote']>, more: Partial<PostedOutcome> = {}): PostedOutcome => ({
+        addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: 0, rows: 0, version: ledger.version, state: 'planned', source: { table: '', row: '' }, lines: [], notes: [], written: [], decided: [], ...more, quote,
+      });
       // Receipts first: the first statement on one of the add-on's tables, so the add-on is asked about once more.
       const now = await ledgers.versionNow(ledger.addOn);
-      if (call.decider !== null && (now === null || now.status !== 'installed' || now.version !== call.decider.version)) throw writeConflict();
+      if (call.decider !== null && (now === null || now.status !== 'installed' || now.version !== call.decider.version)) {
+        if (dry) return answer({ state: 'unavailable', reason: 'add-on-unavailable' });
+        throw writeConflict();
+      }
       // The row itself as it stands now; for a line, its parent — held, as every writer of the parent's lines holds it.
       const gathered = await job.gathered();
-      if (gathered === null) continue;
+      if (gathered === null) return null;
       const source = { table: gathered.source.ref, row: gathered.source.key };
       const receipts = await receiptsOfSource(trx, ledger, source);
       // Switched off: nothing new starts. A round that is open is still given back.
-      if (call.off && phase !== 'reverse') continue;
+      if (call.off && phase !== 'reverse') return dry ? answer({ state: 'ok', reason: 'switched-off' }) : null;
       let settings = settingsOf.get(ledger.addOn);
       if (settings === undefined) settingsOf.set(ledger.addOn, (settings = await ledgerSettings(ledger, trx)));
       const due = dueLines(call, gathered, receipts, settings, target);
-      if (due.length === 0) continue;
+      if (due.length === 0) return null;
       // A line the look did not see run (a late line whose siblings' round opened since) stands on names nobody took.
-      if (!known.has(callKey(call))) throw new LockMoved(`posting ${callKey(call)}`);
+      if (!dry && !known.has(callKey(call))) throw new LockMoved(`posting ${callKey(call)}`);
       const at = clock.locked(trx);
       const receiptsTarget: WriteTarget = { ...(peeked?.tables.get(ledger.receipts.id) ?? { ...target, table: ledger.receipts }), db: trx };
       // How long what this call takes is kept for: a hold, or a payment decided as the row is made — let go by the clock if nothing closes it first.
@@ -959,15 +1017,13 @@ export function createLedgerWriter(kit: LedgerKit) {
           asked.push(entry);
           continue;
         }
+        outcome.lines.push(entry.line.key);
+        if (dry) continue;
         for (const receipt of open) await kit.updateRaw(receiptsTarget, { state: 'planned', rows: 0 }, { [receiptKey(ledger)]: receipt.id });
         await writeReceipt(receiptsTarget, ledger, receiptFor(entry, 'planned', 0));
         await close(entry.round);
-        outcome.lines.push(entry.line.key);
       }
-      if (asked.length === 0) {
-        outcomes.push(outcome);
-        continue;
-      }
+      if (asked.length === 0) return dry ? answer({ state: 'ok' }, { source, lines: outcome.lines }) : outcome;
       const lines = asked.map((entry) => ({ line: entry.line.key, lineTable: entry.line.ref, inputs: entry.mapped.inputs, multipliers: entry.mapped.multipliers, round: entry.round.round }));
       const roundIds = asked.flatMap((entry) => [entry.round.reserved?.id, entry.round.posted?.id]).filter((id): id is string | number => id !== undefined);
 
@@ -1010,21 +1066,22 @@ export function createLedgerWriter(kit: LedgerKit) {
           const said = reads[allow.read] ?? [];
           if (said.length === 0 || !said.every((found) => yes(found[allow.column]))) throw refused('add-on-unavailable', call);
         }
+        // A quote says so: whether the save would go through unasked is the save's to find.
+        if (dry) return phase === 'reverse' ? answer({ state: 'ok' }, { source }) : answer({ state: 'unavailable', reason: 'add-on-unavailable' }, { source });
         for (const entry of asked) {
           await writeReceipt(receiptsTarget, ledger, receiptFor(entry, 'unplanned', 0));
           await close(entry.round);
           outcome.lines.push(entry.line.key);
         }
-        outcomes.push({ ...outcome, state: 'unplanned' });
-        continue;
+        return { ...outcome, state: 'unplanned' };
       }
 
       const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: roundIds });
-      // What this call stands on must be what the save locked: a row that moved in between starts the save again.
-      for (const name of lockNames(target.view.connectionId, ledger, call.action, reads)) if (!held.has(name)) throw new LockMoved(name);
+      // What this call stands on must be what the save locked: a row that moved in between starts the save again. (A quote locks nothing.)
+      if (!dry) for (const name of lockNames(target.view.connectionId, ledger, call.action, reads)) if (!held.has(name)) throw new LockMoved(name);
       // What the round wrote so far: handed when it is given back, and when what was held is taken.
       const written = phase === 'reverse' || (phase === 'post' && asked.some((entry) => entry.round.reserved !== null)) ? await roundRows(trx, ledger, roundIds) : {};
-      const plan = askPlanner(call, 'save', { target, context, at, source, lines, reads, settings, written });
+      const plan = askPlanner(call, dry ? 'dry' : 'save', { target, context, at, source, lines, reads, settings, written });
       // A refusal fails the save — but never a giving back: what was written is always given back.
       const first = phase === 'reverse' ? undefined : plan.refusals?.[0];
       if (first !== undefined) {
@@ -1046,6 +1103,45 @@ export function createLedgerWriter(kit: LedgerKit) {
       const stray = plan.rows.find((planRow) => !byLine.has(planRow.line));
       if (stray !== undefined) throw new PlanFailed(call, 'scope-row', `a row is for "${stray.line}", which is not a line of this call`);
 
+      if (dry) {
+        // The cap a save judges once its rows are in, worked out from what was read.
+        const fits = judgePlanned(
+          plan.rows.flatMap((planRow) => (planRow.op === 'insert' ? [{ table: planRow.table, line: planRow.line, values: planRow.values }] : [])),
+          {
+            rollups: (table) => {
+              const found = ledger.table(table);
+              return found === null ? [] : (kit.rulesOf({ ...within, table: found })?.rollupsInto ?? []);
+            },
+            rows: (tableId) => call.action.reads.flatMap((read) => (ledger.table(read.table)?.id === tableId ? (reads[read.as] ?? []) : [])),
+            capUnless: (tableId, total) => kit.capUnless?.({ ...within, table: target.view.table(tableId) }, total),
+          },
+        );
+        if (!fits.ok) {
+          const at = position(fits.line);
+          throw refused(ledger.refusal === 'stock' ? 'out-of-stock' : 'over-limit', call, {
+            left: fits.left,
+            ...(call.role === 'source' || at < 0 ? {} : { line: at }),
+            ...(at < 0 || env.pathOf?.(gathered.lines[at]!) === undefined ? {} : { path: [...env.pathOf(gathered.lines[at]!)!] }),
+          });
+        }
+        // An amount decided shows in the quote's own figures: written to its row, and gone with the quote.
+        const quoted = answer({ state: 'ok' }, { source, round: asked[0]!.round.round, rows: plan.rows.length, lines: asked.map((entry) => entry.line.key), notes: (plan.notes ?? []).map((note: { line: string; note: string; item?: string | undefined }) => ({ ...note })) });
+        for (const entry of asked) {
+          const mine = (plan.decides ?? []).filter((decision) => decision.line === entry.line.key);
+          if (mine.length === 0) continue;
+          const set: Row = {};
+          for (const decision of mine) {
+            const column = posting.map[decision.input];
+            if (typeof column !== 'string') throw new PlanFailed(call, 'scope-decides', `"${decision.input}" is mapped to no column of the row`);
+            set[column] = decision.value;
+            quoted.decided.push({ line: decision.line, input: decision.input, column, value: decision.value });
+          }
+          const after = await kit.decide({ ...within, table: entry.line.table }, Object.fromEntries(entry.line.table.primaryKey.map((column) => [column, entry.line.row[column]])), set, entry.line.row);
+          if (after !== null) env.decided?.(entry.line, after);
+        }
+        return quoted;
+      }
+
       // The receipts, before any row they stand for: a receipt's own key is what stops the same phase written twice.
       // One per line the plan wrote or decided something for; a giving back and a taking of what was held are always recorded.
       const decisions = plan.decides ?? [];
@@ -1060,10 +1156,7 @@ export function createLedgerWriter(kit: LedgerKit) {
         outcome.lines.push(entry.line.key);
       }
       outcome.notes = (plan.notes ?? []).map((note: { line: string; note: string; item?: string | undefined }) => ({ ...note }));
-      if (receiptIds.size === 0) {
-        outcomes.push(outcome);
-        continue;
-      }
+      if (receiptIds.size === 0) return outcome;
 
       // The plan's rows, written as Adminium's own: the tables' own defaults, formulas and checks apply.
       const labels = new Map<string, unknown>();
@@ -1160,9 +1253,8 @@ export function createLedgerWriter(kit: LedgerKit) {
         throw error;
       }
       outcome.rows = plan.rows.length;
-      outcomes.push(outcome);
+      return outcome;
     }
-    return outcomes;
   }
 
   /** One receipt, written by Adminium alone. Its own key refuses the same phase of the same round twice: the save starts again. */
@@ -1181,7 +1273,7 @@ export function createLedgerWriter(kit: LedgerKit) {
    * of one rule and phase are handed over in ONE call, whether the point is
    * the root's or each line's own. `rows`: the root first.
    */
-  function treeJobs(rows: readonly TreeRowIn[], db: Db, held: boolean): Job[] {
+  function treeJobs(rows: readonly TreeRowIn[], db: Db, held: boolean, dry = false): Job[] {
     const root = rows[0];
     if (root === undefined) return [];
     const ledgers = kit.ledgers;
@@ -1198,7 +1290,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     for (const item of rows) {
       const above = item.parent === undefined || item.parent === null ? null : (rows[item.parent] ?? null);
       // (With no add-on runtime a rule that would fire refuses the tree here, as it refuses a single row.)
-      for (const call of callsFor({ target: item.target, rules: item.rules, action: 'create', before: null, after: item.row })) {
+      for (const call of callsFor({ target: item.target, rules: item.rules, action: 'create', before: null, after: item.row, dry })) {
         if (call.role === 'source') {
           jobs.push({ call, gathered: () => gather(db, call, item.target, item.row, held), lenient: !held });
         } else if (call.role === 'parent') {
@@ -1245,6 +1337,33 @@ export function createLedgerWriter(kit: LedgerKit) {
       creating: true,
       pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`),
     });
+  }
+
+  /** What a change would hand to each ledger, and what each would say: the posting step of a quote, on the quote's own handle. */
+  async function quoteStep(trx: Db, input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
+    if (postingScope(input.rules) === null) return [];
+    await kit.ledgers?.refresh?.();
+    const { target } = input;
+    let row = input.row;
+    const fired = callsFor({ target, rules: input.rules, action: input.action, before: input.before, after: row, dry: true });
+    return runCalls(trx, null, fired.map((call) => ({ call, gathered: () => gather(trx, call, target, row, false) })), {
+      target,
+      context: input.context,
+      clock: input.clock,
+      creating: input.action === 'create',
+      dry: true,
+      decided: (line, after) => {
+        if (line.table.id === target.table.id && keyText(target.table, line.row) === keyText(target.table, row)) row = after;
+      },
+    });
+  }
+
+  /** The same for a create with its child rows, once the quote has written them. */
+  async function treeQuote(trx: Db, rows: readonly TreeRowIn[], env: { context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
+    if (rows.every((item) => postingScope(item.rules) === null)) return [];
+    await kit.ledgers?.refresh?.();
+    const paths = new Map(rows.map((item) => [`${item.target.table.id}\u0000${keyText(item.target.table, item.row)}`, item.path]));
+    return runCalls(trx, null, treeJobs(rows, trx, false, true), { target: rows[0]!.target, context: env.context, clock: env.clock, creating: true, dry: true, pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`) });
   }
 
   /**
@@ -1327,7 +1446,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     }
   }
 
-  return { watched, peek, postStep, treePeek, treeStep, guard, holdParents, audited };
+  return { watched, peek, postStep, quoteStep, treePeek, treeStep, treeQuote, guard, holdParents, audited };
 }
 
 const isLabel = (value: unknown): value is { '@row': string } => typeof value === 'object' && value !== null && '@row' in value;
