@@ -274,6 +274,51 @@ describe.each(LEGS)('an order\'s lines — %s', (dialect, available) => {
     expect(await w.count('ledger_kit_postings')).toBe(receiptsBefore + 1);
   });
 
+  it.skipIf(!available)('a line moved under another order is held by that order\'s round, and stays frozen there', async () => {
+    const a = await order('placed');
+    const b = await order('placed');
+    const moved = await line('order_lines', a, 1, '2');
+    await line('order_lines', b, 1, '1');
+    // Given back under A: free to move.
+    await w.update('orders', a, { status: 'cancelled' });
+    await w.update('order_lines', moved, { order_id: b });
+    // B's lines are held: the one that joins them is held in the save that moves it.
+    expect(w.posted()).toMatchObject([{ posting: 'line', phase: 'reserve', source: { row: String(b) }, lines: [String(moved)] }]);
+    // And B's hold freezes it, whatever its receipts under A say.
+    expect(await refusal(w.update('order_lines', moved, { qty: '9' }))).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'mapped-changed', column: 'qty' } });
+    expect(await refusal(w.writes.delete({ target: w.target('order_lines'), pk: { id: moved }, context: DESK, announce: async () => undefined }))).toMatchObject({ details: { reason: 'receipt-open' } });
+  });
+
+  it.skipIf(!available)('a line no longer left out joins its siblings: held in the save that un-voids it', async () => {
+    const id = await order('placed');
+    await line('order_lines', id, 1, '1');
+    const back = Number((await w.create('order_lines', { order_id: id, account_id: 1, qty: '2', voided_at: 'made void' }))['id']);
+    expect(w.posted()).toEqual([]);
+    await w.update('order_lines', back, { voided_at: null });
+    expect(w.posted()).toMatchObject([{ posting: 'line', phase: 'reserve', lines: [String(back)] }]);
+    // Under an order none of whose lines is held, the same change hands nothing over.
+    const quiet = await order('placed');
+    const alone = Number((await w.create('order_lines', { order_id: quiet, account_id: 1, qty: '2', voided_at: 'made void' }))['id']);
+    await w.update('order_lines', alone, { voided_at: null });
+    expect(w.posted()).toEqual([]);
+  });
+
+  it.skipIf(!available)('every row of a tree that hands something over does: a root that is itself a line, a child under a row that was already there', async () => {
+    const id = await order('placed');
+    await line('order_lines', id, 1, '1');
+    // A line made as the root of its own create-with-children (it has none): a line of an order that is there.
+    const made = await w.writes.createTree({
+      root: { name: 'order_lines', target: w.target('order_lines'), values: { order_id: id, account_id: 1, qty: '3' }, at: [], children: [] },
+      context: DESK,
+      mode: 'save',
+      announce: async () => undefined,
+      mapError: (error) => {
+        throw error;
+      },
+    });
+    expect(made.postings).toMatchObject([{ posting: 'line', phase: 'reserve', source: { row: String(id) }, lines: [String(made.root['id'])] }]);
+  });
+
   it.skipIf(!available)('a line that belongs to no order hands nothing over', async () => {
     const receiptsBefore = await w.count('ledger_kit_postings');
     await w.create('order_lines', { account_id: 1, qty: '1' });

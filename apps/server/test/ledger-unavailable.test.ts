@@ -99,6 +99,16 @@ describe.each(LEGS)('an add-on that cannot be asked — %s', (dialect, available
     expect(await w.count('ledger_kit_holds', `state = 'held'`)).toBeGreaterThan(0);
   });
 
+  it.skipIf(!available)('a rule switched off while the add-on cannot answer still gives an open round back, unasked', async () => {
+    const id = await ask(1);
+    await w.update('asks', id, { status: 'sent' });
+    // The owner's switch, as the table's rules carry it — and the add-on's code not loaded.
+    const at = w.target('asks');
+    const off = { ...at, table: { ...at.table, table: { ...at.table.table!, switchedOff: { postings: ['ask'] } } } };
+    await deaf.update({ target: off as never, pk: { id }, values: { status: 'cancelled' }, context: DESK, announce: async () => undefined });
+    expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:planned:1', 'reverse:1:unplanned:0']);
+  });
+
   it.skipIf(!available)('with not even a receipt table to write: nothing new is taken, and a cancel still goes through', async () => {
     const row = await w.create('strays', { account_id: 1, qty: '1', status: 'draft' });
     const id = Number(row['id']);

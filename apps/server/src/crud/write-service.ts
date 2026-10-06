@@ -3307,7 +3307,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const looked: TreeRowIn[] = [];
             for (const row of everyRow) {
               const rules = rulesOf(row.target);
-              looked.push({ target: { ...row.target, timezone: row.target.timezone ?? root.zone }, rules, row: row === rootRow ? (root.checked as Row) : await previewRow(row.target, peeked.get(row) ?? row.node.values, context, clock), path: row.node.at });
+              looked.push({ target: { ...row.target, timezone: row.target.timezone ?? root.zone }, rules, row: row === rootRow ? (root.checked as Row) : await previewRow(row.target, peeked.get(row) ?? row.node.values, context, clock), parent: row.parent === null ? null : everyRow.indexOf(row.parent), path: row.node.at });
             }
             return ledgerWriter.audited(() => ledgerWriter.treePeek(looked, context), about);
           });
@@ -3469,7 +3469,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           for (const row of everyRow) {
             const rules = rulesOf(row.target);
             const record = written.get(row)!;
-            stand.push({ target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, rules, row: keepsOwnTotals(rules) ? await readAgain(trx, row.target.table, record) : record, path: row.node.at });
+            stand.push({ target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, rules, row: keepsOwnTotals(rules) ? await readAgain(trx, row.target.table, record) : record, parent: row.parent === null ? null : everyRow.indexOf(row.parent), path: row.node.at });
           }
           try {
             posted = await ledgerWriter.audited(() => ledgerWriter.treeStep(trx, treePosting, stand, { context, clock }), about);

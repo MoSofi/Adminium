@@ -110,6 +110,8 @@ describe.each(LEGS)('an amount Adminium decides — %s', (dialect, available) =>
     expect(Number(pay['amount'])).toBe(6);
     expect(w.posted()).toMatchObject([{ posting: 'bill-pay', phase: 'post', source: { row: String(bill) }, lines: [String(pay['id'])], decided: [{ line: String(pay['id']), input: 'amount', column: 'amount', value: '6.000' }] }]);
     expect(await balance(3)).toBe(44);
+    // What was decided stays as it was decided while the payment stands: nobody writes another figure over it.
+    expect(await refusal(w.update('bill_pays', Number(pay['id']), { amount: '100' }))).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'mapped-changed', column: 'amount' } });
   });
 
   it.skipIf(!available)('a payment the rule leaves out is never handed over, and may leave its account empty; one voided by its own column is given back alone', async () => {

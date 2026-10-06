@@ -300,6 +300,8 @@ export interface TreeRowIn {
   rules: TableRules | null;
   /** The root as prepared, a child as previewed — or each as written. */
   row: Row;
+  /** The place, in the same list, of the row it was made under; null for the root. */
+  parent?: number | null | undefined;
   path?: readonly (string | number)[] | undefined;
 }
 
@@ -513,16 +515,19 @@ export function createLedgerWriter(kit: LedgerKit) {
    * order every writer takes them. `rows`: the line as it is and as it will be.
    */
   async function holdParents(trx: Db, target: WriteTarget, rules: TableRules | null, rows: readonly (Row | null | undefined)[]): Promise<void> {
-    const seen = new Set<string>();
+    const wanted = new Map<string, { table: ResolvedTable; column: string; key: unknown }>();
     for (const posting of postingScope(rules)?.asLine ?? []) {
       const parent = posting.via === undefined ? null : parentOf(target, posting.via);
       if (parent === null) continue;
       for (const row of rows) {
         const key = row?.[posting.via!];
-        if (key === null || key === undefined || seen.has(`${parent.table.id}\u0000${String(key)}`)) continue;
-        seen.add(`${parent.table.id}\u0000${String(key)}`);
-        await kit.fetchHeld({ ...target, table: parent.table, db: trx }, { [parent.parentKey]: key });
+        if (key !== null && key !== undefined) wanted.set(`${parent.table.id}\u0000${String(key)}`, { table: parent.table, column: parent.parentKey, key });
       }
+    }
+    // In one order for every writer: a line moved from one parent to another, and one moved back, never wait on each other crosswise.
+    for (const name of [...wanted.keys()].sort()) {
+      const { table, column, key } = wanted.get(name)!;
+      await kit.fetchHeld({ ...target, table, db: trx }, { [column]: key });
     }
   }
 
@@ -541,12 +546,18 @@ export function createLedgerWriter(kit: LedgerKit) {
     } else {
       fired = firedPoints(scope, input.before, input.after, input.action, input.rules?.states?.column);
       // A line made later: the phases its parent's points fire are run for it when its siblings' round has reached them (judged on their receipts, under the locks).
-      if (input.action === 'create') {
-        for (const posting of scope.asLine) {
-          for (const phase of ['reserve', 'post'] as const) {
-            const point = posting[phase]?.on;
-            if (point !== undefined && !ownPoint(point)) fired.push({ posting, phase, role: 'line', late: true });
-          }
+      for (const posting of scope.asLine) {
+        // …and so is one that joins its siblings by a change: moved under another parent, or no longer left out (un-voided).
+        const joins =
+          input.before !== null &&
+          lineTaken(posting, input.after) &&
+          (!lineTaken(posting, input.before) || (posting.via !== undefined && !sameValue(input.before[posting.via], input.after[posting.via])));
+        if (input.action !== 'create' && !joins) continue;
+        for (const phase of ['reserve', 'post'] as const) {
+          const point = posting[phase]?.on;
+          if (point === undefined || fired.some((other) => other.posting.id === posting.id && other.phase === phase && other.role === 'line')) continue;
+          // A line made now answers for its own making itself; one that joins later missed even that.
+          if (input.action === 'create' ? !ownPoint(point) : true) fired.push({ posting, phase, role: 'line', late: true });
         }
       }
     }
@@ -643,10 +654,10 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** Whether the other lines of a late line's parent have reached the phase: their receipts say so. */
-  function reached(receipts: readonly Receipt[], call: PostingCall, own: string): boolean {
-    const others = new Set(receipts.filter((receipt) => receipt.posting === call.posting.id && receipt.sourceLine !== own).map((receipt) => receipt.sourceLine));
+  function reached(receipts: readonly Receipt[], call: PostingCall, own: string, lineTable?: string): boolean {
+    const others = new Set(receipts.filter((receipt) => receipt.posting === call.posting.id && receipt.sourceLine !== own && (lineTable === undefined || receipt.lineTable === lineTable)).map((receipt) => receipt.sourceLine));
     for (const line of others) {
-      const round = roundOf(receipts, call.posting.id, line);
+      const round = roundOf(receipts, call.posting.id, line, lineTable);
       if (call.phase === 'reserve' ? round.reserved !== null || round.posted !== null : round.posted !== null) return true;
     }
     return false;
@@ -656,9 +667,9 @@ export function createLedgerWriter(kit: LedgerKit) {
   function dueLines(call: PostingCall, gathered: Gathered, receipts: readonly Receipt[], settings: ScalarRow, target: WriteTarget): { line: CallLine; round: RoundState; mapped: MappedLine }[] {
     const out: { line: CallLine; round: RoundState; mapped: MappedLine }[] = [];
     for (const line of gathered.lines) {
-      const round = roundOf(receipts, call.posting.id, line.key);
+      const round = roundOf(receipts, call.posting.id, line.key, line.ref);
       if (!phaseDue(round, call.phase)) continue;
-      if (call.late === true && !reached(receipts, call, line.key)) continue;
+      if (call.late === true && !reached(receipts, call, line.key, line.ref)) continue;
       out.push({ line, round, mapped: mapOrRefuse(call, target, line, settings) });
     }
     return out;
@@ -960,6 +971,35 @@ export function createLedgerWriter(kit: LedgerKit) {
       const lines = asked.map((entry) => ({ line: entry.line.key, lineTable: entry.line.ref, inputs: entry.mapped.inputs, multipliers: entry.mapped.multipliers, round: entry.round.round }));
       const roundIds = asked.flatMap((entry) => [entry.round.reserved?.id, entry.round.posted?.id]).filter((id): id is string | number => id !== undefined);
 
+      // What may not be paid this way at all: a row of the same parent that the rule names (a card may not pay for a card). Judged whoever plans.
+      if (phase !== 'reverse') {
+        for (const entry of posting.refuses ?? []) {
+          const tableId = (entry as { table?: string }).table;
+          const via = (entry as { via?: string }).via;
+          if (tableId === undefined) {
+            if (asked.some((item) => filled(item.line.row[entry.column]))) throw refused('card-pays-card', call);
+            continue;
+          }
+          // A sibling table is found through its own link to the same parent: without one there is nothing to read it by.
+          if (via === undefined) continue;
+          let sibling: ResolvedTable;
+          try {
+            sibling = target.view.table(tableId);
+          } catch {
+            continue;
+          }
+          const parentKey = call.link?.parentKey ?? gathered.source.table.primaryKey[0] ?? 'id';
+          let found: Row[];
+          try {
+            found = await linesOf(trx, sibling, via, gathered.source.row[parentKey]);
+          } catch (error) {
+            if (error instanceof LedgerTooLarge) throw refused('too-large', call);
+            throw error;
+          }
+          if (found.some((other) => filled(other[entry.column]))) throw refused('card-pays-card', call);
+        }
+      }
+
       if (call.decider === null) {
         // The add-on cannot be asked. What was taken is always given back, to be worked out when it can answer.
         if (phase !== 'reverse') {
@@ -977,26 +1017,6 @@ export function createLedgerWriter(kit: LedgerKit) {
         }
         outcomes.push({ ...outcome, state: 'unplanned' });
         continue;
-      }
-
-      // What may not be paid this way at all: a row of the same parent that the rule names (a card may not pay for a card).
-      if (phase !== 'reverse') {
-        for (const entry of posting.refuses ?? []) {
-          const tableId = (entry as { table?: string }).table;
-          const via = (entry as { via?: string }).via;
-          if (tableId === undefined || via === undefined) {
-            if (asked.some((item) => filled(item.line.row[entry.column]))) throw refused('card-pays-card', call);
-            continue;
-          }
-          let sibling: ResolvedTable;
-          try {
-            sibling = target.view.table(tableId);
-          } catch {
-            continue;
-          }
-          const found = await linesOf(trx, sibling, via, gathered.source.row[gathered.source.table.primaryKey[0] ?? 'id']);
-          if (found.some((other) => filled(other[entry.column]))) throw refused('card-pays-card', call);
-        }
       }
 
       const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: roundIds });
@@ -1162,37 +1182,43 @@ export function createLedgerWriter(kit: LedgerKit) {
    * the root's or each line's own. `rows`: the root first.
    */
   function treeJobs(rows: readonly TreeRowIn[], db: Db, held: boolean): Job[] {
-    const [root, ...children] = rows;
-    if (root === undefined || kit.ledgers === undefined) {
-      // No add-on runtime: a tree with a rule that would fire is refused, as a single row is.
-      for (const item of rows) callsFor({ target: item.target, rules: item.rules, action: 'create', before: null, after: item.row });
-      return [];
-    }
-    const refOf = (table: ResolvedTable): string => kit.ledgers!.refOf(root.target.view.connectionId, table.id);
+    const root = rows[0];
+    if (root === undefined) return [];
+    const ledgers = kit.ledgers;
+    const refOf = (table: ResolvedTable): string => ledgers!.refOf(root.target.view.connectionId, table.id);
     const jobs: Job[] = [];
-    const source = (): Gathered['source'] => ({ table: root.target.table, ref: refOf(root.target.table), row: root.row, key: keyText(root.target.table, root.row) });
-    const linesOf = (call: PostingCall, table: ResolvedTable, items: readonly TreeRowIn[]): CallLine[] =>
+    const sourceOf = (item: TreeRowIn): Gathered['source'] => ({ table: item.target.table, ref: refOf(item.target.table), row: item.row, key: keyText(item.target.table, item.row) });
+    const linesUnder = (call: PostingCall, parent: TreeRowIn, items: readonly TreeRowIn[]): CallLine[] =>
       items
-        .filter((item) => item.target.table.id === table.id && lineTaken(call.posting, item.row))
+        .filter((item) => lineTaken(call.posting, item.row))
         // A row not written yet has no key: its place among the rows stands for it, for this look only.
-        .map((item) => ({ key: keyText(table, item.row) || `#${String(rows.indexOf(item))}`, ref: refOf(table), table, row: item.row, parent: { table: root.target.table, row: root.row } }));
-    for (const call of callsFor({ target: root.target, rules: root.rules, action: 'create', before: null, after: root.row })) {
-      if (call.role === 'source') jobs.push({ call, gathered: async () => gather(db, call, root.target, root.row, held), lenient: !held });
-      // The root's own points, for the lines made with it.
-      else if (call.role === 'parent') jobs.push({ call, gathered: async () => ({ source: source(), lines: linesOf(call, call.link!.table, children) }), lenient: !held });
-    }
-    // Each line's own making: the lines of one rule in one call, their source the root they were made under.
-    const byRule = new Map<string, { call: PostingCall; items: TreeRowIn[] }>();
-    for (const item of children) {
+        .map((item) => ({ key: keyText(item.target.table, item.row) || `#${String(rows.indexOf(item))}`, ref: refOf(item.target.table), table: item.target.table, row: item.row, parent: { table: parent.target.table, row: parent.row } }));
+    // The lines made with a row of the tree, by rule and phase: one call for all of them, whether the point is the parent's or each line's own.
+    const grouped = new Map<string, { call: PostingCall; parent: TreeRowIn; items: TreeRowIn[] }>();
+    for (const item of rows) {
+      const above = item.parent === undefined || item.parent === null ? null : (rows[item.parent] ?? null);
+      // (With no add-on runtime a rule that would fire refuses the tree here, as it refuses a single row.)
       for (const call of callsFor({ target: item.target, rules: item.rules, action: 'create', before: null, after: item.row })) {
-        if (call.role !== 'line' || call.late === true || call.link?.table.id !== root.target.table.id) continue;
-        const key = `${item.target.table.id}\u0000${callKey(call)}`;
-        const entry = byRule.get(key) ?? { call, items: [] };
-        entry.items.push(item);
-        byRule.set(key, entry);
+        if (call.role === 'source') {
+          jobs.push({ call, gathered: () => gather(db, call, item.target, item.row, held), lenient: !held });
+        } else if (call.role === 'parent') {
+          // Its own points, for the lines made under it in this tree.
+          const below = rows.filter((other) => other.parent === rows.indexOf(item) && other.target.table.id === call.link!.table.id);
+          jobs.push({ call, gathered: async () => ({ source: sourceOf(item), lines: linesUnder(call, item, below) }), lenient: !held });
+        } else if (above !== null && call.link?.table.id === above.target.table.id) {
+          // A line of a row of this same tree. (A line made with its parent has no earlier sibling to join.)
+          if (call.late === true) continue;
+          const key = `${String(item.parent)}\u0000${item.target.table.id}\u0000${callKey(call)}`;
+          const entry = grouped.get(key) ?? { call, parent: above, items: [] };
+          entry.items.push(item);
+          grouped.set(key, entry);
+        } else {
+          // A line of a row that is already there: handed over as a single create hands it.
+          jobs.push({ call, gathered: () => gather(db, call, item.target, item.row, held), lenient: !held });
+        }
       }
     }
-    for (const { call, items } of byRule.values()) jobs.push({ call, gathered: async () => ({ source: source(), lines: linesOf(call, items[0]!.target.table, items) }), lenient: !held });
+    for (const { call, parent, items } of grouped.values()) jobs.push({ call, gathered: async () => ({ source: sourceOf(parent), lines: linesUnder(call, parent, items) }), lenient: !held });
     return jobs;
   }
 
@@ -1240,14 +1266,20 @@ export function createLedgerWriter(kit: LedgerKit) {
       const frozen = frozenColumns(posting);
       const state = ledgers.resolve(target.view, owner, posting);
       if (!('ledger' in state) || state.ledger === undefined) return;
-      // An amount Adminium decides is its own to write, open round or not.
-      const decided = new Set(('action' in state ? (state.action?.decides ?? []) : []).map((entry) => posting.map[entry.input]).filter((mapping): mapping is string => typeof mapping === 'string'));
-      const column = moved((as === 'parent' ? frozen.parent : frozen.row).filter((name) => !decided.has(name)));
+      // (An amount Adminium decided is frozen too: its own write of it passes no door, so nothing here stops that.)
+      const column = moved(as === 'parent' ? frozen.parent : frozen.row);
       if (input.action === 'update' && column === undefined) return;
       const ref = ledgers.refOf(target.view.connectionId, target.table.id);
       const key = keyText(target.table, stood);
       const receipts = as === 'line' ? await receiptsOfLine(trx, state.ledger, { table: ref, row: key }) : await receiptsOfSource(trx, state.ledger, { table: ref, row: key });
-      const open = openRounds(receipts).some((round) => round.posting === posting.id && (as !== 'source' || round.line === ''));
+      // A line may have been under another parent before: each source keeps its own rounds, and one open anywhere holds the line.
+      const bySource = new Map<string, Receipt[]>();
+      for (const receipt of receipts) {
+        if (receipt.posting !== posting.id) continue;
+        const group = `${receipt.sourceTable}\u0000${receipt.sourceRow}\u0000${receipt.lineTable}`;
+        bySource.set(group, [...(bySource.get(group) ?? []), receipt]);
+      }
+      const open = [...bySource.values()].some((group) => openRounds(group).some((round) => as !== 'source' || round.line === ''));
       if (!open) return;
       throw refused(input.action === 'delete' ? 'receipt-open' : 'mapped-changed', { ledger: state.ledger, posting }, column === undefined ? {} : { column });
     };

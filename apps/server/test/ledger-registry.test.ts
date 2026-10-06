@@ -143,9 +143,10 @@ describe('whether a posting is live', () => {
     expect(off).toMatchObject({ state: 'off', ledger: { id: 'units' }, decider: DECIDER });
     // The other rules of the table are untouched by it.
     expect(runtime().resolve(w.view, w.orders, OWN_RULE).state).toBe('live');
-    expect(runtime({ addOn: { status: 'updating' } }).resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'off' });
-    expect(runtime({ decider: null }).resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'off' });
-    expect(runtime({ addOn: { hosts: new Map([['shop', false]]) } }).resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'off' });
+    // Off while it cannot answer: still off — with the ledger, so a round left open is given back on its own receipts, unasked.
+    expect(runtime({ addOn: { status: 'updating' } }).resolve(w.view, w.orders, APP_RULE)).toMatchObject({ state: 'off', ledger: { id: 'units' }, decider: null });
+    expect(runtime({ decider: null }).resolve(w.view, w.orders, APP_RULE)).toMatchObject({ state: 'off', ledger: { id: 'units' }, decider: null });
+    expect(runtime({ addOn: { hosts: new Map([['shop', false]]) } }).resolve(w.view, w.orders, APP_RULE)).toMatchObject({ state: 'off', decider: null });
     // Not connected stays not there: the switch has nothing to switch.
     expect(runtime({ addOn: { hosts: new Map() } }).resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'idle' });
   });

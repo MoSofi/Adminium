@@ -89,8 +89,9 @@ export interface RoundState {
 }
 
 /** Where one posting stands for one line (`''` for a whole row), read off the receipts of its source. */
-export function roundOf(receipts: readonly Receipt[], posting: string, line: string): RoundState {
-  const mine = receipts.filter((receipt) => receipt.posting === posting && receipt.sourceLine === line);
+export function roundOf(receipts: readonly Receipt[], posting: string, line: string, lineTable?: string): RoundState {
+  // Two tables of lines under one source may each carry a rule of the same name, and a row of the same key.
+  const mine = receipts.filter((receipt) => receipt.posting === posting && receipt.sourceLine === line && (lineTable === undefined || receipt.lineTable === lineTable));
   const round = 1 + mine.filter((receipt) => receipt.phase === 'reverse').length;
   const inRound = mine.filter((receipt) => receipt.round === round);
   return { round, reserved: inRound.find((receipt) => receipt.phase === 'reserve') ?? null, posted: inRound.find((receipt) => receipt.phase === 'post') ?? null };

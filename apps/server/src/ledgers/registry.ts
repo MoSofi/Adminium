@@ -63,6 +63,8 @@ export type PostingState =
   | { state: 'idle' }
   | { state: 'off' }
   | { state: 'live' | 'off'; ledger: ResolvedLedger; action: LedgerAction; decider: InstalledDecider }
+  /** Switched off while the add-on cannot answer: nothing starts, and a round still open is given back unasked. */
+  | { state: 'off'; ledger: ResolvedLedger; action: LedgerAction; decider: null }
   | { state: 'unavailable'; cause: string; ledger?: ResolvedLedger; action?: LedgerAction };
 
 /** What a write asks of the add-ons its postings name. Absent on a server with no add-on runtime: a posting table then refuses every write. */
@@ -182,7 +184,11 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       const known = ledgersOf(addOn.manifest).find((candidate) => candidate.id === posting.into.ledger)?.actions[posting.into.action];
       const cannot = (cause: string, more: { ledger?: ResolvedLedger; action?: LedgerAction } = {}): PostingState =>
         // The owner's switch is the way through an add-on that cannot answer: off starts nothing, and refuses nothing.
-        off ? { state: 'off' } : { state: 'unavailable', cause, ...(typeof found === 'string' || known === undefined ? {} : { ledger: found, action: known }), ...more };
+        off
+          ? typeof found === 'string' || known === undefined
+            ? { state: 'off' }
+            : { state: 'off', ledger: found, action: known, decider: null }
+          : { state: 'unavailable', cause, ...(typeof found === 'string' || known === undefined ? {} : { ledger: found, action: known }), ...more };
       const owner = ruleOwner(installs, view, table, posting);
       if (owner !== null) {
         // An app's rule for an add-on that is not connected to that app is inert, like the rest of what the app keeps for it.
