@@ -150,7 +150,7 @@ import { followChanged, followColumns, followedRollups, followNow, followsFrom, 
 import { stampNow, writeClock, type WriteClock } from './write-clock.js';
 import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
 import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
-import { judgeCapacity } from './capacity/judge.js';
+import { hasLimits, judgeCapacity } from './capacity/judge.js';
 import { LockMoved, withNamedLocks, type NamedLock } from './capacity/locks.js';
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
@@ -2992,6 +2992,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (ownMoved.length > 0) await settleOwn(rules, target, 'update', after, written, currency, ownBefore);
       return (await fetchByPk(target.db, target.table, pk)) ?? null;
     },
+    limited: (target) => hasLimits(target.table),
+    poolNames: async (rows) => (rows.length === 0 ? [] : capacityLockNames(rows[0]!.target.db, rows.map((row) => ({ target: row.target, row: row.row, before: row.before, prepared: row.before !== null })))),
+    judge: async (db, rows, context, clock) => {
+      await judgeCapacity(db, rows.map((row) => ({ target: row.target, pk: row.pk, row: row.row, before: row.before })), { clock, origin: context.origin, mode: 'save' });
+    },
+    fetch: (target, key) => fetchByPk(target.db, target.table, key),
     updateRaw: async (target, set, key) => {
       await updateRows(target.db, target.dialect, target.table, set as CheckedRow, key);
     },

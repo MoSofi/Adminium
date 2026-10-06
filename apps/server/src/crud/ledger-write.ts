@@ -324,6 +324,14 @@ export interface LedgerKit {
    * formulas worked out again, its totals settled. Answers the row after.
    */
   decide(target: WriteTarget, pk: Row, set: Row, before: Row): Promise<Row | null>;
+  /** Whether a table keeps a limit its rows take from. */
+  limited(target: WriteTarget): boolean;
+  /** The names of the pools these rows would take from, read on the handle of each target with nothing held. */
+  poolNames(rows: readonly { target: WriteTarget; row: Row; before: Row | null }[]): Promise<NamedLock[]>;
+  /** The limits these rows take from, judged once under the save's locks, the rows already written. */
+  judge(db: Db, rows: readonly { target: WriteTarget; pk: Row; row: Row; before: Row | null }[], context: WriteContext, clock: WriteClock): Promise<void>;
+  /** A row of a table read as it is, holding nothing; undefined when it is not there. */
+  fetch(target: WriteTarget, key: Row): Promise<Row | undefined>;
   /** A row of the add-on's that only Adminium writes (a receipt), changed as given. */
   updateRaw(target: WriteTarget, set: Row, key: Row): Promise<void>;
   /** Whether project code changes a row of the table before it is written. */
@@ -503,12 +511,70 @@ export function createLedgerWriter(kit: LedgerKit) {
           const source = { table: ledgers.refOf(target.view.connectionId, target.table.id), row: keyText(target.table, row) };
           const receipts = await receiptsOfSource(target.db, call.ledger, source);
           const round = roundOf(receipts, call.posting.id, '');
-          const reads = await readOrRefuse(target.db, call, { lines: [{ line: '', inputs: mapped.inputs }], source, settings, receiptIds: [round.reserved?.id, round.posted?.id].filter((id): id is string | number => id !== undefined) });
+          const roundIds = [round.reserved?.id, round.posted?.id].filter((id): id is string | number => id !== undefined);
+          const lines = [{ line: '', lineTable: '', inputs: mapped.inputs, multipliers: mapped.multipliers, round: round.round }];
+          const reads = await readOrRefuse(target.db, call, { lines, source, settings, receiptIds: roundIds });
           for (const name of lockNames(target.view.connectionId, call.ledger, call.action, reads)) out.set(name, { name, busy: 'CAPACITY_BUSY' });
+          // A table it writes keeps a limit: the pools its rows will take from are named too — from the plan, asked once here with nothing held.
+          const limited = [...call.ledger.writes.keys()].filter((tableId) => (call.action.writes === undefined || call.action.writes.includes(call.ledger.refOf(tableId))) && kit.limited(tables.get(tableId)!));
+          if (limited.length === 0 || !phaseDue(round, call.phase)) continue;
+          let plan: PostingOutput;
+          try {
+            const written = call.phase === 'reverse' || (call.phase === 'post' && round.reserved !== null) ? await roundRows(target.db, call.ledger, roundIds) : {};
+            plan = askPlanner(call, 'peek', { target, context: input.context, at: new Date(), source, lines, reads, settings, written });
+          } catch (error) {
+            // Not a refusal yet: the save judges the plan under its locks, and fails there.
+            if (error instanceof PlanFailed || error instanceof PostingRefusedError) continue;
+            throw error;
+          }
+          const pooled: { target: WriteTarget; row: Row; before: Row | null }[] = [];
+          for (const planRow of plan.rows) {
+            const written = tables.get(call.ledger.table(planRow.table)?.id ?? '');
+            if (written === undefined || !limited.includes(written.table.id)) continue;
+            if (planRow.op === 'insert') pooled.push({ target: written, row: withoutLabels(planRow.values), before: null });
+            else {
+              const before = await kit.fetch(written, planRow.key);
+              if (before !== undefined) pooled.push({ target: written, row: planRow.set, before });
+            }
+          }
+          for (const lock of await kit.poolNames(pooled)) out.set(lock.name, lock);
         }
         return [...out.values()];
       },
     };
+  }
+
+  /** The add-on's code, asked for its plan. A failure of the code is the plan's failure, with the cause the audit keeps. */
+  function askPlanner(
+    call: PostingCall,
+    mode: 'peek' | 'save',
+    input: { target: WriteTarget; context: WriteContext; at: Date; source: { table: string; row: string }; lines: readonly unknown[]; reads: Record<string, ScalarRow[]>; settings: ScalarRow; written: Record<string, ScalarRow[]> },
+  ): PostingOutput {
+    const planInput = {
+      contract: 'posting-rows@1' as const,
+      ledger: call.ledger.id,
+      action: call.posting.into.action,
+      posting: call.posting.id,
+      phase: call.phase,
+      mode,
+      origin: postingOrigin(input.context),
+      now: input.at.toISOString(),
+      today: input.at.toISOString().slice(0, 10),
+      zone: input.target.timezone ?? 'UTC',
+      currency: null,
+      source: input.source,
+      lines: input.lines,
+      reads: input.reads,
+      settings: input.settings,
+      written: input.written,
+      version: call.ledger.version,
+    };
+    try {
+      return callDecider('rows', call.decider!, planInput, { shape: postingOutputSchema }) as PostingOutput;
+    } catch (error) {
+      if (error instanceof DeciderFailed) throw new PlanFailed(call, error.cause, error.detail);
+      throw error;
+    }
   }
 
   function mapOrRefuse(call: PostingCall, target: WriteTarget, row: Row, settings: ScalarRow, ledgers: LedgerRuntime): MappedLine {
@@ -636,32 +702,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       // What the round wrote so far: handed when it is given back, and when what was held is taken.
       const written = phase === 'reverse' || (phase === 'post' && round.reserved !== null) ? await roundRows(trx, ledger, roundIds) : {};
 
-      const planInput = {
-        contract: 'posting-rows@1' as const,
-        ledger: ledger.id,
-        action: posting.into.action,
-        posting: posting.id,
-        phase,
-        mode: 'save' as const,
-        origin: postingOrigin(context),
-        now: at.toISOString(),
-        today: at.toISOString().slice(0, 10),
-        zone: target.timezone ?? 'UTC',
-        currency: null,
-        source,
-        lines,
-        reads,
-        settings,
-        written,
-        version: ledger.version,
-      };
-      let plan: PostingOutput;
-      try {
-        plan = callDecider('rows', call.decider, planInput, { shape: postingOutputSchema }) as PostingOutput;
-      } catch (error) {
-        if (error instanceof DeciderFailed) throw new PlanFailed(call, error.cause, error.detail);
-        throw error;
-      }
+      const plan = askPlanner(call, 'save', { target, context, at, source, lines, reads, settings, written });
       // A refusal fails the save — but never a giving back: what was written is always given back.
       const first = phase === 'reverse' ? undefined : plan.refusals?.[0];
       if (first !== undefined) throw refused(first.reason, call, { ...(first.left === undefined ? {} : { left: first.left }), ...(first.item === undefined ? {} : { item: first.item }) });
@@ -725,6 +766,22 @@ export function createLedgerWriter(kit: LedgerKit) {
         if (error instanceof PostingRefusedError || error instanceof LockMoved) throw error;
         if (error instanceof ValidationFailedError || error instanceof StateMoveRefused || error instanceof RecordLocked || readDbRefusal(error, target.table) !== null) throw new PlanFailed(call, 'scope-op', error instanceof Error ? error.message : String(error));
         throw error;
+      }
+      // The limits the plan's rows take from, judged once with every row of it written — under the pools' locks, named before the save began.
+      const judged = outcome.written.filter((item) => kit.limited({ ...within, table: item.table }));
+      if (judged.length > 0) {
+        try {
+          await kit.judge(
+            trx,
+            judged.map((item) => ({ target: { ...(peeked?.tables.get(item.table.id) ?? { ...target, table: item.table }), db: trx }, pk: Object.fromEntries(item.table.primaryKey.map((column) => [column, item.row[column]])), row: item.row, before: item.before })),
+            context,
+            clock,
+          );
+        } catch (error) {
+          // The ledger's own limit said no: told as the ledger's refusal, about the row that was being saved.
+          if (error instanceof ConflictError && error.code === 'CAPACITY_FULL') throw refused(ledger.refusal === 'stock' ? 'out-of-stock' : 'over-limit', call);
+          throw error;
+        }
       }
       // What was decided, written to the row that posted — read here, after its own totals were settled, so "what is due" was what the
       // other payments left. The row's own cap still judges it (a payment above what is due is the host's refusal, as ever).

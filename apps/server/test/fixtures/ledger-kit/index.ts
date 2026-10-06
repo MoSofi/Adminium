@@ -49,7 +49,8 @@ const withColumns = (table: Table, change: (column: Doc) => Doc, added: Doc[] = 
 /**
  * Rules of the kit's own tables that a planned row must meet like any other:
  * an entry's amount has a ceiling and is stamped with who saved, a hold is
- * stamped when it is taken, and an account adds up what is still held.
+ * stamped when it is taken, and an account adds up what is still held — and
+ * holds only so many things at once.
  */
 function withOwnRules(table: Table): Table {
   if (table.ref === 'entries') {
@@ -58,12 +59,19 @@ function withOwnRules(table: Table): Table {
     ]);
   }
   if (table.ref === 'holds') {
-    return withColumns(table, (column) => (column['ref'] === 'account_id' ? { ...column, index: true } : column), [
-      { ref: 'taken_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'state', values: ['taken'] } } } },
-    ]);
+    return {
+      ...withColumns(table, (column) => (column['ref'] === 'account_id' ? { ...column, index: true } : column), [
+        { ref: 'taken_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'state', values: ['taken'] } } } },
+      ]),
+      // An account holds so many things at once, and no more.
+      capacity: { kind: 'parent', via: 'account_id', size: { column: 'max_holds' }, countWhere: { column: 'state', values: ['held'] } },
+    };
   }
   if (table.ref === 'accounts') {
-    return withColumns(table, (column) => column, [{ ref: 'held', type: 'decimal', scale: 3, default: 0, rules: { rollup: { from: 'holds', via: 'account_id', sum: 'amount', where: { column: 'state', eq: 'held' } } } }]);
+    return withColumns(table, (column) => column, [
+      { ref: 'held', type: 'decimal', scale: 3, default: 0, rules: { rollup: { from: 'holds', via: 'account_id', sum: 'amount', where: { column: 'state', eq: 'held' } } } },
+      { ref: 'max_holds', type: 'int', default: 100 },
+    ]);
   }
   if (table.ref === 'requests') {
     // Marking a request done is kept for one role: a planned move is made whoever is saving.
