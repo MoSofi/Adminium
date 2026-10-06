@@ -118,6 +118,43 @@ describe('the receipt table', () => {
 });
 
 describe('a posting', () => {
+  it('two tables of lines under one parent do not share a rule\'s id: their receipts could not be told apart', () => {
+    // A second table of lines under the same orders, with the first one's rules as they are — or under ids of its own.
+    const twinned = (rename: (id: string) => string, parent = 'orders'): string => {
+      const doc = structuredClone(LEDGER_HOST) as unknown as { requiredSchema: { tables: TableDoc[] } };
+      const lines = doc.requiredSchema.tables.find((table) => table.ref === 'order_lines')!;
+      const copy = structuredClone(lines);
+      doc.requiredSchema.tables.push({ ...copy, ref: 'surcharges', columns: copy.columns.map((c) => (c['ref'] === 'order_id' ? { ...c, references: parent } : c)), postings: (lines.postings ?? []).map((rule) => ({ ...rule, id: rename(String((rule as Doc)['id'])) })) });
+      return issuesOf(doc).join('\n');
+    };
+    const lineId = String(((LEDGER_HOST.requiredSchema.tables as unknown as TableDoc[]).find((table) => table.ref === 'order_lines')!.postings![0] as Doc)['id']);
+    expect(twinned((id) => id)).toContain(`requiredSchema.tables.${String(LEDGER_HOST.requiredSchema.tables.length)}.postings.0.id: "order_lines" has a posting "${lineId}" for lines of "orders" too: give the two different ids`);
+    expect(twinned((id) => `extra-${id}`)).not.toContain('give the two different ids');
+    // Lines of another parent are no twins, whatever their rules are called.
+    expect(twinned((id) => id, 'visits')).not.toContain('give the two different ids');
+    // The same id on a table that is no line of that parent is nobody's twin.
+    expect(issuesOf(host('visits', posting({ id: lineId }))).join('\n')).not.toContain('give the two different ids');
+  });
+
+  it('an amount Adminium decides is never written over the row\'s key or its state', () => {
+    const deciding = (to: string) =>
+      issuesOf(
+        kit({
+          table: ['requests', posting({ map: { account: 'account_id', quantity: to } })],
+          ledger: { actions: { ...LEDGER.actions, use: { ...LEDGER.actions.use, decides: [{ input: 'quantity', min: '0', max: { read: 'accounts', column: 'balance' } }] } } },
+        }),
+      ).join('\n');
+    expect(deciding('id')).toContain('"quantity" is decided by Adminium and written to "requests.id", which is the row\'s key');
+    expect(deciding('status')).toContain('"quantity" is decided by Adminium and written to "requests.status", which keeps the row\'s state');
+    expect(deciding('quantity')).not.toContain('is decided by Adminium and written to');
+  });
+
+  it('a hold lasts until a moment a row keeps: a column, or one of the parent\'s', () => {
+    const until = (heldUntil: unknown) => issuesOf(host('order_lines', posting({ heldUntil }))).join('\n');
+    expect(until({ parent: 'hold_until' })).toBe('');
+    for (const other of [{ value: '2026-01-01' }, { row: true }, { setting: 'days' }]) expect(until(other), JSON.stringify(other)).toContain('how long a hold lasts is read from a column of the row');
+  });
+
   it('declares when it reserves or posts, with at most six on a table and one id each', () => {
     expect(issuesOf(host('order_lines', posting({ reserve: undefined, post: undefined }))).join('\n')).toContain('a posting declares when it reserves, when it posts, or both');
     const six = (table: TableDoc): TableDoc => ({ ...table, postings: Array.from({ length: 7 }, (_, i) => ({ ...(table.postings ?? [])[0], id: `line-${String(i)}` })) });

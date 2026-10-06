@@ -371,7 +371,11 @@ export function postingIssues(
     };
     for (const [input, mapping] of Object.entries(posting.map)) mapped(mapping, here('map', input), `the input "${input}"`);
     for (const [name, mapping] of Object.entries(posting.multipliers ?? {})) mapped(mapping, here('multipliers', name), `the multiplier "${name}"`);
-    if (posting.heldUntil !== undefined) mapped(posting.heldUntil, here('heldUntil'), 'how long a hold lasts');
+    if (posting.heldUntil !== undefined) {
+      mapped(posting.heldUntil, here('heldUntil'), 'how long a hold lasts');
+      // A hold ends at a moment a row keeps: nothing else can be read as one, and a hold with no end is never given back.
+      if (typeof posting.heldUntil !== 'string' && !('parent' in posting.heldUntil)) out.push({ path: here('heldUntil'), message: 'how long a hold lasts is read from a column of the row, or of the row its lines belong to ({"parent": …})' });
+    }
 
     if (posting.unlessSet !== undefined && has(posting.unlessSet) === undefined) out.push({ path: here('unlessSet'), message: `"${table.ref}" has no column "${posting.unlessSet}"` });
     if (posting.only !== undefined && has(posting.only.column) === undefined) out.push({ path: here('only', 'column'), message: `"${table.ref}" has no column "${posting.only.column}"` });
@@ -611,6 +615,14 @@ export function ledgerIssues(m: { tables: readonly LedgerScopeTable[]; ledgers: 
       if (kinds.length > 0) out.push({ code: 'LEDGER_TABLE_GUARDED', path, message: `"${ref}" carries a ${kinds[0]} limit, so it cannot be a ledger table (a parent limit may stay)` });
       const gapless = table.columns.find((candidate) => candidate.rules?.sequence?.gapless === true);
       if (gapless !== undefined) out.push({ code: 'LEDGER_TABLE_GUARDED', path, message: `"${ref}.${gapless.ref}" is numbered without gaps, so "${ref}" cannot be a ledger table` });
+
+      // A row an answer adds is linked to the receipt of the call that added it: Adminium fills the link, the table declares it.
+      if (scope.insert !== undefined) {
+        const link = column(table, 'receipt_id');
+        if (link === undefined || link.nullable !== true) {
+          out.push({ code: 'LEDGER_TABLE_GUARDED', path: [...path, 'insert'], message: `"${ref}" takes rows an answer adds, so it carries "receipt_id": a link to "${ledger.receipts}" that may be empty` });
+        }
+      }
 
       // Rule 2: what an answer may write is never what Adminium decides.
       const decided = (ref2: string): string | null => {

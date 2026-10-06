@@ -203,6 +203,21 @@ describe('LEDGER_TABLE_GUARDED — a ledger table another guard rules', () => {
   });
 });
 
+describe('a table an answer adds rows to carries the link to their receipt', () => {
+  const linkless = (change: (column: Doc) => Doc[]): string => {
+    const tables = (LEDGER_KIT.requiredSchema.tables as unknown as TableDoc[]).map((candidate) => (candidate.ref === 'entries' ? { ...candidate, columns: (candidate.columns as Doc[]).flatMap(change) } : candidate));
+    return ledgerIssues({ tables: tables as unknown as LedgerScopeTable[], ledgers: ledgersSchema.parse([LEDGER]) })
+      .map((issue) => `${issue.code} ${issue.path.join('.')}: ${issue.message}`)
+      .join('\n');
+  };
+
+  it('with none, or one that may not be empty, the ledger is refused; a table an answer only changes needs none', () => {
+    expect(linkless((column) => [column])).toBe('');
+    expect(linkless((column) => (column['ref'] === 'receipt_id' ? [] : [column]))).toContain('LEDGER_TABLE_GUARDED addOn.ledgers.0.writes.entries.insert: "entries" takes rows an answer adds, so it carries "receipt_id": a link to "postings" that may be empty');
+    expect(linkless((column) => [column['ref'] === 'receipt_id' ? { ...column, nullable: false } : column])).toContain('"entries" takes rows an answer adds');
+  });
+});
+
 describe('LEDGER_DECIDES_TYPE — an amount decided that is no number', () => {
   const decides = (rule: Doc, inputs: Doc = { account: 'link', quantity: 'decimal', due: 'decimal', note: 'text?' }) => coded(kit({ use: { inputs, decides: [rule] } }), 'LEDGER_DECIDES_TYPE');
 

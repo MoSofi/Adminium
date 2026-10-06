@@ -2331,15 +2331,30 @@ export function appReferenceIssues(
     }
     if (table.postings !== undefined) {
       // What a posting makes Adminium's own: how long a hold lasts, and an amount its ledger decides — on the row, or on the parent its lines belong to.
-      for (const posting of table.postings) {
+      for (const [p, posting] of table.postings.entries()) {
         const parentRef = posting.via === undefined ? undefined : table.columns.find((x) => x.ref === posting.via)?.references;
+        // A receipt names its parent row, its line and its rule, not the lines' table: two tables of lines under one parent need two rule ids.
+        if (parentRef !== undefined) {
+          const twin = [...tables.values()].find(
+            (other) => other.ref < table.ref && (other.postings ?? []).some((theirs) => theirs.id === posting.id && theirs.via !== undefined && other.columns.find((x) => x.ref === theirs.via)?.references === parentRef),
+          );
+          if (twin !== undefined) out.push({ path: at('postings', p, 'id'), message: `"${twin.ref}" has a posting "${posting.id}" for lines of "${parentRef}" too: give the two different ids` });
+        }
         const own = (mapping: unknown) => {
           if (typeof mapping === 'string') decide(table.ref, mapping);
           else if (parentRef !== undefined && typeof mapping === 'object' && mapping !== null && 'parent' in mapping) decide(parentRef, String((mapping as { parent: unknown }).parent));
         };
         if (posting.heldUntil !== undefined) own(posting.heldUntil);
         const action = (m.ledgers ?? []).find((ledger) => ledger.id === posting.into.ledger && posting.into.addOn === m.key)?.actions[posting.into.action];
-        for (const rule of action?.decides ?? []) if (posting.map[rule.input] !== undefined) own(posting.map[rule.input]);
+        for (const rule of action?.decides ?? []) {
+          const mapping = posting.map[rule.input];
+          if (mapping === undefined) continue;
+          own(mapping);
+          // Adminium writes the amount there: never over the row's key, nor over the state its moves are judged by.
+          if (typeof mapping !== 'string') continue;
+          if (table.columns.find((x) => x.ref === mapping)?.role === 'pk') out.push({ path: at('postings', p, 'map', rule.input), message: `"${rule.input}" is decided by Adminium and written to "${table.ref}.${mapping}", which is the row's key` });
+          else if (table.states?.column === mapping) out.push({ path: at('postings', p, 'map', rule.input), message: `"${rule.input}" is decided by Adminium and written to "${table.ref}.${mapping}", which keeps the row's state` });
+        }
       }
       out.push(
         ...postingIssues(
