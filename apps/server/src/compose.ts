@@ -209,6 +209,7 @@ import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
 import { addOnRoutes } from './routes/add-ons/index.js';
+import { addOnLookUpRoutes } from './routes/add-ons/look-up.js';
 import { auditRoutes } from './routes/audit/index.js';
 import { desktopSessionRoutes } from './routes/auth/desktop-session.js';
 import { desktopRoutes } from './routes/desktop/index.js';
@@ -1684,6 +1685,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(optionListsRoutes({ meta }));
       // The rules that hand rows to an add-on's ledger: read by its rules page, drawn and switched by the owner.
       await api.register(ledgerRoutes({ manager, meta, ledgers, writes: recordWrites }));
+      // One typed code looked up across an add-on's code tables, as the caller reads them.
+      await api.register(addOnLookUpRoutes({ manager, meta }));
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );

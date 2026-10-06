@@ -237,6 +237,12 @@ export const RATE_BUCKETS = {
    */
   designer: { max: 600, timeWindowMs: 60_000, keyBy: 'principal' },
   /*
+   * An add-on's look-up: one typed code across its code tables. A desk scans
+   * one after another, and it is also the door codes would be guessed
+   * through — a budget of its own, far under the shared `api` one.
+   */
+  'look-up': { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
+  /*
    * Files attached to a Designer message: up to 10 MB each, so their own, tighter budget.
    * The limiter runs before the body is read; the route's own guard runs after.
    */

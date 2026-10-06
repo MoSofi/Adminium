@@ -226,6 +226,64 @@ function theOne(rows: readonly Row[], codeColumn: string, canonical: string): Ro
   return exact.length === 1 ? exact[0]! : null;
 }
 
+/** Whether text, as codes are kept (`canonicalCode`), could be a code at all: nothing else is worth a query. */
+export function plausibleCode(canonical: string): boolean {
+  return PLAUSIBLE.test(canonical);
+}
+
+/**
+ * The one row of a table a typed code finds, or none: rows spelled as it is
+ * (or folded alike), and of fold twins the one typed exactly. `needle` is
+ * the code as codes are kept; no condition is judged here.
+ */
+export async function findByCode(db: Db, table: string, codeColumn: string, spelling: CodeSpelling, needle: string): Promise<Row | null> {
+  return theOne(await candidates(db, table, codeColumn, spelling, needle), codeColumn, needle);
+}
+
+/** A place a typed code may be found: an own routing word, or none, and how its column keeps codes. */
+export interface CodeKind {
+  /** A typed value starting so is this kind's and no other's (`GC-`). */
+  prefix?: string | undefined;
+  spelling: CodeSpelling;
+}
+
+/**
+ * WHERE A TYPED VALUE IS LOOKED FOR, and as what — one answer for every door
+ * that takes one value and several kinds of code (an add-on's look-up, the
+ * price question). `canonical` is the value as codes are kept. The tries, in
+ * order; the caller stops at the first that finds a row:
+ *
+ *  1. the kind whose routing word starts the value. The needle is the whole
+ *     value when the column stores that word (a card's `GC-…`), and the value
+ *     with the word cut off when it does not (a voucher's `VC-` only routes);
+ *  2. no such kind: the kinds with no routing word, in the order declared;
+ *  3. then each kind whose column stores no word and whose codes are as long
+ *     as the value: a scanned code carries no word — also after try 1, since
+ *     a scanned code may happen to start with the letters of a word.
+ *
+ * A kind's routing word is the one it declares, else the one its column
+ * stores. A column that stores a word is found only by a value that starts
+ * with its kind's: a bare value is never tried against it.
+ */
+export function routeTypedCode<Kind extends CodeKind>(canonical: string, kinds: readonly Kind[]): { kind: Kind; needle: string }[] {
+  const word = (prefix: string): string => prefix.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  /** The word the column itself stores before every code, or none. */
+  const kept = (kind: Kind): string => ('made' in kind.spelling ? word(kind.spelling.made.prefix) : '');
+  /** What a typed value starts with to be this kind's. */
+  const routing = (kind: Kind): string => (kind.prefix !== undefined ? word(kind.prefix) : kept(kind));
+  const scanned = kinds
+    .filter((kind) => routing(kind) !== '' && kept(kind) === '' && 'made' in kind.spelling && kind.spelling.made.length === canonical.length)
+    .map((kind) => ({ kind, needle: canonical }));
+  const routed = kinds.find((kind) => routing(kind) !== '' && canonical.startsWith(routing(kind)));
+  if (routed !== undefined) {
+    // A stored word of its own is put back by the compare, so only the kind's own routing word is ever cut.
+    const whole = kept(routed) !== '' && kept(routed) === routing(routed);
+    return [{ kind: routed, needle: whole ? canonical : canonical.slice(routing(routed).length) }, ...scanned];
+  }
+  const bare = kinds.filter((kind) => routing(kind) === '').map((kind) => ({ kind, needle: canonical }));
+  return [...bare, ...scanned];
+}
+
 /**
  * A full limit counted through a link a typed code fills (a code's uses):
  * the refusal names the column the person typed into, as `used-up`.

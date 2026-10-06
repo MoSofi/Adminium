@@ -97,6 +97,7 @@ export function lookUpIssues(lookUp: LookUp, tables: readonly LookUpTable[]): Re
     }
     const code = column(table, kind.code);
     if (code === undefined) out.push({ path: at('code'), message: `"${kind.table}" has no column "${kind.code}"` });
+    else if ((code.rules?.['code'] as { hiddenFromStaff?: unknown } | undefined)?.hiddenFromStaff === true) out.push({ path: at('code'), message: `"${kind.table}.${kind.code}" is a code staff never see: no desk looks it up` });
     else if (code.type !== 'text' || (code.rules?.['code'] === undefined && code.unique !== true)) out.push({ path: at('code'), message: `"${kind.table}.${kind.code}" is compared with what was typed: it is a text column with a code rule, or a unique one` });
     (kind.where ?? []).forEach((where, w) => {
       const found = column(table, where.column);

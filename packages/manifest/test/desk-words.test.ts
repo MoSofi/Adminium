@@ -272,6 +272,8 @@ describe('what a typed code may find', () => {
     expect(kit((doc) => { kind(doc, 'gift-card').show.push('ghost'); }).join()).toContain('"cards" has no column "ghost"');
     expect(kit((doc) => { kind(doc, 'gift-card').show.push('label'); }).join()).toContain('"label" is listed twice');
     expect(kit((doc) => { lookUp(doc).address.show.push('code'); }).join()).toContain('"cards.code" is the code itself');
+    // A code no desk hands out is not one a desk looks up either.
+    expect(kit((doc) => { kind(doc, 'gift-card').code = 'pin'; }).join()).toContain('"cards.pin" is a code staff never see: no desk looks it up');
   });
 
   it('a kind\'s history is one table that points at its rows', () => {
