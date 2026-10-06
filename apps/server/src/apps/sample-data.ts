@@ -111,6 +111,13 @@ export interface SampleDataDeps {
   files: FileStore;
   /** Tell open dashboards their data moved; absent in a bare composition. */
   publish?: ((connectionId: string) => Promise<void>) | undefined;
+  /**
+   * How a table is named where a row names one by text (a receipt's source):
+   * `<maker>:<short name>`, or its id. With it, a sample row that a ledger's
+   * receipt names is kept like one a real row points at; without it, receipts
+   * are not looked at.
+   */
+  storedRefs?: ((connectionId: string) => Promise<(tableId: string) => string>) | undefined;
 }
 
 /** What an add is told. */
@@ -1911,7 +1918,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       // A row another installed app's sample lists too stays where it is, as that app's: not removed, not "kept".
       const shared = await alsoAnothers(app, connectionId, handle, view, names, every);
       const rows = every.filter((row) => !shared.has(row.seq));
-      const analysis = await analyse(handle, view, names, rows);
+      const analysis = await analyse(handle, view, names, rows, true, await deps.storedRefs?.(connectionId));
       const counts = new Map<string, number>();
       for (const row of rows) counts.set(row.table_ref, (counts.get(row.table_ref) ?? 0) + 1);
       // What the record is called now, as the rest of the console names it:
@@ -1977,7 +1984,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       // A row another installed app's sample lists too is not this app's alone to delete: it leaves this ledger and stays.
       const shared = await alsoAnothers(app, connectionId, handle, view, names, resolved);
       const rows = resolved.filter((row) => !shared.has(row.seq));
-      const analysis = await analyse(handle, view, names, rows, opts.keepChanged);
+      const analysis = await analyse(handle, view, names, rows, opts.keepChanged, await deps.storedRefs?.(connectionId));
       const byTable: Record<string, number> = {};
       const removedSeqs: number[] = [];
       const kept: LedgerRow[] = [];
@@ -2113,6 +2120,7 @@ async function analyse(
   names: Readonly<Record<string, string>>,
   rows: readonly LedgerRow[],
   keepChanged = true,
+  storedRef?: (tableId: string) => string,
 ): Promise<{
   used: Map<number, number>;
   changed: Map<number, string[]>;
@@ -2196,6 +2204,44 @@ async function analyse(
           if (isSample(table.id, referrer, resolved)) continue;
           const target = targets.get(String(referrer[column.name]));
           if (target !== undefined) used.set(target.seq, (used.get(target.seq) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
+  /*
+   * A ledger's receipt names its source row, and the line it was for, by
+   * TEXT — the table's stored name and the row's key — which no foreign key
+   * shows. A sample row a receipt names is in use like any other: taken out,
+   * the receipt would point at nothing and what was posted for it could
+   * never be given back. A receipt that is itself a sample row of this same
+   * list goes with it, and keeps nothing.
+   */
+  if (storedRef !== undefined) {
+    for (const table of view.model.tables) {
+      if (table.system || table.excluded === true) continue;
+      const named = (name: string) => table.columns.find((column) => column.name === name);
+      if (named('source_table')?.tableRef !== true || named('line_table')?.tableRef !== true || named('source_row') === undefined || named('source_line') === undefined) continue;
+      const receipts = safeTable(view, table.id);
+      if (receipts === null) continue;
+      for (const [tableId, targets] of byTable) {
+        if (targets.size === 0) continue;
+        const ref = storedRef(tableId);
+        const keys = [...targets.keys()];
+        for (const [tableColumn, rowColumn] of [['source_table', 'source_row'], ['line_table', 'source_line']] as const) {
+          for (let i = 0; i < keys.length; i += 500) {
+            const found = (await db
+              .selectFrom(`${table.schema}.${table.name}` as never)
+              .select([...receipts.primaryKey, rowColumn] as never)
+              .where(tableColumn as never, '=', ref as never)
+              .where(rowColumn as never, 'in', keys.slice(i, i + 500) as never)
+              .execute()) as Row[];
+            for (const receipt of found) {
+              if (isSample(table.id, receipt, receipts)) continue;
+              const target = targets.get(String(receipt[rowColumn]));
+              if (target !== undefined) used.set(target.seq, (used.get(target.seq) ?? 0) + 1);
+            }
+          }
         }
       }
     }
