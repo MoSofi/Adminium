@@ -387,6 +387,22 @@ If a settings table is found holding two rows, a moment, a move's setting condit
 amount reads no setting from it at all. The moment has no value, so a timed move reading it waits,
 and a move waiting for the setting is refused. Keep one row there.
 
+## A hold that nobody finishes
+
+A [posting](/guides/apps/postings/) into an action that holds keeps its hold until the moment
+`heldUntil` names. The job that makes the timed moves also looks, each minute, for holds whose
+moment has passed and gives each back as the posting's `reverse` would — whatever state the row is
+in, and with no move of the row itself. A hold that a move of the row already took or gave back is
+simply let go of.
+
+It is the same for a payment an add-on decided as the row was made (a gift card charged to a till
+ticket nobody finishes): at its moment the amount is given back to the card and taken off the
+row. Once the row reaches a state its posting takes for good, the payment stands and is not looked
+at again.
+
+A give-back that is refused (the ledger's own cap would be broken) is left alone for an hour and
+tried again, as a refused timed move is.
+
 ## What a writer is told
 
 In the dashboard and the REST API:

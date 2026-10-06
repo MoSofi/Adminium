@@ -365,6 +365,21 @@ A bad entry stops the boot with every refused value named, like any other
 invalid variable. An `https://` dashboard cannot show `http://` pictures however
 this is set — the browser blocks mixed content on its own.
 
+## `ADMINIUM_ADD_ON_DEV_TRUST`
+
+For somebody **writing** an add-on that keeps a ledger. A comma-separated list of add-on keys
+whose [deciding code](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides) this server
+runs whatever its bytes:
+
+```sh
+ADMINIUM_ADD_ON_DEV_TRUST='stock-kit,my-ledger'
+```
+
+Without it, such code runs only from a package this server can vouch for — bundled with the
+release, or downloaded from the catalogue — and a package uploaded by hand installs with every
+save that would ask its code refused. The variable is **ignored when `NODE_ENV` is `production`**:
+it is not a way to run unreleased code on a live server.
+
 ## `ADMINIUM_TRUST_PROXY`
 
 Off by default, which is right for a direct-to-internet or localhost process:

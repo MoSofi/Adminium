@@ -4,10 +4,24 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/postings--the-lines-of-an-order.md` | The lines of an order | 1707 |
+| `references/guides/postings--put-it-back-first.md` | Put it back first | 947 |
+| `references/guides/postings--a-hold-has-an-end.md` | A hold has an end | 771 |
+| `references/guides/postings--every-way-of-writing-a-row.md` | Every way of writing a row | 1718 |
+| `references/guides/postings--trying-a-save-first.md` | Trying a save first | 868 |
+| `references/guides/postings--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 1366 |
+| `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 753 |
+| `references/guides/postings--what-a-writer-is-told.md` | What a writer is told | 1506 |
+| `references/guides/undo-a-status-move--overview.md` | Undo a status move | 827 |
+| `references/guides/undo-a-status-move--a-move-back.md` | A move back | 1481 |
+| `references/guides/undo-a-status-move--naming-the-state-it-saw.md` | Naming the state it saw | 1543 |
+| `references/guides/undo-a-status-move--only-shortly-after.md` | Only shortly after | 803 |
+| `references/guides/undo-a-status-move--stamps.md` | Stamps | 1494 |
 | `references/guides/undo-a-status-move--columns-the-move-back-empties.md` | Columns the move back empties | 1875 |
 | `references/guides/undo-a-status-move--an-email-that-waits.md` | An email that waits | 1627 |
 | `references/guides/undo-a-status-move--the-undo-button.md` | The Undo button | 1926 |
 | `references/guides/undo-a-status-move--doors-that-never-make-an-undo.md` | Doors that never make an undo | 1099 |
+| `references/guides/undo-a-status-move--after-a-posting.md` | After a posting | 634 |
 | `references/guides/undo-a-status-move--what-a-writer-is-told.md` | What a writer is told | 1077 |
 | `references/guides/undo-a-status-move--upgrading.md` | Upgrading | 441 |
 | `references/guides/shared-menu--overview.md` | A menu two apps share | 543 |
@@ -44,6 +58,7 @@
 | `references/guides/public-access--limits-on-a-stranger-s-create.md` | Limits on a stranger's create | 2319 |
 | `references/guides/public-access--a-kiosk.md` | A kiosk | 2376 |
 | `references/guides/public-access--switches-in-the-settings-row.md` | Switches in the settings row | 915 |
+| `references/guides/public-access--what-an-add-on-adds.md` | What an add-on adds | 1450 |
 | `references/guides/public-access--what-the-app-s-keys-can-never-do.md` | What the app's keys can never do | 1221 |
 | `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
 | `references/guides/public-access--origins.md` | Origins | 853 |

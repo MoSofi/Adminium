@@ -29,6 +29,7 @@
 | `references/guides/public-access--limits-on-a-stranger-s-create.md` | Limits on a stranger's create | 2319 |
 | `references/guides/public-access--a-kiosk.md` | A kiosk | 2376 |
 | `references/guides/public-access--switches-in-the-settings-row.md` | Switches in the settings row | 915 |
+| `references/guides/public-access--what-an-add-on-adds.md` | What an add-on adds | 1450 |
 | `references/guides/public-access--what-the-app-s-keys-can-never-do.md` | What the app's keys can never do | 1221 |
 | `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
 | `references/guides/public-access--origins.md` | Origins | 853 |
@@ -84,7 +85,5 @@
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
 | `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
 | `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1372 |
-| `references/guides/booking-rules--booking-rules-and-capacity.md` | Booking rules and capacity | 779 |
-| `references/guides/booking-rules--limits.md` | Limits | 1061 |
 
 More: `references/guides/INDEX-2.md`

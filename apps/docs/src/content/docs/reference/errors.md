@@ -283,6 +283,22 @@ costs the visitor one of 5 a minute, and the key one of 60 a minute. Once they a
 request with a code answers `429` `PUBLIC_RATE_LIMITED` with `Retry-After`, before anything is
 looked up. A code that works costs nothing.
 
+### Out of stock, and a refused card
+
+A guest's save that reaches a [posting](/guides/apps/postings/) hears two refusals by name, both
+`409`:
+
+| Code | When | `params` |
+|---|---|---|
+| `PUBLIC_OUT_OF_STOCK` | a ledger of stock refused: there is not enough left | `child`?, `index`?, `path`? (which line of a create with child rows) and `left`? — how many are left, only when the add-on's owner chose to show it and fewer than that are left |
+| `PUBLIC_CARD_REFUSED` | a ledger of value refused: a gift card or voucher cannot pay this | `reason: "not-valid"`, always: whether the code is unknown, used up, expired or somebody else's is never said |
+
+A refused card counts as a wrong guess of a typed code, on a count of its own: a page that tries
+codes is slowed down like any other. Every other reason a ledger has (`one-at-a-time`,
+`add-on-unavailable`, a fault of the add-on) reaches a guest as the plain
+[refused write](#a-refused-write), with no reason. A dry run answers the same two in
+`postings[]`: `{ "ledger", "state": "refused", "reason": "out-of-stock" | "not-valid" }`.
+
 ## How a desk refusal reaches a guest
 
 A guest's write runs the same checks as a staff write. The public API then answers with its own
@@ -434,6 +450,29 @@ that judged the row as it was, on a row that has moved on since, gives `{ expect
 `STATE_UNCHANGED` repeats when and by whom the strict row got to its state (`at`, `by`, read from
 its stamps) and the columns its `strict.show` names, so a scanner can say "already let in at 19:42
 by Door 2".
+
+### A ledger's refusal
+
+`409 POSTING_REFUSED`: a save reached a [posting](/guides/apps/postings/) and the add-on's ledger,
+or Adminium on its behalf, said no. Nothing was saved. `details.reason` says why:
+
+| `reason` | Said by | Also in `details` |
+|---|---|---|
+| `out-of-stock`, `expired`, `needs-batch` | the add-on, on a ledger of stock | `ledger`, `posting`, `line`?, `path`?, `left`?, `item`? |
+| `not-valid`, `inactive`, `void`, `empty`, `used-up`, `over-limit`, `needs-customer`, `refund-over`, `not-allowed` | the add-on, on a ledger of value | the same |
+| `out-of-stock`, `over-limit` | the ledger's own cap or limit, when the add-on let the save through | `phase: "reverse"` when it was a give-back that would go below zero |
+| `mapped-changed` | a column the open round read was changed | `posting`, `column` |
+| `receipt-open` | a row with an open round was deleted, or a rule rows hold under was changed or removed | `posting`, `rows`? |
+| `one-at-a-time` | a bulk edit, an undo, a form's child rows, a batch or an effect would have posted | `posting`?, `effect`? |
+| `add-on-unavailable` | the add-on cannot be asked now, or the rule names something it does not have | `ledger`?, `posting`? |
+| `card-pays-card` | a line of the same order forbids it | `posting` |
+| `planner-failed`, `too-large`, `hooked`, `guarded` | a fault of the add-on's code or of the setup | `table`? — the cause is in the audit row `ledger.refused`, never in the reply |
+
+`line` is the line's place among the lines handed over, and `path` its place in a create with
+child rows. `left` (how much is left) and `item` (of what) are read from the add-on's own rows:
+they are in the reply only for a caller who may read every table the action reads. A dry run
+answers the same reasons in `postings[]` with `200`, and fails only for what is not a ledger's
+refusal.
 
 ### What a read limit leaves out
 

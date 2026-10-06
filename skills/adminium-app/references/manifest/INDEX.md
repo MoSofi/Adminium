@@ -19,7 +19,7 @@
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 427 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7765 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7758 |
-| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7503 |
+| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7797 |
 | `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7703 |
 | `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7580 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 6958 |
@@ -33,6 +33,7 @@
 | `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 6659 |
 | `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 2077 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
+| `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
 | `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 3754 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
@@ -66,12 +67,16 @@
 | `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
 | `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |
 | `references/manifest/public-access--limits-on-a-guest-s-change.md` | Public access — Limits on a guest's change | 1325 |
-| `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1135 |
+| `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1818 |
 | `references/manifest/public-access--pictures.md` | Public access — Pictures | 871 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1727 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/sample-data.md` | Sample data | 7630 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 6479 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 3550 |
+| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2197 |
+| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5125 |
+| `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 1853 |
+| `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
 | `references/manifest/validation.md` | Validation | 3648 |

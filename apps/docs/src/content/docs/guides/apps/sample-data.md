@@ -159,6 +159,16 @@ When it is done:
 
 A message on the card says how many sample records stayed, if any.
 
+### Rows a ledger's receipt names
+
+A sample row that posted into an [add-on's ledger](/guides/apps/postings/) is named by that
+ledger's receipt, as text. **Remove sample data** keeps such a row, as it keeps one a real row
+links to, and says how many it kept — unless the receipt is itself a sample row of the same
+removal, when both go. The balances the kept rows feed are added up again.
+
+Sample rows are brought in as history: creating them posts nothing and is never refused by a
+ledger.
+
 ## On uninstall
 
 Uninstalling an app does not remove its sample data on its own: the records are rows in the app's

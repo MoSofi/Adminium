@@ -27,6 +27,7 @@ export default {
     { area: 'guides', page: 'guides/apps/orders-with-lines.md' },
     { area: 'guides', page: 'guides/apps/booking-rules.md' },
     { area: 'guides', page: 'guides/apps/timed-moves.md' },
+    { area: 'guides', page: 'guides/apps/postings.md' },
     { area: 'guides', page: 'guides/apps/undo-a-status-move.md' },
     { area: 'guides', page: 'guides/apps/shared-menu.md' },
     { area: 'guides', page: 'guides/apps/emails.md' },

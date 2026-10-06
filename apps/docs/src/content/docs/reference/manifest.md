@@ -490,6 +490,7 @@ that would take the balance below zero: what a visit's fee, its payments and its
 | `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
 | `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
 | `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
+| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
 
 ```json
 { "ref": "paid", "type": "money", "default": 0,
@@ -1614,6 +1615,58 @@ Checked against the manifest:
   it writes is listed in `lock.except`.
 - A child row's table has a foreign key `via` to this table. `via` is neither typed nor set.
 - A column is set or typed, not both.
+
+### Postings
+
+A table's `postings` hand its rows to a [ledger](#ledgers) an add-on keeps, in the same save. How
+they behave, with every way of writing a row, is in
+[Rows that post into an add-on's ledger](/guides/apps/postings/).
+
+```json
+"postings": [
+  {
+    "id": "stock",
+    "into": { "addOn": "inventory", "ledger": "stock", "action": "use" },
+    "via": "order_id",
+    "reserve": { "on": { "create": true } },
+    "post": { "on": { "to": ["picked_up"] } },
+    "reverse": { "on": { "to": ["cancelled"], "from": ["placed", "ready"] } },
+    "map": { "what": "item_id", "quantity": "quantity" },
+    "heldUntil": { "parent": "hold_until" },
+    "unlessSet": "voided_at"
+  }
+]
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `id` | yes | A lowercase name, unique on the table. Up to six postings a table. Two tables of lines under one parent may not share an id. |
+| `into` | yes | `{ "addOn", "ledger", "action" }`. The add-on is one the manifest names under `addOns.requires` or `addOns.suggests` (or the add-on itself, in its own manifest). |
+| `needs` | no | An app's [`addOns.features`](#add-ons) id: the posting runs only while that feature is on. |
+| `via` | no | A foreign key of this table: its rows are **lines** of the row the key names, and every point but a create is judged on that parent row. |
+| `reserve`, `post`, `reverse` | one of the first two | `{ "on": <point> }`. `reverse` is required for an action that holds, and for an action that decides an amount when the row is created. |
+| `map` | yes | An input of the action → where it is read: a column, `{ "row": true }` (the row itself), `{ "parent": "<column>" }` (under `via`), `{ "setting": "<column>" }` (the add-on's settings row), `{ "value": … }`. Every input the action needs is mapped, and nothing else. |
+| `multipliers` | no | The same, for `night`, `guest` and `guest_night` (which is `night × guest` when not mapped). |
+| `heldUntil` | with a `reserve` of an action that holds | A date-and-time column of the row, or `{ "parent": "<column>" }`. Nothing else: a hold ends at a moment a row keeps. |
+| `unlessSet` | no | A column of the line: while it is filled, the line is left out of every call. |
+| `only` | no | `{ "column", "eq" }`, `{ "column", "in": [...] }` or `{ "column", "set": true }`: only matching lines are handed over. |
+| `refuses` | no | Up to four `{ "column", "set": true }` (a line of the same table) or `{ "table", "via", "column", "set": true }` (a line of another table under the same parent): the save is refused while such a line has the column filled. Under `via` only. |
+
+A **point** is one of:
+
+| Point | Fires |
+|---|---|
+| `{ "create": true }` | when the row is created (under `via`: when the line is). |
+| `{ "to": [...], "from"?: [...] }` | when the row's [state](#states) moves into one of `to` — from one of `from`, when given — or it is created in one. Needs `states` on the judged table. |
+| `{ "column", "in": [...], "from"?: [...], "own"?: true }` | when a column takes one of the values. |
+| `{ "column", "set": true, "own"?: true }` | when a nullable column is filled. |
+
+`own` is said under `via`: the point is the line's own column, not the parent's.
+
+A mapped column is the row's own to say. It may be a default, a formula, a stamp or a copy made
+once; it may not be a total, a balance or a copy that follows another row, since Adminium settles
+those in the same save. A column mapped to an input the action **decides** is written by Adminium
+and by nobody else: it is not the key, the state column, a formula, a running number or a total.
 
 ### Shared tables
 
@@ -3365,6 +3418,84 @@ Adminium runs add-on code, and why only first-party add-ons are accepted, is exp
 
 A column may keep the name of a table (`"rules": { "tableRef": true }`): Adminium stores it so
 that renaming the table it names keeps the rows pointing at it.
+
+### Ledgers
+
+An add-on with tables of its own may keep up to four **ledgers** under `addOn.ledgers`: tables
+whose rows it alone plans, written by Adminium inside the save of the row that
+[posts](#postings) into them.
+
+```json
+"ledgers": [
+  {
+    "id": "stock",
+    "refusal": "stock",
+    "receipts": "postings",
+    "writes": {
+      "movements": { "insert": ["level_id", "quantity", "kind"] },
+      "reservations": { "insert": ["level_id", "quantity", "state"], "update": { "by": ["id"], "set": ["state"] } }
+    },
+    "actions": {
+      "use": {
+        "inputs": { "item": "link", "quantity": "decimal", "note": "text?" },
+        "phases": ["reserve", "post", "reverse"],
+        "reads": [
+          { "as": "levels", "table": "levels", "by": [{ "column": "item_id", "from": "input.item" }] },
+          { "as": "mine", "table": "reservations", "by": [{ "column": "receipt_id", "from": "receipt.id" }] }
+        ],
+        "locks": [{ "read": "levels", "column": "id", "table": "levels" }],
+        "holds": true
+      }
+    }
+  }
+]
+```
+
+| Field | Rule |
+|---|---|
+| `id` | A lowercase name. |
+| `refusal` | `stock` or `value`: which of the two public refusals a guest hears (`PUBLIC_OUT_OF_STOCK`, `PUBLIC_CARD_REFUSED`). |
+| `receipts` | One of the add-on's tables, with exactly the [receipt columns](#the-receipt-table). Adminium alone writes it. |
+| `writes` | Up to twelve of the add-on's own tables, each with the columns an answer may `insert` and, by a key, `update`. Never a delete. Never a total, a balance, a formula, a stamp, a number, a code, a copy or the key. A table an answer inserts into carries `receipt_id`, a link to the receipt table that may be empty; Adminium fills it. Such a table carries no booking rule, no slot or night limit and no number without gaps. |
+| `actions` | 1–16, by name. |
+
+An **action**:
+
+| Field | Rule |
+|---|---|
+| `inputs` | What a posting maps: each `link`, `number`, `decimal`, `text`, `date`, `bool` (with `?` when it may be empty), `tableRef` or `rowRef` (a row of any table: `{ "row": true }` in a posting). |
+| `phases` | Which of `reserve`, `post`, `reverse` it has. |
+| `reads` | Up to six `{ "as", "table", "by", "where"?, "limit"? }`: the rows Adminium reads for the code, from the add-on's own tables only. `by` is 1–3 `{ "column", "from" }`; `from` is `input.<name>`, `<an earlier read>.<column>`, `receipt.id`, `setting.<column>`, or a list of up to three of them. Up to 1,000 rows a read, 3,000 a call. |
+| `locks` | 1–4 `{ "read", "column", "table" }`: the rows a save stands on. Two saves that would take from the same row wait for one another. Every table in `writes` that feeds a capped balance has that balance's table (or the table it stands for) here. |
+| `writes` | Optional: the tables of the ledger this action writes, when not all of them. |
+| `holds` | `true`: `reserve` writes something that ends. A posting into it says until when. |
+| `decides` | `{ "input", "min": "0", "max": { "input" } \| { "read", "column" } }` entries: an amount Adminium writes to the posting row itself, between the bounds it reads. Two entries for one input are two ceilings. |
+| `unavailable` | `{ "allow": { "read", "column" } }`: while the code cannot be asked, a save may still go through when every row of that read has the yes/no column on. It leaves a receipt to be worked out later. |
+
+Three rules of the add-on's own tables are for ledgers:
+
+- [`capUnless`](#column-rules) on a capped total.
+- `"announce": true` on a formula column (up to four a table): when a posting's settle changes it
+  (an item that turns low), the change is told to automations, emails and open screens as a
+  change of that row — though no one saved the row.
+- `"planned": true` on a [state move](#states): only a row the add-on's own code writes makes it.
+  It is not offered to any person, effect or timed move.
+
+#### The receipt table
+
+One row a phase, written by Adminium: `id`, `source_table` and `line_table` (text, with
+`"rules": { "tableRef": true }`), `source_row`, `source_line`, `ledger`, `action`, `posting` (text),
+`phase` (`reserve`, `post`, `reverse`), `round` (a whole number), `state` (`planned`, `unplanned`),
+`rows` (a whole number), `add_on_version`, `origin` (`staff`, `public`, `system`), `by` (text), `at`
+(a date and time) and `held_until` (a date and time that may be empty). Adminium makes its unique
+key and its indexes itself.
+
+#### Code that decides
+
+The add-on's package provides the contract `posting-rows`, version 1, as one self-contained
+script. Adminium calls its `rows(input)` with the lines, the rows it read and the add-on's
+settings, and writes what it answers. See
+[A ledger, and code that decides](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides).
 
 ### Shapes
 

@@ -205,6 +205,7 @@ export default defineConfig({
                 { label: 'Pictures on public pages', link: '/guides/apps/public-pictures/' },
                 { label: 'Booking rules and limits', link: '/guides/apps/booking-rules/' },
                 { label: 'Timed moves', link: '/guides/apps/timed-moves/' },
+                { label: 'Rows that post into a ledger', link: '/guides/apps/postings/' },
                 { label: 'Undo a status move', link: '/guides/apps/undo-a-status-move/' },
                 { label: 'An app’s emails', link: '/guides/apps/emails/' },
                 { label: 'A menu two apps share', link: '/guides/apps/shared-menu/' },
