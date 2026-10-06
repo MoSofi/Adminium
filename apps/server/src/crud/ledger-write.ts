@@ -293,6 +293,8 @@ export interface PostingCall {
    * it runs only when their receipts say so.
    */
   late?: boolean | undefined;
+  /** Planning what an unplanned receipt of this phase stands for (see `OnePhase.catchUp`). */
+  catchUp?: boolean | undefined;
 }
 
 /** One row of a create with child rows: the root first. */
@@ -353,6 +355,12 @@ export interface PostedOutcome {
 export interface OnePhase {
   posting: string;
   phase: PostingPhaseName;
+  /**
+   * The catch-up: the phase went through while the add-on could not answer
+   * and left a receipt nobody planned. It is planned now, against that same
+   * receipt and its round — nothing new is started.
+   */
+  catchUp?: boolean | undefined;
 }
 
 export interface Peek {
@@ -621,6 +629,7 @@ export function createLedgerWriter(kit: LedgerKit) {
         role: point.role,
         link,
         late: point.late,
+        catchUp: only?.catchUp,
       });
     }
     return calls;
@@ -675,10 +684,21 @@ export function createLedgerWriter(kit: LedgerKit) {
     return false;
   }
 
+  type Due = { line: CallLine; round: RoundState; mapped: MappedLine; pending?: Receipt | undefined };
+
   /** The lines of a call this phase is still owed for, each with its round and the inputs the rule maps. */
-  function dueLines(call: PostingCall, gathered: Gathered, receipts: readonly Receipt[], settings: ScalarRow, target: WriteTarget): { line: CallLine; round: RoundState; mapped: MappedLine }[] {
-    const out: { line: CallLine; round: RoundState; mapped: MappedLine }[] = [];
+  function dueLines(call: PostingCall, gathered: Gathered, receipts: readonly Receipt[], settings: ScalarRow, target: WriteTarget): Due[] {
+    const out: Due[] = [];
     for (const line of gathered.lines) {
+      if (call.catchUp === true) {
+        // The oldest receipt of this phase nobody planned, with the round it belongs to as it stood before it.
+        const mine = receipts.filter((receipt) => receipt.posting === call.posting.id && receipt.sourceLine === line.key && receipt.lineTable === line.ref);
+        const pending = mine.find((receipt) => receipt.phase === call.phase && receipt.state === 'unplanned');
+        if (pending === undefined) continue;
+        const inRound = mine.filter((receipt) => receipt.round === pending.round && receipt.id !== pending.id);
+        out.push({ line, pending, round: { round: pending.round, reserved: inRound.find((receipt) => receipt.phase === 'reserve') ?? null, posted: inRound.find((receipt) => receipt.phase === 'post') ?? null }, mapped: mapOrRefuse(call, target, line, settings) });
+        continue;
+      }
       const round = roundOf(receipts, call.posting.id, line.key, line.ref);
       if (!phaseDue(round, call.phase)) continue;
       if (call.late === true && !reached(receipts, call, line.key, line.ref)) continue;
@@ -739,7 +759,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       const settings = await ledgerSettings(call.ledger, target.db);
       const source = { table: gathered.source.ref, row: gathered.source.key };
       const receipts = gathered.source.key === '' ? [] : await receiptsOfSource(target.db, call.ledger, source);
-      let due: ReturnType<typeof dueLines>;
+      let due: Due[];
       try {
         due = dueLines(call, gathered, receipts, settings, target);
       } catch (error) {
@@ -1000,6 +1020,14 @@ export function createLedgerWriter(kit: LedgerKit) {
         at: at.toISOString(),
         held_until: keptUntil(entry.line),
       });
+      /** A line's receipt for this phase: written now — or, catching up, the one nobody planned, planned at last. Its key. */
+      const record = async (entry: Due, state: 'planned' | 'unplanned', rows: number): Promise<unknown> => {
+        if (entry.pending !== undefined) {
+          await kit.updateRaw(receiptsTarget, { state, rows, add_on_version: ledger.version }, { [receiptKey(ledger)]: entry.pending.id });
+          return entry.pending.id;
+        }
+        return (await writeReceipt(receiptsTarget, ledger, receiptFor(entry, state, rows)))[receiptKey(ledger)];
+      };
       /** What a line's round kept until a time is kept no longer: it was taken for good, or given back. */
       const close = async (round: RoundState): Promise<void> => {
         if (phase === 'reserve') return;
@@ -1021,7 +1049,7 @@ export function createLedgerWriter(kit: LedgerKit) {
         outcome.lines.push(entry.line.key);
         if (dry) continue;
         for (const receipt of open) await kit.updateRaw(receiptsTarget, { state: 'planned', rows: 0 }, { [receiptKey(ledger)]: receipt.id });
-        await writeReceipt(receiptsTarget, ledger, receiptFor(entry, 'planned', 0));
+        await record(entry, 'planned', 0);
         await close(entry.round);
       }
       if (asked.length === 0) return dry ? answer({ state: 'ok' }, { source, lines: outcome.lines }) : outcome;
@@ -1069,8 +1097,10 @@ export function createLedgerWriter(kit: LedgerKit) {
         }
         // A quote says so: whether the save would go through unasked is the save's to find.
         if (dry) return phase === 'reverse' ? answer({ state: 'ok' }, { source }) : answer({ state: 'unavailable', reason: 'add-on-unavailable' }, { source });
+        // Catching up with nobody to ask still: what waits goes on waiting.
+        if (call.catchUp === true) throw refused('add-on-unavailable', call);
         for (const entry of asked) {
-          await writeReceipt(receiptsTarget, ledger, receiptFor(entry, 'unplanned', 0));
+          await record(entry, 'unplanned', 0);
           await close(entry.round);
           outcome.lines.push(entry.line.key);
         }
@@ -1150,10 +1180,21 @@ export function createLedgerWriter(kit: LedgerKit) {
       for (const entry of asked) {
         const rows = plan.rows.filter((planRow) => planRow.line === entry.line.key).length;
         const decided = decisions.some((decision) => decision.line === entry.line.key);
-        if (rows === 0 && !decided && phase !== 'reverse' && entry.round.reserved === null) continue;
-        const receipt = await writeReceipt(receiptsTarget, ledger, receiptFor(entry, 'planned', rows));
+        if (rows === 0 && !decided && phase !== 'reverse' && entry.round.reserved === null && entry.pending === undefined) continue;
+        // A payment given back while it was still only kept until a time: the amount decided for it is taken off its row again, so what is due comes back with the money.
+        if (phase === 'reverse' && entry.round.posted !== null && entry.round.posted.heldUntil !== null && call.action.decides !== undefined) {
+          const set: Row = {};
+          for (const bound of call.action.decides) {
+            const column = posting.map[bound.input];
+            if (typeof column === 'string') set[column] = null;
+          }
+          if (Object.keys(set).length > 0) {
+            const after = await kit.decide({ ...within, table: entry.line.table }, Object.fromEntries(entry.line.table.primaryKey.map((column) => [column, entry.line.row[column]])), set, entry.line.row);
+            if (after !== null) env.decided?.(entry.line, after);
+          }
+        }
+        receiptIds.set(entry.line.key, await record(entry, 'planned', rows));
         await close(entry.round);
-        receiptIds.set(entry.line.key, receipt[receiptKey(ledger)]);
         outcome.lines.push(entry.line.key);
       }
       outcome.notes = (plan.notes ?? []).map((note: { line: string; note: string; item?: string | undefined }) => ({ ...note }));
@@ -1368,6 +1409,41 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /**
+   * A PAYMENT KEPT UNTIL A TIME STANDS once the row it belongs to reaches a
+   * posting state of its own: whatever rule's `post` point the row (or the
+   * row its lines hang under) crosses, every `post` receipt of that row still
+   * kept until a time is kept no longer — the clock will not give it back.
+   * Read from the rules as declared, whether or not their add-on answers.
+   */
+  async function closeHeld(trx: Db, input: { target: WriteTarget; rules: TableRules | null; before: Row; row: Row }): Promise<void> {
+    const scope = postingScope(input.rules);
+    const ledgers = kit.ledgers;
+    if (scope === null || ledgers === undefined) return;
+    const { target } = input;
+    const crossed = firedPoints(scope, input.before, input.row, 'update', input.rules?.states?.column).some((point) => point.phase === 'post' && point.role !== 'line');
+    if (!crossed) return;
+    const source = { table: ledgers.refOf(target.view.connectionId, target.table.id), row: keyText(target.table, input.row) };
+    const seen = new Set<string>();
+    const owners: { posting: DeclaredPosting; table: ResolvedTable }[] = scope.postings.map((posting) => ({ posting, table: target.table }));
+    for (const line of scope.linePostings) {
+      try {
+        owners.push({ posting: line.posting, table: target.view.table(line.child) });
+      } catch {
+        // A table the model no longer has kept nothing.
+      }
+    }
+    for (const { posting, table } of owners) {
+      const state = ledgers.resolve(target.view, table, posting);
+      if (!('ledger' in state) || state.ledger === undefined || seen.has(state.ledger.receipts.id)) continue;
+      seen.add(state.ledger.receipts.id);
+      const receiptsTarget: WriteTarget = { ...target, table: state.ledger.receipts, db: trx };
+      for (const receipt of await receiptsOfSource(trx, state.ledger, source)) {
+        if (receipt.phase === 'post' && receipt.heldUntil !== null) await kit.updateRaw(receiptsTarget, { held_until: null }, { [state.ledger.receipts.primaryKey[0] ?? 'id']: receipt.id });
+      }
+    }
+  }
+
+  /**
    * THE GUARD. While a round is open for a row, what the round read of it is
    * frozen: a column the rule maps (its inputs, its multipliers, how long a
    * hold is kept, what leaves a line out, the link to its parent) may not
@@ -1563,7 +1639,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     }
   }
 
-  return { watched, refuseBatch, peek, postStep, quoteStep, treePeek, treeStep, treeQuote, guard, holdParents, audited };
+  return { watched, refuseBatch, peek, postStep, closeHeld, quoteStep, treePeek, treeStep, treeQuote, guard, holdParents, audited };
 }
 
 const isLabel = (value: unknown): value is { '@row': string } => typeof value === 'object' && value !== null && '@row' in value;

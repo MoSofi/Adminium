@@ -109,6 +109,36 @@ describe.each(LEGS)('an add-on that cannot be asked — %s', (dialect, available
     expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:planned:1', 'reverse:1:unplanned:0']);
   });
 
+  it.skipIf(!available)('what waited is planned at last, against the receipt it left — and only once', async () => {
+    const catchUp = (id: number, phase: 'reserve' | 'reverse', service = w.writes) => service.post({ target: w.target('asks'), pk: { id }, posting: 'ask', phase, catchUp: true, context: DESK, announce: async () => undefined });
+    const holdsOf = (id: number, state: string) => w.count('ledger_kit_holds', `state = '${state}' AND receipt_id IN (SELECT id FROM ledger_kit_postings WHERE source_row = '${String(id)}' AND posting = 'ask')`);
+    // A hold let through unasked…
+    const id = await ask(2);
+    await w.update('asks', id, { status: 'sent' }, DESK, deaf);
+    expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:unplanned:0']);
+    // …cannot be planned while there is still nobody to ask: it goes on waiting.
+    expect(await refusal(catchUp(id, 'reserve', deaf))).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'add-on-unavailable' } });
+    expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:unplanned:0']);
+    // Once it can answer: the same receipt, planned, with the hold it stands for.
+    expect(await catchUp(id, 'reserve')).toMatchObject([{ phase: 'reserve', round: 1, rows: 1, state: 'planned' }]);
+    expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:planned:1']);
+    expect(await holdsOf(id, 'held')).toBe(1);
+    // Nothing waits any more: asked again, nothing is done.
+    expect(await catchUp(id, 'reserve')).toEqual([]);
+    expect(await holdsOf(id, 'held')).toBe(1);
+
+    // A giving back that went through unasked: the hold it left standing is let go when it is caught up.
+    await w.update('asks', id, { status: 'cancelled' }, DESK, deaf);
+    expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:planned:1', 'reverse:1:unplanned:0']);
+    expect(await holdsOf(id, 'held')).toBe(1);
+    expect(await catchUp(id, 'reverse')).toMatchObject([{ phase: 'reverse', round: 1, rows: 1 }]);
+    expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:planned:1', 'reverse:1:planned:1']);
+    expect(await holdsOf(id, 'held')).toBe(0);
+    // A row with nothing waiting is left as it is.
+    const quiet = await ask(1);
+    expect(await catchUp(quiet, 'reserve')).toEqual([]);
+  });
+
   it.skipIf(!available)('with not even a receipt table to write: nothing new is taken, and a cancel still goes through', async () => {
     const row = await w.create('strays', { account_id: 1, qty: '1', status: 'draft' });
     const id = Number(row['id']);

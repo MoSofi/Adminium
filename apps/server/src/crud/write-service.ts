@@ -1395,6 +1395,8 @@ export interface PostRecordInput {
   phase: 'reserve' | 'post' | 'reverse';
   context: WriteContext;
   mapError?: ((error: unknown) => never) | undefined;
+  /** Plan what a receipt nobody planned stands for (a save let through while the add-on could not answer), rather than start anything. */
+  catchUp?: boolean | undefined;
   /** What the phase did, with the row it was run for — once it committed. Not called when there was nothing to do. */
   announce: (row: Row, postings: PostedOutcome[]) => Promise<void>;
 }
@@ -3755,7 +3757,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (posts !== null && stood !== null && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           const peeked = posting;
-          if (after !== null) posted = await ledgerStep(() => ledgerWriter.postStep(db, peeked, { target: { ...target, timezone: zone }, rules, action: 'update', before: stood, row: after, context, clock }), about, input.mapError);
+          if (after !== null) {
+            posted = await ledgerStep(() => ledgerWriter.postStep(db, peeked, { target: { ...target, timezone: zone }, rules, action: 'update', before: stood, row: after, context, clock }), about, input.mapError);
+            // A payment kept until a time stands, once its row reaches a posting state.
+            await ledgerWriter.closeHeld(db, { target, rules, before: stood, row: after });
+          }
         }
         // A quote of a change that would post: what each ledger would say, with nothing of the add-on's written and no lock named.
         if (dry && watching !== null && before !== null && changed > 0) {
@@ -3858,7 +3864,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const zone = await zoneFor(rules, target);
       const clock = writeClock(context);
       const about = { target, context };
-      const only = { posting: input.posting, phase: input.phase };
+      const only = { posting: input.posting, phase: input.phase, ...(input.catchUp === true ? { catchUp: true } : {}) };
       const at = { ...target, timezone: zone };
       const posts = await ledgerStep(() => ledgerWriter.watched(target, rules), about, input.mapError);
       if (posts === null) return [];
