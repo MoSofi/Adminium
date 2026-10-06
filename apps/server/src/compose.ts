@@ -784,6 +784,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     manager,
     store: appStore,
     appFiles,
+    // An add-on's own sample is read from its package (made further down; read only when a sample is asked for).
+    addOnFiles: { readVerifiedFile: (key, version, relativePath) => addOnStore.readVerifiedFile(key, version, relativePath) },
     get files() {
       return storage;
     },
@@ -2256,6 +2258,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         addOnRoutes({
           meta,
           store: addOnStore,
+          sampleData: sampleDataDeps,
           // Without this a provider installed at 10am is unreachable until the
           // process restarts, round trip cannot pass.
           rebuildRuntime: () => rebuildAddOnRuntime(),

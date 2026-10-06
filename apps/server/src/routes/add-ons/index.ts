@@ -84,6 +84,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
 import { addOnUninstallPlan, uninstallAddOn } from '../../add-ons/uninstall.js';
+import { createSampleDataService, enqueueSampleAdd, findSampleOwner, type SampleDataDeps } from '../../apps/sample-data.js';
+import { appJobReply, sampleRemoveBody, sampleRemovePlanReply, sampleRemoveReply, sampleStatusReply } from '../apps/schema.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import {
@@ -238,6 +240,8 @@ export interface AddOnRoutesDeps {
    * provider that is already gone.
    */
   onAddOnRemoved?: ((key: string) => Promise<void>) | undefined;
+  /** What adds and removes an add-on's own sample data; absent, an add-on offers none here. */
+  sampleData?: SampleDataDeps | undefined;
   /** Tests only; production checks declared minimums against the running version. */
   serverVersion?: string | undefined;
 }
@@ -1960,6 +1964,84 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         });
 
         return { key, values: saved.values, updatedAt: saved.updatedAt };
+      },
+    );
+
+    /*
+     * AN ADD-ON'S OWN SAMPLE DATA: the four routes an app has, for an add-on
+     * that keeps tables of its own. Same service, same job, same replies —
+     * the rows come from the add-on's package and go into its own tables.
+     */
+    const samples = deps.sampleData === undefined ? null : createSampleDataService(deps.sampleData);
+    async function sampleOwnerOf(key: string) {
+      const found = await findSampleOwner(deps.meta, key, 'add-on');
+      if (found === null) throw new NotFoundError(`"${key}" is not installed.`);
+      return found;
+    }
+
+    app.get(
+      '/add-ons/:key/sample-data',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: addOnKeyParams, response: { 200: sampleStatusReply } },
+      },
+      async (request) => {
+        const target = await sampleOwnerOf(request.params.key);
+        if (samples === null) return { offered: false, loaded: false, total: 0, addedAt: null, tables: [], available: null };
+        const status = await samples.status(target);
+        return { ...status, available: status.offered && !status.loaded ? await samples.addPreview(target) : null };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/sample-data',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: addOnKeyParams, response: { 200: appJobReply } },
+      },
+      // A job, as an app's is; the bundle is checked here first, so a refusal is this request's answer.
+      async (request) => {
+        const target = await sampleOwnerOf(request.params.key);
+        if (samples === null) throw new NotFoundError(`"${target.key}" ships no sample data.`, { reason: 'NO_SAMPLE_DATA' });
+        await samples.addPreview(target);
+        const userId = request.user?.id ?? null;
+        const job = await enqueueSampleAdd(deps.meta, {
+          key: target.key,
+          kind: 'add-on',
+          locale: (await userPrefsRepo(deps.meta).resolve(userId)).locale,
+          userId,
+          userLabel: request.user?.email ?? 'unknown',
+        });
+        return { jobId: job.id };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/sample-data/remove-plan',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: auditExempt('a preview of removing the sample data; it reads the sample rows and changes nothing. The removal it precedes is audited.') },
+        schema: { params: addOnKeyParams, response: { 200: sampleRemovePlanReply } },
+      },
+      async (request) => {
+        const target = await sampleOwnerOf(request.params.key);
+        if (samples === null) return { tables: [], kept: [], changed: [], total: 0 };
+        return samples.removePreview(target);
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/sample-data/remove',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: addOnKeyParams, body: sampleRemoveBody, response: { 200: sampleRemoveReply } },
+      },
+      async (request) => {
+        const target = await sampleOwnerOf(request.params.key);
+        if (samples === null) return { removed: 0, kept: 0, byTable: {} };
+        return samples.remove(target, { keepChanged: request.body.keepChanged, userId: request.user?.id ?? null, userLabel: request.user?.email ?? 'unknown' });
       },
     );
 

@@ -29,6 +29,7 @@ import { createAddOnSchemaTarget } from '../src/add-ons/schema-target.js';
 import { createAddOnStore, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
 import type { InstallCore } from '../src/add-ons/install-core.js';
 import { createAppInstallService, type AppRoutesDeps } from '../src/apps/install-service.js';
+import type { SampleDataDeps } from '../src/apps/sample-data.js';
 import { createInstalledApps } from '../src/apps/installed.js';
 import { createAppSchemaTarget, type AppSchemaTarget } from '../src/apps/schema-target.js';
 import { createAppStore } from '../src/apps/store.js';
@@ -156,6 +157,8 @@ export interface Harness {
   install: (key: string, version: string, extra?: Record<string, unknown>) => Promise<{ statusCode: number; json: () => Body; body: string }>;
   tableNames: () => Promise<string[]>;
   rows: (statement: string) => Promise<Record<string, unknown>[]>;
+  /** What the sample routes are built on: a test runs an add (a job on a real server) through it. */
+  sampleData: SampleDataDeps;
   /** The document pipeline the routes draw with, when `documents` was asked for. */
   pipeline: RenderDeps | null;
   close: () => Promise<void>;
@@ -280,8 +283,16 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
   };
   const manifests = manifestsRepo(meta, CRYPTO);
   const runtime = opts.documents?.runtime;
+  // Sample data, for an app's and for an add-on's own: files are kept nowhere (no sample here ships a picture).
+  const sampleData: SampleDataDeps = {
+    meta,
+    manager,
+    store: appStore,
+    addOnFiles: { readVerifiedFile: (key, version, relativePath) => addOnStore.readVerifiedFile(key, version, relativePath) },
+    files: { write: async () => ({ storageKey: 'x', sizeBytes: 0, sha256: '', destinationId: null, storage: 'memory' }) } as unknown as SampleDataDeps['files'],
+  };
   await app.register(
-    addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog, ...(runtime === undefined ? {} : { runtime }) }),
+    addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog, sampleData, ...(runtime === undefined ? {} : { runtime }) }),
   );
   const appDeps: AppRoutesDeps = {
     meta,
@@ -386,6 +397,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
       await runIntrospection({ manager, meta, connectionId: made.id });
       return made.id;
     },
+    sampleData,
     tableNames: async () => {
       const adapter = await manager.introspectAdapter(connection.id);
       try {

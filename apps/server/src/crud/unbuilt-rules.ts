@@ -104,7 +104,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   // An add-on's own blocks: what it declares in an app's words.
   emailTemplates: ADD_ON_INSTALL_RELEASE,
   outbox: ADD_ON_INSTALL_RELEASE,
-  sampleData: ADD_ON_INSTALL_RELEASE,
   publicAccess: ADD_ON_INSTALL_RELEASE,
   publicKeys: ADD_ON_INSTALL_RELEASE,
   addOns: ADD_ON_INSTALL_RELEASE,
@@ -165,6 +164,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'navGroups',
   'roles',
   'documents',
+  // An add-on's own sample rows, added to its own tables and taken out again.
+  'sampleData',
 ];
 
 export interface UnbuiltWord {

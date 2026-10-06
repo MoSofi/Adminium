@@ -95,7 +95,6 @@ describe('a manifest that uses a word this server does not run yet', () => {
 
   it('names each word, where it is written and the release that runs it', () => {
     expect(unbuiltInManifest(ADD_ON)).toEqual([
-      { word: 'sampleData', path: 'sampleData', release: '0.3.18' },
       { word: 'publicAccess', path: 'publicAccess', release: '0.3.18' },
     ]);
     // Its pages, its roles, its prefix, its index and its stored table name are words this server runs.

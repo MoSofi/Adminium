@@ -97,6 +97,7 @@ import { slotDays } from '../crud/capacity/placement.js';
 import { slotKey as countKey } from '../crud/capacity/count.js';
 import { tallyFor } from '../crud/capacity/judge.js';
 import { rulesFor } from '../crud/capacity/rules.js';
+import { storedTableRef, tableRefIndex } from './table-ref.js';
 
 export interface SampleDataDeps {
   meta: MetaDb;
@@ -104,6 +105,8 @@ export interface SampleDataDeps {
   store: AppStore;
   /** Where each app's own files are read from: the store, or a project folder. The store alone when absent. */
   appFiles?: AppFiles | undefined;
+  /** Where an ADD-ON's own files are read from: its package, verified against what was staged. Absent: an add-on has no sample here. */
+  addOnFiles?: { readVerifiedFile(key: string, version: string, relativePath: string): Promise<{ bytes: Buffer; sha256: string }> } | undefined;
   files: FileStore;
   /** Tell open dashboards their data moved; absent in a bare composition. */
   publish?: ((connectionId: string) => Promise<void>) | undefined;
@@ -317,6 +320,8 @@ export interface ResolveContext {
   labels: ReadonlyMap<string, unknown>;
   /** Asset label → Files library id. */
   assets: ReadonlyMap<string, string>;
+  /** How one of the owner's tables is named inside a row (`{"@table": "<ref>"}`); absent, such a value is refused. */
+  tableRef?: ((ref: string) => string | null) | undefined;
   /** The weekday the bundle's `@week` days count from. */
   weekAnchor?: string | undefined;
   /**
@@ -501,6 +506,13 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
         const id = ctx.assets.get(found.label);
         if (id === undefined) throw new ValidationFailedError(`The sample asset "${found.label}" was not added.`);
         out[column] = id;
+        break;
+      }
+      // A table of the owner's, as rows name one: by who made it and its short name, never by its real name.
+      case 'table': {
+        const stored = ctx.tableRef?.(found.ref) ?? null;
+        if (stored === null) throw new ValidationFailedError(`The sample names the table "${found.ref}", which is not one of its own here.`);
+        out[column] = stored;
         break;
       }
     }
@@ -816,6 +828,12 @@ export async function rehashSampleRow(
 export function createSampleDataService(deps: SampleDataDeps) {
   const records = appTablesRepo(deps.meta);
   const appFiles = deps.appFiles ?? createAppFiles({ store: deps.store });
+  /** Where an owner's own files are: an app's in its store or folder, an add-on's in its package. */
+  const filesOf = (app: SampleApp): Pick<AppFiles, 'readVerifiedFile'> => {
+    if (app.manifest.kind !== 'add-on') return appFiles;
+    if (deps.addOnFiles === undefined) throw new NotFoundError(`"${app.key}" ships no sample data.`, { reason: 'NO_SAMPLE_DATA' });
+    return deps.addOnFiles as Pick<AppFiles, 'readVerifiedFile'>;
+  };
 
   async function connectionOf(app: SampleApp): Promise<string> {
     if (app.connectionId === null) {
@@ -835,7 +853,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     if (file === undefined) {
       throw new NotFoundError(`"${app.key}" ships no sample data.`, { reason: 'NO_SAMPLE_DATA' });
     }
-    const { bytes } = await appFiles.readVerifiedFile(app.key, app.version, file);
+    const { bytes } = await filesOf(app).readVerifiedFile(app.key, app.version, file);
     let parsed: unknown;
     try {
       parsed = JSON.parse(bytes.toString('utf8'));
@@ -1077,7 +1095,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const files = filesRepo(deps.meta);
       try {
         for (const [label, asset] of Object.entries(bundle.assets)) {
-          const { bytes, sha256: actual } = await appFiles.readVerifiedFile(app.key, app.version, asset.file);
+          const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
           if (actual !== asset.sha256) {
             throw new ValidationFailedError(`The sample image "${asset.file}" is not the file the bundle names.`, {
               reason: 'SAMPLE_INVALID',
@@ -1108,6 +1126,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
 
         const ledger = await ensureLedger(app, connectionId, handle);
         const view = await viewFor(connectionId);
+        // How a row names one of the owner's own tables: read once, before the transaction.
+        const refIndex = await tableRefIndex(deps.meta, connectionId, view.model);
+        const tableRef = (ref: string): string | null => {
+          const real = names[ref];
+          const found = real === undefined ? undefined : view.model.tables.find((table) => table.name === real);
+          return found === undefined ? null : storedTableRef(refIndex, found.id);
+        };
         /*
          * What another installed app's sample already put in a table this app
          * shares with it (two apps on one menu; a copy beside its original),
@@ -1335,7 +1360,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
             const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0;
             for (const row of table.rows) {
-              const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes };
+              const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef };
               const chosen = chooseSampleRow(row, ctx);
               // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
               if (chosen === null) {
@@ -1973,17 +1998,25 @@ const sampleAddPayloadSchema = z.object({
   locale: z.string().min(2),
   userId: z.string().nullable(),
   userLabel: z.string(),
+  /** Whose sample it is; an app's when absent (every job queued before add-ons had one). */
+  kind: z.enum(['app', 'add-on']).optional(),
 });
 export type SampleAddPayload = z.infer<typeof sampleAddPayloadSchema>;
 
 /** The installed app a key names, read straight off its row; null when not installed. */
 export async function findSampleApp(meta: MetaDb, key: string): Promise<SampleApp | null> {
-  const row = await meta.db
+  return findSampleOwner(meta, key, 'app');
+}
+
+/** The installed manifest of either kind whose sample data a key names; null when not installed. An add-on only once its install finished. */
+export async function findSampleOwner(meta: MetaDb, key: string, kind: 'app' | 'add-on'): Promise<SampleApp | null> {
+  let query = meta.db
     .selectFrom('adminium_manifests')
     .select(['id', 'manifestKey', 'version', 'connectionId', 'manifest'])
     .where('manifestKey', '=', key)
-    .where('kind', '=', 'app')
-    .executeTakeFirst();
+    .where('kind', '=', kind);
+  if (kind === 'add-on') query = query.where('status', '=', 'installed');
+  const row = await query.executeTakeFirst();
   if (row === undefined) return null;
   return {
     key: row.manifestKey,
@@ -2005,7 +2038,7 @@ export function registerSampleDataHandler(registry: JobRegistry, deps: SampleDat
     SAMPLE_ADD_KIND,
     sampleAddPayloadSchema,
     async (payload: SampleAddPayload, ctx: JobHandlerContext) => {
-      const app = await findSampleApp(deps.meta, payload.key);
+      const app = await findSampleOwner(deps.meta, payload.key, payload.kind ?? 'app');
       if (app === null) throw new NotFoundError(`"${payload.key}" is not installed.`);
       return service.add(app, {
         locale: payload.locale,
