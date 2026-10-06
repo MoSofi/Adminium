@@ -25,9 +25,13 @@ import type { EffectiveModel, EffectiveTable } from '../connections/effective-sc
 import type { SourceDatabase } from '../connections/manager.js';
 import { ruleDecidedColumns } from '../crud/decided-columns.js';
 import { ConflictError } from '../errors.js';
-import type { ResolvedLedger } from './registry.js';
 
 type Db = Kysely<SourceDatabase>;
+/** A ledger as these counts read one: its id, and where its receipts are. (Said here, not taken from the registry, which reads this file.) */
+interface ReceiptsOf {
+  id: string;
+  receipts: { id: string };
+}
 
 export type TableRuleOp = 'table.postings' | 'table.adjust' | 'table.switchedOff';
 
@@ -112,7 +116,7 @@ const mine = (rule: RuleReceipts) => (eb: Where) =>
  * later than the last one given back. Counted by the database: a busy rule's
  * open rounds are never read into memory.
  */
-export async function holdingCount(db: Db, ledger: Pick<ResolvedLedger, 'receipts'>, rule: RuleReceipts): Promise<number> {
+export async function holdingCount(db: Db, ledger: Pick<ReceiptsOf, 'receipts'>, rule: RuleReceipts): Promise<number> {
   const given = sql<number>`sum(case when ${sql.ref('phase')} = 'reverse' then 1 else 0 end)`;
   const reached = sql<number>`max(case when ${sql.ref('phase')} <> 'reverse' then ${sql.ref('round')} else 0 end)`;
   const open = db
@@ -130,7 +134,7 @@ export async function holdingCount(db: Db, ledger: Pick<ResolvedLedger, 'receipt
 }
 
 /** How many saves into a ledger (or of one rule) went through while the add-on could not be asked, and wait to be worked out. */
-export async function unplannedCount(db: Db, ledger: Pick<ResolvedLedger, 'receipts' | 'id'>, rule?: RuleReceipts): Promise<number> {
+export async function unplannedCount(db: Db, ledger: ReceiptsOf, rule?: RuleReceipts): Promise<number> {
   let query = db
     .selectFrom(ledger.receipts.id as never)
     .select(sql<number>`count(*)`.as('n'))

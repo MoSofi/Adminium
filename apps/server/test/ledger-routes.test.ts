@@ -427,6 +427,37 @@ describe.each(LEGS)('an owner\'s rule on a table, through the routes — %s', (d
     expect((await api('DELETE', rule('app_rows', 'shipped'))).statusCode).toBe(409);
   });
 
+  it.skipIf(!available)('rows saved one by one each post in a save of their own: every row is answered, and one the ledger refuses does not stop the next', async () => {
+    expect((await api('PUT', rule('strays', 'count'), TALLY)).statusCode).toBe(200);
+    const made = async (account: number, qty: string) => ((await api('POST', data('strays'), { values: { account_id: account, qty, status: 'new' } })).json() as { data: Doc }).data['id'];
+    const [a, b, c] = [await made(1, '1'), await made(2, '50'), await made(1, '2')];
+    const before = await balance(1);
+    const changed = await api('POST', data('strays', '/one-by-one'), { ids: [a, b, c], values: { status: 'counted' } });
+    expect(changed.statusCode, changed.body).toBe(200);
+    const told = changed.json() as { results: { id: unknown; ok: boolean; postings?: Doc[]; error?: { code: string; reason?: string; details?: Doc } }[]; done: number; notRun: number };
+    expect(told.results.map((row) => [row.id, row.ok, row.error?.reason])).toEqual([[a, true, undefined], [b, false, 'out-of-stock'], [c, true, undefined]]);
+    expect(told.results[0]!.postings).toMatchObject([{ ledger: 'units', state: 'ok' }]);
+    expect(told.results[1]!.error).toMatchObject({ code: 'POSTING_REFUSED' });
+    expect(told).toMatchObject({ done: 2, notRun: 0 });
+    expect(changed.json()).not.toHaveProperty('undoToken');
+    // Each row that went through has its own receipt and took its own amount; the refused one moved nothing.
+    expect(await w.receiptsOf('count', a)).toEqual(['post:1:planned:1']);
+    expect(await w.receiptsOf('count', b)).toEqual([]);
+    expect(await w.receiptsOf('count', c)).toEqual(['post:1:planned:1']);
+    expect(await balance(1)).toBe(before - 3);
+    expect((await w.h.rows(`SELECT status FROM strays WHERE id = ${String(b)}`))[0]).toMatchObject({ status: 'new' });
+    // New rows the same way: each its own save, answered with the row it made.
+    const created = await api('POST', data('strays', '/one-by-one'), { creates: [{ account_id: 1, qty: '1', status: 'counted' }, { account_id: 2, qty: '50', status: 'counted' }, { account_id: 1, qty: '1', status: 'new' }] });
+    expect(created.statusCode, created.body).toBe(200);
+    const rows = (created.json() as typeof told).results as ({ index?: number; data?: Doc } & (typeof told)['results'][number])[];
+    expect(rows.map((row) => [row.index, row.ok, row.error?.reason, row.postings?.length ?? 0])).toEqual([[0, true, undefined, 1], [1, false, 'out-of-stock', 0], [2, true, undefined, 0]]);
+    expect(await balance(1)).toBe(before - 4);
+    // The same change as a bulk edit is refused whole, by name: that is what sends a list page here.
+    const bulk = await api('POST', data('strays', '/bulk'), { action: 'update', ids: [rows[2]!.data!['id']], values: { status: 'counted' } });
+    expect(bulk.statusCode, bulk.body).toBe(409);
+    expect(errorOf(bulk)).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'one-at-a-time' } });
+  });
+
   it.skipIf(!available)('what is left, and of what, is told to somebody who may read the ledger\'s rows — and to nobody else, in a refusal or in a quote', async () => {
     expect((await api('PUT', rule('asks', 'ask'), ASK)).statusCode).toBe(200);
     const values = { account_id: 2, qty: '50', status: 'sent' };
