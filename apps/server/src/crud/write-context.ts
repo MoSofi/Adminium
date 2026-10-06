@@ -41,7 +41,9 @@ export type WriteOrigin =
   | 'automation'
   | 'import'
   | 'hook'
-  | 'action';
+  | 'action'
+  /** A row an add-on's plan asked for, written by Adminium inside the save that posted it. */
+  | 'ledger';
 
 /** Who a write is attributed to. */
 export interface WriteActor {

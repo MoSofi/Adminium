@@ -944,6 +944,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const addOnInstalls = keepAddOnInstalls(meta, async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
+    refresh: () => addOnInstalls.fresh(),
     decider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'rows'),
     versionNow: async (addOnKey) => {
       const row = await meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();

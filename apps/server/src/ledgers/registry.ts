@@ -76,6 +76,12 @@ export interface LedgerRuntime {
   versionNow(addOnKey: string): Promise<{ version: string; status: string } | null>;
   /** Whether anything listens to changes of a table (an outbox, a rule): only then are a posting's rows announced. */
   watches(connectionId: string, tableId: string): Promise<boolean>;
+  /** Reads what is installed again when it moved: asked before a save opens its transaction, never inside one. */
+  refresh?(): Promise<void>;
+  /** How a table is named in a receipt (`<maker>:<ref>`, or its id when nobody made it): a rename keeps the receipt pointing at it. */
+  refOf(connectionId: string, tableId: string): string;
+  /** The installed add-on's manifest, for what its tables link to. */
+  manifestOf(connectionId: string, addOnKey: string): AddOnManifest | null;
 }
 
 export interface LedgerRuntimeDeps {
@@ -85,6 +91,8 @@ export interface LedgerRuntimeDeps {
   decider: (addOnKey: string) => InstalledDecider | null;
   versionNow: (addOnKey: string) => Promise<{ version: string; status: string } | null>;
   watches?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /** Reads what is installed again when it moved (the kept instance's `fresh`). */
+  refresh?: (() => Promise<unknown>) | undefined;
 }
 
 /** The app whose manifest stored a rule on this table, or null for a rule the owner made. */
@@ -176,5 +184,10 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
     gate: (addOnKey) => deciderGate(addOnKey),
     versionNow: (addOnKey) => deps.versionNow(addOnKey),
     watches: (connectionId, tableId) => deps.watches?.(connectionId, tableId) ?? Promise.resolve(false),
+    refresh: async () => {
+      await deps.refresh?.();
+    },
+    refOf: (connectionId, tableId) => deps.installs().refOf(connectionId, tableId),
+    manifestOf: (connectionId, addOnKey) => deps.installs().installed(connectionId, addOnKey)?.manifest ?? null,
   };
 }
