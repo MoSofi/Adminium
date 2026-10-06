@@ -66,7 +66,7 @@
 | `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
 | `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |
 | `references/manifest/public-access--limits-on-a-guest-s-change.md` | Public access — Limits on a guest's change | 1325 |
-| `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1818 |
+| `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1923 |
 | `references/manifest/public-access--pictures.md` | Public access — Pictures | 871 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1727 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |

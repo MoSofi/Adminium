@@ -46,6 +46,17 @@ the screen. What actually protects the data is the same thing that protects ever
 Adminium: a person reads or writes one of the add-on's tables only with a role that grants that
 table, whichever screen or API they come through.
 
+The page's code is handed out the same way: only to someone who may open the page, and to nobody
+while the add-on is switched off for the dashboard. Three rules keep that true:
+
+- A page is built into a file of its own. A file a slot loads is served to everybody signed in, so
+  an add-on whose page and slot name the same file is refused.
+- A page's name opens it, so no two add-ons installed together may share one. An add-on whose page
+  is named under another installed add-on's key (`inventory` naming `inventory-pro-stock` beside
+  `inventory-pro`) is refused with `ADD_ON_PAGE_REF_TAKEN`.
+- A version that drops a page takes the page back from the add-on's roles, and uninstalling takes
+  it back from every role, your own included.
+
 ## Starting rows
 
 An add-on may ship rows its tables hold from the first second. They are written once, at install,
@@ -66,6 +77,9 @@ What you changed is kept: a page you edited, a rule you changed, a role you narr
 Uninstalling removes its pages, roles, rules, email templates, public entries and keys. **Its
 tables stay, with every row**, unless you tick "Also delete its tables" and type its key, which
 needs Super Admin. A page you edited stays as an ordinary page of your own.
+
+A key you made by hand that reads one of its public entries loses that entry too: it does not go
+on serving a table the add-on left behind.
 
 It cannot be removed while an app still hands rows to it or uses it for a feature that is switched
 on; the dialog says which.

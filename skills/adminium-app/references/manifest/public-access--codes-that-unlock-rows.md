@@ -29,7 +29,8 @@ card's code:
                 "where": [{ "column": "status", "eq": "active" }] } }
 ```
 
-`column` is a code column of the entry's own table, and the entry never shows it. With `length`,
-a typed code of any other length — counted without the column's own prefix — opens nothing and is
-never looked up. A wrong code here is counted apart from wrong discount codes: five a minute for a
+`column` is a code column of the entry's own table, and the entry never shows it. `length` is
+needed, 10 to 16: the code is all that keeps a stranger from the row, and a shorter one is found
+by trying. A typed code of any other length — counted without the column's own prefix — opens
+nothing and is never looked up. A wrong code here is counted apart from wrong discount codes: five a minute for a
 visitor, sixty for the key. Needs Adminium 0.3.18.

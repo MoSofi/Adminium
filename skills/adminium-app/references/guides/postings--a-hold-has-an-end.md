@@ -10,3 +10,8 @@ moment passes and nothing has taken or given back the hold, Adminium's
 
 A table whose state has a [timed move](https://docs.adminium.dev/guides/apps/timed-moves/) into a state the `reverse` point
 names needs no `heldUntil` for that: the move itself gives the hold back.
+
+When a buyer's new hold lets their old one go (the public API brings the old order's end forward),
+what the ledger holds for the old order is brought forward with it, and given back by the next
+minute's run. Until then the old hold still counts: a buyer taking the very last ones again may be
+told they are out for up to a minute.

@@ -5,13 +5,14 @@
 | File | What it covers | Bytes |
 |---|---|---|
 | `references/guides/postings--the-lines-of-an-order.md` | The lines of an order | 1707 |
-| `references/guides/postings--put-it-back-first.md` | Put it back first | 947 |
-| `references/guides/postings--a-hold-has-an-end.md` | A hold has an end | 771 |
+| `references/guides/postings--put-it-back-first.md` | Put it back first | 1194 |
+| `references/guides/postings--a-hold-has-an-end.md` | A hold has an end | 1103 |
+| `references/guides/postings--what-a-rule-cannot-stand-on.md` | What a rule cannot stand on | 749 |
 | `references/guides/postings--every-way-of-writing-a-row.md` | Every way of writing a row | 1718 |
 | `references/guides/postings--trying-a-save-first.md` | Trying a save first | 868 |
 | `references/guides/postings--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 1366 |
 | `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 753 |
-| `references/guides/postings--what-a-writer-is-told.md` | What a writer is told | 1506 |
+| `references/guides/postings--what-a-writer-is-told.md` | What a writer is told | 1569 |
 | `references/guides/undo-a-status-move--overview.md` | Undo a status move | 827 |
 | `references/guides/undo-a-status-move--a-move-back.md` | A move back | 1481 |
 | `references/guides/undo-a-status-move--naming-the-state-it-saw.md` | Naming the state it saw | 1543 |

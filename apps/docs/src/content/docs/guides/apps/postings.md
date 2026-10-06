@@ -121,6 +121,10 @@ kept as the add-on read it:
 The way through is the rule's own `reverse`: cancel the order (or void the line), change it, and
 send it again. That is "put it back first". A line with no open round changes freely.
 
+A many-row change is held to the same thing and to one more: it cannot move a row into a state
+its rules take things for good in while a payment of that row is still kept until a time. Only a
+save of that one row tells the payment it now stands.
+
 The same holds for the rule itself. An owner's rule that rows still hold something under keeps
 where it goes, when it fires and what it hands over, and cannot be removed, until those rows are
 put back: `409 POSTING_REFUSED {reason: "receipt-open", rows}`.
@@ -135,6 +139,21 @@ moment passes and nothing has taken or given back the hold, Adminium's
 
 A table whose state has a [timed move](/guides/apps/timed-moves/) into a state the `reverse` point
 names needs no `heldUntil` for that: the move itself gives the hold back.
+
+When a buyer's new hold lets their old one go (the public API brings the old order's end forward),
+what the ledger holds for the old order is brought forward with it, and given back by the next
+minute's run. Until then the old hold still counts: a buyer taking the very last ones again may be
+told they are out for up to a minute.
+
+## What a rule cannot stand on
+
+Two things change a row with no save of it, so nothing would tell the ledger. A rule that depends
+on either is listed as unavailable on the rules page, and an owner's cannot be saved:
+
+- a column that is a [copy that follows](/reference/manifest/#copies-that-follow) the row it is copied from —
+  as an input, a multiplier, `heldUntil`, `unlessSet`, `only` or `via`. Map the column it is copied
+  from, or a copy that does not follow;
+- a point on the state a place kept for a waitlist is moved to when it is claimed (`releaseTo`).
 
 ## Every way of writing a row
 
@@ -219,5 +238,6 @@ and are untouched when a file is applied.
 
 A guest hears two of these by name: `PUBLIC_OUT_OF_STOCK` (with the line, and what is left when
 the owner shows it) and `PUBLIC_CARD_REFUSED` (always `not-valid`, whatever the real reason: a
-stranger learns nothing about a card they do not hold). Every other reason reaches a guest as the
+stranger learns nothing about a card they do not hold — a code that names no card at all is told
+in the same words). Every other reason reaches a guest as the
 plain refused write. The full lists are in the [error reference](/reference/errors/#a-ledgers-refusal).

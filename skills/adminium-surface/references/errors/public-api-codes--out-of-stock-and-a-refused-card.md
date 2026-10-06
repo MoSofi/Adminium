@@ -10,7 +10,7 @@ A guest's save that reaches a [posting](https://docs.adminium.dev/guides/apps/po
 | Code | When | `params` |
 |---|---|---|
 | `PUBLIC_OUT_OF_STOCK` | a ledger of stock refused: there is not enough left | `child`?, `index`?, `path`? (which line of a create with child rows) and `left`? — how many are left, only when the add-on's owner chose to show it and fewer than that are left |
-| `PUBLIC_CARD_REFUSED` | a ledger of value refused: a gift card or voucher cannot pay this | `reason: "not-valid"`, always: whether the code is unknown, used up, expired or somebody else's is never said |
+| `PUBLIC_CARD_REFUSED` | a ledger of value refused: a gift card or voucher cannot pay this | `reason: "not-valid"`, always, and nothing else: whether the code is unknown, used up, expired or somebody else's is never said. A code typed where a card's goes that names no card is answered with this same code, not with `PUBLIC_WRITE_REFUSED` |
 
 A refused card counts as a wrong guess of a typed code, on a count of its own: a page that tries
 codes is slowed down like any other. Every other reason a ledger has (`one-at-a-time`,

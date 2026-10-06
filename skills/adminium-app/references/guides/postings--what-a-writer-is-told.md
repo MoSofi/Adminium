@@ -16,5 +16,6 @@
 
 A guest hears two of these by name: `PUBLIC_OUT_OF_STOCK` (with the line, and what is left when
 the owner shows it) and `PUBLIC_CARD_REFUSED` (always `not-valid`, whatever the real reason: a
-stranger learns nothing about a card they do not hold). Every other reason reaches a guest as the
+stranger learns nothing about a card they do not hold — a code that names no card at all is told
+in the same words). Every other reason reaches a guest as the
 plain refused write. The full lists are in the [error reference](https://docs.adminium.dev/reference/errors/#a-ledgers-refusal).
