@@ -84,6 +84,12 @@ export interface LedgerRuntime {
   refOf(connectionId: string, tableId: string): string;
   /** The installed add-on's manifest, for what its tables link to. */
   manifestOf(connectionId: string, addOnKey: string): AddOnManifest | null;
+  /**
+   * A ledger's action as it can be asked right now, for a question that is no
+   * posting (what is left of these rows): null when the add-on is not here,
+   * not installed, without that ledger or action, or its code cannot be asked.
+   */
+  actionOf?(view: SnapshotView, addOnKey: string, ledgerId: string, actionId: string): { ledger: ResolvedLedger; action: LedgerAction; decider: InstalledDecider } | null;
   /** Records a refusal an operator can act on (a plan that failed, a table that cannot be written): one audit row, after the save is gone. */
   refused?(event: LedgerRefusal): Promise<void>;
 }
@@ -217,6 +223,16 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
     },
     refOf: (connectionId, tableId) => deps.installs().refOf(connectionId, tableId),
     manifestOf: (connectionId, addOnKey) => deps.installs().installed(connectionId, addOnKey)?.manifest ?? null,
+    actionOf(view, addOnKey, ledgerId, actionId) {
+      const installs = deps.installs();
+      const addOn = installs.installed(view.connectionId, addOnKey);
+      if (addOn === null || addOn.status !== 'installed') return null;
+      const ledger = resolveLedger(installs, view, addOn, ledgerId);
+      const action = ledgersOf(addOn.manifest).find((candidate) => candidate.id === ledgerId)?.actions[actionId];
+      const decider = deps.decider(addOnKey);
+      if (typeof ledger === 'string' || action === undefined || decider === null || decider.version !== addOn.version) return null;
+      return { ledger, action, decider };
+    },
     ...(deps.refused === undefined ? {} : { refused: deps.refused }),
   };
 }

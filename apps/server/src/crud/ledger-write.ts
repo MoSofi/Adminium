@@ -28,17 +28,17 @@ import { postingOutputSchema, type PostingOutput } from '@adminium/add-on-contra
 import type { LedgerAction } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
 
-import { callDecider, DeciderFailed, type InstalledDecider } from '../add-ons/decide.js';
+import { callDecider, DeciderFailed, withDeciders, type InstalledDecider } from '../add-ons/decide.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { ConflictError, PostingRefusedError, ValidationFailedError } from '../errors.js';
 import type { LedgerRuntime, ResolvedLedger } from '../ledgers/registry.js';
 import { heldNames, LockMoved, type NamedLock } from './capacity/locks.js';
 import { judgePlanned } from './ledger-judge.js';
 import type { ClimbStart, HeldBalances } from './climb.js';
-import type { ColumnCode, TableRules } from './column-rules.js';
+import type { ColumnCode, RollupInto, TableRules } from './column-rules.js';
 import { readDbRefusal, writeConflict } from './db-errors.js';
 import { isUniqueViolation } from './decided-columns.js';
-import type { ResolvedTable } from './identifiers.js';
+import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import { firedPoints, frozenColumns, lineTaken, ownPoint, postingScope, type DeclaredPosting, type FiredPoint, type PostingPhaseName } from './ledger-points.js';
 import { LedgerTooLarge, ledgerSettings, linesOf, lockNames, mapInputs, runReads, type LineInputs, type MappedLine, type ReadContext, type ScalarRow } from './ledger-reads.js';
 import { openRounds, phaseDue, receiptsOfLine, receiptsOfSource, roundOf, roundRows, type Receipt, type RoundState } from './ledger-receipts.js';
@@ -1457,4 +1457,116 @@ function withoutLabels(row: Row): Row {
 /** A planned row with each `@row` label replaced by the key of the row that carries it. */
 function resolveLabels(row: Row, labels: ReadonlyMap<string, unknown>): Row {
   return Object.fromEntries(Object.entries(row).map(([column, value]) => [column, isLabel(value) ? (labels.get(value['@row']) ?? null) : value]));
+}
+
+// ─── words ───────────────────────────────────────────────────────────────────
+
+/** The most rows one "what is left" question asks about. */
+export const WORDS_IDS_MAX = 60;
+
+/** The add-on cannot say what is left right now. The caller decides what a customer is shown instead; nothing is guessed here. */
+export class WordsUnavailable extends Error {
+  override readonly name = 'WordsUnavailable';
+}
+
+/** What is left of one row asked about, in the add-on's own words. */
+export interface WordsLine {
+  /** The row asked about, as it was asked. */
+  id: string;
+  state: 'in' | 'low' | 'out';
+  left?: string | undefined;
+  exact?: string | undefined;
+  after?: string | undefined;
+  batch?: string | undefined;
+  expires?: string | undefined;
+  cause?: 'stock' | 'portions' | undefined;
+  first?: { item: string; unit: string } | undefined;
+  soon?: boolean | undefined;
+}
+
+/**
+ * WHAT IS LEFT of these rows — asked of a ledger's action with nothing
+ * written: the pool only, no transaction, no named lock. Every row asked
+ * about is one line of quantity one, in the input the add-on's words name;
+ * the action's reads run once for all of them and its code is asked ONCE.
+ * A line whose planned rows would not fit a cap reads as out. Answers one
+ * line per row, in the order asked. An add-on that cannot answer, or whose
+ * code fails, is thrown as `WordsUnavailable`.
+ */
+export async function planWords(
+  ledgers: LedgerRuntime,
+  input: { view: SnapshotView; db: Db; timezone?: string | undefined; addOn: string; words: string; tableRef: string; keys: readonly string[]; origin: 'staff' | 'public' | 'system'; now: Date; rollupsOf?: (table: ResolvedTable) => readonly RollupInto[] },
+): Promise<WordsLine[]> {
+  if (input.keys.length === 0) return [];
+  if (input.keys.length > WORDS_IDS_MAX) throw new ValidationFailedError(`At most ${String(WORDS_IDS_MAX)} rows are asked about at once.`, { reason: 'too-many' });
+  // What is installed, read again if it moved: nothing is open here, so the pool may be asked.
+  await ledgers.refresh?.();
+  const manifest = ledgers.manifestOf(input.view.connectionId, input.addOn);
+  const declared = ((manifest?.addOn as { words?: unknown } | undefined)?.words ?? []) as { id: string; ledger: string; action: string; input: string; showLeftBelow?: { setting: string } }[];
+  const words = declared.find((candidate) => candidate.id === input.words);
+  const found = words === undefined ? null : (ledgers.actionOf?.(input.view, input.addOn, words.ledger, words.action) ?? null);
+  if (words === undefined || found === null) throw new WordsUnavailable(`"${input.addOn}" cannot say what is left right now`);
+  const { ledger, action, decider } = found;
+  return withDeciders([input.addOn], async () => {
+    const settings = await ledgerSettings(ledger, input.db);
+    // One line a row: the row itself in the input the words name, one of it, and nothing else.
+    const lines = input.keys.map((key) => {
+      const inputs: LineInputs = {};
+      for (const [name, type] of Object.entries(action.inputs)) {
+        if (name === words.input) inputs[name] = type === 'rowRef' ? { table: input.tableRef, row: key } : key;
+        else if (type === 'decimal') inputs[name] = '1';
+        else if (type === 'number') inputs[name] = 1;
+        else inputs[name] = null;
+      }
+      return { line: key, lineTable: input.tableRef, inputs, multipliers: {}, round: 1 };
+    });
+    const source = { table: input.tableRef, row: '' };
+    let plan: PostingOutput;
+    let reads: Record<string, ScalarRow[]>;
+    try {
+      reads = await runReads(input.db, { ledger, action, lines, source, settings, receiptIds: [] });
+      plan = callDecider(
+        'rows',
+        decider,
+        { contract: 'posting-rows@1', ledger: ledger.id, action: words.action, posting: words.id, phase: 'post', mode: 'words', origin: input.origin, now: input.now.toISOString(), today: input.now.toISOString().slice(0, 10), zone: input.timezone ?? 'UTC', currency: null, source, lines, reads, settings, written: {}, version: ledger.version },
+        { shape: postingOutputSchema },
+      ) as PostingOutput;
+    } catch (error) {
+      if (error instanceof DeciderFailed || error instanceof LedgerTooLarge) throw new WordsUnavailable(`"${input.addOn}" did not say what is left`);
+      throw error;
+    }
+    const said = new Map((plan.words ?? []).map((line: { line: string }) => [line.line, line as unknown as Omit<WordsLine, 'id'> & { line: string }]));
+    return input.keys.map((key) => {
+      const one = said.get(key);
+      if (one === undefined) throw new WordsUnavailable(`"${input.addOn}" said nothing of a row it was asked about`);
+      // What the line would write, against the caps the reads show: over one, it is out whatever the add-on said.
+      const fits = judgePlanned(
+        plan.rows.flatMap((row) => (row.op === 'insert' && row.line === key ? [{ table: row.table, line: row.line, values: row.values }] : [])),
+        {
+          rollups: (table) => {
+            const at = ledger.table(table);
+            return at === null || input.rollupsOf === undefined ? [] : input.rollupsOf(at);
+          },
+          rows: (tableId) => action.reads.flatMap((read) => (ledger.table(read.table)?.id === tableId ? (reads[read.as] ?? []) : [])),
+        },
+      );
+      const { line: _line, ...rest } = one;
+      return { ...rest, id: key, ...(fits.ok ? {} : { state: 'out' as const }) };
+    });
+  });
+}
+
+/**
+ * How many are left, as a customer may be told: only when the owner set a
+ * "show how many are left below" above zero, the thing is not out, and what
+ * is left (in whole ones) is below it. The same answer for a public refusal,
+ * a public quote and the public "what is left".
+ */
+export function publicLeft(settings: Readonly<Record<string, unknown>>, words: { showLeftBelow?: { setting: string } | undefined } | undefined, left: string | undefined, state: 'in' | 'low' | 'out' | undefined): string | undefined {
+  const column = words?.showLeftBelow?.setting;
+  if (column === undefined || left === undefined || state === 'out') return undefined;
+  const below = Number(settings[column]);
+  const whole = Math.floor(Number(left));
+  if (!Number.isFinite(below) || below <= 0 || !Number.isFinite(whole) || whole >= below) return undefined;
+  return String(whole);
 }
