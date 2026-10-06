@@ -37,6 +37,7 @@ import {
   type AddOnManifest,
   type AddOnNeeds,
   type Manifest,
+  installsLikeAnApp,
 } from '@adminium/manifest';
 import { appTablesRepo, auditRepo, manifestsRepo, type InstalledManifest } from '@adminium/meta';
 
@@ -54,7 +55,7 @@ import {
   parseAddOnDocument,
   planAddOn,
   pruneOlderVersions,
-  upgradeAddOn,
+  updateAddOn,
   upgradeRangeRefusal,
   type Actor,
   type AddOnInstallerDeps,
@@ -363,9 +364,12 @@ async function planFor(
     const { manifest, warnings } = await addOnManifestFromStore(installer, row.key, row.offeredVersion);
     const declared = new Set(manifest.addOn.attaches.map((a) => a.app));
     const orphaned = declared.has('*') ? [] : installed.attachments.map((a) => a.attachedTo).filter((key) => !declared.has(key));
+    // An add-on that keeps tables of its own is planned where they are: what the version adds there is what the update makes.
+    const own = installsLikeAnApp(manifest) ? (installed.row.connectionId ?? connectionId) : null;
     const planned = await planAddOn(installer, manifest, {
       attachTo: installed.attachments.map((a) => a.attachedTo),
       hosts: [host],
+      ...(own === null ? {} : { connectionId: own }),
       warnings,
     });
     const dto = planned.dto;
@@ -375,12 +379,22 @@ async function planFor(
     }
     const broken = await upgradeRangeRefusal(installer, manifest, attachedTo, { hosts: [host], except: host.key });
     if (broken !== null) extra.push({ code: broken.code, table: host.key, message: broken.message });
+    /*
+     * AN UPDATE THAT BRINGS TABLES RUNS BEFORE THE APP MOVES. Stopped right
+     * after it, the app is still at the version it runs — so the add-on's
+     * new version must work with THAT version too, or the pair in between
+     * would be one that does not work. Said now, before anything moves.
+     */
     if (dto.requiresSchemaChange) {
-      extra.push({
-        code: 'ADD_ON_NEEDS_TABLES',
-        table: row.key,
-        message: `${manifest.name} ${manifest.version} needs tables its installed version does not have; an update does not create them.`,
-      });
+      const running = (await manifestsRepo(installer.meta, installer.credentialCrypto).findByKey(host.key))?.row.version ?? null;
+      const stale = running === null || running === host.version ? null : attachRangeRefusal(manifest, { key: host.key, version: running });
+      if (stale !== null) {
+        extra.push({
+          code: 'ADD_ON_RANGE',
+          table: host.key,
+          message: `${manifest.name} ${manifest.version} brings tables, so it is updated before this app is — and it does not work with the version of this app that is running (${running ?? ''}). ${stale}`,
+        });
+      }
     }
     return extra.length === 0 ? dto : { ...dto, installable: false, problems: [...dto.problems, ...extra] };
   }
@@ -416,6 +430,23 @@ export interface AddOnStep {
   version: string;
   /** The version it had, for an update. */
   from: string | null;
+  /**
+   * An update that brings the add-on tables: it runs BEFORE the app's own
+   * tables are made, because the app's new version may link to them. Any
+   * other update runs after, and changes no table.
+   */
+  early?: true | undefined;
+}
+
+/**
+ * The order an app's install or update takes its add-on steps in: installs,
+ * attaches and the updates that bring tables first (the app's own tables may
+ * point at theirs); the updates that change no table last, once the app's
+ * tables are made. One rule for every path that applies an app.
+ */
+export function splitAddOnSteps(steps: readonly AddOnStep[]): { early: AddOnStep[]; late: AddOnStep[] } {
+  const late = steps.filter((step) => step.action === 'update' && step.early !== true);
+  return { early: steps.filter((step) => !late.includes(step)), late };
 }
 
 /** What the install body says about the add-ons. */
@@ -486,7 +517,8 @@ export function decideAddOnSteps(appName: string, rows: readonly AppAddOnRow[], 
     if (row.action !== 'attach' && !row.staged) {
       throw new AppError(409, 'ADD_ON_DOWNLOAD_REQUIRED', downloadWords(row, version), { addOn: row.key, version });
     }
-    steps.push({ key: row.key, name: row.name, action: row.action, version, from: row.action === 'update' ? row.installedVersion : null });
+    const early = row.action === 'update' && row.plan?.requiresSchemaChange === true;
+    steps.push({ key: row.key, name: row.name, action: row.action, version, from: row.action === 'update' ? row.installedVersion : null, ...(early ? { early: true as const } : {}) });
   }
   return steps;
 }
@@ -603,13 +635,15 @@ export async function runAddOnSteps(
       });
       done.installed.push({ key: step.key, name: step.name, version: step.version });
     } else if (step.action === 'update') {
-      await upgradeAddOn(deps.installer, {
+      await updateAddOn(deps.installer, {
         key: step.key,
         to: step.version,
         actor: input.actor,
         via,
         hosts: [input.host],
         except: input.host.key,
+        // An update that brings tables makes them; any other changes none, and is refused if it would.
+        schema: step.early === true ? 'apply' : 'refuse',
         // Kept until the app's own install or update is done (see below).
         prune: false,
       });

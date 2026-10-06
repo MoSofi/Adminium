@@ -67,6 +67,7 @@ import {
   pruneNamedAddOns,
   resolveAppAddOns,
   runAddOnSteps,
+  splitAddOnSteps,
   stepsAlreadyTaken,
   tablesComingFromAddOns,
   type AddOnChoice,
@@ -1966,7 +1967,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         if (!input.unattended.adaptForeignTables) refuseForeignEdits(key, checked.plan);
       }
       stage = 'add-ons';
-      await runSteps(addOnSteps.filter((step) => step.action !== 'update'));
+      await runSteps(splitAddOnSteps(addOnSteps).early);
       stage = 'tables';
       if (wanted.length > 0 && connectionId !== null) {
         const made = await createTables(
@@ -1984,7 +1985,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         names = made.names;
       }
       stage = 'add-on-updates';
-      await runSteps(addOnSteps.filter((step) => step.action === 'update'));
+      await runSteps(splitAddOnSteps(addOnSteps).late);
       // What the manifest no longer declares comes out of the app's keys, whatever is allowed below.
       stage = 'public-access';
       if (connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
@@ -2568,8 +2569,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      */
     const addOnInstaller = addOnDeps();
     let addOnsDone: AddOnsDone | undefined = namesAddOns(manifest) ? { installed: [], updated: [], attached: [] } : undefined;
-    const earlySteps = addOnSteps.filter((step) => step.action !== 'update');
-    const lateSteps = addOnSteps.filter((step) => step.action === 'update');
+    const { early: earlySteps, late: lateSteps } = splitAddOnSteps(addOnSteps);
     const runSteps = async (steps: readonly AddOnStep[]): Promise<void> => {
       if (steps.length === 0 || addOnInstaller === undefined) return;
       const done = await runAddOnSteps(addOnInstaller, {
