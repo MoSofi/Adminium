@@ -64,7 +64,7 @@ describe('where an add-on\'s tables go', () => {
     expect(reply.statusCode, reply.body).toBe(200);
     expect(reply.json().connectionId).toBe(second);
     expect((await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit'))?.row.connectionId).toBe(second);
-    expect(await appTablesRepo(h.meta).forInstall(second, 'ledger-kit')).toHaveLength(6);
+    expect(await appTablesRepo(h.meta).forInstall(second, 'ledger-kit')).toHaveLength(7);
     expect(await appTablesRepo(h.meta).forInstall(h.connectionId, 'ledger-kit')).toEqual([]);
     // Not in the first database.
     expect((await h.tableNames()).filter((name) => name.startsWith('ledger_kit_'))).toEqual([]);
@@ -118,7 +118,7 @@ describe.each(LEGS)('what an install would make — %s', (dialect, available) =>
     expect(body.connectionId).toBe(h.connectionId);
     expect(body.checksum).toMatch(/^[0-9a-f]{16,}$/);
     expect(body.plan).toMatchObject({ addOnKey: 'ledger-kit', version: '1.0.0', installable: true, requiresSchemaChange: true, reuse: [] });
-    expect(body.plan.create.map((table: { ref: string }) => table.ref).sort()).toEqual(['accounts', 'entries', 'holds', 'postings', 'requests', 'settings']);
+    expect(body.plan.create.map((table: { ref: string }) => table.ref).sort()).toEqual(['accounts', 'entries', 'holds', 'postings', 'requests', 'settings', 'things']);
     expect(await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit')).toBeNull();
     expect(await appTablesRepo(h.meta).forConnection(h.connectionId)).toEqual([]);
     expect((await h.tableNames()).filter((name) => name.startsWith('ledger_kit_'))).toEqual([]);

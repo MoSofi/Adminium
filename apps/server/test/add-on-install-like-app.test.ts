@@ -14,7 +14,7 @@ import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { ledgerKitFiles, ledgerKitManifest } from './fixtures/ledger-kit/index.js';
 
 const CRYPTO = { encrypt: (v: string) => v, decrypt: (v: string) => v };
-const KIT_TABLES = ['accounts', 'entries', 'holds', 'postings', 'requests', 'settings'];
+const KIT_TABLES = ['accounts', 'entries', 'holds', 'postings', 'requests', 'settings', 'things'];
 
 let h: Harness | null = null;
 afterEach(async () => {
