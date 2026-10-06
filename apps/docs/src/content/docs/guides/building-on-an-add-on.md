@@ -300,3 +300,11 @@ alone, and refuses one whose names do not add up: a rule's column the table lack
 reading a column that holds no number, a state that is not a value of the state column, a
 `builtOn` whose add-on the app does not require. It also returns `warnings`, advice that never
 refuses a manifest; see [Validation](/reference/manifest/#validation).
+
+## An add-on with tables of its own
+
+Some add-ons keep their own data rather than a shape for yours: a stock list, gift cards. An app
+that names such an add-on can ship [sample rows for its tables](/guides/apps/sample-data/#rows-for-an-add-on-the-app-names)
+and lets it serve [public entries through the app's key](/guides/apps/public-access/#what-an-add-on-adds).
+What such an add-on declares, and how it is installed, is in
+[Add-ons that keep tables of their own](/guides/add-ons-with-tables/).

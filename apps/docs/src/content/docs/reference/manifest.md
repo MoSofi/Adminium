@@ -3043,6 +3043,20 @@ and is its own entry: no claim, no parent, not an availability entry. The code t
 `x-adminium-code` request header, never in the address: `?code=` is refused `400`
 `PUBLIC_QUERY_REFUSED`.
 
+A row may also open with **its own code** — a gift card's balance, read by whoever types the
+card's code:
+
+```json
+{ "table": "cards", "methods": ["GET"], "select": ["balance"],
+  "unlockBy": { "header": true, "column": "code", "self": true, "length": 12,
+                "where": [{ "column": "status", "eq": "active" }] } }
+```
+
+`column` is a code column of the entry's own table, and the entry never shows it. With `length`,
+a typed code of any other length — counted without the column's own prefix — opens nothing and is
+never looked up. A wrong code here is counted apart from wrong discount codes: five a minute for a
+visitor, sixty for the key. Needs Adminium 0.3.18.
+
 ### Pictures
 
 `pictures` lists 1–4 image columns any visitor may see through the rows an entry reads: a dish's
@@ -3302,11 +3316,17 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 `capabilities`, `settings`, `widgets` and `requiredSchema` with an app. It differs in these ways:
 
 - **Categories** come from a separate list: `artwork`, `delivery`, `payments`, `email`, `data`.
-- **No `pages`, `roles`, `frontends`**, and none of `navGroups`, `optionLists`, `publicAccess`,
-  `publicKeys`, `outbox`, `emailTemplates`, `sampleData`, `seeds`, `addOns` or `documents`. An
-  add-on's own screens are code it ships, declared under `addOn.pages`.
-- **`requiredSchema` is optional** and cannot be `prefixed`: an add-on uses its host app's
-  tables. Tables an add-on creates are kept when it is disconnected.
+- **No `frontends`**, no `addOns.requires` and no `addOns.features`: an add-on has no screens
+  outside the dashboard and never requires another add-on (it may `suggests` one).
+- **An add-on that keeps tables of its own** sets `compatibility.minAdminiumVersion` to `0.3.18`
+  or later and `requiredSchema.prefixed` to `true`. It may then declare, in an app's words,
+  `pages`, `navGroups`, `roles`, `optionLists`, `documents`, `seeds`, `outbox`, `emailTemplates`,
+  `sampleData`, `publicAccess` and `publicKeys`. See
+  [below](#an-add-on-with-tables-of-its-own). An add-on released before that floor declares none
+  of them and installs exactly as it always did: it uses its host app's tables, or creates
+  unprefixed ones that are kept when it is disconnected.
+- **A page's `ref` starts with the add-on's key** (`stock-kit-items`), so no two add-ons, and no
+  add-on and app, can declare the same page.
 - **An `addOn` block** is required:
 
 | Field | Required | Rule |
@@ -3329,6 +3349,22 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 Contract ids and slot ids come from closed registries in the add-on contracts package. How
 Adminium runs add-on code, and why only first-party add-ons are accepted, is explained in
 [Add-on trust](/anatomy/decisions/add-on-trust/).
+
+### An add-on with tables of its own
+
+| Field | Rule |
+|---|---|
+| `requiredSchema.prefixed` | `true`. Every table is created as `<key with _ for ->_<ref>`: `stock-kit` and `items` make `stock_kit_items`. A name that is taken is a problem on the check, never a rename. |
+| `requiredSchema.tables[].indexes` | Up to six sets of one to five columns, each made as an index. A set equal to a unique set is refused. |
+| `seeds` | `[{ "table", "rows" }]` or `[{ "table", "file" }]`: rows written once, at install, into a table that is empty. A value is a plain value, `{ "@t": { "en-US": "…", "de-DE": "…" } }` (written in the installing person's language) or `{ "@ref": "<label>" }` (the key of an earlier row that carries `"@label"`). Never for a ledger or a receipt table. |
+| `addOn.settingsTable` | A table that holds exactly one row. It is made at install from the columns' defaults, so every required column has one. |
+| `roles` | As an app's. A role grants the add-on's own tables (`table:@items:read`), its own pages (`page:@stock-kit-items:view`) and its settings (`addOn:<key>:settings`). Never `screensOnly`. |
+| `sampleData` | As an app's, for its own tables. |
+| `publicAccess` | Entries as an app's. One with no `key` is served through the `customer` key of an app that names the add-on, once that is allowed. One with `key` set to the add-on's link key is served through that key. |
+| `publicKeys` | At most one key, under a name that is not `customer`, with no `requiresStaff`, `enabledBy` or `peak`. It opens one row by its link and only reads: every entry on it has `"methods": ["GET"]` and either claims by token (`"claim": { "by": "token", "column": "…" }`, on a column with `rules.code { "length": 16, "hiddenFromStaff": true }`) or is read with the row a link opened (`visibleWith`, `claimedBy`). |
+
+A column may keep the name of a table (`"rules": { "tableRef": true }`): Adminium stores it so
+that renaming the table it names keeps the rows pointing at it.
 
 ### Shapes
 

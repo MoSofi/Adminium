@@ -26,13 +26,15 @@ import { createSampleDataService, type SampleDataDeps } from '../src/apps/sample
 import type { FileStore } from '../src/files/store.js';
 import { createEndpointService } from '../src/public-api/endpoint-service.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
-import { sha512Integrity } from '../src/add-ons/store.js';
+import type { InstallCore } from '../src/add-ons/install-core.js';
+import { createAddOnSchemaTarget } from '../src/add-ons/schema-target.js';
+import { createAddOnStore, sha512Integrity } from '../src/add-ons/store.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { AppError, errorEnvelope } from '../src/errors.js';
-import type { AppRoutesDeps } from '../src/apps/install-service.js';
+import { createAppInstallService, type AppRoutesDeps } from '../src/apps/install-service.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { TEST_SECRET } from './helpers.js';
@@ -70,6 +72,8 @@ export interface Harness {
   inject: (request: { method: 'GET' | 'POST' | 'DELETE'; url: string; payload?: Record<string, unknown> }) => Promise<InstallReply>;
   /** With `full`: the sample-data service the routes use, for a test to add and remove sample rows directly. */
   samples?: ReturnType<typeof createSampleDataService>;
+  /** With `addOns`: put an add-on's package in this server's store, as a download or a bundle would. */
+  stageAddOn?: (manifest: Record<string, unknown>, files?: Record<string, string>) => Promise<void>;
   /** A second connection, to a fresh SQLite file of its own. */
   otherConnection: () => Promise<{ id: string; tables: () => Promise<string[]> }>;
   run: (statement: string) => Promise<void>;
@@ -84,6 +88,8 @@ export interface HarnessOptions {
   full?: boolean;
   /** The apps a project folder carries: their files are read from there, not from the store. */
   folder?: () => readonly FolderApp[];
+  /** The add-on installer too, over a store of its own: an app that needs an add-on gets it installed. */
+  addOns?: boolean;
 }
 
 const memoryFiles = {
@@ -159,6 +165,10 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
   const appFiles = createAppFiles({ store, ...(options.folder === undefined ? {} : { folder: options.folder }) });
   const sampleDeps: SampleDataDeps = { meta, manager, store, appFiles, files: memoryFiles };
   const manifests = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
+  const identity = { encrypt: (v: string) => v, decrypt: (v: string) => v };
+  const addOnStore = options.addOns === true ? createAddOnStore({ dataDir }) : null;
+  // The app install service, once it exists: what installs an add-on that keeps tables of its own.
+  let installCore: InstallCore | null = null;
   const appDeps: AppRoutesDeps = {
     meta,
     store,
@@ -172,6 +182,21 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
     directoryKeys: () => [],
     serverVersion: '0.4.0',
     schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(TEST_SECRET) }),
+    ...(addOnStore === null
+      ? {}
+      : {
+          addOns: {
+            installer: {
+              meta,
+              store: addOnStore,
+              credentialCrypto: identity,
+              schemaTarget: createAddOnSchemaTarget({ meta, manager, credentialCrypto: identity }),
+              core: (): InstallCore | null => installCore,
+              // Every word the test add-ons use is run by this build.
+              unbuiltWords: {},
+            },
+          },
+        }),
     ...(options.full === true
       ? {
           sampleData: sampleDeps,
@@ -190,6 +215,7 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
       : {}),
   };
   await app.register(appRoutes(appDeps));
+  if (addOnStore !== null) installCore = createAppInstallService(appDeps).core;
   await app.ready();
   const handle = await manager.data(connection.id);
   const stage = async (manifest: Record<string, unknown>, files: Record<string, string> = {}) => {
@@ -215,6 +241,15 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
     },
     stage,
     inject: async (request) => app.inject(request),
+    ...(addOnStore === null
+      ? {}
+      : {
+          stageAddOn: async (manifest: Record<string, unknown>, files: Record<string, string> = {}) => {
+            const key = String(manifest['key']);
+            const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'package.json': JSON.stringify({ name: `@adminiumjs/add-on-${key}` }), 'dist/client.js': 'export const register = () => {};', ...files });
+            await addOnStore.stage({ key, version: String(manifest['version']), tarball, expectedIntegrity: sha512Integrity(tarball) });
+          },
+        }),
     otherConnection: async () => {
       const file = join(dataDir, `other-${randomBytes(3).toString('hex')}.db`);
       new BetterSqlite3(file).close();

@@ -100,8 +100,6 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
  */
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // An add-on's own blocks: what it declares in an app's words.
-  emailTemplates: ADD_ON_INSTALL_RELEASE,
-  outbox: ADD_ON_INSTALL_RELEASE,
   addOns: ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
@@ -167,6 +165,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.
   'publicAccess',
   'publicKeys',
+  // An add-on's own outbox table and its email templates: sent by the sender that sends an app's.
+  'outbox',
+  'emailTemplates',
 ];
 
 export interface UnbuiltWord {

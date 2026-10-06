@@ -53,11 +53,11 @@ export interface FolderHarness {
 
 export async function folderHarness(
   dialect: Dialect,
-  opts: { mode: 'dev' | 'server'; apps?: ProjectConfig['apps']; superAdmin?: boolean } = { mode: 'dev' },
+  opts: { mode: 'dev' | 'server'; apps?: ProjectConfig['apps']; superAdmin?: boolean; /** The add-on installer too, for an app that needs an add-on. */ addOns?: boolean } = { mode: 'dev' },
 ): Promise<FolderHarness> {
   const root = tempProject('adminium-folder-app-');
   let built: AppsBuild | null = null;
-  const harness = await installHarness(dialect, { full: true, superAdmin: opts.superAdmin !== false, folder: () => folderAppsOf(root, built) });
+  const harness = await installHarness(dialect, { full: true, superAdmin: opts.superAdmin !== false, folder: () => folderAppsOf(root, built), ...(opts.addOns === true ? { addOns: true } : {}) });
   const lines = { log: [] as string[], warn: [] as string[] };
   const changed: [string, string][] = [];
   const publicApi = { registered: true, enabled: false };
