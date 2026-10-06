@@ -602,6 +602,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   states?: TableStatesRule;
   /** What a row of the table hands to an add-on's ledger (`table.postings`). */
   postings?: TablePosting[];
+  /** The ids of the postings an app's manifest stored (the rest are the owner's own). */
+  managedPostings?: string[];
   /** Where an add-on lowers the price of this table's rows (`table.adjust`): the app's rule when it ships one, else the owner's. */
   adjust?: TableAdjust;
   /** The postings the owner switched off (`table.switchedOff`). */
@@ -1366,7 +1368,10 @@ export function applyOverrides(
       }
       case 'table.postings': {
         // A manifest's row and an owner's may both be there: the table carries every posting of both.
-        if (table !== undefined) table.postings = [...(table.postings ?? []), ...((value as unknown as { postings: TablePosting[] }).postings ?? [])];
+        const added = (value as unknown as { postings: TablePosting[] }).postings ?? [];
+        if (table !== undefined) table.postings = [...(table.postings ?? []), ...added];
+        // Whose rule it is decides what "the add-on is not connected to this app" means for it.
+        if (table !== undefined && row.origin === 'app') table.managedPostings = [...(table.managedPostings ?? []), ...added.map((posting) => posting.id)];
         break;
       }
       case 'table.adjust': {
