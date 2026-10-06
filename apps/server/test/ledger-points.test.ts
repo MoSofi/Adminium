@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { tableRulesFor } from '../src/crud/column-rules.js';
+import { needsStored } from '../src/crud/decide.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 
 import { firedPoints, frozenColumns, lineTaken, ownPoint, pointReached, postingScope, type DeclaredPosting, type LinePosting } from '../src/crud/ledger-points.js';
@@ -205,5 +206,13 @@ describe('a table\'s rules, as its postings are stored', () => {
     expect(rulesOf('notes')).not.toHaveProperty('linePostings');
     expect(postingScope(rulesOf('notes'))).toBeNull();
     expect(postingScope(rulesOf('orders'))).not.toBeNull();
+  });
+
+  it('a write to a table with a posting reads the stored row first: a point is crossed, never merely held', () => {
+    // Its own rule, its lines' rule and the parent's side of a line rule each need the row as it was.
+    expect(needsStored(rulesOf('requests'))).toBe(true);
+    expect(needsStored(rulesOf('order_lines'))).toBe(true);
+    expect(needsStored(rulesOf('orders'))).toBe(true);
+    expect(needsStored(rulesOf('notes'))).toBe(false);
   });
 });

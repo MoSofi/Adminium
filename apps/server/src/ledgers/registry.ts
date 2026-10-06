@@ -51,6 +51,12 @@ export interface ResolvedLedger {
   writes: ReadonlyMap<string, WriteScope>;
   /** The add-on's short name for one of its tables; the id itself for a table that is not its own. */
   refOf(tableId: string): string;
+  /**
+   * What the add-on declares its own columns to be, where an engine may not
+   * say: SQLite keeps json as text and a decimal as a number. Read from the
+   * manifest, a value is handed the same on every engine.
+   */
+  typesOf(tableId: string): ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'>;
 }
 
 export type PostingState =
@@ -122,7 +128,18 @@ function resolveLedger(installs: AddOnInstalls, view: SnapshotView, addOn: { man
   const settingsRef = addOn.manifest.addOn.settingsTable;
   const settings = settingsRef === undefined ? null : table(settingsRef);
   if (settingsRef !== undefined && settings === null) return 'tables-missing';
-  return { addOn: key, version: addOn.version, id, refusal: ledger.refusal, receipts, settings, table, writes, refOf: (tableId) => refs.get(tableId) ?? tableId };
+  const hints = new Map<string, ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'>>();
+  const HINT: Readonly<Record<string, 'json' | 'decimal' | 'boolean' | 'date'>> = { json: 'json', decimal: 'decimal', money: 'decimal', bool: 'boolean', date: 'date' };
+  const typesOf = (tableId: string): ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'> => {
+    const hit = hints.get(tableId);
+    if (hit !== undefined) return hit;
+    const ref = refs.get(tableId);
+    const declared = ref === undefined ? undefined : (addOn.manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
+    const found = new Map((declared?.columns ?? []).flatMap((column) => (HINT[column.type] === undefined ? [] : [[column.ref, HINT[column.type]!] as const])));
+    hints.set(tableId, found);
+    return found;
+  };
+  return { addOn: key, version: addOn.version, id, refusal: ledger.refusal, receipts, settings, table, writes, refOf: (tableId) => refs.get(tableId) ?? tableId, typesOf };
 }
 
 export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {

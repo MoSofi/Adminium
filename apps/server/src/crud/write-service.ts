@@ -75,6 +75,7 @@
  * - Adminium's own `adminium_*` tables in the meta store.
  */
 
+import type { LedgerRuntime } from '../ledgers/registry.js';
 import type { FastifyRequest } from 'fastify';
 import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type UpdateQueryBuilder, type UpdateResult } from 'kysely';
 import type { Dialect } from '@adminium/engine';
@@ -1599,6 +1600,13 @@ export interface RecordWriteService {
 export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
+  /**
+   * The add-ons a table's postings hand rows to: whether each rule is live
+   * now, and the code that plans its rows. A server with no add-on runtime
+   * has none, and a table with a live posting then refuses its writes rather
+   * than be written with nothing posted.
+   */
+  ledgers?: LedgerRuntime | undefined;
   /**
    * The meta store's counters, for a column with a running number. A table
    * with one, written through a service without them, is refused rather

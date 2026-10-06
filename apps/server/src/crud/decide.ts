@@ -118,7 +118,9 @@ export function needsStored(rules: TableRules | null): boolean {
     // A column required while another holds a value is judged on the row as the write leaves it.
     (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined) ||
     // A code renewed when the row changes hands: a change is judged against what is stored.
-    (rules?.codes ?? []).some((code) => code.renew !== undefined)
+    (rules?.codes ?? []).some((code) => code.renew !== undefined) ||
+    // A posting's point is crossed, never merely held: whether this write crosses one is read off the row as it was.
+    (rules?.postings?.length ?? 0) + (rules?.asLine?.length ?? 0) + (rules?.linePostings?.length ?? 0) > 0
   );
 }
 

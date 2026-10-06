@@ -59,6 +59,7 @@ import {
   settingsRepo,
   type EnqueueJobInput,
   type InstalledManifest,
+  snapshotsRepo,
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
@@ -80,10 +81,13 @@ import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js'
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import {
   buildAddOnRuntime,
+  deciderFor,
   isLoadable,
   importServerHalf,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
+import { keepAddOnInstalls } from './apps/table-ref.js';
+import { createLedgerRuntime } from './ledgers/registry.js';
 import { createDocumentPipeline } from './documents/compose.js';
 import { onMappingRulesChanged, syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
@@ -930,7 +934,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.decorate('widgetDataCache', widgetDataCache);
   // Made further down, once the queue exists; the write service asks it only when a write arrives.
   const automationsMatcher: { current?: { watchesChange(connectionId: string, tableId: string): Promise<boolean> } } = {};
+  /*
+   * WHAT IS INSTALLED, FOR A SAVE. One instance a process: read again only
+   * when an install, an attach, a switch, a table record or a schema read
+   * moved (here or in another process). A table's posting asks it, from
+   * memory, whether its add-on is there for it; the ledger runtime adds the
+   * code that plans the rows.
+   */
+  const addOnInstalls = keepAddOnInstalls(meta, async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
+  const ledgers = createLedgerRuntime({
+    installs: () => addOnInstalls.current(),
+    decider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'rows'),
+    versionNow: async (addOnKey) => {
+      const row = await meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();
+      return row === undefined ? null : { version: row.version, status: row.status };
+    },
+    watches: async (connectionId, tableId) => (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher.current?.watchesChange(connectionId, tableId)) === true,
+  });
   const recordWrites = createWriteService({
+    ledgers,
     // An app's outbox table takes only the moves a person may make: a sent message is never queued again.
     hooks: () => withOutboxMoves(hookRunner ?? NO_RECORD_HOOKS, { meta, outboxes: () => outboxProducers.all() }),
     // A running number counts in the meta store; a venue's clock is its connection's.
