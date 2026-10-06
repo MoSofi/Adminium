@@ -286,6 +286,12 @@ export interface PostedOutcome {
   decided: { line: string; input: string; column: string; value: string }[];
 }
 
+/** One phase of one rule of a table, named: what `post` runs for a stored row. */
+export interface OnePhase {
+  posting: string;
+  phase: PostingPhaseName;
+}
+
 export interface Peek {
   calls: PostingCall[];
   /** The add-ons whose gates the save enters as a reader. */
@@ -421,10 +427,15 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** The calls a write fires on a row that is its own source, from what is installed as memory holds it now. */
-  function callsFor(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row }): PostingCall[] {
+  function callsFor(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; only?: OnePhase | undefined }): PostingCall[] {
     const scope = postingScope(input.rules);
     if (scope === null) return [];
-    const fired = firedPoints(scope, input.before, input.after, input.action, input.rules?.states?.column).filter((point) => point.role === 'source');
+    const { only } = input;
+    // One phase of one rule, asked for by name (a hold let go by the clock): no point is crossed, and none is needed.
+    const fired =
+      only === undefined
+        ? firedPoints(scope, input.before, input.after, input.action, input.rules?.states?.column).filter((point) => point.role === 'source')
+        : scope.postings.filter((posting) => posting.id === only.posting).map((posting) => ({ posting, phase: only.phase, role: 'source' as const }));
     if (fired.length === 0) return [];
     const ledgers = kit.ledgers;
     // A server with no add-on runtime cannot tell an idle rule from a live one: a write that fires one is refused, never written unposted.
@@ -443,6 +454,8 @@ export function createLedgerWriter(kit: LedgerKit) {
       }
       // An off rule starts no round; whether one is open to give back is read under the locks.
       if (state.state === 'off' && point.phase !== 'reverse') continue;
+      // A phase the action does not have is asked of nobody.
+      if (only !== undefined && !state.action.phases.includes(point.phase)) continue;
       calls.push({
         posting: point.posting,
         phase: point.phase,
@@ -476,7 +489,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** The calls this write fires on a row that is its own source; null when it hands nothing to any ledger now. */
-  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext }): Promise<Peek | null> {
+  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext; only?: OnePhase | undefined }): Promise<Peek | null> {
     if (postingScope(input.rules) === null) return null;
     await kit.ledgers?.refresh?.();
     const live = callsFor(input);
@@ -608,10 +621,10 @@ export function createLedgerWriter(kit: LedgerKit) {
   async function postStep(
     trx: Db,
     peeked: Peek | null,
-    input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock },
+    input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock; only?: OnePhase | undefined },
   ): Promise<PostedOutcome[]> {
     const { target, context, clock, row } = input;
-    const fired = callsFor({ target, rules: input.rules, action: input.action, before: input.before, after: row });
+    const fired = callsFor({ target, rules: input.rules, action: input.action, before: input.before, after: row, only: input.only });
     if (fired.length === 0) return [];
     const known = new Set((peeked?.calls ?? []).map(callKey));
     for (const call of fired) if (!known.has(callKey(call))) throw new LockMoved(`posting ${callKey(call)}`);

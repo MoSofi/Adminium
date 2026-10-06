@@ -1386,6 +1386,19 @@ export interface UpdateOutcome {
   postings?: PostedOutcome[] | undefined;
 }
 
+/** One phase of one posting rule, run for a row as it is stored: nothing of the row itself changes. */
+export interface PostRecordInput {
+  target: WriteTarget;
+  pk: Row;
+  /** The rule's id on the row's table. */
+  posting: string;
+  phase: 'reserve' | 'post' | 'reverse';
+  context: WriteContext;
+  mapError?: ((error: unknown) => never) | undefined;
+  /** What the phase did, with the row it was run for — once it committed. Not called when there was nothing to do. */
+  announce: (row: Row, postings: PostedOutcome[]) => Promise<void>;
+}
+
 export interface DeleteRecordInput {
   target: WriteTarget;
   pk: Row;
@@ -1529,6 +1542,14 @@ export interface RecordWriteService {
   createTree: CreateTree;
   update(input: UpdateRecordInput): Promise<UpdateOutcome>;
   delete(input: DeleteRecordInput): Promise<number>;
+  /**
+   * Runs one phase of one posting for a stored row, with no change to the
+   * row: a hold let go when its time has passed, a save that went through
+   * while the add-on could not answer worked out at last. The same locks,
+   * checks and receipts as a save that crosses the point; a phase the round
+   * has already seen writes nothing. Answers what it did.
+   */
+  post(input: PostRecordInput): Promise<PostedOutcome[]>;
   /**
    * The refusal deleting these rows would meet from the table's states (a
    * numbered or locked row, a sent invoice's line), or null — read before the
@@ -3722,6 +3743,48 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await hooks.after({ action: 'update', target, record: after, before, context });
       }
       return outcome;
+    },
+
+    async post(input) {
+      const { context, pk } = input;
+      const target = await withRights(input.target);
+      const rules = rulesOf(target);
+      const zone = await zoneFor(rules, target);
+      const clock = writeClock(context);
+      const about = { target, context };
+      const only = { posting: input.posting, phase: input.phase };
+      const at = { ...target, timezone: zone };
+      const posts = await ledgerWriter.audited(() => guardedValue(() => ledgerWriter.watched(target, rules), input.mapError), about);
+      if (posts === null) return [];
+      let peeked: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
+      let stored: Row | null = null;
+      const posted = await ledgerWriter.audited(
+        () =>
+          conflicted(
+            () =>
+              withDeciders(posts, () =>
+                withLimitLocks(
+                  target,
+                  async () => {
+                    const current = (await fetchByPk(target.db, target.table, pk)) ?? null;
+                    peeked = current === null ? null : await ledgerWriter.peek({ target: at, rules, action: 'update', before: current, after: current, context, only });
+                    return peeked === null || current === null ? [] : await peeked.names(current);
+                  },
+                  async (db) => {
+                    // The row held, as every save that posts for it holds it: the round is read under it.
+                    stored = (await fetchHeld(db, target, pk, true)) ?? null;
+                    if (stored === null) return [];
+                    return await guardedValue(() => ledgerWriter.postStep(db, peeked, { target: at, rules, action: 'update', before: stored, row: stored!, context, clock, only }), input.mapError);
+                  },
+                  clock,
+                ),
+              ),
+            input.mapError,
+          ),
+        about,
+      );
+      if (posted.length > 0 && stored !== null) await input.announce(stored, posted);
+      return posted;
     },
 
     async delete(input) {
