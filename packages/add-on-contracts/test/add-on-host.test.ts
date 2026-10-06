@@ -10,7 +10,7 @@
  * and a name added to one side and not the other is either a symbol nobody can
  * import or a symbol nobody meant to publish.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ADD_ON_APP_EXPORTS,
@@ -22,7 +22,10 @@ import {
   DATA_KIT_VERSION,
   HOST_API_VERSION,
   clearAddOnRuntime,
+  AddOnHostTooOld,
+  HOST_TOO_OLD_MESSAGE,
   installAddOnRuntime,
+  requireAddOnData,
   requireAddOnHost,
   type AddOnHostApi,
 } from '../src/runtime/index.js';
@@ -100,6 +103,32 @@ describe('the data kit', () => {
     install();
     expect(requireAddOnHost().data).toBeUndefined();
   });
+
+  it('a kit page on a host without it, or with an older one, is told it needs a newer Adminium', async () => {
+    install();
+    expect(() => requireAddOnData()).toThrow(AddOnHostTooOld);
+    expect(() => requireAddOnData()).toThrow('This page needs a newer Adminium.');
+    install({ data: { version: 0, ...stub(ADD_ON_DATA_EXPORTS) } });
+    try {
+      requireAddOnData();
+      expect.unreachable('an older kit was taken');
+    } catch (error) {
+      expect(error).toMatchObject({ name: 'AddOnHostTooOld', needs: DATA_KIT_VERSION, has: 0, message: HOST_TOO_OLD_MESSAGE });
+    }
+    // The shim itself throws as it loads: a page never reaches a hook that is not there.
+    vi.resetModules();
+    install();
+    await expect(import('../src/runtime/data.js')).rejects.toMatchObject({ name: 'AddOnHostTooOld', has: null });
+    // A module that threw as it loaded stays thrown: the next test loads it afresh.
+    vi.resetModules();
+  });
+
+  it('a newer kit serves a page built against this one, and the host API\'s own check still comes first', () => {
+    install({ data: { version: DATA_KIT_VERSION + 3, ...stub(ADD_ON_DATA_EXPORTS) } });
+    expect(requireAddOnData().version).toBe(DATA_KIT_VERSION + 3);
+    install({ version: 2, data: { version: DATA_KIT_VERSION, ...stub(ADD_ON_DATA_EXPORTS) } });
+    expect(() => requireAddOnData()).toThrow(/built against host API 1/);
+  });
 });
 
 describe('the shims export exactly what their lists promise', () => {
@@ -109,11 +138,13 @@ describe('the shims export exactly what their lists promise', () => {
     ['query', ADD_ON_QUERY_EXPORTS, () => import('../src/runtime/query.js')],
     ['i18n', ADD_ON_I18N_EXPORTS, () => import('../src/runtime/i18n.js')],
     ['app', ADD_ON_APP_EXPORTS, () => import('../src/runtime/app.js')],
+    ['data', ADD_ON_DATA_EXPORTS, () => import('../src/runtime/data.js')],
   ];
 
   for (const [name, list, load] of cases) {
     it(`${name}: every name, nothing more`, async () => {
-      install();
+      // The data shim reads a kit the host publishes beside its five namespaces.
+      install(name === 'data' ? { data: { version: DATA_KIT_VERSION, ...stub(ADD_ON_DATA_EXPORTS) } } : {});
       const mod = await load();
       const exported = Object.keys(mod)
         .filter((key) => key !== 'default')

@@ -141,6 +141,38 @@ export function requireAddOnHost(): AddOnHostApi {
   return host;
 }
 
+/** The words a page shows when the host is older than the page: one sentence, the same wherever it is thrown. */
+export const HOST_TOO_OLD_MESSAGE = 'This page needs a newer Adminium.';
+
+/**
+ * A page built against the data kit, on a host that publishes none or an
+ * older one. Thrown as the page's module loads, so the host can show the
+ * sentence instead of a screen that crashes inside its first hook.
+ */
+export class AddOnHostTooOld extends Error {
+  override readonly name = 'AddOnHostTooOld';
+  constructor(
+    /** The kit version the page was built against, and the one the host publishes (none: `null`). */
+    readonly needs: number,
+    readonly has: number | null,
+  ) {
+    super(HOST_TOO_OLD_MESSAGE);
+  }
+}
+
+/**
+ * Read the data kit. The host API's own check runs first — its version never
+ * moves for the kit — then the kit's: absent, or older than this package's,
+ * is {@link AddOnHostTooOld}. A newer kit serves an older page.
+ */
+export function requireAddOnData(): NonNullable<AddOnHostApi['data']> {
+  const { data } = requireAddOnHost();
+  if (data === undefined || typeof data.version !== 'number' || data.version < DATA_KIT_VERSION) {
+    throw new AddOnHostTooOld(DATA_KIT_VERSION, data === undefined || typeof data.version !== 'number' ? null : data.version);
+  }
+  return data;
+}
+
 /**
  * The global a host publishes on. A global rather than an argument because
  * JSX compiles to `jsx(...)` calls at module scope: a bundle's first
