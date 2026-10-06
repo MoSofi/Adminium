@@ -59,6 +59,12 @@ export interface AddOnSchemaTarget {
   read(attachTo: readonly string[], connectionId?: string): Promise<ExistingTable[]>;
   /** Where the add-on's tables go, or the question to ask (see {@link resolveAddOnConnection}). */
   resolve?(choice: ConnectionChoice): Promise<string | null>;
+  /**
+   * The usable databases that hold EVERY one of these tables, by their plain
+   * names, read live — the ones in `prefer` first, in that order. Where an
+   * add-on installed before its tables were recorded turns out to live.
+   */
+  holders?(tables: readonly string[], prefer: readonly string[]): Promise<{ id: string; name: string }[]>;
   /** Creates what the plan says to create, then refreshes the snapshot. */
   apply(
     plan: InstallPlan,
@@ -331,6 +337,24 @@ export async function applyPlanTo(
 export function createAddOnSchemaTarget(deps: AddOnSchemaTargetDeps): AddOnSchemaTarget {
   return {
     resolve: (choice) => resolveAddOnConnection(deps, choice),
+    async holders(tables, prefer) {
+      if (tables.length === 0) return [];
+      const usable = (await deps.manager.connections.list()).filter((connection) => !connection.disabled);
+      const order = [...prefer.flatMap((id) => usable.filter((connection) => connection.id === id)), ...usable.filter((connection) => !prefer.includes(connection.id))];
+      const found: { id: string; name: string }[] = [];
+      for (const connection of order) {
+        let live: Awaited<ReturnType<typeof readLiveTables>>;
+        try {
+          live = await readLiveTables(deps, connection.id, new Set(tables));
+        } catch {
+          // A database that cannot be read right now holds nothing anybody can vouch for.
+          continue;
+        }
+        const there = new Set(live.tables.map((table) => table.ref));
+        if (tables.every((table) => there.has(table))) found.push({ id: connection.id, name: connection.name });
+      }
+      return found;
+    },
     async read(attachTo, explicit) {
       const connectionId = explicit ?? (await resolveAddOnConnection(deps, { ownsTables: true, attachTo }));
       if (connectionId === null) return [];

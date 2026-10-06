@@ -312,7 +312,13 @@ export const patchAddOnReply = z.object({
 });
 
 /** `POST /add-ons/:key/attachments` — mount an installed add-on on one more host. */
-export const attachAddOnBody = z.object({ app: hostKey }).strict();
+export const attachAddOnBody = z
+  .object({
+    app: hostKey,
+    /** Which database holds its tables, when an add-on installed before that was recorded is found in several (409 `ADD_ON_SCHEMA_CONNECTION` lists them). */
+    connectionId: z.string().min(1).max(64).optional(),
+  })
+  .strict();
 
 export const attachAddOnReply = z.object({
   addOn: addOnDto,
@@ -560,6 +566,8 @@ export const updateAddOnBody = z
     to: z.string().min(1).max(64).optional(),
     /** The `checksum` of the plan that was read: a database that moved since answers 409 `SCHEMA_DRIFT`. */
     planChecksum: z.string().min(1).max(128).optional(),
+    /** Which database holds its tables, when an add-on installed before that was recorded is found in several (409 `ADD_ON_SCHEMA_CONNECTION` lists them). */
+    connectionId: z.string().min(1).max(64).optional(),
   })
   .default({});
 

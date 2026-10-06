@@ -164,10 +164,17 @@ describe.each(LEGS)('an add-on\'s update — %s', (dialect, available) => {
     await h.stageAddOn(plain);
     expect((await post(h, '/add-ons', { key: 'stock-kit', version: '0.9.0', attachTo: [] })).statusCode).toBe(200);
     expect((await row(h)).connectionId).toBeNull();
+    // The owner keeps tables of their own under the kit's plain names: they are not the kit's, and are never taken for it.
+    const own = await source(h);
+    await sql.raw('CREATE TABLE items (id INT PRIMARY KEY)').execute(own);
+    await sql.raw('CREATE TABLE takes (id INT PRIMARY KEY)').execute(own);
+    await h.introspect();
     await h.stageAddOn(stockKitManifest());
     const reply = await post(h, '/add-ons/stock-kit/update');
     expect(reply.statusCode, reply.body).toBe(200);
     expect(await row(h)).toMatchObject({ version: '1.0.0', status: 'installed', connectionId: h.connectionId });
+    const records = await appTablesRepo(h.meta).forInstall(h.connectionId, 'stock-kit');
+    expect(records.map((record) => [record.tableName, record.owned, record.state]).sort()).toEqual([['stock_kit_items', true, 'created'], ['stock_kit_takes', true, 'created']]);
     expect(await h.tableNames()).toEqual(expect.arrayContaining(['stock_kit_items', 'stock_kit_takes']));
   });
 

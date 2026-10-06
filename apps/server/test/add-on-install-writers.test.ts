@@ -5,7 +5,8 @@
  * its roles. The rules hold from the first write; the pages are seen only by
  * the add-on's own roles; and whoever installed it holds its first role.
  */
-import { documentProfilesRepo, manifestsRepo, optionListsRepo, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { appTablesRepo, documentProfilesRepo, manifestsRepo, optionListsRepo, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { sql } from 'kysely';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { drawersFor } from '../src/documents/app-documents.js';
@@ -163,6 +164,25 @@ describe('who sees an add-on\'s pages', () => {
     expect(reply.statusCode, reply.body).toBe(422);
     expect(reply.body).toContain('stock-kit-ghost');
     expect((await h.tableNames()).filter((name) => name.startsWith('stock_kit_'))).toEqual([]);
+  });
+});
+
+describe.each(LEGS)('a table of the owner\'s under one of the add-on\'s short names — %s', (dialect, available) => {
+  it.runIf(available)('is left exactly as it is: the add-on makes its own, under its prefix', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    const { db } = await h.manager.data(h.connectionId);
+    await sql.raw('CREATE TABLE items (id INT PRIMARY KEY, note VARCHAR(20))').execute(db as never);
+    await sql`insert into items (id, note) values (1, 'ours')`.execute(db as never);
+    await h.introspect();
+    await h.stageAddOn(stockKitManifest());
+    const reply = await install(h);
+    expect(reply.statusCode, reply.body).toBe(200);
+    expect([...reply.json().schema.created].sort()).toEqual(['items', 'takes']);
+    expect(reply.json().schema.reused).toEqual([]);
+    // The owner's table: the same columns, the same row, and no record says it is the add-on's.
+    expect(await h.rows('SELECT id, note FROM items')).toEqual([{ id: 1, note: 'ours' }]);
+    const records = await appTablesRepo(h.meta).forConnection(h.connectionId);
+    expect(records.map((record) => record.tableName).sort()).toEqual(['stock_kit_items', 'stock_kit_takes']);
   });
 });
 

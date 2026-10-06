@@ -776,6 +776,8 @@ export interface UpdateAddOnInput {
   schema?: 'apply' | 'refuse' | undefined;
   /** The `checksum` of the plan the person looked at; a database that moved since answers `SCHEMA_DRIFT`. */
   planChecksum?: string | undefined;
+  /** The answer to "which database holds its tables", when an add-on installed before that was recorded is found in several. */
+  connectionId?: string | undefined;
   /** The server the update runs in: its log, and how open dashboards are told. A quiet one when absent. */
   host?: InstallHost | undefined;
 }
@@ -851,7 +853,13 @@ export async function planAddOnUpdate(
   const target = await updateTarget(deps, input);
   const { manifest, attachedTo, hosts, installed } = target;
   if (!installsLikeAnApp(manifest)) {
-    return { plan: (await planAddOn(deps, manifest, { attachTo: attachedTo })).dto, from: target.from, to: target.to, connectionId: installed.row.connectionId, manifest };
+    return {
+      plan: (await planAddOn(deps, manifest, { attachTo: attachedTo, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) })).dto,
+      from: target.from,
+      to: target.to,
+      connectionId: installed.row.connectionId,
+      manifest,
+    };
   }
   const connectionId = installed.row.connectionId ?? (await deps.schemaTarget?.resolve?.({ ownsTables: true, attachTo: attachedTo })) ?? null;
   if (connectionId === null) {
@@ -874,13 +882,17 @@ export async function planAddOnUpdate(
 export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnInput): Promise<UpdateAddOnResult> {
   const { key } = input;
   const target = await updateTarget(deps, input);
-  const { manifests, installed, from, to, manifest, attachedTo, hosts, resumed } = target;
+  const { manifests, from, to, manifest, attachedTo, hosts, resumed } = target;
   const likeApp = installsLikeAnApp(manifest);
+  // An add-on installed before its tables were recorded: where it lives is found out now, before the version moves.
+  const adopted = await adoptAddOnTables(deps, { installed: target.installed, manifest, prefer: hosts.map((host) => host.connectionId ?? null), connectionId: input.connectionId, actor: input.actor });
+  const installed = adopted === target.installed.row.connectionId ? target.installed : { ...target.installed, row: { ...target.installed.row, connectionId: adopted } };
 
   if (!likeApp || input.schema === 'refuse') {
     const { dto: upgradePlan } = likeApp
       ? await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId: installed.row.connectionId ?? undefined, warnings: [] })
-      : await planAddOn(deps, manifest, { attachTo: attachedTo });
+      : // Planned where its tables are known to be; an add-on with none, or not found anywhere, is planned as it always was.
+        await planAddOn(deps, manifest, { attachTo: attachedTo, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) });
     if (!upgradePlan.installable || upgradePlan.requiresSchemaChange) {
       throw new ValidationFailedError(`"${key}" ${to} cannot be applied to this instance.`, {
         problems: upgradePlan.problems,
@@ -1045,6 +1057,57 @@ export async function upgradeAddOn(deps: AddOnInstallerDeps, input: Omit<UpdateA
   return { installed, from, to, pruned };
 }
 
+/**
+ * WHERE AN ADD-ON INSTALLED BEFORE ITS TABLES WERE RECORDED LIVES.
+ *
+ * The add-ons released before made their tables and wrote down neither the
+ * database nor the tables. The first time one is updated or connected to an
+ * app, that is found out — by looking, never at boot: the database that holds
+ * every table it declares, under their plain names. One such database: it is
+ * written on the add-on's row, and each table recorded as one the add-on
+ * found and took (nothing proves it made them, so nothing ever offers to drop
+ * them). Several: the person is asked which (`ADD_ON_SCHEMA_CONNECTION`), and
+ * `connectionId` is the answer. None: nothing is recorded.
+ *
+ * Answers the database, or null. An add-on that already has both, or keeps
+ * no tables, is answered at once and asked nothing.
+ */
+export async function adoptAddOnTables(
+  deps: AddOnInstallerDeps,
+  input: { installed: InstalledManifest; manifest: AddOnManifest; prefer: readonly (string | null)[]; connectionId?: string | undefined; actor: Actor },
+): Promise<string | null> {
+  const { installed, manifest } = input;
+  const key = installed.row.manifestKey;
+  const tables = (manifest.requiredSchema?.tables ?? []).map((table) => table.ref);
+  if (tables.length === 0) return installed.row.connectionId;
+  const records = appTablesRepo(deps.meta);
+  if (installed.row.connectionId !== null && (await records.forInstall(installed.row.connectionId, key)).length > 0) return installed.row.connectionId;
+  // An add-on that keeps its tables under its own prefix was recorded at its install; there is nothing to look for.
+  if (manifest.requiredSchema?.prefixed === true || deps.schemaTarget?.holders === undefined) return installed.row.connectionId;
+
+  const prefer = [...new Set([installed.row.connectionId, ...input.prefer].filter((id): id is string => id !== null))];
+  const holders = await deps.schemaTarget.holders(tables, prefer);
+  if (holders.length === 0) return installed.row.connectionId;
+  const chosen = holders.length === 1 ? holders[0] : holders.find((holder) => holder.id === (input.connectionId ?? installed.row.connectionId));
+  if (chosen === undefined) {
+    throw new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', `More than one database holds the tables of "${key}". Choose the one it uses.`, { connections: holders });
+  }
+  const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
+  if (installed.row.connectionId !== chosen.id) await manifests.setConnection(installed.row.id, chosen.id);
+  for (const ref of tables) {
+    await records.record({ appKey: key, manifestId: installed.row.id, connectionId: chosen.id, ref, tableName: ref, owned: false, state: 'adopted', prefix: null });
+  }
+  await auditRepo(deps.meta).append({
+    actorKind: input.actor.kind ?? 'user',
+    actorId: input.actor.id,
+    actorLabel: input.actor.label,
+    category: 'add-on',
+    action: 'add-on.connection-recorded',
+    changes: { after: { key, connectionId: chosen.id, tables } },
+  });
+  return chosen.id;
+}
+
 /** Remove the versions of `key` on disk older than `keep`; the ones removed. */
 export async function pruneOlderVersions(deps: Pick<AddOnInstallerDeps, 'store'>, key: string, keep: string): Promise<string[]> {
   const pruned: string[] = [];
@@ -1062,7 +1125,7 @@ export async function pruneOlderVersions(deps: Pick<AddOnInstallerDeps, 'store'>
  */
 export async function attachAddOn(
   deps: AddOnInstallerDeps,
-  input: { key: string; host: string; hostApp?: HostApp | undefined; actor: Actor; via?: string },
+  input: { key: string; host: string; hostApp?: HostApp | undefined; actor: Actor; via?: string; /** See {@link adoptAddOnTables}. */ connectionId?: string | undefined },
 ): Promise<{ installed: InstalledManifest; change: 'attached' | 'enabled' | null }> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const installed = await manifests.findByKey(input.key);
@@ -1077,6 +1140,9 @@ export async function attachAddOn(
   const { manifest } = parseAddOnDocument(installed.document, input.key, hosts, 'installed');
   const problems = hostProblems(manifest, hosts);
   refuseUnlessInstallable(input.key, { problems, installable: problems.length === 0 }, 'attached');
+
+  // Installed before its tables were recorded: where it lives is found out now, starting with this app's database.
+  await adoptAddOnTables(deps, { installed, manifest, prefer: [host.connectionId ?? null], connectionId: input.connectionId, actor: input.actor });
 
   /*
    * ATTACHING CREATES NOTHING. An add-on whose tables live in another app's

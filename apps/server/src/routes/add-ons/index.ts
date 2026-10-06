@@ -1364,6 +1364,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           key: request.params.key,
           to: request.body.to,
           planChecksum: request.body.planChecksum,
+          connectionId: request.body.connectionId,
           actor: actorOf(request),
           host: {
             log: request.log,
@@ -1511,6 +1512,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const { installed, change } = await attachAddOn(installer, {
           key: request.params.key,
           host: request.body.app,
+          connectionId: request.body.connectionId,
           actor: actorOf(request),
         });
         await makeAppDocuments(request, request.params.key, [request.body.app]);

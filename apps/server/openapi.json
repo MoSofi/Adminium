@@ -92175,6 +92175,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
                   }
                 }
               }
@@ -94092,6 +94097,11 @@
                   "app": {
                     "type": "string",
                     "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
                   }
                 },
                 "required": [

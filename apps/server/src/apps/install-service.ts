@@ -852,7 +852,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       })),
     ];
 
-    if (own.length === 0 && likeApp) {
+    /*
+     * Only an APP. An app installed before table records were kept has none,
+     * and its tables are found under their plain names. An add-on never is:
+     * its row is written before its first table is made, so "installed here
+     * with no record" is every add-on at the first step of its install —
+     * and a table found under one of its short names then is the OWNER's
+     * (`items` beside the add-on's `stock_kit_items`), never to be taken or
+     * altered. An add-on from before records is found by looking, on purpose
+     * (`adoptAddOnTables`), and recorded before any plan is made.
+     */
+    if (own.length === 0 && manifest.kind === 'app') {
       if (installedHere) {
         for (const table of manifest.requiredSchema?.tables ?? []) {
           if (tables.some((t) => t.ref === table.ref)) {
