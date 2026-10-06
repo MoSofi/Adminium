@@ -100,6 +100,15 @@ your own tables and for Adminium's. Check with:
 SELECT @@GLOBAL.sql_mode;
 ```
 
+**A binary log kept by statement refuses some saves.** A save of a row that an add-on keeps a
+ledger for (stock, a gift card) runs at `READ COMMITTED`, so that it sees what another save wrote
+while it waited. MySQL allows that with `binlog_format` set to `ROW` (MySQL 8's default) or `MIXED`
+(MariaDB's), and refuses it with `STATEMENT`. Check with:
+
+```sql
+SELECT @@GLOBAL.binlog_format;
+```
+
 **Case sensitivity depends on the host filesystem.** `lower_case_table_names`
 differs between a Linux server and a macOS one; a schema that introspects on one
 may not on the other. This bites during migrations more than during
