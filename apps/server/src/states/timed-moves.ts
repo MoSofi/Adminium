@@ -70,6 +70,9 @@ import { AppError } from '../errors.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { createPublicViews } from '../public-api/runtime.js';
 import { rehashSampleRow } from '../apps/sample-data.js';
+import { heldDue } from '../crud/ledger-receipts.js';
+import type { PostedOutcome } from '../crud/ledger-write.js';
+import type { LedgerRuntime } from '../ledgers/registry.js';
 import { announceEffects } from './effects.js';
 
 export const TIMED_MOVES_SCHEDULE_NAME = 'app-timed-moves';
@@ -109,6 +112,10 @@ export interface TimedMovesDeps {
   log?: Logger | undefined;
   /** How many rows move per connection per minute (500). */
   perTick?: number | undefined;
+  /** The add-ons' ledgers: with it, a hold kept until a time is let go when that time has passed. */
+  ledgers?: LedgerRuntime | undefined;
+  /** What a hold let go did, once it committed: announced as any posting is. */
+  released?: ((input: { connectionId: string; view: SnapshotView; table: ResolvedTable; row: Row; postings: PostedOutcome[] }) => Promise<void>) | undefined;
 }
 
 /**
@@ -302,6 +309,8 @@ export async function runTimedMoves(
   const tick: TimedMovesTick = { moved: 0, refused: 0, skipped: 0, left: kept };
   try {
     await moveDue(deps, connectionId, view, tick, now);
+    // After the moves: a hold a move just closed is not found again.
+    await releaseDue(deps, connectionId, view, tick, now);
   } finally {
     await save?.(tick.left);
   }
@@ -347,6 +356,87 @@ async function moveDue(deps: TimedMovesDeps, connectionId: string, view: Snapsho
       const data = { connectionId, table: one.target.table.id, pk: one.pk, rule: one.index, code: refusal ? error.code : ((error as { code?: unknown } | null)?.code ?? null) };
       if (refusal) deps.log?.warn(data, 'timed move refused; left alone for an hour');
       else (deps.log?.error ?? deps.log?.warn)?.call(deps.log, { ...data, err: error }, 'timed move failed; left alone for an hour');
+    }
+  }
+}
+
+/**
+ * HOLDS LET GO BY THE CLOCK. A posting that holds says until when on its
+ * receipt (`held_until`), whatever the row's own states do: when that time
+ * has passed, the round is given back here — one named phase for the stored
+ * row, the same locks, plan and receipt as a save that crosses a reverse
+ * point. A round some move already closed finds nothing to do, and its
+ * receipt is let go of. A receipt whose source table is no longer there is
+ * emptied and logged, never tried again each minute. A refusal leaves the
+ * hold alone for an hour, as a refused move is left.
+ */
+async function releaseDue(deps: TimedMovesDeps, connectionId: string, view: SnapshotView | null, tick: TimedMovesTick, now: Date): Promise<void> {
+  const ledgers = deps.ledgers;
+  if (view === null || ledgers === undefined) return;
+  await ledgers.refresh?.();
+  const holding = ledgers.holdingLedgers?.(view) ?? [];
+  if (holding.length === 0) return;
+  const { db, dialect } = await deps.manager.data(connectionId);
+  const zone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
+  const writes = deps.writes ?? createWriteService({ ...writeStores(deps.meta), ledgers });
+  const perTick = deps.perTick ?? TIMED_MOVES_PER_TICK;
+  const context: WriteContext = { origin: 'automation', hops: 0, actor: ACTOR, request: null };
+  const kept = tick.left;
+  for (const ledger of holding) {
+    const column = ledger.receipts.columns.get('held_until');
+    if (column === undefined) continue;
+    const receiptsTarget: WriteTarget = { connectionId, view, table: ledger.receipts, db, dialect, timezone: zone };
+    /** A receipt kept until a time is kept no longer: nothing scans it again. */
+    const forget = async (id: string | number): Promise<void> => {
+      await writes.update({ target: receiptsTarget, pk: { [ledger.receipts.primaryKey[0] ?? 'id']: id }, values: { held_until: null }, context, announce: async () => undefined });
+    };
+    // Every due receipt is read first, then each round is given back by its own write.
+    const due = await heldDue(db, ledger, bindWriteValue(column, now.toISOString(), dialect), perTick);
+    const seen = new Set<string>();
+    for (const receipt of due) {
+      const key = `hold|${connectionId}|${ledger.addOn}|${receipt.sourceTable}|${receipt.sourceRow}|${receipt.posting}`;
+      if (seen.has(key) || (kept[key] ?? 0) > now.getTime()) continue;
+      seen.add(key);
+      const tableId = ledgers.tableOfRef?.(connectionId, receipt.sourceTable) ?? null;
+      let table: ResolvedTable | null = null;
+      try {
+        table = tableId === null ? null : view.table(tableId);
+      } catch {
+        table = null;
+      }
+      try {
+        if (table === null) {
+          await forget(receipt.id);
+          deps.log?.warn({ connectionId, ledger: ledger.id, source: receipt.sourceTable }, 'a hold names a table that is not there any more; let go of');
+          continue;
+        }
+        const source = table;
+        const parts = source.primaryKey.length === 1 ? [receipt.sourceRow] : receipt.sourceRow.split('/');
+        const pk: Row = Object.fromEntries(source.primaryKey.map((name, index) => [name, normalizeWriteValue(source.columns.get(name)!, parts[index] ?? '')]));
+        const target: WriteTarget = { connectionId, view, table: source, db, dialect, timezone: zone };
+        const posted = await writes.post({
+          target,
+          pk,
+          posting: receipt.posting,
+          phase: 'reverse',
+          context,
+          announce: async (row, postings) => {
+            await deps.released?.({ connectionId, view, table: source, row, postings });
+          },
+        });
+        if (posted.length > 0) tick.moved += 1;
+        // Already closed by a move of the row (or the row is gone): this receipt has nothing left to keep.
+        else await forget(receipt.id);
+      } catch (error) {
+        if (connectionWide(error)) throw error;
+        const refusal = error instanceof AppError && error.statusCode < 500;
+        if ((refusal && TRANSIENT.has(error.code)) || isWriteConflict(error)) continue;
+        tick.refused += 1;
+        kept[key] = now.getTime() + LEAVE_ALONE_MS;
+        const data = { connectionId, ledger: ledger.id, source: receipt.sourceTable, row: receipt.sourceRow, posting: receipt.posting, code: refusal ? error.code : ((error as { code?: unknown } | null)?.code ?? null) };
+        if (refusal) deps.log?.warn(data, 'a hold was not let go; left alone for an hour');
+        else (deps.log?.error ?? deps.log?.warn)?.call(deps.log, { ...data, err: error }, 'letting a hold go failed; left alone for an hour');
+      }
     }
   }
 }
@@ -424,10 +514,13 @@ export async function enqueueTimedMoves(deps: TimedMovesDeps & { enqueue: (input
   const viewFor = deps.viewFor ?? createPublicViews(deps.meta).viewFor;
   const recent = await jobsRepo(deps.meta).recentPayloads(TIMED_MOVES_JOB_KIND, now.getTime() - 2 * LEAVE_ALONE_MS);
   let queued = 0;
+  await deps.ledgers?.refresh?.();
   for (const connection of await deps.manager.connections.list()) {
     if (connection.disabled) continue;
     const view = await viewFor(connection.id).catch(() => null);
-    if (view === null || timedTables(view).length === 0) continue;
+    if (view === null) continue;
+    // A connection with no timed move still has work when a ledger on it keeps holds until a time.
+    if (timedTables(view).length === 0 && (deps.ledgers?.holdingLedgers?.(view) ?? []).length === 0) continue;
     const last = recent.find((payload) => payload['connectionId'] === connection.id);
     const left = (last?.['left'] as LeftAlone | undefined) ?? {};
     await deps.enqueue({

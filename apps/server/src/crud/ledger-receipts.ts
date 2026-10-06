@@ -81,6 +81,19 @@ export async function receiptsOfLine(db: Db, ledger: Pick<ResolvedLedger, 'recei
   return rows.map(receiptOf);
 }
 
+/** The receipts of a ledger kept until a time that has passed, oldest first. `bound`: now, as the column takes it on this engine. */
+export async function heldDue(db: Db, ledger: Pick<ResolvedLedger, 'receipts'>, bound: unknown, limit: number): Promise<Receipt[]> {
+  const rows = (await db
+    .selectFrom(ledger.receipts.id as never)
+    .selectAll()
+    .where(sql.ref('held_until'), 'is not', null)
+    .where(sql.ref('held_until'), '<=', bound as never)
+    .orderBy(sql.ref('held_until'))
+    .limit(limit)
+    .execute()) as Row[];
+  return rows.map(receiptOf);
+}
+
 export interface RoundState {
   /** The round a phase that runs now belongs to: one more than the rounds given back. */
   round: number;

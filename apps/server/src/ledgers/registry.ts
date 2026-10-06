@@ -90,6 +90,14 @@ export interface LedgerRuntime {
    * not installed, without that ledger or action, or its code cannot be asked.
    */
   actionOf?(view: SnapshotView, addOnKey: string, ledgerId: string, actionId: string): { ledger: ResolvedLedger; action: LedgerAction; decider: InstalledDecider } | null;
+  /**
+   * The ledgers installed on a connection whose rounds may be kept until a
+   * time (an action that holds, or decides): what the minute's job looks
+   * through for holds whose time has passed.
+   */
+  holdingLedgers?(view: SnapshotView): ResolvedLedger[];
+  /** The table a stored name stands for here, or null when it is not there any more. */
+  tableOfRef?(connectionId: string, tableRef: string): string | null;
   /** Records a refusal an operator can act on (a plan that failed, a table that cannot be written): one audit row, after the save is gone. */
   refused?(event: LedgerRefusal): Promise<void>;
 }
@@ -223,6 +231,21 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
     },
     refOf: (connectionId, tableId) => deps.installs().refOf(connectionId, tableId),
     manifestOf: (connectionId, addOnKey) => deps.installs().installed(connectionId, addOnKey)?.manifest ?? null,
+    holdingLedgers(view) {
+      const installs = deps.installs();
+      const out: ResolvedLedger[] = [];
+      for (const key of installs.keys?.(view.connectionId) ?? []) {
+        const addOn = installs.installed(view.connectionId, key);
+        if (addOn === null || addOn.status !== 'installed') continue;
+        for (const declared of ledgersOf(addOn.manifest)) {
+          if (!Object.values(declared.actions).some((action) => action.holds === true || action.decides !== undefined)) continue;
+          const ledger = resolveLedger(installs, view, addOn, declared.id);
+          if (typeof ledger !== 'string') out.push(ledger);
+        }
+      }
+      return out;
+    },
+    tableOfRef: (connectionId, tableRef) => deps.installs().tableOfRef(connectionId, tableRef),
     actionOf(view, addOnKey, ledgerId, actionId) {
       const installs = deps.installs();
       const addOn = installs.installed(view.connectionId, addOnKey);

@@ -94,6 +94,8 @@ export interface AddOnInstalls {
   tableOf(connectionId: string, addOnKey: string, ref: string): string | null;
   /** How a table is named in another manifest's rows (`storedTableRef`). */
   refOf(connectionId: string, tableId: string): string;
+  /** The keys of the add-ons installed on a connection. */
+  keys?(connectionId: string): string[];
   /** The table a stored name stands for, or null when it names nothing here. */
   tableOfRef(connectionId: string, tableRef: string): string | null;
   /** Whether a feature of an app is on: every add-on it needs is installed here, attached to the app and switched on for it. */
@@ -160,6 +162,7 @@ export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<
       const index = indexes.get(connectionId);
       return index === undefined ? tableId : storedTableRef(index, tableId);
     },
+    keys: (connectionId) => [...addOns.keys()].filter((name) => name.startsWith(`${connectionId} `)).map((name) => name.slice(connectionId.length + 1)),
     tableOfRef(connectionId, tableRef) {
       const index = indexes.get(connectionId);
       return index === undefined ? null : (resolveTableRef(index, tableRef)?.tableId ?? null);

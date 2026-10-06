@@ -1367,7 +1367,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     { jitterMs: AUTOMATION_WATCH_JITTER_MS },
   );
   // The moves an app's states make by themselves once a moment has passed: one job per connection a minute.
-  const timedMoves = { meta, manager, app, writes: recordWrites, log: app.log };
+  const timedMoves = { meta, manager, app, writes: recordWrites, log: app.log, ledgers };
   registerTimedMovesHandler(jobs.registry, timedMoves);
   jobs.scheduler.registerSchedule(
     TIMED_MOVES_SCHEDULE_NAME,
