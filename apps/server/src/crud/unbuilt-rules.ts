@@ -83,8 +83,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
 
 /** The public entry keys whose behaviour is not built yet. */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
-  // A row opened by its own code: the length check and its own guess budget come with the add-on install.
-  { rule: 'unlock_by.self', on: (entry) => (entry['unlock_by'] as { self?: unknown } | undefined)?.self === true },
   // Availability answered by an add-on's stock words: read as a plain limit it would answer every row as free.
   { rule: 'words', on: (entry) => entry['words'] !== undefined },
 ];
@@ -109,7 +107,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   addOns: ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
-  'unlockBy.self': ADD_ON_INSTALL_RELEASE,
   // Ledgers and what posts into them.
   'addOn.ledgers': ADD_ON_INSTALL_RELEASE,
   'table.postings': ADD_ON_INSTALL_RELEASE,
@@ -167,6 +164,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'sampleData',
   // The rows an app ships for an add-on it names: added with the app's sample while that add-on is here for it.
   'sampleData.addOns',
+  // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
+  'unlockBy.self',
 ];
 
 export interface UnbuiltWord {

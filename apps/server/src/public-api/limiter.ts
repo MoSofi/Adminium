@@ -379,7 +379,8 @@ export interface PublicRateLimiter {
    * count is asked and nothing is reserved: the guess is counted if it is
    * kept (a miss).
    */
-  reserveGuess: (keyId: string, ip: string, codes: readonly string[]) => { refused: RateDecision } | { ticket: GuessTicket };
+  /** `rung`: which count the miss is held against — a discount code's, or a card's (`PUBLIC_GUESS_RUNGS`); a code's when not said. */
+  reserveGuess: (keyId: string, ip: string, codes: readonly string[], rung?: PublicGuessRung) => { refused: RateDecision } | { ticket: GuessTicket };
   /** These codes worked for this visitor: remembered, so they are not held back again. */
   knownCodes: (keyId: string, ip: string, codes: readonly string[]) => void;
   /** A picture asked for, per address, before any key is resolved. */
@@ -547,9 +548,9 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
   };
 
   const failKey = (ip: string): string => `fail|ip:${rateAddress(ip)}`;
-  const guessCounters = (keyId: string, ip: string): [string, { max: number; windowMs: number }][] => [
-    [`guess|pub:${keyId}:ip:${rateAddress(ip)}`, PUBLIC_CODE_GUESSES.visitor],
-    [`guess|pubkey:${keyId}`, PUBLIC_CODE_GUESSES.key],
+  const guessCounters = (keyId: string, ip: string, rung: PublicGuessRung = 'code'): [string, { max: number; windowMs: number }][] => [
+    [`${PUBLIC_GUESS_RUNGS[rung]}|pub:${keyId}:ip:${rateAddress(ip)}`, PUBLIC_CODE_GUESSES.visitor],
+    [`${PUBLIC_GUESS_RUNGS[rung]}|pubkey:${keyId}`, PUBLIC_CODE_GUESSES.key],
   ];
   /** Codes that worked, by key, visitor and the code as typed: a window of an hour each, kept apart from every count. */
   const known = new Map<string, Window>();
@@ -609,8 +610,8 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     failedResolution(ip) {
       decide(windows, failKey(ip), PUBLIC_FAILED_RESOLUTION, 1, true);
     },
-    reserveGuess(keyId, ip, codes) {
-      const counters = guessCounters(keyId, ip);
+    reserveGuess(keyId, ip, codes, rung) {
+      const counters = guessCounters(keyId, ip, rung);
       if (codes.length > 0 && codes.every((code) => isKnown(keyId, ip, code))) {
         const own = decide(windows, counters[0]![0], counters[0]![1], 1, false);
         if (!own.allowed) return { refused: own };

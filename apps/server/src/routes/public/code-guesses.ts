@@ -23,8 +23,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import type { CompiledResource } from '../../public-api/scope.js';
 import type { SnapshotView, ResolvedTable } from '../../crud/identifiers.js';
-import { canonicalCode, spellingOf, unlockedByCode, unlockedTargets, type CodeUnlock } from '../../crud/code-lookup.js';
-import type { GuessTicket, PublicRateLimiter, RateDecision } from '../../public-api/limiter.js';
+import { canonicalCode, codeBodyLength, spellingOf, unlockedByCode, unlockedTargets, type CodeUnlock } from '../../crud/code-lookup.js';
+import type { GuessTicket, PublicGuessRung, PublicRateLimiter, RateDecision } from '../../public-api/limiter.js';
 import type { Row } from '../../crud/mask.js';
 import type { TreeNode } from '../../crud/write-tree.js';
 import type { Kysely } from 'kysely';
@@ -84,18 +84,18 @@ interface HeldGuess {
  */
 export function guessRung(limiter: PublicRateLimiter, admit: (reply: FastifyReply, decision: RateDecision) => boolean) {
   const held = new WeakMap<FastifyRequest, HeldGuess>();
-  const reserveFor = (request: FastifyRequest, keyId: string, typed: readonly string[]): RateDecision | null => {
+  const reserveFor = (request: FastifyRequest, keyId: string, typed: readonly string[], rung: PublicGuessRung = 'code'): RateDecision | null => {
     if (held.has(request)) return null;
     const codes = [...new Set(typed.map(canonicalCode))];
-    const reserved = limiter.reserveGuess(keyId, request.ip, codes);
+    const reserved = limiter.reserveGuess(keyId, request.ip, codes, rung);
     if ('refused' in reserved) return reserved.refused;
     held.set(request, { keyId, ip: request.ip, codes, ticket: reserved.ticket, missed: false });
     return null;
   };
   return {
     /** Reserve a guess, or answer 429 and say no. */
-    admit(request: FastifyRequest, reply: FastifyReply, keyId: string, typed: readonly string[]): boolean {
-      const refused = reserveFor(request, keyId, typed);
+    admit(request: FastifyRequest, reply: FastifyReply, keyId: string, typed: readonly string[], rung: PublicGuessRung = 'code'): boolean {
+      const refused = reserveFor(request, keyId, typed, rung);
       return refused === null || admit(reply, refused);
     },
     /** Reserve a guess with no reply to write: the refusal, or null once it is held. */
@@ -142,13 +142,25 @@ function unlockOf(view: SnapshotView, resource: CompiledResource): { unlock: Cod
 }
 
 /**
+ * The count a wrong code on this resource is held against: a row opened by
+ * its own code is money (a gift card, a voucher) and has the cards' count; a
+ * code that opens other rows has the discount codes'.
+ */
+export function rungOf(resource: Pick<CompiledResource, 'unlockBy'>): PublicGuessRung {
+  return resource.unlockBy?.self === true ? 'card' : 'code';
+}
+
+/**
  * The keys of the rows a typed code unlocks on this resource (none for a
- * miss). A resource without an unlock rule is not asked.
+ * miss). A resource without an unlock rule is not asked. A row opened by its
+ * own code may say how long that code is: one of any other length is a miss
+ * before anything is looked up.
  */
 export async function unlockedKeys(db: Kysely<SourceDatabase>, view: SnapshotView, resource: CompiledResource, typed: string, now: Date, zone: string): Promise<unknown[]> {
   const found = unlockOf(view, resource);
   if (found === null) return [];
   const spelling = spellingOf(found.table.table.columns.find((column) => column.name === found.unlock.column));
+  if (found.unlock.self === true && found.unlock.length !== undefined && codeBodyLength(spelling, typed) !== found.unlock.length) return [];
   return unlockedTargets(db, found.unlock, spelling, typed, now, zone);
 }
 

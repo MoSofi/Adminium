@@ -336,6 +336,15 @@ export async function resolveLookups(
 }
 
 /**
+ * How long a typed code is, as its column keeps codes and with the column's
+ * own prefix apart: `GC-7K2M 9QXA 41TR` and `gc7k2m9qxa41tr` are both twelve.
+ */
+export function codeBodyLength(spelling: CodeSpelling, typed: string): number {
+  if (!('made' in spelling)) return canonicalCode(typed).length;
+  return madeCode(typed, spelling.made).length - spelling.made.prefix.length;
+}
+
+/**
  * The rows a typed code unlocks for reading (`unlockBy`): the `link` of the
  * one codes row it finds, under the rule's conditions — none for a miss,
  * whatever the miss was. `spelling` is how the codes column keeps its codes.

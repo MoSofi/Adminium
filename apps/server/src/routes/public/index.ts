@@ -51,7 +51,7 @@ import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { registerPictures } from './pictures.js';
-import { CODE_HEADER, GuessesSpent, guessRung, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
+import { CODE_HEADER, GuessesSpent, guessRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
@@ -1661,7 +1661,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     if (typed === null) return none;
     // What a typed code unlocks is its holder's, not everyone's: never kept by a browser or a cache (`personal`).
     personal.add(request);
-    if (!admitGuess(request, reply, ok, [typed])) return false;
+    // A row opened by its own code is held against the cards' count, never the discount codes'.
+    if (!guesses.admit(request, reply, ok.key.keyId, [typed], rungOf(resource))) return false;
     const keys = await unlockedKeys(db, view, resource, typed, new Date(), ok.key.scope.timezone);
     if (keys.length === 0) {
       guesses.missed(request);
@@ -2075,7 +2076,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             typed === null
               ? undefined
               : async (reader: CompiledResource): Promise<unknown[]> => {
-                  held.spent ??= guesses.reserve(request, ok.key.keyId, [typed]);
+                  held.spent ??= guesses.reserve(request, ok.key.keyId, [typed], rungOf(reader));
                   if (held.spent !== null) throw new GuessesSpent();
                   tried = true;
                   const keys = await unlockedKeys(found.db, found.view, reader, typed, new Date(), ok.key.scope.timezone);

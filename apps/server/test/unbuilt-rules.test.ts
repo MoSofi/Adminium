@@ -101,26 +101,26 @@ describe('a manifest that uses a word this server does not run yet', () => {
   });
 
   it('an app\'s own pages, roles and prefix are no such word; its link into an add-on is', () => {
-    expect(unbuiltInManifest(APP).map((found) => found.word)).toEqual(['column.addOnLink', 'unlockBy.self']);
+    expect(unbuiltInManifest(APP).map((found) => found.word)).toEqual(['column.addOnLink']);
     expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] })).toEqual([]);
   });
 
   it('is refused whole, with the release to move to', () => {
     expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.17')).toThrowError(
-      '"shop" uses "column.addOnLink", "unlockBy.self", which Adminium 0.3.18 runs and this Adminium 0.3.17 does not. Take them out, or move to Adminium 0.3.18.',
+      '"shop" uses "column.addOnLink", which Adminium 0.3.18 runs and this Adminium 0.3.17 does not. Take it out, or move to Adminium 0.3.18.',
     );
     try {
       refuseUnbuiltManifest(APP, '"shop"', '0.3.17');
     } catch (error) {
       expect(error).toMatchObject({ statusCode: 422, code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', serverVersion: '0.3.17' } });
-      expect((error as { details: { words: unknown[] } }).details.words).toHaveLength(2);
+      expect((error as { details: { words: unknown[] } }).details.words).toHaveLength(1);
     }
     // A word built since is let through: the list is the only thing that refuses.
     expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.18', {})).not.toThrow();
   });
 
-  it('a self-unlock stored by hand serves nothing either', () => {
-    expect(unbuiltEntryRuleOf({ source: 'cards', unlock_by: { table: 'cards', column: 'code', link: 'id', self: true } })).toBe('unlock_by.self');
+  it('a row opened by its own code is served: no entry rule refuses it', () => {
+    expect(unbuiltEntryRuleOf({ source: 'cards', unlock_by: { table: 'cards', column: 'code', link: 'id', self: true } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'ticket_types', unlock_by: { table: 'codes', column: 'code', link: 'type_id' } })).toBeNull();
   });
 });
@@ -141,7 +141,7 @@ describe('a release', () => {
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
     expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['postings', 'states.planned', 'column.addOnLink', 'rollup.capUnless', 'column.announce', 'adjust']);
-    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['unlock_by.self', 'words']);
+    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['words']);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {
