@@ -45,6 +45,8 @@ export interface SeedsInput {
   locale: string;
   /** Reads a file of the package (`seeds/units.json`), verified against what was staged. */
   readFile: (path: string) => Promise<Buffer>;
+  /** An update seeds only the tables it made (by their short names); absent, every declared seed is tried. */
+  only?: ReadonlySet<string> | undefined;
 }
 
 export interface SeedsResult {
@@ -111,7 +113,7 @@ export async function writeManifestSeeds(input: SeedsInput): Promise<SeedsResult
   const { manifest, view, source } = input;
   const result: SeedsResult = { written: {}, kept: [], settings: null };
   const settingsRef = manifest.kind === 'add-on' ? manifest.addOn.settingsTable : undefined;
-  const seeds = manifest.seeds ?? [];
+  const seeds = (manifest.seeds ?? []).filter((seed) => input.only === undefined || input.only.has(seed.table));
   if (seeds.length === 0 && settingsRef === undefined) return result;
 
   const tableOf = (ref: string): ResolvedTable => view.table(input.names[ref] ?? ref);

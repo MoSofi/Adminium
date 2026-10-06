@@ -105,6 +105,8 @@ import {
   installAddOn,
   parseAddOnDocument,
   planAddOn,
+  planAddOnUpdate,
+  updateAddOn,
   upgradeAddOn,
   type Actor,
 } from '../../add-ons/install.js';
@@ -159,6 +161,10 @@ import {
   startOAuthBody,
   startOAuthReply,
   upgradeAddOnReply,
+  updateAddOnBody,
+  updateAddOnPlanBody,
+  updateAddOnPlanReply,
+  updateAddOnReply,
   uploadAddOnQuery,
   installAddOnBody,
   installAddOnReply,
@@ -1323,6 +1329,57 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           actor: actorOf(request),
         });
         return { addOn: await toDto(installed), from, to, pruned };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/update/plan',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        // A check: it reads the database and writes nothing.
+        config: { audit: auditExempt('a plan of what an update would change; nothing is written') },
+        schema: { params: addOnKeyParams, body: updateAddOnPlanBody, response: { 200: updateAddOnPlanReply } },
+      },
+      async (request) => {
+        const { plan, from, to, connectionId, checksum } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to });
+        return { plan, from, to, connectionId, ...(checksum === undefined ? {} : { checksum }) };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/update',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: addOnKeyParams, body: updateAddOnBody, response: { 200: updateAddOnReply } },
+      },
+      async (request) => {
+        /*
+         * The update that may change the add-on's own tables: what the
+         * version adds to them, then its pages, roles and rules as an app's
+         * update writes them. The old `/upgrade` stays the door that never
+         * touches a table.
+         */
+        const { installed, from, to, pruned, connectionId, created, reused, written } = await updateAddOn(installer, {
+          key: request.params.key,
+          to: request.body.to,
+          planChecksum: request.body.planChecksum,
+          actor: actorOf(request),
+          host: {
+            log: request.log,
+            ...(request.server.hasDecorator('realtime') ? { publish: (channel, event, payload) => request.server.realtime.publish(channel, event, payload) } : {}),
+          },
+        });
+        const { pages, rules, roles, outbox, documents, seeds, seedsKept } = written ?? {};
+        return {
+          addOn: await toDto(installed),
+          from,
+          to,
+          pruned,
+          ...(connectionId === undefined ? {} : { connectionId }),
+          ...(created === undefined ? {} : { schema: { created, reused: reused ?? [] } }),
+          ...(written === undefined ? {} : { pages, rules, roles, outbox, documents, seeds, seedsKept }),
+        };
       },
     );
 

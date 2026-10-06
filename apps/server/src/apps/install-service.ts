@@ -2766,6 +2766,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       actor: actor.id === null ? null : { id: actor.id, label: actor.label },
       locale: (await userPrefsRepo(deps.meta).resolve(actor.id)).locale,
       readFile: input.readFile,
+      ...(input.only === undefined ? {} : { only: input.only }),
     });
   }
 

@@ -230,6 +230,10 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     async setStatus(id: string, status: ManifestStatus, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_manifests').set({ status, updatedAt: at }).where('id', '=', id).execute();
     },
+    /** Say which database a manifest's tables are in: an add-on whose earlier version kept none has no answer until a version that does. */
+    async setConnection(id: string, connectionId: string, at: number = Date.now()): Promise<void> {
+      await db.updateTable('adminium_manifests').set({ connectionId, updatedAt: at }).where('id', '=', id).execute();
+    },
 
     async setVersion(
       id: string,

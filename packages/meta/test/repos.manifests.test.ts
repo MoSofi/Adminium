@@ -11,7 +11,7 @@
 import { sql } from 'kysely';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { manifestsRepo } from '../src/index.js';
+import { connectionsRepo, manifestsRepo } from '../src/index.js';
 import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
@@ -68,6 +68,16 @@ for (const dialect of TEST_DIALECTS) {
       const again = await repo.attach(installed.row.id, 'printing', T0 + 5);
       expect(again.id).toBe(first.id);
       expect((await repo.findByKey('shipping-dhl'))?.attachments).toHaveLength(1);
+    });
+
+    it('records which database the tables of a manifest are in, on a row that had none', async () => {
+      const installed = await repo.install(DHL, T0);
+      expect(installed.row.connectionId).toBeNull();
+      const connection = await connectionsRepo(meta(), { encrypt: (v: string) => v, decrypt: (v: string) => v }).create({ name: 'Shop', engine: 'sqlite', introspectDsn: 'sqlite::memory:', dataDsn: 'sqlite::memory:' });
+      await repo.setConnection(installed.row.id, connection.id, T0 + 3);
+      const after = await repo.findByKey('shipping-dhl');
+      expect(after?.row.connectionId).toBe(connection.id);
+      expect(after?.row.updatedAt).toBe(T0 + 3);
     });
 
     it('enables and disables per host, not per add-on', async () => {

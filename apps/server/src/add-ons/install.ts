@@ -384,7 +384,7 @@ export async function addOnManifestFromStore(
 function refuseUnlessInstallable(
   key: string,
   plan: { problems: readonly { code: string; message: string; table: string }[]; installable: boolean },
-  verb: 'installed' | 'attached',
+  verb: 'installed' | 'attached' | 'updated',
 ): void {
   const range = plan.problems.find((problem) => problem.code === 'ADD_ON_RANGE');
   if (range !== undefined) {
@@ -753,37 +753,61 @@ export async function upgradeRangeRefusal(
   return null;
 }
 
-/**
- * Upgrade an installed add-on to a newer staged version, in place: the hosts it
- * is mounted on and the credential it was given survive it.
- */
-export async function upgradeAddOn(
-  deps: AddOnInstallerDeps,
-  input: {
-    key: string;
-    to?: string | undefined;
-    actor: Actor;
-    via?: string;
-    /** Hosts as they will be once the caller is done (an app install or update in progress). */
-    hosts?: readonly HostApp[];
-    /** The app whose own install asks for this version (see {@link upgradeRangeRefusal}). */
-    except?: string | undefined;
-    /**
-     * False: keep the earlier versions on disk. An app's install or update
-     * that upgrades an add-on keeps them until it has finished, so an update
-     * that stops part way can still be put back.
-     */
-    prune?: boolean;
-  },
-): Promise<{ installed: InstalledManifest; from: string; to: string; pruned: string[] }> {
+export interface UpdateAddOnInput {
+  key: string;
+  to?: string | undefined;
+  actor: Actor;
+  via?: string;
+  /** Hosts as they will be once the caller is done (an app install or update in progress). */
+  hosts?: readonly HostApp[];
+  /** The app whose own install asks for this version (see {@link upgradeRangeRefusal}). */
+  except?: string | undefined;
+  /**
+   * False: keep the earlier versions on disk. An app's install or update
+   * that upgrades an add-on keeps them until it has finished, so an update
+   * that stops part way can still be put back.
+   */
+  prune?: boolean;
+  /**
+   * `refuse`: a version that would change tables is not applied (the old
+   * upgrade door). `apply`, the default: an add-on that keeps tables of its
+   * own gets what the version adds to them.
+   */
+  schema?: 'apply' | 'refuse' | undefined;
+  /** The `checksum` of the plan the person looked at; a database that moved since answers `SCHEMA_DRIFT`. */
+  planChecksum?: string | undefined;
+  /** The server the update runs in: its log, and how open dashboards are told. A quiet one when absent. */
+  host?: InstallHost | undefined;
+}
+
+export interface UpdateAddOnResult {
+  installed: InstalledManifest;
+  from: string;
+  to: string;
+  pruned: string[];
+  /** For an add-on that keeps tables of its own: where they are, what this update made, and what its writers wrote. */
+  connectionId?: string | null;
+  created?: string[];
+  reused?: string[];
+  written?: Readonly<Record<string, unknown>>;
+}
+
+/** What an update is from and to, re-hashed and re-checked: an update cannot carry past the checks what an install could not. */
+async function updateTarget(deps: AddOnInstallerDeps, input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except'>) {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const { key } = input;
   const installed = await manifests.findByKey(key);
-  if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
+  if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${key}" is not installed.`);
 
   const from = installed.row.version;
   const newer = (await deps.store.versions(key)).filter((candidate) => compareSemver(candidate, from) > 0);
-  const to = input.to === undefined ? newer[0] : newer.find((candidate) => candidate === input.to);
+  /*
+   * AN UPDATE THAT STOPPED PART WAY is finished by the same call. Its row
+   * says `updating`; when it stopped after the version moved, the version to
+   * finish is the one the row already carries, and there is none newer.
+   */
+  const resumed = installed.row.status === 'updating' && (input.to === undefined ? newer.length === 0 : input.to === from);
+  const to = resumed ? from : input.to === undefined ? newer[0] : newer.find((candidate) => candidate === input.to);
   if (to === undefined) {
     throw new NotFoundError(
       input.to === undefined
@@ -794,8 +818,6 @@ export async function upgradeAddOn(
 
   const attachedTo = installed.attachments.map((a) => a.attachedTo);
   const hosts = await hostsFor(deps, attachedTo, input.hosts);
-  // Re-hash, re-validate: an upgrade cannot carry past the checks what an
-  // install could not.
   const { manifest } = await addOnManifestFromStore(deps, key, to, hosts);
   if (manifest.key !== key) {
     throw new ValidationFailedError(`The staged package declares key "${manifest.key}", not "${key}".`);
@@ -814,32 +836,213 @@ export async function upgradeAddOn(
 
   const broken = await upgradeRangeRefusal(deps, manifest, attachedTo, { hosts, except: input.except });
   if (broken !== null) throw broken;
+  return { manifests, installed, from, to, manifest, attachedTo, hosts, resumed };
+}
 
-  const { dto: upgradePlan } = await planAddOn(deps, manifest, { attachTo: attachedTo });
-  if (!upgradePlan.installable || upgradePlan.requiresSchemaChange) {
-    throw new ValidationFailedError(`"${key}" ${to} cannot be applied to this instance.`, {
-      problems: upgradePlan.problems,
-      requiresSchemaChange: upgradePlan.requiresSchemaChange,
+/**
+ * What an update would do, before it does it: the plan of the version's
+ * tables against the database the add-on lives in, and that plan's identity.
+ * Writes nothing.
+ */
+export async function planAddOnUpdate(
+  deps: AddOnInstallerDeps,
+  input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except'>,
+): Promise<{ plan: InstallPlanDto; from: string; to: string; connectionId: string | null; checksum?: string | undefined; manifest: AddOnManifest }> {
+  const target = await updateTarget(deps, input);
+  const { manifest, attachedTo, hosts, installed } = target;
+  if (!installsLikeAnApp(manifest)) {
+    return { plan: (await planAddOn(deps, manifest, { attachTo: attachedTo })).dto, from: target.from, to: target.to, connectionId: installed.row.connectionId, manifest };
+  }
+  const connectionId = installed.row.connectionId ?? (await deps.schemaTarget?.resolve?.({ ownsTables: true, attachTo: attachedTo })) ?? null;
+  if (connectionId === null) {
+    throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
+  }
+  const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [] });
+  return { plan: planned.dto, from: target.from, to: target.to, connectionId, checksum: planned.checksum, manifest };
+}
+
+/**
+ * Update an installed add-on to a newer staged version, in place: the hosts it
+ * is mounted on and the credential it was given survive it.
+ *
+ * An add-on that keeps tables of its own gets what the version adds to them
+ * — new tables, new columns, indexes — and then what it declares beside them,
+ * the way an app's update does: what the owner changed (a page, a rule, a
+ * role's reach) is kept. While it runs its row says `updating`, so nothing
+ * asks its code anything; a stop leaves it so, and the same call finishes.
+ */
+export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnInput): Promise<UpdateAddOnResult> {
+  const { key } = input;
+  const target = await updateTarget(deps, input);
+  const { manifests, installed, from, to, manifest, attachedTo, hosts, resumed } = target;
+  const likeApp = installsLikeAnApp(manifest);
+
+  if (!likeApp || input.schema === 'refuse') {
+    const { dto: upgradePlan } = likeApp
+      ? await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId: installed.row.connectionId ?? undefined, warnings: [] })
+      : await planAddOn(deps, manifest, { attachTo: attachedTo });
+    if (!upgradePlan.installable || upgradePlan.requiresSchemaChange) {
+      throw new ValidationFailedError(`"${key}" ${to} cannot be applied to this instance.`, {
+        problems: upgradePlan.problems,
+        requiresSchemaChange: upgradePlan.requiresSchemaChange,
+      });
+    }
+  }
+  if (!likeApp) {
+    await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+    // Older directories are pruned only AFTER the upgrade verified, so a failure
+    // anywhere above leaves the running version on disk — and, for an upgrade
+    // made by an app's update, only once that whole update is done.
+    const pruned = input.prune === false ? [] : await pruneOlderVersions(deps, key, to);
+    await auditRepo(deps.meta).append({
+      actorKind: input.actor.kind ?? 'user',
+      actorId: input.actor.id,
+      actorLabel: input.actor.label,
+      category: 'add-on',
+      action: 'add-on.upgraded',
+      changes: { after: { key, from, to, pruned, ...(input.via === undefined ? {} : { via: input.via }) } },
     });
+    await deps.rebuildRuntime?.();
+    return { installed: (await manifests.findByKey(key))!, from, to, pruned };
   }
 
-  await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+  const core = deps.core?.() ?? null;
+  if (core === null || deps.schemaTarget?.resolve === undefined) {
+    throw new ValidationFailedError(`"${key}" keeps tables of its own, which this instance cannot update: nothing that installs an app is wired into the add-on installer here.`, { code: 'ADD_ON_DDL_REQUIRED' });
+  }
+  const connectionId = installed.row.connectionId ?? (await deps.schemaTarget.resolve({ ownsTables: true, attachTo: attachedTo }));
+  if (connectionId === null) {
+    throw new ValidationFailedError(`"${key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
+  }
+  const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [] });
+  refuseUnlessInstallable(key, planned.dto, 'updated');
+  if (input.planChecksum !== undefined && planned.checksum !== undefined && input.planChecksum !== planned.checksum) {
+    throw new AppError(409, 'SCHEMA_DRIFT', `The database changed since "${key}" was checked. Check again, then update.`, { addOn: key, connectionId });
+  }
 
-  // Older directories are pruned only AFTER the upgrade verified, so a failure
-  // anywhere above leaves the running version on disk — and, for an upgrade
-  // made by an app's update, only once that whole update is done.
-  const pruned = input.prune === false ? [] : await pruneOlderVersions(deps, key, to);
+  const records = appTablesRepo(deps.meta);
+  const who: InstallActor = {
+    id: input.actor.id,
+    label: input.actor.label,
+    kind: input.actor.kind,
+    superAdmin: input.actor.superAdmin ?? (() => Promise.resolve(false)),
+    can: input.actor.can ?? (() => Promise.resolve(true)),
+  };
+  const where: InstallHost = input.host ?? { log: { info: () => undefined, warn: () => undefined } };
+  let stage: 'tables' | 'writers' | 'seeds' | 'finish' = 'tables';
+  const created: string[] = [];
+  let reused: string[] = [];
+  let written: Readonly<Record<string, unknown>> = {};
+  let pruned: string[] = [];
+  const before = installed.row.status;
+  const hadBefore = new Set(((installed.document as { requiredSchema?: { tables?: { ref?: unknown }[] } } | null)?.requiredSchema?.tables ?? []).map((table) => table.ref));
+  const broughtByThisVersion = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref).filter((ref) => !hadBefore.has(ref)));
+
+  const work = async (): Promise<void> => {
+    if (installed.row.connectionId === null) await manifests.setConnection(installed.row.id, connectionId);
+    await records.attach(connectionId, key, installed.row.id);
+    const checked = await core.checkedPlan(key, manifest, connectionId, 'updated', input.planChecksum);
+    const pending = new Map<string, string>();
+    const prefix = manifest.requiredSchema?.prefixed === true ? prefixFor(key) : null;
+    const applied = await core.applyTables(
+      checked,
+      manifest,
+      connectionId,
+      { superAdmin: await who.superAdmin(), createdBy: input.actor.id },
+      {
+        afterRenames: async () => {
+          for (const [ref, id] of await core.recordTables({ key, manifest, rowId: installed.row.id, connectionId, checked, prefix })) pending.set(ref, id);
+        },
+        onCreated: async (ref) => {
+          created.push(ref);
+          const id = pending.get(ref);
+          if (id !== undefined) await records.setState(id, 'created');
+        },
+      },
+    );
+    reused = applied.reused;
+    stage = 'writers';
+    written = (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, false)) ?? {};
+    /*
+     * Starting rows only for the tables THIS version brings: a table the
+     * version before already had is the owner's by now, empty or not. Read
+     * from what the row still says is installed — the version moves last —
+     * so an update that stopped and is taken up again answers the same. The
+     * settings row only while its table holds none.
+     */
+    stage = 'seeds';
+    if ((manifest.seeds ?? []).length > 0 || manifest.addOn.settingsTable !== undefined) {
+      const seeded = await core.writeSeeds({
+        actor: who,
+        manifest,
+        connectionId,
+        names: checked.plan.names ?? {},
+        readFile: async (path) => (await deps.store.readVerifiedFile(key, to, path)).bytes,
+        only: broughtByThisVersion,
+      });
+      written = { ...written, seeds: seeded.written, seedsKept: seeded.kept };
+    }
+    // The version moves last: everything it needs is there, and until now a stop could be taken up from the top.
+    stage = 'finish';
+    await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+    pruned = input.prune === false ? [] : await pruneOlderVersions(deps, key, to);
+    await manifests.setStatus(installed.row.id, 'installed');
+    await deps.rebuildRuntime?.();
+    try {
+      const documents = await core.makeDocuments(manifest, connectionId, input.actor.id);
+      if (documents !== undefined) written = { ...written, documents };
+    } catch (error) {
+      where.log.warn({ err: error, addOn: key }, 'the add-on is updated, but its document profiles were not brought up to date');
+    }
+  };
+
+  // Other processes read the row: from here until the end nothing asks this add-on's code anything.
+  await manifests.setStatus(installed.row.id, 'updating');
+  try {
+    // Code that decides inside a save waits for the saves in flight, and none starts while its tables change.
+    const deciding = decides(manifest) || (isAddOnManifest(installed.document as never) && decides(installed.document as AddOnManifest));
+    if (deciding) await deciderGate(key).write(work, { mark: false });
+    else await work();
+  } catch (error) {
+    // The saves in flight did not finish in time: nothing moved, so the row goes back to what it said.
+    if (error instanceof ConflictError && error.code === 'WRITE_CONFLICT') {
+      if (!resumed) await manifests.setStatus(installed.row.id, before as 'installed');
+      throw error;
+    }
+    await auditRepo(deps.meta).append({
+      actorKind: input.actor.kind ?? 'user',
+      actorId: input.actor.id,
+      actorLabel: input.actor.label,
+      category: 'add-on',
+      action: 'add-on.update-failed',
+      changes: { after: { key, from, to, connectionId, stage, created } },
+    });
+    throw new AppError(
+      409,
+      'ADD_ON_UPDATE_INCOMPLETE',
+      `"${key}" was not updated completely: it stopped at the ${stage} stage. Nothing was undone; update it again to finish.`,
+      { addOn: key, stage, from, to, created, cause: error instanceof AppError ? { code: error.code, message: error.message } : { message: error instanceof Error ? error.message : String(error) } },
+    );
+  }
 
   await auditRepo(deps.meta).append({
-    actorKind: 'user',
+    actorKind: input.actor.kind ?? 'user',
     actorId: input.actor.id,
     actorLabel: input.actor.label,
     category: 'add-on',
     action: 'add-on.upgraded',
-    changes: { after: { key, from, to, pruned, ...(input.via === undefined ? {} : { via: input.via }) } },
+    changes: { after: { key, from, to, pruned, connectionId, created, ...(resumed ? { resumed: true } : {}), ...(input.via === undefined ? {} : { via: input.via }) } },
   });
-  await deps.rebuildRuntime?.();
-  return { installed: (await manifests.findByKey(key))!, from, to, pruned };
+  return { installed: (await manifests.findByKey(key))!, from, to, pruned, connectionId, created, reused, written };
+}
+
+/**
+ * The old upgrade door: a newer version in place, and never a change to a
+ * table. A version that would change one is refused; `updateAddOn` applies it.
+ */
+export async function upgradeAddOn(deps: AddOnInstallerDeps, input: Omit<UpdateAddOnInput, 'schema' | 'planChecksum' | 'host'>): Promise<{ installed: InstalledManifest; from: string; to: string; pruned: string[] }> {
+  const { installed, from, to, pruned } = await updateAddOn(deps, { ...input, schema: 'refuse' });
+  return { installed, from, to, pruned };
 }
 
 /** Remove the versions of `key` on disk older than `keep`; the ones removed. */

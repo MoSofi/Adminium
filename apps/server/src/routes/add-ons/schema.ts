@@ -553,6 +553,38 @@ export const upgradeAddOnReply = z.object({
   pruned: z.array(z.string()),
 });
 
+/** `POST /add-ons/:key/update/plan` and `/update`: the version to move to (the newest staged when absent). */
+export const updateAddOnPlanBody = z.object({ to: z.string().min(1).max(64).optional() }).default({});
+export const updateAddOnBody = z
+  .object({
+    to: z.string().min(1).max(64).optional(),
+    /** The `checksum` of the plan that was read: a database that moved since answers 409 `SCHEMA_DRIFT`. */
+    planChecksum: z.string().min(1).max(128).optional(),
+  })
+  .default({});
+
+/** What an update would change, before it does: the version's tables against the database the add-on lives in. */
+export const updateAddOnPlanReply = z.object({
+  plan: installPlanDto,
+  from: z.string(),
+  to: z.string(),
+  connectionId: z.string().nullable(),
+  checksum: z.string().optional(),
+});
+
+/** An update's reply: the upgrade's, and — for an add-on that keeps tables of its own — what the update made and wrote. */
+export const updateAddOnReply = upgradeAddOnReply.extend({
+  connectionId: z.string().nullable().optional(),
+  schema: z.object({ created: z.array(z.string()), reused: z.array(z.string()) }).optional(),
+  pages: z.unknown().optional(),
+  rules: z.unknown().optional(),
+  roles: z.unknown().optional(),
+  outbox: z.unknown().optional(),
+  documents: z.unknown().optional(),
+  seeds: z.unknown().optional(),
+  seedsKept: z.unknown().optional(),
+});
+
 /**
  * Start an OAuth connect.
  *

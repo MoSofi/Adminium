@@ -194,10 +194,11 @@ describe('the add-on routes call the hooks at all', () => {
     // put back after a data directory was lost) in the routes; install,
     // upgrade and attach in the installer both the add-on and the app routes
     // call, and the install of an add-on that keeps tables of its own (which
-    // loads its code before any save is let back in) — seven rebuild sites.
+    // loads its code before any save is let back in), and the update of one
+    // (the same, for the version it moved to) — eight rebuild sites.
     expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(3);
     const installer = await readFile(new URL('../src/add-ons/install.ts', import.meta.url), 'utf8');
-    expect(installer.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(4);
+    expect(installer.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(5);
     expect(routes).toContain('rebuildRuntime: deps.rebuildRuntime');
     expect(routes).toContain('deps.onAddOnRemoved?.(key)');
 

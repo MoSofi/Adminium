@@ -108,7 +108,7 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
    * once, into tables that are empty, after its rules. `readFile` reads a
    * file of the package the rows may be kept in.
    */
-  writeSeeds(input: { actor: InstallActor; manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; readFile: (path: string) => Promise<Buffer> }): Promise<{
+  writeSeeds(input: { actor: InstallActor; manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; readFile: (path: string) => Promise<Buffer>; only?: ReadonlySet<string> | undefined }): Promise<{
     written: Record<string, number>;
     kept: string[];
     settings: 'made' | 'kept' | null;
