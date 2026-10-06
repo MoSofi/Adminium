@@ -58,6 +58,14 @@ export interface FieldIssues {
   [column: string]: { code: string; n?: number };
 }
 
+/** How many rows one row-by-row call carries. */
+const ONE_BY_ONE_CHUNK = 100;
+
+/** A bulk change refused because its rows post into an add-on's ledger: each must be its own save. */
+function isOneAtATime(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === 'POSTING_REFUSED' && (error.details as { reason?: unknown } | undefined)?.reason === 'one-at-a-time';
+}
+
 /**
  * An ApiError carrying the columns a write was refused for.
  *
@@ -308,11 +316,29 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
     undo: undoMutation,
 
     async bulk(action, ids, values): Promise<CrudBulkResult> {
-      return api.post<CrudBulkResult>(`${base}/bulk`, {
-        action,
-        ids: [...ids],
-        ...(values === undefined ? {} : { values }),
-      });
+      try {
+        return await api.post<CrudBulkResult>(`${base}/bulk`, {
+          action,
+          ids: [...ids],
+          ...(values === undefined ? {} : { values }),
+        });
+      } catch (error) {
+        // Rows that hand something to an add-on are saved one at a time: the
+        // same change is sent again that way, and each row answers for itself.
+        if (action !== 'update' || values === undefined || !isOneAtATime(error)) throw error;
+        const results: CrudBulkResult['results'] = [];
+        for (let start = 0; start < ids.length; start += ONE_BY_ONE_CHUNK) {
+          const reply = await api.post<{ results: { id?: unknown; ok: boolean; error?: { code: string; reason?: string } }[] }>(`${base}/one-by-one`, {
+            ids: ids.slice(start, start + ONE_BY_ONE_CHUNK),
+            values,
+          });
+          for (const [i, row] of reply.results.entries()) {
+            results.push({ id: row.id ?? ids[start + i], ok: row.ok, ...(row.ok ? {} : { error: row.error?.reason ?? row.error?.code ?? 'REFUSED' }) });
+          }
+        }
+        // Nothing saved this way is undone as one.
+        return { results, undoToken: null };
+      }
     },
 
     /**

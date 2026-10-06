@@ -10,6 +10,35 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse } from '../test/fixtures.js';
 import { createCrudApi, crudListQuery, forgetStateColumns } from './crud.js';
 
+describe('a bulk change of rows that post', () => {
+  const refused = () => jsonResponse(409, { error: { code: 'POSTING_REFUSED', message: 'one at a time', requestId: 'r', details: { reason: 'one-at-a-time', posting: 'visit' } } });
+
+  it('is sent again row by row, a hundred at a time, and answers each row — with no undo token', async () => {
+    const ids = Array.from({ length: 150 }, (_, i) => i + 1);
+    const fetchMock = captureFetch((url, init) => {
+      if (url.endsWith('/bulk')) return refused();
+      const sent = JSON.parse(String(init?.body)) as { ids: number[]; values: unknown };
+      return jsonResponse(200, { results: sent.ids.map((id) => (id === 7 ? { id, ok: false, error: { code: 'POSTING_REFUSED', reason: 'out-of-stock' } } : { id, ok: true })), done: sent.ids.length, notRun: 0 });
+    });
+    const result = await bulk('update', ids, { status: 'seen' });
+    const calls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(calls).toEqual(['/api/v1/data/conn_1/public.customers/bulk', '/api/v1/data/conn_1/public.customers/one-by-one', '/api/v1/data/conn_1/public.customers/one-by-one']);
+    expect(JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body))).toEqual({ ids: ids.slice(0, 100), values: { status: 'seen' } });
+    expect((JSON.parse(String((fetchMock.mock.calls[2]?.[1] as RequestInit).body)) as { ids: number[] }).ids).toHaveLength(50);
+    expect(result.undoToken).toBeNull();
+    expect(result.results).toHaveLength(150);
+    expect(result.results.filter((row) => !row.ok)).toEqual([{ id: 7, ok: false, error: 'out-of-stock' }]);
+  });
+
+  it('any other refusal, and a refused bulk delete, stay refusals', async () => {
+    captureFetch(() => jsonResponse(409, { error: { code: 'POSTING_REFUSED', message: 'no', requestId: 'r', details: { reason: 'receipt-open' } } }));
+    await expect(bulk('update', ['a'], { status: 'x' })).rejects.toMatchObject({ code: 'POSTING_REFUSED' });
+    const fetchMock = captureFetch(() => refused());
+    await expect(bulk('delete', ['a'])).rejects.toMatchObject({ code: 'POSTING_REFUSED' });
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
