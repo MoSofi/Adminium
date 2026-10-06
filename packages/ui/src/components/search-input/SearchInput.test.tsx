@@ -54,4 +54,87 @@ describe('SearchInput', () => {
     render(<SearchInput ref={ref} />);
     expect(ref.current?.type).toBe('search');
   });
+
+  it('Enter submits what is typed; the field keeps the focus and its text is selected', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SearchInput onSubmit={onSubmit} aria-label="Code" />);
+    const input = screen.getByRole('searchbox') as HTMLInputElement;
+    await user.type(input, 'GC-7K2M{Enter}');
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('GC-7K2M');
+    expect(document.activeElement).toBe(input);
+    // Selected, so the next scan replaces it.
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 7]);
+    await user.keyboard('VC-9QXA{Enter}');
+    expect(onSubmit).toHaveBeenLastCalledWith('VC-9QXA');
+    expect(input.value).toBe('VC-9QXA');
+  });
+
+  it('without onSubmit, Enter is the form\'s as it always was', async () => {
+    const user = userEvent.setup();
+    const submitted = vi.fn((event: { preventDefault(): void }) => event.preventDefault());
+    render(
+      <form onSubmit={submitted}>
+        <SearchInput aria-label="Search" />
+      </form>,
+    );
+    await user.type(screen.getByRole('searchbox'), 'abc{Enter}');
+    expect(submitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('options are a listbox: the arrows move through them, Enter submits the one they are on', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const options = [
+      { value: 'flour', label: 'Flour' },
+      { value: 'sugar', label: 'Sugar' },
+      { value: 'salt', label: 'Salt' },
+    ];
+    render(<SearchInput onSubmit={onSubmit} options={options} aria-label="Item" />);
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    const list = screen.getByRole('listbox');
+    expect(input.getAttribute('aria-controls')).toBe(list.id);
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Flour', 'Sugar', 'Salt']);
+    // Nothing is chosen until an arrow is pressed.
+    expect(input.getAttribute('aria-activedescendant')).toBeNull();
+    await user.click(input);
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    const active = screen.getAllByRole('option')[1]!;
+    expect(input.getAttribute('aria-activedescendant')).toBe(active.id);
+    expect(active.getAttribute('aria-selected')).toBe('true');
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[2]!.id);
+    await user.keyboard('{Enter}');
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('salt');
+    expect(input.value).toBe('salt');
+    expect(document.activeElement).toBe(input);
+    // Chosen: the list closes until somebody types again.
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    await user.keyboard('s');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('a click on an option submits it without taking the focus from the field; Escape closes the list', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SearchInput onSubmit={onSubmit} options={[{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }]} aria-label="Item" />);
+    const input = screen.getByRole('combobox');
+    await user.click(input);
+    await user.click(screen.getByRole('option', { name: 'Beta' }));
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('b');
+    expect(document.activeElement).toBe(input);
+    await user.keyboard('x{Escape}');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryAllByRole('option')).toEqual([]);
+    // With no option under the arrows, Enter submits the text — which replaced the chosen one, selected as it was.
+    await user.keyboard('{Enter}');
+    expect(onSubmit).toHaveBeenLastCalledWith('x');
+  });
+
+  it('an empty list draws no options and the field says it is not expanded', () => {
+    render(<SearchInput options={[]} aria-label="Item" />);
+    expect(screen.getByRole('combobox').getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryAllByRole('option')).toEqual([]);
+  });
 });
