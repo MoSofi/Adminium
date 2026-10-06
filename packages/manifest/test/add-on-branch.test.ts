@@ -66,6 +66,14 @@ describe('an add-on that installs like an app', () => {
     expect(result.ok && installsLikeAnApp(result.manifest as Manifest)).toBe(true);
   });
 
+  it('a page built into a file a slot loads is refused: a slot\'s code is handed to everybody signed in', () => {
+    const slot = { slot: 'order.dispatch.panel', client: 'pages/count.js', order: 10 };
+    const shared = kit({ addOn: { ...KIT.addOn, slots: [slot] } });
+    expect(issuesOf(shared).join('\n')).toContain('addOn.pages.0.client: the page "kit-count" is built into "pages/count.js", which a slot loads too');
+    // A file of its own beside the slot's is what every add-on ships.
+    expect(issuesOf(kit({ addOn: { ...KIT.addOn, slots: [{ ...slot, client: 'client/panel.js' }] } }))).toEqual([]);
+  });
+
   it('a page ref outside the add-on\'s key is refused', () => {
     const generated = kit({ pages: [{ ...KIT.pages[0], ref: 'items' }], roles: [] });
     expect(issuesOf(generated).join('\n')).toContain('pages.0.ref: a page of "kit" is addressed under its key');

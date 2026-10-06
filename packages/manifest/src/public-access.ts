@@ -42,6 +42,9 @@ import {
 import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
 import { conditionIssues, linkedConditionSchema, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
 
+/** The fewest characters (its prefix apart) of a code that opens its own row (`unlockBy.self`). */
+export const SELF_UNLOCK_MIN_LENGTH = 10;
+
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
 
@@ -655,7 +658,9 @@ export const publicAccessSchema = z
             header: z.literal(true),
             column: refSchema,
             self: z.literal(true),
-            length: z.number().int().min(4).max(16).optional(),
+            // Said, and long: the code is all that stands between a stranger and the row (a card's balance), and a
+            // short one is found by trying. Ten characters of the code alphabet are past what the guess limits let anyone try.
+            length: z.number().int().min(SELF_UNLOCK_MIN_LENGTH).max(16),
             where: codeWhereSchema.optional(),
           })
           .strict(),

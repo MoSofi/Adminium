@@ -50,8 +50,12 @@ describe('a row that opens with its own code', () => {
     expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, select: ['balance', 'code'] }] })).join('\n')).toContain('"cards.code" opens the row, so the row does not show it');
   });
 
-  it('takes a length of 4 to 16, a header and no link', () => {
-    expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: { ...SELF, length: 3 } }] }))).not.toEqual([]);
+  it('takes a length of 10 to 16 — said, never left out — a header and no link', () => {
+    // The code is all that keeps a stranger from the row: a short one is found by trying.
+    expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: { ...SELF, length: 9 } }] })).join('\n')).toContain('unlockBy');
+    expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: { ...SELF, length: 10 } }] }))).toEqual([]);
+    const { length: _length, ...unsaid } = SELF;
+    expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: unsaid }] }))).not.toEqual([]);
     expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: { ...SELF, length: 17 } }] }))).not.toEqual([]);
     expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: { ...SELF, link: 'id' } }] }))).not.toEqual([]);
     expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, unlockBy: { column: 'code', self: true } }] }))).not.toEqual([]);

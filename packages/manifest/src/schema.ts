@@ -2981,6 +2981,10 @@ export const addOnManifestSchema = z
     if (m.pages !== undefined || compareSemver(m.compatibility.minAdminiumVersion, ADD_ON_INSTALL_FLOOR) >= 0) {
       for (const issue of addOnPageRefIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
+    // From the floor on a page's code is handed out behind the page's own permission; a slot's is handed to everybody signed in.
+    if (compareSemver(m.compatibility.minAdminiumVersion, ADD_ON_INSTALL_FLOOR) >= 0) {
+      for (const issue of sharedPageFileIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    }
     if (!installsLikeAnApp(m)) return;
     // An issue with a code of its own carries it in `params`, where the validator reads it back.
     for (const issue of addOnInstallIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path, ...(issue.code === undefined ? {} : { params: { code: issue.code } }) });
@@ -3087,6 +3091,19 @@ function addOnPageRefIssues(m: { key: string; pages?: readonly { ref: string }[]
   (m.pages ?? []).forEach((page, p) => check(page.ref, ['pages', p, 'ref']));
   (m.addOn.pages ?? []).forEach((page, p) => check(page.ref, ['addOn', 'pages', p, 'ref']));
   return out;
+}
+
+/**
+ * A page's code is the page: it is served only to who may open the page. A
+ * slot's code is served to every signed-in person. One file named as both
+ * would be the page handed out with no permission asked, so a page has a
+ * file no slot names.
+ */
+function sharedPageFileIssues(m: { addOn: { pages?: readonly { ref: string; client: string }[] | undefined; slots?: readonly { client: string }[] | undefined } }): { path: (string | number)[]; message: string }[] {
+  const open = new Set((m.addOn.slots ?? []).map((slot) => slot.client));
+  return (m.addOn.pages ?? []).flatMap((page, p) =>
+    open.has(page.client) ? [{ path: ['addOn', 'pages', p, 'client'], message: `the page "${page.ref}" is built into "${page.client}", which a slot loads too: a page's code is served only to who may open the page, so give the page a file of its own` }] : [],
+  );
 }
 
 /** An add-on's ledgers as the manifest's own schema reads them; what does not parse is reported and left out. */
