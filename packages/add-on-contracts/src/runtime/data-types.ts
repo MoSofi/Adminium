@@ -132,6 +132,12 @@ export interface LookUpAnswer {
   /** The columns the add-on's `lookUp` shows of the row. Never the code itself. */
   row: DataRow;
   rows?: readonly DataRow[];
+  /** How the row was found: by the code typed, or by a customer's address. */
+  by?: 'code' | 'address';
+  /** The last four of the stored code, for "the card ending Q4XP"; null where there is no code to end. */
+  last4?: string | null;
+  /** An address only: how many further rows it matched. */
+  more?: number;
 }
 
 export interface UseLookUpResult {
