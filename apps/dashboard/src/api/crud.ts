@@ -28,6 +28,7 @@ import type {
 } from '@adminium/widgets';
 
 import { ApiError, api } from '../app/api.js';
+import { inReadersWords, ledgerRefusalText } from './ledgerRefusal.js';
 
 export type {
   CrudApi,
@@ -105,7 +106,8 @@ async function withFieldIssues<T>(run: () => Promise<T>): Promise<T> {
     return await run();
   } catch (error) {
     const issues = fieldIssuesIn(error);
-    if (issues === null) throw error;
+    // A ledger's refusal is told in the reader's own language, whichever screen shows it.
+    if (issues === null) throw inReadersWords(error);
     throw new FieldRefusedError(error as ApiError, issues);
   }
 }
@@ -301,9 +303,12 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
       if (options.dryRun === true) search.set('dryRun', 'true');
       if (options.confirm === true) search.set('confirm', 'true');
       const suffix = search.size === 0 ? '' : `?${search.toString()}`;
-      return api.delete<CrudMutationResult | CrudDeletePreview>(
-        `${base}/${encodeURIComponent(recordId)}${suffix}`,
-      );
+      try {
+        return await api.delete<CrudMutationResult | CrudDeletePreview>(`${base}/${encodeURIComponent(recordId)}${suffix}`);
+      } catch (error) {
+        // A row that still holds something under a ledger is not deleted: said in the reader's words.
+        throw inReadersWords(error);
+      }
     },
 
     async references(recordId): Promise<CrudReferenceCount[]> {
@@ -333,7 +338,7 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
             values,
           });
           for (const [i, row] of reply.results.entries()) {
-            results.push({ id: row.id ?? ids[start + i], ok: row.ok, ...(row.ok ? {} : { error: row.error?.reason ?? row.error?.code ?? 'REFUSED' }) });
+            results.push({ id: row.id ?? ids[start + i], ok: row.ok, ...(row.ok ? {} : { error: ledgerRefusalText(row.error?.reason) ?? row.error?.reason ?? row.error?.code ?? 'REFUSED' }) });
           }
         }
         // Nothing saved this way is undone as one.

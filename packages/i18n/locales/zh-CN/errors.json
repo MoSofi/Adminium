@@ -32,5 +32,29 @@
   "LLM_GROUP_INVALID": "某个导航分组无效——一个表出现在多个分组中。",
   "LLM_UNKNOWN_ICON": "建议的图标不可用；已改用默认图标。",
   "LLM_LABEL_COLLISION": "两条建议使用了相同的名称；二者会显示为同一个标题。",
-  "LLM_RUN_MISMATCH": "该响应似乎是从其他提示词生成的。"
+  "LLM_RUN_MISMATCH": "该响应似乎是从其他提示词生成的。",
+  "POSTING_REFUSED": "无法保存：负责记录的附加组件拒绝了此操作。",
+  "POSTING_REASON": {
+    "out-of-stock": "剩余数量不足。",
+    "expired": "已过期。",
+    "needs-batch": "请选择来自哪个批次。",
+    "not-valid": "此代码无效。",
+    "inactive": "尚未启用。",
+    "void": "已取消。",
+    "empty": "已无余额。",
+    "used-up": "已用完。",
+    "over-limit": "这将超出限额。",
+    "needs-customer": "需要地址已确认的客户。",
+    "refund-over": "超过了以此方式支付的金额。",
+    "not-allowed": "此处不允许这样做。",
+    "mapped-changed": "此行仍占用着内容：请先归还，再修改。",
+    "receipt-open": "此项仍占用着内容：请先归还。",
+    "one-at-a-time": "这些行需逐行保存。",
+    "add-on-unavailable": "所依赖的附加组件目前无法应答，因此无法保存。",
+    "planner-failed": "所依赖的附加组件未按要求应答，因此未保存任何内容。",
+    "too-large": "超出了一次可保存的数量。",
+    "hooked": "项目代码会更改附加组件管理的表，因此保存期间无法在其中记录。",
+    "guarded": "附加组件管理的表有自己的锁，因此保存期间无法在其中记录。",
+    "card-pays-card": "不能用这种方式支付。"
+  }
 }

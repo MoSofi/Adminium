@@ -42,5 +42,29 @@ export default {
   "LLM_GROUP_INVALID": "En navigationsgruppe er ugyldig — en tabel optræder i mere end én gruppe.",
   "LLM_UNKNOWN_ICON": "Det foreslåede ikon er ikke tilgængeligt; et standardikon blev brugt i stedet.",
   "LLM_LABEL_COLLISION": "To forslag deler samme navn; begge ville optræde under den samme titel.",
-  "LLM_RUN_MISMATCH": "Dette svar ser ud til at være genereret ud fra en anden prompt."
+  "LLM_RUN_MISMATCH": "Dette svar ser ud til at være genereret ud fra en anden prompt.",
+  "POSTING_REFUSED": "Dette kunne ikke gemmes: Tilføjelsen, der fører regnskab med det, afviste det.",
+  "POSTING_REASON": {
+    "out-of-stock": "Der er ikke nok tilbage af dette.",
+    "expired": "Dette er udløbet.",
+    "needs-batch": "Vælg, hvilket parti dette kommer fra.",
+    "not-valid": "Denne kode er ikke gyldig.",
+    "inactive": "Dette er ikke aktivt endnu.",
+    "void": "Dette er annulleret.",
+    "empty": "Der er intet tilbage på dette.",
+    "used-up": "Dette er brugt op.",
+    "over-limit": "Dette ville overskride en grænse.",
+    "needs-customer": "Dette kræver en kunde med bekræftet adresse.",
+    "refund-over": "Dette er mere, end der blev betalt på denne måde.",
+    "not-allowed": "Dette er ikke tilladt her.",
+    "mapped-changed": "Denne række holder stadig noget: Læg det tilbage først, og ret den derefter.",
+    "receipt-open": "Dette holder stadig noget: Læg det tilbage først.",
+    "one-at-a-time": "Disse rækker gemmes én ad gangen.",
+    "add-on-unavailable": "Tilføjelsen, som dette afhænger af, kan ikke spørges lige nu, så dette kan ikke gemmes.",
+    "planner-failed": "Tilføjelsen, som dette afhænger af, svarede ikke, som den skulle, så intet blev gemt.",
+    "too-large": "Dette er mere, end der kan gemmes på én gang.",
+    "hooked": "Projektkode ændrer en tabel, som tilføjelsen fører, så intet kan registreres der under en lagring.",
+    "guarded": "En tabel, som tilføjelsen fører, har sin egen lås, så intet kan registreres der under en lagring.",
+    "card-pays-card": "Dette kan ikke betales på denne måde."
+  }
 } as const;

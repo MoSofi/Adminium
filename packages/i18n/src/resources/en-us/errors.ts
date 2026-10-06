@@ -42,5 +42,29 @@ export default {
   "LLM_GROUP_INVALID": "A navigation group is invalid — a table appears in more than one group.",
   "LLM_UNKNOWN_ICON": "The suggested icon isn’t available; a default icon was used instead.",
   "LLM_LABEL_COLLISION": "Two suggestions share a name; both would appear under the same title.",
-  "LLM_RUN_MISMATCH": "This response looks like it was generated from a different prompt."
+  "LLM_RUN_MISMATCH": "This response looks like it was generated from a different prompt.",
+  "POSTING_REFUSED": "This could not be saved: the add-on that keeps its records refused it.",
+  "POSTING_REASON": {
+    "out-of-stock": "There is not enough of this left.",
+    "expired": "This has expired.",
+    "needs-batch": "Choose which batch this comes from.",
+    "not-valid": "This code is not valid.",
+    "inactive": "This is not active yet.",
+    "void": "This has been cancelled.",
+    "empty": "Nothing is left on this.",
+    "used-up": "This has been used up.",
+    "over-limit": "This would go over a limit.",
+    "needs-customer": "This needs a customer whose address is confirmed.",
+    "refund-over": "This is more than was paid this way.",
+    "not-allowed": "This is not allowed here.",
+    "mapped-changed": "This row still holds something: put it back first, then change it.",
+    "receipt-open": "This still holds something: put it back first.",
+    "one-at-a-time": "These rows are saved one at a time.",
+    "add-on-unavailable": "The add-on this depends on cannot be asked right now, so this cannot be saved.",
+    "planner-failed": "The add-on this depends on did not answer as it should, so nothing was saved.",
+    "too-large": "This is more than can be saved in one go.",
+    "hooked": "Project code changes a table the add-on keeps, so nothing can be recorded there during a save.",
+    "guarded": "A table the add-on keeps has a lock of its own, so nothing can be recorded there during a save.",
+    "card-pays-card": "This cannot be paid for this way."
+  }
 } as const;

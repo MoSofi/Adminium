@@ -32,5 +32,29 @@
   "LLM_GROUP_INVALID": "Eine Navigationsgruppe ist ungültig — eine Tabelle erscheint in mehr als einer Gruppe.",
   "LLM_UNKNOWN_ICON": "Das vorgeschlagene Symbol ist nicht verfügbar; stattdessen wurde ein Standardsymbol verwendet.",
   "LLM_LABEL_COLLISION": "Zwei Vorschläge tragen denselben Namen; beide würden unter demselben Titel erscheinen.",
-  "LLM_RUN_MISMATCH": "Diese Antwort scheint aus einem anderen Prompt erzeugt worden zu sein."
+  "LLM_RUN_MISMATCH": "Diese Antwort scheint aus einem anderen Prompt erzeugt worden zu sein.",
+  "POSTING_REFUSED": "Das konnte nicht gespeichert werden: Das Add-on, das darüber Buch führt, hat es abgelehnt.",
+  "POSTING_REASON": {
+    "out-of-stock": "Davon ist nicht mehr genug da.",
+    "expired": "Das ist abgelaufen.",
+    "needs-batch": "Wählen Sie die Charge, aus der das stammt.",
+    "not-valid": "Dieser Code ist nicht gültig.",
+    "inactive": "Das ist noch nicht aktiv.",
+    "void": "Das wurde storniert.",
+    "empty": "Darauf ist nichts mehr übrig.",
+    "used-up": "Das ist aufgebraucht.",
+    "over-limit": "Damit würde eine Grenze überschritten.",
+    "needs-customer": "Dafür wird ein Kunde mit bestätigter Adresse benötigt.",
+    "refund-over": "Das ist mehr, als auf diesem Weg bezahlt wurde.",
+    "not-allowed": "Das ist hier nicht erlaubt.",
+    "mapped-changed": "Diese Zeile hält noch etwas fest: Geben Sie es zuerst zurück und ändern Sie sie dann.",
+    "receipt-open": "Hier wird noch etwas festgehalten: Geben Sie es zuerst zurück.",
+    "one-at-a-time": "Diese Zeilen werden einzeln gespeichert.",
+    "add-on-unavailable": "Das Add-on, von dem dies abhängt, kann gerade nicht gefragt werden. Deshalb kann nicht gespeichert werden.",
+    "planner-failed": "Das Add-on, von dem dies abhängt, hat nicht wie erwartet geantwortet. Es wurde nichts gespeichert.",
+    "too-large": "Das ist mehr, als auf einmal gespeichert werden kann.",
+    "hooked": "Projektcode ändert eine Tabelle des Add-ons. Deshalb kann dort beim Speichern nichts eingetragen werden.",
+    "guarded": "Eine Tabelle des Add-ons hat eine eigene Sperre. Deshalb kann dort beim Speichern nichts eingetragen werden.",
+    "card-pays-card": "Das kann so nicht bezahlt werden."
+  }
 }

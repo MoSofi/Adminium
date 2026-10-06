@@ -42,5 +42,29 @@ export default {
   "LLM_GROUP_INVALID": "某個導覽群組無效——一個資料表出現在多個群組中。",
   "LLM_UNKNOWN_ICON": "建議的圖示無法使用；已改用預設圖示。",
   "LLM_LABEL_COLLISION": "兩則建議使用了相同的名稱；兩者會顯示為同一個標題。",
-  "LLM_RUN_MISMATCH": "此回應似乎是從其他提示詞產生的。"
+  "LLM_RUN_MISMATCH": "此回應似乎是從其他提示詞產生的。",
+  "POSTING_REFUSED": "無法儲存：負責記錄的附加元件拒絕了此操作。",
+  "POSTING_REASON": {
+    "out-of-stock": "剩餘數量不足。",
+    "expired": "已過期。",
+    "needs-batch": "請選擇來自哪個批次。",
+    "not-valid": "此代碼無效。",
+    "inactive": "尚未啟用。",
+    "void": "已取消。",
+    "empty": "已無餘額。",
+    "used-up": "已用完。",
+    "over-limit": "這將超出限額。",
+    "needs-customer": "需要地址已確認的客戶。",
+    "refund-over": "超過了以此方式支付的金額。",
+    "not-allowed": "此處不允許這樣做。",
+    "mapped-changed": "此列仍佔用著內容：請先歸還，再修改。",
+    "receipt-open": "此項仍佔用著內容：請先歸還。",
+    "one-at-a-time": "這些列需逐列儲存。",
+    "add-on-unavailable": "所依賴的附加元件目前無法回應，因此無法儲存。",
+    "planner-failed": "所依賴的附加元件未依要求回應，因此未儲存任何內容。",
+    "too-large": "超出了一次可儲存的數量。",
+    "hooked": "專案程式碼會變更附加元件管理的資料表，因此儲存期間無法在其中記錄。",
+    "guarded": "附加元件管理的資料表有自己的鎖，因此儲存期間無法在其中記錄。",
+    "card-pays-card": "無法以這種方式付款。"
+  }
 } as const;

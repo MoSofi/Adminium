@@ -32,5 +32,29 @@
   "LLM_GROUP_INVALID": "Un groupe de navigation est invalide — une table apparaît dans plusieurs groupes.",
   "LLM_UNKNOWN_ICON": "L’icône suggérée n’est pas disponible ; une icône par défaut a été utilisée.",
   "LLM_LABEL_COLLISION": "Deux suggestions portent le même nom ; toutes deux apparaîtraient sous le même titre.",
-  "LLM_RUN_MISMATCH": "Cette réponse semble avoir été générée à partir d’une autre invite."
+  "LLM_RUN_MISMATCH": "Cette réponse semble avoir été générée à partir d’une autre invite.",
+  "POSTING_REFUSED": "Enregistrement impossible : le module qui tient ces registres l’a refusé.",
+  "POSTING_REASON": {
+    "out-of-stock": "Il n’en reste pas assez.",
+    "expired": "Ceci a expiré.",
+    "needs-batch": "Choisissez le lot d’où cela provient.",
+    "not-valid": "Ce code n’est pas valide.",
+    "inactive": "Ceci n’est pas encore actif.",
+    "void": "Ceci a été annulé.",
+    "empty": "Il ne reste rien dessus.",
+    "used-up": "Ceci a été entièrement utilisé.",
+    "over-limit": "Cela dépasserait une limite.",
+    "needs-customer": "Il faut un client dont l’adresse est confirmée.",
+    "refund-over": "C’est plus que ce qui a été payé de cette façon.",
+    "not-allowed": "Ce n’est pas autorisé ici.",
+    "mapped-changed": "Cette ligne retient encore quelque chose : remettez-le d’abord, puis modifiez-la.",
+    "receipt-open": "Ceci retient encore quelque chose : remettez-le d’abord.",
+    "one-at-a-time": "Ces lignes s’enregistrent une par une.",
+    "add-on-unavailable": "Le module dont cela dépend ne peut pas être interrogé pour l’instant ; l’enregistrement est impossible.",
+    "planner-failed": "Le module dont cela dépend n’a pas répondu comme il le devait ; rien n’a été enregistré.",
+    "too-large": "C’est plus que ce qui peut être enregistré en une fois.",
+    "hooked": "Du code du projet modifie une table tenue par le module ; rien ne peut y être inscrit pendant un enregistrement.",
+    "guarded": "Une table tenue par le module a son propre verrou ; rien ne peut y être inscrit pendant un enregistrement.",
+    "card-pays-card": "Ceci ne peut pas être payé de cette façon."
+  }
 }

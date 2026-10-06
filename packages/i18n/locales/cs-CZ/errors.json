@@ -32,5 +32,29 @@
   "LLM_GROUP_INVALID": "Navigační skupina je neplatná — tabulka se objevuje ve více než jedné skupině.",
   "LLM_UNKNOWN_ICON": "Navržená ikona není k dispozici; místo ní byla použita výchozí.",
   "LLM_LABEL_COLLISION": "Dva návrhy sdílejí stejný název; oba by se zobrazily pod stejným nadpisem.",
-  "LLM_RUN_MISMATCH": "Tato odpověď vypadá, že byla vygenerována z jiného promptu."
+  "LLM_RUN_MISMATCH": "Tato odpověď vypadá, že byla vygenerována z jiného promptu.",
+  "POSTING_REFUSED": "Toto se nepodařilo uložit: doplněk, který o tom vede záznamy, to odmítl.",
+  "POSTING_REASON": {
+    "out-of-stock": "Tohoto už není dost.",
+    "expired": "Platnost vypršela.",
+    "needs-batch": "Vyberte šarži, ze které to pochází.",
+    "not-valid": "Tento kód není platný.",
+    "inactive": "Toto zatím není aktivní.",
+    "void": "Toto bylo zrušeno.",
+    "empty": "Na tomto už nic nezbývá.",
+    "used-up": "Toto bylo vyčerpáno.",
+    "over-limit": "Tím by se překročil limit.",
+    "needs-customer": "K tomu je potřeba zákazník s potvrzenou adresou.",
+    "refund-over": "To je víc, než bylo tímto způsobem zaplaceno.",
+    "not-allowed": "Toto zde není povoleno.",
+    "mapped-changed": "Tento řádek stále něco drží: nejdřív to vraťte, potom jej změňte.",
+    "receipt-open": "Toto stále něco drží: nejdřív to vraťte.",
+    "one-at-a-time": "Tyto řádky se ukládají po jednom.",
+    "add-on-unavailable": "Doplňku, na kterém to závisí, se teď nelze zeptat, takže to nelze uložit.",
+    "planner-failed": "Doplněk, na kterém to závisí, neodpověděl tak, jak měl, takže se nic neuložilo.",
+    "too-large": "To je víc, než lze uložit najednou.",
+    "hooked": "Kód projektu mění tabulku, kterou vede doplněk, takže do ní při ukládání nelze nic zapsat.",
+    "guarded": "Tabulka, kterou vede doplněk, má vlastní zámek, takže do ní při ukládání nelze nic zapsat.",
+    "card-pays-card": "Toto nelze zaplatit tímto způsobem."
+  }
 }

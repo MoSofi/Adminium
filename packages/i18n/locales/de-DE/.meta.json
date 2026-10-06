@@ -13255,6 +13255,94 @@
     "srcHash": "3640a289846c",
     "status": "mt"
   },
+  "errors.POSTING_REASON.add-on-unavailable": {
+    "status": "mt",
+    "srcHash": "2eee17ed752a"
+  },
+  "errors.POSTING_REASON.card-pays-card": {
+    "status": "mt",
+    "srcHash": "470a9bae9050"
+  },
+  "errors.POSTING_REASON.empty": {
+    "status": "mt",
+    "srcHash": "cf860e75b3ec"
+  },
+  "errors.POSTING_REASON.expired": {
+    "status": "mt",
+    "srcHash": "0bb512910b96"
+  },
+  "errors.POSTING_REASON.guarded": {
+    "status": "mt",
+    "srcHash": "7f19d0d1feb2"
+  },
+  "errors.POSTING_REASON.hooked": {
+    "status": "mt",
+    "srcHash": "bdc7be9098e0"
+  },
+  "errors.POSTING_REASON.inactive": {
+    "status": "mt",
+    "srcHash": "bec0bcc51554"
+  },
+  "errors.POSTING_REASON.mapped-changed": {
+    "status": "mt",
+    "srcHash": "ed61ababd1b9"
+  },
+  "errors.POSTING_REASON.needs-batch": {
+    "status": "mt",
+    "srcHash": "96dd23298ea1"
+  },
+  "errors.POSTING_REASON.needs-customer": {
+    "status": "mt",
+    "srcHash": "12236ea5f656"
+  },
+  "errors.POSTING_REASON.not-allowed": {
+    "status": "mt",
+    "srcHash": "55a023f3ad86"
+  },
+  "errors.POSTING_REASON.not-valid": {
+    "status": "mt",
+    "srcHash": "b1508052fb20"
+  },
+  "errors.POSTING_REASON.one-at-a-time": {
+    "status": "mt",
+    "srcHash": "847efb4b05e7"
+  },
+  "errors.POSTING_REASON.out-of-stock": {
+    "status": "mt",
+    "srcHash": "b5c97d952502"
+  },
+  "errors.POSTING_REASON.over-limit": {
+    "status": "mt",
+    "srcHash": "a4fe84735163"
+  },
+  "errors.POSTING_REASON.planner-failed": {
+    "status": "mt",
+    "srcHash": "0aca5e34f031"
+  },
+  "errors.POSTING_REASON.receipt-open": {
+    "status": "mt",
+    "srcHash": "07b397d29911"
+  },
+  "errors.POSTING_REASON.refund-over": {
+    "status": "mt",
+    "srcHash": "7d15bd1cd744"
+  },
+  "errors.POSTING_REASON.too-large": {
+    "status": "mt",
+    "srcHash": "baa0b56487e2"
+  },
+  "errors.POSTING_REASON.used-up": {
+    "status": "mt",
+    "srcHash": "afc752af2572"
+  },
+  "errors.POSTING_REASON.void": {
+    "status": "mt",
+    "srcHash": "653d23ca89a6"
+  },
+  "errors.POSTING_REFUSED": {
+    "status": "mt",
+    "srcHash": "e184aecc8a37"
+  },
   "errors.RATE_LIMITED": {
     "srcHash": "007d23f37d39",
     "status": "mt"

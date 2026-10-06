@@ -8,7 +8,9 @@ import { isDeletePreview } from '@adminium/widgets';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { jsonResponse } from '../test/fixtures.js';
+import { ApiError } from '../app/api.js';
 import { createCrudApi, crudListQuery, forgetStateColumns } from './crud.js';
+import { ledgerRefusalText } from './ledgerRefusal.js';
 
 describe('a bulk change of rows that post', () => {
   const refused = () => jsonResponse(409, { error: { code: 'POSTING_REFUSED', message: 'one at a time', requestId: 'r', details: { reason: 'one-at-a-time', posting: 'visit' } } });
@@ -27,7 +29,8 @@ describe('a bulk change of rows that post', () => {
     expect((JSON.parse(String((fetchMock.mock.calls[2]?.[1] as RequestInit).body)) as { ids: number[] }).ids).toHaveLength(50);
     expect(result.undoToken).toBeNull();
     expect(result.results).toHaveLength(150);
-    expect(result.results.filter((row) => !row.ok)).toEqual([{ id: 7, ok: false, error: 'out-of-stock' }]);
+    // A row's refusal is told as a sentence, not as the server's word for it.
+    expect(result.results.filter((row) => !row.ok)).toEqual([{ id: 7, ok: false, error: 'There is not enough of this left.' }]);
   });
 
   it('any other refusal, and a refused bulk delete, stay refusals', async () => {
@@ -36,6 +39,37 @@ describe('a bulk change of rows that post', () => {
     const fetchMock = captureFetch(() => refused());
     await expect(bulk('delete', ['a'])).rejects.toMatchObject({ code: 'POSTING_REFUSED' });
     expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+});
+
+describe('a save a ledger refused', () => {
+  const refusal = (details: Record<string, unknown>) => jsonResponse(409, { error: { code: 'POSTING_REFUSED', message: 'The add-on refused this.', requestId: 'req_1', details } });
+
+  it('is told in a sentence of the reason, with its code and details kept for whatever reads them', async () => {
+    captureFetch(() => refusal({ reason: 'out-of-stock', posting: 'stock', line: 2, left: '3', item: 'Tote' }));
+    const error = await crud.create({ name: 'x' }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 409, code: 'POSTING_REFUSED', message: 'There is not enough of this left.', requestId: 'req_1', details: { reason: 'out-of-stock', line: 2, left: '3', item: 'Tote' } });
+    captureFetch(() => refusal({ reason: 'mapped-changed', column: 'quantity' }));
+    await expect(crud.update('7', { quantity: 5 })).rejects.toMatchObject({ code: 'POSTING_REFUSED', message: 'This row still holds something: put it back first, then change it.' });
+    captureFetch(() => refusal({ reason: 'receipt-open' }));
+    await expect(crud.remove('7')).rejects.toMatchObject({ code: 'POSTING_REFUSED', message: 'This still holds something: put it back first.' });
+  });
+
+  it('a reason this build does not know is told in the general sentence, and any other error is left as it came', async () => {
+    captureFetch(() => refusal({ reason: 'a-word-from-a-newer-add-on' }));
+    await expect(crud.create({ name: 'x' })).rejects.toMatchObject({ message: 'This could not be saved: the add-on that keeps its records refused it.' });
+    captureFetch(() => jsonResponse(409, { error: { code: 'BALANCE_EXCEEDED', message: 'That is more than the balance.', requestId: 'r' } }));
+    await expect(crud.create({ name: 'x' })).rejects.toMatchObject({ code: 'BALANCE_EXCEEDED', message: 'That is more than the balance.' });
+  });
+
+  it('has a sentence for every reason a ledger or Adminium gives', () => {
+    const reasons = ['out-of-stock', 'expired', 'needs-batch', 'not-valid', 'inactive', 'void', 'empty', 'used-up', 'over-limit', 'needs-customer', 'refund-over', 'not-allowed', 'mapped-changed', 'receipt-open', 'one-at-a-time', 'add-on-unavailable', 'planner-failed', 'too-large', 'hooked', 'guarded', 'card-pays-card'];
+    const said = reasons.map((reason) => ledgerRefusalText(reason));
+    expect(said.every((text) => typeof text === 'string' && text.length > 0)).toBe(true);
+    expect(new Set(said).size).toBe(reasons.length);
+    expect(ledgerRefusalText('nothing-known')).toBeNull();
+    expect(ledgerRefusalText(undefined)).toBeNull();
   });
 });
 
