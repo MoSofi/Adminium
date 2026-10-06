@@ -110,12 +110,12 @@ describe('a manifest that uses a word this server does not run yet', () => {
 
   it('is refused whole, with the release to move to', () => {
     expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.17')).toThrowError(
-      '"shop" uses "column.codeLast4", which Adminium 0.3.18 runs and this Adminium 0.3.17 does not. Take it out, or move to Adminium 0.3.18.',
+      '"shop" uses "column.codeLast4", which Adminium 0.3.19 runs and this Adminium 0.3.17 does not. Take it out, or move to Adminium 0.3.19.',
     );
     try {
       refuseUnbuiltManifest(APP, '"shop"', '0.3.17');
     } catch (error) {
-      expect(error).toMatchObject({ statusCode: 422, code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', serverVersion: '0.3.17' } });
+      expect(error).toMatchObject({ statusCode: 422, code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.19', serverVersion: '0.3.17' } });
       expect((error as { details: { words: unknown[] } }).details.words).toHaveLength(1);
     }
     // A word built since is let through: the list is the only thing that refuses.

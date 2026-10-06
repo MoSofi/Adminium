@@ -78,7 +78,7 @@ describe('a word this server does not run yet', () => {
     });
     expect(staged.statusCode, staged.body).toBe(422);
     expect(JSON.parse(staged.body)).toMatchObject({
-      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', words: [{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.4.rules.codeLast4', release: '0.3.18' }] } },
+      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.19', words: [{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.4.rules.codeLast4', release: '0.3.19' }] } },
     });
     expect(await h.rows(`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'shop_%'`)).toEqual([]);
   });

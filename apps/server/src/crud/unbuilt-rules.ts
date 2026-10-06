@@ -80,8 +80,8 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // An add-on's own blocks: what it declares in an app's words.
   addOns: ADD_ON_INSTALL_RELEASE,
-  // The last four characters of a code, kept beside it.
-  'column.codeLast4': ADD_ON_INSTALL_RELEASE,
+  // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
+  'column.codeLast4': PRICE_QUESTION_RELEASE,
   // Rules an app or an add-on ships.
   automations: ADD_ON_INSTALL_RELEASE,
   // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table and a row.

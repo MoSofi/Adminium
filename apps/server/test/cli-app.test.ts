@@ -208,7 +208,7 @@ describe('adminium app check', () => {
     });
     const { code, err } = await run('check');
     expect(code).toBe(2);
-    expect(err).toMatch(/apps\/repairs\/manifest\/tables\/jobs\.json: columns\.4\.rules\.codeLast4 — uses "column\.codeLast4", which Adminium 0\.3\.18 runs and this Adminium \S+ does not\. Take it out, or run this folder on Adminium 0\.3\.18\./);
+    expect(err).toMatch(/apps\/repairs\/manifest\/tables\/jobs\.json: columns\.4\.rules\.codeLast4 — uses "column\.codeLast4", which Adminium 0\.3\.19 runs and this Adminium \S+ does not\. Take it out, or run this folder on Adminium 0\.3\.19\./);
   });
 
   it('says that the add-ons it names add to what the customer side may reach, and checks its rows for them', async () => {
