@@ -147,6 +147,11 @@ export const addOnDto = z.object({
   ),
   /** The stored NON-SECRET values. Never a credential. */
   settingValues: z.record(z.string(), z.unknown()),
+  /**
+   * What the add-on's pages are built against: 1, or 2 when they also need the
+   * data kit — a host loads the kit for those, and for no other.
+   */
+  hostApi: z.union([z.literal(1), z.literal(2)]),
   bundles: z.array(
     z.object({
       path: z.string(),

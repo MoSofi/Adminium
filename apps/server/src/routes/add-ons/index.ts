@@ -630,6 +630,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
        * bundle. "Checked on read" is unchanged where it matters: the bundle
        * route still re-hashes the bytes it serves.
        */
+      hostApi: manifest.addOn.hostApi === 2 ? 2 : 1,
       bundles: (
         await Promise.all(
           bundleEntriesOf(manifest).map(async ({ path, url, ref }) => {

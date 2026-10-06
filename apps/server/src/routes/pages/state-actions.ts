@@ -76,7 +76,7 @@ function within(check: () => void): boolean {
 }
 
 /** The caller's role slugs as a move judges them: `'any'` for Super Admin. */
-async function rolesOf(meta: MetaDb, permissions: StateActionAsker['permissions']): Promise<ReadonlySet<string> | 'any'> {
+export async function rolesOf(meta: MetaDb, permissions: StateActionAsker['permissions']): Promise<ReadonlySet<string> | 'any'> {
   if (permissions.superAdmin) return 'any';
   const repo = rolesRepo(meta);
   const slugs = new Set<string>();
@@ -85,6 +85,23 @@ async function rolesOf(meta: MetaDb, permissions: StateActionAsker['permissions'
     if (role !== null) slugs.add(role.slug);
   }
   return slugs.has(SUPER_ADMIN_SLUG) ? 'any' : slugs;
+}
+
+/**
+ * The moves of a table's states this caller's roles may make, by the state
+ * they leave: a move kept for other roles is left out, and so is one only a
+ * ledger's own row makes — nobody presses that. What a move waits for
+ * (`requires`) is not judged ahead.
+ */
+export function movesFor(moves: Readonly<Record<string, readonly (string | StateMoveRule)[]>>, roles: ReadonlySet<string> | 'any'): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [from, list] of Object.entries(moves)) {
+    out[from] = list
+      .map((candidate) => (typeof candidate === 'string' ? ({ to: candidate } as StateMoveRule) : candidate))
+      .filter((move) => move.planned !== true && (move.roles === undefined || roles === 'any' || move.roles.some((slug) => roles.has(slug))))
+      .map((move) => move.to);
+  }
+  return out;
 }
 
 /** The installed add-on a link names, as much of it as the gate asks. */

@@ -94,7 +94,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   'config.tabs': ADD_ON_INSTALL_RELEASE,
   'config.bulk': ADD_ON_INSTALL_RELEASE,
   'roles.tables': ADD_ON_INSTALL_RELEASE,
-  'addOn.lookUp': ADD_ON_INSTALL_RELEASE,
   // Stock words, and a public entry answered by them.
   'addOn.words': ADD_ON_INSTALL_RELEASE,
   'availability.words': ADD_ON_INSTALL_RELEASE,
@@ -131,6 +130,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'sampleData.addOns',
   // The buttons of a record page: which a caller is offered, and a move or a set made through the record's own action.
   'states.actions',
+  // One typed code looked up across an add-on's code tables, as the caller reads them.
+  'addOn.lookUp',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

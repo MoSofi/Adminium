@@ -10974,6 +10974,193 @@
         }
       }
     },
+    "/api/v1/add-ons/{key}/kit": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "connectionId": {
+                      "type": "string"
+                    },
+                    "tables": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "can": {
+                            "type": "object",
+                            "properties": {
+                              "read": {
+                                "type": "boolean"
+                              },
+                              "create": {
+                                "type": "boolean"
+                              },
+                              "update": {
+                                "type": "boolean"
+                              },
+                              "delete": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "read",
+                              "create",
+                              "update",
+                              "delete"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "unreadable": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "states": {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string"
+                              },
+                              "moves": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "actions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "move",
+                                        "set",
+                                        "link",
+                                        "child"
+                                      ]
+                                    },
+                                    "from": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "kind",
+                                    "from"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "moves"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "can",
+                          "unreadable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hosts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tableRef": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "via": {
+                            "type": "string",
+                            "enum": [
+                              "posting",
+                              "adjust"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "tableRef",
+                          "id",
+                          "label",
+                          "via"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "has": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "required": [
+                    "connectionId",
+                    "tables",
+                    "hosts",
+                    "has"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/connections/{id}/schema/plan": {
       "post": {
         "requestBody": {
@@ -96144,6 +96331,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -96256,6 +96459,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
@@ -96819,6 +97023,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -96931,6 +97151,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
@@ -97211,6 +97432,22 @@
                             },
                             "additionalProperties": {}
                           },
+                          "hostApi": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "enum": [
+                                  1
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  2
+                                ]
+                              }
+                            ]
+                          },
                           "bundles": {
                             "type": "array",
                             "items": {
@@ -97323,6 +97560,7 @@
                           "networkAllow",
                           "settings",
                           "settingValues",
+                          "hostApi",
                           "bundles",
                           "usedBy"
                         ],
@@ -97589,6 +97827,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -97701,6 +97955,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
@@ -98854,6 +99109,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -98966,6 +99237,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
@@ -99342,6 +99614,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -99454,6 +99742,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
@@ -99827,6 +100116,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -99939,6 +100244,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
@@ -100197,6 +100503,22 @@
                           },
                           "additionalProperties": {}
                         },
+                        "hostApi": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
+                          ]
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -100309,6 +100631,7 @@
                         "networkAllow",
                         "settings",
                         "settingValues",
+                        "hostApi",
                         "bundles",
                         "usedBy"
                       ],
