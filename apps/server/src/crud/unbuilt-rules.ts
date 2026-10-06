@@ -90,7 +90,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   'outbox.pages.app': ADD_ON_INSTALL_RELEASE,
   'rows.pair': ADD_ON_INSTALL_RELEASE,
   // What a generated page says and offers beyond its form; a role's grant on an add-on's table; a typed code's look-up.
-  'states.actions': ADD_ON_INSTALL_RELEASE,
   'toolbar.links': ADD_ON_INSTALL_RELEASE,
   'config.tabs': ADD_ON_INSTALL_RELEASE,
   'config.bulk': ADD_ON_INSTALL_RELEASE,
@@ -130,6 +129,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'sampleData',
   // The rows an app ships for an add-on it names: added with the app's sample while that add-on is here for it.
   'sampleData.addOns',
+  // The buttons of a record page: which a caller is offered, and a move or a set made through the record's own action.
+  'states.actions',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

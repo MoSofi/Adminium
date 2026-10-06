@@ -13,6 +13,7 @@
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { z } from 'zod';
 import {
   connectionTenantConfig,
   auditEntityKeyOf,
@@ -119,6 +120,7 @@ import { clientKeySecret } from '../public/tree.js';
 const LINK_READ_CAP = 200;
 import { withOccurredAt } from '../../crud/occurred-at.js';
 import { withSeenState } from '../../crud/seen-state.js';
+import { recordActionRoutes } from './actions.js';
 import { moveBackOf, undoRolesOf } from '../../crud/undo-moves.js';
 import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import { parseJsonColumn } from '../audit/index.js';
@@ -231,6 +233,9 @@ export interface DataRoutesDeps {
    */
   secret?: string | undefined;
 }
+
+/** What the PATCH's body carries; a record's action sends a part of it. */
+type RecordChange = z.infer<typeof recordUpdateBody>;
 
 interface DataContext {
   connectionId: string;
@@ -3164,56 +3169,102 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
-    app.patch(
-      '/data/:connectionId/:table/:recordId',
-      {
-        schema: { params: dataRecordParams, body: recordUpdateBody, response: { 200: recordMutationReply } },
-      },
-      async (request) => {
-        const ctx = await contextFor(request, 'update');
-        const pk = parseRecordId(ctx.table, request.params.recordId);
-        // An edit form sends only what changed, so an edit of links or line
-        // items alone — or of nothing — arrives with no values at all.
-        // The state the writer saw the row in, when it names one, travels as a condition of the change.
-        const sent = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
-        await assertFileColumns(ctx, sent);
-        const before = await fetchByPk(ctx.db, ctx.table, pk);
-        if (before === undefined) throw new NotFoundError('Record not found.', { pk });
-        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, sent, before);
-        // The plain columns the writer saw, as conditions of the change: refused now if the row already moved, and in the statement if it moves meanwhile.
-        const values = withSeenValues(ctx, sent, before, request.body.seen);
-        const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
-        const links = await requestedLinks(request, ctx, context, request.body.links);
-        const children = await requestedChildren(request, ctx, context, request.body.children);
-        // What the record agrees to be (a stay's guests within what its room sleeps), judged on the row as changed, inside the change.
-        const agrees = await recordAgrees(ctx);
-        const inside = agrees === null ? {} : { inside: agrees };
-        // The price the desk showed for the change, against the record as the change leaves it.
-        const check = await changeCheck(ctx, request.body.expect);
-        const priced = check === null ? {} : { expect: async (_db: Kysely<SourceDatabase>, after: Row) => check(after) };
-        // Rows below a child row come with a new record only.
-        if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
-          throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
-        }
-        let undoToken: string | null = null;
+    /**
+     * THE CHANGE OF ONE RECORD: what a PATCH does, and what a record's own
+     * action does through the same door (routes/data/actions.ts) — the hooks,
+     * the lock, the effects, the postings, the audit row and the Undo are one
+     * body, never two. `own` is an action's: the values are the rule's and the
+     * few its form asked for, already read (`values`), and the role's limit is
+     * asked about `judged` — what the caller chose, not what a move sets for itself.
+     */
+    async function changeRecord(request: FastifyRequest, ctx: DataContext, recordId: string, body: RecordChange, own?: { values: Row; judged: Row }) {
+      const pk = parseRecordId(ctx.table, recordId);
+      // An edit form sends only what changed, so an edit of links or line
+      // items alone — or of nothing — arrives with no values at all.
+      // The state the writer saw the row in, when it names one, travels as a condition of the change.
+      const typed = own !== undefined ? own.values : Object.keys(body.values).length === 0 ? {} : allowlistValues(ctx, body.values);
+      const sent = withSeenState(ctx.table, typed, body.from);
+      await assertFileColumns(ctx, sent);
+      const before = await fetchByPk(ctx.db, ctx.table, pk);
+      if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+      assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, own?.judged ?? sent, before);
+      // The plain columns the writer saw, as conditions of the change: refused now if the row already moved, and in the statement if it moves meanwhile.
+      const values = withSeenValues(ctx, sent, before, body.seen);
+      const context = withOccurredAt(requestWriteContext(request, 'dashboard'), body.occurredAt);
+      const links = await requestedLinks(request, ctx, context, body.links);
+      const children = await requestedChildren(request, ctx, context, body.children);
+      // What the record agrees to be (a stay's guests within what its room sleeps), judged on the row as changed, inside the change.
+      const agrees = await recordAgrees(ctx);
+      const inside = agrees === null ? {} : { inside: agrees };
+      // The price the desk showed for the change, against the record as the change leaves it.
+      const check = await changeCheck(ctx, body.expect);
+      const priced = check === null ? {} : { expect: async (_db: Kysely<SourceDatabase>, after: Row) => check(after) };
+      // Rows below a child row come with a new record only.
+      if (Object.values(body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
+        throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
+      }
+      let undoToken: string | null = null;
 
+      /*
+       * A PATCH that names no relation leaves every link and every child row
+       * alone — the same rule an absent column follows — and takes the path
+       * it always took.
+       */
+      if (links.length === 0 && children.length === 0) {
         /*
-         * A PATCH that names no relation leaves every link and every child row
-         * alone — the same rule an absent column follows — and takes the path
-         * it always took.
+         * Nothing to change: an edit form saved with nothing touched (it sends
+         * only what changed). Writing anyway would stamp an `updated_at`, run
+         * the hooks and automations, and offer an Undo of nothing.
          */
-        if (links.length === 0 && children.length === 0) {
-          /*
-           * Nothing to change: an edit form saved with nothing touched (it sends
-           * only what changed). Writing anyway would stamp an `updated_at`, run
-           * the hooks and automations, and offer an Undo of nothing.
-           */
-          if (Object.keys(values).length === 0) {
-            check?.(before);
-            return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken: null };
-          }
+        if (Object.keys(values).length === 0) {
+          check?.(before);
+          return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken: null };
+        }
+        const outcome = await writes.update({
+          target: ctx.target,
+          pk,
+          values,
+          before,
+          context,
+          recheck: (final) => assertFileColumns(ctx, final),
+          mapError: (error) => mapDbError(error, ctx.table),
+          ...inside,
+          ...priced,
+          announce: async (result) => {
+            const after = result.after ?? before;
+            if (result.postings === undefined) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
+            await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+            // The rows this move moved too (a room turned to cleaning), as changes of their own.
+            await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
+            await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
+          },
+        });
+        // Masked columns may be written but are never echoed back.
+        const told = postingAnswers(outcome.postings);
+        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }) };
+      }
+
+      /*
+       * A RECORD OR ROWS THAT TAKE FROM A LIMIT (a booking's dates, a ticket
+       * added to an order): one lock-first write — the pools' locks named for
+       * the record and every row before the transaction, the record changed
+       * through the write service, its rows written under the same locks and
+       * judged there. A child table a before hook runs for keeps the path
+       * below, which refuses a limited row.
+       */
+      if (links.length === 0 && !children.some((requested) => requested.hooked)) {
+        const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
+        const limitedRows = children.some((requested) =>
+          requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)),
+        );
+        // So is a record whose change is settled inside its own write (a stay's dates, under its extras and its balance).
+        // And a change whose price is checked: its rows and its totals settle inside it, before the check.
+        if (limitedRows || check !== null || batchNeedsGuard(ctx.target, 'update', values) || writes.settlesInside(ctx.target, values, before)) {
+          let childWrites: UndoChildren[] = [];
+          let childEvents: ChildEvent[] = [];
+          let childEffects: EffectWritten[] = [];
           const outcome = await writes.update({
-            target: ctx.target,
+            target: { ...ctx.target, timezone },
             pk,
             values,
             before,
@@ -3222,175 +3273,141 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             mapError: (error) => mapDbError(error, ctx.table),
             ...inside,
             ...priced,
+            children: {
+              // Each row as it will stand: a new one under this record, a changed one over what it holds now (read without a lock; the judge checks it again).
+              names: async () => {
+                const rows: LockNameRow[] = [];
+                for (const requested of children) {
+                  const target = { ...childTargetOf(ctx, requested.child, ctx.db), timezone };
+                  const existing = await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn]);
+                  for (const row of requested.rows) {
+                    const stored = row.key === undefined ? undefined : existing.find((one) => requested.child.child.primaryKey.every((name) => String(one[name]) === String(row.key![name])));
+                    rows.push({ target, row: { ...(stored ?? {}), ...row.values, [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] }, before: stored ?? null, prepared: false });
+                  }
+                }
+                return rows;
+              },
+              write: async (db, after, checked) => {
+                // An attempt made again starts with nothing written.
+                childWrites = [];
+                childEvents = [];
+                childEffects = [];
+                const judged: JudgedRow[] = [];
+                for (const requested of children) {
+                  const undo = await applyChildren(ctx, db, requested, after[requested.child.parentKeyColumn], context, { events: childEvents, effects: childEffects, judged: true });
+                  childWrites.push(undo);
+                  const target = { ...childTargetOf(ctx, requested.child, db), timezone };
+                  for (const [i, key] of undo.added.entries()) judged.push({ target, pk: key, row: undo.addedRows![i]!, before: null });
+                  for (const change of undo.changed) if (change.after !== undefined) judged.push({ target, pk: change.key, row: change.after, before: change.before });
+                }
+                // A fingerprint covers the child rows this same save wrote: sealed again, last.
+                await sealRows(db, ctx.table, pk, sealsOf(checked), writeSeals);
+                return judged;
+              },
+            },
             announce: async (result) => {
               const after = result.after ?? before;
-              if (result.postings === undefined) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
+              if (result.postings === undefined) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
-              // The rows this move moved too (a room turned to cleaning), as changes of their own.
-              await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
+              for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+              // The rows the record's and its child rows' moves moved too, as changes of their own.
+              await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: [...(result.effects ?? []), ...childEffects], origin: 'dashboard', request });
               await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
             },
           });
-          // Masked columns may be written but are never echoed back.
+          const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
           const told = postingAnswers(outcome.postings);
-          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }) };
+          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }) };
         }
+      }
 
-        /*
-         * A RECORD OR ROWS THAT TAKE FROM A LIMIT (a booking's dates, a ticket
-         * added to an order): one lock-first write — the pools' locks named for
-         * the record and every row before the transaction, the record changed
-         * through the write service, its rows written under the same locks and
-         * judged there. A child table a before hook runs for keeps the path
-         * below, which refuses a limited row.
-         */
-        if (links.length === 0 && !children.some((requested) => requested.hooked)) {
-          const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
-          const limitedRows = children.some((requested) =>
-            requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)),
+      // Written with a table's own hook, or with link rows: its totals settle after it commits, so no price is checked here.
+      if (check !== null) {
+        throw new ValidationFailedError('A price check goes with a change that sends no link field and no row a hook runs for.', { fields: { expect: { code: 'not-allowed' } } });
+      }
+      const [prepared] = await writes.beforeEach('update', ctx.target, context, [
+        { match: pk, values, record: before },
+      ]);
+      if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
+      if (prepared.issues !== null) {
+        throw new ValidationFailedError('Some values were refused.', { fields: prepared.issues });
+      }
+      await assertFileColumns(ctx, prepared.values as Row);
+      // The record's own key, which the link rows point at. A PATCH may move
+      // it, so the links follow the value that is being WRITTEN.
+      const written: UndoLinks[] = [];
+      const childWrites: UndoChildren[] = [];
+      const childEvents: ChildEvent[] = [];
+      const effected: EffectWritten[] = [];
+      // The series a child row added here takes a number in, held until the save commits.
+      const numbered = children.map((requested) => ({
+        target: childTargetOf(ctx, requested.child, ctx.db),
+        row: { [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] },
+      }));
+      let after = await writes.transaction(ctx.target, [], async (trx) => {
+        const tdb = trx as unknown as Kysely<SourceDatabase>;
+        if (Object.keys(prepared.values).length > 0) {
+          try {
+            await updateRows(tdb, ctx.dialect, ctx.table, prepared.values, pk);
+          } catch (error) {
+            mapDbError(error, ctx.table);
+          }
+          effected.push(...effectsOf(prepared.values));
+        }
+        const row = (await fetchByPk(tdb, ctx.table, pk)) ?? before;
+        for (const requested of links) {
+          written.push(await applyLinks(ctx, tdb, requested, row[requested.link.ownKeyColumn], context));
+        }
+        for (const requested of children) {
+          // The DIFF is taken inside the transaction, against the rows that
+          // are really there — the same rule links follow, for the same
+          // reason: what was there when the dialog opened is not evidence.
+          childWrites.push(
+            await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
+              events: childEvents,
+              effects: effected,
+            }),
           );
-          // So is a record whose change is settled inside its own write (a stay's dates, under its extras and its balance).
-          // And a change whose price is checked: its rows and its totals settle inside it, before the check.
-          if (limitedRows || check !== null || batchNeedsGuard(ctx.target, 'update', values) || writes.settlesInside(ctx.target, values, before)) {
-            let childWrites: UndoChildren[] = [];
-            let childEvents: ChildEvent[] = [];
-            let childEffects: EffectWritten[] = [];
-            const outcome = await writes.update({
-              target: { ...ctx.target, timezone },
-              pk,
-              values,
-              before,
-              context,
-              recheck: (final) => assertFileColumns(ctx, final),
-              mapError: (error) => mapDbError(error, ctx.table),
-              ...inside,
-              ...priced,
-              children: {
-                // Each row as it will stand: a new one under this record, a changed one over what it holds now (read without a lock; the judge checks it again).
-                names: async () => {
-                  const rows: LockNameRow[] = [];
-                  for (const requested of children) {
-                    const target = { ...childTargetOf(ctx, requested.child, ctx.db), timezone };
-                    const existing = await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn]);
-                    for (const row of requested.rows) {
-                      const stored = row.key === undefined ? undefined : existing.find((one) => requested.child.child.primaryKey.every((name) => String(one[name]) === String(row.key![name])));
-                      rows.push({ target, row: { ...(stored ?? {}), ...row.values, [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] }, before: stored ?? null, prepared: false });
-                    }
-                  }
-                  return rows;
-                },
-                write: async (db, after, checked) => {
-                  // An attempt made again starts with nothing written.
-                  childWrites = [];
-                  childEvents = [];
-                  childEffects = [];
-                  const judged: JudgedRow[] = [];
-                  for (const requested of children) {
-                    const undo = await applyChildren(ctx, db, requested, after[requested.child.parentKeyColumn], context, { events: childEvents, effects: childEffects, judged: true });
-                    childWrites.push(undo);
-                    const target = { ...childTargetOf(ctx, requested.child, db), timezone };
-                    for (const [i, key] of undo.added.entries()) judged.push({ target, pk: key, row: undo.addedRows![i]!, before: null });
-                    for (const change of undo.changed) if (change.after !== undefined) judged.push({ target, pk: change.key, row: change.after, before: change.before });
-                  }
-                  // A fingerprint covers the child rows this same save wrote: sealed again, last.
-                  await sealRows(db, ctx.table, pk, sealsOf(checked), writeSeals);
-                  return judged;
-                },
-              },
-              announce: async (result) => {
-                const after = result.after ?? before;
-                if (result.postings === undefined) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
-                await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
-                for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
-                // The rows the record's and its child rows' moves moved too, as changes of their own.
-                await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: [...(result.effects ?? []), ...childEffects], origin: 'dashboard', request });
-                await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
-              },
-            });
-            const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
-            const told = postingAnswers(outcome.postings);
-            return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }) };
-          }
         }
+        // A fingerprint covers the child rows this same save wrote: sealed again, last.
+        if (children.length > 0) await sealRows(tdb, ctx.table, pk, sealsOf(prepared.values), writeSeals);
+        // As its children left it (a total over them has moved).
+        const changed = children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
+        if (agrees !== null) await agrees(tdb, changed);
+        return changed;
+      }, numbered);
 
-        // Written with a table's own hook, or with link rows: its totals settle after it commits, so no price is checked here.
-        if (check !== null) {
-          throw new ValidationFailedError('A price check goes with a change that sends no link field and no row a hook runs for.', { fields: { expect: { code: 'not-allowed' } } });
-        }
-        const [prepared] = await writes.beforeEach('update', ctx.target, context, [
-          { match: pk, values, record: before },
-        ]);
-        if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
-        if (prepared.issues !== null) {
-          throw new ValidationFailedError('Some values were refused.', { fields: prepared.issues });
-        }
-        await assertFileColumns(ctx, prepared.values as Row);
-        // The record's own key, which the link rows point at. A PATCH may move
-        // it, so the links follow the value that is being WRITTEN.
-        const written: UndoLinks[] = [];
-        const childWrites: UndoChildren[] = [];
-        const childEvents: ChildEvent[] = [];
-        const effected: EffectWritten[] = [];
-        // The series a child row added here takes a number in, held until the save commits.
-        const numbered = children.map((requested) => ({
-          target: childTargetOf(ctx, requested.child, ctx.db),
-          row: { [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] },
-        }));
-        let after = await writes.transaction(ctx.target, [], async (trx) => {
-          const tdb = trx as unknown as Kysely<SourceDatabase>;
-          if (Object.keys(prepared.values).length > 0) {
-            try {
-              await updateRows(tdb, ctx.dialect, ctx.table, prepared.values, pk);
-            } catch (error) {
-              mapDbError(error, ctx.table);
-            }
-            effected.push(...effectsOf(prepared.values));
-          }
-          const row = (await fetchByPk(tdb, ctx.table, pk)) ?? before;
-          for (const requested of links) {
-            written.push(await applyLinks(ctx, tdb, requested, row[requested.link.ownKeyColumn], context));
-          }
-          for (const requested of children) {
-            // The DIFF is taken inside the transaction, against the rows that
-            // are really there — the same rule links follow, for the same
-            // reason: what was there when the dialog opened is not evidence.
-            childWrites.push(
-              await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
-                events: childEvents,
-                effects: effected,
-              }),
-            );
-          }
-          // A fingerprint covers the child rows this same save wrote: sealed again, last.
-          if (children.length > 0) await sealRows(tdb, ctx.table, pk, sealsOf(prepared.values), writeSeals);
-          // As its children left it (a total over them has moved).
-          const changed = children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
-          if (agrees !== null) await agrees(tdb, changed);
-          return changed;
-        }, numbered);
+      undoToken = await issueUndo(
+        request,
+        ctx,
+        'update',
+        [before],
+        [after],
+        Object.keys(prepared.values),
+        [],
+        written,
+        childWrites,
+        effected,
+      );
+      await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+      for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+      // The rows the record's and its child rows' moves moved too, as changes of their own.
+      await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'dashboard', request });
+      await auditLinks(request, ctx, recordRef(ctx, pk), written);
+      await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
+      after = (await writes.stored(ctx.target, [after]))[0] ?? after;
+      return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), before, after), undoToken };
+    }
 
-        undoToken = await issueUndo(
-          request,
-          ctx,
-          'update',
-          [before],
-          [after],
-          Object.keys(prepared.values),
-          [],
-          written,
-          childWrites,
-          effected,
-        );
-        await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
-        for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
-        // The rows the record's and its child rows' moves moved too, as changes of their own.
-        await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'dashboard', request });
-        await auditLinks(request, ctx, recordRef(ctx, pk), written);
-        await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
-        after = (await writes.stored(ctx.target, [after]))[0] ?? after;
-        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), before, after), undoToken };
+    app.patch(
+      '/data/:connectionId/:table/:recordId',
+      {
+        schema: { params: dataRecordParams, body: recordUpdateBody, response: { 200: recordMutationReply } },
       },
+      async (request) => changeRecord(request, await contextFor(request, 'update'), request.params.recordId, request.body),
     );
+
+    recordActionRoutes(app, { contextFor, changeRecord, asked: (ctx, values) => allowlistValues(ctx, values), fixed: (ctx, name, value) => normalizeWriteValue(ctx.view.column(ctx.table, name), value) });
 
     app.delete(
       '/data/:connectionId/:table/:recordId',

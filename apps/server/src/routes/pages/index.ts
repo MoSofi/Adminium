@@ -73,7 +73,8 @@ import {
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
-import { columnFactsFor, hiddenColumnsOf, withoutColumns, withYesNoColumns } from './column-facts.js';
+import { columnFactsFor, factsViewFor, hiddenColumnsOf, withoutColumns, withYesNoColumns } from './column-facts.js';
+import { stateActionFacts } from './state-actions.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
 import { pageLayoutSchema } from './layout-schema.js';
@@ -663,7 +664,13 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const permissions = typeof request.server.rbac?.resolve === 'function' ? await request.server.rbac.resolve(request) : undefined;
         const columnFacts =
           source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader, rights, permissions);
-        const facts = columnFacts === null ? {} : { columnFacts };
+        // The buttons this caller may use on a row of the table (`states.actions`), each with the states it shows in.
+        const factsView = source === null || permissions === undefined || typeof request.can !== 'function' ? null : await factsViewFor(deps.meta, source.connectionId, reader);
+        const stateActions =
+          factsView === null || source === null || permissions === undefined
+            ? undefined
+            : await stateActionFacts(deps.meta, { can: (permission) => request.can(permission), permissions, locale: reader, rights, log: request.log }, factsView, source.table);
+        const facts = { ...(columnFacts === null ? {} : { columnFacts }), ...(stateActions === undefined ? {} : { stateActions }) };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.
         const typed = withYesNoColumns(page.config, columnFacts);

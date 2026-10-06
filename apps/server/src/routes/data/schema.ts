@@ -313,6 +313,23 @@ export const recordChangeDryRunReply = z.object({
 });
 
 /** `GET …/:recordId/links/:relationId`. */
+/** One of a record's own actions (`states.actions`), by its id. */
+export const recordActionParams = dataRecordParams.extend({
+  actionId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(64),
+});
+
+/**
+ * What a record page sends for an action: the state it saw the row in, and
+ * the values the action asks for. Strict — the target state and the columns
+ * the rule sets are never the browser's to name.
+ */
+export const recordActionBody = z
+  .object({
+    from: z.string().min(1).max(120),
+    values: z.record(z.string().min(1).max(120), z.union([z.string().max(10_000), z.number(), z.boolean(), z.null()])).optional(),
+  })
+  .strict();
+
 export const recordLinksParams = dataRecordParams.extend({
   /** The relation id, URI-encoded by the caller. */
   relationId: z.string().min(1).max(200),

@@ -277,6 +277,30 @@ export const pageReply = z.object({
    */
   canUnmask: z.boolean().optional(),
   /**
+   * The buttons a record page of this table may show this caller
+   * (`states.actions`): each with the states of the row it may be used in,
+   * its words in the reader's language, and what it asks for first. Decided
+   * by the server from the caller's roles and what they may write; a page
+   * never works it out. Absent means "not computed" — no source, no states,
+   * a server without rbac — like the capabilities beside it.
+   */
+  stateActions: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(['move', 'set', 'link', 'child']),
+        label: z.string(),
+        tone: z.enum(['primary', 'neutral', 'danger']),
+        confirm: z.string().optional(),
+        from: z.array(z.string()).min(1),
+        ask: z.array(z.object({ column: z.string(), label: z.string(), required: z.boolean() })).optional(),
+        href: z.string().optional(),
+        child: z.object({ table: z.string(), via: z.string(), form: z.array(z.string()) }).optional(),
+        set: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+      }),
+    )
+    .optional(),
+  /**
    * The envelope's source table as it stands RIGHT NOW: every non-secret
    * column with the spec a regeneration would give it, its place in the
    * table's own order, who fills it in when nobody types a value, and whether

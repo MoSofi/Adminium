@@ -202,6 +202,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/data/:connectionId/:table': audited('rbac'), // record.create
   'PATCH /api/v1/data/:connectionId/:table/:recordId': audited('rbac'), // record.update
   'DELETE /api/v1/data/:connectionId/:table/:recordId': audited('rbac'), // record.delete
+  'POST /api/v1/data/:connectionId/:table/:recordId/actions/:actionId': audited('rbac'), // record.update, by the PATCH's own body
   'POST /api/v1/data/:connectionId/:table/bulk': audited('rbac'), // record.bulk-*
   'POST /api/v1/data/:connectionId/:table/one-by-one': audited('rbac'), // record.one-by-one, beside each row's own
   'POST /api/v1/data/undo/:token': audited('rbac'), // record.undo

@@ -261,6 +261,38 @@ function blockFor(
   };
 }
 
+/** The connection's tables as they stand now, labels in one reader's language; kept until a snapshot or a rule moves. */
+async function entryFor(meta: MetaDb, connectionId: string, locale: string | undefined): Promise<CacheEntry | null> {
+  const snapshot = await snapshotsRepo(meta).latest(connectionId);
+  if (snapshot === null) return null;
+  const active = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
+  const last = active.at(-1);
+  const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
+  // One view per locale: the labels in it are resolved for that reader.
+  const cacheKey = `${connectionId}\u0000${locale ?? ''}`;
+  let entry = CACHE.get(cacheKey);
+  if (entry === undefined || entry.stamp !== stamp) {
+    entry = {
+      stamp,
+      view: new SnapshotView(
+        connectionId,
+        applyOverrides(snapshot.schema as DatabaseModel, active, locale === undefined ? {} : { defaultLocale: locale }),
+      ),
+      facts: new Map(),
+    };
+    CACHE.set(cacheKey, entry);
+  }
+  return entry;
+}
+
+/**
+ * The same tables for another reader of the page's facts (the record page's
+ * buttons): one view per connection and language, never built twice.
+ */
+export async function factsViewFor(meta: MetaDb, connectionId: string, locale?: string): Promise<SnapshotView | null> {
+  return (await entryFor(meta, connectionId, locale))?.view ?? null;
+}
+
 /**
  * The facts for one table, or `null` when there is nothing to say — no
  * snapshot yet, or a table the snapshot does not address (a system table, an
@@ -290,25 +322,8 @@ export async function columnFactsFor(
    */
   read?: { superAdmin?: boolean; readLimits?: ReadLimits | undefined } | undefined,
 ): Promise<ColumnFactsBlock | null> {
-  const snapshot = await snapshotsRepo(meta).latest(connectionId);
-  if (snapshot === null) return null;
-  const active = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
-  const last = active.at(-1);
-  const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
-  // One view per locale: the labels in it are resolved for that reader.
-  const cacheKey = `${connectionId}\u0000${locale ?? ''}`;
-  let entry = CACHE.get(cacheKey);
-  if (entry === undefined || entry.stamp !== stamp) {
-    entry = {
-      stamp,
-      view: new SnapshotView(
-        connectionId,
-        applyOverrides(snapshot.schema as DatabaseModel, active, locale === undefined ? {} : { defaultLocale: locale }),
-      ),
-      facts: new Map(),
-    };
-    CACHE.set(cacheKey, entry);
-  }
+  const entry = await entryFor(meta, connectionId, locale);
+  if (entry === null) return null;
   const cached = entry.facts.get(tableName);
   if (cached !== undefined) return readable(granted(cached, entry.view.table(tableName).id, rights ?? null), entry.view, entry.view.table(tableName).id, read);
   let table: ResolvedTable;
