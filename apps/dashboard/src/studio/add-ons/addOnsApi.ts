@@ -178,6 +178,24 @@ export interface InstallMakes {
   seeds: boolean;
 }
 
+/** What an add-on would open to the public, said on the check: nothing of it is opened unless the person says so. */
+export interface PublicAccessCheck {
+  endpoints: { ref: string; table: string; methods: string[]; key: string }[];
+  /** By app: the entries its public key would gain, and the ones it holds already. */
+  byApp: Record<string, { adds: string[]; held: string[] }>;
+  /** The add-on's one key of its own: a link that opens one record and only reads. */
+  linkKey?: string;
+  /** Whether the person asking may allow it. */
+  canGrant: boolean;
+}
+
+/** What an app's public key gained, lost and was not given when an add-on it uses moved. */
+export interface SettledAccess {
+  granted: string[];
+  withdrawn: string[];
+  skipped: { ref: string; reason: string }[];
+}
+
 /** A check of a staged package: the plan, and — for an add-on with tables of its own — where they go and what else is made. */
 export interface InstallCheck {
   plan: InstallPlan;
@@ -186,6 +204,7 @@ export interface InstallCheck {
   /** The plan's identity: handed back at the install, so a database that moved in between is said, not built on. */
   checksum?: string;
   makes?: InstallMakes;
+  publicAccess?: PublicAccessCheck;
 }
 
 /** A database an add-on's tables may go in, as the server lists them when there is a choice. */
@@ -236,6 +255,8 @@ export async function installAddOn(input: {
   connectionId?: string;
   /** The identity of the plan the person agreed to. */
   planChecksum?: string;
+  /** The person ticked "Allow public access". */
+  publicAccess?: boolean;
 }): Promise<{ addOn: AddOnDto; plan: InstallPlan }> {
   return api.post('/api/v1/add-ons', input);
 }
@@ -247,15 +268,17 @@ export async function installAddOn(input: {
 export async function attachAddOn(
   key: string,
   app: string,
-): Promise<{ addOn: AddOnDto; change: 'attached' | 'enabled' | null }> {
-  return api.post(`/api/v1/add-ons/${encodeURIComponent(key)}/attachments`, { app });
+  /** Also put the add-on's public entries on the app's public key. */
+  publicAccess?: boolean,
+): Promise<{ addOn: AddOnDto; change: 'attached' | 'enabled' | null; publicAccess?: SettledAccess }> {
+  return api.post(`/api/v1/add-ons/${encodeURIComponent(key)}/attachments`, { app, ...(publicAccess === true ? { publicAccess: true } : {}) });
 }
 
 export async function setAddOnEnabled(
   key: string,
   attachedTo: string,
   enabled: boolean,
-): Promise<{ addOn: AddOnDto }> {
+): Promise<{ addOn: AddOnDto; publicAccess?: SettledAccess }> {
   return api.patch(`/api/v1/add-ons/${key}`, { attachedTo, enabled });
 }
 
@@ -291,6 +314,12 @@ export interface UpdatePlan {
   to: string;
   connectionId: string | null;
   checksum?: string;
+  publicAccess?: PublicAccessCheck;
+}
+
+/** Whether a check asks for something the public does not reach yet: a new entry on an app's key. */
+export function asksNewPublicAccess(access: PublicAccessCheck | undefined): boolean {
+  return access !== undefined && Object.values(access.byApp).some((app) => app.adds.length > 0);
 }
 
 export async function fetchUpdatePlan(key: string): Promise<UpdatePlan> {
@@ -301,8 +330,10 @@ export async function fetchUpdatePlan(key: string): Promise<UpdatePlan> {
 export async function updateAddOn(
   key: string,
   planChecksum?: string,
+  /** The person ticked "Allow public access": what the version adds is opened. What it dropped goes either way. */
+  publicAccess?: boolean,
 ): Promise<{ addOn: AddOnDto; from: string; to: string; pruned: string[] }> {
-  return api.post(`/api/v1/add-ons/${key}/update`, planChecksum === undefined ? {} : { planChecksum });
+  return api.post(`/api/v1/add-ons/${key}/update`, { ...(planChecksum === undefined ? {} : { planChecksum }), ...(publicAccess === true ? { publicAccess: true } : {}) });
 }
 
 export async function discardStaged(key: string, version: string): Promise<void> {

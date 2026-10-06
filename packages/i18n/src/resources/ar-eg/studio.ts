@@ -69,7 +69,8 @@ export default {
       "uninstallTitle": "Uninstall this add-on",
       "updateTitle": "التحديث إلى {version}",
       "updateBody": "هذا الإصدار يغيّر جداول الإضافة نفسها. لن يُزال شيء مما لديك؛ وإلى أن ينتهي التحديث لا تفعل الإضافة شيئًا.",
-      "update": "تحديث"
+      "update": "تحديث",
+      "updatePublicBody": "هذا الإصدار سيفتح المزيد من الإضافة للعامة. حدّث دون تحديد الخانة ولن يُفتح شيء جديد."
     },
     "connect": {
       "apiKey": "API key",
@@ -167,6 +168,18 @@ export default {
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
+    },
+    "public": {
+      "title": "الوصول العام",
+      "through": "يستطيع عملاؤك الوصول إليها عبر المفتاح العام لتطبيق مرتبطة به: {refs}.",
+      "link": "تنشئ مفتاح روابط خاصًا بها: من يملك رابطًا يفتح ذلك السجل وحده، ويقرؤه فقط.",
+      "allow": "السماح بالوصول العام",
+      "allowHelp": "بدون تحديد الخانة لا يُفتح شيء للعامة. يمكنك السماح بذلك لاحقًا.",
+      "cannot": "لا يستطيع السماح بهذا إلا من يحق له إدارة مفاتيح API.",
+      "askTitle": "السماح بالوصول العام؟",
+      "askBody": "{name} مفعّلة لـ {app}، ولا شيء منها مفتوح للعامة بعد. عند السماح يُضاف ما يلي إلى المفتاح العام لـ {app}: {refs}.",
+      "askLater": "ليس الآن",
+      "askConfirm": "سماح"
     }
   },
   "capability": {

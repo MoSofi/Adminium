@@ -23,6 +23,7 @@ import {
   isManifestOnly,
   LOCAL_PUBLISHER_ID,
   planInstall,
+  namedAddOns,
   validateManifest,
   type InstallPlan,
   type Manifest,
@@ -56,7 +57,7 @@ import {
 import type { z } from 'zod';
 
 import { lenientMinimum, type CatalogClient } from '../add-ons/catalog.js';
-import type { AddOnInstallerDeps } from '../add-ons/install.js';
+import { addOnManifestFromStore, type AddOnInstallerDeps } from '../add-ons/install.js';
 import { builtOnTables, shapeProblems, shapeRecordsFor, shapesForPlan } from './app-shapes.js';
 import {
   addOnTablesByName,
@@ -118,7 +119,9 @@ import {
 import {
   installPublicAccess,
   keysOpenedWithoutStaff,
+  linkKeyOf,
   planPublicEndpoints,
+  plannedPublicEndpointsFor,
   keepsMoney,
   publicAccessWarnings,
   signsInByLink,
@@ -126,9 +129,11 @@ import {
   type PublicAccessCommit,
 } from './manifest-public.js';
 import { installOutbox, templateProblems, type OutboxResult } from './manifest-outbox.js';
+import { liveAddOnsFor } from './live-add-ons.js';
 import { installAppDocuments } from '../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
-import type { EndpointService } from '../public-api/endpoint-service.js';
+import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
+import type { PublicMethod } from '../public-api/endpoint.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import type { DsnCrypto } from '@adminium/meta';
@@ -1103,6 +1108,39 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     await settings.set('surfaces.apps', { ...apps, [manifest.key]: { ...(apps[manifest.key] ?? {}), staff: asked } }, { updatedBy: userId });
   }
 
+  /**
+   * The add-ons an app's plan would install, update or connect, as their
+   * entries would be read once it has: the version it would move to (a staged
+   * package) or the one installed, with its tables under the names it has or
+   * would get. One that cannot be read adds nothing to the check; the apply
+   * reads it again.
+   */
+  async function broughtAddOns(rows: readonly AppAddOnRow[], connectionId: string): Promise<{ key: string; manifest: Manifest; names: Record<string, string> }[]> {
+    const out: { key: string; manifest: Manifest; names: Record<string, string> }[] = [];
+    for (const row of rows) {
+      if (row.action === null) continue;
+      let addOn: Manifest | null = null;
+      try {
+        if (row.action === 'attach') {
+          const read = validateManifest((await manifests.findByKey(row.key))?.document);
+          addOn = read.ok ? read.manifest : null;
+        } else if (deps.addOns !== undefined && row.offeredVersion !== null) {
+          addOn = (await addOnManifestFromStore({ ...deps.addOns.installer, unbuiltWords: {} }, row.key, row.offeredVersion)).manifest;
+        }
+      } catch {
+        addOn = null;
+      }
+      if (addOn === null || addOn.kind !== 'add-on' || (addOn.publicAccess ?? []).length === 0) continue;
+      const prefix = addOn.requiredSchema?.prefixed === true ? prefixFor(addOn.key) : '';
+      out.push({
+        key: row.key,
+        manifest: addOn,
+        names: { ...Object.fromEntries((addOn.requiredSchema?.tables ?? []).map((table) => [table.ref, `${prefix}${table.ref}`])), ...(await appTablesRepo(deps.meta).realNames(connectionId, row.key)) },
+      });
+    }
+    return out;
+  }
+
   /** What the app's guests could do, for the check step: its endpoints, what would stop them, who may allow them. */
   async function publicAccessOf(
     manifest: Manifest,
@@ -1113,10 +1151,20 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     installed = false,
     /** The columns the install adds to a table it uses as it is, by short name: there once it runs. */
     columnsMadeLater: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
+    /**
+     * The add-ons this install or update may itself bring (install, update or
+     * connect), as the plan lists them. Their entries go on the app's key
+     * under the same say, so the check shows them — before anything is
+     * allowed, not after.
+     */
+    bringing: readonly AppAddOnRow[] = [],
   ) {
     if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0) return undefined;
     const view = deps.publicAccess === undefined ? null : await deps.publicAccess.viewFor(connectionId);
-    const planned = planPublicEndpoints(manifest, names, view, { tablesMadeLater: true, columnsMadeLater });
+    // With the entries of each add-on that is here for it: what its key may hold is theirs too, each said with its owner.
+    const here = await liveAddOnsFor(deps.meta, manifest, connectionId);
+    const brought = await broughtAddOns(bringing, connectionId);
+    const planned = plannedPublicEndpointsFor(manifest, names, view, { tablesMadeLater: true, columnsMadeLater }, [...here.filter((addOn) => !brought.some((other) => other.key === addOn.key)), ...brought]);
     /*
      * An app already here (the check an update is shown): what its keys hold
      * already, what the update would give them, and what it would not make
@@ -1447,14 +1495,15 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
       let made: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
-      if (publicAccess && connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
+      if (publicAccess && connectionId !== null && deps.publicAccess !== undefined) {
         const view = await deps.publicAccess.viewFor(connectionId);
         if (view !== null && (manifest.publicAccess ?? []).length > 0) {
           // Each of the app's keys is made once: the public side's, and a kiosk's.
           const at = Date.now();
           const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
           const live = own.filter((k) => k.kind === 'browser' && k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
-          const declaredPurposes = [CUSTOMER_KEY_PURPOSE, ...Object.keys(manifest.publicKeys ?? {})];
+          // An add-on has no `customer` key of its own: its one key is its link's.
+          const declaredPurposes = [...(manifest.kind === 'app' ? [CUSTOMER_KEY_PURPOSE] : []), ...Object.keys(manifest.publicKeys ?? {})];
           const livePurposes = new Set(declaredPurposes.filter((purpose) => live.some((k) => k.purpose === purpose)));
           // An install starts afresh; an update never makes again a key the operator took back.
           const withheld = new Set(strict ? [] : declaredPurposes.filter((purpose) => !livePurposes.has(purpose) && own.some((k) => k.purpose === purpose)));
@@ -1482,6 +1531,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               ...(grant === true ? {} : { refusal: grant.refusal }),
               ...(ownFolder && grant === true ? { ownFolder: true } : {}),
               onCommitted: record,
+              // The add-ons that are here for the app: their entries go on its key under the same say.
+              ...(manifest.kind === 'app' ? { addOns: await liveAddOnsFor(deps.meta, manifest, connectionId) } : {}),
             });
             made = reply;
             /*
@@ -2009,6 +2060,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)),
             view: await access.viewFor(connectionId),
             onCommitted: publicAccessRecorder(actor, key, connectionId, userId),
+            // An add-on this version still names, and that is here for it, keeps its entries on the key.
+            addOns: await liveAddOnsFor(deps.meta, manifest, connectionId),
           });
         } finally {
           access.onChange?.();
@@ -2635,6 +2688,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)),
             view: await access.viewFor(connectionId),
             onCommitted: publicAccessRecorder(actor, key, connectionId, userId),
+            // An add-on this version still names, and that is here for it, keeps its entries on the key.
+            addOns: await liveAddOnsFor(deps.meta, manifest, connectionId),
           });
         } finally {
           access.onChange?.();
@@ -2780,7 +2835,209 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     });
   }
 
+  /** An app installed in this database: its stored manifest, or `unreadable` when the stored document no longer reads. Null when it is not here. */
+  async function appHere(appKey: string, connectionId: string): Promise<Manifest | 'unreadable' | null> {
+    const row = await manifests.findByKey(appKey);
+    if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
+    const read = validateManifest(row.document, { allowLocalPublisher: true });
+    return read.ok ? read.manifest : 'unreadable';
+  }
+
+  /** The app's live `customer` keys in this database. */
+  async function customerKeysOf(appKey: string, connectionId: string) {
+    const at = Date.now();
+    const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
+    return (await publicKeysRepo(deps.meta).listManagedBy(appKey)).filter(
+      (k) => k.kind === 'browser' && k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at) && here.has(k.id),
+    );
+  }
+
+  /**
+   * AN APP'S KEY, SETTLED AFTER ONE OF ITS ADD-ONS MOVED — attached, switched,
+   * installed, updated or removed outside the app's own install.
+   *
+   * FIRST, what the add-on no longer gives the app leaves the app's keys,
+   * whoever asks and whatever they may do: an entry of an add-on that is
+   * switched off, detached, gone, or that its new version dropped. This half
+   * is never swallowed: when it cannot be done it throws, and the caller's
+   * request fails rather than answering as if the door were shut.
+   *
+   * THEN what the add-on newly gives is put on the app's `customer` key —
+   * only when the caller said so (`publicAccess`) and may hand out API keys,
+   * only for an endpoint that is stored as this add-on's, and held to the
+   * same safe list and link rules as the app's own entries. Otherwise nothing
+   * is given, and each entry left out is said with its reason. This half is
+   * told, not thrown: the add-on stays attached with no public door.
+   */
+  async function settleHost(input: Parameters<InstallCore['settleHost']>[0]): Promise<Awaited<ReturnType<InstallCore['settleHost']>>> {
+    const { addOnKey, appKey, connectionId, actor } = input;
+    const out = { roleTables: null, publicAccess: { granted: [] as string[], withdrawn: [] as string[], skipped: [] as { ref: string; reason: string }[] } };
+    const access = deps.publicAccess;
+    const app = await appHere(appKey, connectionId);
+    if (access === undefined || app === null) return out;
+    const record = publicAccessRecorder(actor, appKey, connectionId, actor.id);
+    const taken = async (change: PublicAccessCommit) => {
+      if (change.kind === 'withdraw') out.publicAccess.withdrawn.push(...change.lost);
+      await record(change);
+    };
+    try {
+      if (app === 'unreadable') {
+        // Nothing can say what this app's key should hold: every endpoint that is this add-on's leaves it.
+        const theirs = new Set((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).filter((endpoint) => endpoint.managedBy === addOnKey).map((endpoint) => endpoint.ref));
+        for (const key of await customerKeysOf(appKey, connectionId)) {
+          const held = await access.service.heldByKey(connectionId, key.id);
+          const declared = new Map([...held].filter(([ref]) => !theirs.has(ref)).map(([ref, methods]) => [ref, methods as PublicMethod[]] as const));
+          const { lost } = await access.service.narrowManagedAccess({ connectionId, keyId: key.id, declared });
+          if (lost.length > 0) await taken({ kind: 'withdraw', keyId: key.id, purpose: key.purpose, lost });
+        }
+        return out;
+      }
+      const addOns = await liveAddOnsFor(deps.meta, app, connectionId, input.addOn === undefined ? undefined : { key: addOnKey, as: input.addOn });
+      const names = await appTablesRepo(deps.meta).realNames(connectionId, appKey);
+      const view = await access.viewFor(connectionId);
+      await takeBackPublicAccess({ service: access.service, meta: deps.meta, manifest: app, connectionId, names, view, addOns, onCommitted: taken });
+
+      const asked = plannedPublicEndpointsFor(app, names, view, {}, addOns).filter((entry) => entry.owner === addOnKey && !entry.pending);
+      if (asked.length === 0) return out;
+      const leave = (reason: string, entries: readonly { ref: string }[] = asked) => {
+        for (const entry of entries) if (!out.publicAccess.skipped.some((s) => s.ref === entry.ref)) out.publicAccess.skipped.push({ ref: entry.ref, reason });
+      };
+      try {
+        const live = (await customerKeysOf(appKey, connectionId)).filter((k) => k.purpose === CUSTOMER_KEY_PURPOSE);
+        if (live.length === 0) {
+          leave('this app has no public key here: allow its public access first');
+          return out;
+        }
+        // Only an endpoint stored as this add-on's own: never one of that name that is the app's, another add-on's or the owner's.
+        const stored = new Map((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((endpoint) => [endpoint.ref, endpoint.managedBy]));
+        const sound = asked.filter((entry) => entry.issues.length === 0 && entry.definition !== null && stored.get(entry.ref) === addOnKey);
+        for (const entry of asked) {
+          if (sound.includes(entry)) continue;
+          leave(entry.issues.join('; ') || (stored.has(entry.ref) ? `an endpoint "${entry.ref}" is here already and is not this add-on's` : 'its endpoint is not stored here'), [entry]);
+        }
+        const may = input.publicAccess && (await actor.can(PERMISSIONS.apiKeysManage));
+        for (const key of live) {
+          const shortOf = async () => {
+            const held = await access.service.heldByKey(connectionId, key.id);
+            return { held, short: sound.filter((entry) => !entry.methods.every((m) => (held.get(entry.ref) ?? []).includes(m))) };
+          };
+          const { held, short } = await shortOf();
+          if (short.length === 0) continue;
+          if (!may) {
+            leave(input.publicAccess ? 'only someone who may manage API keys can allow it' : 'not allowed: send "publicAccess": true to allow it', short);
+            continue;
+          }
+          // Everything the key holds now, and this add-on's entries: nothing of the app's own is given by the way.
+          const wanted = new Map<string, readonly string[]>(held);
+          for (const entry of sound) wanted.set(entry.ref, entry.methods);
+          try {
+            const result = await access.service.setManagedAccess({
+              connectionId,
+              keyId: key.id,
+              access: [...wanted].map(([ref, methods]) => ({ ref, methods: methods as PublicMethod[] })),
+            });
+            out.publicAccess.granted.push(...result.gained.filter((ref) => !out.publicAccess.granted.includes(ref)));
+            await record({ kind: 'grant', keyId: key.id, purpose: key.purpose, gained: result.gained, lost: result.lost });
+            // Said, never silent: an entry the key still does not hold.
+            leave('it could not be put on the key', (await shortOf()).short);
+          } catch (error) {
+            if (!(error instanceof KeyCreateRefused)) throw error;
+            leave(error.issues.map((issue) => issue.message).join('; '), short);
+          }
+        }
+      } catch (error) {
+        // The giving half only: told, with nothing of the server's own in the reply.
+        input.host?.log.warn({ err: error, addOn: addOnKey, app: appKey }, 'an add-on moved, and its entries were not put on the public key of its app');
+        leave('it could not be settled; the server log says why');
+      }
+    } finally {
+      access.onChange?.();
+    }
+    return out;
+  }
+
+  /**
+   * An add-on's own public side after its update: its link key keeps only
+   * what the version declares (and goes when the version declares none), and
+   * an endpoint of its the version dropped is removed once no key holds it.
+   */
+  async function settleAddOnPublic(input: Parameters<InstallCore['settleAddOnPublic']>[0]): Promise<{ removed: string[]; kept: string[] }> {
+    const { manifest, connectionId, names, actor } = input;
+    const out = { removed: [] as string[], kept: [] as string[] };
+    const access = deps.publicAccess;
+    if (access === undefined) return out;
+    try {
+      await takeBackPublicAccess({
+        service: access.service,
+        meta: deps.meta,
+        manifest,
+        connectionId,
+        names,
+        view: await access.viewFor(connectionId),
+        onCommitted: publicAccessRecorder(actor, manifest.key, connectionId, actor.id),
+      });
+      const declared = new Set(planPublicEndpoints(manifest, names, null).map((entry) => entry.ref));
+      for (const endpoint of await publicEndpointsRepo(deps.meta).listByConnection(connectionId)) {
+        if (endpoint.managedBy !== manifest.key || declared.has(endpoint.ref)) continue;
+        try {
+          await access.service.removeEndpoint({ connectionId, ref: endpoint.ref });
+          out.removed.push(endpoint.ref);
+        } catch (error) {
+          // A key the owner made by hand still holds it: theirs to take off first.
+          if (!(error instanceof EndpointInUse)) throw error;
+          out.kept.push(endpoint.ref);
+        }
+      }
+    } finally {
+      access.onChange?.();
+    }
+    return out;
+  }
+
+  /**
+   * What an add-on's install, update or attach would open publicly, for the
+   * check: its entries, which of them each app that names it would gain on
+   * its key and which that key holds already, and its own link key.
+   */
+  async function addOnPublicAccessOf(input: Parameters<InstallCore['addOnPublicAccessOf']>[0]): Promise<Awaited<ReturnType<InstallCore['addOnPublicAccessOf']>>> {
+    const { manifest, connectionId, names, apps, actor } = input;
+    if (manifest.kind !== 'add-on' || (manifest.publicAccess ?? []).length === 0) return undefined;
+    const view = deps.publicAccess === undefined ? null : await deps.publicAccess.viewFor(connectionId);
+    const linkKey = linkKeyOf(manifest);
+    const planned = planPublicEndpoints(manifest, names, view, { tablesMadeLater: true });
+    const byApp: Record<string, { adds: string[]; held: string[] }> = {};
+    const canGrant = await actor.can(PERMISSIONS.apiKeysManage);
+    // What an app's key holds is told only to someone who may manage keys.
+    for (const appKey of canGrant ? apps : []) {
+      const app = await appHere(appKey, connectionId);
+      if (app === null || app === 'unreadable' || !namedAddOns(app.kind === 'app' ? app.addOns : undefined).some((need) => need.key === manifest.key)) continue;
+      const at = Date.now();
+      const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
+      const live = (await publicKeysRepo(deps.meta).listManagedBy(appKey)).filter((k) => k.kind === 'browser' && k.purpose === CUSTOMER_KEY_PURPOSE && here.has(k.id));
+      const held = new Set<string>();
+      for (const entry of planned.filter((candidate) => candidate.key !== linkKey)) {
+        let all = live.length > 0;
+        for (const k of live) {
+          const has = (await deps.publicAccess?.service.heldByKey(connectionId, k.id))?.get(entry.ref) ?? [];
+          if (!entry.methods.every((m) => has.includes(m))) all = false;
+        }
+        if (all) held.add(entry.ref);
+      }
+      const through = planned.filter((entry) => entry.key !== linkKey).map((entry) => entry.ref);
+      byApp[appKey] = { adds: through.filter((ref) => !held.has(ref)), held: through.filter((ref) => held.has(ref)) };
+    }
+    return {
+      endpoints: planned.map(({ definition: _definition, ...entry }) => entry),
+      byApp,
+      ...(linkKey === undefined ? {} : { linkKey }),
+      canGrant,
+    };
+  }
+
   const core: InstallCore = {
+    settleHost,
+    settleAddOnPublic,
+    addOnPublicAccessOf,
     planFor: (manifest, connectionId) => planFor(manifest, connectionId),
     checkedPlan: async (key, manifest, connectionId, verb, expectedChecksum) => {
       const { plan, existing, shapeRecords } = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum);

@@ -69,7 +69,8 @@ export default {
       "uninstallTitle": "Dieses Add-on deinstallieren",
       "updateTitle": "Auf {version} aktualisieren",
       "updateBody": "Diese Version ändert die eigenen Tabellen des Add-ons. Nichts von dem, was Sie haben, wird entfernt; bis die Aktualisierung abgeschlossen ist, tut das Add-on nichts.",
-      "update": "Aktualisieren"
+      "update": "Aktualisieren",
+      "updatePublicBody": "Diese Version würde mehr vom Add-on öffentlich öffnen. Aktualisieren Sie ohne Häkchen, und nichts Neues wird geöffnet."
     },
     "connect": {
       "apiKey": "API-Schlüssel",
@@ -167,6 +168,18 @@ export default {
     "veto": {
       "body": "Die Einstellung ist gespeichert, aber Netzwerkfunktionen sind für diesen Server aus, und das gilt. Geladene Add-ons laufen weiter, und Sie können eins hochladen.",
       "title": "Diese Installation kann nicht online suchen"
+    },
+    "public": {
+      "title": "Öffentlicher Zugriff",
+      "through": "Ihre Kunden erreichen es über den öffentlichen Schlüssel einer App, mit der es verbunden ist: {refs}.",
+      "link": "Es legt einen eigenen Link-Schlüssel an: Wer einen Link hat, öffnet genau diesen einen Datensatz und kann ihn nur lesen.",
+      "allow": "Öffentlichen Zugriff erlauben",
+      "allowHelp": "Ohne Häkchen wird nichts öffentlich geöffnet. Sie können es später erlauben.",
+      "cannot": "Das kann nur erlauben, wer API-Schlüssel verwalten darf.",
+      "askTitle": "Öffentlichen Zugriff erlauben?",
+      "askBody": "{name} ist für {app} eingeschaltet, und nichts davon ist bisher öffentlich. Wenn Sie es erlauben, kommt Folgendes auf den öffentlichen Schlüssel von {app}: {refs}.",
+      "askLater": "Jetzt nicht",
+      "askConfirm": "Erlauben"
     }
   },
   "capability": {

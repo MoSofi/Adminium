@@ -59,7 +59,8 @@
       "uninstallTitle": "Uninstall this add-on",
       "updateTitle": "Opdater til {version}",
       "updateBody": "Denne version ændrer tilføjelsens egne tabeller. Intet af det, du har, fjernes; indtil opdateringen er færdig, gør tilføjelsen ingenting.",
-      "update": "Opdater"
+      "update": "Opdater",
+      "updatePublicBody": "Denne version ville åbne mere af tilføjelsen for offentligheden. Opdater uden at sætte flueben, så åbnes intet nyt."
     },
     "connect": {
       "apiKey": "API key",
@@ -157,6 +158,18 @@
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
+    },
+    "public": {
+      "title": "Offentlig adgang",
+      "through": "Dine kunder kan nå det gennem den offentlige nøgle til en app, det er knyttet til: {refs}.",
+      "link": "Det opretter sin egen linknøgle: Den, der har et link, åbner netop den ene post og kan kun læse den.",
+      "allow": "Tillad offentlig adgang",
+      "allowHelp": "Uden flueben åbnes intet for offentligheden. Du kan tillade det senere.",
+      "cannot": "Kun en person, der må administrere API-nøgler, kan tillade dette.",
+      "askTitle": "Tillad offentlig adgang?",
+      "askBody": "{name} er slået til for {app}, og intet af det er endnu åbent for offentligheden. Hvis du tillader det, lægges dette på den offentlige nøgle til {app}: {refs}.",
+      "askLater": "Ikke nu",
+      "askConfirm": "Tillad"
     }
   },
   "capability": {

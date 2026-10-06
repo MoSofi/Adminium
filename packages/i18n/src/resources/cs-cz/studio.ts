@@ -69,7 +69,8 @@ export default {
       "uninstallTitle": "Uninstall this add-on",
       "updateTitle": "Aktualizovat na {version}",
       "updateBody": "Tato verze mění vlastní tabulky doplňku. Nic z toho, co máte, se neodebere; dokud aktualizace neskončí, doplněk nic nedělá.",
-      "update": "Aktualizovat"
+      "update": "Aktualizovat",
+      "updatePublicBody": "Tato verze by veřejnosti otevřela z doplňku víc. Aktualizujte bez zaškrtnutí a nic nového se neotevře."
     },
     "connect": {
       "apiKey": "API key",
@@ -167,6 +168,18 @@ export default {
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
+    },
+    "public": {
+      "title": "Veřejný přístup",
+      "through": "Vaši zákazníci se k němu dostanou přes veřejný klíč aplikace, ke které je připojen: {refs}.",
+      "link": "Vytvoří si vlastní klíč pro odkazy: kdo má odkaz, otevře právě ten jeden záznam a může ho jen číst.",
+      "allow": "Povolit veřejný přístup",
+      "allowHelp": "Bez zaškrtnutí se veřejnosti nic neotevře. Povolit to můžete později.",
+      "cannot": "Povolit to může jen ten, kdo smí spravovat klíče API.",
+      "askTitle": "Povolit veřejný přístup?",
+      "askBody": "{name} je pro {app} zapnutý a nic z něj zatím není veřejně otevřeno. Povolením se na veřejný klíč aplikace {app} přidá: {refs}.",
+      "askLater": "Teď ne",
+      "askConfirm": "Povolit"
     }
   },
   "capability": {

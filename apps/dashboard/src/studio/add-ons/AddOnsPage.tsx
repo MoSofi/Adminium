@@ -57,7 +57,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
 import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
-import { MakesSummary, PlanSummary } from './PlanSummary.js';
+import { MakesSummary, PlanSummary, PublicAccessChoice } from './PlanSummary.js';
 import { UninstallSummary, uninstallAllowed } from './UninstallSummary.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
@@ -73,6 +73,8 @@ import {
   getAddOnJob,
   setCatalogEnabled,
   uploadAddOn,
+  asksNewPublicAccess,
+  attachAddOn,
   checkInstall,
   connectionChoices,
   installAddOn,
@@ -98,7 +100,7 @@ type Pending =
   | { kind: 'disconnect'; addOn: AddOnDto }
   | { kind: 'uninstall'; addOn: AddOnDto }
   /** An update that adds to the add-on's own tables: what it adds is read before it runs. */
-  | { kind: 'update'; entry: CatalogEntry; plan: UpdatePlan }
+  | { kind: 'update'; entry: CatalogEntry; plan: UpdatePlan; publicAccess: boolean }
   | { kind: 'discard'; entry: CatalogEntry };
 
 /**
@@ -178,9 +180,11 @@ function ConsentDialog({
   busy: boolean;
   onChoose: (connectionId: string) => void;
   onCancel: () => void;
-  onConfirm: (attachTo: string[]) => void;
+  onConfirm: (attachTo: string[], publicAccess: boolean) => void;
 }) {
   const [attachTo, setAttachTo] = useState<string[]>(hosts);
+  // Never ticked for the person: opening something to the public is said, not assumed.
+  const [allowPublic, setAllowPublic] = useState(false);
   const plan = check?.plan ?? null;
   const blocked =
     plan === null ||
@@ -233,6 +237,7 @@ function ConsentDialog({
             <>
               <PlanSummary plan={plan} />
               {plan.installable && <MakesSummary makes={check?.makes} database={check?.makes === undefined ? null : (check.connectionName ?? null)} />}
+              {plan.installable && <PublicAccessChoice access={check?.publicAccess} allowed={allowPublic} onAllowed={setAllowPublic} busy={busy} />}
             </>
           )}
           {hosts.length > 0 && (
@@ -262,7 +267,7 @@ function ConsentDialog({
         <Button variant="ghost" onClick={onCancel}>
           {t('studio:addOns.consent.cancel', 'Cancel')}
         </Button>
-        <Button disabled={busy || blocked} onClick={() => onConfirm(attachTo)}>
+        <Button disabled={busy || blocked} onClick={() => onConfirm(attachTo, allowPublic)}>
           {t('studio:addOns.consent.confirm', 'Install')}
         </Button>
       </ModalFooter>
@@ -665,6 +670,7 @@ export function AddOnsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [askPublic, setAskPublic] = useState<{ addOn: AddOnDto; host: string; refs: string[] } | null>(null);
   /** What the removal being confirmed would take and keep; and the deliberate drop of its tables. */
   const [removal, setRemoval] = useState<{ plan: UninstallPlan | null; drop: boolean; typed: string }>({ plan: null, drop: false, typed: '' });
   const [consent, setConsent] = useState<{
@@ -768,7 +774,8 @@ export function AddOnsPage() {
     void (async () => {
       const plan = await run(() => fetchUpdatePlan(entry.key));
       if (plan === undefined) return;
-      if (plan.plan.requiresSchemaChange) setPending({ kind: 'update', entry, plan });
+      // Shown first when it changes tables, or would open something new to the public: that is allowed by a tick, never by the click.
+      if (plan.plan.requiresSchemaChange || asksNewPublicAccess(plan.publicAccess)) setPending({ kind: 'update', entry, plan, publicAccess: false });
       else await run(() => updateAddOn(entry.key, plan.checksum));
     })();
   };
@@ -777,7 +784,12 @@ export function AddOnsPage() {
   const toggleAttachment = (addOn: AddOnDto, attachedTo: string, enabled: boolean): void => {
     const target = { key: addOn.key, name: addOn.name, version: addOn.version };
     const go = () =>
-      void run(() => setAddOnEnabled(addOn.key, attachedTo, !enabled), { action: 'switch-off', addOn: target, host: attachedTo });
+      void (async () => {
+        const done = await run(() => setAddOnEnabled(addOn.key, attachedTo, !enabled), { action: 'switch-off', addOn: target, host: attachedTo });
+        // Switched on, and its public entries were left off the app's key: ask, rather than leave it silently closed.
+        const left = done?.publicAccess?.skipped.map((entry) => entry.ref).filter((ref) => ref !== '*') ?? [];
+        if (!enabled && left.length > 0) setAskPublic({ addOn, host: attachedTo, refs: left });
+      })();
     if (!enabled) {
       go();
       return;
@@ -1112,7 +1124,7 @@ export function AddOnsPage() {
           busy={busy}
           onChoose={(connectionId) => check(consent.entry, consent.choices, connectionId)}
           onCancel={() => setConsent(null)}
-          onConfirm={(attachTo) => {
+          onConfirm={(attachTo, publicAccess) => {
             const { entry, chosen, check: agreed } = consent;
             setConsent(null);
             void run(() =>
@@ -1123,10 +1135,51 @@ export function AddOnsPage() {
                 ...(chosen === null ? {} : { connectionId: chosen }),
                 // The plan the person just read: a database that moved since is said, not built on.
                 ...(agreed?.checksum === undefined ? {} : { planChecksum: agreed.checksum }),
+                ...(publicAccess ? { publicAccess: true } : {}),
               }),
             );
           }}
         />
+      )}
+
+      {askPublic !== null && (
+        <Modal
+          open
+          onOpenChange={(next) => {
+            if (!next) setAskPublic(null);
+          }}
+        >
+          <ModalHeader
+            icon={<ShieldCheck />}
+            closeLabel={t('studio:addOns.confirm.close', 'Close')}
+            title={t('studio:addOns.public.askTitle', 'Allow public access?')}
+          />
+          <ModalBody>
+            <p data-part="add-on-public-ask">
+              {t('studio:addOns.public.askBody', '{name} is on for {app}, and nothing of it is open to the public yet. Allowing it puts these on the public key of {app}: {refs}.', {
+                name: askPublic.addOn.name,
+                app: askPublic.host,
+                refs: askPublic.refs.join(', '),
+              })}
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => setAskPublic(null)}>
+              {t('studio:addOns.public.askLater', 'Not now')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() => {
+                const current = askPublic;
+                setAskPublic(null);
+                void run(() => attachAddOn(current.addOn.key, current.host, true));
+              }}
+            >
+              {t('studio:addOns.public.askConfirm', 'Allow')}
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
 
       {pending !== null && (
@@ -1185,12 +1238,20 @@ export function AddOnsPage() {
                   ? (
                       <div className="flex flex-col gap-3">
                         <p>
-                          {t(
-                            'studio:addOns.confirm.updateBody',
-                            'This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.',
-                          )}
+                          {pending.plan.plan.requiresSchemaChange
+                            ? t(
+                                'studio:addOns.confirm.updateBody',
+                                'This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.',
+                              )
+                            : t('studio:addOns.confirm.updatePublicBody', 'This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened.')}
                         </p>
                         <PlanSummary plan={pending.plan.plan} />
+                        <PublicAccessChoice
+                          access={pending.plan.publicAccess}
+                          allowed={pending.publicAccess}
+                          onAllowed={(next) => setPending((current) => (current?.kind === 'update' ? { ...current, publicAccess: next } : current))}
+                          busy={busy}
+                        />
                       </div>
                     )
                   : t(
@@ -1214,7 +1275,7 @@ export function AddOnsPage() {
                   () => {
                     if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
                     if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key, drop);
-                    if (current.kind === 'update') return updateAddOn(current.entry.key, current.plan.checksum);
+                    if (current.kind === 'update') return updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess);
                     return discardStaged(current.entry.key, current.entry.version);
                   },
                   current.kind === 'uninstall'

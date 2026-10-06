@@ -86,6 +86,14 @@ describe('the one key of an add-on', () => {
     expect(issuesOf(kit({ publicAccess: [LINK], publicKeys: { 'card-link': {} } }, shown)).join('\n')).toContain('give "cards.link_token" rules.code {"length": 16, "hiddenFromStaff": true}');
   });
 
+  it('its key is never called customer, and nothing on it is open to everyone', () => {
+    const named = issuesOf(kit({ publicAccess: [{ table: 'cards', methods: ['GET', 'POST'], writable: ['label'] }], publicKeys: { customer: {} } })).join('\n');
+    expect(named).toContain('an add-on has no "customer" key');
+    // A plain read on the link key would be a list anyone holding the published key could ask for.
+    const open = issuesOf(kit({ publicAccess: [LINK, { table: 'cards', key: 'card-link', methods: ['GET'], select: ['label'] }], publicKeys: { 'card-link': {} } })).join('\n');
+    expect(open).toContain('"card-link" opens one row by its link');
+  });
+
   it('an entry names the link key or none: an add-on has no customer key of its own', () => {
     expect(issuesOf(kit({ publicAccess: [{ ...BALANCE, key: 'customer' }] })).join('\n')).toContain('"customer" is neither');
   });

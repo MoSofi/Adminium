@@ -66,12 +66,14 @@ import {
   compareSemver,
   installsLikeAnApp,
   isAddOnManifest,
+  prefixFor,
   validateManifest,
   type AddOnManifest,
 } from '@adminium/manifest';
 import {
   SecretSettingRefused,
   addOnSettingsRepo,
+  appTablesRepo,
   auditRepo,
   manifestsRepo,
   settingsRepo,
@@ -112,6 +114,7 @@ import {
   updateAddOn,
   upgradeAddOn,
   type Actor,
+  DASHBOARD_HOST,
 } from '../../add-ons/install.js';
 import { DECIDER_CONTRACTS, deciderTrusted } from '../../add-ons/decide.js';
 import { trustSources } from '../../add-ons/decider-trust.js';
@@ -465,7 +468,28 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const server = request.server as { rbac?: { resolve?: (r: FastifyRequest) => Promise<{ superAdmin: boolean }> } };
         return typeof server.rbac?.resolve === 'function' ? (await server.rbac.resolve(request)).superAdmin : false;
       },
+      // Asked only before something is opened to the public: with no permission layer to ask, the answer is no.
+      can: async (permission) => typeof request.can === 'function' && (await request.can(permission as never)),
     };
+  }
+
+  /** What the add-on would open publicly, for a check: its entries, what each app would gain, its link key. */
+  async function publicPlanOf(request: FastifyRequest, manifest: AddOnManifest, connectionId: string, apps: readonly string[]) {
+    const core = installer.core?.() ?? null;
+    if (core === null || (manifest.publicAccess ?? []).length === 0) return undefined;
+    const prefix = manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : '';
+    const names = {
+      ...Object.fromEntries((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, `${prefix}${table.ref}`])),
+      ...(await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
+    };
+    const actor = actorOf(request);
+    return core.addOnPublicAccessOf({
+      manifest,
+      connectionId,
+      names,
+      apps,
+      actor: { id: actor.id, label: actor.label, superAdmin: actor.superAdmin ?? (() => Promise.resolve(false)), can: actor.can ?? (() => Promise.resolve(false)) },
+    });
   }
 
   /**
@@ -473,7 +497,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    * that keeps tables of its own the database is worked out as the install
    * works it out (or asked for, 409), and the plan carries its identity.
    */
-  async function planOf(input: { key: string; version: string; attachTo: readonly string[]; connectionId?: string | undefined }) {
+  async function planOf(input: { key: string; version: string; attachTo: readonly string[]; connectionId?: string | undefined; request: FastifyRequest }) {
     const first = await addOnManifestFromStore(installer, input.key, input.version);
     const attachTo = hostsToAttach(first.manifest, input.attachTo);
     const hosts = await hostsFor(installer, attachTo);
@@ -485,8 +509,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     }
     const planned = await planAddOn(installer, manifest, { attachTo, hosts, connectionId, warnings });
     const connection = await deps.meta.db.selectFrom('adminium_connections').select('name').where('id', '=', connectionId).executeTakeFirst();
+    const publicAccess = await publicPlanOf(input.request, manifest, connectionId, attachTo);
     return {
       plan: planned.dto,
+      ...(publicAccess === undefined ? {} : { publicAccess }),
       connectionId,
       connectionName: connection?.name ?? null,
       ...(planned.checksum === undefined ? {} : { checksum: planned.checksum }),
@@ -1348,8 +1374,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: addOnKeyParams, body: updateAddOnPlanBody, response: { 200: updateAddOnPlanReply } },
       },
       async (request) => {
-        const { plan, from, to, connectionId, checksum } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to });
-        return { plan, from, to, connectionId, ...(checksum === undefined ? {} : { checksum }) };
+        const { plan, from, to, connectionId, checksum, manifest } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to });
+        const attached = (await manifests.findByKey(request.params.key))?.attachments.map((attachment) => attachment.attachedTo) ?? [];
+        const publicAccess = connectionId === null ? undefined : await publicPlanOf(request, manifest, connectionId, attached);
+        return { plan, from, to, connectionId, ...(checksum === undefined ? {} : { checksum }), ...(publicAccess === undefined ? {} : { publicAccess }) };
       },
     );
 
@@ -1372,13 +1400,14 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           to: request.body.to,
           planChecksum: request.body.planChecksum,
           connectionId: request.body.connectionId,
+          publicAccess: request.body.publicAccess,
           actor: actorOf(request),
           host: {
             log: request.log,
             ...(request.server.hasDecorator('realtime') ? { publish: (channel, event, payload) => request.server.realtime.publish(channel, event, payload) } : {}),
           },
         });
-        const { pages, rules, roles, outbox, documents, seeds, seedsKept } = written ?? {};
+        const { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp, publicAccessRemoved } = written ?? {};
         return {
           addOn: await toDto(installed),
           from,
@@ -1386,7 +1415,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           pruned,
           ...(connectionId === undefined ? {} : { connectionId }),
           ...(created === undefined ? {} : { schema: { created, reused: reused ?? [] } }),
-          ...(written === undefined ? {} : { pages, rules, roles, outbox, documents, seeds, seedsKept }),
+          ...(written === undefined ? {} : { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp, publicAccessRemoved }),
         };
       },
     );
@@ -1445,7 +1474,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             `No package for "${request.params.key}" is staged on this instance.`,
           );
         }
-        return planOf({ key: request.params.key, version, attachTo: [] });
+        return planOf({ key: request.params.key, version, attachTo: [], request });
       },
     );
 
@@ -1460,7 +1489,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const version = request.body.version ?? (await deps.store.versions(request.body.key))[0];
         if (version === undefined) throw new NotFoundError(`No package for "${request.body.key}" is staged on this instance.`);
-        return planOf({ key: request.body.key, version, attachTo: request.body.attachTo, connectionId: request.body.connectionId });
+        return planOf({ key: request.body.key, version, attachTo: request.body.attachTo, connectionId: request.body.connectionId, request });
       },
     );
 
@@ -1486,6 +1515,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           attachTo,
           connectionId: request.body.connectionId,
           planChecksum: request.body.planChecksum,
+          publicAccess: request.body.publicAccess,
           actor: actorOf(request),
           host: {
             log: request.log,
@@ -1493,13 +1523,13 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           },
         });
         await makeAppDocuments(request, key, attachTo);
-        const { pages, rules, roles, outbox, documents, seeds, seedsKept } = written ?? {};
+        const { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp } = written ?? {};
         return {
           addOn: await toDto(installed),
           plan,
           connectionId: connectionId ?? null,
           schema: { created, reused: reused ?? plan.reuse.map((table) => table.ref) },
-          ...(written === undefined ? {} : { pages, rules, roles, outbox, documents, seeds, seedsKept }),
+          ...(written === undefined ? {} : { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp }),
         };
       },
     );
@@ -1516,14 +1546,15 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: addOnKeyParams, body: attachAddOnBody, response: { 200: attachAddOnReply } },
       },
       async (request) => {
-        const { installed, change } = await attachAddOn(installer, {
+        const { installed, change, publicAccess } = await attachAddOn(installer, {
           key: request.params.key,
           host: request.body.app,
           connectionId: request.body.connectionId,
+          publicAccess: request.body.publicAccess,
           actor: actorOf(request),
         });
         await makeAppDocuments(request, request.params.key, [request.body.app]);
-        return { addOn: await toDto(installed), change };
+        return { addOn: await toDto(installed), change, ...(publicAccess === undefined ? {} : { publicAccess }) };
       },
     );
 
@@ -1852,6 +1883,27 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           },
         });
 
+        /*
+         * The app's key, FIRST and before the reply: switched off, the
+         * add-on's entries are off it now, whoever switched it — and when that
+         * cannot be done the request fails. Switched on, they go back only on
+         * the caller's say, and only when they may manage API keys.
+         */
+        const core = installer.core?.() ?? null;
+        const where = installed.row.connectionId;
+        const publicEntries = ((installed.document as { publicAccess?: unknown[] } | null)?.publicAccess ?? []).length > 0;
+        const actor = actorOf(request);
+        const settled =
+          core === null || where === null || host === DASHBOARD_HOST
+            ? undefined
+            : await core.settleHost({
+                addOnKey: request.params.key,
+                appKey: host,
+                connectionId: where,
+                publicAccess: request.body.enabled && request.body.publicAccess === true,
+                actor: { id: actor.id, label: actor.label, superAdmin: actor.superAdmin ?? (() => Promise.resolve(false)), can: actor.can ?? (() => Promise.resolve(false)) },
+                host: { log: request.log },
+              });
         // Enable/disable changes which providers resolve, so the runtime is
         // rebuilt here too — an add-on switched off must stop rendering
         // immediately, not at the next restart.
@@ -1862,7 +1914,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
         const after = await manifests.findByKey(request.params.key);
         const features = request.body.enabled ? [] : needs.filter((need) => need.need === 'feature');
-        return { addOn: await toDto(after!), ...(features.length === 0 ? {} : { features: needsDto(features) }) };
+        return { addOn: await toDto(after!), ...(features.length === 0 ? {} : { features: needsDto(features) }), ...(settled === undefined || (!publicEntries && settled.publicAccess.withdrawn.length === 0) ? {} : { publicAccess: settled.publicAccess }) };
       },
     );
 

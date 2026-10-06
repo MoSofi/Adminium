@@ -59,7 +59,8 @@
       "uninstallTitle": "Uninstall this add-on",
       "updateTitle": "Update to {version}",
       "updateBody": "This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.",
-      "update": "Update"
+      "update": "Update",
+      "updatePublicBody": "This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened."
     },
     "connect": {
       "apiKey": "API key",
@@ -157,6 +158,18 @@
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
+    },
+    "public": {
+      "title": "Public access",
+      "through": "Your customers can reach it through the public key of an app it is attached to: {refs}.",
+      "link": "It makes a link key of its own: whoever holds a link opens that one record, and can only read it.",
+      "allow": "Allow public access",
+      "allowHelp": "Left unticked, nothing is opened to the public. You can allow it later.",
+      "cannot": "Only someone who may manage API keys can allow this.",
+      "askTitle": "Allow public access?",
+      "askBody": "{name} is on for {app}, and nothing of it is open to the public yet. Allowing it puts these on the public key of {app}: {refs}.",
+      "askLater": "Not now",
+      "askConfirm": "Allow"
     }
   },
   "capability": {

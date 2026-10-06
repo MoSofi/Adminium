@@ -1077,6 +1077,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           actorOf(request),
           installed !== undefined && installed.row.connectionId === connectionId,
           new Map((dto.tables ?? []).map((table) => [table.ref, new Set(table.edits.filter((edit) => edit.kind === 'add-column').map((edit) => edit.column))])),
+          // What the add-ons it brings would serve through its key is part of what is being allowed.
+          addOns,
         );
         // What the add-ons refuse whatever the install says, so `installable` is the install's answer too.
         const addOnProblems = addOnPlanProblems(manifest.name, addOns);

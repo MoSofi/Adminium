@@ -417,6 +417,8 @@ export const appInstallPlanDto = z.object({
           /** Answered by a later release: listed, not made now. */
           pending: z.boolean(),
           issues: z.array(z.string()),
+          /** The manifest that declares it: the app, or an add-on of its served through the app's key. */
+          owner: z.string().optional(),
           /**
            * For an app already installed (the check an update is shown): its
            * key already holds this (`held`), the update gives it once allowed

@@ -34,7 +34,9 @@ describe('an app’s public access, planned', () => {
     expect(planned.every((p) => p.issues.length === 0 && p.definition === null)).toBe(true);
   });
 
-  it('asks nothing of an add-on', () => {
-    expect(planPublicEndpoints({ ...manifest, kind: 'add-on' } as unknown as Manifest, {}, null)).toEqual([]);
+  it('plans an add-on\'s entries the same way, each said to be its own', () => {
+    const asAddOn = planPublicEndpoints({ ...manifest, kind: 'add-on' } as unknown as Manifest, {}, null);
+    expect(asAddOn.map((p) => p.ref)).toEqual(planPublicEndpoints(manifest, {}, null).map((p) => p.ref));
+    expect(asAddOn.every((p) => p.owner === manifest.key)).toBe(true);
   });
 });

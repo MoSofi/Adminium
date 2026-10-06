@@ -42,7 +42,8 @@ import {
 import { appTablesRepo, auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
-import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { PERMISSIONS } from '../rbac/permissions.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 import { DECIDER_CONTRACTS, deciderGate } from './decide.js';
 import type { InstallActor, InstallCore, InstallHost } from './install-core.js';
@@ -416,6 +417,56 @@ export interface InstallAddOnInput {
   actor: Actor;
   /** How the audit row says it arrived. */
   via?: string;
+  /** Whether what it opens publicly is allowed: its own link key, and its entries on the key of each app it is attached to. Nothing is opened when absent. */
+  publicAccess?: boolean | undefined;
+  /** `caller`: an app's own install or update is doing this and settles its own key a moment later. */
+  settle?: 'caller' | undefined;
+}
+
+/** The say an add-on's public step is run under: allowed, or the reason nothing new is opened. */
+function consentOf(publicAccess: boolean | undefined): true | { refusal: string } {
+  return publicAccess === true ? true : { refusal: 'not allowed: send "publicAccess": true to allow it' };
+}
+
+/** Opening something publicly was asked for by someone who may not hand out API keys: refused before anything moves. Nobody is assumed to. */
+async function refuseUnlessMayOpen(actor: Actor, publicAccess: boolean | undefined, key: string): Promise<void> {
+  if (publicAccess !== true) return;
+  if ((await actor.can?.(PERMISSIONS.apiKeysManage)) === true) return;
+  throw new ForbiddenError(`"${key}" asks for public access, which only someone who may manage API keys can allow. Go on without public access, or ask someone who can.`);
+}
+
+/** Whoever settles an app's key for an add-on: nobody is assumed to hold a permission. */
+function settler(actor: Actor): InstallActor {
+  return { id: actor.id, label: actor.label, kind: actor.kind, superAdmin: actor.superAdmin ?? (() => Promise.resolve(false)), can: actor.can ?? (() => Promise.resolve(false)) };
+}
+
+/** The apps among an add-on's hosts: the dashboard has no key to settle. */
+const appHosts = (hosts: readonly string[]): string[] => hosts.filter((host) => host !== DASHBOARD_HOST);
+
+/** Whether settling changed or left out anything: an add-on with no public side says nothing of it in a reply. */
+const saysSomething = (settled: SettledByApp): boolean => Object.values(settled).some((app) => app.granted.length + app.withdrawn.length + app.skipped.length > 0);
+
+/** One app's key after the add-on moved, as the reply says it. */
+type SettledByApp = Record<string, { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[] }>;
+
+async function settleHosts(
+  core: InstallCore,
+  input: { addOnKey: string; apps: readonly string[]; connectionId: string; publicAccess: boolean | undefined; actor: Actor; host?: InstallHost | undefined; addOn?: { manifest: AddOnManifest; names: Readonly<Record<string, string>> } | null },
+): Promise<SettledByApp> {
+  const out: SettledByApp = {};
+  for (const appKey of appHosts(input.apps)) {
+    const settled = await core.settleHost({
+      addOnKey: input.addOnKey,
+      appKey,
+      connectionId: input.connectionId,
+      publicAccess: input.publicAccess === true,
+      actor: settler(input.actor),
+      host: input.host,
+      ...(input.addOn === undefined ? {} : { addOn: input.addOn }),
+    });
+    out[appKey] = settled.publicAccess;
+  }
+  return out;
 }
 
 /**
@@ -568,6 +619,7 @@ async function installLikeAnApp(
   if (input.planChecksum !== undefined && planned.checksum !== undefined && input.planChecksum !== planned.checksum) {
     throw new AppError(409, 'SCHEMA_DRIFT', `The database changed since "${key}" was checked. Check again, then install.`, { addOn: key, connectionId });
   }
+  await refuseUnlessMayOpen(input.actor, input.publicAccess, key);
 
   const records = appTablesRepo(deps.meta);
   let stage: 'tables' | 'writers' | 'seeds' | 'finish' = 'tables';
@@ -616,7 +668,8 @@ async function installLikeAnApp(
      * written stops the install here, to be finished by the same call.
      */
     stage = 'writers';
-    written = (await core.writePages(who, where, manifest, row.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, false)) ?? {};
+    // Its endpoints are saved whoever installs it — a stored endpoint no key holds answers nothing; its own link key only on the caller's say.
+    written = (await core.writePages(who, where, manifest, row.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, true, consentOf(input.publicAccess))) ?? {};
     /*
      * The rows its tables start with, and its one settings row: after the
      * rules, so each row gets its table's own defaults, numbers and codes;
@@ -679,6 +732,11 @@ async function installLikeAnApp(
       after: { key, version, attachTo, connectionId, tables: reused, created, ...(ctx.resumed === null ? {} : { resumed: true }), ...(input.via === undefined ? {} : { via: input.via }) },
     },
   });
+  // Each app it is attached to: its key gains the add-on's entries only on the caller's say.
+  if (input.settle !== 'caller') {
+    const settled = await settleHosts(core, { addOnKey: key, apps: attachTo, connectionId, publicAccess: input.publicAccess, actor: input.actor, host: input.host });
+    if ((manifest.publicAccess ?? []).length > 0 || saysSomething(settled)) written = { ...written, publicAccessByApp: settled };
+  }
   return { installed, plan: planned.dto, created, reused, connectionId, written };
 }
 
@@ -774,6 +832,10 @@ export interface UpdateAddOnInput {
    * own gets what the version adds to them.
    */
   schema?: 'apply' | 'refuse' | undefined;
+  /** Whether what the version adds publicly is allowed: its link key, and its new entries on each attached app's key. What it dropped goes either way. */
+  publicAccess?: boolean | undefined;
+  /** `caller`: an app's own install or update is doing this and settles its own key a moment later. */
+  settle?: 'caller' | undefined;
   /** The `checksum` of the plan the person looked at; a database that moved since answers `SCHEMA_DRIFT`. */
   planChecksum?: string | undefined;
   /** The answer to "which database holds its tables", when an add-on installed before that was recorded is found in several. */
@@ -902,6 +964,12 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   }
   if (!likeApp) {
     await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+    // A version that keeps no tables has no public side: whatever an earlier one opened is taken back.
+    const plain = deps.core?.() ?? null;
+    if (plain !== null && installed.row.connectionId !== null && ((installed.document as { publicAccess?: unknown[] } | null)?.publicAccess ?? []).length > 0) {
+      await settleHosts(plain, { addOnKey: key, apps: attachedTo, connectionId: installed.row.connectionId, publicAccess: false, actor: input.actor, host: input.host, addOn: null });
+      await plain.settleAddOnPublic({ manifest, connectionId: installed.row.connectionId, names: {}, actor: settler(input.actor) });
+    }
     // Older directories are pruned only AFTER the upgrade verified, so a failure
     // anywhere above leaves the running version on disk — and, for an upgrade
     // made by an app's update, only once that whole update is done.
@@ -931,6 +999,7 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   if (input.planChecksum !== undefined && planned.checksum !== undefined && input.planChecksum !== planned.checksum) {
     throw new AppError(409, 'SCHEMA_DRIFT', `The database changed since "${key}" was checked. Check again, then update.`, { addOn: key, connectionId });
   }
+  await refuseUnlessMayOpen(input.actor, input.publicAccess, key);
 
   const records = appTablesRepo(deps.meta);
   const who: InstallActor = {
@@ -974,7 +1043,7 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
     );
     reused = applied.reused;
     stage = 'writers';
-    written = (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, false)) ?? {};
+    written = (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, true, consentOf(input.publicAccess))) ?? {};
     /*
      * Starting rows only for the tables THIS version brings: a table the
      * version before already had is the owner's by now, empty or not. Read
@@ -1045,6 +1114,27 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
     action: 'add-on.upgraded',
     changes: { after: { key, from, to, pruned, connectionId, created, ...(resumed ? { resumed: true } : {}), ...(input.via === undefined ? {} : { via: input.via }) } },
   });
+  /*
+   * Its public side, now the version is the one installed: what it dropped
+   * leaves every app's key and its own link key whoever updates it; what it
+   * adds goes on an app's key only on the caller's say. Then the endpoints it
+   * no longer declares go.
+   */
+  /*
+   * Every app it is attached to, whether or not either version says it has a
+   * public side (the cost of asking is a read). Inside an app's own update
+   * nobody said any app may gain anything, so every one of them — the app
+   * that is updating too, which gives its own key what it allows a moment
+   * later — is only ever narrowed here.
+   */
+  const byCaller = input.settle === 'caller';
+  const settled = await settleHosts(core, { addOnKey: key, apps: attachedTo, connectionId, publicAccess: byCaller ? false : input.publicAccess, actor: input.actor, host: input.host });
+  const hadPublic = ((installed.document as { publicAccess?: unknown[] } | null)?.publicAccess ?? []).length > 0;
+  const hasPublic = (manifest.publicAccess ?? []).length > 0 || hadPublic;
+  if (hasPublic || saysSomething(settled)) written = { ...written, publicAccessByApp: settled };
+  const names = await records.realNames(connectionId, key);
+  const removed = await core.settleAddOnPublic({ manifest, connectionId, names, actor: settler(input.actor) });
+  if (hasPublic || removed.removed.length + removed.kept.length > 0) written = { ...written, publicAccessRemoved: removed };
   return { installed: (await manifests.findByKey(key))!, from, to, pruned, connectionId, created, reused, written };
 }
 
@@ -1125,8 +1215,19 @@ export async function pruneOlderVersions(deps: Pick<AddOnInstallerDeps, 'store'>
  */
 export async function attachAddOn(
   deps: AddOnInstallerDeps,
-  input: { key: string; host: string; hostApp?: HostApp | undefined; actor: Actor; via?: string; /** See {@link adoptAddOnTables}. */ connectionId?: string | undefined },
-): Promise<{ installed: InstalledManifest; change: 'attached' | 'enabled' | null }> {
+  input: {
+    key: string;
+    host: string;
+    hostApp?: HostApp | undefined;
+    actor: Actor;
+    via?: string;
+    /** See {@link adoptAddOnTables}. */ connectionId?: string | undefined;
+    /** Whether the app's key may gain the add-on's public entries. Nothing is given when absent. */
+    publicAccess?: boolean | undefined;
+    /** `caller`: an app's own install or update is attaching it and settles its own key a moment later. */
+    settle?: 'caller' | undefined;
+  },
+): Promise<{ installed: InstalledManifest; change: 'attached' | 'enabled' | null; publicAccess?: SettledByApp[string] | undefined }> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const installed = await manifests.findByKey(input.key);
   if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${input.key}" is not installed.`);
@@ -1182,5 +1283,13 @@ export async function attachAddOn(
     });
     await deps.rebuildRuntime?.();
   }
-  return { installed: (await manifests.findByKey(input.key))!, change };
+  const after = (await manifests.findByKey(input.key))!;
+  // The app's key: asked again on an attach that changed nothing, so the say can be given later.
+  const core = deps.core?.() ?? null;
+  const where = after.row.connectionId;
+  if (input.settle !== 'caller' && core !== null && where !== null && input.host !== DASHBOARD_HOST) {
+    const settled = await settleHosts(core, { addOnKey: input.key, apps: [input.host], connectionId: where, publicAccess: input.publicAccess, actor: input.actor });
+    if ((manifest.publicAccess ?? []).length > 0 || saysSomething(settled)) return { installed: after, change, publicAccess: settled[input.host] };
+  }
+  return { installed: after, change };
 }

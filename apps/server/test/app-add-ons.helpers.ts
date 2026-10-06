@@ -21,7 +21,7 @@ import { join } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { sql } from 'kysely';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { createSqliteMetaDb, firstRun, manifestsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
+import { connectionTenantConfig, createSqliteMetaDb, firstRun, manifestsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 
 import type { CatalogClient } from '../src/add-ons/catalog.js';
 import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
@@ -39,6 +39,8 @@ import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { AppError, errorEnvelope, UnauthorizedError } from '../src/errors.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import { createPublicViews } from '../src/public-api/runtime.js';
 import { addOnRoutes } from '../src/routes/add-ons/index.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { documentRoutes } from '../src/routes/documents/index.js';
@@ -161,6 +163,8 @@ export interface Harness {
   sampleData: SampleDataDeps;
   /** The document pipeline the routes draw with, when `documents` was asked for. */
   pipeline: RenderDeps | null;
+  /** The public keys the resolver was told to forget, in order. */
+  invalidatedKeys: string[];
   close: () => Promise<void>;
 }
 
@@ -294,6 +298,8 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
   await app.register(
     addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog, sampleData, ...(runtime === undefined ? {} : { runtime }) }),
   );
+  const views = createPublicViews(meta);
+  const invalidated: string[] = [];
   const appDeps: AppRoutesDeps = {
     meta,
     store: appStore,
@@ -307,6 +313,14 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     schemaTarget,
     addOns: { installer, catalog, bundledDir },
     ...(runtime === undefined ? {} : { addOnRuntime: runtime }),
+    // The public API's own service and views: an app's key, and an add-on's entries on it, are made for real.
+    publicAccess: {
+      service: createEndpointService({ meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(meta, cid)) ?? undefined }),
+      viewFor: views.viewFor,
+      crypto: dsnCryptoFromSecret(TEST_SECRET),
+      origins: ['self'],
+      invalidateKey: (keyId: string) => invalidated.push(keyId),
+    },
   };
   await app.register(appRoutes(appDeps));
   installCore = createAppInstallService(appDeps).core;
@@ -410,6 +424,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     },
     rows: async (statement) => (await sql.raw<Record<string, unknown>>(statement).execute(handle.db)).rows,
     pipeline,
+    invalidatedKeys: invalidated,
     close: async () => {
       await app.close();
       await manager.disposeAll().catch(() => undefined);

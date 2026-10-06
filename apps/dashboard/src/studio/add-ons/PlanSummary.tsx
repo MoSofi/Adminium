@@ -4,10 +4,10 @@
  * the Add-ons page's consent dialog and the app settings page's Install, which
  * asks the same consent before an add-on is installed for an app.
  */
-import { Alert } from '@adminium/ui';
+import { Alert, Checkbox } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import type { InstallMakes, InstallPlan } from './addOnsApi.js';
+import type { InstallMakes, InstallPlan, PublicAccessCheck } from './addOnsApi.js';
 
 /**
  * The plan, rendered as prose an operator can act on.
@@ -108,6 +108,50 @@ export function MakesSummary({ makes, database }: { makes: InstallMakes | undefi
           <li key={line}>{line}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * What the add-on would open to the public, and the one tick that opens it.
+ * Unticked — the way it starts — nothing is opened: the add-on is installed
+ * and its public entries wait. Somebody who may not hand out API keys is told
+ * so, and cannot tick it.
+ */
+export function PublicAccessChoice({
+  access,
+  allowed,
+  onAllowed,
+  busy,
+}: {
+  access: PublicAccessCheck | undefined;
+  allowed: boolean;
+  onAllowed: (next: boolean) => void;
+  busy: boolean;
+}) {
+  if (access === undefined) return null;
+  const through = access.endpoints.filter((entry) => entry.key !== access.linkKey).map((entry) => entry.ref);
+  if (through.length === 0 && access.linkKey === undefined) return null;
+  return (
+    <div className="flex flex-col gap-2" data-part="add-on-public-access">
+      <p className="text-sm font-semibold text-fg">{t('studio:addOns.public.title', 'Public access')}</p>
+      <ul className="list-disc ps-4 text-sm text-fg-muted">
+        {through.length > 0 && (
+          <li>{t('studio:addOns.public.through', 'Your customers can reach it through the public key of an app it is attached to: {refs}.', { refs: through.join(', ') })}</li>
+        )}
+        {access.linkKey !== undefined && (
+          <li>{t('studio:addOns.public.link', 'It makes a link key of its own: whoever holds a link opens that one record, and can only read it.')}</li>
+        )}
+      </ul>
+      <label className="flex items-start gap-2 text-sm text-fg">
+        <Checkbox className="mt-0.5" checked={allowed} disabled={busy || !access.canGrant} onCheckedChange={(next) => onAllowed(next === true)} />
+        <span>{t('studio:addOns.public.allow', 'Allow public access')}</span>
+      </label>
+      <p className="text-xs text-fg-muted">
+        {access.canGrant
+          ? t('studio:addOns.public.allowHelp', 'Left unticked, nothing is opened to the public. You can allow it later.')
+          : t('studio:addOns.public.cannot', 'Only someone who may manage API keys can allow this.')}
+      </p>
     </div>
   );
 }

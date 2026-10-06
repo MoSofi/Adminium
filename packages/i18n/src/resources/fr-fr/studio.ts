@@ -69,7 +69,8 @@ export default {
       "uninstallTitle": "Désinstaller ce module",
       "updateTitle": "Mettre à jour vers {version}",
       "updateBody": "Cette version modifie les tables du module complémentaire. Rien de ce que vous avez n’est supprimé ; tant que la mise à jour n’est pas terminée, le module ne fait rien.",
-      "update": "Mettre à jour"
+      "update": "Mettre à jour",
+      "updatePublicBody": "Cette version ouvrirait davantage le module au public. Mettez à jour sans cocher la case et rien de nouveau n’est ouvert."
     },
     "connect": {
       "apiKey": "Clé API",
@@ -167,6 +168,18 @@ export default {
     "veto": {
       "body": "Le réglage est enregistré, mais les fonctions réseau sont coupées sur ce serveur et cela prime. Les modules déjà téléchargés fonctionnent, et vous pouvez en téléverser un.",
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne"
+    },
+    "public": {
+      "title": "Accès public",
+      "through": "Vos clients peuvent y accéder par la clé publique d’une application à laquelle il est rattaché : {refs}.",
+      "link": "Il crée sa propre clé de lien : la personne qui détient un lien ouvre cet enregistrement seulement, et ne peut que le lire.",
+      "allow": "Autoriser l’accès public",
+      "allowHelp": "Sans cocher, rien n’est ouvert au public. Vous pourrez l’autoriser plus tard.",
+      "cannot": "Seule une personne autorisée à gérer les clés d’API peut l’autoriser.",
+      "askTitle": "Autoriser l’accès public ?",
+      "askBody": "{name} est activé pour {app}, et rien n’en est encore ouvert au public. En l’autorisant, ceci est ajouté à la clé publique de {app} : {refs}.",
+      "askLater": "Pas maintenant",
+      "askConfirm": "Autoriser"
     }
   },
   "capability": {

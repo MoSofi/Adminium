@@ -3244,6 +3244,8 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
   if (keyNames.length > 1) out.push({ path: ['publicKeys'], message: 'an add-on declares at most one key: a link that opens one row' });
   const linkKey = keyNames[0];
   if (linkKey !== undefined) {
+    // `customer` is an app's key: an add-on's entries reach it through the app, never through a key of the add-on's own.
+    if (linkKey === 'customer') out.push({ path: ['publicKeys', linkKey], message: 'an add-on has no "customer" key: its one key is a link\'s, under a name of its own' });
     const key = (m.publicKeys ?? {})[linkKey];
     for (const field of ['requiresStaff', 'enabledBy', 'peak'] as const) {
       if (key?.[field] !== undefined) out.push({ path: ['publicKeys', linkKey, field], message: `an add-on's key opens one row by its link and only reads: it takes no "${field}"` });
@@ -3257,7 +3259,13 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     }
     if (entry.methods.some((method) => method !== 'GET')) out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row to whoever holds its link, so it only reads` });
     const claim = entry.claim;
-    if (claim === undefined) return;
+    if (claim === undefined) {
+      // Whoever holds a link reads that one row and what hangs under it: nothing on the key is open to everyone.
+      if (entry.visibleWith === undefined && entry.claimedBy === undefined) {
+        out.push({ path: ['publicAccess', e], message: `"${linkKey}" opens one row by its link: an entry on it claims by token, or is read with the row a link opened (visibleWith, claimedBy)` });
+      }
+      return;
+    }
     if (!('by' in claim) || claim.by !== 'token' || claim.own === true) {
       out.push({ path: ['publicAccess', e, 'claim'], message: 'an add-on\'s link key claims by token, and never as the row\'s own link that may change it' });
       return;

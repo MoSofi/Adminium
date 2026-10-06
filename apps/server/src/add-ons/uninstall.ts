@@ -22,7 +22,7 @@ import { appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, type Installe
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { deciderGate } from './decide.js';
 import { addOnInUse } from './in-use.js';
-import type { Actor, AddOnInstallerDeps } from './install.js';
+import { DASHBOARD_HOST, type Actor, type AddOnInstallerDeps } from './install.js';
 import { pagesAreGated } from './page-gate.js';
 
 export interface UninstallAddOnInput {
@@ -42,6 +42,8 @@ export interface UninstallAddOnResult {
   /** False for an add-on that keeps no tables of its own: only its row and its package went, as always. */
   likeApp: boolean;
   removed: { pages: number; roles: number; rules: number; emails: number; endpoints: number; keys: number };
+  /** The public entries taken off the key of each app it was attached to. */
+  withdrawn?: { app: string; ref: string }[] | undefined;
   kept: { pages: string[]; tables: string[] };
   dropped: string[];
   packageRemoved: boolean;
@@ -119,6 +121,22 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
 
   const result: UninstallAddOnResult = { key, version: installed.row.version, likeApp, removed: { pages: 0, roles: 0, rules: 0, emails: 0, endpoints: 0, keys: 0 }, kept: { pages: [], tables: [] }, dropped: [], packageRemoved: true };
   const work = async (): Promise<void> => {
+    // Each app it was attached to: the add-on's entries leave the app's key before its endpoints go.
+    // Asked whatever its stored manifest says, or fails to say: a key is narrowed by what it holds, not by what the add-on declares.
+    if (core !== null && installed.row.connectionId !== null) {
+      for (const attachment of installed.attachments) {
+        if (attachment.attachedTo === DASHBOARD_HOST) continue;
+        const settled = await core.settleHost({
+          addOnKey: key,
+          appKey: attachment.attachedTo,
+          connectionId: installed.row.connectionId,
+          publicAccess: false,
+          actor: { id: input.actor.id, label: input.actor.label, kind: input.actor.kind, superAdmin: () => Promise.resolve(false), can: () => Promise.resolve(false) },
+          addOn: null,
+        });
+        result.withdrawn = [...(result.withdrawn ?? []), ...settled.publicAccess.withdrawn.map((ref) => ({ app: attachment.attachedTo, ref }))];
+      }
+    }
     if (list !== null) {
       const listed = list as unknown as { pages: { removed: { slug: string }[]; kept: { slug: string }[] }; roles: unknown[]; endpoints: unknown[]; keys: unknown[] };
       const done = await core!.removals.remove(list, { dropTables, superAdmin, createdBy: input.actor.id });

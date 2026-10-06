@@ -657,8 +657,10 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const bound = connectionId ?? fallback;
         const venue = bound === null || opts.metaDb === undefined ? null : await connectionTenantConfig(opts.metaDb, bound);
         const staffKeys = user === null || bound === null ? {} : await staffKeysFor(appKey, bound, user.id);
-        const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id);
-        const addOns = await addOnsOf(appKey, 'staff');
+        const addOns = await addOnsOf(appKey, 'staff', bound);
+        // The add-ons' own tables, by their real names: what this person may do with each is said beside the app's.
+        const addOnTables = Object.values(addOns ?? {}).flatMap((addOn) => Object.values((addOn as { tables?: Record<string, string> }).tables ?? {}));
+        const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id, addOnTables);
         const sharedTables = bound === null || tables === null || opts.metaDb === undefined ? null : await sharedTablesOf(opts.metaDb, bound, appKey, tables);
         return {
           connectionId: bound,
@@ -699,7 +701,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         appKey,
       );
       const values = await settingsOf(appKey);
-      const addOns = await addOnsOf(appKey, 'customer');
+      const addOns = await addOnsOf(appKey, 'customer', connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null));
       const shared = await sharedLinkKeysFor(appKey, connectionId);
       return {
         baseUrl: '',
@@ -727,6 +729,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       connectionId: string,
       tables: Record<string, string> | null,
       userId: string,
+      /** Tables of the app's add-ons, by real name: listed under that name. */
+      addOnTables: readonly string[] = [],
     ): Promise<{ tables: Record<string, ('read' | 'create' | 'update' | 'delete')[]>; roles: { slug: string; name: string }[] } | null> {
       const metaDb = opts.metaDb;
       if (metaDb === undefined || typeof request.can !== 'function') return null;
@@ -734,7 +738,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const model = snapshot?.schema as { tables?: { id?: string; name?: string }[] } | undefined;
       const ids = new Map((model?.tables ?? []).flatMap((t) => (typeof t.id === 'string' && typeof t.name === 'string' ? [[t.name, t.id] as const] : [])));
       const grants: Record<string, ('read' | 'create' | 'update' | 'delete')[]> = {};
-      for (const [ref, name] of Object.entries(tables ?? {})) {
+      for (const [ref, name] of [...Object.entries(tables ?? {}), ...addOnTables.map((real) => [real, real] as const)]) {
         const id = ids.get(name);
         if (id === undefined) continue;
         const held: ('read' | 'create' | 'update' | 'delete')[] = [];
@@ -839,7 +843,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
      * Null when none is attached, so an app with no add-ons gets exactly the
      * document it always got.
      */
-    async function addOnsOf(appKey: string, side: SurfaceSide): Promise<Record<string, unknown> | null> {
+    async function addOnsOf(appKey: string, side: SurfaceSide, connectionId: string | null = null): Promise<Record<string, unknown> | null> {
       const metaDb = opts.metaDb;
       if (metaDb === undefined) return null;
       // Ids sorted, rows fetched after: a sort carrying the manifests fails on MySQL (`inIdOrder`).
@@ -868,7 +872,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const out: Record<string, unknown> = {};
       for (const row of rows) {
         if (side === 'customer') {
-          out[row.key] = { present: true };
+          const keys = await linkKeysOf(row.key, connectionId);
+          out[row.key] = { present: true, ...(Object.keys(keys).length === 0 ? {} : { keys }) };
           continue;
         }
         const document = readJson<{
@@ -878,10 +883,36 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const declared = (document?.settings ?? []).filter((setting) => setting.secret !== true);
         const shown = new Set((document?.addOn?.publicSettings ?? []).filter((name) => declared.some((setting) => setting.key === name)));
         const values = settingValuesWithDefaults(declared, await addOnSettingsRepo(metaDb).valuesFor(row.key));
+        // Its own tables as they are really named here, from its records: an app never builds a prefixed name itself.
+        const tables = connectionId === null ? {} : await appTablesRepo(metaDb).realNames(connectionId, row.key);
         out[row.key] = {
           version: row.version,
           settings: Object.fromEntries(Object.entries(values).filter(([name]) => shown.has(name))),
+          ...(Object.keys(tables).length === 0 ? {} : { tables }),
         };
+      }
+      return out;
+    }
+
+    /**
+     * An add-on's own link key, by its purpose, for the app's public page: the
+     * key that opens one row to whoever holds its link, and only reads. The
+     * same kind of handle as the app's own publishable key — it opens nothing
+     * without a row's link. Only a live key the add-on itself made, bound to
+     * no staff, in this app's database.
+     */
+    async function linkKeysOf(addOnKey: string, connectionId: string | null): Promise<Record<string, string>> {
+      const metaDb = opts.metaDb;
+      const crypto = opts.crypto;
+      if (metaDb === undefined || crypto === undefined || connectionId === null) return {};
+      const keys = publicKeysRepo(metaDb);
+      const at = Date.now();
+      const here = new Set((await keys.listLiveDerived(connectionId, at)).map((key) => key.id));
+      const out: Record<string, string> = {};
+      for (const key of await keys.listManagedBy(addOnKey)) {
+        if (key.revokedAt !== null || (key.expiresAt !== null && key.expiresAt <= at) || !here.has(key.id)) continue;
+        if (key.kind !== 'browser' || key.purpose === CUSTOMER_KEY_PURPOSE || keyStaffBinding(key) !== null || key.tokenEncrypted === null) continue;
+        out[key.purpose] = openPublishableKey(crypto, key.tokenEncrypted);
       }
       return out;
     }

@@ -959,4 +959,99 @@ describe('AddOnsPage', () => {
       expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1' });
     });
   });
+
+  describe('an add-on with a public side', () => {
+    const PUBLIC = (canGrant: boolean, adds: string[] = ['cards_kit_cards_unlocked']) => ({
+      endpoints: [
+        { ref: 'cards_kit_cards_unlocked', table: 'cards', methods: ['GET'], key: 'customer' },
+        { ref: 'cards_kit_cards_claimed', table: 'cards', methods: ['GET'], key: 'cards-link' },
+      ],
+      byApp: { shop: { adds, held: [] } },
+      linkKey: 'cards-link',
+      canGrant,
+    });
+    const checked = (canGrant: boolean): NonNullable<StubOptions['respond']> => (method, url) =>
+      method === 'GET' && url.endsWith('/holiday-calendars/plan')
+        ? { status: 200, body: { plan: makePlan({ touchesData: true, create: [{ ref: 'cards', columns: [] }] }), connectionId: 'conn_shop', connectionName: 'Shop', checksum: 'sum-1', publicAccess: PUBLIC(canGrant) } }
+        : undefined;
+    const install = (calls: { method: string; url: string; body?: unknown }[]) => calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons');
+
+    it('says what it would open, and opens nothing unless the box is ticked', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ respond: checked(true) });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(await within(dialog).findByText('Public access')).toBeTruthy();
+      expect(within(dialog).getByText(/through the public key of an app it is attached to: cards_kit_cards_unlocked\./)).toBeTruthy();
+      expect(within(dialog).getByText(/link key of its own/)).toBeTruthy();
+      const tick = within(dialog).getByRole('checkbox');
+      expect(tick.getAttribute('aria-checked') ?? String((tick as HTMLInputElement).checked)).toBe('false');
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      await waitFor(() => expect(install(calls)).toBeTruthy());
+      expect((install(calls)?.body as Record<string, unknown>)['publicAccess']).toBeUndefined();
+    });
+
+    it('ticked, the install says so', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ respond: checked(true) });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(await within(dialog).findByRole('checkbox'));
+      await user.click(within(dialog).getByRole('button', { name: 'Install' }));
+      await waitFor(() => expect(install(calls)).toBeTruthy());
+      expect(install(calls)?.body).toMatchObject({ key: 'holiday-calendars', publicAccess: true, planChecksum: 'sum-1' });
+    });
+
+    it('somebody who may not hand out API keys is told so and cannot tick it', async () => {
+      const user = userEvent.setup();
+      await renderPage({ respond: checked(false) });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      const tick = (await within(dialog).findByRole('checkbox')) as HTMLButtonElement;
+      expect(tick.disabled).toBe(true);
+      expect(within(dialog).getByText('Only someone who may manage API keys can allow this.')).toBeTruthy();
+    });
+
+    it('an update that would open something new is shown first, and opens it only when ticked', async () => {
+      const user = userEvent.setup();
+      const KIT = makeAddOn({ key: 'stock-kit', name: 'Stock kit', version: '1.0.0', connectKind: 'none', connected: false, attachments: [], networkAllow: [] });
+      const respond: NonNullable<StubOptions['respond']> = (method, url) => {
+        if (method === 'POST' && url.endsWith('/stock-kit/update/plan')) {
+          return { status: 200, body: { plan: makePlan({ requiresSchemaChange: false }), from: '1.0.0', to: '1.0.1', connectionId: 'conn_shop', checksum: 'sum-1', publicAccess: PUBLIC(true) } };
+        }
+        if (method === 'POST' && url.endsWith('/stock-kit/update')) return { status: 200, body: { addOn: KIT, from: '1.0.0', to: '1.0.1', pruned: [] } };
+        return undefined;
+      };
+      const { calls } = await renderPage({ installed: [KIT], entries: [makeEntry({ key: 'stock-kit', name: 'Stock kit', version: '1.0.1', state: 'installed', upgradeTo: '1.0.1' })], respond });
+      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/would open more of the add-on to the public/)).toBeTruthy();
+      await user.click(within(dialog).getByRole('checkbox'));
+      await user.click(within(dialog).getByRole('button', { name: 'Update' }));
+      const sent = () => calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/stock-kit/update');
+      await waitFor(() => expect(sent()).toBeTruthy());
+      expect(sent()?.body).toEqual({ planChecksum: 'sum-1', publicAccess: true });
+    });
+
+    it('switched on for an app with its public entries left off, the page asks; allowing it attaches with the say', async () => {
+      const user = userEvent.setup();
+      const KIT = makeAddOn({ key: 'cards-kit', name: 'Cards kit', connectKind: 'none', connected: false, attachments: [{ attachedTo: 'shop', enabled: false }], networkAllow: [] });
+      const respond: NonNullable<StubOptions['respond']> = (method, url) => {
+        if (method === 'PATCH' && url === '/api/v1/add-ons/cards-kit') {
+          return { status: 200, body: { addOn: KIT, publicAccess: { granted: [], withdrawn: [], skipped: [{ ref: 'cards_kit_cards_unlocked', reason: 'not allowed' }] } } };
+        }
+        if (method === 'POST' && url === '/api/v1/add-ons/cards-kit/attachments') return { status: 200, body: { addOn: KIT, change: null, publicAccess: { granted: ['cards_kit_cards_unlocked'], withdrawn: [], skipped: [] } } };
+        return undefined;
+      };
+      const { calls } = await renderPage({ installed: [KIT], entries: [], respond });
+      await user.click(await screen.findByRole('button', { name: /^shop · off$/ }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Allow public access?')).toBeTruthy();
+      expect(within(dialog).getByText(/Cards kit is on for shop.*cards_kit_cards_unlocked\./)).toBeTruthy();
+      await user.click(within(dialog).getByRole('button', { name: 'Allow' }));
+      const attach = () => calls.find((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/cards-kit/attachments');
+      await waitFor(() => expect(attach()).toBeTruthy());
+      expect(attach()?.body).toEqual({ app: 'shop', publicAccess: true });
+    });
+  });
 });

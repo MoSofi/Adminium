@@ -632,6 +632,8 @@ export async function runAddOnSteps(
         ...(input.connectionId === null ? {} : { connectionId: input.connectionId }),
         actor: input.actor,
         via,
+        // The app's own apply gives its key what this add-on serves through it, under the app's own say.
+        settle: 'caller',
       });
       done.installed.push({ key: step.key, name: step.name, version: step.version });
     } else if (step.action === 'update') {
@@ -646,11 +648,12 @@ export async function runAddOnSteps(
         schema: step.early === true ? 'apply' : 'refuse',
         // Kept until the app's own install or update is done (see below).
         prune: false,
+        settle: 'caller',
       });
-      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via });
+      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller' });
       done.updated.push({ key: step.key, name: step.name, from: step.from ?? '', to: step.version });
     } else {
-      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via });
+      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller' });
       done.attached.push({ key: step.key, name: step.name, version: step.version });
     }
     await auditRepo(deps.installer.meta).append({

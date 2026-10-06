@@ -59,7 +59,8 @@
       "uninstallTitle": "Uninstall this add-on",
       "updateTitle": "更新到 {version}",
       "updateBody": "此版本会更改附加组件自己的表。你现有的内容不会被移除；在更新完成之前，附加组件不会执行任何操作。",
-      "update": "更新"
+      "update": "更新",
+      "updatePublicBody": "此版本会向公众开放该附加组件的更多内容。不勾选直接更新，则不会开放任何新内容。"
     },
     "connect": {
       "apiKey": "API key",
@@ -157,6 +158,18 @@
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
+    },
+    "public": {
+      "title": "公开访问",
+      "through": "您的客户可以通过它所连接的应用的公开密钥访问它：{refs}。",
+      "link": "它会创建自己的链接密钥：持有链接的人只能打开那一条记录，并且只能读取。",
+      "allow": "允许公开访问",
+      "allowHelp": "不勾选则不会向公众开放任何内容。您可以稍后再允许。",
+      "cannot": "只有可以管理 API 密钥的人才能允许此操作。",
+      "askTitle": "允许公开访问？",
+      "askBody": "{name} 已为 {app} 启用，但目前没有任何内容向公众开放。允许后，以下内容将加入 {app} 的公开密钥：{refs}。",
+      "askLater": "暂不",
+      "askConfirm": "允许"
     }
   },
   "capability": {

@@ -242,8 +242,33 @@ export const installMakes = z.object({
   seeds: z.boolean(),
 });
 
+/** What one app's key gained, lost and was not given when an add-on it names moved. */
+export const settledAccess = z.object({
+  /** Entries put on the app's key: only with `publicAccess: true`, by someone who may manage API keys. */
+  granted: z.array(z.string()),
+  /** Entries taken off it: the add-on no longer gives them to this app. */
+  withdrawn: z.array(z.string()),
+  /** Entries left off it, each with why. */
+  skipped: z.array(z.object({ ref: z.string(), reason: z.string() })),
+});
+
+/** What an add-on would open publicly: its entries, what each app that names it would gain, and its own link key. */
+export const addOnPublicPlan = z.object({
+  endpoints: z.array(z.unknown()),
+  /** By app: the entries its key would gain (`adds`) and the ones it holds already (`held`). */
+  byApp: z.record(z.string(), z.object({ adds: z.array(z.string()), held: z.array(z.string()) })),
+  /** The add-on's one key of its own: a link that opens one row and only reads. */
+  linkKey: z.string().optional(),
+  /** Whether the person asking may allow it (`system:apikeys:manage`). */
+  canGrant: z.boolean(),
+});
+
+/** Whether what the add-on opens publicly is allowed. Absent or false: nothing new is opened, and the reply says what was left out. */
+const publicConsent = z.boolean().optional();
+
 export const installPlanReply = z.object({
   plan: installPlanDto,
+  publicAccess: addOnPublicPlan.optional(),
   connectionId: z.string().nullable().optional(),
   /** That database's name, for the sentence that says where the tables go. */
   connectionName: z.string().nullable().optional(),
@@ -278,6 +303,7 @@ export const installAddOnBody = z.object({
   connectionId: z.string().min(1).max(64).optional(),
   /** The `checksum` of the plan the person looked at; a database that moved since answers 409 `SCHEMA_DRIFT`. */
   planChecksum: z.string().min(1).max(128).optional(),
+  publicAccess: publicConsent,
 });
 
 export const installAddOnReply = z.object({
@@ -297,18 +323,27 @@ export const installAddOnReply = z.object({
   seeds: z.unknown().optional(),
   /** Its tables that already held a row, and so were given none. */
   seedsKept: z.unknown().optional(),
+  /** Its endpoints and its own link key, as the public step reports them. */
+  publicAccess: z.unknown().optional(),
+  /** The key of each app it was attached to. */
+  /** By app: what its key gained, lost and was not given (`settledAccess`). */
+  publicAccessByApp: z.unknown().optional(),
 });
 
 /** Enable or disable on one host (PATCH). */
 export const patchAddOnBody = z.object({
   attachedTo: hostKey,
   enabled: z.boolean(),
+  /** On switching back on: whether the app's key may hold the add-on's public entries again. */
+  publicAccess: publicConsent,
 });
 
 export const patchAddOnReply = z.object({
   addOn: addOnDto,
   /** Switched off for an app that used it for a feature: the features that stop. */
   features: z.array(appNeedDto).optional(),
+  /** The app's key: what the switch took off it, or put back on it. */
+  publicAccess: settledAccess.optional(),
 });
 
 /** `POST /add-ons/:key/attachments` — mount an installed add-on on one more host. */
@@ -317,6 +352,7 @@ export const attachAddOnBody = z
     app: hostKey,
     /** Which database holds its tables, when an add-on installed before that was recorded is found in several (409 `ADD_ON_SCHEMA_CONNECTION` lists them). */
     connectionId: z.string().min(1).max(64).optional(),
+    publicAccess: publicConsent,
   })
   .strict();
 
@@ -324,6 +360,8 @@ export const attachAddOnReply = z.object({
   addOn: addOnDto,
   /** `attached` (a new host), `enabled` (switched back on there), or null (already so). */
   change: z.enum(['attached', 'enabled']).nullable(),
+  /** The app's key, when the add-on has public entries. */
+  publicAccess: settledAccess.optional(),
 });
 
 export const uninstallAddOnReply = z.object({
@@ -601,6 +639,7 @@ export const updateAddOnBody = z
     planChecksum: z.string().min(1).max(128).optional(),
     /** Which database holds its tables, when an add-on installed before that was recorded is found in several (409 `ADD_ON_SCHEMA_CONNECTION` lists them). */
     connectionId: z.string().min(1).max(64).optional(),
+    publicAccess: publicConsent,
   })
   .default({});
 
@@ -611,6 +650,7 @@ export const updateAddOnPlanReply = z.object({
   to: z.string(),
   connectionId: z.string().nullable(),
   checksum: z.string().optional(),
+  publicAccess: addOnPublicPlan.optional(),
 });
 
 /** An update's reply: the upgrade's, and — for an add-on that keeps tables of its own — what the update made and wrote. */
@@ -624,6 +664,11 @@ export const updateAddOnReply = upgradeAddOnReply.extend({
   documents: z.unknown().optional(),
   seeds: z.unknown().optional(),
   seedsKept: z.unknown().optional(),
+  publicAccess: z.unknown().optional(),
+  /** By app: what its key gained, lost and was not given (`settledAccess`). */
+  publicAccessByApp: z.unknown().optional(),
+  /** Endpoints of its the version dropped: removed, or kept because a key made by hand still holds one. */
+  publicAccessRemoved: z.unknown().optional(),
 });
 
 /**

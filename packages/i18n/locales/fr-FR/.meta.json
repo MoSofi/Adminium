@@ -15803,6 +15803,10 @@
     "status": "mt",
     "srcHash": "7213b72e0bb6"
   },
+  "studio.addOns.confirm.updatePublicBody": {
+    "status": "mt",
+    "srcHash": "a6c01ece5c11"
+  },
   "studio.addOns.confirm.updateTitle": {
     "status": "mt",
     "srcHash": "ac9d89181b1c"
@@ -15998,6 +16002,46 @@
   "studio.addOns.plan.willCreateBody": {
     "status": "mt",
     "srcHash": "cc8f2f75adc6"
+  },
+  "studio.addOns.public.allow": {
+    "status": "mt",
+    "srcHash": "b665cf927329"
+  },
+  "studio.addOns.public.allowHelp": {
+    "status": "mt",
+    "srcHash": "44f3c1aad4fa"
+  },
+  "studio.addOns.public.askBody": {
+    "status": "mt",
+    "srcHash": "4d89b6780487"
+  },
+  "studio.addOns.public.askConfirm": {
+    "status": "mt",
+    "srcHash": "3ad0e3698278"
+  },
+  "studio.addOns.public.askLater": {
+    "status": "mt",
+    "srcHash": "e45714907316"
+  },
+  "studio.addOns.public.askTitle": {
+    "status": "mt",
+    "srcHash": "7c9bf4789b84"
+  },
+  "studio.addOns.public.cannot": {
+    "status": "mt",
+    "srcHash": "68db4b614458"
+  },
+  "studio.addOns.public.link": {
+    "status": "mt",
+    "srcHash": "ad203b297c6b"
+  },
+  "studio.addOns.public.through": {
+    "status": "mt",
+    "srcHash": "e35394794c7d"
+  },
+  "studio.addOns.public.title": {
+    "status": "mt",
+    "srcHash": "3b2433cdb654"
   },
   "studio.addOns.settings.badJson": {
     "status": "mt",

@@ -59,7 +59,8 @@
       "uninstallTitle": "Uninstall this add-on",
       "updateTitle": "更新到 {version}",
       "updateBody": "此版本會變更附加元件自己的資料表。你現有的內容不會被移除；在更新完成之前，附加元件不會執行任何動作。",
-      "update": "更新"
+      "update": "更新",
+      "updatePublicBody": "此版本會向公眾開放該附加元件的更多內容。不勾選直接更新，則不會開放任何新內容。"
     },
     "connect": {
       "apiKey": "API key",
@@ -157,6 +158,18 @@
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
+    },
+    "public": {
+      "title": "公開存取",
+      "through": "您的客戶可以透過它所連接的應用程式的公開金鑰存取它：{refs}。",
+      "link": "它會建立自己的連結金鑰：持有連結的人只能開啟那一筆記錄，而且只能讀取。",
+      "allow": "允許公開存取",
+      "allowHelp": "不勾選則不會向公眾開放任何內容。您可以稍後再允許。",
+      "cannot": "只有可以管理 API 金鑰的人才能允許此操作。",
+      "askTitle": "允許公開存取？",
+      "askBody": "{name} 已為 {app} 啟用，但目前沒有任何內容向公眾開放。允許後，以下內容將加入 {app} 的公開金鑰：{refs}。",
+      "askLater": "暫時不要",
+      "askConfirm": "允許"
     }
   },
   "capability": {

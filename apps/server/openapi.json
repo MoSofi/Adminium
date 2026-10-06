@@ -85980,6 +85980,9 @@
                                       "type": "string"
                                     }
                                   },
+                                  "owner": {
+                                    "type": "string"
+                                  },
                                   "onUpdate": {
                                     "type": "string",
                                     "enum": [
@@ -92140,6 +92143,55 @@
                     },
                     "checksum": {
                       "type": "string"
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "endpoints": {
+                          "type": "array",
+                          "items": {}
+                        },
+                        "byApp": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "adds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "held": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "adds",
+                              "held"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "linkKey": {
+                          "type": "string"
+                        },
+                        "canGrant": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "endpoints",
+                        "byApp",
+                        "canGrant"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -92180,6 +92232,9 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64
+                  },
+                  "publicAccess": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -92566,7 +92621,10 @@
                     "outbox": {},
                     "documents": {},
                     "seeds": {},
-                    "seedsKept": {}
+                    "seedsKept": {},
+                    "publicAccess": {},
+                    "publicAccessByApp": {},
+                    "publicAccessRemoved": {}
                   },
                   "required": [
                     "addOn",
@@ -92951,6 +93009,9 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128
+                  },
+                  "publicAccess": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -93481,7 +93542,9 @@
                     "outbox": {},
                     "documents": {},
                     "seeds": {},
-                    "seedsKept": {}
+                    "seedsKept": {},
+                    "publicAccess": {},
+                    "publicAccessByApp": {}
                   },
                   "required": [
                     "addOn",
@@ -93676,6 +93739,55 @@
                         "references",
                         "problems",
                         "requiresSchemaChange"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "endpoints": {
+                          "type": "array",
+                          "items": {}
+                        },
+                        "byApp": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "adds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "held": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "adds",
+                              "held"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "linkKey": {
+                          "type": "string"
+                        },
+                        "canGrant": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "endpoints",
+                        "byApp",
+                        "canGrant"
                       ],
                       "additionalProperties": false
                     },
@@ -93987,6 +94099,55 @@
                       ],
                       "additionalProperties": false
                     },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "endpoints": {
+                          "type": "array",
+                          "items": {}
+                        },
+                        "byApp": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "adds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "held": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "adds",
+                              "held"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "linkKey": {
+                          "type": "string"
+                        },
+                        "canGrant": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "endpoints",
+                        "byApp",
+                        "canGrant"
+                      ],
+                      "additionalProperties": false
+                    },
                     "connectionId": {
                       "anyOf": [
                         {
@@ -94102,6 +94263,9 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64
+                  },
+                  "publicAccess": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -94455,6 +94619,48 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "granted": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "withdrawn": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "skipped": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "granted",
+                        "withdrawn",
+                        "skipped"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -95400,6 +95606,9 @@
                   },
                   "enabled": {
                     "type": "boolean"
+                  },
+                  "publicAccess": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -95809,6 +96018,48 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "granted": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "withdrawn": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "skipped": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "granted",
+                        "withdrawn",
+                        "skipped"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

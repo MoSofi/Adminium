@@ -102,8 +102,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   // An add-on's own blocks: what it declares in an app's words.
   emailTemplates: ADD_ON_INSTALL_RELEASE,
   outbox: ADD_ON_INSTALL_RELEASE,
-  publicAccess: ADD_ON_INSTALL_RELEASE,
-  publicKeys: ADD_ON_INSTALL_RELEASE,
   addOns: ADD_ON_INSTALL_RELEASE,
   // A link from a table into an add-on's.
   'column.addOnLink': ADD_ON_INSTALL_RELEASE,
@@ -166,6 +164,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'sampleData.addOns',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
+  // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.
+  'publicAccess',
+  'publicKeys',
 ];
 
 export interface UnbuiltWord {

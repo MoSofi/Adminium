@@ -11,7 +11,7 @@
  * The app install service is the one answer; it is bound late, where the
  * server is put together.
  */
-import type { InstallPlan, Manifest } from '@adminium/manifest';
+import type { AddOnManifest, InstallPlan, Manifest } from '@adminium/manifest';
 import type { InstalledManifest } from '@adminium/meta';
 
 import type { ExistingTable } from './install-ddl.js';
@@ -68,7 +68,37 @@ export interface CoreUninstallList {
   tables: readonly { droppable: boolean; record: { tableName: string } }[];
 }
 
+/** What settling an app after one of its add-ons moved did to the app's public key. */
+export interface HostSettled {
+  /** What the app's roles hold of the add-on's tables: written by the role-table writer, when there is one. */
+  roleTables: unknown;
+  publicAccess: { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[] };
+}
+
 export interface InstallCore<List extends CoreUninstallList = CoreUninstallList> {
+  /**
+   * Settle one app after an add-on it names moved: what the add-on no longer
+   * gives leaves the app's keys; what it adds goes on only with `publicAccess`
+   * and a caller who may manage API keys. `addOn` says what the moving add-on
+   * is to be read as while its own row is not `installed`: the manifest it is
+   * moving to, or null when it is going.
+   */
+  settleHost(input: {
+    addOnKey: string;
+    appKey: string;
+    connectionId: string;
+    publicAccess: boolean;
+    actor: InstallActor;
+    host?: InstallHost | undefined;
+    addOn?: { manifest: AddOnManifest; names: Readonly<Record<string, string>> } | null | undefined;
+  }): Promise<HostSettled>;
+  /** After an add-on's update: its link key narrowed (or gone), and the endpoints its version dropped removed. */
+  settleAddOnPublic(input: { manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; actor: InstallActor }): Promise<{ removed: string[]; kept: string[] }>;
+  /** What an add-on would open publicly, for the check; undefined when it asks for nothing. */
+  addOnPublicAccessOf(input: { manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; apps: readonly string[]; actor: InstallActor }): Promise<
+    | { endpoints: unknown[]; byApp: Record<string, { adds: string[]; held: string[] }>; linkKey?: string; canGrant: boolean }
+    | undefined
+  >;
   planFor(manifest: Manifest, connectionId: string): Promise<{ plan: InstallPlan; dto: CoreCheck; existing: ExistingTable[] }>;
   checkedPlan(key: string, manifest: Manifest, connectionId: string, verb: 'installed' | 'updated', expectedChecksum?: string): Promise<CheckedTables>;
   /** Records the planned tables before any is made; answers the record id of each table still to make, by ref. */

@@ -31,6 +31,7 @@ import {
   keyEnabledBy,
   keyStaffBinding,
   publicApiStateRepo,
+  publicEndpointsRepo,
   publicKeysRepo,
   settingsRepo,
   type DsnCrypto,
@@ -54,8 +55,23 @@ import { mapTableRefs } from './real-refs.js';
 
 type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['publicAccess']>[number];
 
+/** The one key an add-on may declare: a link that opens one row and only reads. Undefined for an app, or an add-on with none. */
+export function linkKeyOf(manifest: Manifest): string | undefined {
+  const name = manifest.kind === 'add-on' ? Object.keys(manifest.publicKeys ?? {})[0] : undefined;
+  // `customer` is an app's key and never an add-on's own, whatever a manifest says.
+  return name === CUSTOMER_KEY_PURPOSE ? undefined : name;
+}
+
+/** An add-on that is here for the app whose key is being settled: its manifest, and its tables' real names. */
+export interface AddOnEntries {
+  manifest: Manifest;
+  names: Readonly<Record<string, string>>;
+}
+
 export interface PlannedPublicEndpoint {
   ref: string;
+  /** The manifest that declares it: the app, or an add-on served through the app's key. The endpoint is its owner's. */
+  owner: string;
   /** The manifest's short name for the table. */
   table: string;
   methods: PublicMethod[];
@@ -147,7 +163,7 @@ function childDefinitions(children: Readonly<Record<string, ChildEntry>>, idOf: 
 
 /** The endpoint an entry becomes, against the real table in `view`. */
 function definitionOf(
-  manifest: Extract<Manifest, { kind: 'app' }>,
+  manifest: Manifest,
   entry: PublicAccessEntry,
   ref: string,
   tableId: string,
@@ -385,7 +401,7 @@ function definitionOf(
 function resentStopped(manifest: Manifest, entry: PublicAccessEntry): string | undefined {
   if (entry.newLink === undefined || entry.claim === undefined || !('by' in entry.claim) || entry.claim.own !== true) return undefined;
   const key = entry.key ?? 'customer';
-  const other = (manifest.kind === 'app' ? (manifest.publicAccess ?? []) : []).find(
+  const other = (manifest.publicAccess ?? []).find(
     (candidate) => candidate.table === entry.table && (candidate.key ?? 'customer') !== key && candidate.claim !== undefined && 'by' in candidate.claim && candidate.claim.column === entry.newLink!.column,
   );
   return other?.claim !== undefined && 'by' in other.claim ? other.claim.stopped : undefined;
@@ -393,14 +409,14 @@ function resentStopped(manifest: Manifest, entry: PublicAccessEntry): string | u
 
 /** The keys of an app that open a row by its own link (a token claim with `own`). */
 function ownLinkKeys(manifest: Manifest): Set<string> {
-  const entries = manifest.kind === 'app' ? (manifest.publicAccess ?? []) : [];
+  const entries = manifest.publicAccess ?? [];
   return new Set(entries.filter((e) => e.claim !== undefined && 'by' in e.claim && e.claim.own === true).map((e) => e.key ?? CUSTOMER_KEY_PURPOSE));
 }
 
 /** An entry read only by the holder of a live session: a level, and no claim of its own. */
 /** Of `columns`, those the app declares `bool` on its table `ref`. */
 function boolsOf(manifest: Manifest, ref: string, columns: readonly string[]): string[] {
-  const declared = manifest.kind === 'app' ? manifest.requiredSchema?.tables.find((table) => table.ref === ref)?.columns : undefined;
+  const declared = manifest.requiredSchema?.tables.find((table) => table.ref === ref)?.columns;
   return columns.filter((column) => declared?.some((candidate) => candidate.ref === column && candidate.type === 'bool') === true);
 }
 
@@ -423,7 +439,6 @@ export function planPublicEndpoints(
    */
   opts: { tablesMadeLater?: boolean; columnsMadeLater?: ReadonlyMap<string, ReadonlySet<string>> } = {},
 ): PlannedPublicEndpoint[] {
-  if (manifest.kind !== 'app') return [];
   const entries = manifest.publicAccess ?? [];
   // Refs first: a person's own rows are opened through their key's identity, by its ref.
   const taken = new Set<string>();
@@ -502,6 +517,7 @@ export function planPublicEndpoints(
     const pending = false;
     const planned: PlannedPublicEndpoint = {
       ref,
+      owner: manifest.key,
       table: entry.table,
       methods: [...entry.methods],
       select: entry.select ?? [],
@@ -577,6 +593,34 @@ export function planPublicEndpoints(
   // Across entries: anyone adds through one, anyone reads through another.
   const split = new Set(anonymousAddAndRead(entries));
   return split.size === 0 ? plan : plan.map((planned, index) => (split.has(index) ? { ...planned, issues: [...planned.issues, addAndReadRefusal(planned.table)] } : planned));
+}
+
+/**
+ * Everything an app's keys may hold: its own entries, and — for each add-on
+ * that is here for it — that add-on's entries, planned with the add-on's own
+ * manifest and its own tables' names. An add-on's entry that names no key is
+ * served through the app's `customer` key; one on the add-on's own link key
+ * is no part of the app's set.
+ */
+export function plannedPublicEndpointsFor(
+  app: Manifest,
+  names: Readonly<Record<string, string>>,
+  view: SnapshotView | null,
+  opts: Parameters<typeof planPublicEndpoints>[3] = {},
+  addOns: readonly AddOnEntries[] = [],
+): PlannedPublicEndpoint[] {
+  const out = planPublicEndpoints(app, names, view, opts);
+  const taken = new Set(out.map((entry) => entry.ref));
+  for (const addOn of addOns) {
+    const linkKey = linkKeyOf(addOn.manifest);
+    for (const entry of planPublicEndpoints(addOn.manifest, addOn.names, view, opts.tablesMadeLater === true ? { tablesMadeLater: true } : {})) {
+      // Its tables carry its prefix, so no ref of its can be the app's; one that is, is the app's alone.
+      if (entry.key === linkKey || taken.has(entry.ref)) continue;
+      taken.add(entry.ref);
+      out.push(entry);
+    }
+  }
+  return out;
 }
 
 /** Whether an app signs its people in by an emailed link. */
@@ -698,6 +742,8 @@ export async function installPublicAccess(input: {
    * forgets the key even when a later step of this call throws.
    */
   onCommitted?: ((change: PublicAccessCommit) => Promise<void>) | undefined;
+  /** For an app: the add-ons that are here for it, whose entries its key may hold too. */
+  addOns?: readonly AddOnEntries[] | undefined;
 }): Promise<{
   endpoints: string[];
   keyId: string | null;
@@ -711,13 +757,34 @@ export async function installPublicAccess(input: {
    */
   changedKeys: { keyId: string; purpose: string; gained: string[]; lost: string[]; settled: boolean }[];
 }> {
-  const planned = planPublicEndpoints(input.manifest, input.names, input.view).filter((entry) => !entry.pending);
-  const refused = planned.filter((entry) => entry.issues.length > 0 || entry.definition === null);
+  const every = plannedPublicEndpointsFor(input.manifest, input.names, input.view, {}, input.addOns ?? []).filter((entry) => !entry.pending);
+  const unsound = (entry: PlannedPublicEndpoint) => entry.issues.length > 0 || entry.definition === null;
+  const refused = every.filter((entry) => entry.owner === input.manifest.key && unsound(entry));
   if (refused.length > 0) {
-    throw new Error(`The public access this app asks for cannot be made: ${refused.flatMap((entry) => entry.issues).join('; ')}`);
+    throw new Error(`The public access this ${input.manifest.kind === 'app' ? 'app' : 'add-on'} asks for cannot be made: ${refused.flatMap((entry) => entry.issues).join('; ')}`);
   }
   const saved: string[] = [];
   const skipped: { ref: string; reason: string }[] = [];
+  // An add-on's entry that cannot be made never stops its app: it is left out, and said.
+  for (const entry of every.filter(unsound)) skipped.push({ ref: entry.ref, reason: entry.issues.join('; ') });
+  /*
+   * A guest entry — an add-on's, served through this app's key — and every
+   * entry of an add-on's own install are held to more than the app's own: an
+   * endpoint already stored under that name which is not its owner's (the
+   * app's, another add-on's, one the owner made by hand) is never written
+   * over, and one that cannot be saved is left out rather than stopping
+   * whoever is being installed.
+   */
+  const guest = (entry: PlannedPublicEndpoint) => input.manifest.kind !== 'app' || entry.owner !== input.manifest.key;
+  const storedOwner = new Map((await publicEndpointsRepo(input.meta).listByConnection(input.connectionId)).map((endpoint) => [endpoint.ref, endpoint.managedBy]));
+  const planned: PlannedPublicEndpoint[] = [];
+  for (const entry of every.filter((candidate) => !unsound(candidate))) {
+    if (guest(entry) && storedOwner.has(entry.ref) && storedOwner.get(entry.ref) !== entry.owner) {
+      skipped.push({ ref: entry.ref, reason: `an endpoint "${entry.ref}" is here already and is not this add-on's: it is left as it is` });
+      continue;
+    }
+    planned.push(entry);
+  }
   for (const entry of planned) {
     try {
       await input.service.saveEndpoint({
@@ -726,7 +793,7 @@ export async function installPublicAccess(input: {
         definition: entry.definition!,
         origin: 'custom',
         actorId: input.actorId,
-        managedBy: input.manifest.key,
+        managedBy: entry.owner,
         // The operator's own folder, being edited: the endpoint changes with the manifest.
         ...(input.ownFolder === true && input.grant !== false ? { operatorAllowed: true } : {}),
       });
@@ -736,7 +803,7 @@ export async function installPublicAccess(input: {
       // An update may not widen the key the operator allowed at install:
       // the endpoint stays as it was, and the reply says why.
       if (!(error instanceof EndpointSaveRefused)) throw error;
-      if (!input.livePurposes.has(entry.key)) throw refusedInPlainWords(error.issues);
+      if (!guest(entry) && !input.livePurposes.has(entry.key)) throw refusedInPlainWords(error.issues);
       skipped.push({ ref: entry.ref, reason: error.issues.map((issue) => issue.message).join('; ') });
     }
   }
@@ -744,7 +811,11 @@ export async function installPublicAccess(input: {
   const manifest = input.manifest;
   const grant = input.grant !== false;
   const refusal = input.refusal ?? 'not allowed with this update';
-  const purposes = [...new Set(planned.map((entry) => entry.key))];
+  // An add-on has no key but its link's: what it serves through an app's key is given by that app's own settling.
+  const ownLink = linkKeyOf(manifest);
+  const mine = (entry: PlannedPublicEndpoint) => entry.owner === manifest.key;
+  // A key is made for what the manifest itself declares: an app's key is never made for an add-on's entries alone.
+  const purposes = [...new Set(planned.filter(mine).map((entry) => entry.key))].filter((purpose) => manifest.kind === 'app' || (purpose === ownLink && opensByToken(manifest, purpose)));
   /*
    * The app's live keys, given what this version adds once the operator
    * allowed it — the safe list and the link rules checked again, as at
@@ -768,15 +839,31 @@ export async function installPublicAccess(input: {
       continue;
     }
     // What it declares, as allowed; an entry whose new definition was refused above stays as it was.
-    const allowed = declared.map((entry) => ({ ref: entry.ref, methods: refusedSave.has(entry.ref) ? heldOf(entry) : entry.methods }));
+    const asAllowed = (entry: PlannedPublicEndpoint) => ({ ref: entry.ref, methods: refusedSave.has(entry.ref) ? heldOf(entry) : entry.methods });
+    const own = declared.filter(mine).map(asAllowed);
+    const guests = declared.filter((entry) => !mine(entry));
+    // First the app's own, with its add-ons' entries exactly as the key holds them now: an add-on's entry can stop nothing of the app's.
+    const keptGuests = guests.map((entry) => ({ ref: entry.ref, methods: heldOf(entry) })).filter((entry) => entry.methods.length > 0);
     let result: { gained: string[]; lost: string[] };
     try {
-      result = await input.service.setManagedAccess({ connectionId: input.connectionId, keyId, access: allowed });
+      result = await input.service.setManagedAccess({ connectionId: input.connectionId, keyId, access: [...own, ...keptGuests] });
     } catch (error) {
       if (!(error instanceof KeyCreateRefused)) throw error;
       const reason = error.issues.map((issue) => issue.message).join('; ');
       for (const entry of declared) if (short(entry)) leftOut(entry.ref, reason);
       continue;
+    }
+    // Then what its add-ons add, on its own: refused, it is left out and said, and the app's own stands.
+    const adding = guests.filter(short);
+    if (adding.length > 0) {
+      try {
+        const more = await input.service.setManagedAccess({ connectionId: input.connectionId, keyId, access: [...own, ...guests.map(asAllowed)] });
+        result = { gained: [...new Set([...result.gained, ...more.gained])], lost: result.lost };
+      } catch (error) {
+        if (!(error instanceof KeyCreateRefused)) throw error;
+        const reason = error.issues.map((issue) => issue.message).join('; ');
+        for (const entry of adding) leftOut(entry.ref, reason);
+      }
     }
     // Settled: it holds exactly what the version declares, as allowed.
     const change = { keyId, purpose, gained: result.gained, lost: result.lost, settled: true };
@@ -802,7 +889,7 @@ export async function installPublicAccess(input: {
       made = await input.service.createKey({
         connectionId: input.connectionId,
         name: purpose === CUSTOMER_KEY_PURPOSE ? `${input.appName} · guests` : `${input.appName} · ${purpose}`,
-        access: planned.filter((entry) => entry.key === purpose).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
+        access: planned.filter((entry) => entry.key === purpose && mine(entry)).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
         secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(input.crypto, generated.token) },
         appKey: manifest.key,
         origins: [],
@@ -821,6 +908,22 @@ export async function installPublicAccess(input: {
     const peak = manifest.kind === 'app' ? manifest.publicKeys?.[purpose]?.peak : undefined;
     if (peak !== undefined) await publicKeysRepo(input.meta).setPeak(made.key.id, peak);
     await input.onCommitted?.({ kind: 'key', purpose, keyId: made.key.id, access: [...saved] });
+    // What the app's add-ons serve through this key, added on its own: refused, the key stands with the app's own.
+    const guests = planned.filter((entry) => entry.key === purpose && !mine(entry));
+    if (guests.length > 0) {
+      try {
+        const more = await input.service.setManagedAccess({
+          connectionId: input.connectionId,
+          keyId: made.key.id,
+          access: planned.filter((entry) => entry.key === purpose).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
+        });
+        if (more.gained.length > 0) await input.onCommitted?.({ kind: 'grant', keyId: made.key.id, purpose, gained: more.gained, lost: more.lost });
+      } catch (error) {
+        if (!(error instanceof KeyCreateRefused)) throw error;
+        const reason = error.issues.map((issue) => issue.message).join('; ');
+        for (const entry of guests) leftOut(entry.ref, reason);
+      }
+    }
   }
   const granted: Record<string, string[]> = {};
   for (const { purpose, gained } of changedKeys) {
@@ -872,9 +975,10 @@ export async function takeBackPublicAccess(input: {
   /** For a staff key's switch, by its table's id; null leaves the bindings as they are. */
   view: SnapshotView | null;
   onCommitted: (change: PublicAccessCommit) => Promise<void>;
+  /** For an app: the add-ons that are here for it NOW. An entry of one that is not stays on no key. */
+  addOns?: readonly AddOnEntries[] | undefined;
 }): Promise<void> {
   const { manifest, connectionId } = input;
-  if (manifest.kind !== 'app') return;
   const keysRepo = publicKeysRepo(input.meta);
   const at = Date.now();
   const here = new Set((await keysRepo.listLiveDerived(connectionId, at)).map((k) => k.id));
@@ -883,10 +987,12 @@ export async function takeBackPublicAccess(input: {
   );
   if (live.length === 0) return;
   // The refs come from the manifest and the table names alone: no entry's own check can stop this.
-  const planned = planPublicEndpoints(manifest, input.names, null).filter((entry) => !entry.pending);
+  const planned = plannedPublicEndpointsFor(manifest, input.names, null, {}, input.addOns ?? []).filter((entry) => !entry.pending);
+  const staffed = (purpose: string) => manifest.kind === 'app' && manifest.publicKeys?.[purpose]?.requiresStaff !== undefined;
   for (const key of live) {
     const purpose = key.purpose;
-    if (purpose !== CUSTOMER_KEY_PURPOSE && manifest.publicKeys?.[purpose]?.requiresStaff === undefined && !opensByToken(manifest, purpose)) {
+    // An add-on has no `customer` key: a key of its own is its link's, or it goes.
+    if ((purpose !== CUSTOMER_KEY_PURPOSE || manifest.kind !== 'app') && !staffed(purpose) && !opensByToken(manifest, purpose)) {
       await keysRepo.revoke(key.id);
       // As the API keys page revokes: the revision moves, so an edit racing this one is re-checked.
       await publicApiStateRepo(input.meta).bump();
@@ -894,7 +1000,7 @@ export async function takeBackPublicAccess(input: {
       continue;
     }
     // The peak this version says for the key (or Adminium's own, when it says none).
-    const peak = manifest.publicKeys?.[purpose]?.peak ?? null;
+    const peak = (manifest.kind === 'app' ? manifest.publicKeys?.[purpose]?.peak : undefined) ?? null;
     if ((key.peakReads ?? null) !== (peak?.reads ?? null) || (key.peakWrites ?? null) !== (peak?.writes ?? null)) await keysRepo.setPeak(key.id, peak);
     const declared = new Map(planned.filter((entry) => entry.key === purpose).map((entry) => [entry.ref, entry.methods] as const));
     const { lost } = await input.service.narrowManagedAccess({ connectionId, keyId: key.id, declared });
@@ -933,8 +1039,7 @@ function refusedInPlainWords(issues: readonly { message: string }[]): Error {
 
 /** A key the manifest declares with no staff binding: it opens one row by a shared link, and reads. */
 export function opensByToken(manifest: Manifest, purpose: string): boolean {
-  if (manifest.kind !== 'app') return false;
-  const declared = manifest.publicKeys?.[purpose];
+  const declared = (manifest.publicKeys as Record<string, { requiresStaff?: unknown } | undefined> | undefined)?.[purpose];
   if (declared === undefined || declared.requiresStaff !== undefined) return false;
   return (manifest.publicAccess ?? []).some((entry) => (entry.key ?? CUSTOMER_KEY_PURPOSE) === purpose && entry.claim !== undefined && 'by' in entry.claim);
 }
