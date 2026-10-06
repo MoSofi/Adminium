@@ -195,7 +195,25 @@ export const recordChildrenBody = z
   .optional();
 
 /** A staff form's record with its rows tried and not kept: every figure the save would work out. */
+/**
+ * What each ledger a row hands something to said of it. In a save's reply:
+ * `ok`, or `unavailable` for one let through while its add-on could not
+ * answer. In a quote's: also `refused`, with the reason a save would be
+ * given and the line it is about — a quote is answered, never failed, for a
+ * ledger's "no".
+ */
+export const postingAnswerSchema = z.object({
+  ledger: z.string(),
+  state: z.enum(['ok', 'refused', 'unavailable']),
+  reason: z.string().optional(),
+  /** The line's place among the rows handed over, and its path in a create with child rows. */
+  line: z.number().int().min(0).optional(),
+  path: z.array(z.union([z.string(), z.number()])).optional(),
+  notes: z.array(z.object({ line: z.number().int().min(0), note: z.string() })).optional(),
+});
+
 export const recordDryRunReply = z.object({
+  postings: z.array(postingAnswerSchema).optional(),
   data: rowSchema.nullable(),
   children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
   /** A row priced by the night (a stay): each night, its rate, the rate before what was added, and the names of what was added to it. */
@@ -285,6 +303,7 @@ export const recordChangeDryRunBody = z.object({
  * the night — the nights it would then be made of.
  */
 export const recordChangeDryRunReply = z.object({
+  postings: z.array(postingAnswerSchema).optional(),
   data: rowSchema,
   children: z.record(z.string(), z.array(z.object({ data: rowSchema }))),
   nights: z.array(z.object({ date: z.string(), rate: z.string(), base: z.string(), tags: z.array(z.string()) })).optional(),
@@ -429,6 +448,8 @@ export const recordMutationReply = z.object({
   created: z.number().int().min(1).optional(),
   /** A create sent again with the retry key of one already made: that record, made nothing new. */
   replayed: z.literal(true).optional(),
+  /** What each ledger the row handed something to did. A save that posted answers no undo token: its way back is the rule's own. */
+  postings: z.array(postingAnswerSchema).optional(),
 });
 
 export const recordCascadeReply = z.object({

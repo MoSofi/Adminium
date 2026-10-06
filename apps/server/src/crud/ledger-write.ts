@@ -1570,3 +1570,38 @@ export function publicLeft(settings: Readonly<Record<string, unknown>>, words: {
   if (!Number.isFinite(below) || below <= 0 || !Number.isFinite(whole) || whole >= below) return undefined;
   return String(whole);
 }
+
+// ─── what a door answers ─────────────────────────────────────────────────────
+
+/** What a save or a quote says of one ledger, as a staff reply carries it. */
+export interface PostingAnswer {
+  ledger: string;
+  state: 'ok' | 'refused' | 'unavailable';
+  reason?: string;
+  line?: number;
+  path?: (string | number)[];
+  notes?: { line: number; note: string }[];
+}
+
+/**
+ * The calls of a save or a quote as its reply tells them. A save's are `ok`,
+ * or `unavailable` for one let through while the add-on could not answer (a
+ * refusal is the error itself); a quote's are whatever it was told. `left`
+ * and `item` are not here: they are told only to a reader of the ledger's
+ * own tables, by whoever knows the caller is one.
+ */
+export function postingAnswers(outcomes: readonly PostedOutcome[] | undefined): PostingAnswer[] | undefined {
+  if (outcomes === undefined || outcomes.length === 0) return undefined;
+  return outcomes.map((call) => {
+    const notes = call.notes.map((note) => ({ line: Math.max(0, call.lines.indexOf(note.line)), note: note.note }));
+    const quote = call.quote;
+    return {
+      ledger: call.ledger,
+      state: quote?.state ?? (call.state === 'unplanned' ? 'unavailable' : 'ok'),
+      ...(quote?.reason === undefined ? {} : { reason: quote.reason }),
+      ...(quote?.line === undefined ? {} : { line: quote.line }),
+      ...(quote?.path === undefined ? {} : { path: quote.path }),
+      ...(notes.length === 0 ? {} : { notes }),
+    };
+  });
+}

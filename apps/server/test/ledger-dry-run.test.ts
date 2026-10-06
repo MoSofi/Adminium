@@ -11,7 +11,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { PostedOutcome } from '../src/crud/ledger-write.js';
+import { postingAnswers, type PostedOutcome } from '../src/crud/ledger-write.js';
 import type { RecordWriteService } from '../src/crud/write-service.js';
 import type { WriteContext } from '../src/crud/write-context.js';
 import { ledgerKitDecidesManifest } from './fixtures/ledger-kit/index.js';
@@ -27,6 +27,20 @@ const TALLY = { id: 'tally', into: { addOn: 'ledger-kit', ledger: 'units', actio
 const ASK = { id: 'ask', into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, map: { account: 'account_id', quantity: 'qty' }, reserve: { on: { column: 'status', in: ['sent'] } }, post: { on: { column: 'status', in: ['done'] } }, reverse: { on: { column: 'status', in: ['cancelled'] } } };
 const PAY = { id: 'pay', into: { addOn: 'ledger-kit', ledger: 'units', action: 'pay' }, map: { account: 'account_id', due: 'due', amount: 'amount' }, post: { on: { create: true } } };
 const LINE = { id: 'line', into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, via: 'order_id', map: { account: 'account_id', quantity: 'qty' }, reserve: { on: { create: true } } };
+
+describe('what a door answers of the ledgers', () => {
+  const call = (over: Partial<PostedOutcome>): PostedOutcome => ({ addOn: 'kit', ledger: 'units', action: 'use', posting: 'p', phase: 'post', round: 1, rows: 1, version: '1.0.0', state: 'planned', source: { table: 't', row: '1' }, lines: ['7', '9'], notes: [], written: [], decided: [], ...over });
+  it('a save\'s calls are ok, or unavailable when nobody planned them; a quote\'s are what it was told; and never what is left or of what', () => {
+    expect(postingAnswers(undefined)).toBeUndefined();
+    expect(postingAnswers([])).toBeUndefined();
+    expect(postingAnswers([call({}), call({ state: 'unplanned', ledger: 'cards' })])).toEqual([{ ledger: 'units', state: 'ok' }, { ledger: 'cards', state: 'unavailable' }]);
+    // A note is told by its line's place among the lines handed over.
+    expect(postingAnswers([call({ notes: [{ line: '9', note: 'not-linked', item: 'Flour' }] })])).toEqual([{ ledger: 'units', state: 'ok', notes: [{ line: 1, note: 'not-linked' }] }]);
+    const quoted = postingAnswers([call({ quote: { state: 'refused', reason: 'out-of-stock', line: 2, path: ['lines', 2], left: '3', item: 'Sugar' } })]);
+    expect(quoted).toEqual([{ ledger: 'units', state: 'refused', reason: 'out-of-stock', line: 2, path: ['lines', 2] }]);
+    expect(JSON.stringify(quoted)).not.toContain('Sugar');
+  });
+});
 
 describe.each(LEGS)('a quote of a posting — %s', (dialect, available) => {
   let w: LedgerWorld;
