@@ -67,7 +67,9 @@ import type {
   TableBookingRule,
   TableCapacityRule,
   EffectiveCapacityRule,
+  TablePosting,
 } from '../connections/effective-schema.js';
+import type { LinePosting } from './ledger-points.js';
 import { holdsNul } from '../security/nul-bytes.js';
 import { codeLookupsOf, type CodeLookup } from './code-lookup.js';
 import { isNowType, renderNow } from './instants.js';
@@ -340,6 +342,18 @@ export interface RollupInto {
 export interface TableRules {
   fills: ColumnFill[];
   checks: ColumnCheck[];
+  /**
+   * What the table hands to an add-on's ledger, as declared — whether a rule
+   * is live is asked per write, of the ledger registry. `postings`: its own
+   * rules with no `via` (a row is the source). `asLine`: its own rules with
+   * `via` (its rows are lines). `linePostings`: rules of other tables whose
+   * lines hang under its rows (a row is their source).
+   */
+  postings?: TablePosting[];
+  asLine?: TablePosting[];
+  linePostings?: LinePosting[];
+  /** The rules the owner switched off on the table: no new round; an open one is still given back. */
+  switchedOff?: { postings: ReadonlySet<string>; adjust: boolean };
   /** The columns Adminium decides; absent on a table with none. */
   copies?: ColumnCopy[];
   sequences?: ColumnSequence[];
@@ -524,6 +538,22 @@ function checkableType(logicalType: LogicalType): boolean {
 export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable }): TableRules | null {
   const cached = CACHE.get(target.table);
   if (cached !== undefined) return cached;
+  // What the table hands to a ledger: its own rules, and the rules of tables whose lines hang under its rows.
+  const ownPostings: TablePosting[] = target.table.table?.postings ?? [];
+  const postings = ownPostings.filter((posting) => posting.via === undefined);
+  const asLine = ownPostings.filter((posting) => posting.via !== undefined);
+  const linePostings: LinePosting[] = [];
+  for (const other of target.view?.model?.tables ?? []) {
+    for (const posting of other.postings ?? []) {
+      if (posting.via === undefined) continue;
+      const link = (target.view?.model?.relations ?? []).find(
+        (relation) => relation.through === null && relation.from.tableId === other.id && relation.from.columns.length === 1 && relation.from.columns[0] === posting.via && relation.to.tableId === target.table.id,
+      );
+      if (link !== undefined && link.to.columns.length === 1) linePostings.push({ child: other.id, via: posting.via, parentKey: link.to.columns[0]!, posting });
+    }
+  }
+  const off = target.table.table?.switchedOff;
+  const switchedOff = off === undefined ? undefined : { postings: new Set(off.postings) as ReadonlySet<string>, adjust: off.adjust === true };
   const columns: readonly EffectiveColumn[] = target.table.table?.columns ?? [];
   const enums: readonly EnumDef[] = target.view?.model?.enums ?? [];
   const fills: ColumnFill[] = [];
@@ -745,11 +775,17 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     booking === undefined &&
     venueLocal.length === 0 &&
     perNight === undefined &&
-    follows.length === 0
+    follows.length === 0 &&
+    ownPostings.length === 0 &&
+    linePostings.length === 0
       ? null
       : {
           fills,
           checks,
+          ...(postings.length === 0 ? {} : { postings }),
+          ...(asLine.length === 0 ? {} : { asLine }),
+          ...(linePostings.length === 0 ? {} : { linePostings }),
+          ...(switchedOff === undefined ? {} : { switchedOff }),
           ...(decided ? { copies, sequences, codes, ...(stamps.length === 0 ? {} : { stamps }) } : {}),
           ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
           ...(ownRollups.length === 0 ? {} : { ownRollups }),
