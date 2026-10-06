@@ -209,15 +209,21 @@ export interface NamedLockOptions {
  * returned once committed. With no locks it is a plain transaction (joined
  * when one is open).
  */
+/** A transaction on `db`: on MySQL, for a target that asks for it, one that reads what is committed at each statement. */
+export function beginOn(db: Db, target: { dialect: Dialect; committedReads?: true | undefined }) {
+  const transaction = db.transaction();
+  return target.dialect === 'mysql' && target.committedReads === true ? transaction.setIsolationLevel('read committed') : transaction;
+}
+
 export async function withNamedLocks<T>(
-  target: { db: Db; dialect: Dialect },
+  target: { db: Db; dialect: Dialect; committedReads?: true | undefined },
   locks: readonly NamedLock[],
   run: (db: Db) => Promise<T>,
   opts: NamedLockOptions = {},
 ): Promise<T> {
   const { db } = target;
   const names = ordered(locks);
-  if (names.length === 0) return inTransaction(db) ? run(db) : db.transaction().execute(run);
+  if (names.length === 0) return inTransaction(db) ? run(db) : beginOn(db, target).execute(run);
   // A call inside a transaction already open takes no connection, and its
   // caller may hold this very turn: it goes straight to the database.
   if (inTransaction(db)) return lockedIn(target, names, run, opts);
@@ -230,7 +236,7 @@ export async function withNamedLocks<T>(
 }
 
 async function lockedIn<T>(
-  target: { db: Db; dialect: Dialect },
+  target: { db: Db; dialect: Dialect; committedReads?: true | undefined },
   names: readonly NamedLock[],
   run: (db: Db) => Promise<T>,
   opts: NamedLockOptions,
@@ -268,7 +274,7 @@ async function lockedIn<T>(
           if (Number(got) !== 1) throw busyError(lock.busy);
           taken.push(key);
         }
-        return await conn.transaction().execute(async (trx) => {
+        return await beginOn(conn as unknown as Db, target).execute(async (trx) => {
           hold(trx, names);
           try {
             return await run(trx);

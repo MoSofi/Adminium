@@ -76,6 +76,7 @@
  */
 
 import { withDeciders } from '../add-ons/decide.js';
+import { postingScope } from './ledger-points.js';
 import { createLedgerWriter, type PostedOutcome, type TreeRowIn } from './ledger-write.js';
 import type { CustomerKeyOf } from '../public-api/customer-key.js';
 import { inertLinkWritten, softLinkIssues } from './soft-links.js';
@@ -153,7 +154,7 @@ import { stampNow, writeClock, type WriteClock } from './write-clock.js';
 import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
 import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
 import { hasLimits, judgeCapacity } from './capacity/judge.js';
-import { LockMoved, withNamedLocks, type NamedLock } from './capacity/locks.js';
+import { LockMoved, beginOn, withNamedLocks, type NamedLock } from './capacity/locks.js';
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
@@ -1164,6 +1165,10 @@ export const settleChain: SettleChain = async (db, dialect, start, currency, opt
   let level: ClimbStart[] = [...start];
   for (let hop = 0; hop < CLIMB_HOPS && level.length > 0; hop += 1) {
     const climbing = new Map<string, ChainLevel>();
+    // The caps of this height, judged once a row after EVERY total of it that moved is added up again: a write that moves two totals of
+    // one balance (what was held is taken: one goes up as the other comes down) is judged by where it leaves the balance, not by the
+    // order its totals happen to be settled in.
+    const capped = new Map<string, { rollup: RollupInto; key: unknown; text: string; balances: Map<string, TableBalance> }>();
     for (const { rollup, keys } of level) {
       const unique = new Map<string, unknown>();
       for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
@@ -1173,17 +1178,24 @@ export const settleChain: SettleChain = async (db, dialect, start, currency, opt
         done.add(id);
         if (opts.only !== undefined && !opts.only(rollup.parent, key)) continue;
         await settleParent(db, dialect, [rollup], key, rollup.balances, currency, read);
-        const cap = opts.cap;
-        if (cap !== undefined && rollup.capped) {
-          const was = cap === 'strict' ? undefined : cap.get(rollup.parent)?.get(text);
-          const refusal = await capRefusal(db, rollup.parent, rollup.parentKey, key, guardedBy(rollup), was);
-          if (refusal !== null) throw refusal;
+        if (opts.cap !== undefined && rollup.capped) {
+          const row = capped.get(`${rollup.parent}\u0000${text}`) ?? { rollup, key, text, balances: new Map<string, TableBalance>() };
+          for (const balance of guardedBy(rollup)) row.balances.set(balance.column, balance);
+          capped.set(`${rollup.parent}\u0000${text}`, row);
         }
         if (rollup.climbs.length === 0) continue;
         const entry = climbing.get(rollup.parent) ?? { table: rollup.parent, keyColumn: rollup.parentKey, rollups: [], keys: new Map<string, unknown>() };
         if (!entry.rollups.includes(rollup)) entry.rollups.push(rollup);
         entry.keys.set(text, key);
         climbing.set(rollup.parent, entry);
+      }
+    }
+    const cap = opts.cap;
+    if (cap !== undefined) {
+      for (const { rollup, key, text, balances } of capped.values()) {
+        const was = cap === 'strict' ? undefined : cap.get(rollup.parent)?.get(text);
+        const refusal = await capRefusal(db, rollup.parent, rollup.parentKey, key, [...balances.values()], was);
+        if (refusal !== null) throw refusal;
       }
     }
     // One height up: each settled row's link to the rows that add it up, read as it is now (held on Postgres and MySQL).
@@ -1406,6 +1418,8 @@ export interface PostRecordInput {
   mapError?: ((error: unknown) => never) | undefined;
   /** Plan what a receipt nobody planned stands for (a save let through while the add-on could not answer), rather than start anything. */
   catchUp?: boolean | undefined;
+  /** Give back only what these receipts (by id) still keep until a time: the timed release, which read them a moment before. */
+  kept?: readonly (string | number)[] | undefined;
   /** What the phase did, with the row it was run for — once it committed. Not called when there was nothing to do. */
   announce: (row: Row, postings: PostedOutcome[]) => Promise<void>;
 }
@@ -1512,6 +1526,13 @@ export class BalanceBatchError extends AppError {
 /** The row moved to another day between naming the booking lock and holding it. */
 class DayMoved extends Error {}
 
+/** A row a create stored that hands something over its first look did not see: the row is taken back, and looked at as it was stored. */
+class StalePeek extends Error {
+  constructor(readonly row: Row) {
+    super('A row was stored that its look before the locks did not see as posting.');
+  }
+}
+
 /** How a quote of a change ends: rolled back, with the row as the change would have left it. */
 class UpdateQuoted extends Error {
   override readonly name = 'UpdateQuoted';
@@ -1561,6 +1582,13 @@ export interface RecordWriteService {
    * has already seen writes nothing. Answers what it did.
    */
   post(input: PostRecordInput): Promise<PostedOutcome[]>;
+  /**
+   * Told that a row's hold end was brought forward by a statement of the
+   * caller's own, on `target.db` (a buyer's new hold letting the old one go):
+   * what a ledger keeps for the row until that column is kept until the new
+   * time too. Nothing for a table no rule of which holds until that column.
+   */
+  holdEndMoved(input: { target: WriteTarget; row: Row; column: string; at: string }): Promise<void>;
   /**
    * The refusal deleting these rows would meet from the table's states (a
    * numbered or locked row, a sent invoice's line), or null — read before the
@@ -2146,6 +2174,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
     values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
     values = await formulate(rules, 'update', moved, values, before, declared.origin);
+    // …judged again on the row as it will be written: a point may be reached by what the move stamps or works out, not by the state alone.
+    await ledgerWriter.refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values, record: before }], effect: moved.table.name });
     const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
     return { target: { ...moved, timezone: zone ?? moved.timezone }, rules, pk, before, checked };
   }
@@ -2690,7 +2720,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
   /** One transaction for a write and the totals it moves, unless one is open. */
   async function atomically<T>(target: WriteTarget, run: (db: Db) => Promise<T>): Promise<T> {
-    return inTransaction(target.db) ? run(target.db) : target.db.transaction().execute(run);
+    return inTransaction(target.db) ? run(target.db) : beginOn(target.db, freshReads(target)).execute(run);
+  }
+
+  /** A table whose rows post into a ledger (as a source, a line, or the parent of lines) is saved reading what is committed (`WriteTarget.committedReads`). */
+  function freshReads<T extends WriteTarget>(target: T, posts?: boolean): T {
+    if (target.dialect !== 'mysql' || target.committedReads === true) return target;
+    return posts === true || postingScope(rulesOf(target)) !== null ? { ...target, committedReads: true } : target;
   }
 
   /**
@@ -3157,6 +3193,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           continue;
         }
         const values = await formulate(rules, action, target, prepared, null, context.origin);
+        // Judged again as it will be written: a row made in a state its table starts in reaches that state's point without being sent it.
+        const [late] = action === 'delete' ? [null] : await ledgerWriter.refuseBatch({ target, rules, action, context, rows: [{ values }], history: checkOpts?.capacity === 'unchecked' });
+        if (late != null) {
+          issues.push(late as FieldIssues);
+          out.push(null);
+          continue;
+        }
         const issue = mergeIssues(
           mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null)),
           await linkIssues(rules, action, target, context, values),
@@ -3169,7 +3212,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async create(input) {
       const { context } = input;
-      const target = await withRights(input.target);
+      const target = freshReads(await withRights(input.target));
       const hooks = current();
       // One clock for the write: its start for what is prepared here, its locked instant for what is judged under the locks.
       const clock = writeClock(context);
@@ -3191,11 +3234,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const limits = (rules?.capacityRules?.length ?? 0) > 0;
       // What the row hands to an add-on's ledger, looked at before any lock: null for a table with no rule that fires now.
       const about = { target, context };
-      const posting = await ledgerStep(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: checked, context }), about, input.mapError);
+      let posting = await ledgerStep(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: checked, context }), about, input.mapError);
       // Inside a transaction somebody else opened no named lock can be taken (on one engine at all): a row that would post is made on its own.
-      if (posting !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', posting: posting.calls[0]!.posting.id })), about, input.mapError);
+      const alone = (id: string) => ledgerStep(() => Promise.reject(new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', posting: id })), about, input.mapError);
+      if (posting !== null && inTransaction(target.db)) await alone(posting.calls[0]!.posting.id);
+      /** Whether the look was taken again, from a row this save stored and took back (`StalePeek`). */
+      let lookedAgain = false;
       let posted: PostedOutcome[] = [];
       const write = async (db: Db) => {
+        const peeked = posting;
         const within = { ...target, db, timezone: zone, origin: context.origin };
         // The limits this row takes from, judged under their locks (the write's clock is read first, inside).
         if (limits) await judgeRows(db, [{ target: within, pk: null, row: checked, before: null }], { clock, origin: context.origin, mode: 'save' }, input.mapError);
@@ -3207,7 +3254,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // The parents whose totals this row moves, held before it is written.
         const held = await holdParents(rules, within, [{ record: placed, before: null }], currency);
         // And the row a line that posts belongs to.
-        if (posting !== null) await ledgerWriter.holdParents(db, target, rules, [placed]);
+        if (peeked !== null) await ledgerWriter.holdParents(db, target, rules, [placed]);
         // A copy that follows its parent, read again from the parent as held: a change of it meanwhile would not have reached this row.
         const followed = brand(await followNow({ db, dialect: target.dialect, rules, values: placed, currency }));
         const counted = brand(await claimSequences(rules, 'create', within, followed, opts.sequences));
@@ -3217,10 +3264,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           await settleOwn(rules, within, 'create', out.row, out.values, currency);
         }, input.mapError);
         // What the row hands to a ledger: after its own totals, on the same transaction — a refusal undoes the row too.
-        if (posting !== null) {
+        if (peeked !== null) {
           // The row as its own totals left it: what is due on it is read from there.
           const settled = keepsOwnTotals(rules) ? await readAgain(db, target.table, out.row) : out.row;
-          posted = await ledgerStep(() => ledgerWriter.postStep(db, posting, { target: { ...target, timezone: zone }, rules, action: 'create', before: null, row: settled, context, clock }), about, input.mapError);
+          posted = await ledgerStep(() => ledgerWriter.postStep(db, peeked, { target: { ...target, timezone: zone }, rules, action: 'create', before: null, row: settled, context, clock }), about, input.mapError);
+        }
+        // The look before the locks saw nothing to hand over, and the row as stored has something (a value its parent
+        // gave it changed meanwhile, or the database filled a column itself): nothing is stored unposted. The row is
+        // taken back and the save made again from a look at it as stored — once; inside somebody's transaction it
+        // cannot be taken back, and is refused as any row that posts there is.
+        else if (ledgerWriter.firesAsStored({ target: { ...target, timezone: zone }, rules, row: out.row })) {
+          if (inTransaction(target.db)) await alone('');
+          if (!lookedAgain) throw new StalePeek(out.row);
+          await guarded(() => Promise.reject(new ConflictError('The row this one reads from changed at the same moment. Try again.', 'WRITE_CONFLICT', { retry: true, table: target.table.id })), input.mapError);
         }
         // SEAL again over the row's own totals, once they are added up.
         const sealing = sealsOf(checked);
@@ -3236,18 +3292,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }
       // A number without gaps is taken under the series' lock, held until the row commits.
       const series = numberLockName(target.table, checked);
-      const { row, values: written } = await conflicted(
+      const save = (peeked: typeof posting) => conflicted(
         () =>
-          posting !== null
+          peeked !== null
             ? // A row that posts always writes under one lock call: its own limits, its day, its series and the add-on's rows it stands on.
-              withDeciders(posting.addOns, () =>
+              withDeciders(peeked.addOns, () =>
                 withLimitLocks(
                   target,
                   async () => [
                     ...(limits ? await capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: checked, before: null, prepared: true }]) : []),
                     ...(day === null ? [] : [{ name: `${target.connectionId}|${target.table.id}|booking|${day}`, busy: 'BOOKING_BUSY' as const }]),
                     ...(series === null ? [] : seriesOf(rules, target.table, checked).map((name) => ({ name, busy: 'NUMBER_BUSY' as const }))),
-                    ...(await ledgerStep(() => posting.names(checked), about, input.mapError)),
+                    ...(await ledgerStep(() => peeked.names(checked), about, input.mapError)),
                   ],
                   write,
                   clock,
@@ -3268,11 +3324,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               ? withBookingLock({ ...target, timezone: zone }, day, write)
               : series !== null && !inTransaction(target.db)
                 ? withNamedLock(target, series, 'NUMBER_BUSY', write)
-                : settles(rules) || series !== null
-                  ? atomically(target, write)
+                : settles(rules) || series !== null || postingScope(rules) !== null
+                  ? // A table with a posting rule too: a row stored that turns out to post must be one that can be taken back.
+                    atomically(target, write)
                   : write(target.db),
         input.mapError,
       );
+      const { row, values: written } = await save(posting).catch(async (error: unknown) => {
+        if (!(error instanceof StalePeek)) throw error;
+        const stored = error.row;
+        lookedAgain = true;
+        posting = await ledgerStep(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: stored, context }), about, input.mapError);
+        return save(posting);
+      });
       await input.announce(row, written, posted);
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
@@ -3576,7 +3640,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let outcome: TreeOutcome;
       try {
         // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
-        outcome = await conflicted(() => withDeciders(treePosting?.addOns ?? [], () => withLimitLocks(rootRow.target, lockNames, run, clock)), (error) => input.mapError(error, []));
+        outcome = await conflicted(() => withDeciders(treePosting?.addOns ?? [], () => withLimitLocks(freshReads(rootRow.target, treePosting !== null), lockNames, run, clock)), (error) => input.mapError(error, []));
       } catch (error) {
         if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
         if (!(error instanceof TreeSignal)) throw error;
@@ -3600,7 +3664,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async update(input) {
       const { context, pk } = input;
-      const target = await withRights(input.target);
+      const target = freshReads(await withRights(input.target));
       refuseUnbuiltTable(target);
       refuseEarly(target, 'update', input.values, input.mapError);
       const hooks = current();
@@ -3698,6 +3762,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           async () => {
             const crossed = await ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'update', before: stands, after: { ...stands, ...checkedValues }, context });
             if (crossed !== null) throw new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', posting: crossed.calls[0]!.posting.id });
+            // What an open round read of the row stays as it read it, here as in a save of its own: judged on the caller's own handle.
+            await ledgerWriter.guard(target.db, { target, rules, action: 'update', stood: stands, values: checkedValues });
           },
           about,
           input.mapError,
@@ -3916,14 +3982,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return outcome;
     },
 
+    async holdEndMoved(input) {
+      await ledgerWriter.holdEndMoved(input.target.db, { ...input, rules: rulesOf(input.target) });
+    },
+
     async post(input) {
       const { context, pk } = input;
-      const target = await withRights(input.target);
+      const target = freshReads(await withRights(input.target));
       const rules = rulesOf(target);
       const zone = await zoneFor(rules, target);
       const clock = writeClock(context);
       const about = { target, context };
-      const only = { posting: input.posting, phase: input.phase, ...(input.catchUp === true ? { catchUp: true } : {}) };
+      const only = { posting: input.posting, phase: input.phase, ...(input.catchUp === true ? { catchUp: true } : {}), ...(input.kept === undefined ? {} : { kept: new Set(input.kept.map(String)) }) };
       const at = { ...target, timezone: zone };
       const posts = await ledgerStep(() => ledgerWriter.watched(target, rules), about, input.mapError);
       if (posts === null) return [];
@@ -3960,7 +4030,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     async delete(input) {
-      const { target, context, pk } = input;
+      const { context, pk } = input;
+      const target = freshReads(input.target);
       const hooks = current();
       const before = input.before ?? (input.load === undefined ? null : await input.load());
       if (before === null && input.load !== undefined && input.skipIfNone === true) return 0;
@@ -4034,6 +4105,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
         const worked = await formulate(rules, action, target, values, record, context.origin);
+        // Judged again as it will be written: a point reached only by a default, a stamp or a formula is a point all the same.
+        if (action !== 'delete') {
+          const [late] = await ledgerWriter.refuseBatch({ target, rules: rulesOf(target), action, context, rows: [{ values: worked, record }], history: beforeOpts?.capacity === 'unchecked' });
+          if (late != null) return { values: brand(worked), issues: late as FieldIssues };
+        }
         const judged = judgedBy(rules, target, context);
         const issues = mergeIssues(
           mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record)),

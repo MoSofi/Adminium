@@ -70,7 +70,7 @@ import { AppError } from '../errors.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { createPublicViews } from '../public-api/runtime.js';
 import { rehashSampleRow } from '../apps/sample-data.js';
-import { heldDue } from '../crud/ledger-receipts.js';
+import { heldDue, receiptsOfSource, roundOf, type Receipt } from '../crud/ledger-receipts.js';
 import type { PostedOutcome } from '../crud/ledger-write.js';
 import type { LedgerRuntime } from '../ledgers/registry.js';
 import { tellPostings } from '../ledgers/announce.js';
@@ -394,10 +394,13 @@ async function releaseDue(deps: TimedMovesDeps, connectionId: string, view: Snap
     // Every due receipt is read first, then each round is given back by its own write.
     const due = await heldDue(db, ledger, bindWriteValue(column, now.toISOString(), dialect), perTick);
     const seen = new Set<string>();
+    const keyOf = (receipt: Receipt): string => `hold|${connectionId}|${ledger.addOn}|${receipt.sourceTable}|${receipt.sourceRow}|${receipt.posting}`;
     for (const receipt of due) {
-      const key = `hold|${connectionId}|${ledger.addOn}|${receipt.sourceTable}|${receipt.sourceRow}|${receipt.posting}`;
+      const key = keyOf(receipt);
       if (seen.has(key) || (kept[key] ?? 0) > now.getTime()) continue;
       seen.add(key);
+      // Every due receipt of this row and rule: one write gives back those lines, and only those.
+      const together = due.filter((other) => keyOf(other) === key);
       const tableId = ledgers.tableOfRef?.(connectionId, receipt.sourceTable) ?? null;
       let table: ResolvedTable | null = null;
       try {
@@ -420,14 +423,32 @@ async function releaseDue(deps: TimedMovesDeps, connectionId: string, view: Snap
           pk,
           posting: receipt.posting,
           phase: 'reverse',
+          kept: together.map((other) => other.id),
           context,
           announce: async (row, postings) => {
             await deps.released?.({ connectionId, view, table: source, row, postings });
           },
         });
-        if (posted.length > 0) tick.moved += 1;
-        // Already closed by a move of the row (or the row is gone): this receipt has nothing left to keep.
-        else await forget(receipt.id);
+        if (posted.length > 0) {
+          tick.moved += 1;
+          continue;
+        }
+        // Nothing was given back. Each receipt is read again: one whose round was closed meanwhile (taken for good, or given back by a move of
+        // the row) keeps nothing and is let go of. One whose round is STILL open was not released — its rule cannot be asked just now (its
+        // add-on is not connected to the app, a table of it is gone): it goes on being kept, and is looked at again in an hour.
+        const now_ = await receiptsOfSource(db, ledger, { table: receipt.sourceTable, row: receipt.sourceRow });
+        let waiting = false;
+        for (const was of together) {
+          const fresh = now_.find((other) => String(other.id) === String(was.id));
+          if (fresh === undefined || fresh.heldUntil === null) continue;
+          const round = roundOf(now_, fresh.posting, fresh.sourceLine, fresh.lineTable);
+          if (round.round === fresh.round) waiting = true;
+          else await forget(fresh.id);
+        }
+        if (waiting) {
+          kept[key] = now.getTime() + LEAVE_ALONE_MS;
+          deps.log?.warn({ connectionId, ledger: ledger.id, source: receipt.sourceTable, row: receipt.sourceRow, posting: receipt.posting }, 'a hold past its time could not be given back (its rule cannot be asked); left alone for an hour');
+        }
       } catch (error) {
         if (connectionWide(error)) throw error;
         const refusal = error instanceof AppError && error.statusCode < 500;

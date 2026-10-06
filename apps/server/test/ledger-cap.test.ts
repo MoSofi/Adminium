@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { EffectiveTable } from '../src/connections/effective-schema.js';
 import { balancesOf } from '../src/crud/column-rules.js';
+import { ledgerKitManifest } from './fixtures/ledger-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
 
@@ -129,5 +130,44 @@ describe.each(LEGS)('a capped balance and the row that lifts it — %s', (dialec
     await w.update('tallies', came, { status: 'undone' });
     expect(w.posted()).toMatchObject([{ posting: 'tally', phase: 'reverse', rows: 1 }]);
     expect(await balance(3)).toBe(-3);
+  });
+});
+
+describe.each(LEGS)('a balance two totals move at once is judged once, by where the save leaves it — %s', (dialect, available) => {
+  let w: LedgerWorld;
+  /** Held when sent, taken when done: the taking adds to what was taken as it takes off what was held. */
+  const ASK = { id: 'ask', into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, map: { account: 'account_id', quantity: 'qty' }, reserve: { on: { column: 'status', in: ['sent'] } }, post: { on: { column: 'status', in: ['done'] } }, reverse: { on: { column: 'status', in: ['cancelled'] } } };
+  const account = async (id: number) => {
+    const [row] = await w.h.rows(`SELECT taken, held, balance FROM ledger_kit_accounts WHERE id = ${String(id)}`);
+    return { taken: Number(row!['taken']), held: Number(row!['held']), balance: Number(row!['balance']) };
+  };
+
+  beforeAll(async () => {
+    if (!available) return;
+    // The kit, with what is held counted against what is left: left = opening − held − taken.
+    const kit = ledgerKitManifest() as { addOn: { ledgers: { actions: Record<string, unknown> }[] }; requiredSchema: { tables: { ref: string; columns: { ref: string; rules?: { rollup?: { balance?: Record<string, unknown> } } }[] }[] } };
+    const taken = kit.requiredSchema.tables.find((table) => table.ref === 'accounts')!.columns.find((column) => column.ref === 'taken')!;
+    taken.rules!.rollup!.balance = { ...taken.rules!.rollup!.balance, minus: ['held'] };
+    // (The kit's action that only tidies holds locks no account, which a hold that counts against one now needs: left out here.)
+    delete kit.addOn.ledgers[0]!.actions['tidy'];
+    w = await ledgerWorld(dialect, { asks: { columns: 'account_id INT NULL, qty DECIMAL(12,3) NULL, status VARCHAR(20) NULL', postings: [ASK] } }, kit as never);
+    await w.h.rows(`INSERT INTO ledger_kit_accounts (id, name, opening, taken, balance, allow_below, reorder_at, held) VALUES (1, 'Flour', 5, 0, 5, ${w.flag(false)}, 0, 0)`);
+  }, 180_000);
+  afterAll(async () => {
+    if (available) await w.close();
+  });
+
+  it.skipIf(!available)('taking everything that was held is not refused for the moment in between, when both are counted', async () => {
+    const id = Number((await w.create('asks', { account_id: 1, qty: '5', status: 'draft' }))['id']);
+    await w.update('asks', id, { status: 'sent' });
+    expect(await account(1)).toEqual({ taken: 0, held: 5, balance: 0 });
+    // The taking: taken goes up by five as held comes down by five. Left stays at nothing, and that is allowed.
+    await w.update('asks', id, { status: 'done' });
+    expect(w.posted()).toMatchObject([{ posting: 'ask', phase: 'post' }]);
+    expect(await account(1)).toEqual({ taken: 5, held: 0, balance: 0 });
+    // And one more than there is, is still refused.
+    const more = Number((await w.create('asks', { account_id: 1, qty: '1', status: 'draft' }))['id']);
+    expect(await refusal(w.update('asks', more, { status: 'sent' }))).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'out-of-stock' } });
+    expect(await account(1)).toEqual({ taken: 5, held: 0, balance: 0 });
   });
 });

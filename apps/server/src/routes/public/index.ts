@@ -51,7 +51,7 @@ import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { registerPictures } from './pictures.js';
-import { CODE_HEADER, GuessesSpent, guessRung, rungOf, treeTypesCard, treeTypesCode, typedCodeOf, typesCard, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
+import { cardInputs, CODE_HEADER, GuessesSpent, guessRung, treeRung, writeRung, type WriteRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
@@ -71,7 +71,7 @@ import { publicWindows, withPublicWindows } from '../../public-api/moment-window
 import { timedRefusal } from '../../public-api/timed-refusals.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
-import { publicLedgerRefusal, publicPostings } from './ledger-refusals.js';
+import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals.js';
 import type { PostedOutcome } from '../../crud/ledger-write.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
@@ -595,6 +595,14 @@ const UPDATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'invali
 interface Told {
   writable: ReadonlySet<string>;
   reasons: ReadonlySet<string>;
+  /** The columns a card's code is typed into (`cardInputs`): a miss there is answered as a refused card. */
+  cards?: ReadonlySet<string> | undefined;
+}
+
+/** A code that named no card, thrown as a card that is not valid is (`cardMiss`). */
+function asCard(named: { column?: string | undefined; reason: string } | null, cards: ReadonlySet<string> | undefined): void {
+  const card = cardMiss(named, cards);
+  if (card !== null) throw new PublicSlotRefused(card.code, card.params);
 }
 
 /** The first refused field of a check the caller may be told of, or null. */
@@ -613,6 +621,7 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   if (isWriteConflict(error)) throw new PublicSlotRefused('PUBLIC_SLOT_BUSY');
   // A code's uses all taken: told on the column the guest typed it into.
   const usedUp = error instanceof AppError && error.code === 'CAPACITY_FULL' && told !== undefined ? namedIn((error.details as { fields?: unknown } | undefined)?.fields, told) : null;
+  asCard(usedUp, told?.cards);
   if (usedUp !== null) throw new PublicWriteRefused(usedUp);
   if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
   // A ledger's own no: out of stock, or a refused card — and nothing else of it. Any other refusal of a posting has no name here.
@@ -640,6 +649,7 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
     if (plain !== undefined) throw new PublicWriteRefused({ column: plain });
   }
   const named = told === undefined || !(error instanceof ValidationFailedError) ? null : namedIn((error.details as { fields?: unknown } | undefined)?.fields, told);
+  asCard(named, told?.cards);
   throw named === null ? new PublicWriteRefused() : new PublicWriteRefused(named);
 };
 
@@ -654,9 +664,9 @@ const heldBusy = (error: unknown): boolean => error instanceof AppError && error
 
 /** `refuseWrite` for a create or a change through an entry: a refused value of a column it writes is named. */
 const refuseWriteThrough =
-  (resource: CompiledResource, action: 'create' | 'update') =>
+  (resource: CompiledResource, action: 'create' | 'update', table?: ResolvedTable) =>
   (error?: unknown): never =>
-    refuseWrite(error, { writable: resource.writable, reasons: action === 'create' ? CREATE_NAMED : UPDATE_NAMED });
+    refuseWrite(error, { writable: resource.writable, reasons: action === 'create' ? CREATE_NAMED : UPDATE_NAMED, cards: table === undefined ? undefined : cardInputs(table) });
 
 /**
  * Is a bind address loopback-only?
@@ -1648,7 +1658,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   /** Codes typed: a guess reserved before the lookup, kept for a miss, handed back when the reply has gone (`code-guesses.ts`). */
   const guesses = guessRung(limiter, admit);
   /** Whether a visitor may try the codes typed: a guess held (else answered 429). */
-  const admitGuess = (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }, typed: readonly string[], rung: 'code' | 'card' = 'code'): boolean =>
+  const admitGuess = (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }, typed: readonly string[], rung: WriteRung = 'code'): boolean =>
     guesses.admit(request, reply, ok.key.keyId, typed, rung);
 
   /** A write whose typed code missed (`unknown`, `used-up`): its guess spent. */
@@ -2473,7 +2483,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // A code typed anywhere in it is a guess, a quote's too: a visitor whose guesses are spent is told so first.
       const typedCodes = treeTypesCode(root);
       const guessing = typedCodes.length > 0;
-      if (guessing && !admitGuess(request, reply, ok, typedCodes, treeTypesCard(root) ? 'card' : 'code')) return reply;
+      if (guessing && !admitGuess(request, reply, ok, typedCodes, treeRung(root))) return reply;
 
       // A name that is only a name, signed in or not: one an account fills in is printed as the typed one would be.
       const caps = resource.anonymous;
@@ -2582,6 +2592,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
       /** What the guest may be told of a refused row: where it is, and — for their own value — the column and why. */
       const writableAt = (at: TreePath): ReadonlySet<string> => (at.length === 0 ? resource.writable : new Set(entryAt(at)?.writable ?? []));
+      /** The columns a card's code is typed into, in the table of the row at a place. */
+      const cardsAt = (at: TreePath): ReadonlySet<string> => {
+        const of = at.length === 0 ? table : tableOf(entryAt(at)?.table ?? '');
+        return of === null ? new Set() : cardInputs(of);
+      };
       const refuseTree = (error: unknown, at: TreePath): never => {
         // A hook's own refusal keeps its words; the engine giving up a writer in a lock race is a moment's wait, not a refusal.
         if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof PublicPriceChanged || error instanceof HookRejectedError) throw error;
@@ -2599,6 +2614,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const where = placeOf(at);
         if (error instanceof TreeCheckRefused) {
           const r = error.refused;
+          asCard(r, cardsAt(at));
           throw new PublicWriteRefused(
             r.child !== undefined
               ? { child: r.child, ...(where.path === undefined ? {} : { path: where.path }), ...(r.column === undefined ? {} : { column: r.column }), reason: r.reason }
@@ -2613,9 +2629,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const slot = error instanceof AppError && error.code !== 'CAPACITY_FULL' ? SLOT_REFUSALS[error.code] : undefined;
         if (slot !== undefined) throw new PublicSlotRefused(slot, Object.keys(where).length === 0 ? undefined : where);
         try {
-          refuseWrite(error, { writable: writableAt(at), reasons: TREE_NAMED });
+          refuseWrite(error, { writable: writableAt(at), reasons: TREE_NAMED, cards: cardsAt(at) });
         } catch (refusal) {
           // A row's places gone (sold out, no room): which row, beside the column the limit counts by.
+          // A refused card says nothing of where: a code that named no card and a card that is not valid answer alike.
+          if (refusal instanceof PublicSlotRefused && refusal.code === 'PUBLIC_CARD_REFUSED') throw refusal;
           if (refusal instanceof PublicSlotRefused) throw new PublicSlotRefused(refusal.code, Object.keys(where).length === 0 ? refusal.params : { ...where, ...(refusal.params ?? {}) });
           if (refusal instanceof PublicWriteRefused && refusal.params !== undefined) throw new PublicWriteRefused({ ...where, ...refusal.params });
           throw refusal;
@@ -2727,7 +2745,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           ? undefined
           : async (trx: Kysely<SourceDatabase>, as: 'save' | 'dry'): Promise<JudgedRow[]> => {
               if (as === 'save') {
-                await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+                await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing, moved: (row, column, at) => writes.holdEndMoved({ target: { ...target(table), db: trx }, row, column, at }) });
                 return [];
               }
               // A quote: the same holds, as they are now, judged as let go — nothing written, nothing held.
@@ -2906,7 +2924,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
         const typedCodes = typesCode(found.table, values);
         const guessing = typedCodes.length > 0;
-        if (guessing && !admitGuess(request, reply, ok, typedCodes, typesCard(found.table, values) ? 'card' : 'code')) return reply;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes, writeRung(found.table, values))) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
         // A signed-in person may hold only so many open rows: a found session
@@ -3021,7 +3039,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                * value refused for itself, in a column this entry writes, is
                * named (`refuseWriteThrough`).
                */
-              mapError: refuseWriteThrough(found.resource, 'create'),
+              mapError: refuseWriteThrough(found.resource, 'create', found.table),
               announce,
             });
           };
@@ -3031,7 +3049,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
            * once the lookup below has sent it to the database.
            */
           const unstorable = unstorableText(values, found.table.columns);
-          if (unstorable !== null) refuseWriteThrough(found.resource, 'create')(new ValidationFailedError('Some values were refused.', { fields: unstorable }));
+          if (unstorable !== null) refuseWriteThrough(found.resource, 'create', found.table)(new ValidationFailedError('Some values were refused.', { fields: unstorable }));
           if (parentOf(found.resource) === null) {
             inserted = await create(target, announceCreate);
           } else {
@@ -3070,7 +3088,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 },
                 mapError: (error) => {
                   if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof HookRejectedError) throw error;
-                  return refuseWriteThrough(found.resource, 'create')(error);
+                  return refuseWriteThrough(found.resource, 'create', found.table)(error);
                 },
               });
               inserted = outcome.root;
@@ -3192,7 +3210,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
         const typedCodes = typesCode(found.table, values);
         const guessing = typedCodes.length > 0;
-        if (guessing && !admitGuess(request, reply, ok, typedCodes, typesCard(found.table, values) ? 'card' : 'code')) return reply;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes, writeRung(found.table, values))) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this change needs is missing.', { column: missing });
         // A child's references are fixed when it is made: a change never moves it under another parent.
@@ -3402,7 +3420,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             skipIfNone: true,
             // A window read from moments is judged by the statement, holding the row.
             windows: publicWindows(found.resource.writableWhen, found.view, found.table, ok.key.scope.timezone),
-            mapError: refuseWriteThrough(found.resource, 'update'),
+            mapError: refuseWriteThrough(found.resource, 'update', found.table),
             mode: quote,
             // What the entry agrees its row must be (a stay's guests within what its room sleeps), on the row as changed.
             ...((found.resource.agrees?.length ?? 0) === 0 ? {} : { inside: (db: Kysely<SourceDatabase>, after: Row) => judgeEntryAgrees(db, found.view, found.table, found.resource, after) }),

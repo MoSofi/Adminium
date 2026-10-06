@@ -115,5 +115,10 @@ describe.each(LEGS)('the doors that cannot post — %s', (dialect, available) =>
     // Made on its own, the refused change goes through.
     await w.update('asks', id, { status: 'sent' });
     expect(await w.receiptsOf('ask', id)).toEqual(['reserve:1:planned:1']);
+    // Now that it holds something, what the round read of it is kept inside somebody's transaction too.
+    const frozen = w.writes.transaction(asks, [], async (db) => void (await w.writes.update({ target: { ...asks, db }, pk: { id }, values: { qty: '9' }, context: DESK, announce: async () => undefined })));
+    expect(await refusal(frozen)).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'mapped-changed', column: 'qty' } });
+    expect(Number((await w.h.rows(`SELECT qty FROM asks WHERE id = ${String(id)}`))[0]!['qty'])).toBe(1);
+    await w.writes.transaction(asks, [], async (db) => void (await w.writes.update({ target: { ...asks, db }, pk: { id }, values: { note: 'still free' }, context: DESK, announce: async () => undefined })));
   });
 });

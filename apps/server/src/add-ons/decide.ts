@@ -24,6 +24,7 @@
  * when it was downloaded, or (never in production) the developer's own.
  */
 import { createHash } from 'node:crypto';
+import { types } from 'node:util';
 import vm from 'node:vm';
 
 import type { z } from 'zod';
@@ -136,18 +137,26 @@ function bareContext(): vm.Context {
 
 /** A thrown thing's message, as plain text of this process, cut short. */
 function wordsOf(error: unknown): string {
-  try {
-    const message = (error as { message?: unknown } | null)?.message;
-    return String(typeof message === 'string' ? message : error).slice(0, 200);
-  } catch {
-    return 'an error that could not be read';
-  }
+  const own = ownValue(error, 'message');
+  if (typeof own === 'string') return own.slice(0, 200);
+  return error !== null && (typeof error === 'object' || typeof error === 'function') ? 'an error that could not be read' : String(error).slice(0, 200);
+}
+
+/**
+ * A property of what an add-on threw, read WITHOUT running any of its code:
+ * only a plain value the thing itself holds. A getter, a `toString` or a
+ * proxy's trap would run here, in this process, after the call's time limit
+ * has stopped counting — a loop there would never end.
+ */
+function ownValue(thrown: unknown, name: string): unknown {
+  if (thrown === null || (typeof thrown !== 'object' && typeof thrown !== 'function') || types.isProxy(thrown)) return undefined;
+  return Object.getOwnPropertyDescriptor(thrown, name)?.value;
 }
 
 /** What is left of a call's time, as the whole milliseconds a script's limit takes; never none. */
 const msLeft = (deadline: number): number => Math.max(1, Math.ceil(deadline - performance.now()));
 
-const timedOut = (error: unknown): boolean => (error as { code?: unknown } | null)?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT';
+const timedOut = (error: unknown): boolean => ownValue(error, 'code') === 'ERR_SCRIPT_EXECUTION_TIMEOUT';
 
 /** Runs the strip and the decider's file in a context, within what is left of the time. */
 function prepared(decider: Pick<InstalledDecider, 'script'>, deadline: number): vm.Context {

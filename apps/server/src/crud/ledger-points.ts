@@ -124,6 +124,19 @@ export function firedPoints(scope: PostingScope, before: Row | null, after: Row 
   return out.sort(byRule);
 }
 
+/**
+ * Whether a row STANDS at a point now, whatever it came from: in one of the
+ * states it names, holding one of its values, its column filled. (A create is
+ * a moment, not a place: nothing stands at one.) What a row made later under
+ * a parent is judged by — the parent crossed its point before the row was
+ * there to be handed over.
+ */
+export function standsAt(point: Point, row: Row, stateColumn?: string): boolean {
+  if ('create' in point) return false;
+  const { from: _from, ...plain } = point as Point & { from?: unknown };
+  return pointReached(plain as Point, null, row, stateColumn);
+}
+
 /** Whether a line is handed to a rule at all: not one its `unlessSet` column marks (a voided line), and one its `only` takes. */
 export function lineTaken(posting: DeclaredPosting, line: Row): boolean {
   if (posting.unlessSet !== undefined && filled(line[posting.unlessSet])) return false;

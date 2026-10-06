@@ -39,7 +39,7 @@ const ATTEMPTS = 3;
  * attempt judges by its own locked instant on `clock`, read after its locks.
  */
 export async function withLimitLocks<T>(
-  target: Pick<WriteTarget, 'db' | 'dialect'>,
+  target: Pick<WriteTarget, 'db' | 'dialect' | 'committedReads'>,
   names: () => Promise<NamedLock[]>,
   run: (db: Db) => Promise<T>,
   clock: WriteClock,

@@ -24,6 +24,7 @@ import { postingsRuleIssue, viaPostingClash } from '../connections/column-rules-
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { ruleDecidedColumns } from '../crud/decided-columns.js';
+import { frozenColumns } from '../crud/ledger-points.js';
 import { ConflictError } from '../errors.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -230,6 +231,33 @@ export function storedPostingIssue({ model, table, posting, manifest }: PostingJ
     const known = new Set(statesOf(judged));
     const stray = [...point.to, ...(point.from ?? [])].find((state) => !known.has(state));
     if (stray !== undefined) return `"${stray}" is not a state of ${judged.name}.`;
+  }
+  return selfWrittenIssue(posting, table, parent);
+}
+
+/**
+ * Why a rule cannot stand on what Adminium itself rewrites under a row, by a
+ * statement no save of that row makes — or null. Two such statements exist:
+ * a copy that FOLLOWS the row it is copied from is rewritten when that row
+ * changes, and a place kept back for a waitlist is moved to its `releaseTo`
+ * state when a claim takes it. A rule that read the one, or fired on the
+ * other, would be left with a round that says something the row no longer
+ * does, and nothing would tell the ledger.
+ */
+export function selfWrittenIssue(posting: Posting, table: EffectiveTable, parent: EffectiveTable | undefined): string | null {
+  const frozen = frozenColumns(posting as never);
+  const follows = (of: EffectiveTable, name: string): boolean => of.columns.find((column) => column.name === name)?.copy?.follow === true;
+  const followed = frozen.row.find((name) => follows(table, name)) ?? (parent === undefined ? undefined : frozen.parent.find((name) => follows(parent, name)));
+  if (followed !== undefined) return `"${followed}" is a copy that follows the row it is copied from: it changes with no save of this row, so a rule cannot read it. Map the column it is copied from, or stop the copy following.`;
+  for (const phase of ['reserve', 'post', 'reverse'] as const) {
+    const point = posting[phase]?.on;
+    if (point === undefined) continue;
+    const judged = posting.via !== undefined && !('create' in point) && !('own' in point && point.own === true) ? parent : table;
+    if (judged === undefined) continue;
+    const reached = 'to' in point ? point.to : 'in' in point && point.column === judged.states?.column ? point.in : [];
+    const released = (judged.capacityRules ?? []).flatMap((rule) => (rule.kind === 'parent' && rule.reserved?.releaseTo !== undefined ? [rule.reserved.releaseTo] : []));
+    const clash = reached.map(String).find((state) => released.includes(state));
+    if (clash !== undefined) return `"${clash}" is the state a place kept for a waitlist is moved to when it is claimed: that move is not a save of the row, so a rule cannot fire on it.`;
   }
   return null;
 }

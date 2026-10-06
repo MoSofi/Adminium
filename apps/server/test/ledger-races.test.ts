@@ -17,6 +17,7 @@
  *    comes first, and what is held is what the line says — never the amount
  *    of before with the line of after.
  */
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { LEGS } from './invoicing-install.helpers.js';
@@ -143,4 +144,33 @@ describe.each(LEGS)('saves that arrive together — %s', (dialect, available) =>
       expect(held, `round ${String(round)}: the line says ${String(qty)}`).toEqual([qty]);
     }
   }, 180_000);
+  it.skipIf(!available || process.env['ADMINIUM_TEST_SOURCE_POOL_MAX'] === '1')('a line deleted while another save holds its order and opens its round is refused: the round is read after the wait, not before', async () => {
+    await open(6, 1000);
+    const made = await order([{ account: 6, qty: '1' }], 'draft');
+    const orderId = made.root['id'];
+    const lineId = (await w.h.rows(`SELECT id FROM order_lines WHERE order_id = ${String(orderId)}`))[0]!['id'];
+    const { db } = await w.h.manager.data(w.h.connectionId);
+    const ref = (name: string) => w.runtime.refOf(w.h.connectionId, w.target(name).table.id);
+    let holding!: () => void;
+    let letGo!: () => void;
+    const isHolding = new Promise<void>((resolve) => (holding = resolve));
+    const mayGo = new Promise<void>((resolve) => (letGo = resolve));
+    // Another save: holds the order, and — once the delete below is waiting on it — commits the line's hold.
+    const other = db.transaction().execute(async (trx) => {
+      await sql`select id from orders where id = ${orderId} for update`.execute(trx).catch(() => sql`select id from orders where id = ${orderId}`.execute(trx));
+      holding();
+      await mayGo;
+      await sql`insert into ledger_kit_postings (source_table, source_row, source_line, line_table, ledger, action, posting, phase, round, state, ${sql.ref('rows')}, add_on_version, origin, ${sql.ref('by')}, ${sql.ref('at')}) values (${ref('orders')}, ${String(orderId)}, ${String(lineId)}, ${ref('order_lines')}, 'units', 'use', 'line', 'reserve', 1, 'planned', 0, '1.0.0', 'staff', '', ${dialect === 'sqlite' ? new Date().toISOString() : new Date()})`.execute(trx);
+    });
+    await isHolding;
+    const gone = settle(w.writes.delete({ target: w.target('order_lines'), pk: { id: lineId }, context: DESK, announce: async () => undefined }));
+    // Long enough for the delete to have read its line and be waiting on the order.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    letGo();
+    await other;
+    const told = await gone;
+    expect(told.ok ? 'deleted' : `${told.code}:${String(told.reason)}`).toBe('POSTING_REFUSED:receipt-open');
+    expect(await w.count('order_lines', `id = ${String(lineId)}`)).toBe(1);
+  }, 60_000);
 });
+

@@ -42,6 +42,7 @@
  * one thing that lets the next add take it back rather than copy it. A
  * reference the scan missed makes the database refuse, and nothing is removed.
  */
+import { addOnTablesFor } from './add-on-tables.js';
 import { createHash } from 'node:crypto';
 import { basename, extname } from 'node:path';
 
@@ -931,7 +932,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const snapshot = await snapshotsRepo(deps.meta).latest(connectionId);
     if (snapshot === null) throw new NotFoundError('No schema snapshot yet — run introspection first.');
     const active = await overridesRepo(deps.meta).listForConnection(connectionId, { status: 'active' });
-    return new SnapshotView(connectionId, applyOverrides(snapshot.schema as never, active));
+    // With the add-ons' tables found: a link into one (`addOnLink`) is then a link the remover can follow.
+    return new SnapshotView(connectionId, applyOverrides(snapshot.schema as never, active, { addOnTables: await addOnTablesFor(deps.meta, connectionId, snapshot.schema as never) }));
   }
 
   async function modelFor(connectionId: string): Promise<EffectiveModel> {
@@ -2193,6 +2195,40 @@ async function analyse(
       if (targets === undefined || targets.size === 0) continue;
       const resolved = safeTable(view, table.id);
       if (resolved === null) continue;
+      const values = [...targets.keys()];
+      for (let i = 0; i < values.length; i += 500) {
+        const found = (await db
+          .selectFrom(`${table.schema}.${table.name}` as never)
+          .select([...resolved.primaryKey, column.name] as never)
+          .where(column.name as never, 'in', values.slice(i, i + 500) as never)
+          .execute()) as Row[];
+        for (const referrer of found) {
+          if (isSample(table.id, referrer, resolved)) continue;
+          const target = targets.get(String(referrer[column.name]));
+          if (target !== undefined) used.set(target.seq, (used.get(target.seq) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
+  /*
+   * A column that links a row to an add-on's row (`addOnLink`: a line's
+   * stock item, a payment's card) has no foreign key behind it, so the loop
+   * above never sees it. An item a real row names this way is in use all the
+   * same, before anything was posted for it: taken out, the row would name
+   * nothing, and could never be posted.
+   */
+  for (const table of view.model.tables) {
+    if (table.system || table.excluded === true) continue;
+    for (const column of table.columns) {
+      const link = (column as { addOnLink?: { tableId?: string | null; key?: string | null } }).addOnLink;
+      if (link === undefined || typeof link.tableId !== 'string' || typeof link.key !== 'string') continue;
+      const targets = byTable.get(link.tableId);
+      if (targets === undefined || targets.size === 0) continue;
+      const linked = safeTable(view, link.tableId);
+      const resolved = safeTable(view, table.id);
+      // The sample's rows are known by their table's own key: a link by any other column names none of them here.
+      if (linked === null || resolved === null || linked.primaryKey.length !== 1 || linked.primaryKey[0] !== link.key) continue;
       const values = [...targets.keys()];
       for (let i = 0; i < values.length; i += 500) {
         const found = (await db

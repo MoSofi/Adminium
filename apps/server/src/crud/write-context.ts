@@ -118,4 +118,13 @@ export interface WriteTarget {
    * database decides.
    */
   rights?: TablePrivileges | null | undefined;
+  /**
+   * MySQL only: the save's transaction reads what is committed at each
+   * statement, not as of its first read. Set for a table whose rows post into
+   * a ledger: such a save reads its row, WAITS for the row it hangs under,
+   * and then reads the receipts another save may have written while it
+   * waited — which MySQL's default (a snapshot taken at the first read) would
+   * hide from it. Postgres already reads so; SQLite has one writer.
+   */
+  committedReads?: true | undefined;
 }

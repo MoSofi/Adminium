@@ -63,22 +63,56 @@ export function typesCode(table: ResolvedTable, values: Row): string[] {
  * spends the tries a discount code has.
  */
 export function typesCard(table: ResolvedTable, values: Row): boolean {
+  for (const from of cardInputs(table)) {
+    const typed = values[from];
+    if (typed !== null && typed !== undefined && !(typeof typed === 'string' && typed.trim() === '')) return true;
+  }
+  return false;
+}
+
+/**
+ * The columns of a table a card's code is typed into (`typesCard`'s own
+ * rule). A code typed there that names no card is answered as a card that
+ * is not valid is: a stranger must not learn which codes are cards.
+ */
+export function cardInputs(table: ResolvedTable): ReadonlySet<string> {
   const mapped = new Set<string>();
   for (const posting of table.table.postings ?? []) {
     for (const mapping of Object.values(posting.map)) if (typeof mapping === 'string') mapped.add(mapping);
   }
-  if (mapped.size === 0) return false;
-  return (table.table.columns ?? []).some((column) => {
-    if (column.lookup === undefined || !mapped.has(column.name)) return false;
-    const typed = values[column.lookup.from];
-    return typed !== null && typed !== undefined && !(typeof typed === 'string' && typed.trim() === '');
-  });
+  const out = new Set<string>();
+  for (const column of table.table.columns ?? []) if (column.lookup !== undefined && mapped.has(column.name)) out.add(column.lookup.from);
+  return out;
 }
 
-/** The same, anywhere in a create with its rows. */
-export function treeTypesCard(node: TreeNode): boolean {
-  return typesCard(node.target.table, node.values) || node.children.some(treeTypesCard);
+/** How many codes the values type: all of them, and those that are a card's. */
+function typedCounts(table: ResolvedTable, values: Row): { all: number; cards: number } {
+  const cards = cardInputs(table);
+  let all = 0;
+  let card = 0;
+  for (const column of table.table.columns ?? []) {
+    if (column.lookup === undefined) continue;
+    const typed = values[column.lookup.from];
+    if (typed === null || typed === undefined || (typeof typed === 'string' && typed.trim() === '')) continue;
+    all += 1;
+    if (cards.has(column.lookup.from)) card += 1;
+  }
+  return { all, cards: card };
 }
+
+const treeCounts = (node: TreeNode): { all: number; cards: number } =>
+  node.children.map(treeCounts).reduce((sum, one) => ({ all: sum.all + one.all, cards: sum.cards + one.cards }), typedCounts(node.target.table, node.values));
+
+/**
+ * The count a write's typed codes are guesses on: a card's, a discount
+ * code's — or BOTH when it types one of each. Counted on the card's alone, a
+ * discount code typed beside any junk in a card's field would be a guess the
+ * discount count never saw.
+ */
+export type WriteRung = PublicGuessRung | 'both';
+const rungFor = (typed: { all: number; cards: number }): WriteRung => (typed.cards === 0 ? 'code' : typed.cards < typed.all ? 'both' : 'card');
+export const writeRung = (table: ResolvedTable, values: Row): WriteRung => rungFor(typedCounts(table, values));
+export const treeRung = (node: TreeNode): WriteRung => rungFor(treeCounts(node));
 
 /** The codes a create with its rows types anywhere in it. */
 export function treeTypesCode(node: TreeNode): string[] {
@@ -95,7 +129,8 @@ interface HeldGuess {
   keyId: string;
   ip: string;
   codes: string[];
-  ticket: GuessTicket;
+  /** One for each count the request is a guess on. */
+  tickets: GuessTicket[];
   missed: boolean;
 }
 
@@ -108,17 +143,25 @@ interface HeldGuess {
  */
 export function guessRung(limiter: PublicRateLimiter, admit: (reply: FastifyReply, decision: RateDecision) => boolean) {
   const held = new WeakMap<FastifyRequest, HeldGuess>();
-  const reserveFor = (request: FastifyRequest, keyId: string, typed: readonly string[], rung: PublicGuessRung = 'code'): RateDecision | null => {
+  const reserveFor = (request: FastifyRequest, keyId: string, typed: readonly string[], rung: WriteRung = 'code'): RateDecision | null => {
     if (held.has(request)) return null;
     const codes = [...new Set(typed.map(canonicalCode))];
-    const reserved = limiter.reserveGuess(keyId, request.ip, codes, rung);
-    if ('refused' in reserved) return reserved.refused;
-    held.set(request, { keyId, ip: request.ip, codes, ticket: reserved.ticket, missed: false });
+    const tickets: GuessTicket[] = [];
+    // The card's count first: the stricter one answers when both are spent.
+    for (const one of rung === 'both' ? (['card', 'code'] as const) : [rung]) {
+      const reserved = limiter.reserveGuess(keyId, request.ip, codes, one);
+      if ('refused' in reserved) {
+        for (const ticket of tickets) ticket.giveBack();
+        return reserved.refused;
+      }
+      tickets.push(reserved.ticket);
+    }
+    held.set(request, { keyId, ip: request.ip, codes, tickets, missed: false });
     return null;
   };
   return {
     /** Reserve a guess, or answer 429 and say no. */
-    admit(request: FastifyRequest, reply: FastifyReply, keyId: string, typed: readonly string[], rung: PublicGuessRung = 'code'): boolean {
+    admit(request: FastifyRequest, reply: FastifyReply, keyId: string, typed: readonly string[], rung: WriteRung = 'code'): boolean {
       const refused = reserveFor(request, keyId, typed, rung);
       return refused === null || admit(reply, refused);
     },
@@ -139,10 +182,10 @@ export function guessRung(limiter: PublicRateLimiter, admit: (reply: FastifyRepl
       if (guess === undefined) return;
       held.delete(request);
       if (guess.missed) {
-        guess.ticket.keep();
+        for (const ticket of guess.tickets) ticket.keep();
         return;
       }
-      guess.ticket.giveBack();
+      for (const ticket of guess.tickets) ticket.giveBack();
       if (reply.statusCode < 400) limiter.knownCodes(guess.keyId, guess.ip, guess.codes);
     },
   };

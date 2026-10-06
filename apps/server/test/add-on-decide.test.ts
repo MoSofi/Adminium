@@ -100,6 +100,34 @@ describe('asking it a question', () => {
     expect(error?.detail).toMatch(/Code generation from strings disallowed/);
   });
 
+  it('reads what was thrown without running the add-on\'s code: no getter, no toString, no trap', () => {
+    const thrown = (what: string): DeciderFailed => {
+      try {
+        callDecider('rows', load(`module.exports = { rows: function () { throw ${what}; } };`), {});
+      } catch (caught) {
+        return caught as DeciderFailed;
+      }
+      throw new Error('the call went through');
+    };
+    // Each of these would answer LEAK were its code run here — or never answer, were it a loop: the call's time limit has stopped counting by then.
+    for (const what of [
+      '{ get message() { return "LEAK"; } }',
+      '{ toString: function () { return "LEAK"; } }',
+      'new Proxy({}, { get: function () { return "LEAK"; }, getOwnPropertyDescriptor: function () { return { value: "LEAK", configurable: true }; } })',
+      'Object.defineProperty(new Error("x"), "message", { get: function () { return "LEAK"; } })',
+      'Object.defineProperty(new Error("x"), "code", { get: function () { return "ERR_SCRIPT_EXECUTION_TIMEOUT"; } })',
+    ]) {
+      const failed = thrown(what);
+      expect(failed.cause, what).toBe('threw');
+      expect(failed.detail, what).not.toMatch(/LEAK/);
+    }
+    // A plain message is still told, and so is a thrown word.
+    expect(thrown('new Error("not this one")').detail).toBe('not this one');
+    expect(thrown('{ message: "said so" }').detail).toBe('said so');
+    expect(thrown('"a word"').detail).toBe('a word');
+    expect(thrown('7').detail).toBe('7');
+  });
+
   it('freezes what it was handed, all the way down', () => {
     // A change that would throw throws; one that plain code makes in silence is not made.
     const push = load('module.exports = { rows: function (input) { input.lines.push(1); return {}; } };');

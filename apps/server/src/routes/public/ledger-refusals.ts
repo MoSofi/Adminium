@@ -19,6 +19,7 @@
  *
  * Pure.
  */
+import { MISSES } from './code-guesses.js';
 import { AppError, POSTING_ENGINE_REASONS } from '../../errors.js';
 
 const ENGINE: ReadonlySet<string> = new Set(POSTING_ENGINE_REASONS);
@@ -48,6 +49,17 @@ export function publicLedgerRefusal(error: unknown): PublicLedgerRefusal | null 
   }
   if (details.family === 'value') return { code: 'PUBLIC_CARD_REFUSED', params: { reason: 'not-valid' } };
   return { code: null };
+}
+
+/**
+ * A code typed where a card's code goes (`cardInputs`) that named nothing,
+ * or something used up: answered as a card that is not valid is, word for
+ * word and with no place. One answer for both, so a stranger typing codes
+ * never learns which of them are cards. Null for any other refusal.
+ */
+export function cardMiss(named: { column?: string | undefined; reason: string } | null, cards: ReadonlySet<string> | undefined): Extract<PublicLedgerRefusal, { code: 'PUBLIC_CARD_REFUSED' }> | null {
+  if (named === null || named.column === undefined || cards?.has(named.column) !== true || !MISSES.has(named.reason)) return null;
+  return { code: 'PUBLIC_CARD_REFUSED', params: { reason: 'not-valid' } };
 }
 
 /** What a public quote says of each ledger: whether it would go through, and — refused — only what a save would tell a customer. */

@@ -108,6 +108,8 @@ export interface ReplaceInput {
    * to a hold that is not there, and back only later).
    */
   page?: { rowKey: () => Promise<unknown>; initial?: unknown } | undefined;
+  /** Told of each end brought forward, on the same transaction: whatever else is kept until that column moves with it (a ledger's receipts). */
+  moved?: ((row: Row, column: string, at: string) => Promise<void>) | undefined;
 }
 
 /**
@@ -209,6 +211,7 @@ export async function replaceHolds(input: ReplaceInput): Promise<number> {
         .set({ [hold.end]: bindWriteValue(column, at, dialect) } as never)
         .where(db.dynamic.ref(key), '=', row[key] as never)
         .execute();
+      await input.moved?.(row, hold.end, at);
     }
     released += 1;
   }

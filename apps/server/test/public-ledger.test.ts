@@ -9,8 +9,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PostingRefusedError, ValidationFailedError } from '../src/errors.js';
-import { typesCard } from '../src/routes/public/code-guesses.js';
-import { publicLedgerRefusal, publicPostings } from '../src/routes/public/ledger-refusals.js';
+import { forcedOut, publicLeft } from '../src/crud/ledger-write.js';
+import { cardInputs, guessRung, treeRung, typesCard, writeRung } from '../src/routes/public/code-guesses.js';
+import { cardMiss, publicLedgerRefusal, publicPostings } from '../src/routes/public/ledger-refusals.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, GUEST, ledgerWorld, refusal, type LedgerWorld } from './ledger.helpers.js';
 
@@ -74,6 +75,66 @@ describe('a ledger\'s refusal, as a customer hears it', () => {
     expect(typesCard(pays, { promo_code: 'SPRING' })).toBe(false);
     expect(typesCard(pays, { card_code: '  ' })).toBe(false);
     expect(typesCard(table([]), { card_code: 'GIFT-1234' })).toBe(false);
+    expect([...cardInputs(pays)]).toEqual(['card_code']);
+    expect([...cardInputs(table([]))]).toEqual([]);
+  });
+
+  it('a code that names no card is answered as a card that is not valid is: word for word, so neither says which codes are cards', () => {
+    const cards = new Set(['card_code']);
+    const found = publicLedgerRefusal(no({ reason: 'empty', family: 'value', left: '0.00', item: 'Card 4411' }));
+    for (const reason of ['unknown', 'used-up', 'not-valid']) expect(cardMiss({ column: 'card_code', reason }, cards), reason).toEqual(found);
+    // A discount code typed beside it keeps its own answer; so does any other refusal of the card's column.
+    expect(cardMiss({ column: 'promo_code', reason: 'unknown' }, cards)).toBeNull();
+    expect(cardMiss({ column: 'card_code', reason: 'too-long' }, cards)).toBeNull();
+    expect(cardMiss({ reason: 'unknown' }, cards)).toBeNull();
+    expect(cardMiss({ column: 'card_code', reason: 'unknown' }, undefined)).toBeNull();
+    expect(cardMiss(null, cards)).toBeNull();
+  });
+
+  it('a write that types a card and a discount code is a guess on both counts; a junk card value buys no discount guesses', () => {
+    const table = { table: { postings: [{ id: 'card', map: { card: 'card_id' } }], columns: [{ name: 'card_id', lookup: { from: 'card_code' } }, { name: 'promo_id', lookup: { from: 'promo_code' } }] } } as never;
+    expect(writeRung(table, { promo_code: 'SPRING' })).toBe('code');
+    expect(writeRung(table, { card_code: 'GC-1' })).toBe('card');
+    expect(writeRung(table, { card_code: 'junk', promo_code: 'SPRING' })).toBe('both');
+    expect(writeRung(table, { card_code: ' ', promo_code: 'SPRING' })).toBe('code');
+    // Anywhere in a create with its rows: the code on the order, the card on a payment under it.
+    const node = (values: Record<string, unknown>, children: unknown[] = []) => ({ target: { table }, values, children }) as never;
+    expect(treeRung(node({ promo_code: 'SPRING' }, [node({ card_code: 'GC-1' })]))).toBe('both');
+    expect(treeRung(node({}, [node({ card_code: 'GC-1' })]))).toBe('card');
+
+    const calls: string[] = [];
+    const ticket = (rung: string) => ({ keep: () => calls.push(`keep:${rung}`), giveBack: () => calls.push(`back:${rung}`) });
+    const limiter = (spent: string | null) => ({ reserveGuess: (_key: string, _ip: string, _codes: readonly string[], rung = 'code') => (rung === spent ? { refused: { allowed: false } } : { ticket: ticket(rung) }), knownCodes: () => undefined }) as never;
+    const request = () => ({ ip: '10.0.0.1' }) as never;
+    // A miss is kept on both counts.
+    let rung = guessRung(limiter(null), () => false);
+    let asked = request();
+    expect(rung.reserve(asked, 'key', ['a', 'b'], 'both')).toBeNull();
+    rung.missed(asked);
+    rung.settle(asked, { statusCode: 400 } as never);
+    expect(calls.splice(0)).toEqual(['keep:card', 'keep:code']);
+    // No miss: both handed back.
+    asked = request();
+    rung.reserve(asked, 'key', ['a', 'b'], 'both');
+    rung.settle(asked, { statusCode: 201 } as never);
+    expect(calls.splice(0)).toEqual(['back:card', 'back:code']);
+    // The discount count spent: refused, and the card guess it had taken is handed back.
+    rung = guessRung(limiter('code'), () => false);
+    expect(rung.reserve(request(), 'key', ['a', 'b'], 'both')).toEqual({ allowed: false });
+    expect(calls.splice(0)).toEqual(['back:card']);
+  });
+
+  it('what is left is never told as less than nothing', () => {
+    const words = { showLeftBelow: { setting: 'show_below' } };
+    expect(publicLeft({ show_below: 5 }, words, '3.000', 'low')).toBe('3');
+    expect(publicLeft({ show_below: 5 }, words, '0.400', 'low')).toBe('0');
+    expect(publicLeft({ show_below: 5 }, words, '-2.000', 'low')).toBeUndefined();
+    expect(publicLeft({ show_below: 5 }, words, '3.000', 'out')).toBeUndefined();
+  });
+
+  it('a line a cap puts out says nothing of what the add-on worked out for a line it thought it had', () => {
+    expect(forcedOut({ id: '7', state: 'low', left: '2.000', exact: '2.400', batch: 'B-12', expires: '2031-01-01', first: { item: 'Flour', unit: 'kg' }, after: '2031-02-01', soon: true, cause: 'stock' })).toEqual({ id: '7', state: 'out', after: '2031-02-01', soon: true, cause: 'stock' });
+    expect(forcedOut({ id: '8', state: 'in', left: '40' })).toEqual({ id: '8', state: 'out' });
   });
 });
 
