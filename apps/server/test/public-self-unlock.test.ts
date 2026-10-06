@@ -54,7 +54,9 @@ describe.each(LEGS)('a row opened by its own code — %s', (dialect, available) 
     // The word is read from the release that runs it.
     manifest['compatibility'] = { minAdminiumVersion: '0.3.18' };
     h = await boxOffice(dialect, manifest);
-    const today = new Date().toISOString().slice(0, 10);
+    // Today on the venue's own clock, which is what the entry reads — not UTC's, which is another day for some hours of every night.
+    const zone = (await h.meta.db.selectFrom('adminium_connections').select('timezone').where('id', '=', h.connectionId).executeTakeFirst())?.timezone ?? 'UTC';
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     await h.rows(
       `INSERT INTO ${h.real('cards')} (id, code, status, balance, valid_until) VALUES ` +
         `(1, 'GC-7K2M9QXA41TR', 'active', 50, NULL), (2, 'GC-3HHW8PZC65NE', 'active', 20, '${today}'), (3, 'GC-9DDV4MRB72KS', 'blocked', 75, NULL), ` +
