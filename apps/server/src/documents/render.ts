@@ -186,6 +186,8 @@ export interface SourceRead {
   row: Readonly<Record<string, unknown>>;
   collections: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
   lookups: Readonly<Record<string, unknown>>;
+  /** The prefix each mapped code column keeps its codes with, keyed as `lookups` is (`subject.ts`). */
+  codePrefixes?: Readonly<Record<string, string>> | undefined;
   entity: RecordRef;
   /** The row's own currency when it carries one, else the connection's; and the connection's timezone. */
   currency: string;
@@ -650,6 +652,7 @@ export async function renderDocument(
       row: source.row,
       collections: source.collections,
       lookups: source.lookups,
+      ...(source.codePrefixes === undefined ? {} : { codePrefixes: source.codePrefixes }),
       // The values somebody typed into the mapping rather than pointing at a
       // column, and a statement's figures: both fill only slots nothing maps.
       // A request's own values fill only slots neither of those does (they

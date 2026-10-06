@@ -275,6 +275,12 @@ export interface SubjectInput {
   collectionValues?: Readonly<
     Record<string, readonly Readonly<Record<string, unknown>>[]>
   >;
+  /**
+   * The prefix a mapped code column keeps its codes with (`GC-`), keyed as
+   * `lookups` is: `<column>`, or `<ref>.<column>` across a link. A code read
+   * out in groups keeps it whole. Absent, a code is grouped from its start.
+   */
+  codePrefixes?: Readonly<Record<string, string>> | undefined;
   now: { iso: string; timezone: string };
   locale: string;
   currency: string;
@@ -417,7 +423,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
           ? input.lookups?.[`${mapped.ref}.${mapped.column}`]
           : undefined;
     // A code read out in groups of four; an empty one stays empty.
-    const raw = 'form' in mapped && mapped.form === 'grouped' && read !== null && read !== undefined && read !== '' ? groupedCode(read) : read;
+    const raw = 'form' in mapped && mapped.form === 'grouped' && read !== null && read !== undefined && read !== '' ? groupedCode(read, input.codePrefixes?.['ref' in mapped ? `${mapped.ref}.${mapped.column}` : mapped.column] ?? '') : read;
 
     const value = coerceSlot(slot.type, raw, scale, zone);
     if (value === null || value === '') {

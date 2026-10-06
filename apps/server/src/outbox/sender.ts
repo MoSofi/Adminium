@@ -564,7 +564,7 @@ function extraForms(
   else if (empty && (column.logicalType === 'text' || column.logicalType === 'varchar')) out['time'] = '';
   if (effective?.code !== undefined) out['qr'] = empty ? '' : String(value);
   // A code in groups of four, as a person reads it out (`K7QX-M2PD`).
-  if (effective?.code !== undefined) out[GROUPED_FORM] = empty ? '' : groupedCode(value);
+  if (effective?.code !== undefined) out[GROUPED_FORM] = empty ? '' : groupedCode(value, effective.code.prefix ?? '');
   return out;
 }
 

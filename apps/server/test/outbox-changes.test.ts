@@ -57,7 +57,7 @@ function inn(): Record<string, unknown> {
         { ref: 'arrive', type: 'date' },
         { ref: 'depart', type: 'date' },
         { ref: 'total', type: 'decimal', scale: 2, nullable: true, semantic: 'money' },
-        text('code', 16, { rules: { code: { length: 8 } } }),
+        text('code', 16, { rules: { code: { length: 8, prefix: 'BK-' } } }),
         text('note', 200),
         { ref: 'status', type: 'enum', enum: ['booked', 'cancelled'], default: 'booked' },
         { ref: 'resend_at', type: 'timestamptz', nullable: true },
@@ -227,7 +227,9 @@ describe.each(LEGS)('emails of a change — %s', (dialect, available) => {
     expect(sent[1]!.text).toContain('Before November 5 to November 9 ($480.00); now November 4 to November 9 ($640.00).');
     // The stay's code, in groups of four; a Reply-To to the house.
     const code = String((await h!.rows(`SELECT code FROM ${h!.real('stays')} WHERE id = ${String(id)}`))[0]!['code']);
-    expect(sent[0]!.subject).toBe(`Your dates have changed — ${code.slice(0, 4)}-${code.slice(4)}`);
+    // The house keeps its codes with `BK-`: the prefix is printed whole, the eight after it in two groups.
+    expect(code).toMatch(/^BK-[A-Z0-9]{8}$/);
+    expect(sent[0]!.subject).toBe(`Your dates have changed — BK-${code.slice(3, 7)}-${code.slice(7)}`);
     expect(sent[0]!.replyTo).toBe('desk@theinn.dev');
     // Neither a Reply-To nor a message's old values changes the payload a server of the release before reads.
     expect((await jobs()).every((payload) => payload.v === EMAIL_SEND_PAYLOAD_VERSION_PLAIN)).toBe(true);
@@ -240,7 +242,7 @@ describe.each(LEGS)('emails of a change — %s', (dialect, available) => {
     expect(await messages(id, 'resend')).toHaveLength(2);
     const sent = (await sendAll()).filter((one) => one.subject.startsWith('Your booking'));
     expect(sent).toHaveLength(2);
-    expect(sent[0]!.subject).toMatch(/^Your booking [A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    expect(sent[0]!.subject).toMatch(/^Your booking BK-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
   it.runIf(available)('queues one for each stay of a bulk change, and one for a guest\'s own change', async () => {

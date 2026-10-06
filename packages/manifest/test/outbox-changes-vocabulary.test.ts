@@ -182,6 +182,19 @@ describe('an email of a change', () => {
     expect(groupedCode(null)).toBe('');
     expect(groupedCode('')).toBe('');
   });
+
+  it('a code kept with a prefix keeps it whole, however it was spaced', () => {
+    expect(groupedCode('GC-7K2M9QXA41TR', 'GC-')).toBe('GC-7K2M-9QXA-41TR');
+    expect(groupedCode('GC7K2M9QXA41TR', 'GC-')).toBe('GC-7K2M-9QXA-41TR');
+    expect(groupedCode('gc-7k2m 9qxa 41tr', 'GC-')).toBe('GC-7k2m-9qxa-41tr');
+    // A card moved in from elsewhere, shorter than the rest.
+    expect(groupedCode('GC-48219930', 'GC-')).toBe('GC-4821-9930');
+    // A value that does not start with the prefix, and the prefix alone, are grouped as any other.
+    expect(groupedCode('7K2M9QXA41TR', 'GC-')).toBe('7K2M-9QXA-41TR');
+    expect(groupedCode('GC', 'GC-')).toBe('GC');
+    expect(groupedCode('K7QXM2PD', '')).toBe('K7QX-M2PD');
+    expect(groupedCode(null, 'GC-')).toBe('');
+  });
 });
 
 describe('a document that prints a code in groups', () => {

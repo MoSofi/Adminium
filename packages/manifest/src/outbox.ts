@@ -1202,11 +1202,19 @@ export const GROUPED_FORM = 'grouped';
  * A code in groups of four joined by `-` (`K7QXM2PD` → `K7QX-M2PD`), the way
  * a person reads it out; separators already in it are dropped first. Empty
  * stays empty.
+ *
+ * A code kept with a prefix keeps it whole (`GC-7K2M9QXA41TR` with `GC-` →
+ * `GC-7K2M-9QXA-41TR`): the prefix is what tells a card from a voucher, and
+ * cut into the first group of four it reads as part of the code. A value
+ * that does not start with the prefix is grouped as any other.
  */
-export function groupedCode(value: unknown): string {
+export function groupedCode(value: unknown, prefix = ''): string {
   if (value === null || value === undefined) return '';
+  const fours = (text: string): string => (text.match(/.{1,4}/g) ?? []).join('-');
   const bare = String(value).replace(/[\s-]+/g, '');
-  return (bare.match(/.{1,4}/g) ?? []).join('-');
+  const head = prefix.replace(/[^0-9A-Za-z]/g, '');
+  if (head !== '' && bare.length > head.length && bare.toUpperCase().startsWith(head.toUpperCase())) return prefix + fours(bare.slice(head.length));
+  return fours(bare);
 }
 
 /** Whether a column holds a code Adminium makes: a text column with a `code` rule. */

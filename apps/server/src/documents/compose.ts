@@ -96,6 +96,33 @@ function spelled(row: Record<string, unknown>, table: ResolvedTable, dialect: Di
  * document naming the client's company, address and tax number reads the
  * client row once. Keyed `<fk>.<column>`, the way `buildSubject` asks.
  */
+/**
+ * The prefix each mapped code column keeps its codes with — the row's own
+ * columns by name, a linked table's as `<link>.<column>` — so a code printed
+ * in groups keeps its prefix whole. Only columns with a prefix are listed.
+ */
+export function codePrefixesOf(view: SnapshotView, table: ResolvedTable, mapping: ProfileMapping): Record<string, string> {
+  const prefixOf = (of: ResolvedTable, column: string): string => of.table?.columns.find((candidate) => candidate.name === column)?.code?.prefix ?? '';
+  const out: Record<string, string> = {};
+  for (const mapped of Object.values(mapping)) {
+    if (!('column' in mapped)) continue;
+    if (!('ref' in mapped)) {
+      const prefix = prefixOf(table, mapped.column);
+      if (prefix !== '') out[mapped.column] = prefix;
+      continue;
+    }
+    const target = outboundKey(view, table, mapped.ref);
+    if (target === null) continue;
+    try {
+      const prefix = prefixOf(view.table(target.tableId), mapped.column);
+      if (prefix !== '') out[`${mapped.ref}.${mapped.column}`] = prefix;
+    } catch {
+      // A link to a table that is not served: its code is grouped from its start.
+    }
+  }
+  return out;
+}
+
 async function readLookups(
   db: Kysely<SourceDatabase>,
   view: SnapshotView,
@@ -663,6 +690,7 @@ export async function readProfileSource(input: {
     row,
     collections,
     lookups: await lookupsWithBalance(),
+    codePrefixes: codePrefixesOf(view, table, mapping),
     entity: {
       connectionId: profile.connectionId,
       table: profile.table,

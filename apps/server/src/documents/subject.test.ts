@@ -426,6 +426,15 @@ describe('a code printed in groups', () => {
       lookups: { 'order_id.code': 'R4FN7HCW' },
     });
     expect(built.subject.fields).toMatchObject({ code: 'K7QX-M2PD', orderCode: 'R4FN-7HCW', plain: 'K7QXM2PD' });
+    // A column that keeps its codes with a prefix prints it whole: the caller says which columns do, the row's and a link's.
+    const kept = build({
+      slots,
+      mapping: { customerName: { column: 'customer' }, code: { column: 'code', form: 'grouped' }, orderCode: { ref: 'order_id', column: 'code', form: 'grouped' }, plain: { column: 'code' } },
+      row: { customer: 'Mia', code: 'GC-7K2M9QXA41TR' },
+      lookups: { 'order_id.code': 'VC-R4FN7HCW' },
+      codePrefixes: { code: 'GC-', 'order_id.code': 'VC-' },
+    });
+    expect(kept.subject.fields).toMatchObject({ code: 'GC-7K2M-9QXA-41TR', orderCode: 'VC-R4FN-7HCW', plain: 'GC-7K2M9QXA41TR' });
     const empty = build({ slots, mapping: { customerName: { column: 'customer' }, code: { column: 'code', form: 'grouped' } }, row: { customer: 'Mia', code: null } });
     expect(empty.subject.fields['code'] ?? '').toBe('');
   });
