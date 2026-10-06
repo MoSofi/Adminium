@@ -3113,6 +3113,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             : checked;
         // The parents whose totals this row moves, held before it is written.
         const held = await holdParents(rules, within, [{ record: placed, before: null }], currency);
+        // And the row a line that posts belongs to.
+        if (posting !== null) await ledgerWriter.holdParents(db, target, rules, [placed]);
         // A copy that follows its parent, read again from the parent as held: a change of it meanwhile would not have reached this row.
         const followed = brand(await followNow({ db, dialect: target.dialect, rules, values: placed, currency }));
         const counted = brand(await claimSequences(rules, 'create', within, followed, opts.sequences));
@@ -3585,8 +3587,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         // Then the rows its links point at (its conditions, its effects' rows): before its own row, held next.
         if (!dry) await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
+        // A line that posts: the row it belongs to (and the one it is moved to) before the line itself.
+        if (posts !== null && (rules?.asLine?.length ?? 0) > 0) await ledgerWriter.holdParents(db, target, rules, [(await fetchByPk(db, target.table, pk)) ?? null, checkedValues]);
         // The row as it stands, held: what a posting point is crossed from.
         const stood = posts === null ? null : ((await fetchHeld(db, target, pk, true)) ?? null);
+        // What an open posting read of the row stays as it was read.
+        if (posts !== null && stood !== null) await ledgerStep(() => ledgerWriter.guard(db, { target, rules, action: 'update', stood, values: checkedValues }), about, input.mapError);
         const prior =
           limits || booking !== undefined || rolls
             ? (stood ?? (!dry && (holdsParent(rules) || worked.length > 0 || limits || repricing || following) ? await fetchHeld(db, target, pk, true) : await fetchByPk(db, target.table, pk)) ?? null)
@@ -3819,12 +3825,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A document's states judge the delete — unless the caller's scope could not see the row, which then matches nothing.
       const judged =
         input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before, writeClock(context)) };
-      const count = rolls
+      // A table that hands rows to a ledger: the row is held, and may not go while a posting of it is open.
+      const posts = await ledgerStep(() => ledgerWriter.watched(target, rules), { target, context }, input.mapError);
+      const count = rolls || posts !== null
         ? await conflicted(() => atomically(target, async (db) => {
             // The parent the row fed, held first; then the row, read — and held — before it goes.
             const within = { ...target, db };
             await holdFirst(rules, within, pk);
+            if (posts !== null && (rules?.asLine?.length ?? 0) > 0) await ledgerWriter.holdParents(db, target, rules, [(await fetchByPk(db, target.table, pk)) ?? null]);
             const gone = (await fetchHeld(db, target, pk, false)) ?? null;
+            if (posts !== null && gone !== null) await ledgerStep(() => ledgerWriter.guard(db, { target, rules, action: 'delete', stood: gone }), { target, context }, input.mapError);
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
             const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);

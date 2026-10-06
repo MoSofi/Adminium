@@ -69,7 +69,7 @@ export async function refusal(run: Promise<unknown>): Promise<{ code?: string; d
  */
 export async function ledgerWorld(
   dialect: Dialect,
-  tables: Record<string, { columns: string; postings: readonly unknown[] }>,
+  tables: Record<string, { columns: string; postings: readonly unknown[] | ((idOf: (name: string) => string) => readonly unknown[]) }>,
   manifest: Record<string, unknown> = ledgerKitManifest(),
   /** Rules the owner stores beside the postings, once the tables are read: `(table name) => its id`. */
   more?: (h: Harness, idOf: (name: string) => string) => Promise<void>,
@@ -84,7 +84,8 @@ export async function ledgerWorld(
   const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
   const idOf = (name: string) => model.tables.find((table) => table.name === name)!.id;
   for (const [name, table] of Object.entries(tables)) {
-    if (table.postings.length > 0) await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'table.postings', tableName: idOf(name), columnName: null, value: { postings: table.postings }, origin: 'user' } as never);
+    const postings = typeof table.postings === 'function' ? table.postings(idOf) : table.postings;
+    if (postings.length > 0) await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'table.postings', tableName: idOf(name), columnName: null, value: { postings }, origin: 'user' } as never);
   }
   await more?.(h, idOf);
   const view = new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());

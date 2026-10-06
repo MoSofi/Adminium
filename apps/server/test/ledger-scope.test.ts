@@ -48,7 +48,7 @@ describe.each(LEGS)('a ledger\'s faults — %s', (dialect, available) => {
 
   it.skipIf(!available)('a plan that fails a check leaves one record, with the check it failed — which the person saving is never told', async () => {
     const before = await counts();
-    const causes: Record<string, string> = { throw: 'threw', 'outside-table': 'scope-table', 'second-account': 'scope-row', 'too-much': 'scope-op' };
+    const causes: Record<string, string> = { throw: 'threw', 'outside-table': 'scope-table', 'second-account': 'scope-row', 'stray-line': 'scope-row', 'too-much': 'scope-op' };
     try {
       for (const [how, cause] of Object.entries(causes)) {
         events = [];

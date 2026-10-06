@@ -47,16 +47,22 @@ function accountOf(input, line) {
   return null;
 }
 
+/** The first line of a call: where a row that belongs to the round as a whole is put. */
+function first(input) {
+  return input.lines.length > 0 ? input.lines[0].line : '';
+}
+
 /** The opposite of everything the round wrote: entries given back, holds let go. */
 function reverse(input) {
   var rows = [];
+  var at = first(input);
   var entries = input.written.entries || [];
   for (var e = 0; e < entries.length; e += 1) {
-    rows.push({ op: 'insert', table: 'entries', line: '', values: { account_id: entries[e].account_id, amount: decimal(-units(entries[e].amount)), kind: 'back', note: null } });
+    rows.push({ op: 'insert', table: 'entries', line: at, values: { account_id: entries[e].account_id, amount: decimal(-units(entries[e].amount)), kind: 'back', note: null } });
   }
   var holds = input.written.holds || [];
   for (var h = 0; h < holds.length; h += 1) {
-    if (holds[h].state === 'held') rows.push({ op: 'update', table: 'holds', line: '', key: { id: holds[h].id }, set: { state: 'released' } });
+    if (holds[h].state === 'held') rows.push({ op: 'update', table: 'holds', line: at, key: { id: holds[h].id }, set: { state: 'released' } });
   }
   return { rows: rows };
 }
@@ -122,7 +128,7 @@ function rows(input) {
   // A hold this round already made is taken by the post that follows it.
   var held = input.written.holds || [];
   for (var h = 0; h < held.length; h += 1) {
-    if (input.phase === 'post' && held[h].state === 'held') out.rows.push({ op: 'update', table: 'holds', line: '', key: { id: held[h].id }, set: { state: 'taken' } });
+    if (input.phase === 'post' && held[h].state === 'held') out.rows.push({ op: 'update', table: 'holds', line: first(input), key: { id: held[h].id }, set: { state: 'taken' } });
   }
   for (var i = 0; i < input.lines.length; i += 1) {
     var line = input.lines[i];
@@ -146,7 +152,7 @@ function rows(input) {
     out.rows.push({
       op: 'insert',
       table: wrong === 'outside-table' ? 'accounts' : 'entries',
-      line: line.line,
+      line: wrong === 'stray-line' ? 'not-a-line' : line.line,
       values: wrong === 'outside-table' ? { name: 'made by the kit' } : { account_id: into, amount: decimal(amount), kind: input.action === 'count' ? 'count' : 'use', note: line.inputs.note === undefined ? null : line.inputs.note },
     });
     if (wrong === 'update-total') out.rows.push({ op: 'update', table: 'accounts', line: line.line, key: { id: account.id }, set: { taken: '0.000' } });
