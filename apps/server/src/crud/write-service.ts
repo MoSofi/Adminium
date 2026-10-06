@@ -2976,6 +2976,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await updateRows(target.db, target.dialect, target.table, checked, key);
       return (await fetchByPk(target.db, target.table, key)) ?? null;
     },
+    updateRaw: async (target, set, key) => {
+      await updateRows(target.db, target.dialect, target.table, set as CheckedRow, key);
+    },
+    hooked: (target, action, context) => current().wants('before', action, target, context),
+    refuseUngranted: async (target, action, columns) => {
+      refuseUngrantedColumns(target.rights, target.table, action, [...columns]);
+      await refuseUngrantedChain(target, rulesOf(target)?.rollupsInto ?? []);
+    },
     starts: chainStarts,
     hold: (target, starts) => holdChain(target.db, target.dialect, starts, currencyFor(target)),
     settle: async (target, starts, held) => {
@@ -3044,7 +3052,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const now = new Date();
       const limits = (rules?.capacityRules?.length ?? 0) > 0;
       // What the row hands to an add-on's ledger, looked at before any lock: null for a table with no rule that fires now.
-      const posting = await guardedValue(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: checked, context }), input.mapError);
+      const about = { target, context };
+      const posting = await ledgerWriter.audited(() => guardedValue(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: checked, context }), input.mapError), about);
       let posted: PostedOutcome[] = [];
       const write = async (db: Db) => {
         const within = { ...target, db, timezone: zone, origin: context.origin };
@@ -3066,7 +3075,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           await settleOwn(rules, within, 'create', out.row, out.values, currency);
         }, input.mapError);
         // What the row hands to a ledger: after its own totals, on the same transaction — a refusal undoes the row too.
-        if (posting !== null) posted = await guardedValue(() => ledgerWriter.postStep(db, posting, { target: { ...target, timezone: zone }, row: out.row, context, clock }), input.mapError);
+        if (posting !== null) posted = await guardedValue(() => ledgerWriter.postStep(db, posting, { target: { ...target, timezone: zone }, rules, action: 'create', before: null, row: out.row, context, clock }), input.mapError);
         // SEAL again over the row's own totals, once they are added up.
         const sealing = sealsOf(checked);
         if (sealing !== undefined && keepsOwnTotals(rules)) await sealRows(db, target.table, pkOf(target.table, out.row), sealing, writeSeals);
@@ -3080,7 +3089,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }
       // A number without gaps is taken under the series' lock, held until the row commits.
       const series = numberLockName(target.table, checked);
-      const { row, values: written } = await conflicted(
+      const { row, values: written } = await ledgerWriter.audited(() => conflicted(
         () =>
           posting !== null
             ? // A row that posts always writes under one lock call: its own limits, its day, its series and the add-on's rows it stands on.
@@ -3116,7 +3125,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                   ? atomically(target, write)
                   : write(target.db),
         input.mapError,
-      );
+      ), about);
       await input.announce(row, written, posted);
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
@@ -3497,11 +3506,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (following) await guarded(() => refuseUngrantedFollow(target, rules), input.mapError);
       /** The day the booking lock was named by; the write refuses to go on under a different one. */
       let lockedDay: string | null = null;
-      // What the change hands to an add-on's ledger: a point is crossed by it, judged on the row as it was. A quote posts nothing.
-      const posting =
-        dry || before === null
-          ? null
-          : await guardedValue(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'update', before, after: { ...before, ...checkedValues }, context }), input.mapError);
+      // A table that hands rows to an add-on's ledger there to be asked: every change of it is written under one lock call, its row held,
+      // and what the change crosses is judged on the row as held. A quote posts nothing.
+      const about = { target, context };
+      const posts = dry ? null : await ledgerWriter.audited(() => guardedValue(() => ledgerWriter.watched(target, rules), input.mapError), about);
+      /** What the change hands to a ledger, from the look each attempt takes before its locks. */
+      let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
       let posted: PostedOutcome[] = [];
       const write = async (db: Db) => {
         const within = { ...target, db, timezone: zone, origin: context.origin };
@@ -3523,9 +3533,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         // Then the rows its links point at (its conditions, its effects' rows): before its own row, held next.
         if (!dry) await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
+        // The row as it stands, held: what a posting point is crossed from.
+        const stood = posts === null ? null : ((await fetchHeld(db, target, pk, true)) ?? null);
         const prior =
           limits || booking !== undefined || rolls
-            ? ((!dry && (holdsParent(rules) || worked.length > 0 || limits || repricing || following) ? await fetchHeld(db, target, pk, true) : await fetchByPk(db, target.table, pk)) ?? null)
+            ? (stood ?? (!dry && (holdsParent(rules) || worked.length > 0 || limits || repricing || following) ? await fetchHeld(db, target, pk, true) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
         if (limits && prior !== null) {
           // A quote of the change counts the same pools, holding none: its own places are left out by its key.
@@ -3603,9 +3615,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (after !== null) await judgeRows(db, await input.children.write(db, after, written), { clock, origin: context.origin, mode: dry ? 'dry' : 'save' }, input.mapError);
         }
         // What the change hands to a ledger: after the row and its totals, on the same transaction — a refusal undoes the change too.
-        if (posting !== null && changed > 0) {
+        if (posts !== null && stood !== null && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
-          if (after !== null) posted = await guardedValue(() => ledgerWriter.postStep(db, posting, { target: { ...target, timezone: zone }, row: after, context, clock }), input.mapError);
+          const peeked = posting;
+          if (after !== null) posted = await guardedValue(() => ledgerWriter.postStep(db, peeked, { target: { ...target, timezone: zone }, rules, action: 'update', before: stood, row: after, context, clock }), input.mapError);
         }
         if (quoted && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
@@ -3618,23 +3631,39 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       };
       let count: number;
       try {
-        count = await conflicted(async () => {
+        count = await ledgerWriter.audited(() => conflicted(async () => {
           // A quote takes no named lock: it waits for nobody, and nobody waits for it.
           if (dry) return await withNamedLocks(target, [], write);
-          if (posting !== null) {
-            // A change that posts writes under one lock call: its own limits, its booking day and the add-on's rows it stands on, named from a fresh look each time.
-            return await withDeciders(posting.addOns, () =>
+          if (posts !== null || limits || input.children !== undefined || effectLimits) {
+            // The locks are named by the pools the row will take from, from a fresh look each time. A change of a posting table always
+            // writes here: its own limits, its booking day and the add-on's rows it stands on in one call — and with nothing to name, a plain transaction.
+            const locked = () =>
               withLimitLocks(
                 target,
                 async () => {
-                  const current = (await fetchByPk(target.db, target.table, pk)) ?? null;
+                  const current = posts !== null || limits || effectLimits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
+                  const below = input.children === undefined ? [] : await input.children.names();
+                  // The rows its effects move, as they will stand: their pools, and the rows they own.
+                  const moved = effectLimits ? (await statement(() => effectRows(target.db, { ...target, timezone: zone }, context, clock, checkedValues, Promise.resolve(current)), input.mapError)).filter((effect) => keepsLimits(effect.rules)) : [];
+                  // A new child row's running number without gaps: its series held with the pools, as a form's rows always held it.
+                  const series = below.filter((row) => row.before === null).flatMap((row) => seriesOf(rulesOf(row.target), row.target.table, row.row).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })));
                   const merged = { ...(current ?? before ?? {}), ...checkedValues };
-                  const day = booking === undefined || current === null || bookingNeed(booking, checkedValues, current) === null ? null : bookingDay(booking, merged, zone ?? 'UTC');
-                  lockedDay = day;
+                  const ledger: NamedLock[] = [];
+                  if (posts !== null) {
+                    const day = booking === undefined || current === null || bookingNeed(booking, checkedValues, current) === null ? null : bookingDay(booking, merged, zone ?? 'UTC');
+                    lockedDay = day;
+                    if (day !== null) ledger.push({ name: `${target.connectionId}|${target.table.id}|booking|${day}`, busy: 'BOOKING_BUSY' });
+                    posting = current === null ? null : await ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'update', before: current, after: merged, context });
+                    if (posting !== null) ledger.push(...(await posting.names(merged)));
+                  }
                   return [
-                    ...(limits && current !== null ? await capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: merged, before: current, prepared: true }]) : []),
-                    ...(day === null ? [] : [{ name: `${target.connectionId}|${target.table.id}|booking|${day}`, busy: 'BOOKING_BUSY' as const }]),
-                    ...(await posting.names(merged)),
+                    ...(await capacityLockNames(target.db, [
+                      ...(current === null || !limits ? [] : [{ target: { ...target, timezone: zone }, row: merged, before: current, prepared: true }]),
+                      ...below,
+                      ...moved.map((effect) => ({ target: effect.target, row: { ...effect.before, ...effect.checked }, before: effect.before, prepared: true })),
+                    ])),
+                    ...series,
+                    ...ledger,
                   ];
                 },
                 async (db) => {
@@ -3642,29 +3671,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                     return await write(db);
                   } catch (error) {
                     // The booking's day moved under the lock: the one retry loop names everything again.
-                    if (error instanceof DayMoved) throw new LockMoved('booking day');
+                    if (posts !== null && error instanceof DayMoved) throw new LockMoved('booking day');
                     throw error;
                   }
                 },
                 clock,
-              ),
-            );
-          }
-          if (limits || input.children !== undefined || effectLimits) {
-            // The locks are named by the pools the row will take from, from a fresh look each time.
-            return await withLimitLocks(target, async () => {
-              const current = limits || effectLimits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
-              const below = input.children === undefined ? [] : await input.children.names();
-              // The rows its effects move, as they will stand: their pools, and the rows they own.
-              const moved = effectLimits ? (await statement(() => effectRows(target.db, { ...target, timezone: zone }, context, clock, checkedValues, Promise.resolve(current)), input.mapError)).filter((effect) => keepsLimits(effect.rules)) : [];
-              // A new child row's running number without gaps: its series held with the pools, as a form's rows always held it.
-              const series = below.filter((row) => row.before === null).flatMap((row) => seriesOf(rulesOf(row.target), row.target.table, row.row).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })));
-              return [...(await capacityLockNames(target.db, [
-                ...(current === null || !limits ? [] : [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]),
-                ...below,
-                ...moved.map((effect) => ({ target: effect.target, row: { ...effect.before, ...effect.checked }, before: effect.before, prepared: true })),
-              ])), ...series];
-            }, write, clock);
+              );
+            return posts === null ? await locked() : await withDeciders(posts, locked);
           }
           if (booking !== undefined) {
             return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
@@ -3672,7 +3685,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             }, write, rolls || quoted, input.mapError);
           }
           return rolls || quoted || effectTotals ? await atomically(target, write) : await write(target.db);
-        }, input.mapError);
+        }, input.mapError), about);
       } catch (error) {
         if (!(error instanceof UpdateQuoted)) throw error;
         return { before, after: error.after, values, count: error.count };

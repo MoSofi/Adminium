@@ -42,7 +42,7 @@ import { firedPoints, postingScope, type DeclaredPosting, type PostingPhaseName 
 import { LedgerTooLarge, ledgerSettings, lockNames, mapInputs, runReads, type LineInputs, type MappedLine, type ReadContext, type ScalarRow } from './ledger-reads.js';
 import { phaseDue, receiptsOfSource, roundOf, roundRows } from './ledger-receipts.js';
 import type { Row } from './mask.js';
-import { RecordLocked, StateMoveRefused } from './states.js';
+import { instantOf, RecordLocked, StateMoveRefused } from './states.js';
 import type { WriteClock } from './write-clock.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
 import { sameValue } from './write-values.js';
@@ -318,6 +318,12 @@ export interface LedgerKit {
    * listed move whatever the saver's role. Answers the row as it stands after.
    */
   change(target: WriteTarget, set: Row, key: Row, before: Row, context: WriteContext, clock: WriteClock): Promise<Row | null>;
+  /** A row of the add-on's that only Adminium writes (a receipt), changed as given. */
+  updateRaw(target: WriteTarget, set: Row, key: Row): Promise<void>;
+  /** Whether project code changes a row of the table before it is written. */
+  hooked(target: WriteTarget, action: 'create' | 'update', context: WriteContext): Promise<boolean>;
+  /** Refuses when the connection's role may not write these columns, or the totals a row of the table climbs into. */
+  refuseUngranted(target: WriteTarget, action: 'create' | 'update', columns: readonly string[]): Promise<void>;
   starts(rules: TableRules | null, rows: readonly { record: Row | null; before: Row | null }[]): ClimbStart[];
   hold(target: WriteTarget, starts: readonly ClimbStart[]): Promise<HeldBalances>;
   settle(target: WriteTarget, starts: readonly ClimbStart[], held: HeldBalances): Promise<void>;
@@ -334,6 +340,8 @@ const REFUSAL_WORDS: Readonly<Record<string, string>> = {
   'add-on-unavailable': 'The add-on this depends on cannot be asked right now, so this cannot be saved.',
   'planner-failed': 'The add-on this depends on did not answer as it should, so nothing was saved.',
   'too-large': 'This is more than can be posted in one save.',
+  hooked: 'Project code changes a table the add-on keeps, so nothing can be posted to it inside a save.',
+  guarded: 'A table the add-on keeps takes a lock of its own, so nothing can be posted to it inside a save.',
   'out-of-stock': 'There is not enough left.',
   'over-limit': 'This would go over a limit.',
 };
@@ -367,17 +375,46 @@ function tableFacts(kit: LedgerKit, target: WriteTarget, ledger: ResolvedLedger,
   return out;
 }
 
+/** The refusals an operator can act on: each leaves one audit row. An add-on's own "no" (out of stock) leaves none. */
+const AUDITED: ReadonlySet<string> = new Set(['planner-failed', 'too-large', 'add-on-unavailable', 'hooked', 'guarded']);
+
+const callKey = (call: { posting: { id: string }; phase: string }): string => `${call.posting.id}|${call.phase}`;
+/** A yes, as a column of an add-on's row says one: a yes/no that is on, or a whole number that is 1. */
+const yes = (value: unknown): boolean => value === true || value === 1 || value === '1';
+/** A stored moment as an instant in text, or null. */
+function instantText(value: unknown): string | null {
+  const ms = instantOf(value);
+  return ms === null ? null : new Date(ms).toISOString();
+}
+
 export function createLedgerWriter(kit: LedgerKit) {
-  /** The calls this write fires on a row that is its own source; null when it hands nothing to any ledger now. */
-  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext }): Promise<Peek | null> {
+  /**
+   * The add-ons whose rules on this table are there to be asked — the table
+   * is then written under one lock call, its row held, whatever the write
+   * changes. Null when the table hands nothing to anybody here: it is
+   * written exactly as a table with no rule is.
+   */
+  async function watched(target: WriteTarget, rules: TableRules | null): Promise<string[] | null> {
+    const scope = postingScope(rules);
+    if (scope === null || scope.postings.length === 0) return null;
+    const ledgers = kit.ledgers;
+    // No add-on runtime: nothing can be told idle from live, so every rule is watched (and a point that fires is refused).
+    if (ledgers === undefined) return [];
+    await ledgers.refresh?.();
+    const addOns = new Set<string>();
+    for (const posting of scope.postings) if (ledgers.resolve(target.view, target.table, posting).state !== 'idle') addOns.add(posting.into.addOn);
+    return addOns.size === 0 ? null : [...addOns].sort();
+  }
+
+  /** The calls a write fires on a row that is its own source, from what is installed as memory holds it now. */
+  function callsFor(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row }): PostingCall[] {
     const scope = postingScope(input.rules);
-    if (scope === null) return null;
+    if (scope === null) return [];
     const fired = firedPoints(scope, input.before, input.after, input.action, input.rules?.states?.column).filter((point) => point.role === 'source');
-    if (fired.length === 0) return null;
+    if (fired.length === 0) return [];
     const ledgers = kit.ledgers;
     // A server with no add-on runtime cannot tell an idle rule from a live one: a write that fires one is refused, never written unposted.
     if (ledgers === undefined) throw refused('add-on-unavailable', null);
-    await ledgers.refresh?.();
     const { target } = input;
     const calls: PostingCall[] = [];
     for (const point of fired) {
@@ -386,8 +423,12 @@ export function createLedgerWriter(kit: LedgerKit) {
       if (!('ledger' in state) || state.ledger === undefined || !('action' in state) || state.action === undefined) {
         // Switched off with nothing to ask: nothing starts, and nothing is refused.
         if (state.state === 'off') continue;
+        // What was taken is always let go, even when not so much as its receipt can be written.
+        if (point.phase === 'reverse') continue;
         throw refused('add-on-unavailable', null, { posting: point.posting.id });
       }
+      // An off rule starts no round; whether one is open to give back is read under the locks.
+      if (state.state === 'off' && point.phase !== 'reverse') continue;
       calls.push({
         posting: point.posting,
         phase: point.phase,
@@ -398,14 +439,48 @@ export function createLedgerWriter(kit: LedgerKit) {
         unavailable: state.state === 'unavailable' ? state.cause : null,
       });
     }
-    // An off rule starts no round; whether one is open to give back is read under the locks.
-    const live = calls.filter((call) => !(call.off && call.phase !== 'reverse'));
+    return calls;
+  }
+
+  /**
+   * A table a plan may write is Adminium's to write inside another row's
+   * save: nothing of it may need a step that cannot run there, and the
+   * connection's role must be let write what the ledger lists.
+   */
+  async function refuseUnwritable(call: PostingCall, written: WriteTarget, scope: { insert?: readonly string[] | undefined; update?: { by: readonly string[]; set: readonly string[] } | undefined }, context: WriteContext): Promise<void> {
+    const rules = kit.rulesOf(written);
+    const ledgerContext: WriteContext = { ...context, origin: 'ledger' };
+    // Project code that changes a row before it is written cannot run inside this save.
+    if ((scope.insert !== undefined && (await kit.hooked(written, 'create', ledgerContext))) || (scope.update !== undefined && (await kit.hooked(written, 'update', ledgerContext)))) {
+      throw refused('hooked', call, { table: written.table.name });
+    }
+    // A lock of its own (a day's bookings, a series' next number, a slot's pool) cannot be taken from inside it either.
+    const pooled = (rules?.capacityRules ?? []).some((rule) => rule.kind === 'slot' || rule.kind === 'night');
+    if (rules?.booking !== undefined || (rules?.gapless?.length ?? 0) > 0 || pooled) throw refused('guarded', call, { table: written.table.name });
+    if (scope.insert !== undefined) await kit.refuseUngranted(written, 'create', [...scope.insert, RECEIPT_LINK].filter((column) => written.table.columns.has(column)));
+    if (scope.update !== undefined) await kit.refuseUngranted(written, 'update', scope.update.set);
+  }
+
+  /** The calls this write fires on a row that is its own source; null when it hands nothing to any ledger now. */
+  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext }): Promise<Peek | null> {
+    if (postingScope(input.rules) === null) return null;
+    await kit.ledgers?.refresh?.();
+    const live = callsFor(input);
     if (live.length === 0) return null;
+    const ledgers = kit.ledgers!;
+    const { target } = input;
     // Every table the plans may write, and each ledger's receipts: the role must hold them before a transaction is open.
     const tables = new Map<string, WriteTarget>();
+    const judged = new Set<string>();
     for (const call of live) {
-      for (const tableId of [...call.ledger.writes.keys(), call.ledger.receipts.id]) {
-        if (!tables.has(tableId)) tables.set(tableId, await kit.withRights({ ...target, table: target.view.table(tableId) }));
+      // An action that narrows the ledger's list writes only those tables: the others are not in its way.
+      const narrowed = call.action.writes === undefined ? null : new Set(call.action.writes);
+      for (const [tableId, scope] of [...call.ledger.writes, [call.ledger.receipts.id, null] as const]) {
+        const written = tables.get(tableId) ?? (await kit.withRights({ ...target, table: target.view.table(tableId) }));
+        tables.set(tableId, written);
+        if (scope === null || judged.has(tableId) || (narrowed !== null && !narrowed.has(call.ledger.refOf(tableId)))) continue;
+        judged.add(tableId);
+        await refuseUnwritable(call, written, scope, input.context);
       }
     }
     return {
@@ -415,7 +490,8 @@ export function createLedgerWriter(kit: LedgerKit) {
       async names(row) {
         const out = new Map<string, NamedLock>();
         for (const call of live) {
-          if (call.unavailable !== null) continue;
+          // Asked of nobody, it writes no row of the add-on's: there is nothing of it to stand on.
+          if (call.decider === null) continue;
           const settings = await ledgerSettings(call.ledger, target.db);
           const mapped = mapOrRefuse(call, target, row, settings, ledgers);
           const source = { table: ledgers.refOf(target.view.connectionId, target.table.id), row: keyText(target.table, row) };
@@ -431,8 +507,11 @@ export function createLedgerWriter(kit: LedgerKit) {
 
   function mapOrRefuse(call: PostingCall, target: WriteTarget, row: Row, settings: ScalarRow, ledgers: LedgerRuntime): MappedLine {
     const mapped = mapInputs({ posting: call.posting, action: call.action, table: target.table, tableRef: ledgers.refOf(target.view.connectionId, target.table.id), row, settings });
-    if (mapped.missing.length > 0) {
-      const fields = Object.fromEntries(mapped.missing.map((missing) => [missing.column ?? missing.input, { code: 'required' }]));
+    // An amount Adminium is asked to decide is empty until it is decided.
+    const decided = new Set((call.action.decides ?? []).map((entry) => entry.input));
+    const missing = mapped.missing.filter((entry) => !decided.has(entry.input));
+    if (missing.length > 0) {
+      const fields = Object.fromEntries(missing.map((entry) => [entry.column ?? entry.input, { code: 'required' }]));
       throw new ValidationFailedError('A value this needs is missing.', { fields });
     }
     return mapped;
@@ -449,12 +528,22 @@ export function createLedgerWriter(kit: LedgerKit) {
 
   /**
    * The posting step of a save, on its transaction, after the host's row is
-   * written and settled. Answers what each call did.
+   * written and settled. The points are judged again here, on the row as it
+   * was held and as it was written: a call the look before the locks did not
+   * see stands on names nobody took, so the save starts again; one it saw
+   * that no longer fires is dropped. Answers what each call did.
    */
-  async function postStep(trx: Db, peeked: Peek, input: { target: WriteTarget; row: Row; context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
-    const ledgers = kit.ledgers;
-    if (ledgers === undefined) throw refused('add-on-unavailable', null);
+  async function postStep(
+    trx: Db,
+    peeked: Peek | null,
+    input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock },
+  ): Promise<PostedOutcome[]> {
     const { target, context, clock, row } = input;
+    const fired = callsFor({ target, rules: input.rules, action: input.action, before: input.before, after: row });
+    if (fired.length === 0) return [];
+    const known = new Set((peeked?.calls ?? []).map(callKey));
+    for (const call of fired) if (!known.has(callKey(call))) throw new LockMoved(`posting ${callKey(call)}`);
+    const ledgers = kit.ledgers!;
     const within: WriteTarget = { ...target, db: trx };
     const source = { table: ledgers.refOf(target.view.connectionId, target.table.id), row: keyText(target.table, row) };
     const held = heldNames(trx);
@@ -462,7 +551,7 @@ export function createLedgerWriter(kit: LedgerKit) {
     const outcomes: PostedOutcome[] = [];
     const writtenRows: { rules: TableRules | null; record: Row; before: Row | null }[] = [];
 
-    for (const call of peeked.calls) {
+    for (const call of fired) {
       const { ledger, posting, phase } = call;
       // Receipts first: the first statement on one of the add-on's tables, so the add-on is asked about once more.
       const now = await ledgers.versionNow(ledger.addOn);
@@ -473,6 +562,9 @@ export function createLedgerWriter(kit: LedgerKit) {
       // Switched off: nothing new starts. A round that is open is still given back.
       if (call.off && phase !== 'reverse') continue;
       const at = clock.locked(trx);
+      const receiptsTarget: WriteTarget = { ...(peeked?.tables.get(ledger.receipts.id) ?? { ...target, table: ledger.receipts }), db: trx };
+      // How long what this call takes is kept for: a hold, or a payment decided as the row is made — let go by the clock if nothing closes it first.
+      const kept = (phase === 'reserve' && call.action.holds === true) || (phase === 'post' && input.action === 'create' && call.action.decides !== undefined);
       const receiptBase = {
         source_table: source.table,
         source_row: source.row,
@@ -488,20 +580,47 @@ export function createLedgerWriter(kit: LedgerKit) {
         by: context.actor?.id ?? context.actor?.kind ?? 'system',
         // As an instant in text: every engine's driver takes that, and none of them a Date the same way.
         at: at.toISOString(),
-        held_until: null,
+        held_until: kept && typeof posting.heldUntil === 'string' ? instantText(row[posting.heldUntil]) : null,
+      };
+      /** What the round kept until a time is kept no longer: it was taken for good, or given back. */
+      const close = async (): Promise<void> => {
+        if (phase === 'reserve') return;
+        for (const open of phase === 'reverse' ? [round.reserved, round.posted] : [round.reserved]) {
+          if (open !== null && open.heldUntil !== null) await kit.updateRaw(receiptsTarget, { held_until: null }, { [ledger.receipts.primaryKey[0] ?? 'id']: open.id });
+        }
       };
       const outcome: PostedOutcome = { addOn: ledger.addOn, ledger: ledger.id, action: posting.into.action, posting: posting.id, phase, round: round.round, rows: 0, version: ledger.version, state: 'planned', source, notes: [], written: [], decided: [] };
 
-      if (call.decider === null) {
-        // The add-on cannot be asked. What was taken is always given back, to be worked out when it can answer; nothing new is taken.
-        if (phase !== 'reverse') throw refused('add-on-unavailable', call);
-        await writeReceipt(within, ledger, { ...receiptBase, state: 'unplanned', rows: 0 });
-        outcomes.push({ ...outcome, state: 'unplanned' });
+      // A round nobody planned wrote nothing: giving it back writes nothing either, and nobody is asked.
+      const unplanned = [round.reserved, round.posted].filter((receipt): receipt is NonNullable<typeof receipt> => receipt !== null);
+      if (phase === 'reverse' && unplanned.every((receipt) => receipt.state === 'unplanned')) {
+        for (const receipt of unplanned) await kit.updateRaw(receiptsTarget, { state: 'planned', rows: 0 }, { [ledger.receipts.primaryKey[0] ?? 'id']: receipt.id });
+        await writeReceipt(receiptsTarget, ledger, { ...receiptBase, state: 'planned', rows: 0 });
+        await close();
+        outcomes.push(outcome);
         continue;
       }
 
       let settings = settingsOf.get(ledger.addOn);
       if (settings === undefined) settingsOf.set(ledger.addOn, (settings = await ledgerSettings(ledger, trx)));
+
+      if (call.decider === null) {
+        // The add-on cannot be asked. What was taken is always given back, to be worked out when it can answer.
+        if (phase !== 'reverse') {
+          // Something new is taken only when every row it would take from says it may be taken unasked.
+          const allow = call.action.unavailable?.allow;
+          if (allow === undefined) throw refused('add-on-unavailable', call);
+          const mapped = mapOrRefuse(call, target, row, settings, ledgers);
+          const reads = await readOrRefuse(trx, call, { lines: [{ line: '', inputs: mapped.inputs }], source, settings, receiptIds: [] });
+          const asked = reads[allow.read] ?? [];
+          if (asked.length === 0 || !asked.every((found) => yes(found[allow.column]))) throw refused('add-on-unavailable', call);
+        }
+        await writeReceipt(receiptsTarget, ledger, { ...receiptBase, state: 'unplanned', rows: 0 });
+        await close();
+        outcomes.push({ ...outcome, state: 'unplanned' });
+        continue;
+      }
+
       const mapped = mapOrRefuse(call, target, row, settings, ledgers);
       const lines = [{ line: '', lineTable: '', inputs: mapped.inputs, multipliers: mapped.multipliers, round: round.round }];
       const roundIds = [round.reserved?.id, round.posted?.id].filter((id): id is string | number => id !== undefined);
@@ -553,7 +672,8 @@ export function createLedgerWriter(kit: LedgerKit) {
         outcomes.push(outcome);
         continue;
       }
-      const receipt = await writeReceipt(within, ledger, { ...receiptBase, state: 'planned', rows: plan.rows.length });
+      const receipt = await writeReceipt(receiptsTarget, ledger, { ...receiptBase, state: 'planned', rows: plan.rows.length });
+      await close();
       const receiptId = receipt[ledger.receipts.primaryKey[0] ?? 'id'];
 
       // The plan's rows, written as Adminium's own: the tables' own defaults, formulas and checks apply.
@@ -563,7 +683,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       for (const planRow of plan.rows) {
         const table = ledger.table(planRow.table)!;
         // As the peek resolved it: nothing waits on the pool from inside the transaction.
-        const rowTarget: WriteTarget = { ...(peeked.tables.get(table.id) ?? { ...target, table }), db: trx };
+        const rowTarget: WriteTarget = { ...(peeked?.tables.get(table.id) ?? { ...target, table }), db: trx };
         if (planRow.op === 'insert') {
           inserts.push({ target: rowTarget, rules: kit.rulesOf(rowTarget), values: { ...planRow.values, [RECEIPT_LINK]: receiptId }, label: planRow.label });
           continue;
@@ -628,7 +748,38 @@ export function createLedgerWriter(kit: LedgerKit) {
     }
   }
 
-  return { peek, postStep };
+  /**
+   * Runs a step of a save and, when a ledger refused it for a fault somebody
+   * can act on, leaves one audit row saying which check failed — after the
+   * save's own transaction is gone, and never in place of the refusal.
+   */
+  async function audited<T>(run: () => Promise<T>, about: { target: WriteTarget; context: WriteContext }): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      const reason = error instanceof PostingRefusedError ? String((error.details as { reason?: unknown } | undefined)?.reason ?? '') : '';
+      if (error instanceof PostingRefusedError && AUDITED.has(reason)) {
+        const details = (error.details ?? {}) as { ledger?: string; posting?: string; table?: string };
+        try {
+          await kit.ledgers?.refused?.({
+            connectionId: about.target.view.connectionId,
+            table: about.target.table.id,
+            reason,
+            ...(error instanceof PlanFailed ? { cause: error.cause, detail: error.detail } : {}),
+            ...(details.ledger === undefined ? {} : { ledger: details.ledger }),
+            ...(details.posting === undefined ? {} : { posting: details.posting }),
+            ...(details.table === undefined ? {} : { ledgerTable: details.table }),
+            actor: about.context.actor,
+          });
+        } catch {
+          // The refusal is what the caller must hear, whatever became of its record.
+        }
+      }
+      throw error;
+    }
+  }
+
+  return { watched, peek, postStep, audited };
 }
 
 const isLabel = (value: unknown): value is { '@row': string } => typeof value === 'object' && value !== null && '@row' in value;

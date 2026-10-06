@@ -114,8 +114,9 @@ describe('whether a posting is live', () => {
 
   it('switched off for the app, or its feature not on: it cannot answer — never skipped', () => {
     const w = world();
-    expect(runtime({ addOn: { hosts: new Map([['shop', false]]) } }).resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'unavailable', cause: 'switched-off-for-app' });
-    expect(runtime({ feature: false }).resolve(w.view, w.orders, NEEDS)).toEqual({ state: 'unavailable', cause: 'switched-off-for-app' });
+    // With the ledger as far as it can be found: a round already open is still given back, on its own receipt table.
+    expect(runtime({ addOn: { hosts: new Map([['shop', false]]) } }).resolve(w.view, w.orders, APP_RULE)).toMatchObject({ state: 'unavailable', cause: 'switched-off-for-app', ledger: { id: 'units' }, action: { holds: true } });
+    expect(runtime({ feature: false }).resolve(w.view, w.orders, NEEDS)).toMatchObject({ state: 'unavailable', cause: 'switched-off-for-app', ledger: { id: 'units' } });
     expect(runtime({ feature: false }).resolve(w.view, w.orders, APP_RULE).state).toBe('live');
     // The owner's own rule has no app to be switched off for.
     expect(runtime({ addOn: { hosts: new Map([['shop', false]]) } }).resolve(w.view, w.orders, OWN_RULE).state).toBe('live');
@@ -124,7 +125,7 @@ describe('whether a posting is live', () => {
   it('being updated, disabled, or with no code to ask: it cannot answer, and says why', () => {
     const w = world();
     for (const status of ['updating', 'disabled', 'error', 'installing'] as const) {
-      expect(runtime({ addOn: { status } }).resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'unavailable', cause: status });
+      expect(runtime({ addOn: { status } }).resolve(w.view, w.orders, APP_RULE)).toMatchObject({ state: 'unavailable', cause: status, ledger: { id: 'units' } });
     }
     expect(runtime({ decider: null }).resolve(w.view, w.orders, APP_RULE)).toMatchObject({ state: 'unavailable', cause: 'no-decider', ledger: { id: 'units' }, action: { holds: true } });
     // Code loaded from another version than the one installed is not this add-on's code.

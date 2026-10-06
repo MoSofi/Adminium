@@ -82,6 +82,24 @@ export interface LedgerRuntime {
   refOf(connectionId: string, tableId: string): string;
   /** The installed add-on's manifest, for what its tables link to. */
   manifestOf(connectionId: string, addOnKey: string): AddOnManifest | null;
+  /** Records a refusal an operator can act on (a plan that failed, a table that cannot be written): one audit row, after the save is gone. */
+  refused?(event: LedgerRefusal): Promise<void>;
+}
+
+/** A save a ledger refused for a fault of the add-on or of the setup, as the audit log keeps it. */
+export interface LedgerRefusal {
+  connectionId: string;
+  /** The table whose row was being saved. */
+  table: string;
+  reason: string;
+  /** Which check a failed plan missed (`scope-table`, `threw`, …): told here and never to the person saving. */
+  cause?: string;
+  detail?: string;
+  ledger?: string;
+  posting?: string;
+  /** The add-on's table that could not be written. */
+  ledgerTable?: string;
+  actor: { kind: string; id: string | null; label: string } | null;
 }
 
 export interface LedgerRuntimeDeps {
@@ -93,6 +111,7 @@ export interface LedgerRuntimeDeps {
   watches?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
   /** Reads what is installed again when it moved (the kept instance's `fresh`). */
   refresh?: (() => Promise<unknown>) | undefined;
+  refused?: ((event: LedgerRefusal) => Promise<void>) | undefined;
 }
 
 /** The app whose manifest stored a rule on this table, or null for a rule the owner made. */
@@ -158,9 +177,12 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       // Not installed in this database: the rule reads as not there.
       if (addOn === null) return { state: 'idle' };
       const off = table.table?.switchedOff?.postings.includes(posting.id) === true;
+      // The ledger and the action as far as they can be found, whatever stops the add-on answering: a round already open is still given back.
+      const found = resolveLedger(installs, view, addOn, posting.into.ledger);
+      const known = ledgersOf(addOn.manifest).find((candidate) => candidate.id === posting.into.ledger)?.actions[posting.into.action];
       const cannot = (cause: string, more: { ledger?: ResolvedLedger; action?: LedgerAction } = {}): PostingState =>
         // The owner's switch is the way through an add-on that cannot answer: off starts nothing, and refuses nothing.
-        off ? { state: 'off' } : { state: 'unavailable', cause, ...more };
+        off ? { state: 'off' } : { state: 'unavailable', cause, ...(typeof found === 'string' || known === undefined ? {} : { ledger: found, action: known }), ...more };
       const owner = ruleOwner(installs, view, table, posting);
       if (owner !== null) {
         // An app's rule for an add-on that is not connected to that app is inert, like the rest of what the app keeps for it.
@@ -169,9 +191,9 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
         if (posting.needs !== undefined && !installs.featureOn(view.connectionId, owner, posting.needs)) return cannot('switched-off-for-app');
       }
       if (addOn.status !== 'installed') return cannot(addOn.status);
-      const ledger = resolveLedger(installs, view, addOn, posting.into.ledger);
+      const ledger = found;
       if (typeof ledger === 'string') return cannot(ledger);
-      const action = ledgersOf(addOn.manifest).find((candidate) => candidate.id === posting.into.ledger)?.actions[posting.into.action];
+      const action = known;
       if (action === undefined) return cannot('no-such-action', { ledger });
       const decider = deps.decider(posting.into.addOn);
       // Its file is gone or was changed, nobody vouches for it, or it did not load.
@@ -189,5 +211,6 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
     },
     refOf: (connectionId, tableId) => deps.installs().refOf(connectionId, tableId),
     manifestOf: (connectionId, addOnKey) => deps.installs().installed(connectionId, addOnKey)?.manifest ?? null,
+    ...(deps.refused === undefined ? {} : { refused: deps.refused }),
   };
 }

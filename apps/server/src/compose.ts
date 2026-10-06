@@ -951,6 +951,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       return row === undefined ? null : { version: row.version, status: row.status };
     },
     watches: async (connectionId, tableId) => (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher.current?.watchesChange(connectionId, tableId)) === true,
+    // A save an add-on's plan failed, or a table of it that cannot be written: one row an operator can act on. Which check failed is told here alone.
+    refused: async (event) => {
+      const kind = event.actor?.kind;
+      await auditRepo(meta).append({
+        actorKind: kind === 'user' || kind === 'api-key' || kind === 'automation' ? kind : 'system',
+        actorId: event.actor?.id ?? null,
+        actorLabel: event.actor?.label ?? 'System',
+        category: 'data',
+        action: 'ledger.refused',
+        connectionId: event.connectionId,
+        changes: { after: { table: event.table, reason: event.reason, cause: event.cause ?? null, detail: event.detail ?? null, ledger: event.ledger ?? null, posting: event.posting ?? null, ledgerTable: event.ledgerTable ?? null } },
+      });
+    },
   });
   const recordWrites = createWriteService({
     ledgers,
