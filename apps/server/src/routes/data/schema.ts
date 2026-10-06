@@ -471,6 +471,47 @@ export const recordBulkBody = z.object({
   from: z.string().min(1).max(64).optional(),
 });
 
+/** The most rows one row-by-row call takes. */
+export const ONE_BY_ONE_MAX = 500;
+
+/**
+ * Rows written ONE AT A TIME, each a save of its own: what a bulk change
+ * becomes for a table whose rows hand something to an add-on (a bulk edit
+ * cannot post). Either one change for each of `ids` — the same `values`,
+ * `from` the state every row was seen in — or one new row for each entry of
+ * `creates`. Never both.
+ */
+export const recordOneByOneBody = z
+  .object({
+    ids: z.array(z.unknown()).min(1).max(ONE_BY_ONE_MAX).optional(),
+    values: rowValuesSchema.optional(),
+    from: z.string().min(1).max(64).optional(),
+    creates: z.array(rowValuesSchema).min(1).max(ONE_BY_ONE_MAX).optional(),
+  })
+  .refine((body) => (body.ids === undefined) !== (body.creates === undefined), { message: 'send `ids` with `values`, or `creates` — one of the two' })
+  .refine((body) => body.creates === undefined || (body.values === undefined && body.from === undefined), { message: '`values` and `from` go with `ids`' })
+  .refine((body) => body.ids === undefined || body.values !== undefined, { message: '`ids` come with the `values` to write' });
+
+/**
+ * One result a row, in the order sent. A row refused does not stop the next;
+ * a row not reached within the call's time answers `NOT_RUN` and may be sent
+ * again. Nothing here can be undone with a token.
+ */
+export const recordOneByOneReply = z.object({
+  results: z.array(
+    z.object({
+      id: z.unknown().optional(),
+      index: z.number().int().min(0).optional(),
+      ok: z.boolean(),
+      data: rowSchema.optional(),
+      postings: z.array(postingAnswerSchema).optional(),
+      error: z.object({ code: z.string(), message: z.string().optional(), reason: z.string().optional(), details: z.unknown().optional() }).optional(),
+    }),
+  ),
+  done: z.number().int().min(0),
+  notRun: z.number().int().min(0),
+});
+
 export const recordBulkReply = z.object({
   results: z.array(z.object({ id: z.unknown(), ok: z.boolean(), error: z.string().optional() })),
   undoToken: z.string().nullable(),

@@ -150,6 +150,8 @@ import {
   dataTableParams,
   recordBulkBody,
   recordBulkReply,
+  recordOneByOneBody,
+  recordOneByOneReply,
   recordCreateBody,
   recordDryRunReply,
   recordDeleteQuery,
@@ -210,6 +212,8 @@ export interface DataRoutesDeps {
   meta: MetaDb;
   /** Injectable for TTL tests; a fresh store otherwise. */
   undoStore?: UndoStore | undefined;
+  /** How long one row-by-row call may run before the rows not reached answer `NOT_RUN` (25 s; a test sets less). */
+  oneByOneBudgetMs?: number | undefined;
   /**
    * Keeps `adminium_files` in step with what the customer's own file columns
    * say. ABSENT ⇒ no file behaviour at all, which is what every test that
@@ -1910,6 +1914,111 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
       return { restored: outcome.restored, written, changed: outcome.written };
     }
+
+    // --- one by one (static segment) --------------------------------------------
+
+    /*
+     * ROWS WRITTEN ONE AT A TIME. A bulk edit writes its rows in one
+     * transaction and cannot post; this writes each row as a save of its
+     * own — its own locks, its own posting, its own refusal — and answers
+     * what became of each. A refused row does not stop the next. Sequential,
+     * so many rows, within so much time: the rows not reached answer
+     * `NOT_RUN` and can be sent again. No undo token: each row's own way back
+     * is its rule's.
+     */
+    app.post(
+      '/data/:connectionId/:table/one-by-one',
+      { schema: { params: dataTableParams, body: recordOneByOneBody, response: { 200: recordOneByOneReply } } },
+      async (request) => {
+        const creates = request.body.creates;
+        const ctx = await contextFor(request, creates === undefined ? 'update' : 'create');
+        const context = requestWriteContext(request, 'dashboard');
+        const started = Date.now();
+        const late = () => Date.now() - started > (deps.oneByOneBudgetMs ?? 25_000);
+        type Result = { id?: unknown; index?: number; ok: boolean; data?: Row; postings?: PostingAnswer[]; error?: { code: string; message?: string; reason?: string; details?: unknown } };
+        const results: Result[] = [];
+        const refusedAs = (error: unknown): NonNullable<Result['error']> => {
+          // Anything that is not a refusal is a fault of the server's: the call fails as a whole.
+          if (!(error instanceof AppError)) throw error;
+          const reason = (error.details as { reason?: unknown } | undefined)?.reason;
+          return { code: error.code, message: error.message, ...(typeof reason === 'string' ? { reason } : {}), ...(error.details === undefined ? {} : { details: error.details }) };
+        };
+        if (creates !== undefined) {
+          for (const [index, sent] of creates.entries()) {
+            if (late()) {
+              results.push({ index, ok: false, error: { code: 'NOT_RUN' } });
+              continue;
+            }
+            try {
+              const values = allowlistValues(ctx, sent);
+              await assertFileColumns(ctx, values);
+              // Each new row is held to the caller's create limit, as a row made on its own is.
+              await assertCreatable(request, ctx.connectionId, ctx.table, values);
+              let told: PostingAnswer[] | undefined;
+              const inserted = await writes.create({
+                target: ctx.target,
+                values,
+                context,
+                recheck: (final) => assertFileColumns(ctx, final),
+                mapError: (error) => mapDbError(error, ctx.table),
+                announce: async (row, _values, posted) => {
+                  told = postingAnswers(posted);
+                  await afterMutation(request, ctx, 'create', recordRef(ctx, Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]))), null, row);
+                },
+              });
+              const key = ctx.table.primaryKey.length === 1 ? inserted[ctx.table.primaryKey[0]!] : Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
+              results.push({ index, id: key, ok: true, data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), ...(told === undefined ? {} : { postings: told }) });
+            } catch (error) {
+              results.push({ index, ok: false, error: refusedAs(error) });
+            }
+          }
+        } else {
+          // One `values` for every row: allow-listed once, and the state every row was seen in travels with each change.
+          const values = withSeenState(ctx.table, allowlistValues(ctx, request.body.values ?? {}), request.body.from);
+          await assertFileColumns(ctx, values);
+          const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
+          for (const id of request.body.ids ?? []) {
+            if (late()) {
+              results.push({ id, ok: false, error: { code: 'NOT_RUN' } });
+              continue;
+            }
+            try {
+              const pk = pkFromLoose(ctx.table, id);
+              const before = await fetchByPk(ctx.db, ctx.table, pk);
+              if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+              assertWithinLimit(limit, ctx.table.id, values, before);
+              const outcome = await writes.update({
+                target: ctx.target,
+                pk,
+                values,
+                before,
+                context,
+                recheck: (final) => assertFileColumns(ctx, final),
+                mapError: (error) => mapDbError(error, ctx.table),
+                announce: async (result) => {
+                  await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, result.after ?? before);
+                  await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
+                },
+              });
+              const told = postingAnswers(outcome.postings);
+              results.push({ id, ok: true, ...(told === undefined ? {} : { postings: told }) });
+            } catch (error) {
+              results.push({ id, ok: false, error: refusedAs(error) });
+            }
+          }
+        }
+        const notRun = results.filter((result) => result.error?.code === 'NOT_RUN').length;
+        const done = results.filter((result) => result.ok).length;
+        // The call itself, beside each row's own record of its change.
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'record.one-by-one',
+          connectionId: ctx.connectionId,
+          changes: { after: { table: ctx.table.id, form: creates === undefined ? 'change' : 'create', rows: results.length, done, refused: results.length - done - notRun, notRun } },
+        });
+        return { results, done, notRun };
+      },
+    );
 
     // --- bulk (static segment) --------------------------------------------------
 
