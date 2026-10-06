@@ -2952,8 +2952,29 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         Object.fromEntries(Object.entries(values).map(([column, value]) => [column, target.table.columns.has(column) ? bindWriteValue(target.table.columns.get(column)!, value, target.dialect) : value])) as CheckedRow,
       ),
     fetchHeld: (target, key) => fetchHeld(target.db, target, key, true),
-    update: async (target, set, key) => {
-      await updateRows(target.db, target.dialect, target.table, set as CheckedRow, key);
+    // A planned change is prepared as an effect's row is: stamps, formulas and checks from the stored row, and its
+    // table's states judging the move as one Adminium makes — listed from where the row is, whatever the saver's role.
+    change: async (target, set, key, before, context, clock) => {
+      const rules = rulesOf(target);
+      const states = target.table.table?.states;
+      const moving = states !== undefined && Object.prototype.hasOwnProperty.call(set, states.column) && !sameValue(set[states.column], before[states.column]);
+      let declared = context;
+      if (moving) {
+        const to = String(set[states.column]);
+        // What could not be judged inside another row's write: a move that sets off effects, or waits for another row.
+        const waits = Object.values(states.moves).some((list) => list.some((move) => typeof move === 'object' && move.to === to && waitVias(move.requires).length > 0));
+        if ((states.effects?.length ?? 0) > 0 || waits) {
+          throw new StateMoveRefused(`An add-on's plan cannot move a ${target.table.name} row: its move sets off effects or waits for another row.`, { column: states.column, to });
+        }
+        declared = { ...context, declared: { from: String(before[states.column] ?? states.initial), to } };
+      }
+      const zone = await zoneFor(rules, target);
+      let values = await prepareValues(rules, 'update', target, declared, set, clock.startedAt);
+      values = await decideRow(rules, 'update', values, before, decideContext(target, declared, stampNow(clock), zone));
+      values = await formulate(rules, 'update', target, values, before, declared.origin);
+      const checked = await carry(rules, 'update', target, declared, await checkAllOrThrow(rules, 'update', target, declared, values, before, undefined), before, clock);
+      await updateRows(target.db, target.dialect, target.table, checked, key);
+      return (await fetchByPk(target.db, target.table, key)) ?? null;
     },
     starts: chainStarts,
     hold: (target, starts) => holdChain(target.db, target.dialect, starts, currencyFor(target)),

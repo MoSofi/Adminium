@@ -34,16 +34,61 @@ const SETTINGS = {
   ],
 };
 
+/** Moves a request to the state its row asks for: `sent → done`, or the move kept for the ledger alone, `done → filed`. */
+const TIDY = {
+  inputs: { request: 'link', to: 'text' },
+  phases: ['post'],
+  reads: [{ as: 'requests', table: 'requests', by: [{ column: 'id', from: 'input.request' }] }],
+  locks: [{ read: 'requests', column: 'id', table: 'requests' }],
+  writes: ['holds', 'requests'],
+};
+
+type Table = Doc & { ref?: string; columns?: Doc[] };
+const withColumns = (table: Table, change: (column: Doc) => Doc, added: Doc[] = []): Table => ({ ...table, columns: [...(table.columns ?? []).map(change), ...added] });
+
+/**
+ * Rules of the kit's own tables that a planned row must meet like any other:
+ * an entry's amount has a ceiling and is stamped with who saved, a hold is
+ * stamped when it is taken, and an account adds up what is still held.
+ */
+function withOwnRules(table: Table): Table {
+  if (table.ref === 'entries') {
+    return withColumns(table, (column) => (column['ref'] === 'amount' ? { ...column, rules: { validation: { max: 100000 } } } : column), [
+      { ref: 'made_by', type: 'text', maxLength: 80, nullable: true, rules: { stamp: { set: 'user-name', on: 'create' } } },
+    ]);
+  }
+  if (table.ref === 'holds') {
+    return withColumns(table, (column) => (column['ref'] === 'account_id' ? { ...column, index: true } : column), [
+      { ref: 'taken_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'state', values: ['taken'] } } } },
+    ]);
+  }
+  if (table.ref === 'accounts') {
+    return withColumns(table, (column) => column, [{ ref: 'held', type: 'decimal', scale: 3, default: 0, rules: { rollup: { from: 'holds', via: 'account_id', sum: 'amount', where: { column: 'state', eq: 'held' } } } }]);
+  }
+  if (table.ref === 'requests') {
+    // Marking a request done is kept for one role: a planned move is made whoever is saving.
+    const states = table['states'] as Doc & { moves: Record<string, unknown[]> };
+    return { ...table, states: { ...states, moves: { ...states.moves, sent: [{ to: 'done', roles: ['manager'] }, 'cancelled'] } } };
+  }
+  return table;
+}
+
 /** The add-on's manifest, version 1.0.0. */
 export function ledgerKitManifest(): Doc {
   const kit = structuredClone(LEDGER_KIT) as unknown as Doc & { addOn: Doc; requiredSchema: { tables: Doc[] } };
+  const [units] = structuredClone(kit.addOn['ledgers']) as [Doc & { writes: Doc; actions: Doc }];
+  // The ledger may move a request too, and one action does nothing else: a planned change of a row with states.
+  units.writes = { ...units.writes, requests: { update: { by: ['id'], set: ['status'] } } };
+  units.actions = { ...units.actions, tidy: TIDY };
   kit.addOn = {
     ...kit.addOn,
+    ledgers: [units],
     settingsTable: 'settings',
     words: [{ id: 'units-left', ledger: 'units', action: 'use', input: 'account', showLeftBelow: { setting: 'show_left_below' } }],
   };
   // An index the kit declares itself, beside the ones its ledger is given.
-  kit.requiredSchema.tables = [...kit.requiredSchema.tables.map((table) => (table['ref'] === 'entries' ? { ...table, indexes: [['account_id', 'kind']] } : table)), SETTINGS];
+  kit['roles'] = [{ key: 'manager', name: 'Ledger manager', permissions: ['table:@requests:read', 'table:@requests:update'] }];
+  kit.requiredSchema.tables = [...kit.requiredSchema.tables.map((table) => (table['ref'] === 'entries' ? { ...table, indexes: [['account_id', 'kind']] } : table)), SETTINGS].map(withOwnRules);
   return kit;
 }
 

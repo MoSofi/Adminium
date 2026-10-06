@@ -42,6 +42,7 @@ import { firedPoints, postingScope, type DeclaredPosting, type PostingPhaseName 
 import { LedgerTooLarge, ledgerSettings, lockNames, mapInputs, runReads, type LineInputs, type MappedLine, type ReadContext, type ScalarRow } from './ledger-reads.js';
 import { phaseDue, receiptsOfSource, roundOf, roundRows } from './ledger-receipts.js';
 import type { Row } from './mask.js';
+import { RecordLocked, StateMoveRefused } from './states.js';
 import type { WriteClock } from './write-clock.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
 import { sameValue } from './write-values.js';
@@ -311,8 +312,12 @@ export interface LedgerKit {
   insertRaw(target: WriteTarget, values: Row): Promise<Row>;
   /** A row of a ledger table, held for the rest of the save; undefined when it is not there. */
   fetchHeld(target: WriteTarget, key: Row): Promise<Row | undefined>;
-  /** A planned change of a row, by its key. */
-  update(target: WriteTarget, set: Row, key: Row): Promise<void>;
+  /**
+   * A planned change of a row held by its key, written as Adminium's own:
+   * stamps, formulas and checks from the stored row, a state move judged as a
+   * listed move whatever the saver's role. Answers the row as it stands after.
+   */
+  change(target: WriteTarget, set: Row, key: Row, before: Row, context: WriteContext, clock: WriteClock): Promise<Row | null>;
   starts(rules: TableRules | null, rows: readonly { record: Row | null; before: Row | null }[]): ClimbStart[];
   hold(target: WriteTarget, starts: readonly ClimbStart[]): Promise<HeldBalances>;
   settle(target: WriteTarget, starts: readonly ClimbStart[], held: HeldBalances): Promise<void>;
@@ -568,7 +573,8 @@ export function createLedgerWriter(kit: LedgerKit) {
         updates.push({ target: rowTarget, rules: kit.rulesOf(rowTarget), key: planRow.key, set: planRow.set, before });
       }
       // Every total the plan's rows climb into, held top-down before any of them is written.
-      const ledgerContext: WriteContext = { ...context, origin: 'ledger' };
+      // The saving call's actor stamps a planned row — but a guest is nobody: no row of a ledger is ever signed with a browser key's name.
+      const ledgerContext: WriteContext = { ...context, origin: 'ledger', actor: context.actor?.kind === 'public' ? null : context.actor };
       const holdStarts = [
         ...inserts.flatMap((item) => kit.starts(item.rules, [{ record: withoutLabels(item.values), before: null }])),
         ...updates.flatMap((item) => kit.starts(item.rules, [{ record: { ...item.before, ...item.set }, before: item.before }])),
@@ -584,15 +590,14 @@ export function createLedgerWriter(kit: LedgerKit) {
           outcome.written.push({ table: item.target.table, row: inserted, before: null });
         }
         for (const item of updates) {
-          await kit.update(item.target, item.set, item.key);
-          const after = { ...item.before, ...item.set };
+          const after = (await kit.change(item.target, item.set, item.key, item.before, ledgerContext, clock)) ?? { ...item.before, ...item.set };
           writtenRows.push({ rules: item.rules, record: after, before: item.before });
           outcome.written.push({ table: item.target.table, row: after, before: item.before });
         }
       } catch (error) {
         // The plan's own row was refused by the table's rules or the database: the plan was wrong, not the person.
         if (error instanceof PostingRefusedError || error instanceof LockMoved) throw error;
-        if (error instanceof ValidationFailedError || readDbRefusal(error, target.table) !== null) throw new PlanFailed(call, 'scope-op', error instanceof Error ? error.message : String(error));
+        if (error instanceof ValidationFailedError || error instanceof StateMoveRefused || error instanceof RecordLocked || readDbRefusal(error, target.table) !== null) throw new PlanFailed(call, 'scope-op', error instanceof Error ? error.message : String(error));
         throw error;
       }
       const settleStarts = writtenRows.splice(0).flatMap((item) => kit.starts(item.rules, [{ record: item.record, before: item.before }]));

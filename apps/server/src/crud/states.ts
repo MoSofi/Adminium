@@ -583,6 +583,8 @@ async function judgeOwnUpdate(
     if (named !== undefined && text(named) !== from) refuse(`This ${table.name} row is ${from} now, not ${String(text(named))}. Look again.`, { named: text(named) });
     if (move === undefined) refuse(`A ${table.name} row cannot go from ${from} to ${String(to)}.`);
     if (typeof move === 'object') {
+      // A move kept for a ledger's own planned row: nobody else makes it — no role, no effect, no timed move, no import.
+      if (move.planned === true && guard.origin !== 'ledger') refuse(`A ${table.name} row goes from ${from} to ${String(to)} only when the add-on that keeps it moves it.`, { planned: true });
       const declared = guard.declared !== undefined && guard.declared.to === to && (guard.declared.from === undefined || guard.declared.from === from);
       if (move.roles !== undefined && !declared && guard.roles !== 'any' && !move.roles.some((role) => (guard.roles as ReadonlySet<string>).has(role))) {
         refuse(`Only some roles may move a ${table.name} row from ${from} to ${String(to)}.`, { roles: move.roles });

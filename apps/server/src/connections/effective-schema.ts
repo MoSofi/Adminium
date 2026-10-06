@@ -339,6 +339,8 @@ export interface StateMoveRule {
   undo?: true;
   /** An undo's further columns it empties: emptied by the move, and open to the lock for that move only. */
   clears?: string[];
+  /** Made only by a ledger's own planned row: no person, effect, timed move or import makes it. */
+  planned?: true;
 }
 
 /**
