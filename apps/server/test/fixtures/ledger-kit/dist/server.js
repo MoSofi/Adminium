@@ -8,6 +8,7 @@
  *          reverse  the opposite of what the round wrote
  *   count  post     one entry per line; reverse as above
  *   tidy   post     the line's request moved to the state it names
+ *   pay    post     one entry per line, for the amount it decides: what is due, as far as the account goes
  *
  * A reserve, and any take a customer makes, is refused when the account has
  * too little and does not allow going below. Staff may take what is not
@@ -86,6 +87,24 @@ function tidy(input) {
   return out;
 }
 
+/** Each line pays what is due from its account, as far as the account goes. */
+function pay(input, wrong) {
+  var out = { rows: [], decides: [] };
+  for (var i = 0; i < input.lines.length; i += 1) {
+    var line = input.lines[i];
+    var account = accountOf(input, line);
+    if (account === null) continue;
+    var due = units(line.inputs.due);
+    var has = units(account.balance);
+    var amount = due < has ? due : has;
+    if (wrong === 'negative') amount = -1000n;
+    if (wrong === 'over-due') amount = due + 1n;
+    if (amount > 0n) out.rows.push({ op: 'insert', table: 'entries', line: line.line, values: { account_id: account.id, amount: decimal(amount), kind: 'pay', note: null } });
+    out.decides.push({ line: wrong === 'decide-other-row' ? 'another' : line.line, input: wrong === 'decide-undeclared' ? 'due' : 'amount', value: decimal(amount) });
+  }
+  return out;
+}
+
 function rows(input) {
   var wrong = input.settings.misbehave || null;
   if (wrong === 'throw') throw new Error('the kit was told to throw');
@@ -96,6 +115,7 @@ function rows(input) {
   if (input.mode === 'words') return words(input);
   if (input.phase === 'reverse') return reverse(input);
   if (input.action === 'tidy') return tidy(input);
+  if (input.action === 'pay') return pay(input, wrong);
 
   var out = { rows: [], refusals: [], notes: [] };
   // A hold this round already made is taken by the post that follows it.

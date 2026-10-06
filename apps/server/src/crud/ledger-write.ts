@@ -282,7 +282,8 @@ export interface PostedOutcome {
   source: { table: string; row: string };
   notes: { line: string; note: string; item?: string | undefined }[];
   written: { table: ResolvedTable; row: Row; before: Row | null }[];
-  decided: { line: string; input: string; value: string }[];
+  /** Each amount Adminium decided, and the column of the source row it was written to. */
+  decided: { line: string; input: string; column: string; value: string }[];
 }
 
 export interface Peek {
@@ -318,6 +319,11 @@ export interface LedgerKit {
    * listed move whatever the saver's role. Answers the row as it stands after.
    */
   change(target: WriteTarget, set: Row, key: Row, before: Row, context: WriteContext, clock: WriteClock): Promise<Row | null>;
+  /**
+   * Amounts decided for the row that posted, written to its own columns: its
+   * formulas worked out again, its totals settled. Answers the row after.
+   */
+  decide(target: WriteTarget, pk: Row, set: Row, before: Row): Promise<Row | null>;
   /** A row of the add-on's that only Adminium writes (a receipt), changed as given. */
   updateRaw(target: WriteTarget, set: Row, key: Row): Promise<void>;
   /** Whether project code changes a row of the table before it is written. */
@@ -720,6 +726,19 @@ export function createLedgerWriter(kit: LedgerKit) {
         if (error instanceof ValidationFailedError || error instanceof StateMoveRefused || error instanceof RecordLocked || readDbRefusal(error, target.table) !== null) throw new PlanFailed(call, 'scope-op', error instanceof Error ? error.message : String(error));
         throw error;
       }
+      // What was decided, written to the row that posted — read here, after its own totals were settled, so "what is due" was what the
+      // other payments left. The row's own cap still judges it (a payment above what is due is the host's refusal, as ever).
+      const decisions = plan.decides ?? [];
+      if (decisions.length > 0) {
+        const set: Row = {};
+        for (const decision of decisions) {
+          const column = posting.map[decision.input];
+          if (typeof column !== 'string') throw new PlanFailed(call, 'scope-decides', `"${decision.input}" is mapped to no column of the row`);
+          set[column] = decision.value;
+          outcome.decided.push({ line: decision.line, input: decision.input, column, value: decision.value });
+        }
+        await kit.decide(within, Object.fromEntries(target.table.primaryKey.map((column) => [column, row[column]])), set, row);
+      }
       const settleStarts = writtenRows.splice(0).flatMap((item) => kit.starts(item.rules, [{ record: item.record, before: item.before }]));
       try {
         // One settle a call: each total once, each cap judged once against what was held.
@@ -732,7 +751,6 @@ export function createLedgerWriter(kit: LedgerKit) {
       }
       outcome.rows = plan.rows.length;
       outcome.notes = (plan.notes ?? []).map((note: { line: string; note: string; item?: string | undefined }) => ({ ...note }));
-      outcome.decided = (plan.decides ?? []).map((decided: { line: string; input: string; value: string }) => ({ ...decided }));
       outcomes.push(outcome);
     }
     return outcomes;

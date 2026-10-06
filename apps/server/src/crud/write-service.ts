@@ -2976,6 +2976,22 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await updateRows(target.db, target.dialect, target.table, checked, key);
       return (await fetchByPk(target.db, target.table, key)) ?? null;
     },
+    // An amount decided for the row that posted: Adminium's own statement — no state or lock of the row judges it. The row's
+    // formulas that read it are worked out again, and the totals and balances it moves settled against what the save holds.
+    decide: async (target, pk, set, before) => {
+      const rules = rulesOf(target);
+      const currency = currencyFor(target);
+      const written = brand(await formulate(rules, 'update', target, set, before, 'ledger'));
+      const held = await holdParents(rules, target, [{ record: { ...before, ...written }, before }], currency);
+      const ownMoved = movedBalances(rules, written, before);
+      const ownBefore = ownMoved.some((balance) => balance.cappedBy.length > 0) ? await holdOwn(rules, target, pk, ownMoved, currency) : undefined;
+      await updateRows(target.db, target.dialect, target.table, written, pk);
+      const after = (await fetchByPk(target.db, target.table, pk)) ?? null;
+      if (after === null) return null;
+      await settleRows(rules, target, [{ record: after, before }], currency, held);
+      if (ownMoved.length > 0) await settleOwn(rules, target, 'update', after, written, currency, ownBefore);
+      return (await fetchByPk(target.db, target.table, pk)) ?? null;
+    },
     updateRaw: async (target, set, key) => {
       await updateRows(target.db, target.dialect, target.table, set as CheckedRow, key);
     },
@@ -3080,7 +3096,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const sealing = sealsOf(checked);
         if (sealing !== undefined && keepsOwnTotals(rules)) await sealRows(db, target.table, pkOf(target.table, out.row), sealing, writeSeals);
         // The row as its own totals left it: the INSERT returned it before they were added up.
-        return keepsOwnTotals(rules) ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
+        // …or as an amount decided for it left it.
+        return keepsOwnTotals(rules) || posted.some((call) => call.decided.length > 0) ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
       };
       let day: string | null = null;
       if (booking !== undefined && need !== null) {

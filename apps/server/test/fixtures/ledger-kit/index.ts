@@ -92,6 +92,30 @@ export function ledgerKitManifest(): Doc {
   return kit;
 }
 
+/**
+ * The same add-on with one more action, `pay`: Adminium decides how much of
+ * what is due an account pays — never more than is due, never more than the
+ * account holds.
+ */
+export function ledgerKitDecidesManifest(): Doc {
+  const kit = ledgerKitManifest() as Doc & { addOn: Doc & { ledgers: [Doc & { actions: Doc }] } };
+  kit.addOn.ledgers[0].actions = {
+    ...kit.addOn.ledgers[0].actions,
+    pay: {
+      inputs: { account: 'link', due: 'decimal', amount: 'decimal' },
+      phases: ['post', 'reverse'],
+      reads: [{ as: 'accounts', table: 'accounts', by: [{ column: 'id', from: 'input.account' }] }],
+      locks: [{ read: 'accounts', column: 'id', table: 'accounts' }],
+      decides: [
+        { input: 'amount', min: '0', max: { input: 'due' } },
+        { input: 'amount', min: '0', max: { read: 'accounts', column: 'balance' } },
+      ],
+      writes: ['entries'],
+    },
+  };
+  return kit;
+}
+
 /** The app whose order lines and visits post into the kit's ledger. */
 export function ledgerHostManifest(): Doc {
   return structuredClone(LEDGER_HOST) as unknown as Doc;
