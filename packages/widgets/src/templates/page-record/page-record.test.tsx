@@ -104,6 +104,8 @@ describe('PageRecord', () => {
     expect(within(fields).getByText('Number')).toBeDefined();
     expect(within(fields).getByText('Total')).toBeDefined();
     expect(within(fields).queryByText('ID')).toBeNull();
+    // One column that may shrink below its text: a long unbroken value (a key, a token) is cut short, and never widens the page on a phone.
+    expect(fields.className.split(' ')).toContain('grid-cols-1');
     // The masked column renders the masked treatment, exactly as the grid
     // would (D7): the row's _masked marker drives it.
     expect(fields.querySelector('[data-part="cell-masked"]')).not.toBeNull();

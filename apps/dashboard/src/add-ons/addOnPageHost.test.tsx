@@ -168,6 +168,15 @@ describe('mounting an add-on page', () => {
     expect(await screen.findByText('Drawn by the add-on')).toBeDefined();
   });
 
+  it('names the page in the top bar and the browser tab, not "Home"', async () => {
+    stubFetch();
+    restoreImporter = setAddOnModuleImporter(() => Promise.resolve({ default: () => <p>Drawn by the add-on</p> }));
+    await renderAt('/add-ons/invoices/documents');
+    await screen.findByText('Drawn by the add-on');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Invoice documents' })).toBeDefined();
+    expect(document.title).toContain('Invoice documents');
+  });
+
   it('pins the integrity the server recorded before importing anything', async () => {
     // The hash cannot ride on `import()`, so it rides on a preload link the
     // browser checks first. Without this the bytes are still fetched — they are

@@ -29,6 +29,7 @@ import { Button, EmptyState, Spinner } from '@adminium/ui';
 import { addOnNavOf, bootstrapQuery, type AddOnNavPage } from '../app/bootstrap.js';
 import { addOnsQuery } from '../studio/add-ons/addOnsApi.js';
 import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { addOnMessagesReady } from './addOnMessages.js';
 import { isComponent, loadAddOnModule } from './client.js';
 
@@ -274,5 +275,11 @@ function ResolvedAddOnPage() {
 
   // Keyed by page: switching between two pages of one add-on is a different
   // module, not a re-render of the same one with new props.
-  return <MountedPage key={`${page.addOnKey}/${page.ref}`} page={page} />;
+  return (
+    <>
+      {/* The page's name in the top bar and the browser tab: the shell only knows `/p/…`, and answers "Home" for the rest. */}
+      <PageActions title={t(page.labelKey, page.fallback)} />
+      <MountedPage key={`${page.addOnKey}/${page.ref}`} page={page} />
+    </>
+  );
 }

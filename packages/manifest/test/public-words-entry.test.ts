@@ -88,7 +88,7 @@ describe('a public entry answered by stock words', () => {
     expect(host({ ...ENTRY, rule: 0 })).toContain('an entry answered by stock words takes no "rule"');
     expect(host({ ...ENTRY, showLeft: { below: 5 } })).toContain('takes no "showLeft"');
     expect(host({ ...ENTRY, under: 'order_id' })).toContain('takes no "under"');
-    expect(host({ ...ENTRY, unlockBy: { header: true, column: 'buyer_note', self: true } })).toContain('takes no "unlockBy"');
+    expect(host({ ...ENTRY, unlockBy: { header: true, column: 'buyer_note', self: true, length: 12 } })).toContain('takes no "unlockBy"');
   });
 
   it('names an add-on the manifest names, by key and words id', () => {

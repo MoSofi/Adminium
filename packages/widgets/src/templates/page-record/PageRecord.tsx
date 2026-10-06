@@ -1227,7 +1227,7 @@ export function PageRecord({
       {/* Field grid — two columns at lg, one below (D4). */}
       <div
         data-part="record-fields"
-        className={`grid gap-x-8 ${fieldHalves.length === 2 ? 'lg:grid-cols-2' : ''}`}
+        className={`grid grid-cols-1 gap-x-8 ${fieldHalves.length === 2 ? 'lg:grid-cols-2' : ''}`}
       >
         {fieldHalves.map((half, index) => (
           <DetailKeyValue
