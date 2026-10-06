@@ -206,9 +206,12 @@ export async function writeManifestRoles(input: {
 
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   const model = snapshot === null ? null : parseDatabaseModel(snapshot.schema);
+  // Tables made under a prefix are known by their record alone: with none, a grant never falls on whatever table of the
+  // database happens to carry the short name.
+  const prefixed = (manifest.requiredSchema as { prefixed?: boolean } | undefined)?.prefixed === true;
   const tableId = (ref: string): string | null => {
-    const real = input.names[ref] ?? ref;
-    return model?.tables.find((table) => table.name === real)?.id ?? null;
+    const real = input.names[ref] ?? (prefixed ? null : ref);
+    return real === null ? null : (model?.tables.find((table) => table.name === real)?.id ?? null);
   };
   const roles = rolesRepo(meta);
   const permissions = permissionsRepo(meta);
@@ -260,8 +263,14 @@ export async function writeManifestRoles(input: {
       const id = tableId(table[1]!);
       if (id !== null) await narrow('table', `${connectionId}/${id}`, table[2]!);
     } else if (page !== null) {
-      const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
-      if (target !== null) await narrow('page', target.id, page[2]!);
+      // A grant on one of an add-on's own screens was made on its ref (no page row stands behind it), and is taken back there:
+      // left behind, a page that later takes the same name would open for the role with nobody having said so.
+      const byRef = await permissions.find(roleId, 'page', page[1]!);
+      if (byRef !== null) await narrow('page', page[1]!, page[2]!);
+      else {
+        const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
+        if (target !== null) await narrow('page', target.id, page[2]!);
+      }
     } else if (APP.test(grant)) {
       await permissions.revoke(roleId, 'app', manifest.key);
     } else if (ADD_ON_SETTINGS.test(grant)) {
@@ -320,15 +329,18 @@ export async function writeManifestRoles(input: {
         };
         await permissions.grant(role.id, 'table', ref, actions as never);
       } else if (page !== null) {
-        const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
-        if (target === null) {
-          // One of an add-on's own screens: no page row stands behind it, so the grant is on its ref.
-          if (codePagesOf(manifest).includes(page[1]!)) {
-            const held = await permissions.find(role.id, 'page', page[1]!);
-            await permissions.grant(role.id, 'page', page[1]!, { view: false, edit: false, ...(held?.actions as Record<string, boolean> | undefined), [page[2]!]: true } as never);
-          }
+        // One of an add-on's own screens FIRST: no page row stands behind it, so the grant is on its ref —
+        // never on some other page of this database that happens to carry the same name as its slug.
+        if (codePagesOf(manifest).includes(page[1]!)) {
+          const held = await permissions.find(role.id, 'page', page[1]!);
+          await permissions.grant(role.id, 'page', page[1]!, { view: false, edit: false, ...(held?.actions as Record<string, boolean> | undefined), [page[2]!]: true } as never);
+          // In the ledger like any other grant: given once (an owner who takes it away keeps it away), and taken back by a version that drops it.
+          seeded.add(pair);
+          result.seeded += 1;
           continue;
         }
+        const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
+        if (target === null) continue;
         const existing = await permissions.find(role.id, 'page', target.id);
         const actions = { view: false, edit: false, ...(existing?.actions as Record<string, boolean> | undefined), [page[2]!]: true };
         await permissions.grant(role.id, 'page', target.id, actions as never);

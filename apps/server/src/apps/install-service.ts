@@ -498,6 +498,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     schemaTarget: deps.schemaTarget,
     invalidateKey: (keyId) => deps.publicAccess?.invalidateKey?.(keyId),
     names: () => installedAppNames(),
+    dropEndpointGrants: async (connectionId, endpointIds) => deps.publicAccess?.service.dropEndpointGrants({ connectionId, endpointIds }),
   });
 
   /** The sides a staged tree actually carries, in serve order. */

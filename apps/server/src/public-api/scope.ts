@@ -21,7 +21,7 @@
  * here is in service of that sentence.
  */
 
-import { linkedConditionSchema, stateConditionSchema, type StateCondition } from '@adminium/manifest';
+import { linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, stateConditionSchema, type StateCondition } from '@adminium/manifest';
 import { ANONYMOUS_PER_IP_HOUR, plainColumns, plainTextListSchema, type AnonymousCaps } from './anonymous-caps.js';
 import type { WithholdWhen } from './withhold-when.js';
 import { z } from 'zod';
@@ -506,7 +506,7 @@ const resourceSchema = z
         link: columnSchema,
         /** The code is the row's own (`table` is the resource's own, `link` its key); `length` is the code's, without its prefix. */
         self: z.literal(true).optional(),
-        length: z.number().int().min(4).max(16).optional(),
+        length: z.number().int().min(SELF_UNLOCK_MIN_LENGTH).max(16).optional(),
         where: z
           .array(
             z.union([

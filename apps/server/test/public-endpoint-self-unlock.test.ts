@@ -108,6 +108,6 @@ describe('a row opened by its own code', () => {
 
   it('a length is said only of such a row', () => {
     expect(issues(def({ path: '/cards_by_voucher', unlock_by: { table: 'public.vouchers', column: 'code', link: 'card_id', length: 12 } }))).toEqual(['ENDPOINT_UNLOCK_UNKNOWN_COLUMN']);
-    expect(parseDefinition({ ...def(), unlock_by: { table: 'public.cards', column: 'code', link: 'id', self: true, length: 3 } }).ok).toBe(false);
+    expect(parseDefinition({ ...def(), unlock_by: { table: 'public.cards', column: 'code', link: 'id', self: true, length: 9 } }).ok).toBe(false);
   });
 });

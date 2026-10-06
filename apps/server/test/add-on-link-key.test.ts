@@ -5,7 +5,7 @@
  * (no app's key carries its entry), is made only on somebody's say, and stops
  * with the add-on.
  */
-import { publicEndpointsRepo, publicKeysRepo } from '@adminium/meta';
+import { publicApiStateRepo, publicEndpointsRepo, publicKeysRepo, publicScopesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
@@ -84,11 +84,51 @@ describe.each(LEGS)("an add-on's own link key — %s", (dialect, available) => {
     }
   });
 
+  it.skipIf(!available)('a key the owner made by hand loses the add-on\'s entries at uninstall: it does not go on serving the tables that stay', async () => {
+    const { shopKey } = await setUp();
+    // The shop's key, as a key of the owner's own making would be: nobody manages it, so no take-back of an app's reaches it.
+    await h.meta.db.updateTable('adminium_public_keys').set({ managedBy: null }).where('id', '=', shopKey).execute();
+    const balance = (await publicEndpointsRepo(h.meta).findByRef(h.connectionId, BALANCE_REF))!;
+    const held = async () => {
+      const key = (await publicKeysRepo(h.meta).findById(shopKey))!;
+      const scope = (await publicScopesRepo(h.meta).findById(key.scopeId))!;
+      return { access: Object.keys(JSON.parse(String(key.access ?? '{}')) as object), document: typeof scope.document === 'string' ? scope.document : JSON.stringify(scope.document) };
+    };
+    const before = await held();
+    expect(before.access).toContain(balance.id);
+    expect(before.document).toContain('cards_kit_cards');
+    const gone = await h.inject({ method: 'DELETE', url: `/add-ons/${CARDS_KIT}` });
+    expect(gone.statusCode, gone.body).toBe(200);
+    // The cards table stays (nothing was dropped); the key no longer reads it, and still holds what was the shop's.
+    expect(await h.tableNames()).toContain('cards_kit_cards');
+    const after = await held();
+    expect(after.access).not.toContain(balance.id);
+    expect(after.access.length).toBe(before.access.length - 1);
+    expect(after.document).not.toContain('cards_kit_cards');
+  });
+
+  it.skipIf(!available)('with no app beside it, removing it still tells every process its key has stopped', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    await h.stageAddOn(cardsKitManifest());
+    const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: CARDS_KIT, version: '1.0.0', attachTo: [], publicAccess: true } });
+    expect(added.statusCode, added.body).toBe(200);
+    const link = (await publicKeysRepo(h.meta).listManagedBy(CARDS_KIT)).find((key) => key.purpose === LINK_KEY)!;
+    expect(link.revokedAt).toBeNull();
+    // No app's key is narrowed on the way, so nothing else moves the revision the other processes watch.
+    const revision = await publicApiStateRepo(h.meta).read();
+    expect((await h.inject({ method: 'DELETE', url: `/add-ons/${CARDS_KIT}` })).statusCode).toBe(200);
+    expect((await publicKeysRepo(h.meta).findById(link.id))!.revokedAt).not.toBeNull();
+    expect(await publicApiStateRepo(h.meta).read()).toBeGreaterThan(revision);
+  });
+
   it.skipIf(!available)('revoked at uninstall: the token it was given opens nothing', async () => {
     const { linkKey } = await setUp();
+    const revision = await publicApiStateRepo(h.meta).read();
     const gone = await h.inject({ method: 'DELETE', url: `/add-ons/${CARDS_KIT}` });
     expect(gone.statusCode, gone.body).toBe(200);
     expect((await publicKeysRepo(h.meta).findById(linkKey))!.revokedAt).not.toBeNull();
+    // Every other process is told at once: the shared revision moved, so none goes on serving the key from memory.
+    expect(await publicApiStateRepo(h.meta).read()).toBeGreaterThan(revision);
     const served = await servePublic(h as never, linkKey);
     try {
       expect((await served.post('/claim/token', { token: TOKEN })).statusCode).toBe(401);

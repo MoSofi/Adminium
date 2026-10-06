@@ -27,7 +27,7 @@
  * order, methods in GET POST PATCH PUT DELETE BATCH order, two-space indent.
  */
 
-import { formulaColumns, linkedConditionSchema, stateConditionSchema } from '@adminium/manifest';
+import { formulaColumns, linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, stateConditionSchema } from '@adminium/manifest';
 import { z } from 'zod';
 
 import type { EffectiveColumn, EffectiveModel } from '../connections/effective-schema.js';
@@ -422,7 +422,7 @@ export const publicEndpointDefinitionSchema = z
         column: columnSchema,
         link: columnSchema,
         self: z.literal(true).optional(),
-        length: z.number().int().min(4).max(16).optional(),
+        length: z.number().int().min(SELF_UNLOCK_MIN_LENGTH).max(16).optional(),
         where: z
           .array(
             z.union([

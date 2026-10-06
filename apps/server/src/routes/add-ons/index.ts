@@ -404,7 +404,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    * and pages alike, as before.
    */
   function openBundlePathsOf(manifest: AddOnManifest): string[] {
-    return pagesAreGated(manifest) ? [...new Set((manifest.addOn.slots ?? []).map((slot) => slot.client))] : bundlePathsOf(manifest.addOn);
+    if (!pagesAreGated(manifest)) return bundlePathsOf(manifest.addOn);
+    // Never a file a page is built into, whatever else names it: the manifest check refuses the pair, and this is the second line.
+    const gated = new Set((manifest.addOn.pages ?? []).map((page) => page.client));
+    return [...new Set((manifest.addOn.slots ?? []).map((slot) => slot.client))].filter((path) => !gated.has(path));
   }
 
   /** Every file a host may be told to load, with its address: one per slot file, and — behind a permission — one per page. */
@@ -1450,9 +1453,15 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          */
         const mayManage = typeof request.can !== 'function' || (await request.can(PERMISSIONS.manifestsManage));
         const needs = mayManage ? await needsByAddOn(deps.meta) : new Map<string, AppNeed[]>();
+        const addOns = await Promise.all((await manifests.list('add-on')).map((installed) => toDto(installed, needs.get(installed.row.manifestKey) ?? [])));
+        // A page kept behind a permission is named only to who may open it (or who manages add-ons): the list is read by everybody signed in.
+        if (mayManage) return { addOns };
         return {
           addOns: await Promise.all(
-            (await manifests.list('add-on')).map((installed) => toDto(installed, needs.get(installed.row.manifestKey) ?? [])),
+            addOns.map(async (addOn) => {
+              const open = await Promise.all(addOn.bundles.map(async (bundle) => bundle.ref === undefined || (await request.can(addOnPagePermission(bundle.ref)))));
+              return { ...addOn, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
+            }),
           ),
         };
       },
@@ -1615,6 +1624,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const manifest = parseManifest(installed.document, key);
         const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
         if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
+        // Switched off for the dashboard, the page is not there for anybody: its rail entry is gone, and so is its code.
+        if (pagesAreGated(manifest) && !installed.attachments.some((attachment) => attachment.attachedTo === DASHBOARD_HOST && attachment.disabledAt === null)) {
+          throw new NotFoundError(`"${key}" has no page "${ref}".`);
+        }
         /*
          * THE GATE. The code of a page is the page: whoever is handed it can
          * run it. A server with no permission layer answers as it does for
@@ -1896,14 +1909,21 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const settled =
           core === null || where === null || host === DASHBOARD_HOST
             ? undefined
-            : await core.settleHost({
-                addOnKey: request.params.key,
-                appKey: host,
-                connectionId: where,
-                publicAccess: request.body.enabled && request.body.publicAccess === true,
-                actor: { id: actor.id, label: actor.label, superAdmin: actor.superAdmin ?? (() => Promise.resolve(false)), can: actor.can ?? (() => Promise.resolve(false)) },
-                host: { log: request.log },
-              });
+            : await core
+                .settleHost({
+                  addOnKey: request.params.key,
+                  appKey: host,
+                  connectionId: where,
+                  publicAccess: request.body.enabled && request.body.publicAccess === true,
+                  actor: { id: actor.id, label: actor.label, superAdmin: actor.superAdmin ?? (() => Promise.resolve(false)), can: actor.can ?? (() => Promise.resolve(false)) },
+                  host: { log: request.log },
+                })
+                .catch(async (error: unknown) => {
+                  // Its entries could not be taken off the app's key: it is not left reading as off while they still answer.
+                  // Put back on, the request fails as it must, and the same request sent again does the whole of it.
+                  if (!request.body.enabled) await manifests.setAttachmentEnabled(installed.row.id, host, true);
+                  throw error;
+                });
         // Enable/disable changes which providers resolve, so the runtime is
         // rebuilt here too — an add-on switched off must stop rendering
         // immediately, not at the next restart.

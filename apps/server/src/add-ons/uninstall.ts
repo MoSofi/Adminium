@@ -144,10 +144,6 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
       result.kept.pages = listed.pages.kept.map((page) => page.slug);
       result.dropped = done.dropped;
       result.kept.tables = list.tables.map((entry) => entry.record.tableName).filter((name) => !done.dropped.includes(name));
-      // A page of its own code has no page row: whoever was granted it by its ref — a role of the owner's too — holds nothing now.
-      if (manifest !== null && pagesAreGated(manifest)) {
-        for (const page of manifest.addOn.pages ?? []) await permissionsRepo(deps.meta).revokeAllForResource('page', page.ref);
-      }
     } else if (installed.row.connectionId !== null) {
       // An add-on from before: its tables stay, as always; its records are let go so a reinstall finds them.
       const records = appTablesRepo(deps.meta);
@@ -155,6 +151,11 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
         if (record.state !== 'dropped') await records.setState(record.id, 'released');
         result.kept.tables.push(record.tableName);
       }
+    }
+    // A page of its own code has no page row: whoever was granted it by its ref — a role of the owner's too — holds nothing now.
+    // Whatever else of it there was to remove: an add-on with pages and nothing more has these grants all the same.
+    if (manifest !== null && pagesAreGated(manifest)) {
+      for (const page of manifest.addOn.pages ?? []) await permissionsRepo(deps.meta).revokeAllForResource('page', page.ref);
     }
     await input.beforeRowGoes?.();
     await manifests.uninstall(installed.row.id);

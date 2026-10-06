@@ -902,6 +902,49 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     throw new PublicApiContended('the public API changed under this key change too many times; try again');
   }
 
+  /**
+   * ENDPOINTS THAT ARE GOING WITH WHAT MADE THEM (an app or an add-on being
+   * uninstalled): every live key that grants one loses that grant, and the
+   * document it serves is derived again from what is left — a key the owner
+   * made by hand included. Without it such a key would go on serving the
+   * tables the uninstall kept, from a document nothing would ever derive
+   * again. It can only remove, so it checks nothing. Called BEFORE the rows
+   * go. Answers the keys it changed.
+   */
+  async function dropEndpointGrants(input: { connectionId: string; endpointIds: readonly string[] }): Promise<{ keys: string[] }> {
+    const { connectionId } = input;
+    const going = new Set(input.endpointIds);
+    if (going.size === 0) return { keys: [] };
+    await state.ensure(now());
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const revision = await state.read();
+      const at = now();
+      const map = endpointMap(await endpoints.listByConnection(connectionId));
+      const view = await deps.viewFor(connectionId);
+      const changed: { id: string; scopeId: string; access: Record<string, PublicMethod[]>; document: string }[] = [];
+      for (const key of await keys.listLiveDerived(connectionId, at)) {
+        const before = parseAccess(key.access);
+        if (!Object.keys(before).some((id) => going.has(id))) continue;
+        const access = Object.fromEntries(Object.entries(before).filter(([id]) => !going.has(id)));
+        const kind: PublicKeyKind = key.kind === 'server' ? 'server' : 'browser';
+        changed.push({ id: key.id, scopeId: key.scopeId, access, document: JSON.stringify(deriveScopeDocument({ kind, access }, map, view).document) });
+      }
+      if (changed.length === 0) return { keys: [] };
+      const committed = await meta.db.transaction().execute(async (trx) => {
+        if (!(await state.advanceFrom(revision, at, trx))) return false;
+        for (const key of changed) {
+          await keys.setAccess(key.id, key.access, at, trx);
+          await scopes.update(key.scopeId, { document: key.document }, at, trx);
+        }
+        return true;
+      });
+      if (!committed) continue;
+      for (const key of changed) deps.invalidate?.(key.id);
+      return { keys: changed.map((key) => key.id) };
+    }
+    throw new PublicApiContended('the public API changed under this key change too many times; try again');
+  }
+
   /** What a key holds, by endpoint ref: the methods it is granted on each (an endpoint gone is left out). */
   async function heldByKey(connectionId: string, keyId: string): Promise<Map<string, string[]>> {
     const key = await keys.findById(keyId);
@@ -914,7 +957,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     return out;
   }
 
-  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues, setManagedAccess, narrowManagedAccess, heldByKey };
+  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues, setManagedAccess, narrowManagedAccess, dropEndpointGrants, heldByKey };
 }
 
 export type EndpointService = ReturnType<typeof createEndpointService>;

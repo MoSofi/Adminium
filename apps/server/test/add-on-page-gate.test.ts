@@ -10,6 +10,7 @@
 import { permissionsRepo, rolesRepo, usersRepo, type User } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { pageRefClash } from '../src/add-ons/install.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { stockKitManifest } from './fixtures/stock-kit/index.js';
@@ -83,6 +84,50 @@ describe('the code of a page kept behind its permission', () => {
     expect((await pageCode(h, who)).statusCode).toBe(200);
   });
 
+  it('is named in the list only to who may open it; a slot fill is named to everybody', async () => {
+    h = await installed();
+    const bundlesFor = async (who: User) => ((await h!.inject({ method: 'GET', url: '/add-ons', as: who })).json().addOns.find((entry: { key: string }) => entry.key === 'stock-kit').bundles as { path: string; ref?: string }[]).map((bundle) => bundle.path).sort();
+    expect(await bundlesFor(await person(h, 'stock-kit-manager'))).toEqual(['dist/count.js', 'dist/fill.js']);
+    expect(await bundlesFor(await person(h, 'stock-kit-reader'))).toEqual(['dist/fill.js']);
+    expect(await bundlesFor(await person(h, null))).toEqual(['dist/fill.js']);
+  });
+
+  it('is not there for anybody while the add-on is switched off for the dashboard, and is back when it is switched on', async () => {
+    h = await installed();
+    const manager = await person(h, 'stock-kit-manager');
+    expect((await pageCode(h, manager)).statusCode).toBe(200);
+    const off = await h.inject({ method: 'PATCH', url: '/add-ons/stock-kit', payload: { attachedTo: 'dashboard', enabled: false } });
+    expect(off.statusCode, off.body).toBe(200);
+    for (const who of [manager, undefined]) expect((await pageCode(h, who)).statusCode).toBe(404);
+    expect((await h.inject({ method: 'PATCH', url: '/add-ons/stock-kit', payload: { attachedTo: 'dashboard', enabled: true } })).statusCode).toBe(200);
+    expect((await pageCode(h, manager)).statusCode).toBe(200);
+  });
+
+  it('a version that drops the page takes its grant back from the add-on\'s role: a later page of that name opens for nobody unasked', async () => {
+    h = await installed();
+    const manager = (await rolesRepo(h.meta).findBySlug('stock-kit-manager'))!;
+    expect((await permissionsRepo(h.meta).find(manager.id, 'page', 'stock-kit-count'))?.actions).toMatchObject({ view: true });
+    const next = kit() as Record<string, unknown> & { addOn: Record<string, unknown>; roles: { key: string; permissions: string[] }[] };
+    next['version'] = '1.0.1';
+    const { pages: _pages, ...withoutPages } = next.addOn;
+    next.addOn = withoutPages;
+    next.roles = next.roles.map((role) => ({ ...role, permissions: role.permissions.filter((grant) => grant !== 'page:@stock-kit-count:view') }));
+    await h.stageAddOn(next, { files: FILES });
+    const reply = await h.inject({ method: 'POST', url: '/add-ons/stock-kit/update', payload: { to: '1.0.1' } });
+    expect(reply.statusCode, reply.body).toBe(200);
+    expect((await permissionsRepo(h.meta).find(manager.id, 'page', 'stock-kit-count'))?.actions ?? { view: false }).toMatchObject({ view: false });
+    expect((await pageCode(h, await person(h, 'stock-kit-manager'))).statusCode).toBe(404);
+  });
+
+  it('uninstalled, nobody holds the page any more — a role of the owner\'s own included', async () => {
+    h = await installed();
+    const role = await rolesRepo(h.meta).create({ slug: 'counter', name: 'Counter' } as never);
+    await permissionsRepo(h.meta).grant(role.id, 'page', 'stock-kit-count', { view: true, edit: false } as never);
+    const gone = await h.inject({ method: 'DELETE', url: '/add-ons/stock-kit' });
+    expect(gone.statusCode, gone.body).toBe(200);
+    expect(await permissionsRepo(h.meta).find(role.id, 'page', 'stock-kit-count')).toBeNull();
+  });
+
   it('is not served from the address slot fills use, to anybody', async () => {
     h = await installed();
     for (const who of [undefined, await person(h, 'stock-kit-manager')]) {
@@ -102,6 +147,49 @@ describe('the code of a page kept behind its permission', () => {
     h = await installed();
     expect((await h.inject({ method: 'GET', url: '/add-ons/stock-kit/pages/stock-kit-items/bundle' })).statusCode).toBe(404);
     expect((await h.inject({ method: 'GET', url: '/add-ons/absent/pages/x/bundle' })).statusCode).toBe(404);
+  });
+});
+
+describe('a page\'s name opens it, so two add-ons cannot share one', () => {
+  const addOn = (key: string, refs: string[]) => ({ key, addOn: { pages: refs.map((ref) => ({ ref })) } });
+  const there = (key: string, code: string[], generated: string[] = []) => ({ key, document: { key, pages: generated.map((ref) => ({ ref })), addOn: { pages: code.map((ref) => ({ ref })) } } });
+
+  it('refuses a name another installed add-on has, or one that falls under another\'s key — either way round', () => {
+    // Keys that begin alike: the shorter may not name a page under the longer…
+    expect(pageRefClash(addOn('inventory', ['inventory-pro-stock']), [there('inventory-pro', ['inventory-pro-plans'])])).toMatch(/"inventory-pro-stock", a name that belongs to "inventory-pro"/);
+    expect(pageRefClash(addOn('inventory', ['inventory-pro']), [there('inventory-pro', [])])).toMatch(/belongs to "inventory-pro"/);
+    // …and the longer may not arrive where the shorter already has one under its key.
+    expect(pageRefClash(addOn('inventory-pro', ['inventory-pro-plans']), [there('inventory', ['inventory-pro-stock'])])).toMatch(/"inventory", which is installed here, has a page "inventory-pro-stock"/);
+    expect(pageRefClash(addOn('inventory-pro', []), [there('inventory', [], ['inventory-pro'])])).toMatch(/has a page "inventory-pro"/);
+    // The very same name, whoever has it (an add-on from before the floor names its page freely).
+    expect(pageRefClash(addOn('documents', ['documents']), [there('invoices', ['documents'])])).toMatch(/"documents", and so has "invoices"/);
+    // Side by side with pages each under its own key: free. Its own stored row (an update) is not another add-on.
+    expect(pageRefClash(addOn('inventory', ['inventory-stock', 'inventory']), [there('inventory-pro', ['inventory-pro-plans']), there('inventories', ['inventories-list'])])).toBeNull();
+    expect(pageRefClash(addOn('inventory', ['inventory-stock']), [there('inventory', ['inventory-stock'])])).toBeNull();
+  });
+
+  it('an install is refused while the other add-on is there, and nothing of it is written', async () => {
+    h = await installed();
+    const reaching = {
+      kind: 'add-on',
+      manifestVersion: 1,
+      key: 'stock',
+      name: 'Stock',
+      version: '1.0.0',
+      publisher: { id: 'adminium', name: 'Adminium' },
+      license: 'MIT',
+      description: { key: 'stock.line', fallback: 'Counts.' },
+      categories: ['data'],
+      compatibility: { minAdminiumVersion: '0.3.18' },
+      addOn: { attaches: [{ app: '*', range: '*' }], connect: { kind: 'none' }, hostApi: 1, pages: [{ ref: 'stock-kit-plans', title: { key: 'stock.nav', fallback: 'Plans' }, icon: 'file', client: 'dist/count.js', nav: { group: 'library', order: 20 } }] },
+    };
+    await h.stageAddOn(reaching, { files: { 'dist/count.js': PAGE } });
+    for (const url of ['/add-ons/plan', '/add-ons']) {
+      const reply = await h.inject({ method: 'POST', url, payload: { key: 'stock', version: '1.0.0', attachTo: [] } });
+      expect(reply.statusCode, reply.body).toBe(422);
+      expect(reply.body).toMatch(/ADD_ON_PAGE_REF_TAKEN/);
+    }
+    expect((await h.inject({ method: 'GET', url: '/add-ons' })).json().addOns.map((entry: { key: string }) => entry.key)).not.toContain('stock');
   });
 });
 

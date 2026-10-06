@@ -569,7 +569,10 @@ export function planPublicEndpoints(
       }
     }
     if (view === null) return { ...planned, issues: safety };
-    const table = view.model.tables.find((candidate) => candidate.name === real);
+    // A table made under a prefix is known by its record alone: with none, an entry never opens whatever table of the
+    // database happens to carry the short name.
+    const unrecorded = opts.tablesMadeLater !== true && (manifest.requiredSchema as { prefixed?: boolean } | undefined)?.prefixed === true && names[entry.table] === undefined;
+    const table = unrecorded ? undefined : view.model.tables.find((candidate) => candidate.name === real);
     if (table === undefined) {
       return opts.tablesMadeLater === true
         ? { ...planned, issues: safety }

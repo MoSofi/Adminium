@@ -27,6 +27,7 @@
  * explicitly: the app's row may not exist yet for the target to infer it from,
  * and "the only connection" is the wrong answer on an instance with two.
  */
+import { pagesAreGated } from './page-gate.js';
 import {
   compareSemver,
   installsLikeAnApp,
@@ -348,7 +349,7 @@ export async function planAddOn(
 
 /** Reads and re-verifies a staged package, then parses its manifest. */
 export async function addOnManifestFromStore(
-  deps: Pick<AddOnInstallerDeps, 'store' | 'unbuiltWords'>,
+  deps: Pick<AddOnInstallerDeps, 'store' | 'unbuiltWords'> & Partial<Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>>,
   key: string,
   version: string,
   hosts: readonly HostApp[] = [],
@@ -378,7 +379,50 @@ export async function addOnManifestFromStore(
   } catch {
     throw new ValidationFailedError(`The manifest in "${key}@${version}" is not readable JSON.`);
   }
-  return { ...parseAddOnDocument(document, key, hosts, deps.unbuiltWords), document };
+  const parsed = parseAddOnDocument(document, key, hosts, deps.unbuiltWords);
+  // Pages behind a permission each (an add-on from before the floor has none to share).
+  if (deps.meta !== undefined && deps.credentialCrypto !== undefined && pagesAreGated(parsed.manifest)) {
+    const clash = pageRefClash(
+      parsed.manifest,
+      (await manifestsRepo(deps.meta, deps.credentialCrypto).list('add-on')).map((other) => ({ key: other.row.manifestKey, document: other.document })),
+    );
+    if (clash !== null) throw new ValidationFailedError(clash, { code: 'ADD_ON_PAGE_REF_TAKEN' });
+  }
+  return { ...parsed, document };
+}
+
+/** Every page ref a stored add-on document declares: its generated pages and its code pages. */
+function pageRefsOf(document: unknown): string[] {
+  const doc = (document ?? {}) as { pages?: unknown; addOn?: { pages?: unknown } };
+  const refs = (list: unknown): string[] => (Array.isArray(list) ? list.flatMap((page) => (typeof (page as { ref?: unknown } | null)?.ref === 'string' ? [(page as { ref: string }).ref] : [])) : []);
+  return [...refs(doc.pages), ...refs(doc.addOn?.pages)];
+}
+
+/**
+ * Why an add-on's pages cannot live beside the add-ons installed here, or
+ * null. A page is opened by a permission that names its REF alone, and a ref
+ * is held to its add-on's key by its beginning (`inventory`, `inventory-…`).
+ * So two add-ons whose keys begin alike — `inventory` and `inventory-pro` —
+ * could each name `inventory-pro-stock`: a role of one would then open the
+ * other's page, and removing one would take the other's grants with it.
+ * Refused: a ref another installed add-on has, and a ref that falls under
+ * another installed add-on's key, either way round.
+ */
+export function pageRefClash(manifest: { key: string; pages?: readonly { ref: string }[] | undefined; addOn: { pages?: readonly { ref: string }[] | undefined } }, installed: readonly { key: string; document: unknown }[]): string | null {
+  const under = (ref: string, key: string): boolean => ref === key || ref.startsWith(`${key}-`);
+  const mine = [...(manifest.pages ?? []), ...(manifest.addOn.pages ?? [])].map((page) => page.ref);
+  for (const other of installed) {
+    if (other.key === manifest.key) continue;
+    const theirs = pageRefsOf(other.document);
+    const same = mine.find((ref) => theirs.includes(ref));
+    if (same !== undefined) return `"${manifest.key}" has a page "${same}", and so has "${other.key}", which is installed here: a page's name opens it, so two add-ons cannot share one.`;
+    // Only keys that begin alike can reach into each other: the longer key's pages are all under the shorter one's too.
+    const reaches = other.key.startsWith(`${manifest.key}-`) ? mine.find((ref) => under(ref, other.key)) : undefined;
+    if (reaches !== undefined) return `"${manifest.key}" has a page "${reaches}", a name that belongs to "${other.key}", which is installed here: a role of one add-on would open the other's page.`;
+    const reached = manifest.key.startsWith(`${other.key}-`) ? theirs.find((ref) => under(ref, manifest.key)) : undefined;
+    if (reached !== undefined) return `"${other.key}", which is installed here, has a page "${reached}" — a name that belongs to "${manifest.key}": a role of one add-on would open the other's page.`;
+  }
+  return null;
 }
 
 /** Refuse, by name, what a plan says stands in the way. */

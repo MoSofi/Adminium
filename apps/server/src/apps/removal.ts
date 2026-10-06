@@ -33,7 +33,7 @@ import {
   pagesRepo,
   permissionsRepo,
   projectAppsRepo,
-  publicEndpointsRepo,
+  publicApiStateRepo, publicEndpointsRepo,
   publicKeysRepo,
   rolesRepo,
   settingsRepo,
@@ -63,6 +63,8 @@ export interface RemovalDeps {
   invalidateKey?: ((keyId: string) => void) | undefined;
   /** The installed apps' names by key, for saying who else uses a table. */
   names?: (() => Promise<Map<string, string>>) | undefined;
+  /** Endpoints about to go: every live key that grants one loses the grant (`endpoint-service.ts` `dropEndpointGrants`). */
+  dropEndpointGrants?: ((connectionId: string, endpointIds: readonly string[]) => Promise<unknown>) | undefined;
 }
 
 /** Whether an uninstall also deletes the tables it may, and who asks. */
@@ -392,7 +394,13 @@ export function createRemovals(deps: RemovalDeps) {
       await publicKeysRepo(deps.meta).revoke(managed.id);
       deps.invalidateKey?.(managed.id);
     }
+    // A key the owner made by hand may grant one of them too: it loses that grant first, or it would go on serving a table this leaves behind.
+    const leaving = new Map<string, string[]>();
+    for (const endpoint of list.endpoints) leaving.set(endpoint.connectionId, [...(leaving.get(endpoint.connectionId) ?? []), endpoint.id]);
+    for (const [connectionId, ids] of leaving) await deps.dropEndpointGrants?.(connectionId, ids);
     for (const endpoint of list.endpoints) await publicEndpointsRepo(deps.meta).remove(endpoint.id);
+    // Every other process drops what it remembers of the keys at once (a revoked key is else served from memory for a while yet).
+    if (list.keys.length > 0 || list.endpoints.length > 0) await publicApiStateRepo(deps.meta).bump();
     /*
      * 2. Pages: one nobody touched goes, with its grants (a grant is a
      *    polymorphic string no FK reaches); one somebody edited stays, as
