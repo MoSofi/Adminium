@@ -16,7 +16,7 @@ import { priceWorld, seedOffers, lineOf, type PriceWorld } from './adjust.helper
 import { saveWorld } from './adjust-save.helpers.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { CATEGORY, MARKET_ADJUST, PRICE_KIT, PRICES, WIDE_ADJUST, marketManifest, type Item } from './fixtures/price-kit/index.js';
-import { LEGS } from './invoicing-install.helpers.js';
+import { LEGS, TEST_POOL_MAX } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 type Doc = Record<string, unknown>;
@@ -266,7 +266,8 @@ describe.each(LEGS)('a price tried before it is saved — %s', (dialect, availab
     });
     expect(money(out.order['total'])).toBe('48.06');
     expect(writes).toBe(0);
-    if (dialect === 'sqlite') return;
+    // (With a pool of one connection the save below would hold the only one: a try would wait for the connection, not for a lock.)
+    if (dialect === 'sqlite' || TEST_POOL_MAX === 1) return;
     // Somebody is in the middle of saving this very order: the try answers all the same, and their save is not kept waiting by it.
     await w.db.transaction().execute(async (trx) => {
       await sql`SELECT id FROM market_orders WHERE id = ${order} FOR UPDATE`.execute(trx);

@@ -98,7 +98,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | Group | Ops | |
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
-| `/api/v1/add-ons/*` | 31 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
+| `/api/v1/add-ons/*` | 32 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
@@ -110,7 +110,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
 | `/api/v1/connections/*` | 26 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
-| `/api/v1/data/*` | 22 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
+| `/api/v1/data/*` | 23 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
 | `/api/v1/documents/*` | 14 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
@@ -183,6 +183,7 @@ GET /api/v1/about/update-check
 
 ```http
 POST /api/v1/add-ons/{key}/look-up
+POST /api/v1/add-ons/{key}/codes/make
 GET /api/v1/add-ons/{key}/kit
 POST /api/v1/add-ons/{key}/documents/render
 GET /api/v1/add-ons/catalog
@@ -388,6 +389,7 @@ GET /api/v1/data/{connectionId}/{table}/{recordId}/nightly
 GET /api/v1/data/{connectionId}/{table}/{recordId}/links/{relationId}
 POST /api/v1/data/{connectionId}/{table}/dry-run
 POST /api/v1/data/{connectionId}/{table}/{recordId}/dry-run
+POST /api/v1/data/{connectionId}/{table}/try
 POST /api/v1/data/{connectionId}/{table}/{recordId}/actions/{actionId}
 ```
 
