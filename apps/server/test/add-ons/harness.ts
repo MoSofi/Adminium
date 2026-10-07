@@ -15,6 +15,19 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { parseDatabaseModel } from '@adminium/engine';
+import { overridesRepo, snapshotsRepo } from '@adminium/meta';
+
+import { loadDecider } from '../../src/add-ons/decide.js';
+import { keepAddOnInstalls } from '../../src/apps/table-ref.js';
+import { applyOverrides } from '../../src/connections/effective-schema.js';
+import { SnapshotView } from '../../src/crud/identifiers.js';
+import type { PostedOutcome } from '../../src/crud/ledger-write.js';
+import type { WriteContext, WriteTarget } from '../../src/crud/write-context.js';
+import { createWriteService } from '../../src/crud/write-service.js';
+import { writeStores } from '../../src/crud/write-stores.js';
+import { normalizeWriteValue } from '../../src/crud/write-values.js';
+import { createLedgerRuntime, type LedgerRefusal, type LedgerRuntimeDeps } from '../../src/ledgers/registry.js';
 import { addOnHarness, type Dialect, type Harness, type HarnessOptions } from '../app-add-ons.helpers.js';
 
 type Doc = Record<string, unknown>;
@@ -79,4 +92,96 @@ export async function installBuilt(dialect: Dialect, addOn: BuiltAddOn, opts: Ha
   const prefix = `${addOn.key.replace(/-/g, '_')}_`;
   const real = (ref: string) => `${prefix}${ref}`;
   return { h, addOn, reply: res.json() as Doc, real, rowsOf: (ref, where) => h.rows(`select * from ${real(ref)}${where === undefined ? '' : ` where ${where}`}`) };
+}
+
+/** Staff at a desk, as the dashboard writes. */
+export const DESK: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy' }, request: null };
+
+export interface Saved {
+  row: Record<string, unknown>;
+  /** What each ledger the save posted into said of it. */
+  posted: PostedOutcome[];
+}
+
+export interface Writing extends Installed {
+  /** A row of one of the add-on's tables made through the write service: its rules, its postings, the add-on's own code. */
+  create(ref: string, values: Record<string, unknown>, context?: WriteContext): Promise<Saved>;
+  update(ref: string, id: unknown, values: Record<string, unknown>, context?: WriteContext): Promise<Saved>;
+  /** One row of a table by its key, as the database holds it now. */
+  one(ref: string, id: unknown): Promise<Record<string, unknown>>;
+  /** Every answer of the add-on's code that Adminium refused, with the check that refused it: what an audit row would say. */
+  refused: LedgerRefusal[];
+}
+
+/**
+ * The write service over an installed add-on, with the add-on's own built
+ * file loaded as the code that decides — so a save here goes the whole way a
+ * save on a server goes: the table's rules, the posting, the file run in its
+ * bare context, the rows it answers checked and written, the totals settled.
+ */
+export async function writing(installed: Installed): Promise<Writing> {
+  const { h, addOn } = installed;
+  const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
+  const view = new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
+  const { db, dialect } = await h.manager.data(h.connectionId);
+  const idOf = (ref: string) => {
+    const found = model.tables.find((table) => table.name === installed.real(ref));
+    if (found === undefined) throw new Error(`no table ${installed.real(ref)}`);
+    return found.id;
+  };
+  const target = (ref: string): WriteTarget => ({ connectionId: h.connectionId, view, table: view.table(idOf(ref)), db, dialect, timezone: 'UTC' });
+  const server = Object.entries(addOn.files).find(([path]) => path.endsWith('server.js'));
+  if (server === undefined) throw new Error(`${addOn.key} names no file that decides`);
+  const refused: LedgerRefusal[] = [];
+  const decider = loadDecider({ key: addOn.key, version: addOn.version, path: server[0], bytes: Buffer.from(server[1], 'utf8') });
+  const installs = keepAddOnInstalls(h.meta, async () => model);
+  const deps: LedgerRuntimeDeps = {
+    installs: () => installs.current(),
+    refresh: () => installs.fresh(),
+    decider: (key) => (key === addOn.key ? decider : null),
+    versionNow: async (key) => {
+      const row = await h.meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', key).executeTakeFirst();
+      return row === undefined ? null : { version: row.version, status: row.status };
+    },
+    refused: async (event) => {
+      refused.push(event);
+    },
+  };
+  const writes = createWriteService({ ...writeStores(h.meta), ledgers: createLedgerRuntime(deps) });
+  const one = async (ref: string, id: unknown) => {
+    const [row] = await installed.rowsOf(ref, `id = ${String(id)}`);
+    if (row === undefined) throw new Error(`no row ${String(id)} in ${ref}`);
+    return row;
+  };
+  return {
+    ...installed,
+    one,
+    refused,
+    async create(ref, values, context = DESK) {
+      const at = target(ref);
+      let posted: PostedOutcome[] = [];
+      const row = await writes.create({
+        target: at,
+        values: Object.fromEntries(Object.entries(values).map(([name, value]) => [name, normalizeWriteValue(at.table.columns.get(name)!, value)])),
+        context,
+        announce: async (_row, _values, outcomes) => {
+          posted = [...(outcomes ?? [])];
+        },
+      });
+      return { row: row as Record<string, unknown>, posted };
+    },
+    async update(ref, id, values, context = DESK) {
+      let posted: PostedOutcome[] = [];
+      await writes.update({
+        target: target(ref),
+        pk: { id },
+        values,
+        context,
+        announce: async (outcome) => {
+          posted = [...(outcome.postings ?? [])];
+        },
+      });
+      return { row: await one(ref, id), posted };
+    },
+  };
 }
