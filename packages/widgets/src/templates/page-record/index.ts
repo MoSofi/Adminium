@@ -3,6 +3,7 @@ export {
   PAGE_RECORD_TEMPLATE_ID,
   PageRecord,
   type PageRecordAttachments,
+  type PageRecordHostTab,
   type PageRecordLabels,
   type PageRecordProps,
   type PageRecordRelated,

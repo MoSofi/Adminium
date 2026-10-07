@@ -267,6 +267,15 @@ export interface PageRecordProps {
    */
   panels?: readonly PageRecordPanel[] | undefined;
   /**
+   * TABS OF THE HOST'S OWN — rows that belong to this record and are found by
+   * something other than a foreign key (an add-on's rows for it). The same
+   * seam as `panels`, inside the tab strip: the host passes each tab's name
+   * and its content, and the page gives it a place — after the tabs of linked
+   * tables, before Files and Activity. A record with no other tab opens on
+   * the first of them.
+   */
+  hostTabs?: readonly PageRecordHostTab[] | undefined;
+  /**
    * EXTRA TOPBAR ACTIONS — the "Make ▾" menu's home.
    *
    * Same seam, different place: the host owns what the action does, this
@@ -283,6 +292,16 @@ export interface PageRecordProps {
   notice?: ReactNode;
   labels?: PageRecordLabels | undefined;
   testId?: string | undefined;
+}
+
+/** One host-supplied tab. `id` is a React key and the tab's value, nothing more. */
+export interface PageRecordHostTab {
+  id: string;
+  /** Already translated by the host. */
+  label: string;
+  /** How many rows it holds, when the host knows: the count beside the name. */
+  count?: number | undefined;
+  content: ReactNode;
 }
 
 /** One host-supplied panel. `id` is a React key and a test handle, nothing more. */
@@ -932,6 +951,7 @@ export function PageRecord({
   canAttach = false,
   maxFileBytes,
   panels,
+  hostTabs,
   notice,
   actions,
   onEvent,
@@ -1180,6 +1200,8 @@ export function PageRecord({
       : [visibleColumns];
 
   const hasTabs = tabs.length > 0 && related !== undefined;
+  const ownTabs = hostTabs ?? [];
+  const hasHostTabs = ownTabs.length > 0;
   const hasActivity = activity !== null && activity !== undefined;
   // Absent ⇒ no panel, the same rule `related` and `activity` follow.
   const hasAttachments = attachments !== null && attachments !== undefined;
@@ -1288,8 +1310,8 @@ export function PageRecord({
       )}
 
       {/* Related-record tabs + Activity (D4/D6). */}
-      {(hasTabs || hasActivity || hasAttachments) && (
-        <Tabs defaultValue={hasTabs ? `tab-0` : hasAttachments ? '__attachments' : '__activity'}>
+      {(hasTabs || hasHostTabs || hasActivity || hasAttachments) && (
+        <Tabs defaultValue={hasTabs ? `tab-0` : hasHostTabs ? `host-${ownTabs[0]!.id}` : hasAttachments ? '__attachments' : '__activity'}>
           <TabsList>
             {hasTabs &&
               tabs.map((tab, index) => (
@@ -1301,6 +1323,11 @@ export function PageRecord({
                   {tab.label ?? tab.table.split('.').pop()}
                 </TabsTrigger>
               ))}
+            {ownTabs.map((tab) => (
+              <TabsTrigger key={`host-${tab.id}`} value={`host-${tab.id}`} {...(tab.count === undefined ? {} : { count: tab.count })}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
             {hasAttachments && (
               <TabsTrigger value="__attachments">
                 {labels?.attachmentsTab ?? t('ui:templates.record.attachmentsTab', 'Files')}
@@ -1334,6 +1361,11 @@ export function PageRecord({
                 />
               </TabsContent>
             ))}
+          {ownTabs.map((tab) => (
+            <TabsContent key={`host-${tab.id}`} value={`host-${tab.id}`}>
+              {tab.content}
+            </TabsContent>
+          ))}
           {hasAttachments && (
             <TabsContent value="__attachments">
               <AttachmentsPanel
