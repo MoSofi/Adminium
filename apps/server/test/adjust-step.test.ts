@@ -10,8 +10,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { refusedAt } from '../src/crud/adjust/answers.js';
-import { AdjustFailed } from '../src/crud/adjust/step.js';
+import { AdjustFailed, createAdjuster } from '../src/crud/adjust/step.js';
 import { instantOf } from '../src/crud/states.js';
+import { writeClock } from '../src/crud/write-clock.js';
 import { SAMPLE_NOW, priceWorld, seedOffers, type PriceWorld } from './adjust.helpers.js';
 import { PUBLIC, STAFF, SYSTEM, stepperOf, type Stepper } from './adjust-step.helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
@@ -68,6 +69,20 @@ describe.each(LEGS)('the price question, asked — %s', (dialect, available) => 
     expect(named).toEqual(['Tote pair', { 'de-DE': 'Willkommen 10', 'en-US': 'Welcome 10' }, { 'de-DE': 'Willkommen 10', 'en-US': 'Welcome 10' }, { 'de-DE': 'Willkommen 10', 'en-US': 'Welcome 10' }]);
     // Applied at the instant the save judged by.
     expect(new Date(instantOf(rows[0]!['applied_at'])!).toISOString()).toBe(SAMPLE_NOW);
+  });
+
+  it.skipIf(!available)('an offer of a weekday is judged on the venue\'s clock, whatever else the order\'s table reads of it', async () => {
+    // Monday evening in London is Tuesday morning in Auckland: the mugs' Monday offer is on in the one and over in the other.
+    const monday = writeClock(null, () => new Date('2026-09-28T20:00:00.000Z'));
+    const priced = async (adjuster: Stepper['adjuster']): Promise<string | undefined> => {
+      const order = await s.place({ lines: BASKET });
+      const stood = (await w.rows(`SELECT * FROM market_orders WHERE id = ${String(order.id)}`))[0]!;
+      const result = await w.db.transaction().execute(async (trx) => adjuster.run(trx as never, { for: await s.orders(), key: order.id, stood, touches: true, mode: 'save', context: STAFF, clock: monday }));
+      return result?.discount;
+    };
+    // Mugs 28.00 at fifteen percent, and the pair of totes.
+    expect(await priced(s.adjuster)).toBe('19.20');
+    expect(await priced(createAdjuster({ ...s.kit, zone: async () => 'Pacific/Auckland' }))).toBe('15.00');
   });
 
   it.skipIf(!available)('five off is stored 2.83, 1.51 and 0.66, and the order totals 48.06', async () => {

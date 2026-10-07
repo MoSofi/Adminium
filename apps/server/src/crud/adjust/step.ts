@@ -32,7 +32,7 @@ import { sql } from 'kysely';
 
 import { callDecider, DeciderFailed, type InstalledDecider } from '../../add-ons/decide.js';
 import type { SourceDatabase } from '../../connections/manager.js';
-import { AdjustRefusedError, PostingRefusedError } from '../../errors.js';
+import { AdjustRefusedError, PostingRefusedError, ValidationFailedError } from '../../errors.js';
 import type { LedgerRuntime, ResolvedAdjuster } from '../../ledgers/registry.js';
 import type { CustomerKeyOf } from '../../public-api/customer-key.js';
 import type { TableRules } from '../column-rules.js';
@@ -40,7 +40,8 @@ import { readDbRefusal, writeConflict } from '../db-errors.js';
 import { isUniqueViolation } from '../decided-columns.js';
 import { evaluateAll, placesFor, touchedFormulas } from '../formulas.js';
 import type { ResolvedTable } from '../identifiers.js';
-import { ledgerSettings, type ScalarRow } from '../ledger-reads.js';
+import { labelColumnFor } from '../labels.js';
+import { ledgerSettings, rowOut, type ScalarRow } from '../ledger-reads.js';
 import { receiptsOfSource, roundOf, roundRows } from '../ledger-receipts.js';
 import type { Row } from '../mask.js';
 import { priceNights } from '../per-night.js';
@@ -50,6 +51,7 @@ import type { WriteAction, WriteActor, WriteContext, WriteTarget } from '../writ
 import { bindWriteValue, booleanOf, sameValue } from '../write-values.js';
 import { adjustWords, publicReason, refusalOf, type RefusedCode } from './answers.js';
 import { checkAdjust } from './check.js';
+import { orderFigures, type FiguredRow } from './figures.js';
 import { AdjustTooLarge, adjustCodeOf, adjustLineOf, findCodes, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
 import { frozenNow, moved, touched, type CompiledAdjust } from './rule.js';
 
@@ -70,6 +72,8 @@ export interface AdjustKit {
   remove(target: WriteTarget, match: Row): Promise<void>;
   /** The connection's currency, for a table whose places follow it. */
   currency(target: WriteTarget): Promise<string | null>;
+  /** Where the venue is: an offer of the lunch hour is judged on the venue's clock, whatever else the order's table reads of it. */
+  zone(target: WriteTarget): Promise<string>;
   /** A customer's key in a connection; absent on a service built without one. */
   customerKey: CustomerKeyOf | undefined;
   /** The roles a writer holds, by slug; `any` for one no limit binds. Absent: nobody holds a role. */
@@ -221,6 +225,91 @@ export interface AdjustResult {
   recorder?: string;
   /** A code's refusal held back for the save's price check (see `expects`): raised by the caller when the price is as expected without it. */
   heldBack?: Error;
+}
+
+/** What a question is put together from. */
+interface AskInput {
+  for: AdjustFor;
+  /** The order as it stands. */
+  order: Row;
+  origin: 'staff' | 'public' | 'system';
+  mode: AdjustInput['mode'];
+  point: 'line' | 'post';
+  /** The moment the question is judged at. */
+  now: Date;
+  locale: string;
+  /** The rows the order's own open round holds. */
+  held?: Record<string, ScalarRow[]> | undefined;
+  /** Priced under what was recorded: only these offers, whatever became of them since. */
+  only?: Set<string> | undefined;
+  /** Codes tried in place of the ones typed on the order. */
+  typed?: readonly string[] | undefined;
+  /** A buyer supposed in place of the order's own customer: nobody is read. */
+  buyer?: NonNullable<AdjustInput['customer']> | 'guest' | undefined;
+  /** What staff took off, judged for whoever saves; absent: as the order keeps it, judged by nobody. */
+  staff?: ((handed: AdjustInput['lines'], places: number) => Promise<AdjustInput['staff']>) | undefined;
+  /** Every row the add-on reads, whatever its condition (the ended and the paused ones too). */
+  everything?: boolean | undefined;
+  explain?: boolean | undefined;
+  /** An offer not saved yet, considered with the stored ones. */
+  draft?: ScalarRow | undefined;
+}
+
+/** A question ready to be asked, with what was read for it. */
+interface Asking {
+  question: AdjustInput;
+  /** The rows of every part of the order; those a part leaves out among them. */
+  rows: LoadedLine[];
+  codes: LoadedCode[];
+  /** Typed values longer than any code is, cut to what may be said back: no code, and never handed to the add-on. */
+  long: string[];
+  /** The decimals the order's reduction is kept at. */
+  places: number;
+  currency: string | null;
+  rules: TableRules | null;
+  /** The rows read for this call, by key as text: an answer may name no other. */
+  offerKeys: Map<string, unknown>;
+  codeKeys: Map<string, unknown>;
+  voucherKeys: Map<string, unknown>;
+  /** The add-on asked, and its answer checked before anything is read from it. */
+  ask(asked: AdjustInput): AdjustOutput;
+}
+
+/** A price tried on a stored order. */
+export interface AdjustTry {
+  /** The order's table, on the pool. */
+  target: WriteTarget;
+  /** The order, as stored: read once the caller is known to be allowed everything a try shows. */
+  order(): Promise<Row>;
+  /** Codes tried in place of the ones typed on the order; absent: the order's own. */
+  typed?: readonly string[] | undefined;
+  /** An offer not saved yet, by the columns of the add-on's offers table. */
+  draft?: Row | undefined;
+  explain?: boolean | undefined;
+  buyer?: 'guest' | 'customer' | undefined;
+  /** The moment the try is judged at; absent: now. */
+  at?: Date | undefined;
+  locale: string;
+  /** Refuses a caller who may not read, or change, what a try shows: asked once, before anything of it is read. */
+  may(needs: { read: string[]; update: string[] }): Promise<void>;
+}
+
+export interface AdjustTried {
+  /** The order's own row as it would stand: its totals, formulas and balances worked out in memory. */
+  order: Row;
+  lines: { table: string; key: string; line: string; discount: string }[];
+  applied: AdjustApplied[];
+  told: NonNullable<AdjustOutput['told']>;
+  /** The codes that do not stand, each with why: listed, never raised. */
+  refused: { typed: string; reason: AdjustOutput['refused'][number]['reason']; params?: AdjustOutput['refused'][number]['params'] }[];
+  explain?: (NonNullable<AdjustOutput['explain']>[number] & { name: string })[];
+  codes: LoadedCode[];
+  places: number;
+  /** The add-on's table of offers, and the column an offer is named by. */
+  offers: string;
+  label?: string;
+  /** Where codes are typed on the order. */
+  typed?: { table: string; column: string };
 }
 
 /** One order a save priced: the answer, and which order it was. */
@@ -398,11 +487,156 @@ export function createAdjuster(kit: AdjustKit) {
   }
 
   /**
+   * The round the rule that records an order's uses keeps for it: the rows it
+   * holds, and whether it has posted. Null when the rule records none, or the
+   * ledger is not there to be read.
+   */
+  async function roundFor(db: Db, on: AdjustFor, order: Row): Promise<{ held: Record<string, ScalarRow[]> | undefined; closed: boolean; posting: string } | null> {
+    const { adjust } = on;
+    const table = on.target.table;
+    const recorder = adjust.uses === undefined ? undefined : (table.table?.postings ?? []).find((posting) => posting.id === adjust.uses);
+    if (recorder === undefined) return null;
+    const recording = kit.ledgers!.resolve(on.target.view, table, recorder);
+    if (!('ledger' in recording) || recording.ledger === undefined) return null;
+    const source = { table: kit.ledgers!.refOf(on.target.connectionId, table.id), row: String(order[adjust.key]) };
+    const round = roundOf(await receiptsOfSource(db, recording.ledger, source), recorder.id, '');
+    const receipts = [round.reserved?.id, round.posted?.id].filter((id): id is string | number => id !== undefined);
+    const held = receipts.length > 0 ? await roundRows(db, recording.ledger, receipts) : undefined;
+    // (A record let through while the add-on could not be asked says nothing yet of what was used: it is not closed until it is worked out.)
+    return { held, closed: round.posted !== null && round.posted.state !== 'unplanned', posting: recorder.id };
+  }
+
+  /**
+   * THE QUESTION, READ AND PUT TOGETHER — nothing is written here. The order's
+   * lines, the codes on it (or the ones tried in their place), the rows the
+   * add-on reads, who is buying, what staff took off: each a plain read on the
+   * handle given, the pool or a save's transaction. What comes back is the
+   * question, and the one way to ask it: the answer checked before anything is
+   * read from it.
+   */
+  async function prepare(db: Db, input: AskInput): Promise<Asking> {
+    const { adjust, adjuster, decider } = input.for;
+    const target: WriteTarget = { ...input.for.target, db };
+    const rules = kit.rulesOf(target);
+    const view = target.view;
+    const { order, origin, now, held } = input;
+    const currency = await kit.currency(target);
+    const scale = (rules?.scales ?? []).find((entry) => entry.column === adjust.rule.order.discount)?.scale ?? 2;
+    const places = placesFor(scale, order, rules?.currencyColumn, currency);
+
+    let rows: LoadedLine[];
+    let codes: LoadedCode[];
+    let settings: ScalarRow;
+    let offers: Record<string, ScalarRow[]>;
+    try {
+      rows = await loadLines(db, view, adjust, order);
+      // (Priced under what was recorded: its codes and offers are read whatever became of them since.)
+      codes = input.typed !== undefined ? await findCodes(db, adjuster, input.typed) : await loadCodes(db, view, adjust, adjuster, order, { any: input.only !== undefined });
+      settings = await ledgerSettings(adjuster, db);
+      offers = await loadOffers(db, adjuster, {
+        codes: codes.flatMap((code) => (code.kind === 'code' && code.id !== null ? [code.id] : [])),
+        now: now.toISOString(),
+        settings,
+        ...(input.only === undefined ? {} : { only: input.only, everything: true }),
+        ...(input.everything === true ? { everything: true } : {}),
+      });
+    } catch (error) {
+      if (error instanceof AdjustTooLarge) throw tooLarge();
+      throw error;
+    }
+    // A code typed longer than any code is: no code, said by Adminium — the add-on is never asked to say it back.
+    const long = codes.filter((code) => code.typed.length > TYPED_MAX);
+    if (long.length > 0 && adjust.codes !== undefined && input.mode !== 'try') throw refusalOf(origin, { typed: long[0]!.typed.slice(0, TYPED_MAX), reason: 'unknown' }, adjust.codes.typed, codeAt(view, adjust, long[0]!));
+    // (A try fails for no code: such a one is left out, and listed.)
+    if (long.length > 0) codes = codes.filter((code) => code.typed.length <= TYPED_MAX);
+    // The add-on's tables were read on this handle: inside a save, a change of them now waits for it. Asked about once more, an update
+    // that began in another process before those reads is seen here.
+    const installed = await kit.ledgers!.versionNow(adjuster.addOn);
+    if (installed === null || installed.status !== 'installed' || installed.version !== decider.version) throw writeConflict();
+
+    const keyOf = kit.customerKey;
+    const person =
+      input.buyer !== undefined
+        ? input.buyer === 'guest'
+          ? null
+          : input.buyer
+        : keyOf === undefined
+          ? null
+          : await loadPerson(db, view, adjust, adjuster, order, { orderTable: target.table, keyOf: (address) => keyOf(target.connectionId, address), own: ownUses(adjuster, held) });
+
+    const lines = rows.filter((row) => row.line);
+    const zone = await kit.zone(target);
+    const clock = venueClock(now, zone);
+    const perNight = rules?.perNight;
+    const refOf = (tableId: string): string => kit.ledgers!.refOf(target.connectionId, tableId);
+    const handed: AdjustInput['lines'] = [];
+    for (const [index, line] of lines.entries()) {
+      const nights = line.part.nights !== undefined && perNight !== undefined && perNight.column === line.part.nights.rate ? (await priceNights(db, perNight, line.row, places)).nights : undefined;
+      handed.push(adjustLineOf({ view, line, index, places, refOf, nights }));
+    }
+    const staff = input.staff === undefined ? storedStaff(adjust, order, places) : await input.staff(handed, places);
+    const mapped = adjust.rule.order.currency;
+    const said = mapped === undefined ? null : typeof mapped === 'string' ? order[mapped] : 'value' in mapped ? mapped.value : 'setting' in mapped ? settings[mapped.setting] : null;
+    const question: AdjustInput = {
+      contract: 'price-adjust@1',
+      mode: input.mode,
+      point: input.point,
+      origin,
+      now: now.toISOString(),
+      today: clock.day,
+      weekday: new Date(`${clock.day}T00:00:00Z`).getUTCDay() as AdjustInput['weekday'],
+      time: `${String(Math.floor(clock.minute / 60)).padStart(2, '0')}:${String(clock.minute % 60).padStart(2, '0')}`,
+      zone,
+      currency: empty(said) ? currency : String(said),
+      scale: places,
+      // (As a language is named in what an add-on keeps: `de-DE`.)
+      locale: input.locale.replace('_', '-'),
+      lines: handed,
+      codes: codes.map((code) => adjustCodeOf(adjuster, code)),
+      customer: person,
+      guest: input.buyer === 'guest' || (person === null && origin === 'public'),
+      staff,
+      offers,
+      settings,
+      ...(held === undefined || Object.keys(held).length === 0 ? {} : { held }),
+      ...(input.draft === undefined ? {} : { draft: input.draft }),
+      explain: input.explain === true,
+      version: adjuster.version,
+    };
+
+    // The rows read for this call: an answer may name no other.
+    const first = adjuster.declared.offers[0];
+    const offerKeys = new Map<string, unknown>();
+    for (const read of adjuster.declared.offers) {
+      if (first === undefined || read.table !== first.table) continue;
+      const key = adjuster.table(read.table)?.primaryKey[0] ?? 'id';
+      for (const row of offers[read.as] ?? []) offerKeys.set(String(row[key]), row[key]);
+    }
+    const rawKey = (code: LoadedCode): unknown => code.found?.[code.table?.primaryKey[0] ?? 'id'];
+    const codeKeys = new Map(codes.flatMap((code) => (code.kind === 'code' && code.id !== null ? [[code.id, rawKey(code)] as const] : [])));
+    const voucherKeys = new Map(codes.flatMap((code) => (code.kind === 'voucher' && code.id !== null ? [[code.id, rawKey(code)] as const] : [])));
+    /** The add-on asked, and its answer checked before anything is read from it. */
+    const ask = (asked: AdjustInput): AdjustOutput => {
+      let said: AdjustOutput;
+      try {
+        said = callDecider('adjust', decider, asked, { shape: adjustOutputSchema }) as AdjustOutput;
+      } catch (error) {
+        if (error instanceof DeciderFailed) throw new AdjustFailed(error.cause, error.detail);
+        throw error;
+      }
+      const issue = checkAdjust(asked, said, { offers: new Set(offerKeys.keys()), codes: new Set(codeKeys.keys()), vouchers: new Set(voucherKeys.keys()) });
+      if (issue !== null) throw new AdjustFailed('check', issue.slice(0, 200));
+      return said;
+    };
+    return { question, rows, codes, long: long.map((code) => code.typed.slice(0, TYPED_MAX)), places, currency, rules, offerKeys, codeKeys, voucherKeys, ask };
+  }
+
+  /**
    * One order priced again, on the save's transaction. Null when there is
    * nothing to price: the order is not there, or its price stands for good.
    */
   async function run(trx: Db, input: AdjustRun): Promise<AdjustResult | null> {
-    const { adjust, adjuster, decider } = input.for;
+    const { adjust, adjuster } = input.for;
     const target: WriteTarget = { ...input.for.target, db: trx };
     const rules = kit.rulesOf(target);
     const view = target.view;
@@ -428,19 +662,12 @@ export function createAdjuster(kit: AdjustKit) {
     let pinned: { only: Set<string>; at: Date | null } | null = null;
     /** The round has posted: what the order used is recorded, and is never recorded again. */
     let closed = false;
-    const recorder = adjust.uses === undefined || input.stood === null ? undefined : (target.table.table?.postings ?? []).find((posting) => posting.id === adjust.uses);
-    if (recorder !== undefined) {
-      const recording = kit.ledgers!.resolve(view, target.table, recorder);
-      if ('ledger' in recording && recording.ledger !== undefined) {
-        const source = { table: kit.ledgers!.refOf(target.connectionId, target.table.id), row: String(order[adjust.key]) };
-        const round = roundOf(await receiptsOfSource(trx, recording.ledger, source), recorder.id, '');
-        const receipts = [round.reserved?.id, round.posted?.id].filter((id): id is string | number => id !== undefined);
-        if (receipts.length > 0) held = await roundRows(trx, recording.ledger, receipts);
-        // (A record let through while the add-on could not be asked says nothing yet of what was used: it is not closed until it is worked out.)
-        closed = round.posted !== null && round.posted.state !== 'unplanned';
-        if (closed && input.changes === 'uses') {
-          throw new PostingRefusedError('What this order used is already recorded: its codes, what was taken off by hand and its customer stand as they are.', { reason: 'receipt-open', posting: recorder.id });
-        }
+    const round = input.stood === null ? null : await roundFor(trx, input.for, order);
+    if (round !== null) {
+      held = round.held;
+      closed = round.closed;
+      if (closed && input.changes === 'uses') {
+        throw new PostingRefusedError('What this order used is already recorded: its codes, what was taken off by hand and its customer stand as they are.', { reason: 'receipt-open', posting: round.posting });
       }
     }
     // An order whose price stands is not asked again, even for what it used: that is read off what was applied to it, and nothing moves.
@@ -477,139 +704,59 @@ export function createAdjuster(kit: AdjustKit) {
       }
     }
 
-    const currency = await kit.currency(target);
-    const scale = (rules?.scales ?? []).find((entry) => entry.column === adjust.rule.order.discount)?.scale ?? 2;
-    const places = placesFor(scale, order, rules?.currencyColumn, currency);
-
-    let rows: LoadedLine[];
-    let codes: LoadedCode[];
-    let settings: ScalarRow;
-    let offers: Record<string, ScalarRow[]>;
     const now = pinned?.at ?? input.clock.locked(trx);
-    try {
-      rows = await loadLines(trx, view, adjust, order);
-      // (Priced under what was recorded: its codes and offers are read whatever became of them since.)
-      codes = await loadCodes(trx, view, adjust, adjuster, order, { any: pinned !== null });
-      settings = await ledgerSettings(adjuster, trx);
-      offers = await loadOffers(trx, adjuster, { codes: codes.flatMap((code) => (code.kind === 'code' && code.id !== null ? [code.id] : [])), now: now.toISOString(), settings, ...(pinned === null ? {} : { only: pinned.only, everything: true }) });
-    } catch (error) {
-      if (error instanceof AdjustTooLarge) throw tooLarge();
-      throw error;
-    }
-    // A code typed longer than any code is: no code, said by Adminium — the add-on is never asked to say it back.
-    const long = codes.find((code) => code.typed.length > TYPED_MAX);
-    if (long !== undefined && adjust.codes !== undefined) throw refusalOf(origin, { typed: long.typed.slice(0, TYPED_MAX), reason: 'unknown' }, adjust.codes.typed, codeAt(view, adjust, long));
-    // The add-on's tables were read on this transaction: a change of them now waits for this save. Asked about once more, an update that
-    // began in another process before those reads is seen here.
-    const installed = await kit.ledgers!.versionNow(adjuster.addOn);
-    if (installed === null || installed.status !== 'installed' || installed.version !== decider.version) throw writeConflict();
-
-    const keyOf = kit.customerKey;
-    const person =
-      keyOf === undefined ? null : await loadPerson(trx, view, adjust, adjuster, order, { orderTable: target.table, keyOf: (address) => keyOf(target.connectionId, address), own: ownUses(adjuster, held) });
-
-    const lines = rows.filter((row) => row.line);
-    const zone = target.timezone ?? 'UTC';
-    const clock = venueClock(now, zone);
-    const perNight = rules?.perNight;
-    const refOf = (tableId: string): string => kit.ledgers!.refOf(target.connectionId, tableId);
-    const handed: AdjustInput['lines'] = [];
-    for (const [index, line] of lines.entries()) {
-      const nights = line.part.nights !== undefined && perNight !== undefined && perNight.column === line.part.nights.rate ? (await priceNights(trx, perNight, line.row, places)).nights : undefined;
-      handed.push(adjustLineOf({ view, line, index, places, refOf, nights }));
-    }
-    // WHO GAVE. A reduction by hand that this save sets, changes or takes away — or one that stands with nobody on record as its giver
-    // (brought in by an import, written while the rule was off) — is the saver's: held to the most their roles allow, which Adminium
-    // reads, judges the asked figure against itself, and hands in for the add-on to judge what it comes to. One that stands with its
-    // giver on record is handed in as stored: judged by nobody when somebody else saves (a manager's 20 % stays when a cashier adds a
-    // line), and held to its giver's own limit again when its giver does (the order may have grown since they gave it).
-    let staff = storedStaff(adjust, order, places);
-    const byHand = adjust.rule.order.staff;
-    if (byHand !== undefined) {
-      const was = input.stood;
-      const stoodStaff = was === null ? null : storedStaff(adjust, was, places);
-      const changed = was === null ? staff !== null : moved([byHand.kind, byHand.value, byHand.reason], order, was).length > 0;
-      const unsigned = staff !== null && empty(order[byHand.by]);
-      /** The goods a reduction by hand is a share of, as the answer's check counts them. */
-      const goods = handed.filter((line) => line.kept && !line.excluded).reduce<Ratio>((sum, line) => plus(sum, toRatio(line.amount) ?? ZERO), ZERO);
-      const limitOf = async (who: WriteActor): Promise<Ceiling | null> => {
-        const roles = (await kit.rolesOf?.(who)) ?? new Set<string>();
-        // (No limit binds a Super Admin: nothing is read, nothing judged.)
-        return roles === 'any' ? null : ceilingOf(trx, adjuster, [...roles], places);
-      };
-      if (changed || unsigned) {
-        const notAllowed = (): Error => refusalOf(origin, { typed: '', reason: 'not-allowed' }, byHand.value);
-        if (giver === null) throw notAllowed();
-        const limit = await limitOf(giver);
-        // Another user's reduction — or one nobody is on record as giving — is changed or taken away only by somebody who could have given it.
-        const theirs = stoodStaff !== null && String(was![byHand.by] ?? '') !== giver.id;
-        if (limit !== null && theirs && beyond(limit, String(was![byHand.kind]) === 'comp' ? 'comp' : stoodStaff.kind, stoodStaff.value, goods, places) !== null) throw notAllowed();
-        if (staff !== null && limit !== null) {
-          // A comp has a leave of its own: a limit of a hundred percent is not one.
-          const max = beyond(limit, String(order[byHand.kind]) === 'comp' ? 'comp' : staff.kind, staff.value, goods, places);
-          if (max !== null) throw refusalOf(origin, { typed: '', reason: 'over-ceiling', params: { max } }, byHand.value);
-          if (String(order[byHand.kind]) !== 'comp') staff = { ...staff, ceiling: { percent: limit.percent, amount: limit.amount }, judge: true };
-        }
-        const by = staff === null ? null : giver.id;
-        if (!sameValue(order[byHand.by] ?? null, by)) stamps[byHand.by] = by;
-      } else if (staff !== null && giver !== null && String(order[byHand.by]) === giver.id && String(order[byHand.kind]) !== 'comp') {
-        const limit = await limitOf(giver);
-        if (limit !== null) staff = { ...staff, ceiling: { percent: limit.percent, amount: limit.amount }, judge: true };
-      }
-    }
-    const mapped = adjust.rule.order.currency;
-    const said = mapped === undefined ? null : typeof mapped === 'string' ? order[mapped] : 'value' in mapped ? mapped.value : 'setting' in mapped ? settings[mapped.setting] : null;
-    const question: AdjustInput = {
-      contract: 'price-adjust@1',
+    const asking = await prepare(trx, {
+      for: input.for,
+      order,
+      origin,
       mode: input.mode,
       // (What an order used is recorded once: priced again after that, it is asked about as a line is.)
       point: closed ? 'line' : (input.point ?? 'line'),
-      origin,
-      now: now.toISOString(),
-      today: clock.day,
-      weekday: new Date(`${clock.day}T00:00:00Z`).getUTCDay() as AdjustInput['weekday'],
-      time: `${String(Math.floor(clock.minute / 60)).padStart(2, '0')}:${String(clock.minute % 60).padStart(2, '0')}`,
-      zone,
-      currency: empty(said) ? currency : String(said),
-      scale: places,
-      // (As a language is named in what an add-on keeps: `de-DE`.)
-      locale: (input.locale ?? input.context.adjust?.locale ?? 'en-US').replace('_', '-'),
-      lines: handed,
-      codes: codes.map((code) => adjustCodeOf(adjuster, code)),
-      customer: person,
-      guest: person === null && origin === 'public',
-      staff,
-      offers,
-      settings,
-      ...(held === undefined || Object.keys(held).length === 0 ? {} : { held }),
-      explain: false,
-      version: adjuster.version,
-    };
-
-    // The rows read for this call: an answer may name no other.
-    const first = adjuster.declared.offers[0];
-    const offerKeys = new Map<string, unknown>();
-    for (const read of adjuster.declared.offers) {
-      if (first === undefined || read.table !== first.table) continue;
-      const key = adjuster.table(read.table)?.primaryKey[0] ?? 'id';
-      for (const row of offers[read.as] ?? []) offerKeys.set(String(row[key]), row[key]);
-    }
+      now,
+      locale: input.locale ?? input.context.adjust?.locale ?? 'en-US',
+      held,
+      only: pinned?.only,
+      staff: async (handed, places) => {
+        let staff = storedStaff(adjust, order, places);
+        const byHand = adjust.rule.order.staff;
+        if (byHand !== undefined) {
+          const was = input.stood;
+          const stoodStaff = was === null ? null : storedStaff(adjust, was, places);
+          const changed = was === null ? staff !== null : moved([byHand.kind, byHand.value, byHand.reason], order, was).length > 0;
+          const unsigned = staff !== null && empty(order[byHand.by]);
+          /** The goods a reduction by hand is a share of, as the answer's check counts them. */
+          const goods = handed.filter((line) => line.kept && !line.excluded).reduce<Ratio>((sum, line) => plus(sum, toRatio(line.amount) ?? ZERO), ZERO);
+          const limitOf = async (who: WriteActor): Promise<Ceiling | null> => {
+            const roles = (await kit.rolesOf?.(who)) ?? new Set<string>();
+            // (No limit binds a Super Admin: nothing is read, nothing judged.)
+            return roles === 'any' ? null : ceilingOf(trx, adjuster, [...roles], places);
+          };
+          if (changed || unsigned) {
+            const notAllowed = (): Error => refusalOf(origin, { typed: '', reason: 'not-allowed' }, byHand.value);
+            if (giver === null) throw notAllowed();
+            const limit = await limitOf(giver);
+            // Another user's reduction — or one nobody is on record as giving — is changed or taken away only by somebody who could have given it.
+            const theirs = stoodStaff !== null && String(was![byHand.by] ?? '') !== giver.id;
+            if (limit !== null && theirs && beyond(limit, String(was![byHand.kind]) === 'comp' ? 'comp' : stoodStaff.kind, stoodStaff.value, goods, places) !== null) throw notAllowed();
+            if (staff !== null && limit !== null) {
+              // A comp has a leave of its own: a limit of a hundred percent is not one.
+              const max = beyond(limit, String(order[byHand.kind]) === 'comp' ? 'comp' : staff.kind, staff.value, goods, places);
+              if (max !== null) throw refusalOf(origin, { typed: '', reason: 'over-ceiling', params: { max } }, byHand.value);
+              if (String(order[byHand.kind]) !== 'comp') staff = { ...staff, ceiling: { percent: limit.percent, amount: limit.amount }, judge: true };
+            }
+            const by = staff === null ? null : giver.id;
+            if (!sameValue(order[byHand.by] ?? null, by)) stamps[byHand.by] = by;
+          } else if (staff !== null && giver !== null && String(order[byHand.by]) === giver.id && String(order[byHand.kind]) !== 'comp') {
+            const limit = await limitOf(giver);
+            if (limit !== null) staff = { ...staff, ceiling: { percent: limit.percent, amount: limit.amount }, judge: true };
+          }
+        }
+        return staff;
+      },
+    });
+    const { question, rows, codes, places, currency, offerKeys, codeKeys, voucherKeys, ask } = asking;
+    const refOf = (tableId: string): string => kit.ledgers!.refOf(target.connectionId, tableId);
     const rawKey = (code: LoadedCode): unknown => code.found?.[code.table?.primaryKey[0] ?? 'id'];
-    const codeKeys = new Map(codes.flatMap((code) => (code.kind === 'code' && code.id !== null ? [[code.id, rawKey(code)] as const] : [])));
-    const voucherKeys = new Map(codes.flatMap((code) => (code.kind === 'voucher' && code.id !== null ? [[code.id, rawKey(code)] as const] : [])));
-    /** The add-on asked, and its answer checked before anything is read from it. */
-    const ask = (asked: AdjustInput): AdjustOutput => {
-      let said: AdjustOutput;
-      try {
-        said = callDecider('adjust', decider, asked, { shape: adjustOutputSchema }) as AdjustOutput;
-      } catch (error) {
-        if (error instanceof DeciderFailed) throw new AdjustFailed(error.cause, error.detail);
-        throw error;
-      }
-      const issue = checkAdjust(asked, said, { offers: new Set(offerKeys.keys()), codes: new Set(codeKeys.keys()), vouchers: new Set(voucherKeys.keys()) });
-      if (issue !== null) throw new AdjustFailed('check', issue.slice(0, 200));
-      return said;
-    };
     /** The refusal of the first thing an answer refused: what staff gave on its own column; a code on the column it was typed into, with the row it is on. */
     const refusalIn = (said: AdjustOutput): Error | null => {
       const refused = said.refused[0] as RefusedCode | undefined;
@@ -716,6 +863,123 @@ export function createAdjuster(kit: AdjustKit) {
         ? undefined
         : { table: view.table(adjust.codes.table).id, column: adjust.codes.typed, rows: codes.map((code) => ({ typed: code.typed, key: codeAt(view, adjust, code)?.key ?? null })) };
     return { applied: answer.applied, told: answer.told ?? [], uses: answer.uses, discount: answer.order.discount, lines: outLines, changedLines, codes, wrote, places, ...(typed === undefined ? {} : { typed }), ...(heldBack === undefined ? {} : { heldBack }), ...(question.point === 'post' && adjust.uses !== undefined ? { recorder: adjust.uses } : {}) };
+  }
+
+  /**
+   * A PRICE TRIED, NOT SAVED. A stored order asked about as it stands — with
+   * other codes in place of its own, a buyer supposed, an offer not saved yet
+   * beside the stored ones — and its figures worked out in memory from the
+   * answer. Plain reads on the pool and nothing else: no transaction, no
+   * lock, no row written, no use recorded. A code that does not stand is
+   * listed, never raised; an order whose price stands for good is tried like
+   * any other.
+   */
+  async function tried(input: AdjustTry): Promise<AdjustTried> {
+    const target = input.target;
+    const db = target.db;
+    const view = target.view;
+    const rules = kit.rulesOf(target);
+    const adjust = rules?.adjust;
+    const noRule = (): Error => new ValidationFailedError('Nothing lowers the price of this table\'s rows, so there is nothing to try.', { reason: 'no-adjust' });
+    if (target.table.table?.adjust === undefined) throw noRule();
+    if (kit.ledgers?.adjuster === undefined) throw unavailable();
+    await kit.ledgers.refresh?.();
+    const state = kit.ledgers.adjuster(view, target.table);
+    if (state.state === 'idle' || state.state === 'off') throw noRule();
+    if (state.state === 'unavailable' || adjust === undefined) throw unavailable();
+    const { adjuster, decider } = state;
+    const appliedTable = adjuster.table(adjuster.declared.applied.table);
+    const first = adjuster.declared.offers[0];
+    const offersTable = first === undefined ? null : adjuster.table(first.table);
+    if (appliedTable === null || offersTable === null) throw unavailable();
+    const codesTable = adjust.codes === undefined ? null : view.table(adjust.codes.table);
+    // Who may try: somebody who reads the order's lines and the codes typed on it, and may change the offers themselves.
+    // …and, where they try codes of their own choosing, reads the add-on's codes and vouchers: a try says why a code does not stand.
+    const looked = input.typed === undefined ? [] : [adjuster.table(adjuster.declared.codes.table), adjuster.table(adjuster.declared.vouchers.table)].flatMap((table) => (table === null ? [] : [table.id]));
+    await input.may({ read: [...new Set([...adjust.parts.map((part) => view.table(part.table).id), ...(codesTable === null ? [] : [codesTable.id]), offersTable.id, ...looked])], update: [offersTable.id] });
+    const types = adjuster.typesOf(offersTable.id);
+    let draft: ScalarRow | undefined;
+    if (input.draft !== undefined) {
+      const unknown = Object.keys(input.draft).find((column) => !offersTable.columns.has(column));
+      if (unknown !== undefined) throw new ValidationFailedError('An offer being tried holds only what an offer holds.', { fields: { [`draft.${unknown}`]: { code: 'unknown' } } });
+      draft = rowOut(offersTable, input.draft, types);
+    }
+    const on: AdjustFor = { target, adjust, adjuster, decider, applied: { ...target, table: appliedTable } };
+    const order = await input.order();
+    const round = await roundFor(db, on, order);
+    const asking = await prepare(db, {
+      for: on,
+      order,
+      origin: 'staff',
+      mode: 'try',
+      point: 'line',
+      now: input.at ?? new Date(),
+      locale: input.locale,
+      held: round?.held,
+      typed: input.typed,
+      // Nobody real is read: a guest, or a customer who is in no group and has ordered and used nothing.
+      buyer: input.buyer === 'customer' ? { key: 'try', groups: [], orders: 0, uses: {} } : 'guest',
+      everything: input.explain === true,
+      explain: input.explain === true,
+      draft,
+    });
+    const { question, rows, codes, places, currency, ask } = asking;
+    // Each code that does not stand is listed and the order asked about without it: what is shown is the price the others give.
+    const refused: AdjustTried['refused'] = asking.long.map((typed) => ({ typed, reason: 'unknown' as const }));
+    let asked = question;
+    let answer = ask(asked);
+    for (let turn = 0; turn < question.codes.length; turn += 1) {
+      const gone = new Set(answer.refused.filter((entry) => entry.typed !== '').map((entry) => entry.typed));
+      if (gone.size === 0) break;
+      for (const entry of answer.refused) if (entry.typed !== '') refused.push({ typed: entry.typed, reason: entry.reason, ...(entry.params === undefined ? {} : { params: entry.params }) });
+      asked = { ...asked, codes: asked.codes.filter((code) => !gone.has(code.typed)) };
+      answer = ask(asked);
+    }
+    // The figures, worked out as a save's settle would work them out, from copies.
+    const reduced = new Map(answer.lines.map((line) => [line.key, line.discount]));
+    const zero = ratioText(ZERO, places);
+    const lines: AdjustTried['lines'] = [];
+    // (A row two parts of the rule read — one table, told apart by a column — is one row: a line of one part, left out by the other.)
+    const figured = new Map<string, FiguredRow>();
+    const overlay: Row = { [adjust.rule.order.discount]: answer.order.discount };
+    for (const row of rows) {
+      const wanted = row.line ? (reduced.get(row.key) ?? zero) : zero;
+      const key = row.table.primaryKey.map((column) => String(row.row[column])).join('/');
+      if (row.line) lines.push({ table: row.table.id, key, line: row.key, discount: wanted });
+      if (row.part.self) {
+        overlay[row.part.discount] = wanted;
+        continue;
+      }
+      const id = `${row.table.id}\u0000${String(row.part.via)}\u0000${key}`;
+      const known = figured.get(id);
+      if (known === undefined) figured.set(id, { table: row.table.id, via: row.part.via, rules: kit.rulesOf({ ...target, table: row.table }), row: row.row, overlay: { [row.part.discount]: wanted } });
+      else if (row.line) known.overlay = { ...known.overlay, [row.part.discount]: wanted };
+    }
+    const figures = orderFigures({ order, orderRules: rules, rows: [...figured.values()], overlay, currency });
+    const label = labelColumnFor(view, offersTable);
+    const key = offersTable.primaryKey[0] ?? 'id';
+    const named = new Map<string, unknown>();
+    for (const read of adjuster.declared.offers) {
+      if (first === undefined || read.table !== first.table || label === null) continue;
+      for (const row of question.offers[read.as] ?? []) named.set(String(row[key]), row[label]);
+    }
+    if (draft !== undefined && label !== null && !empty(draft[label])) {
+      named.set('draft', draft[label]);
+      if (!empty(draft[key])) named.set(String(draft[key]), draft[label]);
+    }
+    return {
+      order: figures.order,
+      lines,
+      applied: answer.applied,
+      told: answer.told ?? [],
+      refused,
+      ...(answer.explain === undefined ? {} : { explain: answer.explain.map((entry) => ({ ...entry, name: empty(named.get(entry.offer)) ? '' : String(named.get(entry.offer)) })) }),
+      codes,
+      places,
+      offers: offersTable.id,
+      ...(label === null ? {} : { label }),
+      ...(adjust.codes === undefined || codesTable === null ? {} : { typed: { table: codesTable.id, column: adjust.codes.typed } }),
+    };
   }
 
   /** An order table's own rule with its add-on as it stands now, when the rule is live; null otherwise. Refuses nothing. */
@@ -995,5 +1259,5 @@ export function createAdjuster(kit: AdjustKit) {
     if (made.length > 0) await kit.insert(target, made.map((row) => bound(target, row)));
   }
 
-  return { peek, run, live, forget, refuseBatch, inertCode, candidates };
+  return { peek, run, tried, live, forget, refuseBatch, inertCode, candidates };
 }

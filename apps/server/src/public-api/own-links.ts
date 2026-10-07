@@ -36,7 +36,7 @@ export function codeRuleOf(table: ResolvedTable, column: string): { prefix: stri
  * role lacks); null when the row is gone or the column holds no code.
  */
 export async function renewOwnLink(input: {
-  writes: Pick<RecordWriteService, 'update'>;
+  writes: Pick<RecordWriteService, 'update'> & Partial<Pick<RecordWriteService, 'codeRules'>>;
   target: WriteTarget;
   row: Row;
   column: string;
@@ -46,12 +46,13 @@ export async function renewOwnLink(input: {
   const rule = codeRuleOf(input.target.table, input.column);
   if (rule === null) return null;
   const pk = Object.fromEntries(input.target.table.primaryKey.map((column) => [column, input.row[column]]));
+  const avoid = (await input.writes.codeRules?.(input.target))?.find((code) => code.column === input.column)?.avoid;
   for (let attempt = 0; ; attempt += 1) {
     try {
       const outcome = await input.writes.update({
         target: input.target,
         pk,
-        values: { [input.column]: generateCode(rule.prefix, rule.length) },
+        values: { [input.column]: generateCode(rule.prefix, rule.length, avoid) },
         before: input.row,
         // A server action: the one writer whose value for a code column is taken, and the renewal no lock refuses.
         context: { ...input.context, origin: 'action', actor: { kind: 'system', id: null, label: 'system' }, renewing: [input.column] },

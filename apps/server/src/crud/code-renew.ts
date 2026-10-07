@@ -32,7 +32,7 @@ import type { CodeRenewTrigger } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { refuseUngrantedColumns } from '../connections/privileges.js';
 import type { ColumnCode } from './column-rules.js';
-import { generateCode, isUniqueViolation } from './decided-columns.js';
+import { generateCode, isUniqueViolation, lastFourOf } from './decided-columns.js';
 import type { Row } from './mask.js';
 import type { WriteAction, WriteOrigin } from './write-context.js';
 import { sameValue } from './write-values.js';
@@ -158,7 +158,12 @@ export async function withRenewRetry<V extends Row, T>(db: Kysely<SourceDatabase
 /** The same values (the mark kept), each renewed code made afresh. */
 function remade<V extends Row>(values: V, renewed: readonly ColumnCode[]): V {
   const out = { ...values } as Row;
-  for (const code of renewed) out[code.column] = generateCode(code.prefix, code.length);
+  for (const code of renewed) {
+    const made = generateCode(code.prefix, code.length, code.avoid);
+    out[code.column] = made;
+    // …and the last four kept beside it: nothing of the code before is left.
+    for (const column of code.last4 ?? []) out[column] = lastFourOf(made);
+  }
   return out as V;
 }
 

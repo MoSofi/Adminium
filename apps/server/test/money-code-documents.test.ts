@@ -192,6 +192,17 @@ describe.each(LEGS)('a document that prints a money code — %s', (dialect, avai
     const [once] = reply.once!;
     expect(once).toMatchObject({ table: await tableId('cards_kit_cards'), key: String(reply.data['id']), column: 'code' });
     expect(once!.value).toMatch(/^GC-[0-9A-Z]{12}$/);
+    // The last four of the code are kept beside it, by Adminium: what the cashier reads of the card from now on.
+    expect(reply.data['code_last4']).toBe(once!.value.slice(-4));
+    // Nobody else's value for them is kept, whoever sends one.
+    const forged = await create(encodeURIComponent(await tableId('cards_kit_cards')), { values: { label: 'Forged', code_last4: 'ZZZZ' } });
+    const forgedReply = forged.json() as { data?: Doc; once?: { value: string }[] };
+    if (forged.statusCode === 201) expect(forgedReply.data!['code_last4']).toBe(forgedReply.once![0]!.value.slice(-4));
+    else expect(forged.statusCode, forged.body).toBe(422);
+    expect(Number((await h.rows("SELECT COUNT(*) AS n FROM cards_kit_cards WHERE code_last4 = 'ZZZZ'"))[0]!['n'])).toBe(0);
+    // …nor on a change of the row: the four characters stand as they were cut.
+    await served.composed.app.inject({ method: 'PATCH', url: `/api/v1/data/${h.connectionId}/${encodeURIComponent(await tableId('cards_kit_cards'))}/${once!.key}`, headers: { cookie: cashierCookie }, payload: { values: { label: 'Renamed', code_last4: 'ZZZZ' } } });
+    expect((await h.rows(`SELECT code_last4 FROM cards_kit_cards WHERE id = ${once!.key}`))[0]!['code_last4']).toBe(once!.value.slice(-4));
     const row = { key: Number(once!.key) };
 
     // No token: a role that does not read the code prints nothing — of this card or any other.
@@ -224,6 +235,10 @@ describe.each(LEGS)('a document that prints a money code — %s', (dialect, avai
     expect(results.map((result) => result.once?.length)).toEqual([1, 1]);
     expect(new Set(results.map((result) => result.once![0]!.value)).size).toBe(2);
     expect(results.map((result) => result.once![0]!.key)).toEqual(results.map((result) => String(result.id)));
+    // Each row keeps the last four of its own code.
+    const kept = await h.rows(`SELECT id, code, code_last4 FROM cards_kit_cards WHERE id IN (${results.map((result) => String(result.id)).join(', ')}) ORDER BY id`);
+    expect(kept.map((card) => card['code_last4'])).toEqual(kept.map((card) => String(card['code']).slice(-4)));
+    expect(kept.map((card) => String(card['code']))).toEqual(results.map((result) => result.once![0]!.value));
     const changed = await create(`${cards}/one-by-one`, { ids: [results[0]!.id], values: { label: 'Renamed' } });
     expect(changed.statusCode, changed.body).toBe(200);
     expect(JSON.stringify(changed.json())).not.toContain('"once"');

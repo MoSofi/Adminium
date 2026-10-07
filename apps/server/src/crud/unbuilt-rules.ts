@@ -50,19 +50,13 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 /** The public entry keys whose behaviour is not built yet. */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
 
-/** The release that asks an add-on what an order's price is lowered by. */
-const PRICE_QUESTION_RELEASE = '0.3.19';
-
 /**
  * The words of a manifest this server reads and does not run yet, each with
  * the release that runs it. The change that builds a word moves it from here
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
-  'column.codeLast4': PRICE_QUESTION_RELEASE,
-};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
@@ -71,6 +65,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'addOn.adjuster',
   // An amount a ledger's action decides (a card pays what is due, as far as it goes): the save answers what it took.
   'ledger.decides',
+  // The last four characters of a code, kept beside it: cut by Adminium whenever the code is made.
+  'column.codeLast4',
   // A column that keeps a table's name: a rename of that table rewrites its rows.
   'column.tableRef',
   // The rows an add-on's tables start with, its one settings row, and an index a table declares over a set of columns.

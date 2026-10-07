@@ -101,8 +101,9 @@ describe('the words a server reads and does not run yet', () => {
     }
     expect(found(DESK).some((word) => word.startsWith('states.actions'))).toBe(false);
     expect(found(DESK).some((word) => word.startsWith('addOn.lookUp'))).toBe(false);
-    // What is left of the desk kit's words for a later release: the last four of a code, kept beside it.
-    expect(found(DESK)).toEqual(['column.codeLast4 0.3.19']);
+    // Nothing is left of the desk kit's words for a later release: the last four of a code, kept beside it, are cut now.
+    expect(found(DESK)).toEqual([]);
+    expect(MANIFEST_WORDS_RUN).toContain('column.codeLast4');
     // A role's hold on an add-on's table is written now: the host app asks for nothing this server does not run.
     expect(found(DESK_HOST)).toEqual([]);
     const linked = structuredClone(DESK_HOST) as Doc;
@@ -152,7 +153,8 @@ describe('the words a server reads and does not run yet', () => {
   });
 
   it('an add-on that uses a word of a later release is still refused at its install, by that word alone', async () => {
-    const h = (openAddOns = await addOnHarness('sqlite'));
+    // (Every word there is today is run: the list is handed one, as a later release's would be.)
+    const h = (openAddOns = await addOnHarness('sqlite', { unbuiltWords: { 'column.codeLast4': '0.3.21' } }));
     await h.stageAddOn(DESK as unknown as Doc, { bundled: true });
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'desk', version: '1.0.0', attachTo: [] } });
     expect(installed.statusCode, installed.body).toBe(422);

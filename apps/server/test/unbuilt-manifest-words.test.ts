@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A manifest that uses a word this server reads and does not run yet is
- * refused whole, through the doors that install one: an app's install and an
- * add-on's. Nothing is made of it — no table, no row.
+ * refused whole, through the doors that install one. Nothing is made of it —
+ * no table, no row. Every word there is today is run, so the refusal is seen
+ * with a list handed in; the apps and add-ons that use today's words install.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -34,7 +35,7 @@ const SHOP: Doc = {
         columns: [
           { ref: 'id', type: 'int', role: 'pk' },
           { ref: 'name', type: 'text', maxLength: 80 },
-          // A link into an add-on runs now; the last four of a code, kept beside it, does not yet.
+          // A link into an add-on, and the last four of a code kept beside it: both words this server runs.
           { ref: 'item_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'kit', table: 'items' } } },
           { ref: 'code', type: 'text', maxLength: 32, rules: { code: { length: 12 } } },
           { ref: 'code_last4', type: 'text', maxLength: 4, nullable: true, rules: { codeLast4: { of: 'code' } } },
@@ -66,8 +67,8 @@ afterEach(async () => {
   openAddOns = null;
 });
 
-describe('a word this server does not run yet', () => {
-  it('an app that keeps the last four of a code is refused at the upload, and makes no table', async () => {
+describe('a word this server does not run yet, and the newer ones it does', () => {
+  it('an app that keeps the last four of a code is taken at the upload and installs: every word there is today is run', async () => {
     const h = (open = await installHarness('sqlite'));
     const tarball = packageTarball({ 'manifest.json': JSON.stringify(SHOP), 'staff/index.html': '<!doctype html>' });
     const staged = await (h.inject as (request: Doc) => ReturnType<Harness['inject']>)({
@@ -76,11 +77,23 @@ describe('a word this server does not run yet', () => {
       headers: { 'content-type': 'application/octet-stream' },
       payload: Buffer.from(tarball),
     });
-    expect(staged.statusCode, staged.body).toBe(422);
-    expect(JSON.parse(staged.body)).toMatchObject({
-      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.19', words: [{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.4.rules.codeLast4', release: '0.3.19' }] } },
+    expect(staged.statusCode, staged.body).toBe(200);
+    const installed = await h.install(SHOP);
+    expect(installed.statusCode, installed.body).toBe(200);
+    expect((await h.rows(`SELECT name FROM pragma_table_info('shop_lines')`)).map((row) => row['name'])).toContain('code_last4');
+  });
+
+  it('an add-on that uses a word of a later release is refused at its install, by name, and makes no table', async () => {
+    // The list of such words is empty today: it is handed one, as a later release's would be.
+    const h = (openAddOns = await addOnHarness('sqlite', { unbuiltWords: { 'column.codeLast4': '0.3.21' } }));
+    const coded = { ...KIT, requiredSchema: { prefixed: true, tables: [{ ref: 'items', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'code', type: 'text', maxLength: 32, rules: { code: { length: 12 } } }, { ref: 'code_last4', type: 'text', maxLength: 4, nullable: true, rules: { codeLast4: { of: 'code' } } }] }] } };
+    await h.stageAddOn(coded, { bundled: true });
+    const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'kit', version: '1.0.0', attachTo: [] } });
+    expect(installed.statusCode, installed.body).toBe(422);
+    expect(JSON.parse(installed.body)).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.21', words: [{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.2.rules.codeLast4', release: '0.3.21' }] } },
     });
-    expect(await h.rows(`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'shop_%'`)).toEqual([]);
+    expect((await h.tableNames()).filter((name) => name.startsWith('kit_'))).toEqual([]);
   });
 
   it('the same app without it installs, its link into an add-on that is not there included', async () => {

@@ -243,6 +243,12 @@ export const RATE_BUCKETS = {
    */
   'look-up': { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
   /*
+   * A price tried on a saved order, and a discount code made or compared before
+   * it is saved: every call reads an add-on's tables, and a try runs its code.
+   */
+  'price-try': { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
+  'codes-make': { max: 30, timeWindowMs: 60_000, keyBy: 'principal' },
+  /*
    * Files attached to a Designer message: up to 10 MB each, so their own, tighter budget.
    * The limiter runs before the body is read; the route's own guard runs after.
    */

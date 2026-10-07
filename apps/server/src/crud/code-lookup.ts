@@ -122,6 +122,61 @@ export function foldedCode(canonical: string): string {
   return canonical.replace(/O/g, '0').replace(/[IL]/g, '1');
 }
 
+/**
+ * A kept code as somebody reading it aloud, or off a sign, may take it: the
+ * Crockford fold, and the letters that look like a digit read as that digit
+ * (S as 5, B as 8, Z as 2, G as 6). Two codes that fold alike here are easy
+ * to mix up — a warning to whoever names one, never a refusal.
+ */
+export function lookAlikeFold(canonical: string): string {
+  return foldedCode(canonical).replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2').replace(/G/g, '6');
+}
+
+/** The same, in SQL, over a stored column. */
+function lookAlikeSql(column: string): Expression<string> {
+  return sql<string>`replace(replace(replace(replace(${foldSql(column)}, 'S', '5'), 'B', '8'), 'Z', '2'), 'G', '6')`;
+}
+
+/**
+ * The rows of a table whose code reads like this one — itself included, when
+ * it is there, unless `but` names it. `canonical` is the code as codes are
+ * kept. A few at most.
+ */
+export async function lookAlikes(db: Db, table: string, codeColumn: string, canonical: string, limit: number, but?: string): Promise<Row[]> {
+  return (await db
+    .selectFrom(table as never)
+    .selectAll()
+    .where((eb) => eb(lookAlikeSql(codeColumn), '=', lookAlikeFold(canonical) as never))
+    // (`but`: the rows that are not this very code, however it is spaced or cased where it is stored.)
+    .$if(but !== undefined, (query) => query.where(sql<string>`replace(replace(upper(${sql.ref(codeColumn)}), ' ', ''), '-', '')` as never, '<>', but as never))
+    .orderBy(sql.ref(codeColumn))
+    .limit(limit)
+    .execute()) as Row[];
+}
+
+/**
+ * The reserved word a code starts with, or null: a discount code may not
+ * start as a voucher's or a card's code does (`VC`, `GC`), or a typed value
+ * would be taken for one of those and never found as the word it is. Both
+ * sides are read as codes are kept.
+ */
+export function reservedStart(canonical: string, reserved: readonly string[]): string | null {
+  return reserved.find((word) => canonicalCode(word) !== '' && canonical.startsWith(canonicalCode(word))) ?? null;
+}
+
+/**
+ * A discount code written with a reserved start is that column's own issue,
+ * on every way of writing the row: a create, a change, an import. Null when
+ * the table keeps no such codes, or the write leaves the code alone.
+ */
+export function reservedIssue(rules: { reservedStarts?: { column: string; words: readonly string[] } | undefined } | null, values: Row): Record<string, { code: 'reserved' }> | null {
+  const reserved = rules?.reservedStarts;
+  if (reserved === undefined) return null;
+  const value = values[reserved.column];
+  if (typeof value !== 'string' || reservedStart(canonicalCode(value), reserved.words) === null) return null;
+  return { [reserved.column]: { code: 'reserved' } };
+}
+
 /** The same fold, in SQL, over a stored column: identical on the three engines for the letters a code may hold. */
 function foldSql(column: string): Expression<string> {
   const ref = sql.ref(column);

@@ -99,7 +99,7 @@ import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
-import { canonicalCode, isLookupIssue, lookupIssue, type LookupMiss } from './code-lookup.js';
+import { canonicalCode, isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   attachRequiredGuards,
@@ -134,7 +134,7 @@ import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { refusedAt } from './adjust/answers.js';
 import { frozenNow, isLine, moved as movedInputs, type AdjustParent } from './adjust/rule.js';
-import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek } from './adjust/step.js';
+import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek, type AdjustTried, type AdjustTry } from './adjust/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
@@ -142,6 +142,7 @@ import {
   claimSequences,
   generatedCodes,
   isUniqueViolation,
+  lastFours,
   regenerateCodes,
   resolveRow,
   sequenceKey,
@@ -1621,6 +1622,19 @@ export interface RecordWriteService {
    */
   post(input: PostRecordInput): Promise<PostedOutcome[]>;
   /**
+   * The rules of a table's code columns as a write makes codes by them: with
+   * the words a made code may not start with, read from what is installed now.
+   * For a door that makes a code itself (a new link, an undo of a change of hands).
+   */
+  codeRules(target: WriteTarget): Promise<readonly ColumnCode[]>;
+  /**
+   * A price tried on a stored order of a table whose price an add-on lowers:
+   * other codes in place of its own, a buyer supposed, an offer not saved yet.
+   * Reads on the pool and nothing else — no transaction, no lock, no write —
+   * and the order's figures worked out in memory from the answer.
+   */
+  tryPrice(input: AdjustTry): Promise<AdjustTried>;
+  /**
    * Told that a row's hold end was brought forward by a statement of the
    * caller's own, on `target.db` (a buyer's new hold letting the old one go):
    * what a ledger keeps for the row until that column is kept until the new
@@ -1872,7 +1886,25 @@ function mergeIssues(a: FieldIssues | null, b: FieldIssues | null): FieldIssues 
 export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteService {
   const current = (): RecordHooks => opts.hooks?.() ?? NO_RECORD_HOOKS;
 
-  const rulesOf = (target: WriteTarget): TableRules | null => tableRulesFor(target);
+  const rulesOf = (target: WriteTarget): TableRules | null => {
+    const rules = tableRulesFor(target);
+    // The table an installed add-on keeps its discount codes in: no code there starts as a voucher's or a card's does — typed or made.
+    const reserved = target.view === undefined || target.table.table === undefined ? null : (opts.ledgers?.reservedStarts?.(target.view, target.table) ?? null);
+    if (reserved === null) return rules;
+    const codes = rules?.codes?.map((code) => (code.column === reserved.column ? { ...code, avoid: reserved.words } : code));
+    return { ...(rules ?? { fills: [], checks: [] }), reservedStarts: reserved, ...(codes === undefined ? {} : { codes }) };
+  };
+
+  /**
+   * What is installed, read again before a write to a table that keeps codes:
+   * whether it is an add-on's table of discount codes is asked of what is
+   * installed NOW — never of what this process last happened to load. Any
+   * other table costs nothing here.
+   */
+  const freshCodes = async (target: WriteTarget): Promise<void> => {
+    const plain = tableRulesFor(target);
+    if ((plain?.codes?.length ?? 0) > 0 || (plain?.normalizes ?? []).some((one) => one.how === 'code')) await opts.ledgers?.refresh?.();
+  };
 
   /** The target with the role's grants on it, looked up when it came without them. */
   const withRights = async (target: WriteTarget): Promise<WriteTarget> =>
@@ -1914,7 +1946,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (rules === null || action === 'delete') return values;
     const currency = currencyFor(target);
     const priced = await priceValues(rules, action, target.db, values, stored, { origin, currency, named });
-    return keyCustomers(rules, action, target, workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null));
+    return lastFours(rules, action, keyCustomers(rules, action, target, workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null)));
   };
 
   /**
@@ -2086,7 +2118,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const judged = judgedBy(rules, target, context);
     const issues = mergeIssues(
       mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored)),
-      await linkIssues(rules, action, target, context, values, mapError),
+      mergeIssues(await linkIssues(rules, action, target, context, values, mapError), action === 'delete' ? null : reservedIssue(rules, values)),
     );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
     if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
@@ -2452,7 +2484,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return { row, values: current };
       } catch (error) {
         if (codes.length > 0 && attempt < CODE_RETRIES && isUniqueViolation(error)) {
-          current = brand(regenerateCodes(current, codes));
+          current = brand(lastFours(rulesOf(target), 'create', regenerateCodes(current, codes)));
           continue;
         }
         if (mapError !== undefined) mapError(error);
@@ -2928,6 +2960,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     refuseUnbuiltTable(target);
     refuseEarly(target, 'create', input.values, mapError);
     const hooks = current();
+    await freshCodes(target);
     const rules = rulesOf(target);
     const zone = await zoneFor(rules, target);
     // A link the settings fill is filled first: what is copied through it is copied in this save.
@@ -3237,6 +3270,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await deleteRows(target.db, target.table, match);
     },
     currency: (target) => currencyFor(target)(),
+    zone: async (target) => target.timezone ?? (await opts.timezoneOf?.(target.connectionId)) ?? 'UTC',
     customerKey: opts.customerKey,
     rolesOf: opts.rolesOf,
   });
@@ -3416,6 +3450,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async check(action, target, context, rows, checkOpts) {
       if (action !== 'delete') refuseUnbuiltTable(target);
+      if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
       // Rows written through the statements post nothing: one that would hand something to a ledger is refused here, by name.
@@ -3454,7 +3489,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         const issue = mergeIssues(
           mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null)),
-          await linkIssues(rules, action, target, context, values),
+          mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
         );
         issues.push(issue);
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null, clock) : null);
@@ -4038,6 +4073,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const target = freshReads(await withRights(input.target));
       refuseUnbuiltTable(target);
       refuseEarly(target, 'update', input.values, input.mapError);
+      await freshCodes(target);
       const hooks = current();
       const rules = rulesOf(target);
       const currency = currencyFor(target);
@@ -4409,6 +4445,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await ledgerWriter.holdEndMoved(input.target.db, { ...input, rules: rulesOf(input.target) });
     },
 
+    async codeRules(target) {
+      await freshCodes(target);
+      return rulesOf(target)?.codes ?? [];
+    },
+
+    async tryPrice(input) {
+      const addOn = input.target.table.table?.adjust?.by.addOn;
+      // As a reader of the add-on's gate: an update of it waits for the answer, and the answer is never worked out by half of two versions.
+      return withDeciders(addOn === undefined ? [] : [addOn], () => adjuster.tried(input));
+    },
+
     async post(input) {
       const { context, pk } = input;
       const target = freshReads(await withRights(input.target));
@@ -4523,6 +4570,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async beforeEach(action, givenTarget, context, rows, beforeOpts) {
       const target = action === 'delete' ? givenTarget : await withRights(givenTarget);
       if (action !== 'delete') refuseUnbuiltTable(target);
+      if (action !== 'delete') await freshCodes(target);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;
       const rules = withRules ? rulesOf(target) : null;
@@ -4554,7 +4602,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const judged = judgedBy(rules, target, context);
         const issues = mergeIssues(
           mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record)),
-          await linkIssues(rules, action, target, context, worked),
+          mergeIssues(await linkIssues(rules, action, target, context, worked), action === 'delete' ? null : reservedIssue(rules, worked)),
         );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };

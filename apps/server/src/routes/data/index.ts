@@ -125,6 +125,7 @@ const LINK_READ_CAP = 200;
 import { withOccurredAt } from '../../crud/occurred-at.js';
 import { withSeenState } from '../../crud/seen-state.js';
 import { recordActionRoutes } from './actions.js';
+import { priceTryRoutes } from './adjust-try.js';
 import { moveBackOf, undoRolesOf } from '../../crud/undo-moves.js';
 import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import { parseJsonColumn } from '../audit/index.js';
@@ -1861,7 +1862,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // A code a change of hands made is never taken back: the rest of the row is.
           const codes = renewingCodeColumnsOf(child);
           const judged = await judge('update', { match: change.key, values: Object.fromEntries(Object.entries(change.before).filter(([column]) => !codes.has(column))), record: current });
-          const renewed = current === null ? judged : renewForUndo(tableRulesFor(childTarget)?.codes, judged, current, { table: child, rights: childTarget.rights });
+          const renewed = current === null ? judged : renewForUndo(await writes.codeRules(childTarget), judged, current, { table: child, rights: childTarget.rights });
           await withRenewRetry(db, target.dialect, renewed, (values) => updateRows(db, target.dialect, child, values as typeof judged, change.key));
           const record = await fetchByPk(db, child, change.key);
           if (record !== undefined) changedBack.push({ record, before: current });
@@ -1921,7 +1922,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               prepared[i]?.values ??
               uncheckedForUndo([Object.fromEntries(compareColumns.map((c) => [c, before[c]]))])[0]!;
             // A change of hands taken back makes its code again: the one handed on stops working with it.
-            const renewed = renewForUndo(tableRulesFor(target)?.codes, restoreValues, current!, { table, rights: target.rights });
+            const renewed = renewForUndo(await writes.codeRules(target), restoreValues, current!, { table, rights: target.rights });
             await withRenewRetry(tdb, target.dialect, renewed, (values) => updateRows(tdb, target.dialect, table, values as typeof restoreValues, pk));
             await undoLinks(tdb, target, entry, before, conflict);
             await undoChildren(tdb, target, entry, context, conflict, moved);
@@ -2509,12 +2510,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         assertMovedFrom(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, before);
         // A server action: the one writer whose value for a code column is taken.
         const context: WriteContext = { ...requestWriteContext(request, 'dashboard'), origin: 'action' };
+        // (A code of a column that may not start with some words is made around them, as a new row's is.)
+        const avoid = (await writes.codeRules(ctx.target)).find((code) => code.column === column)?.avoid;
         for (let attempt = 0; ; attempt += 1) {
           try {
             const outcome = await writes.update({
               target: ctx.target,
               pk,
-              values: { [column]: generateCode(rule.prefix ?? '', rule.length) },
+              values: { [column]: generateCode(rule.prefix ?? '', rule.length, avoid) },
               before,
               context,
               announce: async (result) => {
@@ -3481,6 +3484,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => changeRecord(request, await contextFor(request, 'update'), request.params.recordId, request.body),
     );
+
+    priceTryRoutes(app, {
+      writes,
+      contextFor,
+      rowOf: (ctx, key) => fetchByPk(ctx.db, ctx.table, pkFromLoose(ctx.table, key)),
+      shown: (ctx, row) => staffRow(ctx.dialect, row, ctx.readTable, ctx.unmasked),
+      localeOf: (request) => recipientLocale(meta, principalId(request)),
+    });
 
     recordActionRoutes(app, { contextFor, changeRecord, asked: (ctx, values) => allowlistValues(ctx, values), fixed: (ctx, name, value) => normalizeWriteValue(ctx.view.column(ctx.table, name), value) });
 

@@ -91,7 +91,7 @@ describe('a manifest that uses a word this server does not run yet', () => {
     key: 'shop',
     pages: [{ ref: 'orders' }],
     roles: [],
-    // A link into an add-on runs now; the last four of a code, kept beside it, does not yet.
+    // A link into an add-on and the last four of a code are both words this server runs.
     requiredSchema: { prefixed: true, tables: [{ ref: 'lines', columns: [{ ref: 'item_id', rules: { addOnLink: { addOn: 'kit', table: 'items' } } }, { ref: 'code_last4', rules: { codeLast4: { of: 'code' } } }] }] },
     publicAccess: [{ table: 'lines', methods: ['GET'], unlockBy: { header: true, column: 'code', self: true } }],
   };
@@ -105,27 +105,34 @@ describe('a manifest that uses a word this server does not run yet', () => {
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { recordTabs: [{ id: 'stock' }] } })).toEqual([]);
     // And the price question an add-on answers.
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { adjuster: { contract: 'price-adjust' } } })).toEqual([]);
-    // And an amount a ledger's action decides. (The one word not run yet is an app's: the last four of a code, below.)
+    // And an amount a ledger's action decides.
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { ledgers: [{ id: 'cards', actions: { pay: { decides: [{ input: 'amount' }] } } }] } })).toEqual([]);
   });
 
-  it('an app\'s own pages, roles, prefix and its link into an add-on are no such word; the last four of a code is', () => {
-    expect(unbuiltInManifest(APP).map((found) => found.word)).toEqual(['column.codeLast4']);
-    expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] })).toEqual([]);
+  /** A word of a release after this one, as the list would hold it: every word there is today is run. */
+  const LATER = { 'column.codeLast4': '0.3.21' };
+
+  it('an app\'s own pages, roles, prefix, its link into an add-on and the last four of a code are no such word', () => {
+    expect(unbuiltInManifest(APP)).toEqual([]);
+    expect(Object.keys(UNBUILT_MANIFEST_WORDS)).toEqual([]);
+    // A word the list holds is found where it is written, with the release that runs it.
+    expect(unbuiltInManifest(APP, LATER)).toEqual([{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.1.rules.codeLast4', release: '0.3.21' }]);
+    expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] }, LATER)).toEqual([]);
   });
 
   it('is refused whole, with the release to move to', () => {
-    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.17')).toThrowError(
-      '"shop" uses "column.codeLast4", which Adminium 0.3.19 runs and this Adminium 0.3.17 does not. Take it out, or move to Adminium 0.3.19.',
+    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.19', LATER)).toThrowError(
+      '"shop" uses "column.codeLast4", which Adminium 0.3.21 runs and this Adminium 0.3.19 does not. Take it out, or move to Adminium 0.3.21.',
     );
     try {
-      refuseUnbuiltManifest(APP, '"shop"', '0.3.17');
+      refuseUnbuiltManifest(APP, '"shop"', '0.3.19', LATER);
     } catch (error) {
-      expect(error).toMatchObject({ statusCode: 422, code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.19', serverVersion: '0.3.17' } });
+      expect(error).toMatchObject({ statusCode: 422, code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.21', serverVersion: '0.3.19' } });
       expect((error as { details: { words: unknown[] } }).details.words).toHaveLength(1);
     }
     // A word built since is let through: the list is the only thing that refuses.
-    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.18', {})).not.toThrow();
+    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.19', {})).not.toThrow();
+    expect(() => refuseUnbuiltManifest(APP, '"shop"', '0.3.19')).not.toThrow();
   });
 
   it('a row opened by its own code is served: no entry rule refuses it', () => {

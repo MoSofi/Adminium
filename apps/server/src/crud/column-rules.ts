@@ -100,7 +100,9 @@ export type IssueCode =
   | 'used-up'
   // Text held to a name or a note that carries an address or too many digits; a link to a row that is not there.
   | 'plain-text'
-  | 'not-found';
+  | 'not-found'
+  // A discount code that starts as a voucher's or a card's code does.
+  | 'reserved';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {
@@ -281,6 +283,10 @@ export interface ColumnCode {
   length: number;
   /** A new code written by the change that sets one of these off (`crud/code-renew.ts`). */
   renew?: ColumnCodeRule['renew'];
+  /** Words a made code never starts with (see `TableRules.reservedStarts`). */
+  avoid?: readonly string[];
+  /** The columns that keep the last four of this code (`column.codeLast4`): written with every code made. */
+  last4?: string[];
 }
 
 /** `column.stamp`: what is written, and when. */
@@ -418,6 +424,15 @@ export interface TableRules {
   readOnly?: string[];
   /** `column.customerKey`: columns that keep a keyed hash of the address in another column of the row. Adminium's alone to write. */
   customerKeys?: { column: string; of: string }[];
+  /**
+   * For the table an installed add-on keeps its discount codes in: the code
+   * column, and the words no code there may start with — a voucher's and a
+   * card's routing words, which a typed value starting so is taken for. Set by
+   * the write service, which knows what is installed.
+   */
+  reservedStarts?: { column: string; words: readonly string[] };
+  /** `column.codeLast4`: columns that keep the last four characters of the code in another column of the row. Adminium's alone to write. */
+  lastFours?: { column: string; of: string }[];
   /** `column.addOnLink`: columns that link the row to a row of an add-on's table, with no foreign key behind them. */
   addOnLinks?: SoftLink[];
   /**
@@ -806,6 +821,11 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const follows = followsOf(target);
   const followReads = follows.length === 0 ? [] : followReadsOf(formulas, perNight, follows);
   const customerKeys = columns.flatMap((column) => (column.customerKey === undefined ? [] : [{ column: column.name, of: column.customerKey.of }]));
+  const lastFours = columns.flatMap((column) => (column.codeLast4 === undefined ? [] : [{ column: column.name, of: column.codeLast4.of }]));
+  for (const code of codes) {
+    const beside = lastFours.filter((last) => last.of === code.column).map((last) => last.column);
+    if (beside.length > 0) code.last4 = beside;
+  }
   const addOnLinks: SoftLink[] = columns.flatMap((column) => (column.addOnLink === undefined ? [] : [{ column: column.name, addOn: column.addOnLink.addOn, tableId: column.addOnLink.tableId, key: column.addOnLink.key }]));
   const readOnly = [
     ...ownRollups.map((r) => r.column),
@@ -814,6 +834,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     ...(perNight === undefined ? [] : [perNight.column]),
     // A customer's key is made from the address beside it, by Adminium: no writer's value for it is kept.
     ...customerKeys.map((key) => key.column),
+    // The last four of a code are cut from the code beside them, by Adminium.
+    ...lastFours.map((last) => last.column),
   ];
   const numbered = gapless.flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
   const currencyColumn = columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
@@ -854,6 +876,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     adjust === undefined &&
     adjustParents.length === 0 &&
     customerKeys.length === 0 &&
+    lastFours.length === 0 &&
     addOnLinks.length === 0
       ? null
       : {
@@ -872,6 +895,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(ownRollups.length === 0 ? {} : { ownRollups }),
           ...(readOnly.length === 0 ? {} : { readOnly }),
           ...(customerKeys.length === 0 ? {} : { customerKeys }),
+          ...(lastFours.length === 0 ? {} : { lastFours }),
           ...(addOnLinks.length === 0 ? {} : { addOnLinks }),
           ...(balances.length === 0 ? {} : { balances }),
           ...(formulas.length === 0 ? {} : { formulas }),

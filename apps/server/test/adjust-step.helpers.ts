@@ -63,6 +63,7 @@ export function stepperOf(w: PriceWorld): Stepper {
       await deleteRows(target.db, target.table, match);
     },
     currency: async () => 'USD',
+    zone: async (target) => target.timezone ?? 'UTC',
     customerKey: keyOf,
     rolesOf: async () => 'any',
   });

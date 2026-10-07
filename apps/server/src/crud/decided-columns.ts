@@ -38,7 +38,7 @@ import { sql, type Kysely } from 'kysely';
 
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { clearedLinks, resolveLookups, type LookupOptions } from './code-lookup.js';
+import { canonicalCode, clearedLinks, reservedStart, resolveLookups, type LookupOptions } from './code-lookup.js';
 import type { ColumnCode, ColumnSequence, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
@@ -132,9 +132,29 @@ export interface SequenceStore {
 /** Crockford's base 32: digits and letters, without I, L, O and U. */
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
-export function generateCode(prefix: string, length: number): string {
-  let out = prefix;
-  for (let i = 0; i < length; i += 1) out += CROCKFORD[randomInt(CROCKFORD.length)];
+/**
+ * A new code. `avoid`: words a code of this column may not start with (a
+ * discount code never starts as a voucher's or a card's does) — one that
+ * happens to is made again, so a made code is never refused for it.
+ */
+export function generateCode(prefix: string, length: number, avoid: readonly string[] = []): string {
+  for (let attempt = 0; ; attempt += 1) {
+    let out = prefix;
+    for (let i = 0; i < length; i += 1) out += CROCKFORD[randomInt(CROCKFORD.length)];
+    if (attempt >= 50 || reservedStart(canonicalCode(out), avoid) === null) return out;
+  }
+}
+
+/**
+ * A code made for a column, with what follows it: the last four characters
+ * kept beside it. Every place that makes a code makes it here, so no way of
+ * making one — a new row, a collision tried again, a change of hands, an undo
+ * of one — leaves the four characters of the code before.
+ */
+export function madeCode(code: Pick<ColumnCode, 'column' | 'prefix' | 'length' | 'avoid' | 'last4'>): Row {
+  const made = generateCode(code.prefix, code.length, code.avoid);
+  const out: Row = { [code.column]: made };
+  for (const column of code.last4 ?? []) out[column] = lastFourOf(made);
   return out;
 }
 
@@ -249,8 +269,7 @@ export async function resolveRow(
   if (action === 'create') {
     for (const code of rules.codes ?? []) {
       if (codeGiven(values, code.column, keepEmptyCodes)) continue;
-      out ??= { ...looked };
-      out[code.column] = generateCode(code.prefix, code.length);
+      out = { ...(out ?? looked), ...madeCode(code) };
     }
   }
   return out ?? values;
@@ -261,10 +280,31 @@ export function generatedCodes(rules: TableRules | null, sent: Row, keepEmptyCod
   return (rules?.codes ?? []).filter((code) => !codeGiven(sent, code.column, keepEmptyCodes));
 }
 
+/** The last four letters or digits of a code, as codes are kept (upper case); null for a value that holds none. */
+export function lastFourOf(code: unknown): string | null {
+  if (typeof code !== 'string') return null;
+  const bare = code.toUpperCase().replace(/[^0-9A-Z]/g, '');
+  return bare === '' ? null : bare.slice(-4);
+}
+
+/**
+ * The last four characters of a code, kept beside it: on a create, and on any
+ * change that writes the code (a new one made in its place). Cut here, after
+ * the code is made and with the formulas, because no writer's value for them
+ * is kept. A row with no code has none.
+ */
+export function lastFours(rules: Pick<TableRules, 'lastFours'> | null, action: WriteAction, values: Row): Row {
+  const lasts = (rules?.lastFours ?? []).filter((last) => action === 'create' || Object.prototype.hasOwnProperty.call(values, last.of));
+  if (lasts.length === 0 || action === 'delete') return values;
+  const out = { ...values };
+  for (const last of lasts) out[last.column] = lastFourOf(values[last.of]);
+  return out;
+}
+
 /** The same values with each generated code made again. */
 export function regenerateCodes(values: Row, codes: readonly ColumnCode[]): Row {
-  const out = { ...values };
-  for (const code of codes) out[code.column] = generateCode(code.prefix, code.length);
+  let out = { ...values };
+  for (const code of codes) out = { ...out, ...madeCode(code) };
   return out;
 }
 

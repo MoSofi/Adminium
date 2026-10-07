@@ -210,6 +210,7 @@ import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
 import { addOnRoutes } from './routes/add-ons/index.js';
 import { addOnKitRoutes } from './routes/add-ons/kit.js';
+import { addOnCodesRoutes } from './routes/add-ons/codes.js';
 import { addOnLookUpRoutes } from './routes/add-ons/look-up.js';
 import { wordsRoutes } from './routes/words/index.js';
 import { auditRoutes } from './routes/audit/index.js';
@@ -1692,6 +1693,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(ledgerRoutes({ manager, meta, ledgers, writes: recordWrites }));
       // One typed code looked up across an add-on's code tables, as the caller reads them.
       await api.register(addOnLookUpRoutes({ manager, meta }));
+      await api.register(addOnCodesRoutes({ manager, meta }));
       // What staff are told of the rows a screen shows, in an add-on's stock words: the figure for who reads the stock.
       await api.register(wordsRoutes({ manager, meta, ledgers }));
       // What an add-on's own page may read and write: its tables, the reader's grants on each, the tables that hand it rows.

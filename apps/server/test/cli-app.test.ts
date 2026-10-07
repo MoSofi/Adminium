@@ -196,19 +196,21 @@ describe('adminium app check', () => {
     expect(err).not.toContain('publisher');
   });
 
-  it('refuses a word this Adminium reads and does not run yet, where it is written', async () => {
+  it('takes a folder that keeps the last four of a code beside it: every newer word there is today is one this Adminium runs', async () => {
     parts({
       'apps/repairs/manifest/app.json': { ...APP, compatibility: { minAdminiumVersion: '0.3.18' } },
       'apps/repairs/manifest/add-ons.json': { suggests: [{ key: 'cards-kit', range: '*', reason: { 'en-US': 'Gift cards.' } }] },
-      // A link into an add-on runs now; the last four of a code, kept beside it, does not yet.
+      // A link into an add-on, and the last four of a code kept beside it.
       'apps/repairs/manifest/tables/jobs.json': {
         ...JOBS,
         columns: [...JOBS.columns, { ref: 'card_code', type: 'text', maxLength: 32, rules: { code: { length: 12 } } }, { ref: 'card_last4', type: 'text', maxLength: 4, nullable: true, rules: { codeLast4: { of: 'card_code' } } }],
       },
     });
-    const { code, err } = await run('check');
-    expect(code).toBe(2);
-    expect(err).toMatch(/apps\/repairs\/manifest\/tables\/jobs\.json: columns\.4\.rules\.codeLast4 — uses "column\.codeLast4", which Adminium 0\.3\.19 runs and this Adminium \S+ does not\. Take it out, or run this folder on Adminium 0\.3\.19\./);
+    const { err } = await run('check');
+    // (The folder asks for a release after this build's, and is told so; nothing is said of a word.)
+    expect(err).not.toMatch(/which Adminium \S+ runs and this Adminium/);
+    expect(err).not.toContain('codeLast4');
+    expect(err).not.toContain('tables/jobs.json');
   });
 
   it('says that the add-ons it names add to what the customer side may reach, and checks its rows for them', async () => {

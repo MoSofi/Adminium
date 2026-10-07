@@ -99,6 +99,8 @@ export interface LedgerRuntime {
   deciderFor(addOnKey: string): InstalledDecider | null;
   /** Whether the price rule of an order's table runs now, and the add-on that answers it. Absent on a runtime that answers no price. */
   adjuster?(view: SnapshotView, table: ResolvedTable): AdjusterState;
+  /** For a table an installed add-on keeps its discount codes in: the code column, and the words no code there may start with. Null for any other table. */
+  reservedStarts?(view: SnapshotView, table: ResolvedTable): { column: string; words: readonly string[] } | null;
   /** The add-on's update gate: a save enters as a reader. */
   gate(addOnKey: string): DeciderGate;
   /** The version and status the store holds now: read inside a save before its first statement on an add-on's table. */
@@ -341,6 +343,16 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       // Loaded from another version than the one installed: an update is half way, or the add-ons were not loaded again.
       if (decider.version !== addOn.version) return cannot('version-moved');
       return { state: 'live', adjuster, decider };
+    },
+    reservedStarts(view, table) {
+      const installs = deps.installs();
+      // A table an add-on made is named `<its key>:<its own name for the table>`.
+      const stored = installs.refOf(view.connectionId, table.id);
+      const cut = stored.indexOf(':');
+      if (stored === table.id || cut <= 0) return null;
+      const codes = (installs.installed(view.connectionId, stored.slice(0, cut))?.manifest.addOn?.adjuster as Adjuster | undefined)?.codes;
+      if (codes === undefined || codes.table !== stored.slice(cut + 1) || (codes.reserved ?? []).length === 0) return null;
+      return { column: codes.column, words: codes.reserved ?? [] };
     },
     resolve(view, table, posting) {
       const installs = deps.installs();
