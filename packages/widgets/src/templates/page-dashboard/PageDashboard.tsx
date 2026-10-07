@@ -17,7 +17,7 @@
 
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
-import { ArrowRight, CalendarDays, ClipboardList, ExternalLink } from 'lucide-react';
+import { ArrowRight, CalendarDays, ClipboardCheck, ClipboardList, ExternalLink, Gift, PackagePlus, Plus } from 'lucide-react';
 import { Button, cn, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl } from '@adminium/ui';
 
 import { WidgetHost } from '../../frame/WidgetHost.js';
@@ -206,15 +206,23 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, day: h
     );
   }
 
-  const stored = parsed.layout.toolbar?.link;
-  const link = stored === undefined || !(linkAvailable?.(stored.href) ?? !stored.href.startsWith('@')) ? undefined : stored;
+  // One link (`link`, as every released page writes it) or up to two (`links`): each drawn only where the host can open it.
+  const toolbar = parsed.layout.toolbar;
+  const stored: readonly ToolbarLinkSpec[] = toolbar?.links ?? (toolbar?.link === undefined ? [] : [toolbar.link]);
+  const links = stored.filter((link) => linkAvailable?.(link.href) ?? !link.href.startsWith('@'));
   const linkButton =
-    link === undefined ? null : (
-      <ToolbarLink
-        label={pickLocalized(link.label, link.labels, locale)}
-        icon={link.icon ?? 'arrow-right'}
-        onOpen={() => onEvent?.(TOOLBAR_INSTANCE, { type: 'drill-through', href: link.href })}
-      />
+    links.length === 0 ? null : (
+      <div className="ms-auto flex flex-wrap items-center justify-end gap-2" data-part="page-dashboard-links">
+        {links.map((link) => (
+          <ToolbarLink
+            key={link.href}
+            label={pickLocalized(link.label, link.labels, locale)}
+            icon={link.icon ?? 'arrow-right'}
+            primary={link.tone === 'primary'}
+            onOpen={() => onEvent?.(TOOLBAR_INSTANCE, { type: 'drill-through', href: link.href })}
+          />
+        ))}
+      </div>
     );
 
   const grid = (
@@ -249,13 +257,22 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, day: h
 /** Whose event a page-level link is: no widget's. */
 const TOOLBAR_INSTANCE = '__toolbar';
 
-const LINK_ICONS = { 'arrow-right': ArrowRight, 'clipboard-list': ClipboardList, 'external-link': ExternalLink } as const;
+const LINK_ICONS = { 'arrow-right': ArrowRight, 'clipboard-list': ClipboardList, 'external-link': ExternalLink, 'package-plus': PackagePlus, 'clipboard-check': ClipboardCheck, plus: Plus, gift: Gift } as const;
 
-/** The page's one link, at the end of its controls: the host opens the route. */
-function ToolbarLink({ label, icon, onOpen }: { label: string; icon: keyof typeof LINK_ICONS; onOpen: () => void }) {
+/** A link as a layout stores it: the one of `link`, or one of `links` (which may be the page's main action). */
+interface ToolbarLinkSpec {
+  label: string;
+  labels?: Record<string, string> | undefined;
+  href: string;
+  icon?: keyof typeof LINK_ICONS | undefined;
+  tone?: 'primary' | undefined;
+}
+
+/** One link at the end of the page's controls: the host opens the route. The page's main action is the primary button. */
+function ToolbarLink({ label, icon, primary, onOpen }: { label: string; icon: keyof typeof LINK_ICONS; primary: boolean; onOpen: () => void }) {
   const Icon = LINK_ICONS[icon];
   return (
-    <Button variant="secondary" className="ms-auto" data-testid="page-dashboard-link" onClick={onOpen}>
+    <Button variant={primary ? 'primary' : 'secondary'} data-testid="page-dashboard-link" onClick={onOpen}>
       {label}
       <Icon aria-hidden className="rtl:-scale-x-100" />
     </Button>

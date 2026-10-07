@@ -38,6 +38,10 @@ interface Fixture {
   staff?: AppSection['staff'];
   /** The Overview's toolbar link. */
   href?: string;
+  /** Two links in place of the one, as a newer page writes them. */
+  links?: { label: string; href: string; tone?: 'primary' }[];
+  /** The add-on pages this reader may open. */
+  addOnPages?: { addOnKey: string; ref: string; unlisted?: boolean }[];
 }
 
 const APPLIED_WHERE = { and: [{ column: 'status', op: 'eq', value: 'active' }, { column: 'mrr', op: 'gt', value: 0 }] };
@@ -60,13 +64,16 @@ function stubFetch(fixture: Fixture) {
       if (fixture.staff !== undefined) {
         bootstrap.appSections = [{ appKey: 'clients', label: 'Client Portal', version: '1.0.0', groups: [], staff: fixture.staff }];
       }
+      if (fixture.addOnPages !== undefined) {
+        bootstrap.addOnNav = { groups: [], pages: fixture.addOnPages.map((page) => ({ labelKey: 'x', fallback: page.ref, icon: 'box', client: 'dist/page.js', group: 'library', order: 1, adminOnly: false, detail: false, ...page })) };
+      }
       return jsonResponse(200, { data: bootstrap });
     }
     if (url.startsWith('/api/v1/pages/page_customers')) return jsonResponse(200, { data: makeCrudEnvelope() });
     if (url.startsWith('/api/v1/pages/page_overview')) {
       const envelope = makeDashboardEnvelope();
       const layout = envelope.config['layout'] as Record<string, unknown>;
-      const toolbar = { link: { label: 'Open the desk', href: fixture.href ?? '@staff', icon: 'external-link' } };
+      const toolbar = fixture.links !== undefined ? { links: fixture.links } : { link: { label: 'Open the desk', href: fixture.href ?? '@staff', icon: 'external-link' } };
       return jsonResponse(200, { data: { ...envelope, config: { ...envelope.config, layout: { ...layout, toolbar } } } });
     }
     if (url === '/api/v1/widget-data/batch' && method === 'POST') {
@@ -244,5 +251,34 @@ describe('“Open the desk” — the app’s staff screens', () => {
     await userEvent.click(await screen.findByTestId('page-dashboard-link'));
     await waitFor(() => expect(router.state.location.pathname).toBe('/p/customers'));
     expect(router.state.location.search).toEqual({ 'f.status': 'eq:active' });
+  });
+});
+
+describe('links to pages, one or two', () => {
+  const names = () => screen.queryAllByTestId('page-dashboard-link').map((button) => button.textContent);
+
+  it('a link to a page the reader cannot open is hidden; the one they can open stays', async () => {
+    await renderAt('/p/overview', { links: [{ label: 'Customers', href: '/p/customers?f.status=eq:active' }, { label: 'Payroll', href: '/p/payroll', tone: 'primary' }] });
+    await screen.findAllByText('42');
+    expect(names()).toEqual(['Customers']);
+  });
+
+  it('a link to a code page with no rail row is drawn for a reader who may open it, and for no other', async () => {
+    const links = [{ label: 'Issue', href: '/add-ons/offers/offers-issue?kind=card', tone: 'primary' as const }, { label: 'Look up', href: '/add-ons/offers/offers-look-up' }];
+    // The page has no place in the rail (`unlisted`): it is listed all the same, for whoever may open it.
+    await renderAt('/p/overview', { links, addOnPages: [{ addOnKey: 'offers', ref: 'offers-issue', unlisted: true }] });
+    await screen.findAllByText('42');
+    expect(names()).toEqual(['Issue']);
+    cleanup();
+    // The same ref of another add-on is another page.
+    await renderAt('/p/overview', { links, addOnPages: [{ addOnKey: 'inventory', ref: 'offers-issue' }] });
+    await screen.findAllByText('42');
+    expect(names()).toEqual([]);
+  });
+
+  it('any other address is drawn as it always was', async () => {
+    await renderAt('/p/overview', { links: [{ label: 'Docs', href: 'https://docs.example.test/' }, { label: 'Settings', href: '/settings' }] });
+    await screen.findAllByText('42');
+    expect(names()).toEqual(['Docs', 'Settings']);
   });
 });

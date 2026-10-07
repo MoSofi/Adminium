@@ -40,3 +40,37 @@ describe('a page link to the app’s staff screens', () => {
     expect(screen.getByTestId('page-dashboard-link')).toBeDefined();
   });
 });
+
+describe('one link or two', () => {
+  const two = (first: string, second: string): PageLayout => ({
+    version: 1,
+    items: [],
+    toolbar: { links: [{ label: 'Receive', labels: { 'de-DE': 'Annehmen' }, href: first, icon: 'package-plus', tone: 'primary' }, { label: 'Count', href: second, icon: 'clipboard-check' }] },
+  });
+
+  it('draws two links in the order written, the primary one as the primary button', () => {
+    const onEvent = vi.fn();
+    render(<PageDashboard layout={two('/add-ons/inventory/receive', '/add-ons/inventory/counts')} states={{}} onEvent={onEvent} />);
+    const buttons = screen.getAllByTestId('page-dashboard-link');
+    expect(buttons.map((button) => button.textContent)).toEqual(['Receive', 'Count']);
+    expect(buttons[0]!.className).toContain('bg-accent');
+    expect(buttons[1]!.className).not.toContain('bg-accent ');
+    expect(buttons[1]!.className).toContain('bg-surface');
+    fireEvent.click(buttons[1]!);
+    expect(onEvent).toHaveBeenCalledWith('__toolbar', { type: 'drill-through', href: '/add-ons/inventory/counts' });
+  });
+
+  it('a link the host says is unavailable is not drawn; the other is', () => {
+    render(<PageDashboard layout={two('/add-ons/inventory/receive', '/add-ons/inventory/counts')} states={{}} linkAvailable={(href) => href.endsWith('/counts')} />);
+    expect(screen.getAllByTestId('page-dashboard-link').map((button) => button.textContent)).toEqual(['Count']);
+    cleanup();
+    render(<PageDashboard layout={two('/a', '/b')} states={{}} linkAvailable={() => false} />);
+    expect(screen.queryByTestId('page-dashboard-link')).toBeNull();
+    expect(document.querySelector('[data-part="page-dashboard-links"]')).toBeNull();
+  });
+
+  it('the single link of a released page is a secondary button, as it was', () => {
+    render(<PageDashboard layout={layout('/p/invoices')} states={{}} />);
+    expect(screen.getByTestId('page-dashboard-link').className).toContain('bg-surface');
+  });
+});

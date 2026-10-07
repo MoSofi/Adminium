@@ -91,13 +91,13 @@ describe('the stored buttons of a record page', () => {
 });
 
 describe('the words a server reads and does not run yet', () => {
-  const NEW = ['toolbar.links', 'roles.tables'] as const;
+  const NEW = ['roles.tables'] as const;
   const found = (doc: unknown) => unbuiltInManifest(doc).map((word) => `${word.word} ${word.release}`);
 
   it('each names the release that runs it', () => {
     for (const word of NEW) expect(UNBUILT_MANIFEST_WORDS[word], word).toBe('0.3.18');
     // A record page's buttons are run: nothing is refused for them any more.
-    for (const run of ['states.actions', 'addOn.lookUp', 'config.tabs', 'config.bulk'] as const) {
+    for (const run of ['states.actions', 'addOn.lookUp', 'config.tabs', 'config.bulk', 'toolbar.links'] as const) {
       expect(UNBUILT_MANIFEST_WORDS[run], run).toBeUndefined();
       expect(MANIFEST_WORDS_RUN, run).toContain(run);
     }
@@ -108,7 +108,8 @@ describe('the words a server reads and does not run yet', () => {
     expect(found(DESK_HOST)).toContain('roles.tables 0.3.18');
     const linked = structuredClone(DESK_HOST) as Doc;
     linked.pages[0].config = { layout: { toolbar: { links: [{ label: 'New sale', href: '/p/sales' }, { label: 'Count', href: '/p/sales', tone: 'primary' }] } } };
-    expect(found(linked)).toContain('toolbar.links 0.3.18');
+    // Two links on a dashboard's toolbar are drawn now: nothing is refused for them.
+    expect(found(linked).some((word) => word.startsWith('toolbar.links'))).toBe(false);
   });
 
   let open: Harness | null = null;

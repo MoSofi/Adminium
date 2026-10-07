@@ -27,7 +27,7 @@ import { useRouter } from '@tanstack/react-router';
 import type { WidgetDataState, WidgetEvent } from '@adminium/widgets';
 
 import { extractBindings } from '../api/widgetData.js';
-import { bootstrapQuery } from '../app/bootstrap.js';
+import { addOnNavOf, bootstrapQuery, findPageBySlug } from '../app/bootstrap.js';
 import { DashboardBuilder } from './dashboard-builder/index.js';
 import { STAFF_HREF, openStaffTarget, staffTargetFor } from './staffLink.js';
 import type { PageTemplateProps } from './template-types.js';
@@ -42,7 +42,20 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
    */
   const { data: bootstrap } = useQuery(bootstrapQuery());
   const staff = useMemo(() => (bootstrap === undefined ? null : staffTargetFor(bootstrap, page.id)), [bootstrap, page.id]);
-  const linkAvailable = useCallback((href: string) => (href.startsWith('@') ? href === STAFF_HREF && staff !== null : true), [staff]);
+  const linkAvailable = useCallback(
+    (href: string) => {
+      if (href.startsWith('@')) return href === STAFF_HREF && staff !== null;
+      // A link to a page is drawn for a reader who may open that page: the pages they were sent are the ones they may.
+      const [path = ''] = href.split(/[?#]/);
+      const page = /^\/p\/([^/]+)/.exec(path);
+      if (page !== null) return bootstrap !== undefined && findPageBySlug(bootstrap, decodeURIComponent(page[1]!)) !== null;
+      // An add-on's own page — one with no place in the rail too: listed for whoever may open it.
+      const own = /^\/add-ons\/([^/]+)\/([^/]+)/.exec(path);
+      if (own !== null) return bootstrap !== undefined && addOnNavOf(bootstrap).pages.some((one) => one.addOnKey === decodeURIComponent(own[1]!) && one.ref === decodeURIComponent(own[2]!));
+      return true;
+    },
+    [staff, bootstrap],
+  );
   const onEvent = useCallback(
     (event: WidgetEvent) => {
       if (event.type === 'drill-through' && event.href.startsWith('@')) {
