@@ -38,6 +38,9 @@ export class AdjustTooLarge extends Error {
   }
 }
 
+/** The most rows of an order's codes table that are read: the codes on it now, and those taken off it again. */
+export const CODE_ROWS_MAX = ADJUST_CODES_MAX * 4;
+
 const empty = (value: unknown): boolean => value === null || value === undefined || value === '';
 const keyOf = (table: ResolvedTable, row: Row): string => table.primaryKey.map((column) => String(row[column])).join('/');
 
@@ -77,8 +80,10 @@ export async function loadLines(db: Db, view: SnapshotView, adjust: CompiledAdju
     }
     let query = db.selectFrom(table.id as never).selectAll().where(sql.ref(part.via!), '=', order[adjust.key] as never);
     for (const column of table.primaryKey) query = query.orderBy(sql.ref(column));
-    // Past the most a question carries there is nothing to read: the save is refused.
+    // Past the most a question carries there is nothing to read: the save is refused — whatever the rows are. One more row than
+    // was read may be a line, and a line never read would keep a reduction nobody worked out.
     const rows = (await query.limit(ADJUST_LINES_MAX + 1).execute()) as Row[];
+    if (rows.length > ADJUST_LINES_MAX) throw new AdjustTooLarge('lines');
     for (const row of rows) {
       const line = isLine(part, row);
       if (line) lines += 1;
@@ -110,7 +115,10 @@ export function adjustLineOf(input: { view: SnapshotView; line: LoadedLine; inde
   // A stay's quantity is its nights, and its price column already the whole stay's.
   const nights = part.nights === undefined ? undefined : input.nights;
   const quantity = input.quantity ?? (nights === undefined ? stored : { n: BigInt(nights.length), d: 1n });
-  const amount = nights !== undefined || part.quantity === undefined ? price : times(price, quantity);
+  const worth = nights !== undefined || part.quantity === undefined ? price : times(price, quantity);
+  // A row worth less than nothing (a correction keyed in as a line) is never reduced, and counts for nothing an offer adds up.
+  const owed = worth.n * worth.d < 0n;
+  const amount = owed ? ZERO : worth;
   const what: AdjustLine['what'] = [];
   for (const entry of part.what) {
     const value = row[entry.column];
@@ -136,7 +144,7 @@ export function adjustLineOf(input: { view: SnapshotView; line: LoadedLine; inde
     quantity: whole ? String(quantity.n / quantity.d) : ratioText(quantity, 4).replace(/0+$/, ''),
     amount: ratioText(amount, places),
     what,
-    excluded: part.excludes !== undefined && !empty(row[part.excludes]),
+    excluded: owed || (part.excludes !== undefined && !empty(row[part.excludes])),
     paidBy: part.paidBy === undefined || empty(row[part.paidBy]) ? null : String(row[part.paidBy]),
     kept: input.kept ?? true,
     ...(nights === undefined ? {} : { nights: nights.map((night) => ({ date: night.date, price: ratioText(toRatio(night.rate) ?? ZERO, places) })) }),
@@ -208,7 +216,8 @@ export async function findCodes(db: Db, adjuster: ResolvedAdjuster, typed: reado
     // One look a table: a pack and a voucher share one, and are told apart by the row.
     const looked = new Set<string>();
     for (const { kind, needle } of routeTypedCode(canonical, kinds)) {
-      if (kind.of === 'never') continue;
+      // A word with nothing after it names no code.
+      if (kind.of === 'never' || needle === '') continue;
       const table = kind.of === 'code' ? codesTable : vouchersTable;
       const once = `${table.id}\u0000${needle}`;
       if (looked.has(once)) continue;
@@ -234,7 +243,10 @@ export async function loadCodes(db: Db, view: SnapshotView, adjust: CompiledAdju
   const table = view.table(rule.table);
   let query = db.selectFrom(table.id as never).selectAll().where(sql.ref(rule.via), '=', order[adjust.key] as never);
   for (const column of table.primaryKey) query = query.orderBy(sql.ref(column));
-  const rows = ((await query.limit(ADJUST_CODES_MAX * 4 + 1).execute()) as Row[]).filter((row) => {
+  // The rows kept as history (a code taken off again) are read with the others: past so many of them a code typed last would never be read.
+  const every = (await query.limit(CODE_ROWS_MAX + 1).execute()) as Row[];
+  if (every.length > CODE_ROWS_MAX) throw new AdjustTooLarge('codes');
+  const rows = every.filter((row) => {
     const removed = rule.removed === undefined ? null : row[rule.removed];
     return !empty(row[rule.typed]) && (empty(removed) || booleanOf(removed) === false);
   });

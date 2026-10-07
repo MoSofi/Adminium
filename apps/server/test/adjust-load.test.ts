@@ -127,6 +127,20 @@ describe.each(LEGS)('what a price question asks about — %s', (dialect, availab
     await expect(loadLines(w.db, w.view(), adjust, (await loadOrder(w.db, w.table('market_orders'), adjust, big))!)).rejects.toBeInstanceOf(AdjustTooLarge);
     await w.rows(`DELETE FROM market_order_lines WHERE order_id = ${String(big)} AND id = (SELECT m FROM (SELECT MAX(id) AS m FROM market_order_lines WHERE order_id = ${String(big)}) AS last)`);
     expect(await loadLines(w.db, w.view(), adjust, (await loadOrder(w.db, w.table('market_orders'), adjust, big))!)).toHaveLength(200);
+    // Rows that are no line count toward what is read: past it a line would go unread, and keep a reduction nobody worked out.
+    const voided = await w.insert('market_orders', { status: 'open' });
+    await w.rows(`INSERT INTO market_order_lines (order_id, unit_price, qty, amount, voided_at) VALUES ${Array.from({ length: 150 }, () => `(${String(voided)}, 1.00, 1, 1.00, '2026-09-30 09:00:00')`).join(', ')}`);
+    await w.rows(`INSERT INTO market_order_lines (order_id, unit_price, qty, amount) VALUES ${Array.from({ length: 51 }, () => `(${String(voided)}, 1.00, 1, 1.00)`).join(', ')}`);
+    await expect(loadLines(w.db, w.view(), adjust, (await loadOrder(w.db, w.table('market_orders'), adjust, voided))!)).rejects.toBeInstanceOf(AdjustTooLarge);
+  });
+
+  it.skipIf(!available)('a row worth less than nothing is never reduced, and counts for nothing', async () => {
+    const owed = await w.insert('market_orders', { status: 'open' });
+    await w.insert('market_order_lines', { order_id: owed, unit_price: '-5.50', qty: 1, amount: '-5.50' });
+    await w.insert('market_order_lines', { order_id: owed, unit_price: '4.00', qty: -2, amount: '-8.00' });
+    const lines = await loadLines(w.db, w.view(), adjust, (await loadOrder(w.db, w.table('market_orders'), adjust, owed))!);
+    const handed = lines.map((line, index) => adjustLineOf({ view: w.view(), line, index, places: 2, refOf: (tableId) => tableId }));
+    expect(handed.map((line) => [line.amount, line.excluded])).toEqual([['0.00', true], ['0.00', true]]);
   });
 
   it.skipIf(!available)('a typed discount code is found however it is spelled; one switched off is no code at all', async () => {
@@ -183,7 +197,8 @@ describe.each(LEGS)('what a price question asks about — %s', (dialect, availab
 
   it.skipIf(!available)('text that could be no code makes no query, and more codes than a question carries is too large', async () => {
     const log = counting();
-    const found = await findCodes(log.db, w.adjuster(), ['no/such', 'x'.repeat(40), 'ünïcode']);
+    // …and a voucher's word with nothing after it names no code.
+    const found = await findCodes(log.db, w.adjuster(), ['no/such', 'x'.repeat(40), 'ünïcode', 'VC-', 'pk']);
     expect(found.every((code) => code.kind === null)).toBe(true);
     expect(log.count()).toBe(0);
     await expect(findCodes(w.db, w.adjuster(), Array.from({ length: 13 }, (_, i) => `CODE${String(i)}`))).rejects.toBeInstanceOf(AdjustTooLarge);
@@ -201,6 +216,13 @@ describe.each(LEGS)('what a price question asks about — %s', (dialect, availab
     expect(await loadCodes(w.db, w.view(), adjust, w.adjuster(), (await loadOrder(w.db, w.table('market_orders'), adjust, other))!)).toEqual([]);
     for (let i = 0; i < 13; i += 1) await w.insert('market_order_codes', { order_id: other, typed: `CODE${String(i)}` });
     await expect(loadCodes(w.db, w.view(), adjust, w.adjuster(), (await loadOrder(w.db, w.table('market_orders'), adjust, other))!)).rejects.toBeInstanceOf(AdjustTooLarge);
+    // Codes taken off again are kept as history, and read with the others: past so many rows a code typed last would never be read.
+    const worn = await w.insert('market_orders', { status: 'open' });
+    await w.rows(`INSERT INTO market_order_codes (order_id, typed, removed_at) VALUES ${Array.from({ length: 48 }, () => `(${String(worn)}, 'AUTUMN5', '2026-09-30 09:00:00')`).join(', ')}`);
+    await w.insert('market_order_codes', { order_id: worn, typed: 'WELCOME10' });
+    await expect(loadCodes(w.db, w.view(), adjust, w.adjuster(), (await loadOrder(w.db, w.table('market_orders'), adjust, worn))!)).rejects.toBeInstanceOf(AdjustTooLarge);
+    await w.rows(`DELETE FROM market_order_codes WHERE order_id = ${String(worn)} AND id = (SELECT m FROM (SELECT MIN(id) AS m FROM market_order_codes WHERE order_id = ${String(worn)}) AS first)`);
+    expect((await loadCodes(w.db, w.view(), adjust, w.adjuster(), (await loadOrder(w.db, w.table('market_orders'), adjust, worn))!)).map((code) => code.typed)).toEqual(['WELCOME10']);
   });
 
   it.skipIf(!available)('the add-on\'s reads run in order, each row the same on every engine; a read keyed by the typed codes reads only those', async () => {

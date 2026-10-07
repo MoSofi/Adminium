@@ -31,7 +31,7 @@ const id = (ref: string) => `public.market_${ref}`;
 const kitId = (ref: string) => `public.price_kit_${ref}`;
 
 /** The shop's tables and the kit's in one database, with the shop's rules as its install stores them. */
-function world(over: { market?: Doc; more?: SchemaOverride[]; kitTables?: string[]; origin?: SchemaOverride['origin'] } = {}) {
+function world(over: { market?: Doc; more?: SchemaOverride[]; kitTables?: string[]; origin?: SchemaOverride['origin']; relink?: (relation: { from: { tableId: string; columns: string[] }; to: { tableId: string; columns: string[] } }) => void; rekey?: (table: { id: string; primaryKey: string[] }) => void } = {}) {
   const market = manifestOf(over.market ?? marketManifest()) as AppManifest;
   const stored = store(market, 'market_', expect);
   const shop = modelOf(market.requiredSchema.tables, 'market_');
@@ -43,6 +43,8 @@ function world(over: { market?: Doc; more?: SchemaOverride[]; kitTables?: string
     tables: [...shop.tables, ...kit.tables.filter((table) => here.has(table.id))],
     relations: [...shop.relations, ...kit.relations.filter((relation) => here.has(relation.from.tableId) && here.has(relation.to.tableId))],
   };
+  for (const relation of base.relations) over.relink?.(relation as never);
+  for (const table of base.tables) over.rekey?.(table as never);
   const rows = stored.rows.map((row) => (over.origin !== undefined && row.op === 'table.adjust' ? { ...row, origin: over.origin } : row));
   const view = new SnapshotView('cnx', applyOverrides(base, [...rows, ...(over.more ?? [])]));
   return { view, rows: stored.rows, orders: view.table(id('orders')), table: (ref: string) => view.table(id(ref)) };
@@ -264,9 +266,42 @@ describe('whether a price rule is live', () => {
     expect(adjust((rule) => ({ ...rule, expect: 'grand_total' }))).toEqual(invalid);
     expect(adjust((rule) => ({ ...rule, uses: 'redeem' }))).toEqual(invalid);
     expect(adjust((rule) => ({ ...rule, frozen: { to: ['shipped'] } }))).toEqual(invalid);
+    // The order that is its own line and the order's lines together: one column cannot hold both reductions.
+    expect(adjust((rule) => ({ ...rule, lines: [...(rule['lines'] as Doc[]), { self: true, price: 'tax_rate', discount: 'discount', what: [] }] }))).toEqual(invalid);
+    expect(adjust((rule) => ({ ...rule, lines: [...(rule['lines'] as Doc[]), { self: true, price: 'tax_rate', discount: 'staff_value', what: [] }] })).state).toBe('live');
+    // Who is buying is read through a link to a table that keeps an address.
+    expect(adjust((rule) => ({ ...rule, order: { ...(rule['order'] as Doc), customer: { ...((rule['order'] as Doc)['customer'] as Doc), link: 'note' } } }))).toEqual(invalid);
+    expect(adjust((rule) => ({ ...rule, order: { ...(rule['order'] as Doc), customer: { ...((rule['order'] as Doc)['customer'] as Doc), address: 'phone' } } }))).toEqual(invalid);
     // The links a typed code fills must lead into the tables the add-on keeps its codes in.
     expect(adjust((rule) => ({ ...rule, codes: { ...(rule['codes'] as Doc), code: 'voucher_id' } }))).toEqual(invalid);
     expect(adjust((rule) => ({ ...rule, codes: { ...(rule['codes'] as Doc), voucher: 'typed' } }))).toEqual(invalid);
+  });
+
+  it('a row names its order by the order\'s own key, and is itself a row one key names', () => {
+    const invalid = { state: 'unavailable', cause: 'rule-invalid' };
+    // A line that names its order by a column that is not the order's key would be read under another order.
+    for (const child of ['order_lines', 'order_codes']) {
+      const elsewhere = world({ relink: (relation) => { if (relation.from.tableId === id(child) && relation.to.tableId === id('orders')) relation.to.columns = ['tax_rate']; } });
+      expect(runtime().adjuster!(elsewhere.view, elsewhere.orders), child).toEqual(invalid);
+      const twoKeys = world({ rekey: (table) => { if (table.id === id(child)) table.primaryKey = ['id', 'order_id']; } });
+      expect(runtime().adjuster!(twoKeys.view, twoKeys.orders), child).toEqual(invalid);
+    }
+  });
+
+  it('an add-on whose own columns are not all here, or that keeps codes and vouchers in one table, cannot answer', () => {
+    const w = world();
+    const declared = KIT.addOn.adjuster as Doc & { codes: Doc; vouchers: Doc; applied: { columns: Doc }; person: { uses: Doc }; ceilings: Doc; offers: Doc[] };
+    const having = (adjuster: Doc) => runtime({ addOn: { manifest: { ...KIT, addOn: { ...KIT.addOn, adjuster } } as AddOnManifest } }).adjuster!(w.view, w.orders);
+    expect(having(declared).state).toBe('live');
+    const missing = { state: 'unavailable', cause: 'columns-missing' };
+    expect(having({ ...declared, codes: { ...declared.codes, column: 'ghost' } })).toEqual(missing);
+    expect(having({ ...declared, codes: { ...declared.codes, where: [{ column: 'ghost', eq: true }] } })).toEqual(missing);
+    expect(having({ ...declared, vouchers: { ...declared.vouchers, column: 'ghost' } })).toEqual(missing);
+    expect(having({ ...declared, applied: { ...declared.applied, columns: { ...declared.applied.columns, amount: 'ghost' } } })).toEqual(missing);
+    expect(having({ ...declared, person: { ...declared.person, uses: { ...declared.person.uses, state: 'ghost' } } })).toEqual(missing);
+    expect(having({ ...declared, ceilings: { ...declared.ceilings, comp: 'ghost' } })).toEqual(missing);
+    expect(having({ ...declared, offers: [{ ...declared.offers[0]!, where: [{ column: 'ghost', eq: 1 }] }, declared.offers[1]!] })).toEqual(missing);
+    expect(having({ ...declared, vouchers: { ...declared.vouchers, table: 'codes' } })).toEqual({ state: 'unavailable', cause: 'tables-clash' });
   });
 
   it('the owner\'s switch: off asks nothing and refuses nothing, and is the way through an add-on that cannot answer', () => {

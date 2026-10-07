@@ -22,6 +22,7 @@ import { SnapshotView, type ResolvedTable } from '../src/crud/identifiers.js';
 import type { WriteTarget } from '../src/crud/write-context.js';
 import { createLedgerRuntime, type LedgerRuntime, type LedgerRuntimeDeps, type ResolvedAdjuster } from '../src/ledgers/registry.js';
 import { addOnHarness, type Dialect, type Harness } from './app-add-ons.helpers.js';
+import { TEST_POOL_MAX } from './invoicing-install.helpers.js';
 import { CATEGORY, MARKET, PRICE_KIT, PRICE_KIT_SERVER, PRICES, marketManifest, priceKitFiles, priceKitManifest, type Item } from './fixtures/price-kit/index.js';
 
 type Doc = Record<string, unknown>;
@@ -72,7 +73,8 @@ export interface PriceWorldOptions {
 
 /** The shop and the price kit, installed; the shop's things in. */
 export async function priceWorld(dialect: Dialect, options: PriceWorldOptions = {}): Promise<PriceWorld> {
-  const h = await addOnHarness(dialect, { unbuiltWords: {} });
+  // With the pool of one (`ADMINIUM_TEST_SOURCE_POOL_MAX=1`), a read the price step made through the pool from inside a save would never come back.
+  const h = await addOnHarness(dialect, { unbuiltWords: {}, ...(TEST_POOL_MAX === undefined ? {} : { sourcePoolMax: TEST_POOL_MAX }) });
   const asked = options.market ?? marketManifest();
   // Until a save asks the price, an install refuses a manifest with a price rule: the shop goes in without its rule,
   // and the rule is stored the way its install stores one — as the app's own, its child tables by their real ids.

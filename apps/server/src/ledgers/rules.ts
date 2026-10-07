@@ -254,6 +254,35 @@ export interface AdjustJudged {
 export function storedAdjustIssue({ model, table, adjust, manifest }: AdjustJudged): string | null {
   const stored = adjustRuleIssue(adjust, table as unknown as TableModel, model as unknown as DatabaseModel);
   if (stored !== null) return stored;
+  // A row of a child table names its order by the order's own key: by any other column it would be read under another order.
+  const key = table.primaryKey[0]!;
+  const keyed = (child: string, via: string): string | null => {
+    const of = model.tables.find((candidate) => candidate.id === child);
+    if (of === undefined) return null;
+    if (of.primaryKey.length !== 1) return `${of.name} has no single-column key: a row of an order must be one a reduction can be written to.`;
+    const link = model.relations.some((r) => r.through === null && r.from.tableId === child && r.from.columns.length === 1 && r.from.columns[0] === via && r.to.tableId === table.id && r.to.columns.length === 1 && r.to.columns[0] === key);
+    return link ? null : `"${via}" of ${of.name} does not name a row of ${table.name} by its key "${key}".`;
+  };
+  for (const part of adjust.lines) {
+    if ('self' in part) {
+      // The order's own line and the order's lines together: one column cannot hold both reductions.
+      if (part.discount === adjust.order.discount && adjust.lines.length > 1) return `"${part.discount}" of ${table.name} holds the order's whole reduction: the order's own line keeps its reduction in a column of its own.`;
+      continue;
+    }
+    const issue = keyed(part.table, part.via);
+    if (issue !== null) return issue;
+  }
+  for (const child of [adjust.codes, adjust.refunds]) {
+    const issue = child === undefined ? null : keyed(child.table, child.via);
+    if (issue !== null) return issue;
+  }
+  const customer = adjust.order.customer;
+  if (customer !== undefined) {
+    const people = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === customer.link && r.to.columns.length === 1);
+    const of = people === undefined ? undefined : model.tables.find((candidate) => candidate.id === people.to.tableId);
+    if (of === undefined) return `"${customer.link}" of ${table.name} links to no table: who is buying cannot be read.`;
+    if (!of.columns.some((column) => column.name === customer.address)) return `${of.name} has no column "${customer.address}" to read a customer's address from.`;
+  }
   if (manifest === null) return `The add-on "${adjust.by.addOn}" is not installed on this connection.`;
   const adjuster = manifest.addOn.adjuster as Adjuster | undefined;
   if (adjuster === undefined) return `"${adjust.by.addOn}" answers no price question.`;

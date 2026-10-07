@@ -270,6 +270,21 @@ function resolveAdjuster(installs: AddOnInstalls, view: SnapshotView, addOn: { m
     ...(settingsRef === undefined ? [] : [settingsRef]),
   ];
   if (named.some((ref) => table(ref) === null)) return 'tables-missing';
+  // A code and a voucher are told apart by the table a row is found in: in one table neither could be.
+  if (declared.codes.table === declared.vouchers.table) return 'tables-clash';
+  // Every column it names is one this database has: a read of one that is not would fail inside a save.
+  const columns: [string, readonly (string | undefined)[]][] = [
+    ...declared.offers.map((read): [string, (string | undefined)[]] => [read.table, [...read.by.map((by) => by.column), ...(read.where ?? []).map((where) => where.column)]]),
+    [declared.codes.table, [declared.codes.column, ...(declared.codes.where ?? []).map((where) => where.column)]],
+    [declared.vouchers.table, [declared.vouchers.column]],
+    [declared.applied.table, [...Object.values(declared.applied.source), ...Object.values(declared.applied.columns)]],
+    ...(declared.person === undefined ? [] : ([[declared.person.groups.table, [declared.person.groups.member, declared.person.groups.group]], [declared.person.uses.table, [declared.person.uses.customer, declared.person.uses.offer, declared.person.uses.state]]] as [string, string[]][])),
+    ...(declared.ceilings === undefined ? [] : ([[declared.ceilings.table, [declared.ceilings.role, declared.ceilings.maxPercent, declared.ceilings.maxAmount, declared.ceilings.comp]]] as [string, (string | undefined)[]][])),
+  ];
+  for (const [ref, names] of columns) {
+    const of = table(ref)!;
+    if (names.some((name) => name !== undefined && !of.columns.has(name))) return 'columns-missing';
+  }
   const hints = new Map<string, ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'>>();
   const typesOf = (tableId: string): ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'> => {
     const hit = hints.get(tableId);

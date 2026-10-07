@@ -177,6 +177,8 @@ export interface HarnessOptions {
   unbuiltWords?: Readonly<Record<string, string>> | undefined;
   /** Runs each time a route asks for the add-ons to be loaded again: the harness's stand-in for the server's reload. */
   onRebuild?: (() => void) | undefined;
+  /** The source pool's size: one connection shows a read made through the pool from inside a save (it waits for ever). The adapter's own when absent. */
+  sourcePoolMax?: number | undefined;
 }
 
 export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}): Promise<Harness> {
@@ -189,7 +191,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
   await rolesRepo(meta).assignToUser(owner.id, superAdmin!.id);
   const registry = new AdapterRegistry<AdapterProvider>();
   await registerAdapters(registry);
-  const manager = new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET), registry, metaDsn: null, blockLoopback: false });
+  const manager = new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET), registry, metaDsn: null, blockLoopback: false, ...(opts.sourcePoolMax === undefined ? {} : { sourcePoolMax: opts.sourcePoolMax }) });
 
   let dsn: string;
   let drop: () => Promise<void> = async () => undefined;
