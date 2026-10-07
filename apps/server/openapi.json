@@ -70554,6 +70554,596 @@
                         "additionalProperties": false
                       }
                     },
+                    "recordTabs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "labelKey": {
+                            "type": "string"
+                          },
+                          "tableId": {
+                            "type": "string"
+                          },
+                          "match": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "row": {
+                                "type": "string"
+                              },
+                              "tableRef": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "row",
+                              "tableRef"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "list",
+                              "form"
+                            ]
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "spec": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                "ordinal": {
+                                  "type": "number"
+                                },
+                                "writable": {
+                                  "type": "boolean"
+                                },
+                                "insertable": {
+                                  "type": "boolean"
+                                },
+                                "updatable": {
+                                  "type": "boolean"
+                                },
+                                "filledBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "database",
+                                        "adminium"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "fill": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "onUpdate": {
+                                      "type": "boolean"
+                                    },
+                                    "implicit": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "requiredWhen": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "in": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "boolean"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "in"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "options": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "list": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "list"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "values": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "value": {
+                                                "type": "string"
+                                              },
+                                              "label": {
+                                                "type": "string"
+                                              },
+                                              "tone": {
+                                                "type": "string"
+                                              },
+                                              "description": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "value"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "values"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                "validation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "format": {
+                                      "type": "string",
+                                      "enum": [
+                                        "email",
+                                        "url",
+                                        "phone"
+                                      ]
+                                    },
+                                    "min": {
+                                      "type": "number"
+                                    },
+                                    "max": {
+                                      "type": "number"
+                                    },
+                                    "minLength": {
+                                      "type": "number"
+                                    },
+                                    "maxLength": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "enumLabels": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "enumTones": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "spec",
+                                "ordinal",
+                                "writable",
+                                "filledBy",
+                                "required"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "edit": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "form": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "add": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "fk": {
+                                  "type": "string"
+                                },
+                                "table": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "fk",
+                                "table",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "remove": {
+                            "type": "boolean"
+                          },
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "labelKey": {
+                                  "type": "string"
+                                },
+                                "tableId": {
+                                  "type": "string"
+                                },
+                                "form": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "spec": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {}
+                                      },
+                                      "ordinal": {
+                                        "type": "number"
+                                      },
+                                      "writable": {
+                                        "type": "boolean"
+                                      },
+                                      "insertable": {
+                                        "type": "boolean"
+                                      },
+                                      "updatable": {
+                                        "type": "boolean"
+                                      },
+                                      "filledBy": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "database",
+                                              "adminium"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "fill": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string"
+                                          },
+                                          "onUpdate": {
+                                            "type": "boolean"
+                                          },
+                                          "implicit": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "kind"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      },
+                                      "requiredWhen": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string"
+                                          },
+                                          "in": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "options": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "list": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "list"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "values": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "value": {
+                                                      "type": "string"
+                                                    },
+                                                    "label": {
+                                                      "type": "string"
+                                                    },
+                                                    "tone": {
+                                                      "type": "string"
+                                                    },
+                                                    "description": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "value"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "values"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        ]
+                                      },
+                                      "validation": {
+                                        "type": "object",
+                                        "properties": {
+                                          "format": {
+                                            "type": "string",
+                                            "enum": [
+                                              "email",
+                                              "url",
+                                              "phone"
+                                            ]
+                                          },
+                                          "min": {
+                                            "type": "number"
+                                          },
+                                          "max": {
+                                            "type": "number"
+                                          },
+                                          "minLength": {
+                                            "type": "number"
+                                          },
+                                          "maxLength": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      },
+                                      "enumLabels": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "enumTones": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "spec",
+                                      "ordinal",
+                                      "writable",
+                                      "filledBy",
+                                      "required"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "can": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "label",
+                                "labelKey",
+                                "tableId",
+                                "form",
+                                "can"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "empty": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "emptyKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "summary": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "words": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "words"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "can": {
+                            "type": "object",
+                            "properties": {
+                              "read": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "create": {
+                                "type": "boolean"
+                              },
+                              "update": {
+                                "type": "boolean"
+                              },
+                              "delete": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "read",
+                              "create",
+                              "update",
+                              "delete"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "addOn",
+                          "id",
+                          "label",
+                          "labelKey",
+                          "tableId",
+                          "match",
+                          "mode",
+                          "columns",
+                          "edit",
+                          "form",
+                          "add",
+                          "remove",
+                          "actions",
+                          "empty",
+                          "emptyKey",
+                          "summary",
+                          "can"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stateActions": {
                       "type": "array",
                       "items": {

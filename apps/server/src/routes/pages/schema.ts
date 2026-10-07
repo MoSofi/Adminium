@@ -296,6 +296,35 @@ export const pageReply = z.object({
     )
     .optional(),
   /**
+   * The tabs of add-ons' rows a record page of this table shows this caller
+   * (`addOn.recordTabs`): each with the add-on's table, the pair its rows are
+   * found by, the columns the caller reads and may edit, what "Add" picks
+   * from, and what the caller may do. Present only when at least one applies.
+   */
+  recordTabs: z
+    .array(
+      z.object({
+        addOn: z.string(),
+        id: z.string(),
+        label: z.string(),
+        labelKey: z.string(),
+        tableId: z.string(),
+        match: z.object({ table: z.string(), row: z.string(), tableRef: z.string() }),
+        mode: z.enum(['list', 'form']),
+        columns: z.array(columnFactSchema),
+        edit: z.array(z.string()),
+        form: z.array(z.string()),
+        add: z.array(z.object({ fk: z.string(), table: z.string(), label: z.string() })),
+        remove: z.boolean(),
+        actions: z.array(z.object({ id: z.string(), label: z.string(), labelKey: z.string(), tableId: z.string(), form: z.array(columnFactSchema), can: z.boolean() })),
+        empty: z.string().nullable(),
+        emptyKey: z.string().nullable(),
+        summary: z.object({ words: z.string() }).nullable(),
+        can: z.object({ read: z.literal(true), create: z.boolean(), update: z.boolean(), delete: z.boolean() }),
+      }),
+    )
+    .optional(),
+  /**
    * The buttons a record page of this table may show this caller
    * (`states.actions`): each with the states of the row it may be used in,
    * its words in the reader's language, and what it asks for first. Decided

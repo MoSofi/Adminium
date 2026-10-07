@@ -1739,6 +1739,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // A page whose connection is gone still loads; it just knows no grants.
           // Never waits on the source: a page draws its buttons from what is known.
           tablePrivileges: async (id) => manager.connections.findById(id).then((row) => (row === null ? null : manager.knownTablePrivileges(row))),
+          installs: () => addOnInstalls.fresh(),
         }),
       );
       if (project !== null) {

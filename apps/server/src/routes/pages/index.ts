@@ -75,6 +75,7 @@ import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
 import { columnFactsFor, factsViewFor, hiddenColumnsOf, withoutColumns, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
+import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
 import { pageLayoutSchema } from './layout-schema.js';
@@ -125,6 +126,8 @@ export interface PagesRoutesDeps {
    * connection, and the RBAC answer stands alone.
    */
   tablePrivileges?: ((connectionId: string) => Promise<TablePrivilegeMap | null>) | undefined;
+  /** What is installed where, read again when it moved: which add-ons' tabs a record has. Absent, a record has none. */
+  installs?: (() => Promise<TabInstalls>) | undefined;
 }
 
 /** The acting session user id, or null for keyless/API-key principals. */
@@ -673,7 +676,17 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         // The list's own bulk actions (`config.bulk`, written at the app's install) this caller may run.
         const storedBulk = ((page.config as { config?: { bulk?: unknown } } | null)?.config ?? {}).bulk;
         const bulkActions = factsView === null || permissions === undefined || storedBulk === undefined ? undefined : await bulkActionFacts({ can: (permission) => request.can(permission), permissions, locale: reader, rights, log: request.log }, factsView, storedBulk);
-        const facts = { ...(columnFacts === null ? {} : { columnFacts }), ...(stateActions === undefined ? {} : { stateActions }), ...(bulkActions === undefined ? {} : { bulkActions }) };
+        // The tabs of add-ons' rows this record has (`addOn.recordTabs`), for this caller.
+        const recordTabs =
+          factsView === null || source === null || permissions === undefined || deps.installs === undefined
+            ? undefined
+            : await recordTabsFor(deps.meta, await deps.installs(), { can: (permission) => request.can(permission), permissions, locale: reader, rights, log: request.log }, factsView, source.table);
+        const facts = {
+          ...(columnFacts === null ? {} : { columnFacts }),
+          ...(stateActions === undefined ? {} : { stateActions }),
+          ...(bulkActions === undefined ? {} : { bulkActions }),
+          ...(recordTabs === undefined ? {} : { recordTabs }),
+        };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.
         const typed = withYesNoColumns(page.config, columnFacts);
