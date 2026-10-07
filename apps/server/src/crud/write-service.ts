@@ -131,6 +131,9 @@ import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, g
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
 import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
+import { refusedAt } from './adjust/answers.js';
+import { frozenNow, isLine, moved as movedInputs, type AdjustParent } from './adjust/rule.js';
+import { createAdjuster, type AdjustedOrder, type AdjustFor, type AdjustPeek } from './adjust/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
@@ -1368,8 +1371,11 @@ export interface CreateRecordInput {
   recheck?: ((values: Row) => Promise<void>) | undefined;
   /** Turns a failed statement into the caller's own error. */
   mapError?: ((error: unknown) => never) | undefined;
-  /** `posted`: what each posting of the write did, when the table hands rows to an add-on's ledger. */
-  announce: (row: Row, values: Row, posted?: readonly PostedOutcome[]) => Promise<void>;
+  /**
+   * `posted`: what each posting of the write did, when the table hands rows to an add-on's ledger.
+   * `adjusted`: each order the row belongs to (itself, when its rows are orders), as a price rule priced it.
+   */
+  announce: (row: Row, values: Row, posted?: readonly PostedOutcome[], adjusted?: readonly AdjustedOrder[]) => Promise<void>;
 }
 
 export interface UpdateRecordInput {
@@ -1431,6 +1437,8 @@ export interface UpdateOutcome {
   effects?: EffectWritten[] | undefined;
   /** What each posting of the write did, when the change crossed a point of a rule that hands rows to an add-on's ledger. */
   postings?: PostedOutcome[] | undefined;
+  /** Each order the change moved the price of (the row itself, when its rows are orders), as a price rule priced it. */
+  adjusted?: AdjustedOrder[] | undefined;
 }
 
 /** One phase of one posting rule, run for a row as it is stored: nothing of the row itself changes. */
@@ -1470,8 +1478,8 @@ export interface DeleteRecordInput {
   skipIfNone?: boolean | undefined;
   context: WriteContext;
   mapError?: ((error: unknown) => never) | undefined;
-  /** `before` is the row as read; null only when nobody read it. */
-  announce: (count: number, before: Row | null) => Promise<void>;
+  /** `before` is the row as read; null only when nobody read it. `adjusted`: each order the row was part of, as a price rule priced it without it. */
+  announce: (count: number, before: Row | null, adjusted?: readonly AdjustedOrder[]) => Promise<void>;
 }
 
 /** One row of a multi-row write, before its hooks. */
@@ -2052,6 +2060,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (mapError !== undefined) mapError(error);
       throw error;
     }
+    // A code typed on an order nobody would price: refused, never taken in silence at the full price.
+    const typed = adjuster.inertCode(target, rules, values);
+    if (typed !== null) {
+      const error = new PostingRefusedError('The add-on that reads this code is not here for this table, so the code cannot be taken.', { reason: 'add-on-unavailable', column: typed });
+      if (mapError !== undefined) mapError(error);
+      throw error;
+    }
     return softLinkIssues(target.db, rules, values);
   }
 
@@ -2197,13 +2212,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const before = (await fetchByPk(db, moved.table, pk)) ?? null;
     if (before === null) return null;
     // A row moved by another row's move posts nothing: a move that would is made on its own.
-    await ledgerWriter.refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values: { [column]: state }, record: before }], effect: moved.table.name });
+    await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values: { [column]: state }, record: before }], effect: moved.table.name });
     const zone = await zoneFor(rules, moved);
     let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
     values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
     values = await formulate(rules, 'update', moved, values, before, declared.origin);
     // …judged again on the row as it will be written: a point may be reached by what the move stamps or works out, not by the state alone.
-    await ledgerWriter.refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values, record: before }], effect: moved.table.name });
+    await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values, record: before }], effect: moved.table.name });
     const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
     return { target: { ...moved, timezone: zone ?? moved.timezone }, rules, pk, before, checked };
   }
@@ -2592,7 +2607,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     currency: CurrencyOf,
     /** `dry-written`: a quote whose own child rows are written next (a form's lists): the followed rows are written too, holding nothing more, so the lists read them as the save would leave them. */
     mode: 'save' | 'dry' | 'dry-written' | 'after-commit',
-  ): Promise<void> {
+    /** False where the row's price is asked next: its balances are judged once the price is in, not on totals a reduction has yet to follow. */
+    judged = true,
+  ): Promise<boolean> {
     const written = mode === 'dry-written';
     const dry = mode === 'dry' || written;
     const followed = await followChanged({
@@ -2619,7 +2636,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const starts = chainStarts(moved.rules, moved.rows).filter((start) => start.rollup.parent === own);
       if (starts.length === 0) continue;
       const key = after[starts[0]!.rollup.parentKey];
-      const cap = mode === 'after-commit' ? undefined : new Map([[own, new Map([[String(key), prior]])]]);
+      const cap = mode === 'after-commit' || !judged ? undefined : new Map([[own, new Map([[String(key), prior]])]]);
       if (!dry) {
         await settleChain(target.db, target.dialect, starts, currency, cap === undefined ? {} : { cap });
         continue;
@@ -2631,11 +2648,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rows: moved.rows.map((row) => row.record),
       });
       for (const rollup of rollups) {
-        if (!rollup.capped) continue;
+        if (!rollup.capped || !judged) continue;
         const refusal = await capRefusal(target.db, own, rollup.parentKey, key, guardedBy(rollup), prior);
         if (refusal !== null) throw refusal;
       }
     }
+    return followed.some((moved) => moved.rows.length > 0);
   }
 
   /**
@@ -2751,10 +2769,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return inTransaction(target.db) ? run(target.db) : beginOn(target.db, freshReads(target)).execute(run);
   }
 
-  /** A table whose rows post into a ledger (as a source, a line, or the parent of lines) is saved reading what is committed (`WriteTarget.committedReads`). */
+  /**
+   * A table whose rows post into a ledger (as a source, a line, or the parent of lines) is saved reading what is committed
+   * (`WriteTarget.committedReads`). So is a table whose rows are orders an add-on prices, or part of one: such a save
+   * waits for the order's row, then reads the order's lines and codes — which another save may have written while it waited.
+   */
   function freshReads<T extends WriteTarget>(target: T, posts?: boolean): T {
     if (target.dialect !== 'mysql' || target.committedReads === true) return target;
-    return posts === true || postingScope(rulesOf(target)) !== null ? { ...target, committedReads: true } : target;
+    const rules = rulesOf(target);
+    return posts === true || postingScope(rules) !== null || rules?.adjust !== undefined || (rules?.adjustParents?.length ?? 0) > 0 ? { ...target, committedReads: true } : target;
   }
 
   /**
@@ -3042,6 +3065,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (parent.via !== own) add(parents, parent.table, parent.key, values[parent.via]);
         for (const link of parent.links ?? []) add(linked, link.table, link.key, values[link.via]);
       }
+      // The order a row is part of (a code typed on it, money given back): held as a parent is, before the row goes in.
+      for (const parent of rulesOf(row.target)?.adjustParents ?? []) {
+        if (parent.via !== own) add(parents, parent.order, parent.orderKey, values[parent.via]);
+      }
       // What a new row waits for through its links (`states.create`): read for share, with the others, not row by row.
       for (const link of (row.target.table.table?.stateLinks ?? []).filter((l) => l.via !== own && waitVias(row.target.table.table?.states?.create?.requires).includes(l.via))) {
         add(linked, link.table, link.key, values[link.via]);
@@ -3186,6 +3213,167 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   const ledgerStep = <T>(run: () => Promise<T>, about: { target: WriteTarget; context: WriteContext }, mapError: ((error: unknown) => never) | undefined): Promise<T> =>
     guardedValue(() => ledgerWriter.audited(run, about), mapError);
 
+  /*
+   * THE PRICE QUESTION. A table's rule may say an add-on lowers the price of
+   * its rows. A save that moves an order's price looks before its
+   * transaction (which orders, and whether their add-on can be asked), holds
+   * each order before its own statement, and asks — once an order — after
+   * the statement and before the totals are settled.
+   */
+  const adjuster = createAdjuster({
+    ledgers: opts.ledgers,
+    rulesOf,
+    withRights,
+    hooked: (target, action, context) => current().wants('before', action, target, context),
+    update: async (target, set, key) => {
+      await updateRows(target.db, target.dialect, target.table, brand(set), key);
+    },
+    insert: (target, rows) => insertRows(target.db, target.dialect, target.table, rows.map((row) => brand(row))),
+    remove: async (target, match) => {
+      await deleteRows(target.db, target.table, match);
+    },
+    currency: (target) => currencyFor(target)(),
+    customerKey: opts.customerKey,
+  });
+
+  /** One order a save is about to price: held, as it stood before the save's own statement. */
+  interface PricedOrder {
+    for: AdjustFor;
+    key: unknown;
+    /** Null for an order the save itself makes. */
+    stood: Row | null;
+    touches: boolean;
+    /** The order as just written, when the save has it in hand. */
+    order?: Row | undefined;
+    /** Whether the save's own settle works this order's totals out afterwards (a line that adds up into it). */
+    settled: boolean;
+  }
+
+  /**
+   * The orders a row is PART of — a line, a typed code, money given back —
+   * each read and held before the row's own statement, lower key first: every
+   * writer of an order's rows takes the order first, so two of them never
+   * wait on each other crosswise. `rows`: the row as it is and as it will be
+   * (a row moved to another order holds both).
+   */
+  async function holdOrders(
+    db: Db,
+    peeked: AdjustPeek,
+    input: {
+      target: WriteTarget;
+      rules: TableRules | null;
+      rows: readonly (Row | null | undefined)[];
+      /** A change: what it sends, and the row read AGAIN once its orders are held — what it really moves is told from that, never from a look taken before. */
+      change?: { sent: Row; again: () => Promise<Row | null> } | undefined;
+      quote?: boolean | undefined;
+    },
+  ): Promise<PricedOrder[]> {
+    const held: { order: AdjustFor; parents: AdjustParent[]; key: unknown; stood: Row; settled: boolean }[] = [];
+    const names = new Set<string>();
+    for (const order of peeked.orders) {
+      const keys = new Map<string, { key: unknown; settled: boolean; parents: AdjustParent[] }>();
+      for (const parent of input.rules?.adjustParents ?? []) {
+        if (parent.order !== order.target.table.id) continue;
+        // A row that is no line of the order (a voided one, a kind the rule leaves out), made or taken away, moves no price.
+        const part = parent.as === 'line' && parent.part !== undefined ? order.adjust.parts[parent.part] : undefined;
+        const removed = parent.as === 'codes' ? order.adjust.codes?.removed : undefined;
+        const apart = (row: Row): boolean =>
+          part !== undefined
+            ? (part.unlessSet !== undefined && !isLine({ unlessSet: part.unlessSet }, row)) || (part.only !== undefined && Object.prototype.hasOwnProperty.call(row, part.only.column) && !isLine({ only: part.only }, row))
+            : removed !== undefined && row[removed] !== null && row[removed] !== undefined;
+        if (input.change === undefined && input.rows.every((row) => row === null || row === undefined || apart(row))) continue;
+        const settled = (input.rules?.rollupsInto ?? []).some((rollup) => rollup.parent === parent.order && rollup.via === parent.via);
+        for (const row of input.rows) {
+          const key = row?.[parent.via];
+          if (key === null || key === undefined) continue;
+          const known = keys.get(String(key));
+          keys.set(String(key), { key, settled: settled || known?.settled === true, parents: [...(known?.parents ?? []), parent] });
+        }
+      }
+      // Lower key first, as the database orders them: two writers of two orders never wait on each other crosswise.
+      const ordered = [...keys.keys()].sort((a, b) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0) : a < b ? -1 : a > b ? 1 : 0));
+      for (const name of ordered) {
+        const { key, settled, parents } = keys.get(name)!;
+        const at = { [order.adjust.key]: key };
+        const orderTarget = { ...order.target, db };
+        // An order whose totals this save's own settle does not work out (a code typed on it) is settled by the price step, climbing:
+        // the rows its totals climb into are held first, as a line's writer holds them.
+        if (input.quote !== true && !settled && input.target.dialect !== 'sqlite') {
+          const looked = (await fetchByPk(db, order.target.table, at)) ?? null;
+          if (looked !== null) await holdChainWith(db, input.target.dialect, chainStarts(rulesOf(orderTarget), [{ record: looked, before: looked }]), NO_CURRENCY, false);
+        }
+        // (A quote holds nothing: it reads the order as it is.)
+        const stood = (input.quote === true ? await fetchByPk(db, order.target.table, at) : await fetchHeld(db, orderTarget, at, true)) ?? null;
+        // An order that is not there prices nothing: the row's own link refuses the write, where it must.
+        if (stood === null) continue;
+        held.push({ order, parents, key, stood, settled });
+        names.add(`${order.target.table.id}|${name}`);
+      }
+    }
+    const change = input.change;
+    if (change === undefined) return held.map((one) => ({ for: one.order, key: one.key, stood: one.stood, touches: true, settled: one.settled }));
+    // Every writer of the row takes its order first, so the row is now as this change will find it.
+    const now = await change.again();
+    const out: PricedOrder[] = [];
+    for (const one of held) {
+      const moving = one.parents.filter((parent) => movedInputs(parent.inputs, change.sent, now).length > 0);
+      // Moved to another order while this one waited: the orders it is now part of are named again.
+      for (const parent of moving) {
+        const key = now?.[parent.via];
+        if (input.quote !== true && key !== null && key !== undefined && !names.has(`${parent.order}|${String(key)}`)) throw new LockMoved('order');
+      }
+      // A change that repeats what the row holds moves no price: nobody is asked, and an order whose price stands refuses nothing.
+      if (moving.length > 0) out.push({ for: one.order, key: one.key, stood: one.stood, touches: true, settled: one.settled });
+    }
+    return out;
+  }
+
+  /**
+   * Each order priced, after the save's statement and before its totals.
+   * Where no settle of the save's own follows for an order (a code typed on
+   * it adds up into nothing), its balances are worked out here from what the
+   * price wrote, and a capped one is judged against the order as it was held.
+   */
+  async function adjustHeld(db: Db, priced: readonly PricedOrder[], input: { mode: 'save' | 'dry'; context: WriteContext; clock: WriteClock }): Promise<AdjustedOrder[]> {
+    const out: AdjustedOrder[] = [];
+    for (const one of priced) {
+      const result = await adjuster.run(db, { for: one.for, key: one.key, order: one.order, stood: one.stood, touches: one.touches, mode: input.mode, context: input.context, clock: input.clock });
+      if (result === null) continue;
+      out.push({ ...result, table: one.for.target.table.id, key: one.key });
+      if (one.settled || (Object.keys(result.wrote).length === 0 && result.changedLines === 0)) continue;
+      const orderTarget = { ...one.for.target, db };
+      const orderRules = rulesOf(orderTarget);
+      const at = { [one.for.adjust.key]: one.key };
+      const own = orderRules?.ownRollups ?? [];
+      if (input.mode === 'dry') {
+        // A quote shows its own rows: the order's totals as the price leaves them, judged as the save judges them — never the totals the order feeds.
+        if (own.length === 0) continue;
+        await settleParent(db, orderTarget.dialect, own, one.key, orderRules?.balances ?? [], currencyFor(orderTarget), 'plain');
+        const refusal = await capRefusal(db, orderTarget.table.id, own[0]!.parentKey, one.key, orderRules?.balances ?? [], one.stood ?? undefined);
+        if (refusal !== null) throw refusal;
+        continue;
+      }
+      // The order's totals over its lines added up again (a line's net moved with its reduction), the formulas and balances beside them, a capped
+      // one judged, and the totals above the order that those feed (a customer's spend)…
+      await settleOwn(orderRules, orderTarget, 'create', { ...(one.stood ?? {}), ...at }, {}, currencyFor(orderTarget), one.stood ?? undefined);
+      // …which an order with no totals of its own feeds from its row as written.
+      if (own.length > 0 || (orderRules?.rollupsInto?.length ?? 0) === 0) continue;
+      const after = (await fetchByPk(db, orderTarget.table, at)) ?? null;
+      await settleRows(orderRules, orderTarget, [{ record: after, before: one.stood }], currencyFor(orderTarget));
+    }
+    return out;
+  }
+
+  /** A row of a many-row write that would hand something to a ledger, or move an order's price: refused by either, one row at a time. */
+  const refuseBatch = async (input: Parameters<typeof ledgerWriter.refuseBatch>[0]): Promise<(Record<string, { code: string }> | null)[]> => {
+    const posts = await ledgerWriter.refuseBatch(input);
+    const prices = await adjuster.refuseBatch(input);
+    return posts.map((issue, index) => issue ?? prices[index] ?? null);
+  };
+
+  /** A write that moves an order's price cannot be made inside a transaction somebody else opened: it is made on its own. */
+  const pricedAlone = (): PostingRefusedError => new PostingRefusedError('This is saved one row at a time: it changes what an order costs.', { reason: 'one-at-a-time' });
+
   return {
     get hooks() {
       return current();
@@ -3198,7 +3386,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
       // Rows written through the statements post nothing: one that would hand something to a ledger is refused here, by name.
-      const unposted = await ledgerWriter.refuseBatch({ target, rules, action, context, rows: rows.map((values) => ({ values })), history: checkOpts?.capacity === 'unchecked' });
+      const unposted = await refuseBatch({ target, rules, action, context, rows: rows.map((values) => ({ values })), history: checkOpts?.capacity === 'unchecked' });
       const clock = writeClock(context);
       const now = clock.startedAt;
       const memo: CopyMemo = new Map();
@@ -3225,7 +3413,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         const values = await formulate(rules, action, target, prepared, null, context.origin);
         // Judged again as it will be written: a row made in a state its table starts in reaches that state's point without being sent it.
-        const [late] = action === 'delete' ? [null] : await ledgerWriter.refuseBatch({ target, rules, action, context, rows: [{ values }], history: checkOpts?.capacity === 'unchecked' });
+        const [late] = action === 'delete' ? [null] : await refuseBatch({ target, rules, action, context, rows: [{ values }], history: checkOpts?.capacity === 'unchecked' });
         if (late != null) {
           issues.push(late as FieldIssues);
           out.push(null);
@@ -3269,6 +3457,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // Inside a transaction somebody else opened no named lock can be taken (on one engine at all): a row that would post is made on its own.
       const alone = (id: string) => ledgerStep(() => Promise.reject(new PostingRefusedError('This is saved one row at a time: it hands something to an add-on.', { reason: 'one-at-a-time', posting: id })), about, input.mapError);
       if (posting !== null && inTransaction(target.db)) await alone(posting.calls[0]!.posting.id);
+      // Which orders the row moves the price of — itself, when its rows are orders — and whether their add-on can be asked: before any lock.
+      const pricing = await ledgerStep(() => adjuster.peek({ target: { ...target, timezone: zone }, rules, action: 'create', values: checked, context }), about, input.mapError);
+      if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), about, input.mapError);
+      let adjusted: AdjustedOrder[] = [];
       /** Whether the look was taken again, from a row this save stored and took back (`StalePeek`). */
       let lookedAgain = false;
       let posted: PostedOutcome[] = [];
@@ -3288,10 +3480,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const held = await holdParents(rules, within, [{ record: placed, before: null }], currency);
         // And the row a line that posts belongs to.
         if (peeked !== null) await ledgerWriter.holdParents(db, target, rules, [placed]);
+        // And the order a line, a typed code or a refund is part of.
+        const orders = pricing === null ? [] : await holdOrders(db, pricing, { target: within, rules, rows: [placed] });
         // A copy that follows its parent, read again from the parent as held: a change of it meanwhile would not have reached this row.
         const followed = brand(await followNow({ db, dialect: target.dialect, rules, values: placed, currency }));
         const counted = brand(await claimSequences(rules, 'create', within, followed, opts.sequences));
         const out = await insertWithCodes(within, counted, codes, input.mapError);
+        // The price, asked once the row is in and before any total is worked out: the settle below reads the reductions it writes.
+        if (pricing !== null) {
+          const own = pricing.orders.find((order) => order.target.table.id === target.table.id);
+          const made: PricedOrder[] = own === undefined ? [] : [{ for: own, key: out.row[own.adjust.key], stood: null, touches: true, order: out.row, settled: true }];
+          adjusted = await ledgerStep(() => adjustHeld(db, [...made, ...orders], { mode: 'save', context, clock }), about, input.mapError);
+        }
         await guarded(async () => {
           await settleRows(rules, within, [{ record: out.row, before: null }], currency, held);
           await settleOwn(rules, within, 'create', out.row, out.values, currency);
@@ -3316,7 +3516,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (sealing !== undefined && keepsOwnTotals(rules)) await sealRows(db, target.table, pkOf(target.table, out.row), sealing, writeSeals);
         // The row as its own totals left it: the INSERT returned it before they were added up.
         // …or as an amount decided for it left it.
-        return keepsOwnTotals(rules) || posted.some((call) => call.decided.length > 0) ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
+        // …or as the price left it.
+        return keepsOwnTotals(rules) || posted.some((call) => call.decided.length > 0) || adjusted.length > 0 ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
       };
       let day: string | null = null;
       if (booking !== undefined && need !== null) {
@@ -3327,16 +3528,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const series = numberLockName(target.table, checked);
       const save = (peeked: typeof posting) => conflicted(
         () =>
-          peeked !== null
-            ? // A row that posts always writes under one lock call: its own limits, its day, its series and the add-on's rows it stands on.
-              withDeciders(peeked.addOns, () =>
+          peeked !== null || pricing !== null
+            ? // A row that posts, or moves an order's price, always writes under one lock call: its own limits, its day, its series and the
+              // add-on's rows it stands on — and, with nothing to name, in a plain transaction, the add-ons it asks held against an update.
+              withDeciders([...new Set([...(peeked?.addOns ?? []), ...(pricing?.addOns ?? [])])].sort(), () =>
                 withLimitLocks(
                   target,
                   async () => [
                     ...(limits ? await capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: checked, before: null, prepared: true }]) : []),
                     ...(day === null ? [] : [{ name: `${target.connectionId}|${target.table.id}|booking|${day}`, busy: 'BOOKING_BUSY' as const }]),
                     ...(series === null ? [] : seriesOf(rules, target.table, checked).map((name) => ({ name, busy: 'NUMBER_BUSY' as const }))),
-                    ...(await ledgerStep(() => peeked.names(checked), about, input.mapError)),
+                    ...(peeked === null ? [] : await ledgerStep(() => peeked.names(checked), about, input.mapError)),
                   ],
                   write,
                   clock,
@@ -3370,7 +3572,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         posting = await ledgerStep(() => ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'create', before: null, after: stored, context }), about, input.mapError);
         return save(posting);
       });
-      await input.announce(row, written, posted);
+      await input.announce(row, written, posted, adjusted);
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
       }
@@ -3480,6 +3682,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             }
             return ledgerWriter.audited(() => ledgerWriter.treePeek(looked, context), about);
           });
+
+      // Which orders the tree's rows move the price of — the root, a child that is an order, or an order outside the tree a row is part
+      // of — and whether their add-on can be asked. A quote asks too: it says what the save would cost.
+      const treePricing = await at(rootRow.node, () =>
+        ledgerWriter.audited(async () => {
+          const found = new Map<string, AdjustFor>();
+          // Once a table: every row of a tree is a create, and which orders a create moves turns on its table alone.
+          const looked = new Set<string>();
+          for (const row of everyRow) {
+            if (looked.has(row.target.table.id)) continue;
+            looked.add(row.target.table.id);
+            const peekedRow = await adjuster.peek({ target: { ...row.target, timezone: row.target.timezone ?? root.zone }, rules: rulesOf(row.target), action: 'create', values: row === rootRow ? root.checked : row.node.values, context });
+            for (const order of peekedRow?.orders ?? []) if (!found.has(order.target.table.id)) found.set(order.target.table.id, order);
+          }
+          return found.size === 0 ? null : { orders: [...found.values()], addOns: [...new Set([...found.values()].map((order) => order.adjuster.addOn))].sort() };
+        }, about),
+      );
 
       // 3. The locks a save names: every limit the rows may take from, and every series they number in.
       const lockNames = async (): Promise<NamedLock[]> => {
@@ -3608,6 +3827,44 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           return input.mapError(error, row?.node.at ?? []);
         }
 
+        // 9b. The price, asked once for each order the rows belong to — after every row is in and the limits are judged, before any
+        // total is worked out: the settle below reads the reductions it writes.
+        const adjusted: AdjustedOrder[] = [];
+        if (treePricing !== null) {
+          const priced = new Map<string, PricedOrder>();
+          for (const row of everyRow) {
+            const record = written.get(row)!;
+            for (const order of treePricing.orders) {
+              const tableId = order.target.table.id;
+              // A row that is an order itself: new, and in hand.
+              if (tableId === row.target.table.id) priced.set(`${tableId}\u0000${String(record[order.adjust.key])}`, { for: order, key: record[order.adjust.key], stood: null, touches: true, order: record, settled: true });
+              for (const parent of rulesOf(row.target)?.adjustParents ?? []) {
+                const key = record[parent.via];
+                if (parent.order !== tableId || key === null || key === undefined) continue;
+                const name = `${tableId}\u0000${String(key)}`;
+                // An order of this same tree was named by its own row, above (a parent is always written before its children).
+                if (priced.has(name) || inTree.has(name)) continue;
+                // An order outside the tree: held before the tree's rows went in (a quote holds nothing, and reads it as it is).
+                const pkOfOrder = { [order.adjust.key]: key };
+                const stood = (dry ? await fetchByPk(trx, order.target.table, pkOfOrder) : await fetchHeld(trx, { ...order.target, db: trx }, pkOfOrder, true)) ?? null;
+                const settled = (rulesOf(row.target)?.rollupsInto ?? []).some((rollup) => rollup.parent === tableId && rollup.via === parent.via);
+                if (stood !== null) priced.set(name, { for: order, key, stood, touches: true, settled });
+              }
+            }
+          }
+          for (const one of priced.values()) {
+            try {
+              adjusted.push(...(await ledgerWriter.audited(() => adjustHeld(trx, [one], { mode: dry ? 'dry' : 'save', context, clock }), about)));
+            } catch (error) {
+              if (error instanceof LockMoved) throw error;
+              // A code that does not stand is refused on the row it was typed into.
+              const where = refusedAt(error);
+              const row = where === undefined ? undefined : everyRow.find((candidate) => candidate.target.table.id === where.table && keyOf(candidate.target.table, written.get(candidate)!) === where.key);
+              return input.mapError(error, row?.node.at ?? rootRow.node.at);
+            }
+          }
+        }
+
         // 10. The totals, bottom-up, climbing; a quote settles only its own rows.
         const only = dry ? (table: string, key: unknown) => inTree.has(`${table}\u0000${String(key)}`) : undefined;
         const read = dry ? ('plain' as const) : ('locking' as const);
@@ -3657,13 +3914,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const sealing = sealsOf(preparedOf.get(row) ?? record);
             if (sealing !== undefined && keyOf(row.target.table, record) !== null) await sealRows(trx, row.target.table, pkOf(row.target.table, record), sealing, writeSeals);
             record = await readAgain(trx, row.target.table, record);
-          } else if (posted.some((call) => call.decided.length > 0) && keyOf(row.target.table, record) !== null) {
-            // …or as an amount decided for it left it.
+          } else if ((posted.some((call) => call.decided.length > 0) || adjusted.length > 0) && keyOf(row.target.table, record) !== null) {
+            // …or as an amount decided for it, or the price, left it.
             record = await readAgain(trx, row.target.table, record);
           }
           rows.push({ node: row.node, record });
         }
-        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false, ...(posted.length === 0 ? {} : { postings: posted }) };
+        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false, ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }) };
         // 11. The price the caller expected (a save only), then 12: commit — or a quote rolled back.
         if (!dry) await input.expect?.(trx, outcome.root, rows);
         if (dry) throw new TreeSignal('dry', outcome);
@@ -3673,7 +3930,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let outcome: TreeOutcome;
       try {
         // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
-        outcome = await conflicted(() => withDeciders(treePosting?.addOns ?? [], () => withLimitLocks(freshReads(rootRow.target, treePosting !== null), lockNames, run, clock)), (error) => input.mapError(error, []));
+        outcome = await conflicted(() => withDeciders([...new Set([...(treePosting?.addOns ?? []), ...(treePricing?.addOns ?? [])])].sort(), () => withLimitLocks(freshReads(rootRow.target, treePosting !== null || treePricing !== null), lockNames, run, clock)), (error) => input.mapError(error, []));
       } catch (error) {
         if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
         if (!(error instanceof TreeSignal)) throw error;
@@ -3803,6 +4060,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         );
       }
       const posts = dry || nested ? null : watching;
+      // Which orders the change moves the price of, and whether their add-on can be asked: before any lock. A quote asks too.
+      const pricing = await ledgerStep(() => adjuster.peek({ target: { ...target, timezone: zone }, rules, action: 'update', values: checkedValues, context }), about, input.mapError);
+      if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), about, input.mapError);
+      const ownPricing = pricing?.orders.find((order) => order.target.table.id === target.table.id);
+      let adjusted: AdjustedOrder[] = [];
       /** What the change hands to a ledger, from the look each attempt takes before its locks. */
       let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
       let posted: PostedOutcome[] = [];
@@ -3830,8 +4092,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (!dry) await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
         // A line that posts: the row it belongs to (and the one it is moved to) before the line itself.
         if (posts !== null && (rules?.asLine?.length ?? 0) > 0) await ledgerWriter.holdParents(db, target, rules, [(await fetchByPk(db, target.table, pk)) ?? null, checkedValues]);
-        // The row as it stands, held: what a posting point is crossed from.
-        const stood = posts === null ? null : ((await fetchHeld(db, target, pk, true)) ?? null);
+        // The order a line, a typed code or a refund is part of — and the one it is moved to — before the row itself.
+        const asIs = pricing === null ? null : ((await fetchByPk(db, target.table, pk)) ?? null);
+        const orders = pricing === null ? [] : await holdOrders(db, pricing, { target: within, rules, rows: [asIs, checkedValues], change: { sent: checkedValues, again: async () => (await fetchByPk(db, target.table, pk)) ?? null }, quote: dry });
+        // The row as it stands, held: what a posting point is crossed from, and what an order's price stood on. (A quote holds nothing, and reads it.)
+        const stood = posts === null && ownPricing === undefined ? null : ((dry ? await fetchByPk(db, target.table, pk) : await fetchHeld(db, target, pk, true)) ?? null);
         // What an open posting read of the row stays as it was read.
         if (posts !== null && stood !== null) await ledgerStep(() => ledgerWriter.guard(db, { target, rules, action: 'update', stood, values: checkedValues }), about, input.mapError);
         const prior =
@@ -3893,16 +4158,44 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const renewing = await statement(() => withRenewRetry(db, target.dialect, written, (row) => updateRows(db, target.dialect, target.table, row, pk, input.refine)), input.mapError);
         written = renewing.values;
         const changed = renewing.result;
+        // The price, asked once the change is in and before any total is worked out.
+        /** The rows that follow an order of its own price, brought into step BEFORE the price is asked: its lines are then what they will be. */
+        let followedFirst = false;
+        if (pricing !== null && changed > 0) {
+          const priced: PricedOrder[] = [...orders];
+          if (ownPricing !== undefined && stood !== null) {
+            let followed = false;
+            if (rolls && following && prior !== null) {
+              const now = (await fetchByPk(db, target.table, pk)) ?? null;
+              if (now !== null) {
+                followed = await guardedValue(() => followAndSettle(within, rules, prior, now, currency, dry ? (input.children === undefined ? 'dry' : 'dry-written') : 'save', false), input.mapError);
+                followedFirst = true;
+              }
+            }
+            // What the price rests on that the change really moved; or the move to where the price stands, which prices it one last time.
+            const inputs = movedInputs([...ownPricing.adjust.inputs.uses, ...ownPricing.adjust.inputs.lines], written, stood);
+            const column = rules?.states?.column;
+            const freezing = !frozenNow(ownPricing.adjust, stood, column) && frozenNow(ownPricing.adjust, { ...stood, ...written }, column);
+            if (inputs.length > 0 || freezing || followed) priced.push({ for: ownPricing, key: stood[ownPricing.adjust.key], stood, touches: inputs.length > 0 || followed, settled: false });
+          }
+          adjusted = await ledgerStep(() => adjustHeld(db, priced, { mode: dry ? 'dry' : 'save', context, clock }), about, input.mapError);
+          // Its totals from the rows that followed, and its balances, judged now the price is in — against the row as it was held.
+          if (followedFirst && stood !== null) await guarded(() => settleOwn(rules, within, 'create', { ...stood, ...written }, {}, currency, prior ?? stood), input.mapError);
+        }
         if (changed > 0 && rolls) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           await guarded(async () => {
             // The rows that follow this one (a stay's extras), brought into step, and their totals settled into it — before its own balances are judged.
-            if (following && prior !== null && after !== null) await followAndSettle(within, rules, prior, after, currency, dry ? (input.children === undefined ? 'dry' : 'dry-written') : 'save');
+            if (following && !followedFirst && prior !== null && after !== null) await followAndSettle(within, rules, prior, after, currency, dry ? (input.children === undefined ? 'dry' : 'dry-written') : 'save');
             // A quote shows its own row: the totals it feeds elsewhere are not its to settle.
             if (!dry) await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
             if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, currency, ownBefore);
           }, input.mapError);
           // SEAL again over the totals the settle just wrote beside the row.
+          const sealing = sealsOf(written);
+          if (sealing !== undefined) await sealRows(db, target.table, pk, sealing, writeSeals);
+        } else if (changed > 0 && adjusted.some((one) => one.table === target.table.id && Object.keys(one.wrote).length > 0)) {
+          // …and over the reduction the price just wrote on it.
           const sealing = sealsOf(written);
           if (sealing !== undefined) await sealRows(db, target.table, pk, sealing, writeSeals);
         }
@@ -3941,8 +4234,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       try {
         count = await conflicted(async () => {
           // A quote takes no named lock: it waits for nobody, and nobody waits for it.
-          if (dry) return await withNamedLocks(target, [], write);
-          if (posts !== null || limits || input.children !== undefined || effectLimits) {
+          if (dry) return await withDeciders(pricing?.addOns ?? [], () => withNamedLocks(target, [], write));
+          if (posts !== null || pricing !== null || limits || input.children !== undefined || effectLimits) {
             // The locks are named by the pools the row will take from, from a fresh look each time. A change of a posting table always
             // writes here: its own limits, its booking day and the add-on's rows it stands on in one call — and with nothing to name, a plain transaction.
             const locked = () =>
@@ -3950,7 +4243,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                 target,
                 async () => {
                   // A caller that reads through a scope of its own (a guest's) is shown no more of the row here than there.
-                  const current = posts !== null && input.load !== undefined ? await input.load() : posts !== null || limits || effectLimits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
+                  const current = posts !== null && input.load !== undefined ? await input.load() : posts !== null || pricing !== null || limits || effectLimits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
                   const below = input.children === undefined ? [] : await input.children.names();
                   // The rows its effects move, as they will stand: their pools, and the rows they own.
                   const moved = effectLimits ? (await statement(() => effectRows(target.db, { ...target, timezone: zone }, context, clock, checkedValues, Promise.resolve(current)), input.mapError)).filter((effect) => keepsLimits(effect.rules)) : [];
@@ -3958,10 +4251,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                   const series = below.filter((row) => row.before === null).flatMap((row) => seriesOf(rulesOf(row.target), row.target.table, row.row).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })));
                   const merged = { ...(current ?? before ?? {}), ...checkedValues };
                   const ledger: NamedLock[] = [];
-                  if (posts !== null) {
+                  // The day a booked row will hold, named here for every change this call writes that is a posting table's or an order's.
+                  if (posts !== null || pricing !== null) {
                     const day = booking === undefined || current === null || bookingNeed(booking, checkedValues, current) === null ? null : bookingDay(booking, merged, zone ?? 'UTC');
                     lockedDay = day;
                     if (day !== null) ledger.push({ name: `${target.connectionId}|${target.table.id}|booking|${day}`, busy: 'BOOKING_BUSY' });
+                  }
+                  if (posts !== null) {
                     posting = await ledgerStep(
                       async () => {
                         const peeked = current === null ? null : await ledgerWriter.peek({ target: { ...target, timezone: zone }, rules, action: 'update', before: current, after: merged, context });
@@ -3987,13 +4283,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                     return await write(db);
                   } catch (error) {
                     // The booking's day moved under the lock: the one retry loop names everything again.
-                    if (posts !== null && error instanceof DayMoved) throw new LockMoved('booking day');
+                    if ((posts !== null || pricing !== null) && error instanceof DayMoved) throw new LockMoved('booking day');
                     throw error;
                   }
                 },
                 clock,
               );
-            return posts === null ? await locked() : await withDeciders(posts, locked);
+            return posts === null && pricing === null ? await locked() : await withDeciders([...new Set([...(posts ?? []), ...(pricing?.addOns ?? [])])].sort(), locked);
           }
           if (booking !== undefined) {
             return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
@@ -4004,12 +4300,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }, input.mapError);
       } catch (error) {
         if (!(error instanceof UpdateQuoted)) throw error;
-        return { before, after: error.after, values, count: error.count, ...(posted.length === 0 ? {} : { postings: posted }) };
+        return { before, after: error.after, values, count: error.count, ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }) };
       }
       if (count === 0 && input.skipIfNone === true) return { before, after: null, values, count };
       const after = (await fetchByPk(target.db, target.table, pk)) ?? null;
       const effects = guardOf(checkedValues)?.effected;
-      const outcome: UpdateOutcome = { before, after, values, count, ...(effects === undefined || effects.length === 0 ? {} : { effects }), ...(posted.length === 0 ? {} : { postings: posted }) };
+      const outcome: UpdateOutcome = { before, after, values, count, ...(effects === undefined || effects.length === 0 ? {} : { effects }), ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }) };
       await input.announce(outcome);
       if (count > 0 && after !== null && wantsAfter) {
         await hooks.after({ action: 'update', target, record: after, before, context });
@@ -4082,22 +4378,33 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before, writeClock(context)) };
       // A table that hands rows to a ledger: the row is held, and may not go while a posting of it is open.
       const posts = await ledgerStep(() => ledgerWriter.watched(target, rules), { target, context }, input.mapError);
-      const count = rolls || posts !== null
-        ? await conflicted(() => atomically(target, async (db) => {
+      // Which orders the row is part of, and whether their add-on can be asked: before any lock. An order that goes takes what was applied to it with it.
+      const pricing = await ledgerStep(() => adjuster.peek({ target, rules, action: 'delete', values: null, context }), { target, context }, input.mapError);
+      const leaving = rules?.adjust === undefined ? null : await adjuster.live(target);
+      if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), { target, context }, input.mapError);
+      const clock = writeClock(context);
+      let adjusted: AdjustedOrder[] = [];
+      const count = rolls || posts !== null || pricing !== null || leaving !== null
+        ? await conflicted(() => withDeciders([...new Set([...(pricing?.addOns ?? []), ...(leaving === null ? [] : [leaving.adjuster.addOn])])].sort(), () => atomically(target, async (db) => {
             // The parent the row fed, held first; then the row, read — and held — before it goes.
             const within = { ...target, db };
             await holdFirst(rules, within, pk);
+            // The order a line, a typed code or a refund is part of: before the row itself.
+            const orders = pricing === null ? [] : await holdOrders(db, pricing, { target: within, rules, rows: [(await fetchByPk(db, target.table, pk)) ?? null] });
             if (posts !== null && (rules?.asLine?.length ?? 0) > 0) await ledgerWriter.holdParents(db, target, rules, [(await fetchByPk(db, target.table, pk)) ?? null]);
             const gone = (await fetchHeld(db, target, pk, false)) ?? null;
             if (posts !== null && gone !== null) await ledgerStep(() => ledgerWriter.guard(db, { target, rules, action: 'delete', stood: gone }), { target, context }, input.mapError);
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
             const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
+            // The price, asked once the row is gone and before any total is worked out.
+            if (removed > 0 && orders.length > 0) adjusted = await ledgerStep(() => adjustHeld(db, orders, { mode: 'save', context, clock }), { target, context }, input.mapError);
+            if (removed > 0 && leaving !== null && gone !== null) await adjuster.forget(db, leaving, gone[leaving.adjust.key]);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
             return removed;
-          }), input.mapError)
+          })), input.mapError)
         : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged), input.mapError), input.mapError);
       if (count === 0 && input.skipIfNone === true) return 0;
-      await input.announce(count, before);
+      await input.announce(count, before, adjusted);
       if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
         await hooks.after({ action: 'delete', target, record: before, before: null, context });
       }
@@ -4128,7 +4435,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         beforeOpts?.capacity,
       );
       // …nor may it post: judged by the table's rules even for an undo, which carries none of its own.
-      const unposted = await ledgerWriter.refuseBatch({ target, rules: rulesOf(target), action, context, rows, history: beforeOpts?.capacity === 'unchecked' });
+      const unposted = await refuseBatch({ target, rules: rulesOf(target), action, context, rows, history: beforeOpts?.capacity === 'unchecked' });
       const clock = writeClock(context);
       const now = clock.startedAt;
       const memo: CopyMemo = new Map();
@@ -4142,7 +4449,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const worked = await formulate(rules, action, target, values, record, context.origin);
         // Judged again as it will be written: a point reached only by a default, a stamp or a formula is a point all the same.
         if (action !== 'delete') {
-          const [late] = await ledgerWriter.refuseBatch({ target, rules: rulesOf(target), action, context, rows: [{ values: worked, record }], history: beforeOpts?.capacity === 'unchecked' });
+          const [late] = await refuseBatch({ target, rules: rulesOf(target), action, context, rows: [{ values: worked, record }], history: beforeOpts?.capacity === 'unchecked' });
           if (late != null) return { values: brand(worked), issues: late as FieldIssues };
         }
         const judged = judgedBy(rules, target, context);

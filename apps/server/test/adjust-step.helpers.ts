@@ -12,7 +12,7 @@ import { tableRulesFor } from '../src/crud/column-rules.js';
 import type { Row } from '../src/crud/mask.js';
 import { writeClock } from '../src/crud/write-clock.js';
 import type { WriteContext } from '../src/crud/write-context.js';
-import { insertRows, updateRows } from '../src/crud/write-service.js';
+import { deleteRows, insertRows, updateRows } from '../src/crud/write-service.js';
 import type { LedgerRuntime } from '../src/ledgers/registry.js';
 import { customerKeyOf } from '../src/public-api/customer-key.js';
 import { SAMPLE_NOW, lineOf, type PriceWorld } from './adjust.helpers.js';
@@ -59,6 +59,9 @@ export function stepperOf(w: PriceWorld): Stepper {
       await updateRows(target.db, target.dialect, target.table, set as never, key);
     },
     insert: (target, rows) => insertRows(target.db, target.dialect, target.table, rows as never),
+    remove: async (target, match) => {
+      await deleteRows(target.db, target.table, match);
+    },
     currency: async () => 'USD',
     customerKey: keyOf,
   });

@@ -65,6 +65,8 @@ export interface AdjustKit {
   update(target: WriteTarget, set: Row, key: Row): Promise<void>;
   /** Rows written exactly as given, in one statement. */
   insert(target: WriteTarget, rows: readonly Row[]): Promise<void>;
+  /** The rows that hold these values, taken away: Adminium's own statement. */
+  remove(target: WriteTarget, match: Row): Promise<void>;
   /** The connection's currency, for a table whose places follow it. */
   currency(target: WriteTarget): Promise<string | null>;
   /** A customer's key in a connection; absent on a service built without one. */
@@ -121,6 +123,15 @@ export interface AdjustResult {
   changedLines: number;
   /** The codes typed on the order, as they were looked up. */
   codes: LoadedCode[];
+  /** What the call wrote on the order's own row: its reduction, and its formulas that read one. */
+  wrote: Row;
+}
+
+/** One order a save priced: the answer, and which order it was. */
+export interface AdjustedOrder extends AdjustResult {
+  /** The order's table, and its key. */
+  table: string;
+  key: unknown;
 }
 
 /** An answer that never came, or was wrong: the save is refused, and the audit log keeps the word for why — never told to the person saving. */
@@ -144,6 +155,12 @@ export const adjustOrigin = (context: Pick<WriteContext, 'origin'>): 'staff' | '
 const TYPED_MAX = 64;
 
 const empty = (value: unknown): boolean => value === null || value === undefined || value === '';
+/** Whether a stored value is what a formula now works out: the same value, or the same number however it is written. */
+const sameWorked = (stored: unknown, worked: unknown): boolean => {
+  if (sameValue(stored ?? null, worked ?? null)) return true;
+  const numeric = (value: unknown): boolean => !empty(value) && /^-?\d+(\.\d+)?$/.test(String(value));
+  return numeric(stored) && numeric(worked) && Number(stored) === Number(worked);
+};
 /** Which row of an order's codes a typed code is on: what a refusal about it names. */
 function codeAt(view: WriteTarget['view'], adjust: CompiledAdjust, code: LoadedCode): { table: string; key: string } | undefined {
   if (adjust.codes === undefined || code.row === null) return undefined;
@@ -185,7 +202,8 @@ export function createAdjuster(kit: AdjustKit) {
     if (own !== undefined && action !== 'delete') {
       const frozen = own.rule.frozen;
       const stateColumn = frozen === undefined ? undefined : 'to' in frozen ? rules?.states?.column : frozen.column;
-      const written = [...own.inputs.uses, ...own.inputs.lines, ...(stateColumn === undefined ? [] : [stateColumn])];
+      // …and what its lines copy from it and keep in step (a stay's nights on its extras): a change of that moves their price.
+      const written = [...own.inputs.uses, ...own.inputs.lines, ...(stateColumn === undefined ? [] : [stateColumn]), ...(rules?.followReads ?? [])];
       if (action === 'create' || touched(written, values).length > 0) tables.add(target.table.id);
     } else if (own === undefined && action !== 'delete' && target.table.table?.adjust !== undefined) {
       // A rule the table carries and that could not be read as one: asked about all the same, so it is refused and not passed by.
@@ -353,24 +371,31 @@ export function createAdjuster(kit: AdjustKit) {
     for (const row of rows) {
       const wanted = row.line ? (reduced.get(row.key) ?? zero) : zero;
       if (row.line) outLines.push({ table: row.table.id, key: row.table.primaryKey.map((column) => String(row.row[column])).join('/'), line: row.key, discount: wanted });
-      if (!differs(row.row[row.part.discount], wanted)) continue;
-      changedLines += 1;
+      const moved = differs(row.row[row.part.discount], wanted);
       // The order is its own line: its reduction is written with the order's, below.
       if (row.part.self) {
+        if (!moved) continue;
+        changedLines += 1;
         orderSet[row.part.discount] = wanted;
         continue;
       }
       const lineTarget: WriteTarget = { ...target, table: row.table };
       const lineRules = kit.rulesOf(lineTarget);
-      const worked = touchedFormulas(lineRules?.formulas ?? [], [row.part.discount]);
-      await kit.update(lineTarget, { [row.part.discount]: wanted, ...evaluateAll(worked, { ...row.row, [row.part.discount]: wanted }, lineRules?.currencyColumn, currency) }, pkOf(row.table, row.row));
+      const formulas = evaluateAll(touchedFormulas(lineRules?.formulas ?? [], [row.part.discount]), { ...row.row, [row.part.discount]: wanted }, lineRules?.currencyColumn, currency);
+      // A row made with no reduction on it never had its net worked out from one: a formula that reads the reduction is brought in step even where the reduction stands.
+      const stale = Object.entries(formulas).some(([column, value]) => !sameWorked(row.row[column], value));
+      if (!moved && !stale) continue;
+      changedLines += 1;
+      await kit.update(lineTarget, { ...(moved ? { [row.part.discount]: wanted } : {}), ...formulas }, pkOf(row.table, row.row));
     }
 
     // The order's own reduction, with its formulas that read one; and the links each typed code found.
     if (differs(order[adjust.rule.order.discount], answer.order.discount)) orderSet[adjust.rule.order.discount] = answer.order.discount;
+    let wrote: Row = {};
     if (Object.keys(orderSet).length > 0) {
       const worked = touchedFormulas(rules?.formulas ?? [], Object.keys(orderSet));
-      await kit.update(target, { ...orderSet, ...evaluateAll(worked, { ...order, ...orderSet }, rules?.currencyColumn, currency) }, pkOf(target.table, order));
+      wrote = { ...orderSet, ...evaluateAll(worked, { ...order, ...orderSet }, rules?.currencyColumn, currency) };
+      await kit.update(target, wrote, pkOf(target.table, order));
     }
     if (adjust.codes !== undefined) {
       const codesTarget: WriteTarget = { ...target, table: view.table(adjust.codes.table) };
@@ -397,7 +422,120 @@ export function createAdjuster(kit: AdjustKit) {
         throw error;
       }
     }
-    return { applied: answer.applied, told: answer.told ?? [], uses: answer.uses, discount: answer.order.discount, lines: outLines, changedLines, codes };
+    return { applied: answer.applied, told: answer.told ?? [], uses: answer.uses, discount: answer.order.discount, lines: outLines, changedLines, codes, wrote };
+  }
+
+  /** An order table's own rule with its add-on as it stands now, when the rule is live; null otherwise. Refuses nothing. */
+  async function live(target: WriteTarget): Promise<AdjustFor | null> {
+    const adjust = kit.rulesOf(target)?.adjust;
+    if (adjust === undefined || kit.ledgers?.adjuster === undefined) return null;
+    await kit.ledgers.refresh?.();
+    const state = kit.ledgers.adjuster(target.view, target.table);
+    if (state.state !== 'live') return null;
+    const appliedTable = state.adjuster.table(state.adjuster.declared.applied.table);
+    return appliedTable === null ? null : { target, adjust, adjuster: state.adjuster, decider: state.decider, applied: await kit.withRights({ ...target, table: appliedTable }) };
+  }
+
+  /**
+   * An order that is gone takes the rows of what was applied to it with it:
+   * a later order given the same key would otherwise be shown reductions
+   * nobody gave it.
+   */
+  async function forget(trx: Db, order: AdjustFor, key: unknown): Promise<void> {
+    const declared = order.adjuster.declared.applied;
+    await kit.remove({ ...order.applied, db: trx }, { [declared.source.table]: kit.ledgers!.refOf(order.target.connectionId, order.target.table.id), [declared.source.row]: String(key) });
+  }
+
+  /**
+   * A DOOR THAT WRITES MANY ROWS AT ONCE ASKS NO PRICE — a bulk edit, an undo,
+   * a form's child rows, a batch, an import's change of a stored row, a row
+   * moved by another row's effect. A row of such a write that would move an
+   * order's price — a line, a typed code or a refund made or taken away, a
+   * change of what the price reads — is refused, to be made one row at a
+   * time. Answers a row's own issue for an import (the import goes on);
+   * throws for every other door. `history`: rows brought in as they were (an
+   * import's creates, sample rows) keep the reductions they bring and are
+   * never refused. A rule that reads as not there, or that the owner switched
+   * off, refuses nothing.
+   */
+  async function refuseBatch(input: {
+    target: WriteTarget;
+    rules: TableRules | null;
+    action: WriteAction;
+    context: WriteContext;
+    rows: readonly { values: Row }[];
+    history?: boolean | undefined;
+    effect?: string | undefined;
+  }): Promise<(Record<string, { code: string }> | null)[]> {
+    const { target, rules, action } = input;
+    const none = input.rows.map(() => null);
+    const own = rules?.adjust;
+    const parents = rules?.adjustParents ?? [];
+    if ((own === undefined && parents.length === 0) || (action === 'create' && input.history === true)) return none;
+    /** The order tables a write of this row would ask about, with the column it turns on. */
+    const asks = (values: Row): { table: string; column: string }[] => {
+      const out: { table: string; column: string }[] = [];
+      if (own !== undefined) {
+        const state = rules?.states?.column;
+        const [input] = touched([...own.inputs.uses, ...own.inputs.lines], values);
+        // A new order that is its own line (a stay) is priced as it is made; an order moved to where its price stands is priced one last time;
+        // and one that goes takes what was applied to it with it.
+        const column =
+          action === 'delete'
+            ? own.key
+            : (input ?? (action === 'create' ? (own.parts.some((part) => part.self) ? own.key : undefined) : state !== undefined && Object.prototype.hasOwnProperty.call(values, state) && frozenNow(own, values, state) ? state : undefined));
+        if (column !== undefined) out.push({ table: target.table.id, column });
+      }
+      for (const parent of parents) {
+        const [column] = action === 'update' ? touched(parent.inputs, values) : [parent.via];
+        if (column !== undefined) out.push({ table: parent.order, column });
+      }
+      return out;
+    };
+    const hits = input.rows.map((row) => asks(row.values));
+    if (hits.every((hit) => hit.length === 0)) return none;
+    await kit.ledgers?.refresh?.();
+    const asked = new Map<string, boolean>();
+    /** Whether an order table's rule is there to be asked: live, or one that should run and cannot. */
+    const there = (id: string): boolean => {
+      const known = asked.get(id);
+      if (known !== undefined) return known;
+      let answer = true;
+      try {
+        const state = kit.ledgers?.adjuster?.(target.view, id === target.table.id ? target.table : target.view.table(id));
+        answer = state === undefined || (state.state !== 'idle' && state.state !== 'off');
+      } catch {
+        // An order table the model no longer has prices nothing.
+        answer = false;
+      }
+      asked.set(id, answer);
+      return answer;
+    };
+    return hits.map((hit) => {
+      const found = hit.find((one) => there(one.table));
+      if (found === undefined) return null;
+      // An import refuses the row and goes on; every other door refuses the write.
+      if (input.context.origin === 'import') return { [found.column]: { code: 'one-at-a-time' } };
+      throw new PostingRefusedError('This is saved one row at a time: it changes what an order costs.', { reason: 'one-at-a-time', column: found.column, ...(input.effect === undefined ? {} : { table: input.effect }) });
+    });
+  }
+
+  /**
+   * A code typed on an order whose price rule reads as not there (its add-on
+   * is not installed, or not connected to the app) is refused: taken in
+   * silence, the customer would be charged the full price with a code on the
+   * order. Null when nothing is typed, or the rule is there to judge it.
+   */
+  function inertCode(target: WriteTarget, rules: TableRules | null, values: Row): string | null {
+    for (const parent of rules?.adjustParents ?? []) {
+      if (parent.typed === undefined || empty(values[parent.typed])) continue;
+      try {
+        if (kit.ledgers?.adjuster?.(target.view, target.view.table(parent.order)).state === 'idle') return parent.typed;
+      } catch {
+        // An order table the model no longer has takes no code.
+      }
+    }
+    return null;
   }
 
   /**
@@ -459,7 +597,7 @@ export function createAdjuster(kit: AdjustKit) {
       if (sameDecimal(row[c.amount], entry.amount, at.places) && sameName(row[c.name], entry.name) && text(row[c.reason]) === text(entry.reason) && booleanOf(row[c.typed]) === entry.typed) continue;
       await kit.update(target, bound(target, { [c.amount]: entry.amount, [c.name]: nameOf(entry.name), [c.reason]: entry.reason ?? null, [c.typed]: entry.typed }), { [pk]: row[pk] });
     }
-    if (gone.length > 0) await trx.deleteFrom(table.id as never).where(sql.ref(pk), 'in', gone as never).execute();
+    for (const key of gone) await kit.remove(target, { [pk]: key });
     const made = [...byId].filter(([id]) => !kept.has(id)).map(([, entry]) => ({
       [declared.source.table]: source.table,
       [declared.source.row]: source.row,
@@ -477,5 +615,5 @@ export function createAdjuster(kit: AdjustKit) {
     if (made.length > 0) await kit.insert(target, made.map((row) => bound(target, row)));
   }
 
-  return { peek, run };
+  return { peek, run, live, forget, refuseBatch, inertCode };
 }

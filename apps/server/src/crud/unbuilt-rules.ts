@@ -45,20 +45,7 @@ export interface UnbuiltEntryRule {
   on: (entry: Readonly<Record<string, unknown>>) => boolean;
 }
 
-export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // A price rule: the order's table, and each child table whose rows are its lines, its codes or its refunds.
-  // Written unpriced, an order would be saved at full price with a code on it and nobody told.
-  {
-    rule: 'adjust',
-    on: (table, model) =>
-      table.adjust !== undefined ||
-      (model?.tables ?? []).some((order) => {
-        const adjust = order.adjust;
-        if (adjust === undefined) return false;
-        return adjust.lines.some((part) => !('self' in part) && part.table === table.id) || adjust.codes?.table === table.id || adjust.refunds?.table === table.id;
-      }),
-  },
-];
+export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 
 /** The public entry keys whose behaviour is not built yet. */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
@@ -75,14 +62,15 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
   'column.codeLast4': PRICE_QUESTION_RELEASE,
-  // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
-  'table.adjust': PRICE_QUESTION_RELEASE,
-  'addOn.adjuster': PRICE_QUESTION_RELEASE,
+  // An amount a ledger's action decides: its first user is a card's payment, which comes with the price question.
   'ledger.decides': PRICE_QUESTION_RELEASE,
 };
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
+  // The price question: a host's rule on its orders, and the add-on's side of it. Asked inside every save that moves an order's price.
+  'table.adjust',
+  'addOn.adjuster',
   // A column that keeps a table's name: a rename of that table rewrites its rows.
   'column.tableRef',
   // The rows an add-on's tables start with, its one settings row, and an index a table declares over a set of columns.

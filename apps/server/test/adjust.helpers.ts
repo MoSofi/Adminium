@@ -13,7 +13,6 @@ import { sql } from 'kysely';
 import { expect } from 'vitest';
 
 import { loadDecider, type InstalledDecider } from '../src/add-ons/decide.js';
-import { realRuleRefs } from '../src/apps/manifest-rules.js';
 import { keepAddOnInstalls } from '../src/apps/table-ref.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import type { SourceDatabase } from '../src/connections/manager.js';
@@ -75,12 +74,7 @@ export interface PriceWorldOptions {
 export async function priceWorld(dialect: Dialect, options: PriceWorldOptions = {}): Promise<PriceWorld> {
   // With the pool of one (`ADMINIUM_TEST_SOURCE_POOL_MAX=1`), a read the price step made through the pool from inside a save would never come back.
   const h = await addOnHarness(dialect, { unbuiltWords: {}, ...(TEST_POOL_MAX === undefined ? {} : { sourcePoolMax: TEST_POOL_MAX }) });
-  const asked = options.market ?? marketManifest();
-  // Until a save asks the price, an install refuses a manifest with a price rule: the shop goes in without its rule,
-  // and the rule is stored the way its install stores one — as the app's own, its child tables by their real ids.
-  const tables = (asked['requiredSchema'] as { tables: Doc[] }).tables;
-  const ruled = tables.filter((candidate) => candidate['adjust'] !== undefined).map((candidate) => ({ ref: String(candidate['ref']), adjust: candidate['adjust'] as Doc }));
-  const market: Doc = { ...asked, requiredSchema: { ...(asked['requiredSchema'] as Doc), tables: tables.map(({ adjust: _adjust, ...rest }) => rest) } };
+  const market = options.market ?? marketManifest();
   await h.stageApp(market);
   const installed = await h.install(MARKET, String(market['version']));
   expect(installed.statusCode, installed.body).toBe(200);
@@ -92,12 +86,6 @@ export async function priceWorld(dialect: Dialect, options: PriceWorldOptions = 
   }
   await h.introspect();
   const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
-  for (const { ref, adjust } of ruled) {
-    const realId = (name: string) => model.tables.find((candidate) => candidate.name === `market_${name}`)?.id ?? '';
-    const mapped = realRuleRefs('table.adjust', adjust, realId, MARKET);
-    expect(mapped.missing).toEqual([]);
-    await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'table.adjust', tableName: realId(ref), columnName: null, value: mapped.value, origin: 'app' } as never);
-  }
   const read = async () => new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
   let view = await read();
   const { db, dialect: engine } = await h.manager.data(h.connectionId);
@@ -180,12 +168,18 @@ export const lineOf = (world: Pick<PriceWorld, 'items' | 'categories'>, item: It
   ...over,
 });
 
-/** The offers of the sample, as the kit's tables keep them; answers their ids by name. */
-export async function seedOffers(world: PriceWorld): Promise<{ offers: Record<string, number>; codes: Record<string, number> }> {
+/**
+ * The offers of the sample, as the kit's tables keep them; answers their ids
+ * by name. `timeless`: for saves judged on the real clock, whatever day a test
+ * runs — no offer ends, and the one kept for Mondays is paused.
+ */
+export async function seedOffers(world: PriceWorld, options: { timeless?: boolean } = {}): Promise<{ offers: Record<string, number>; codes: Record<string, number> }> {
+  const timeless = options.timeless === true;
   const categories = world.refOf('market_categories');
   const offers: Record<string, number> = {};
   const add = async (name: string, row: Doc) => {
-    offers[name] = await world.insert('price_kit_offers', { name, ...row });
+    const { ends_on: ends, ...rest } = row;
+    offers[name] = await world.insert('price_kit_offers', { name, ...rest, ...(timeless || ends === undefined ? {} : { ends_on: ends }), ...(timeless && row['weekdays'] !== undefined ? { status: 'paused' } : {}) });
   };
   await add('Welcome 10', { public_name: { 'en-US': 'Welcome 10', 'de-DE': 'Willkommen 10' }, kind: 'percent', value: '10.00', trigger: 'code', scope: 'order', max_per_customer: 1, starts_on: '2026-08-01' });
   await add('Monday mugs', { kind: 'percent', value: '15.00', trigger: 'auto', scope: 'lines', target_as: 'category', target_table: categories, target_row: String(world.categories['Mugs']), weekdays: '1', starts_on: '2026-09-14' });

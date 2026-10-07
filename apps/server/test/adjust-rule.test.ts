@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 import type { InstalledDecider } from '../src/add-ons/decide.js';
 import type { AddOnInstalls, InstalledAddOn } from '../src/apps/table-ref.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
-import { adjustParentsOf, compileAdjust, frozenNow, isLine, lineKey, touched } from '../src/crud/adjust/rule.js';
+import { adjustParentsOf, compileAdjust, frozenNow, isLine, lineKey, moved, touched } from '../src/crud/adjust/rule.js';
 import { tableRulesFor, withoutReadOnly } from '../src/crud/column-rules.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 import { createLedgerRuntime } from '../src/ledgers/registry.js';
@@ -105,7 +105,7 @@ describe('the tables whose rows are part of an order', () => {
     expect(adjustParentsOf(w.view.model, w.table('order_lines').table)).toEqual([
       { order: id('orders'), orderKey: 'id', via: 'order_id', as: 'line', part: 0, inputs: ['order_id', 'unit_price', 'qty', 'item_id', 'category_id', 'tag', 'card_load', 'paid_by', 'kind', 'voided_at'], decided: ['discount'] },
     ]);
-    expect(adjustParentsOf(w.view.model, w.table('order_codes').table)).toEqual([{ order: id('orders'), orderKey: 'id', via: 'order_id', as: 'codes', inputs: ['order_id', 'typed', 'removed_at'], decided: ['code_id', 'voucher_id'] }]);
+    expect(adjustParentsOf(w.view.model, w.table('order_codes').table)).toEqual([{ order: id('orders'), orderKey: 'id', via: 'order_id', as: 'codes', inputs: ['order_id', 'typed', 'removed_at'], decided: ['code_id', 'voucher_id'], typed: 'typed' }]);
     expect(adjustParentsOf(w.view.model, w.table('items').table)).toEqual([]);
     expect(adjustParentsOf(w.view.model, w.orders.table)).toEqual([]);
   });
@@ -114,6 +114,15 @@ describe('the tables whose rows are part of an order', () => {
     const unlinked = { ...w.view.model, relations: w.view.model.relations.filter((relation) => relation.from.tableId !== id('order_lines')) };
     expect(adjustParentsOf(unlinked, w.table('order_lines').table)).toEqual([]);
     expect(adjustParentsOf(unlinked, w.table('order_codes').table)).toHaveLength(1);
+  });
+
+  it('a rule that cannot be read as one still names its rows: they ask, and are refused with it, never written unpriced', () => {
+    // An order table whose rows no one column names.
+    const keyless = { ...w.view.model, tables: w.view.model.tables.map((table) => (table.id === id('orders') ? { ...table, primaryKey: ['id', 'status'] } : table)) };
+    expect(compileAdjust(keyless.tables.find((table) => table.id === id('orders')))).toBeUndefined();
+    expect(adjustParentsOf(keyless, w.table('order_lines').table)).toEqual([{ order: id('orders'), orderKey: 'id', via: 'order_id', as: 'line', inputs: ['order_id', 'unit_price', 'qty'], decided: [] }]);
+    expect(adjustParentsOf(keyless, w.table('order_codes').table)).toEqual([{ order: id('orders'), orderKey: 'id', via: 'order_id', as: 'codes', inputs: ['order_id', 'typed'], decided: [] }]);
+    expect(adjustParentsOf(keyless, w.table('items').table)).toEqual([]);
   });
 
   it('ride the rules every write of the table reads, with the columns only Adminium writes', () => {
@@ -162,6 +171,30 @@ describe('small questions a write asks of the rule', () => {
     expect(isLine({ only: { column: 'on', eq: true } }, { on: 1 })).toBe(true);
     expect(isLine({ only: { column: 'on', eq: true } }, { on: 0 })).toBe(false);
     expect(isLine({}, {})).toBe(true);
+  });
+
+  it('a change moves the price only where it sends something the row does not already hold', () => {
+    const stored = { qty: 2, unit_price: 14, staff_value: null, voided_at: null, card_load: null, on: true, tag: 'gift' };
+    const inputs = ['qty', 'unit_price', 'staff_value', 'voided_at', 'on', 'tag'];
+    // A form sends the whole row back: nothing of it moved.
+    expect(moved(inputs, { qty: 2, unit_price: '14.00', staff_value: null, voided_at: null, on: 1, tag: 'gift', note: 'x' }, stored)).toEqual([]);
+    expect(moved(inputs, { qty: '2', unit_price: 14 }, stored)).toEqual([]);
+    expect(moved(inputs, { qty: 3, unit_price: '14.01', on: false, tag: 'Gift' }, stored)).toEqual(['qty', 'unit_price', 'on', 'tag']);
+    expect(moved(inputs, { staff_value: '10', voided_at: '2026-09-30T10:00:00Z' }, stored)).toEqual(['staff_value', 'voided_at']);
+    expect(moved(inputs, { staff_value: 0 }, { ...stored, staff_value: '0.00' })).toEqual([]);
+    // Digits that are no amount are compared as they are written: a code or a tag with a zero in front is another one, and so is a key too long for a float.
+    expect(moved(inputs, { tag: '007' }, { ...stored, tag: '7' })).toEqual(['tag']);
+    expect(moved(inputs, { tag: '0123456' }, { ...stored, tag: '123456' })).toEqual(['tag']);
+    expect(moved(inputs, { qty: '9007199254740993' }, { ...stored, qty: '9007199254740992' })).toEqual(['qty']);
+    expect(moved(inputs, { unit_price: '14.10' }, { ...stored, unit_price: '14.1' })).toEqual([]);
+    expect(moved(inputs, { unit_price: '140' }, { ...stored, unit_price: '14' })).toEqual(['unit_price']);
+    // An empty box is nothing typed.
+    expect(moved(inputs, { tag: '', staff_value: '' }, { ...stored, tag: null })).toEqual([]);
+    expect(moved(inputs, { tag: null }, { ...stored, tag: '' })).toEqual([]);
+    // With no stored row to compare with, what is sent is what moved.
+    expect(moved(inputs, { qty: 2 }, null)).toEqual(['qty']);
+    expect(moved(inputs, { note: 'x' }, stored)).toEqual([]);
+    expect(moved(inputs, null, stored)).toEqual([]);
   });
 
   it('a line\'s key carries its part, and a change touches the price only through the rule\'s columns', () => {

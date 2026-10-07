@@ -94,6 +94,8 @@ export interface AdjustParent {
   inputs: string[];
   /** This table's columns only Adminium writes. */
   decided: string[];
+  /** For the codes typed on an order: the column a code is typed into. */
+  typed?: string;
 }
 
 const uniq = (columns: readonly (string | undefined)[]): string[] => [...new Set(columns.filter((column): column is string => column !== undefined))];
@@ -160,11 +162,21 @@ export function compileAdjust(table: Pick<EffectiveTable, 'id' | 'primaryKey' | 
  * rows part of nothing.
  */
 export function adjustParentsOf(model: Pick<EffectiveModel, 'tables' | 'relations'> | undefined, table: Pick<EffectiveTable, 'id'> | undefined): AdjustParent[] {
-  if (model === undefined || table === undefined) return [];
+  // (A model with no list of tables — a table looked at on its own — has no order to be part of.)
+  if (model === undefined || table === undefined || !Array.isArray(model.tables)) return [];
   const out: AdjustParent[] = [];
   for (const order of model.tables) {
     const compiled = compileAdjust(order);
-    if (compiled === undefined) continue;
+    if (compiled === undefined) {
+      // A rule that cannot be read as one (its orders have no one key) still names its rows: they ask, and are refused with it, never written unpriced.
+      const stored = order.adjust;
+      if (stored === undefined) continue;
+      const unread = (via: string, as: AdjustParent['as'], inputs: (string | undefined)[]): AdjustParent => ({ order: order.id, orderKey: order.primaryKey[0] ?? '', via, as, inputs: uniq([via, ...inputs]), decided: [] });
+      for (const part of stored.lines) if (!('self' in part) && part.table === table.id) out.push(unread(part.via, 'line', [part.price, part.quantity]));
+      if (stored.codes?.table === table.id) out.push(unread(stored.codes.via, 'codes', [stored.codes.typed]));
+      if (stored.refunds?.table === table.id) out.push(unread(stored.refunds.via, 'refund', []));
+      continue;
+    }
     const linked = (via: string): boolean =>
       (model.relations ?? []).some((relation) => relation.through === null && relation.from.tableId === table.id && relation.from.columns.length === 1 && relation.from.columns[0] === via && relation.to.tableId === order.id && relation.to.columns.length === 1 && relation.to.columns[0] === compiled.key);
     const base = (via: string) => ({ order: order.id, orderKey: compiled.key, via });
@@ -174,7 +186,7 @@ export function adjustParentsOf(model: Pick<EffectiveModel, 'tables' | 'relation
     }
     const codes = compiled.codes;
     if (codes !== undefined && codes.table === table.id && linked(codes.via)) {
-      out.push({ ...base(codes.via), as: 'codes', inputs: uniq([codes.via, codes.typed, codes.removed]), decided: [codes.code, codes.voucher] });
+      out.push({ ...base(codes.via), as: 'codes', inputs: uniq([codes.via, codes.typed, codes.removed]), decided: [codes.code, codes.voucher], typed: codes.typed });
     }
     const refunds = compiled.refunds;
     if (refunds !== undefined && refunds.table === table.id && linked(refunds.via)) {
@@ -210,6 +222,29 @@ export function isLine(part: Pick<AdjustPart, 'only' | 'unlessSet'>, row: Row): 
 
 /** A line's key as the add-on is handed it and as the rows of what was applied keep it: its part, then its own key. */
 export const lineKey = (part: number, key: unknown): string => `p${String(part)}:${String(key)}`;
+
+/** Which of a list of columns a change really moves: sent, and not what the row already holds (a form sends the whole row back). */
+export function moved(inputs: readonly string[], values: Row | null | undefined, stored: Row | null | undefined): string[] {
+  return touched(inputs, values).filter((column) => {
+    if (stored === null || stored === undefined) return true;
+    // Nothing typed is nothing kept: a form sends an empty box back as empty text.
+    const [sent, kept] = [values![column] === '' ? null : values![column], stored[column] === '' ? null : stored[column]];
+    if (sameValue(sent ?? null, kept ?? null)) return false;
+    return plain(sent) === null || plain(sent) !== plain(kept);
+  });
+}
+
+/**
+ * A number as its digits, without the zeros after its last decimal: "10",
+ * 10 and "10.00" are one amount. Never by its size — "007" is not "7" (a
+ * code, a tag), and a key too long for a float is still its own.
+ */
+function plain(value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') return null;
+  const text = String(value);
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return null;
+  return text.includes('.') ? text.replace(/0+$/, '').replace(/\.$/, '') : text;
+}
 
 /** Which of a write's columns are among a list: what a change of a row touches of the price. */
 export function touched(inputs: readonly string[], values: Row | null | undefined): string[] {

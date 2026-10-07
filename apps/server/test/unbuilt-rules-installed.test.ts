@@ -33,8 +33,9 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
     expect(rule).not.toBeInstanceOf(RuleNotBuiltError);
   });
 
-  it.runIf(available)('a table given a price rule by hand takes no creates or changes, and a delete still clears up', async () => {
-    // Stored the way Studio's rule save stores one: no install would write it yet.
+  it.runIf(available)('a table given a price rule, written with no add-on runtime at hand, takes no creates: nobody can say the rule is not there', async () => {
+    // Stored the way an owner's rule is. The price question runs now; this writer was built with no add-on runtime, so it
+    // cannot tell a rule that reads as not there from a live one — and refuses, rather than write a row nobody priced.
     const before = await writerFor(h!);
     const tableName = before.targetOf('rate_rules').table.id;
     const row = await overridesRepo(h!.meta).create({
@@ -49,8 +50,8 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
     try {
       const w = await writerFor(h!);
       const refused = await w.create('rate_rules', { name: 'September', amount: 10 }).catch((error: unknown) => error);
-      expect(refused).toBeInstanceOf(RuleNotBuiltError);
-      expect(refused).toMatchObject({ statusCode: 501, code: 'RULE_NOT_BUILT', details: { table: tableName, rule: 'adjust' } });
+      expect(refused).not.toBeInstanceOf(RuleNotBuiltError);
+      expect(refused).toMatchObject({ statusCode: 409, code: 'POSTING_REFUSED', details: { reason: 'add-on-unavailable' } });
       await expect(w.writes.delete({ target: w.targetOf('rate_rules'), pk: { id: 999_999 }, context: w.desk, announce: async () => {} })).resolves.toBe(0);
       // A table that carries none still writes.
       const type = await w.create('room_types', { name: 'Loft', base_rate: 90 }).catch((error: unknown) => error);

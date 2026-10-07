@@ -1821,7 +1821,8 @@ export function createLedgerWriter(kit: LedgerKit) {
             connectionId: about.target.view.connectionId,
             table: about.target.table.id,
             reason,
-            ...(error instanceof PlanFailed ? { cause: error.cause, detail: error.detail } : {}),
+            // The word for why, wherever the failed answer was a plan's or a price's.
+            ...(typeof (error as { cause?: unknown }).cause === 'string' && typeof (error as { detail?: unknown }).detail === 'string' ? { cause: (error as unknown as PlanFailed).cause, detail: (error as unknown as PlanFailed).detail } : {}),
             ...(details.ledger === undefined ? {} : { ledger: details.ledger }),
             ...(details.posting === undefined ? {} : { posting: details.posting }),
             ...(details.table === undefined ? {} : { ledgerTable: details.table }),

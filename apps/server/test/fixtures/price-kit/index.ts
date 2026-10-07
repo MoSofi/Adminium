@@ -210,8 +210,22 @@ export const MARKET_ADJUST = {
   expect: 'total',
 };
 
-/** The shop whose orders ask the price kit. */
-export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUST): Doc {
+/** The shop's rule with a second kind of line: what an order is charged by the night. */
+export const WIDE_ADJUST = {
+  ...MARKET_ADJUST,
+  lines: [...MARKET_ADJUST.lines, { table: 'order_extras', via: 'order_id', price: 'rate', quantity: 'nights', discount: 'discount', what: [{ column: 'tag', as: 'tag' }] }],
+};
+
+/**
+ * The shop whose orders ask the price kit. `uncapped`: what is paid may pass
+ * what is owed — a table that feeds a balance kept at zero or more takes its
+ * rows one at a time for that reason alone, which a test of another reason
+ * must not meet first. `wide`: the totals a price can move beyond the order's
+ * own reduction — a line's net added up on its order, an order's total on its
+ * customer — and rows charged by the night, whose nights follow the order's.
+ */
+export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUST, options: { uncapped?: boolean; wide?: boolean } = {}): Doc {
+  const wide = options.wide === true;
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -232,7 +246,10 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
     requiredSchema: {
       prefixed: true,
       tables: [
-        { ref: 'customers', columns: [pk, text('name', 80, { nullable: true }), text('email', 200, { nullable: true, rules: { personal: true } })] },
+        {
+          ref: 'customers',
+          columns: [pk, text('name', 80, { nullable: true }), text('email', 200, { nullable: true, rules: { personal: true } }), ...(wide ? [money('spent', { default: 0, rules: { rollup: { from: 'orders', via: 'customer_id', sum: 'total' } } })] : [])],
+        },
         { ref: 'categories', columns: [pk, text('name', 80)] },
         { ref: 'items', columns: [pk, text('name', 80), fk('category_id', 'categories', { nullable: true }), money('price', { default: 0 })] },
         {
@@ -247,10 +264,20 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
             text('note', 200, { nullable: true }),
             money('subtotal', { default: 0, rules: { rollup: { from: 'order_lines', via: 'order_id', sum: 'amount' } } }),
             money('discount', { default: 0 }),
-            money('net', { nullable: true, rules: { formula: { sub: ['subtotal', 'discount'] } } }),
+            ...(wide
+              ? [
+                  { ref: 'nights', type: 'int', default: 1 },
+                  money('extras', { default: 0, rules: { rollup: { from: 'order_extras', via: 'order_id', sum: 'amount' } } }),
+                  money('lines_net', { default: 0, rules: { rollup: { from: 'order_lines', via: 'order_id', sum: 'net' } } }),
+                ]
+              : []),
+            money('net', { nullable: true, rules: { formula: { sub: [wide ? { add: ['subtotal', 'extras'] } : 'subtotal', 'discount'] } } }),
             { ref: 'tax_rate', type: 'decimal', scale: 2, default: 8 },
             money('tax', { nullable: true, rules: { formula: { round: [{ div: [{ mul: ['net', 'tax_rate'] }, 100] }, 2] } } }),
             money('total', { nullable: true, rules: { formula: { add: ['net', 'tax'] } } }),
+            // What was paid, and what is still to pay: never less than nothing.
+            money('paid', { default: 0, rules: { rollup: { from: 'payments', via: 'order_id', sum: 'amount', ...(options.uncapped === true ? {} : { cap: true }), balance: { column: 'due', of: 'total' } } } }),
+            money('due', { default: 0 }),
             { ref: 'staff_kind', type: 'enum', enum: ['none', 'percent', 'amount', 'comp'], default: 'none' },
             { ref: 'staff_value', type: 'decimal', scale: 2, nullable: true },
             text('staff_reason', 200, { nullable: true }),
@@ -270,11 +297,31 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
             { ref: 'qty', type: 'int', default: 1 },
             money('amount', { nullable: true, rules: { formula: { mul: ['unit_price', 'qty'] } } }),
             money('discount', { default: 0 }),
+            ...(wide ? [money('net', { nullable: true, rules: { formula: { sub: ['amount', 'discount'] } } })] : []),
             { ref: 'card_load', type: 'timestamptz', nullable: true },
             { ref: 'paid_by', type: 'int', nullable: true, rules: link('vouchers') },
             { ref: 'voided_at', type: 'timestamptz', nullable: true },
+            // What the kitchen is told: nothing the price reads.
+            text('note', 200, { nullable: true }),
           ],
         },
+        { ref: 'payments', columns: [pk, fk('order_id', 'orders'), text('method', 20, { default: 'cash' }), money('amount', { default: 0 })] },
+        ...(wide
+          ? [
+              {
+                ref: 'order_extras',
+                columns: [
+                  pk,
+                  fk('order_id', 'orders'),
+                  text('tag', 40, { nullable: true }),
+                  money('rate', { default: 0 }),
+                  { ref: 'nights', type: 'int', nullable: true, rules: { copy: { via: 'order_id', from: 'nights', mode: 'always', follow: true } } },
+                  money('amount', { nullable: true, rules: { formula: { mul: ['rate', 'nights'] } } }),
+                  money('discount', { default: 0 }),
+                ],
+              },
+            ]
+          : []),
         {
           ref: 'order_codes',
           columns: [

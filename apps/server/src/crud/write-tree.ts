@@ -41,6 +41,7 @@ import type { Kysely } from 'kysely';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { NamedLock } from './capacity/locks.js';
 import type { JudgedRow, PoolState } from './capacity/types.js';
+import type { AdjustedOrder } from './adjust/step.js';
 import type { PostedOutcome } from './ledger-write.js';
 import type { Row } from './mask.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
@@ -147,6 +148,8 @@ export interface TreeOutcome {
   replayed: boolean;
   /** What each posting of the tree did, when its rows hand anything to an add-on's ledger. */
   postings?: PostedOutcome[] | undefined;
+  /** Each order the tree's rows belong to, as an add-on's price rule priced it. */
+  adjusted?: AdjustedOrder[] | undefined;
 }
 
 export type CreateTree = (input: CreateTreeInput) => Promise<TreeOutcome>;

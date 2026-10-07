@@ -238,6 +238,12 @@ function adjust(input) {
     var pb = PASS[b.kind] || 9;
     return pa !== pb ? pa - pb : Number(a.id) - Number(b.id);
   });
+  // A code whose offer was not handed in (it is not on any more): the code does not stand, and says so.
+  for (var known in typedOffer) {
+    var handed = false;
+    for (var q = 0; q < offers.length; q += 1) if (String(offers[q].id) === known) handed = true;
+    if (!handed && input.mode !== 'refund') refused.push({ typed: typedOffer[known].typed, reason: 'inactive' });
+  }
 
   /** One way of taking the reductions: the offers given, on the lines as they stand at the start. */
   function run(chosen) {

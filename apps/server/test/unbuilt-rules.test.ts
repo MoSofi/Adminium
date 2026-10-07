@@ -147,13 +147,17 @@ describe('a release', () => {
   });
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
-    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['adjust']);
+    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual([]);
     expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual([]);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {
+    // A rule a table refuses is named `table.<rule>` among the words a manifest is refused for (none is, today).
     const words = Object.keys(UNBUILT_MANIFEST_WORDS);
-    expect(words).toEqual(expect.arrayContaining(['table.adjust']));
+    expect(words).toEqual(expect.arrayContaining(UNBUILT_TABLE_RULES.map((rule) => `table.${rule.rule}`)));
+    // The price question runs: neither a host's rule nor an add-on's side of it is refused any more.
+    expect(words).not.toContain('table.adjust');
+    expect(words).not.toContain('addOn.adjuster');
   });
 });
 

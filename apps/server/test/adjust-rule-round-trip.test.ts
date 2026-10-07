@@ -112,19 +112,15 @@ describe('what the price rule makes Adminium\'s own', () => {
   });
 });
 
-describe('until the price question is asked', () => {
-  it('the order\'s table and each table of its lines, codes and refunds take no writes', () => {
-    // The one rule this is about: some of these tables carry another rule not run yet as well (a link into the add-on).
-    const adjust = UNBUILT_TABLE_RULES.filter((rule) => rule.rule === 'adjust');
-    for (const ref of ['orders', 'order_lines', 'order_codes', 'refunds']) expect(unbuiltRuleOf(tableOf(ref), adjust, model), ref).toBe('adjust');
-    for (const ref of ['customers', 'items', 'payments', 'refund_lines']) expect(unbuiltRuleOf(tableOf(ref), adjust, model), ref).toBeNull();
-    // Without the model a child table cannot know it is a line of an order.
-    expect(unbuiltRuleOf(tableOf('refunds'), adjust)).toBeNull();
+describe('now that the price question is asked', () => {
+  it('the order\'s table and each table of its lines, codes and refunds take writes: no rule of the table refuses them', () => {
+    expect(UNBUILT_TABLE_RULES.filter((rule) => rule.rule === 'adjust')).toEqual([]);
+    for (const ref of ['orders', 'order_lines', 'order_codes', 'refunds', 'customers', 'items', 'payments', 'refund_lines']) expect(unbuiltRuleOf(tableOf(ref), undefined, model), ref).toBeNull();
   });
 
-  it('a manifest that asks it, or answers it, needs the release that does', () => {
-    expect(unbuiltInManifest(hostDoc()).filter((found) => found.word === 'table.adjust')).toEqual([{ word: 'table.adjust', path: 'requiredSchema.tables.3.adjust', release: '0.3.19' }]);
-    expect(unbuiltInManifest(OFFERS_KIT).find((found) => found.word === 'addOn.adjuster')).toEqual({ word: 'addOn.adjuster', path: 'addOn.adjuster', release: '0.3.19' });
+  it('a manifest that asks it, or answers it, is installed; an amount a ledger decides still needs the release that runs it', () => {
+    expect(unbuiltInManifest(hostDoc()).filter((found) => found.word === 'table.adjust')).toEqual([]);
+    expect(unbuiltInManifest(OFFERS_KIT).find((found) => found.word === 'addOn.adjuster')).toBeUndefined();
     const deciding = { kind: 'add-on', addOn: { ledgers: [{ id: 'value', actions: { spend: { decides: [{ input: 'amount' }] }, load: {} } }] } };
     expect(unbuiltInManifest(deciding).filter((found) => found.word === 'ledger.decides')).toEqual([{ word: 'ledger.decides', path: 'addOn.ledgers.0.actions.spend.decides', release: '0.3.19' }]);
     // The rules a manifest ships are run: nothing waits on them any more.
