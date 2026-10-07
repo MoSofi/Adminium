@@ -25,7 +25,7 @@
  * Every read is a plain read on the transaction's handle; the order row is
  * held by the save that calls.
  */
-import { adjustOutputSchema, type AdjustApplied, type AdjustInput, type AdjustOutput, type AdjustUse, type PostingUse } from '@adminium/add-on-contracts';
+import { ADJUST_LINES_MAX, adjustOutputSchema, type AdjustApplied, type AdjustInput, type AdjustOutput, type AdjustUse, type PostingUse } from '@adminium/add-on-contracts';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
@@ -52,6 +52,7 @@ import { bindWriteValue, booleanOf, sameValue } from '../write-values.js';
 import { adjustWords, publicReason, refusalOf, type RefusedCode } from './answers.js';
 import { checkAdjust } from './check.js';
 import { orderFigures, type FiguredRow } from './figures.js';
+import { refundShares } from './refund.js';
 import { AdjustTooLarge, adjustCodeOf, adjustLineOf, findCodes, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
 import { frozenNow, moved, touched, type CompiledAdjust } from './rule.js';
 
@@ -225,6 +226,32 @@ export interface AdjustResult {
   recorder?: string;
   /** A code's refusal held back for the save's price check (see `expects`): raised by the caller when the price is as expected without it. */
   heldBack?: Error;
+  /** Money given back in this save: what the order is smaller by, what each payment may still be given, and what each refund row was decided to be. */
+  refund?: RefundAnswer;
+}
+
+/** What a save that gives money back decided, for its door to say. */
+export interface RefundAnswer {
+  /** What was left to give back before this save's rows, and its tax. */
+  refundable: string;
+  taxRefundable?: string;
+  /** The order's payments: what each took, what it had given back before, and the most it could be given now. */
+  payments: { key: string; took: string; givenBack: string; max: string }[];
+  rows: { key: string; amount: string; tax?: string }[];
+}
+
+/** One order money is given back from, in a save that makes the refund rows. */
+export interface AdjustRefund {
+  for: AdjustFor;
+  key: unknown;
+  /** The order as held; it may be one whose price stands for good. */
+  stood: Row | null;
+  mode: 'save' | 'dry';
+  context: WriteContext;
+  clock: WriteClock;
+  locale?: string | undefined;
+  /** The rows the save has just written: its refund rows of this order are the ones decided. */
+  made: readonly { table: string; row: Row }[];
 }
 
 /** What a question is put together from. */
@@ -250,6 +277,8 @@ interface AskInput {
   staff?: ((handed: AdjustInput['lines'], places: number) => Promise<AdjustInput['staff']>) | undefined;
   /** Every row the add-on reads, whatever its condition (the ended and the paused ones too). */
   everything?: boolean | undefined;
+  /** How many of a line are kept, where some were given back: none at all is a line no longer kept. Absent: as stored. */
+  keep?: ((line: LoadedLine) => Ratio | undefined) | undefined;
   explain?: boolean | undefined;
   /** An offer not saved yet, considered with the stored ones. */
   draft?: ScalarRow | undefined;
@@ -335,6 +364,9 @@ const tooLarge = (): PostingRefusedError => new PostingRefusedError('This is mor
 const ORIGINS: Readonly<Record<string, 'staff' | 'public' | 'system'>> = { public: 'public', automation: 'system', import: 'system', hook: 'system', action: 'system' };
 /** Who a write is, as an add-on is told: a customer, the system, or staff. */
 export const adjustOrigin = (context: Pick<WriteContext, 'origin'>): 'staff' | 'public' | 'system' => ORIGINS[context.origin] ?? 'staff';
+
+/** The most refund rows of one order that are read: past so many the save is refused, never decided on a part of them. */
+const REFUND_ROWS_MAX = 200;
 
 /** The longest a typed code is handed on, as it was typed: what the add-on's answer may say back of one. */
 const TYPED_MAX = 64;
@@ -507,6 +539,23 @@ export function createAdjuster(kit: AdjustKit) {
   }
 
   /**
+   * What an order is priced under once its price is no longer open: the
+   * offers it has — those applied to it now, and those its round recorded (one
+   * that fell away with a line comes back with it) — as of the last time
+   * anything was applied to it.
+   */
+  async function pinnedOf(db: Db, on: AdjustFor, order: Row, held: Record<string, ScalarRow[]> | undefined): Promise<{ only: Set<string>; at: Date | null }> {
+    const { adjust, adjuster } = on;
+    const stored = await storedApplied(db, on, { table: kit.ledgers!.refOf(on.target.connectionId, on.target.table.id), row: String(order[adjust.key]) });
+    const columns = adjuster.declared.applied.columns;
+    const only = new Set(stored.flatMap((row) => (empty(row[columns.offer]) ? [] : [String(row[columns.offer])])));
+    const kept = adjuster.declared.person?.uses;
+    if (kept !== undefined) for (const row of held?.[kept.table] ?? []) if (!empty(row[kept.offer])) only.add(String(row[kept.offer]));
+    const times = stored.map((row) => instantOf(row[columns.at])).filter((at): at is Date => at !== null);
+    return { only, at: times.length === 0 ? null : new Date(Math.max(...times.map((at) => at.getTime()))) };
+  }
+
+  /**
    * THE QUESTION, READ AND PUT TOGETHER — nothing is written here. The order's
    * lines, the codes on it (or the ones tried in their place), the rows the
    * add-on reads, who is buying, what staff took off: each a plain read on the
@@ -572,7 +621,8 @@ export function createAdjuster(kit: AdjustKit) {
     const handed: AdjustInput['lines'] = [];
     for (const [index, line] of lines.entries()) {
       const nights = line.part.nights !== undefined && perNight !== undefined && perNight.column === line.part.nights.rate ? (await priceNights(db, perNight, line.row, places)).nights : undefined;
-      handed.push(adjustLineOf({ view, line, index, places, refOf, nights }));
+      const keep = input.keep?.(line);
+      handed.push(adjustLineOf({ view, line, index, places, refOf, nights, ...(keep === undefined ? {} : { quantity: keep, kept: keep.n > 0n }) }));
     }
     const staff = input.staff === undefined ? storedStaff(adjust, order, places) : await input.staff(handed, places);
     const mapped = adjust.rule.order.currency;
@@ -672,17 +722,7 @@ export function createAdjuster(kit: AdjustKit) {
     }
     // An order whose price stands is not asked again, even for what it used: that is read off what was applied to it, and nothing moves.
     if (stands) return await recordedOf(trx, input, order);
-    if (closed) {
-      const stored = await storedApplied(trx, input.for, { table: kit.ledgers!.refOf(target.connectionId, target.table.id), row: String(order[adjust.key]) });
-      const columns = adjuster.declared.applied.columns;
-      // The offers the order has — those applied to it now, and those its round recorded (one that fell away with a line comes back with it).
-      const only = new Set(stored.flatMap((row) => (empty(row[columns.offer]) ? [] : [String(row[columns.offer])])));
-      const kept = adjuster.declared.person?.uses;
-      if (kept !== undefined) for (const row of held?.[kept.table] ?? []) if (!empty(row[kept.offer])) only.add(String(row[kept.offer]));
-      // As of the last time anything was applied to it.
-      const times = stored.map((row) => instantOf(row[columns.at])).filter((at): at is Date => at !== null);
-      pinned = { only, at: times.length === 0 ? null : new Date(Math.max(...times.map((at) => at.getTime()))) };
-    }
+    if (closed) pinned = await pinnedOf(trx, input.for, order, held);
     /** What this save decides of the order beside its reduction: whether its customer was proved, and who gave what was taken off by hand. */
     const stamps: Row = {};
     const actor = input.context.actor;
@@ -982,6 +1022,205 @@ export function createAdjuster(kit: AdjustKit) {
     };
   }
 
+  /**
+   * MONEY GIVEN BACK. The refund rows of an order whose amount nobody decided
+   * yet — the ones this save made — are decided here, after they are written
+   * and before the save's totals: the order is priced again with what was
+   * returned taken out (every refund's returned lines, this save's included),
+   * under the offers it had and as of when they were applied; what it is
+   * smaller by, less what earlier refunds gave back, is shared over the rows
+   * (`refund.ts`). Nothing of the order is written, and an order whose price
+   * stands is read like any other. Null when there is nothing to decide.
+   */
+  async function refund(trx: Db, input: AdjustRefund): Promise<AdjustResult | null> {
+    const { adjust } = input.for;
+    const rule = adjust.refunds;
+    if (rule === undefined) return null;
+    const target: WriteTarget = { ...input.for.target, db: trx };
+    const view = target.view;
+    const rules = kit.rulesOf(target);
+    const origin = adjustOrigin(input.context);
+    const order = input.stood ?? (await loadOrder(trx, target.table, adjust, input.key));
+    if (order === undefined || order === null) return null;
+    const table = view.table(rule.table);
+    const pk = table.primaryKey[0] ?? 'id';
+    const all = (await trx.selectFrom(table.id as never).selectAll().where(sql.ref(rule.via), '=', order[adjust.key] as never).orderBy(sql.ref(pk)).limit(REFUND_ROWS_MAX + 1).execute()) as Row[];
+    if (all.length > REFUND_ROWS_MAX) throw tooLarge();
+    // Only the rows this save made are decided. A refund already there is never decided again, moved to another order or payment, or
+    // taken away: what was given back stands, and a mistake is set right by the host's own way (a refund of the refund, a void).
+    const mine = new Set(input.made.filter((one) => one.table === table.id && String(one.row[rule.via] ?? '') === String(order[adjust.key])).map((one) => String(one.row[pk])));
+    if (mine.size === 0) throw new AdjustRefusedError('Money given back stands as it was decided: it is not moved, changed or taken away.', { reason: 'not-allowed', column: rule.via });
+    const fresh = all.filter((row) => mine.has(String(row[pk])));
+    // A refund made while nobody could decide it (the rule was off, the add-on away) holds no amount: what it really gave back is
+    // unknown here, so nothing more is given back from the order until it is set right — never a second refund on top of it.
+    if (all.some((row) => !mine.has(String(row[pk])) && empty(row[rule.amount]))) throw new AdjustRefusedError('An earlier refund of this order holds no amount. Set it right before giving more back.', { reason: 'not-allowed', column: rule.amount });
+    if (fresh.length === 0) return null;
+
+    // What was returned, line by line: by every refund of the order, this save's included.
+    const back = new Map<string, Ratio>();
+    const returning = new Set<string>();
+    let lineTable: string | null = null;
+    if (rule.lines !== undefined) {
+      const returns = view.table(rule.lines.table);
+      lineTable = view.model.relations.find((r) => r.through === null && r.from.tableId === returns.id && r.from.columns.length === 1 && r.from.columns[0] === rule.lines!.line)?.to.tableId ?? null;
+      // A rule whose returned lines point at nothing that can be read as a line cannot be worked out.
+      if (lineTable === null) throw unavailable();
+      const rows = (await trx
+        .selectFrom(returns.id as never)
+        .selectAll()
+        .where(sql.ref(rule.lines.via), 'in', all.map((row) => row[pk]) as never)
+        .limit(REFUND_ROWS_MAX * ADJUST_LINES_MAX + 1)
+        .execute()) as Row[];
+      if (rows.length > REFUND_ROWS_MAX * ADJUST_LINES_MAX) throw tooLarge();
+      for (const row of rows) {
+        const quantity = toRatio(row[rule.lines.quantity]) ?? ZERO;
+        if (quantity.n * quantity.d <= 0n || empty(row[rule.lines.line])) continue;
+        back.set(String(row[rule.lines.line]), plus(back.get(String(row[rule.lines.line])) ?? ZERO, quantity));
+        returning.add(String(row[rule.lines.via]));
+      }
+    }
+    const round = await roundFor(trx, input.for, order);
+    const pinned = await pinnedOf(trx, input.for, order, round?.held);
+    /** How many of each line are kept, by the line's key as the add-on is handed it. */
+    const keeps = new Map<string, Ratio>();
+    /** The returned lines that were found among the order's own. */
+    const taken = new Set<string>();
+    const asking = await prepare(trx, {
+      for: input.for,
+      order,
+      origin,
+      mode: 'refund',
+      point: 'line',
+      now: pinned.at ?? input.clock.locked(trx),
+      locale: input.locale ?? input.context.adjust?.locale ?? 'en-US',
+      held: round?.held,
+      only: pinned.only,
+      keep: (line) => {
+        if (line.part.self || lineTable === null || line.table.id !== lineTable) return undefined;
+        const at = line.table.primaryKey.map((column) => String(line.row[column])).join('/');
+        const gone = back.get(at);
+        if (gone === undefined) return undefined;
+        taken.add(at);
+        const had = line.part.quantity === undefined ? { n: 1n, d: 1n } : (toRatio(line.row[line.part.quantity]) ?? ZERO);
+        // More of a line given back than there is of it.
+        if (more(gone, had)) throw new AdjustRefusedError(adjustWords('refund-over'), { reason: 'refund-over', max: ratioText(had, 0) });
+        const kept: Ratio = { n: had.n * gone.d - gone.n * had.d, d: had.d * gone.d };
+        keeps.set(line.key, kept);
+        return kept;
+      },
+    });
+    const { question, rows, places, currency, ask } = asking;
+    // A thing given back that is no line of this order — another order's, a voided one — gives nothing back: refused, never a refund of nothing.
+    if ([...back.keys()].some((line) => !taken.has(line))) throw new AdjustRefusedError(adjustWords('refund-over'), { reason: 'refund-over', max: '0' });
+    // (Priced under what it had: a code that would not stand today is not asked about again.)
+    let asked = question;
+    let answer = ask(asked);
+    for (let turn = 0; turn < question.codes.length && answer.refused.some((entry) => entry.typed !== ''); turn += 1) {
+      const gone = new Set(answer.refused.map((entry) => entry.typed));
+      asked = { ...asked, codes: asked.codes.filter((code) => !gone.has(code.typed)) };
+      answer = ask(asked);
+    }
+    // The order as it would be with the returned things gone.
+    const reduced = new Map(answer.lines.map((line) => [line.key, line.discount]));
+    const zero = ratioText(ZERO, places);
+    const figured = new Map<string, FiguredRow>();
+    const overlay: Row = { [adjust.rule.order.discount]: answer.order.discount };
+    for (const row of rows) {
+      const wanted = row.line ? (reduced.get(row.key) ?? zero) : zero;
+      if (row.part.self) {
+        overlay[row.part.discount] = wanted;
+        continue;
+      }
+      const kept = row.line ? keeps.get(row.key) : undefined;
+      // A line with a quantity keeps fewer; one that has none (it is one thing) is worth nothing once it is gone.
+      const fewer: Row = kept === undefined ? {} : row.part.quantity !== undefined ? { [row.part.quantity]: ratioText(kept, kept.d === 1n || kept.n % kept.d === 0n ? 0 : 4) } : kept.n > 0n ? {} : { [row.part.price]: zero };
+      const id = `${row.table.id}\u0000${String(row.part.via)}\u0000${row.table.primaryKey.map((column) => String(row.row[column])).join('/')}`;
+      const known = figured.get(id);
+      if (known === undefined) figured.set(id, { table: row.table.id, via: row.part.via, rules: kit.rulesOf({ ...target, table: row.table }), row: row.row, overlay: { [row.part.discount]: wanted, ...fewer } });
+      else if (row.line) known.overlay = { ...known.overlay, [row.part.discount]: wanted, ...fewer };
+    }
+    const kept = orderFigures({ order, orderRules: rules, rows: [...figured.values()], overlay, currency }).order;
+
+    // What earlier refunds gave back — in all, of tax, and to each payment.
+    const decided = all.filter((row) => !mine.has(String(row[pk])));
+    const sum = (rows: readonly Row[], column: string | undefined): Ratio => (column === undefined ? ZERO : rows.reduce<Ratio>((total, row) => plus(total, toRatio(row[column]) ?? ZERO), ZERO));
+    const smaller = (column: string | undefined, gave: Ratio): Ratio => {
+      if (column === undefined) return ZERO;
+      const cost = toRatio(order[column]) ?? ZERO;
+      const now = toRatio(kept[column]) ?? ZERO;
+      return { n: (cost.n * now.d - now.n * cost.d) * gave.d - gave.n * cost.d * now.d, d: cost.d * now.d * gave.d };
+    };
+    const refundable = smaller(rule.of, sum(decided, rule.amount));
+    const taxRefundable = rule.tax === undefined ? ZERO : smaller(rule.taxOf, sum(decided, rule.tax));
+    const payments = new Map<string, { took: Ratio; givenBack: Ratio }>();
+    /** Whether what the order's payments took can be read at all (the order adds them up). */
+    let known = false;
+    if (rule.against !== undefined) {
+      const paid = view.model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === rule.against && r.to.columns.length === 1);
+      // What a payment took is the column the order adds its payments up by.
+      // …the total a balance of the order is taken from (what is paid), before any other total over the same rows (tips).
+      const totals = paid === undefined ? [] : (rules?.ownRollups ?? []).filter((rollup) => rollup.child === paid.to.tableId && rollup.count !== true && rollup.times === undefined);
+      const total = totals.find((rollup) => (rules?.balances ?? []).some((balance) => balance.total === rollup.column)) ?? totals[0];
+      if (paid !== undefined && total !== undefined) {
+        known = true;
+        const took = (await trx.selectFrom(paid.to.tableId as never).selectAll().where(sql.ref(total.via), '=', order[adjust.key] as never).orderBy(sql.ref(paid.to.columns[0]!)).limit(REFUND_ROWS_MAX + 1).execute()) as Row[];
+        if (took.length > REFUND_ROWS_MAX) throw tooLarge();
+        for (const one of took) {
+          // Only a payment the order counts as paid (not a voided one, not one of another kind) can be given back to.
+          if ((total.unlessSet !== undefined && !empty(one[total.unlessSet])) || (total.where !== undefined && !sameValue(one[total.where.column], total.where.eq))) continue;
+          const key = String(one[paid.to.columns[0]!]);
+          payments.set(key, { took: toRatio(one[total.sum]) ?? ZERO, givenBack: sum(decided.filter((row) => String(row[rule.against!] ?? '') === key), rule.amount) });
+        }
+      }
+    }
+    // A refund names a payment of THIS order that counts as paid, or none: another order's payment, or a voided one, is given nothing.
+    if (known) {
+      for (const row of fresh) {
+        if (rule.against !== undefined && !empty(row[rule.against]) && !payments.has(String(row[rule.against]))) throw new AdjustRefusedError(adjustWords('refund-over'), { reason: 'refund-over', column: rule.against, max: '0' });
+      }
+    }
+    // No more is given back than was paid in: what the payments took, less what refunds already gave back.
+    const paidIn = [...payments.values()].reduce<Ratio>((total, one) => plus(total, one.took), ZERO);
+    const gaveBack = sum(decided, rule.amount);
+    const room: Ratio = { n: paidIn.n * gaveBack.d - gaveBack.n * paidIn.d, d: paidIn.d * gaveBack.d };
+    const capped = known && more(refundable, room) ? (room.n * room.d < 0n ? ZERO : room) : refundable;
+    const shares = refundShares({
+      refundable: capped,
+      taxRefundable,
+      rows: fresh.map((row) => ({ key: String(row[pk]), against: rule.against === undefined || empty(row[rule.against]) ? null : String(row[rule.against]), returns: returning.has(String(row[pk])) })),
+      payments,
+      places,
+    });
+    if (shares.over !== undefined) throw new AdjustRefusedError(adjustWords('refund-over'), { reason: 'refund-over', max: shares.over.max });
+
+    // Each row's amount and tax, with the row's own formulas that read them.
+    const refundTarget: WriteTarget = { ...target, table };
+    const refundRules = kit.rulesOf(refundTarget);
+    for (const share of shares.rows) {
+      const row = fresh.find((one) => String(one[pk]) === share.key)!;
+      const set: Row = { [rule.amount]: share.amount, ...(rule.tax === undefined ? {} : { [rule.tax]: share.tax }) };
+      await kit.update(refundTarget, { ...set, ...evaluateAll(touchedFormulas(refundRules?.formulas ?? [], Object.keys(set)), { ...row, ...set }, refundRules?.currencyColumn, currency) }, { [pk]: row[pk] });
+    }
+    const text = (value: Ratio): string => ratioText(value.n * value.d < 0n ? ZERO : value, places);
+    return {
+      applied: [],
+      told: [],
+      uses: [],
+      discount: ratioText(toRatio(order[adjust.rule.order.discount]) ?? ZERO, places),
+      lines: [],
+      changedLines: 0,
+      codes: [],
+      wrote: {},
+      places,
+      refund: {
+        refundable: text(refundable),
+        ...(rule.tax === undefined ? {} : { taxRefundable: text(taxRefundable) }),
+        payments: [...payments].map(([key, one]) => ({ key, took: text(one.took), givenBack: text(one.givenBack), max: text({ n: one.took.n * one.givenBack.d - one.givenBack.n * one.took.d, d: one.took.d * one.givenBack.d }) })),
+        rows: shares.rows.map((share) => ({ key: share.key, amount: share.amount, ...(rule.tax === undefined ? {} : { tax: share.tax }) })),
+      },
+    };
+  }
+
   /** An order table's own rule with its add-on as it stands now, when the rule is live; null otherwise. Refuses nothing. */
   async function live(target: WriteTarget): Promise<AdjustFor | null> {
     const adjust = kit.rulesOf(target)?.adjust;
@@ -1259,5 +1498,5 @@ export function createAdjuster(kit: AdjustKit) {
     if (made.length > 0) await kit.insert(target, made.map((row) => bound(target, row)));
   }
 
-  return { peek, run, tried, live, forget, refuseBatch, inertCode, candidates };
+  return { peek, run, tried, refund, live, forget, refuseBatch, inertCode, candidates };
 }

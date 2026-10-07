@@ -276,6 +276,18 @@ const REDEEM = {
   map: { label: 'note' },
 };
 
+/** How the shop gives money back: what a refund comes to is Adminium's to decide. */
+export const REFUNDS = {
+  table: 'refunds',
+  via: 'order_id',
+  amount: 'amount',
+  tax: 'tax',
+  of: 'total',
+  taxOf: 'tax',
+  against: 'payment_id',
+  lines: { table: 'refund_lines', via: 'refund_id', line: 'line_id', quantity: 'qty' },
+};
+
 /**
  * The shop whose orders ask the price kit. `uncapped`: what is paid may pass
  * what is owed — a table that feeds a balance kept at zero or more takes its
@@ -284,8 +296,11 @@ const REDEEM = {
  * own reduction — a line's net added up on its order, an order's total on its
  * customer — and rows charged by the night, whose nights follow the order's.
  */
-export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUST, options: { uncapped?: boolean; wide?: boolean; uses?: 'held' | 'paid' | 'placed' | 'made' } = {}): Doc {
+export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUST, options: { uncapped?: boolean; wide?: boolean; uses?: 'held' | 'paid' | 'placed' | 'made'; refunds?: boolean } = {}): Doc {
   const wide = options.wide === true;
+  // Money given back: a refund row for an order, against one of its payments, with the lines it returns.
+  const refunds = options.refunds === true;
+  if (refunds && adjust !== null) adjust = { ...adjust, refunds: REFUNDS };
   const posts = options.uses;
   return {
     kind: 'app',
@@ -352,6 +367,7 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
             // What was paid, and what is still to pay: never less than nothing.
             money('paid', { default: 0, rules: { rollup: { from: 'payments', via: 'order_id', sum: 'amount', ...(options.uncapped === true ? {} : { cap: true }), balance: { column: 'due', of: 'total' } } } }),
             money('due', { default: 0 }),
+            ...(refunds ? [money('refunded', { default: 0, rules: { rollup: { from: 'refunds', via: 'order_id', sum: 'amount' } } })] : []),
             { ref: 'staff_kind', type: 'enum', enum: ['none', 'percent', 'amount', 'comp'], default: 'none' },
             { ref: 'staff_value', type: 'decimal', scale: 2, nullable: true },
             text('staff_reason', 200, { nullable: true }),
@@ -381,6 +397,15 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
           ],
         },
         { ref: 'payments', columns: [pk, fk('order_id', 'orders'), text('method', 20, { default: 'cash' }), money('amount', { default: 0 })] },
+        ...(refunds
+          ? [
+              {
+                ref: 'refunds',
+                columns: [pk, fk('order_id', 'orders'), fk('payment_id', 'payments', { nullable: true }), text('reason', 200, { nullable: true }), money('amount', { nullable: true }), money('tax', { nullable: true }), money('net_back', { nullable: true, rules: { formula: { sub: ['amount', 'tax'] } } })],
+              },
+              { ref: 'refund_lines', columns: [pk, fk('refund_id', 'refunds'), fk('line_id', 'order_lines'), { ref: 'qty', type: 'int', default: 1 }] },
+            ]
+          : []),
         ...(wide
           ? [
               {

@@ -3290,6 +3290,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     point?: 'line' | 'post' | undefined;
     /** Whether the save changes WHICH reductions the order has, or only what its lines are worth. */
     changes?: 'uses' | 'lines' | undefined;
+    /** The row is money given back from the order: its price is not moved — what the refund comes to is decided. */
+    refund?: boolean | undefined;
   }
 
   /**
@@ -3356,7 +3358,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const change = input.change;
     // A code typed, changed or taken off changes which reductions the order has; a line, what its lines are worth.
     const changes = (parents: readonly AdjustParent[]): 'uses' | 'lines' => (parents.some((parent) => parent.as === 'codes') ? 'uses' : 'lines');
-    if (change === undefined) return held.map((one) => ({ for: one.order, key: one.key, stood: one.stood, touches: true, settled: one.settled, changes: changes(one.parents) }));
+    /** Money given back, and nothing else of the order. */
+    const givesBack = (parents: readonly AdjustParent[]): boolean => parents.length > 0 && parents.every((parent) => parent.as === 'refund');
+    if (change === undefined) return held.map((one) => ({ for: one.order, key: one.key, stood: one.stood, touches: true, settled: one.settled, changes: changes(one.parents), refund: givesBack(one.parents) }));
     // Every writer of the row takes its order first, so the row is now as this change will find it.
     const now = await change.again();
     const out: PricedOrder[] = [];
@@ -3368,7 +3372,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (input.quote !== true && key !== null && key !== undefined && !names.has(`${parent.order}|${String(key)}`)) throw new LockMoved('order');
       }
       // A change that repeats what the row holds moves no price: nobody is asked, and an order whose price stands refuses nothing.
-      if (moving.length > 0) out.push({ for: one.order, key: one.key, stood: one.stood, touches: true, settled: one.settled, changes: changes(moving) });
+      if (moving.length > 0) out.push({ for: one.order, key: one.key, stood: one.stood, touches: true, settled: one.settled, changes: changes(moving), refund: givesBack(moving) });
     }
     return out;
   }
@@ -3379,10 +3383,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * it adds up into nothing), its balances are worked out here from what the
    * price wrote, and a capped one is judged against the order as it was held.
    */
-  async function adjustHeld(db: Db, priced: readonly PricedOrder[], input: { mode: 'save' | 'dry'; context: WriteContext; clock: WriteClock; expects?: boolean | undefined }): Promise<AdjustedOrder[]> {
+  async function adjustHeld(
+    db: Db,
+    priced: readonly PricedOrder[],
+    /** `made`: the rows this save has just written — the refund rows among them are the ones whose amount it decides. */
+    input: { mode: 'save' | 'dry'; context: WriteContext; clock: WriteClock; expects?: boolean | undefined; made?: readonly { table: string; row: Row }[] | undefined },
+  ): Promise<AdjustedOrder[]> {
     const out: AdjustedOrder[] = [];
     for (const one of priced) {
-      const result = await adjuster.run(db, { for: one.for, key: one.key, order: one.order, stood: one.stood, touches: one.touches, mode: input.mode, context: input.context, clock: input.clock, expects: input.expects, point: one.point, changes: one.changes });
+      // Money given back moves no price: the refund's own amount is decided, from the order as it would be without what was returned.
+      const result =
+        one.refund === true
+          ? await adjuster.refund(db, { for: one.for, key: one.key, stood: one.stood, mode: input.mode, context: input.context, clock: input.clock, made: input.made ?? [] })
+          : await adjuster.run(db, { for: one.for, key: one.key, order: one.order, stood: one.stood, touches: one.touches, mode: input.mode, context: input.context, clock: input.clock, expects: input.expects, point: one.point, changes: one.changes });
       if (result === null) continue;
       out.push({ ...result, table: one.for.target.table.id, key: one.key });
       if (one.settled || (Object.keys(result.wrote).length === 0 && result.changedLines === 0)) continue;
@@ -3562,7 +3575,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (pricing !== null) {
           const own = pricing.orders.find((order) => order.target.table.id === target.table.id);
           const made: PricedOrder[] = own === undefined ? [] : [{ for: own, key: out.row[own.adjust.key], stood: null, touches: true, order: out.row, settled: true, point: recordsUses(own, peeked?.calls) ? 'post' : 'line' }];
-          adjusted = await ledgerStep(() => adjustHeld(db, [...made, ...orders], { mode: 'save', context, clock }), about, input.mapError);
+          adjusted = await ledgerStep(() => adjustHeld(db, [...made, ...orders], { mode: 'save', context, clock, made: [{ table: target.table.id, row: out.row }] }), about, input.mapError);
         }
         await guarded(async () => {
           await settleRows(rules, within, [{ record: out.row, before: null }], currency, held);
@@ -3571,7 +3584,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // What the row hands to a ledger: after its own totals, on the same transaction — a refusal undoes the row too.
         if (peeked !== null) {
           // The row as its own totals left it: what is due on it is read from there.
-          const settled = keepsOwnTotals(rules) ? await readAgain(db, target.table, out.row) : out.row;
+          // (…and a refund as it was just decided: what it gives back to a card is the amount Adminium worked out.)
+          const settled = keepsOwnTotals(rules) || adjusted.some((one) => one.refund !== undefined) ? await readAgain(db, target.table, out.row) : out.row;
           posted = await ledgerStep(() => ledgerWriter.postStep(db, peeked, { target: { ...target, timezone: zone }, rules, action: 'create', before: null, row: settled, context, clock, uses: usesRecorded(adjusted) }).catch(usesRefused(adjusted, context)), about, input.mapError);
         }
         // The look before the locks saw nothing to hand over, and the row as stored has something (a value its parent
@@ -3956,18 +3970,25 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                 if (parent.order !== tableId || key === null || key === undefined) continue;
                 const name = `${tableId}\u0000${String(key)}`;
                 // An order of this same tree was named by its own row, above (a parent is always written before its children).
-                if (priced.has(name) || inTree.has(name)) continue;
+                if (inTree.has(name)) continue;
+                const known = priced.get(name);
+                if (known !== undefined) {
+                  // A second row of the tree for the same order outside it. Money given back is decided on its own: never in one write with a line or a code of that order.
+                  if ((known.refund === true) !== (parent.as === 'refund')) throw pricedAlone();
+                  if (parent.as === 'codes') known.changes = 'uses';
+                  continue;
+                }
                 // An order outside the tree: held before the tree's rows went in (a quote holds nothing, and reads it as it is).
                 const pkOfOrder = { [order.adjust.key]: key };
                 const stood = (dry ? await fetchByPk(trx, order.target.table, pkOfOrder) : await fetchHeld(trx, { ...order.target, db: trx }, pkOfOrder, true)) ?? null;
                 const settled = (rulesOf(row.target)?.rollupsInto ?? []).some((rollup) => rollup.parent === tableId && rollup.via === parent.via);
-                if (stood !== null) priced.set(name, { for: order, key, stood, touches: true, settled, changes: parent.as === 'codes' || priced.get(name)?.changes === 'uses' ? 'uses' : 'lines' });
+                if (stood !== null) priced.set(name, { for: order, key, stood, touches: true, settled, changes: parent.as === 'codes' ? 'uses' : 'lines', refund: parent.as === 'refund' });
               }
             }
           }
           for (const one of priced.values()) {
             try {
-              adjusted.push(...(await ledgerWriter.audited(() => adjustHeld(trx, [one], { mode: dry ? 'dry' : 'save', context, clock, expects: input.expect !== undefined }), about)));
+              adjusted.push(...(await ledgerWriter.audited(() => adjustHeld(trx, [one], { mode: dry ? 'dry' : 'save', context, clock, expects: input.expect !== undefined, made: [...written].map(([row, record]) => ({ table: row.target.table.id, row: record })) }), about)));
             } catch (error) {
               if (error instanceof LockMoved) throw error;
               return refusedCode(error);
@@ -4005,7 +4026,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           for (const row of everyRow) {
             const rules = rulesOf(row.target);
             const record = written.get(row)!;
-            stand.push({ target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, rules, row: keepsOwnTotals(rules) ? await readAgain(trx, row.target.table, record) : record, parent: row.parent === null ? null : everyRow.indexOf(row.parent), path: row.node.at });
+            stand.push({ target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, rules, row: keepsOwnTotals(rules) || adjusted.some((one) => one.refund !== undefined) ? await readAgain(trx, row.target.table, record) : record, parent: row.parent === null ? null : everyRow.indexOf(row.parent), path: row.node.at });
           }
           try {
             posted = dry ? await ledgerWriter.treeQuote(trx, stand, { context, clock }) : await ledgerWriter.audited(() => ledgerWriter.treeStep(trx, treePosting, stand, { context, clock, uses: usesRecorded(adjusted) }), about);

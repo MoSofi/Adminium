@@ -97,6 +97,8 @@ export function appliedReply(source: AppliedSource, opts: AppliedOptions): { app
 export interface PriceAnswer {
   applied?: AppliedReply[];
   told?: ToldReply[];
+  /** A save that gave money back: what was left to give, and what each payment may still be given. Staff only. */
+  refund?: { refundable: string; taxRefundable?: string; payments: { key: string; took: string; givenBack: string; max: string }[] };
 }
 
 /**
@@ -127,7 +129,12 @@ export function priceAnswer(
   }
   const applied: AppliedReply[] = [];
   const told: ToldReply[] = [];
-  for (const one of adjusted) {
+  // Money given back moves no price: the save says what could be given, and nothing of reductions (the order's stand as they were).
+  const back = adjusted.find((one) => one.refund !== undefined)?.refund;
+  const priced = adjusted.filter((one) => one.refund === undefined);
+  const refund = back === undefined || opts.guest === true ? {} : { refund: { refundable: back.refundable, ...(back.taxRefundable === undefined ? {} : { taxRefundable: back.taxRefundable }), payments: back.payments } };
+  if (priced.length === 0) return refund;
+  for (const one of priced) {
     const answer = appliedReply(one, {
       locale: opts.locale,
       places: one.places,
@@ -151,5 +158,5 @@ export function priceAnswer(
     applied.push(...(opts.guest === true ? answer.applied.map((entry) => (entry.kind === 'staff' ? { ...entry, name: '' } : entry)) : answer.applied));
     told.push(...answer.told);
   }
-  return { applied, ...(told.length === 0 ? {} : { told }) };
+  return { applied, ...(told.length === 0 ? {} : { told }), ...refund };
 }

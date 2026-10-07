@@ -228,11 +228,18 @@ export const appliedSchema = z.array(
   }),
 );
 export const toldSchema = z.array(z.object({ column: z.string(), note: z.literal('better-offer-applied'), name: z.string() }));
+/** A save, or a quote of one, that gives money back: what was left to give back before it, and what each of the order's payments took, has given back and may still be given. */
+export const refundSchema = z.object({
+  refundable: z.string(),
+  taxRefundable: z.string().optional(),
+  payments: z.array(z.object({ key: z.string(), took: z.string(), givenBack: z.string(), max: z.string() })),
+});
 /** What a payment whose amount Adminium decided took, what is still to pay, and — for a caller who may read the ledger's rows — the balance it left. */
 export const paymentSchema = z.object({ amount: z.string(), due: z.string(), balanceAfter: z.string().optional() });
 
 export const recordDryRunReply = z.object({
   applied: appliedSchema.optional(),
+  refund: refundSchema.optional(),
   told: toldSchema.optional(),
   payment: paymentSchema.optional(),
   postings: z.array(postingAnswerSchema).optional(),
@@ -326,6 +333,7 @@ export const recordChangeDryRunBody = z.object({
  */
 export const recordChangeDryRunReply = z.object({
   applied: appliedSchema.optional(),
+  refund: refundSchema.optional(),
   told: toldSchema.optional(),
   payment: paymentSchema.optional(),
   postings: z.array(postingAnswerSchema).optional(),
@@ -496,6 +504,7 @@ export const recordMutationReply = z.object({
   once: z.array(onceEntrySchema).optional(),
   /** The reductions of the order the row is (or is a line of), when the save asked its price. Such a save answers no undo token either. */
   applied: appliedSchema.optional(),
+  refund: refundSchema.optional(),
   told: toldSchema.optional(),
   payment: paymentSchema.optional(),
 });
