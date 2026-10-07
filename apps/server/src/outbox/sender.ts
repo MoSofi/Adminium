@@ -125,7 +125,7 @@ import { linkedRowsOf, withheldColumns, withholdRulesOf, type TableWithholds, ty
 import { withholdsOn } from '../public-api/withholds-on.js';
 import { forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
 import { toForgotten } from './forgotten.js';
-import { GROUPED_FORM, WITH_ATTACHMENT, groupedCode, type AppManifest, type OutboxProducer } from '@adminium/manifest';
+import { GROUPED_FORM, ONLY_WITH, ONLY_WITHOUT, WITH_ATTACHMENT, groupedCode, type AppManifest, type OutboxProducer } from '@adminium/manifest';
 import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
@@ -140,6 +140,7 @@ import type { RecordWriteService, UpdateRecordInput } from '../crud/write-servic
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { addOnAvailability, appDocumentDetached, appDocumentOff, appProfileFor } from '../documents/app-documents.js';
+import { appUrlsFor } from './app-url.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
@@ -649,6 +650,27 @@ function withoutAttachmentBlocks<T extends { blocks: readonly unknown[] } | unde
 }
 
 /**
+ * A template without the blocks whose own condition is not met: a block sent
+ * only WITH a value (`data.onlyWith`) goes when that variable is filled — not
+ * missing, not blank, not held back from this reader — and a block sent only
+ * WITHOUT one (`data.onlyWithout`) goes when it is not. Dropped before
+ * anything else looks at the blocks, so a name only a dropped block prints is
+ * never asked for, and the HTML and the text carry the same ones.
+ */
+export function withoutUnmetBlocks<T extends { blocks: readonly unknown[] }>(template: T, vars: Readonly<Record<string, string>>, withheld: ReadonlySet<string>): T {
+  const filled = (name: string): boolean => Object.hasOwn(vars, name) && !withheld.has(name) && String(vars[name] ?? '').trim() !== '';
+  const kept = template.blocks.filter((block) => {
+    const data = typeof block === 'object' && block !== null ? (block as { data?: unknown }).data : undefined;
+    if (typeof data !== 'object' || data === null) return true;
+    const only = (data as Record<string, unknown>)[ONLY_WITH];
+    const without = (data as Record<string, unknown>)[ONLY_WITHOUT];
+    if (typeof only === 'string' && !filled(only)) return false;
+    return !(typeof without === 'string' && filled(without));
+  });
+  return kept.length === template.blocks.length ? template : { ...template, blocks: kept };
+}
+
+/**
  * What a message keeps of its row as it was before the change that queued it
  * (`producer.was`, in the outbox's `was` column): the row's table, the values
  * and the columns named — or null when its producer keeps none, or what is
@@ -874,6 +896,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const pages = box.definition.pages;
     vars['manage_url'] = base === null ? '' : `${base}${pages?.manage ?? '/'}`;
     vars['booking_url'] = base === null ? '' : `${base}${pages?.booking ?? '/'}`;
+    // An add-on's mail links into a page of an app it serves: each name it declares, or empty when no app serves it.
+    Object.assign(vars, await appUrlsFor({ meta: deps.meta, guestBase }, { connectionId: box.connectionId, addOnKey: box.appKey, links: pages?.app }));
     // The desk: a studio notice's button opens `{{staff_url}}proposals/42`.
     vars['staff_url'] = (await staffBase(box.appKey)) ?? '';
     Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires));
@@ -1287,7 +1311,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       to = minted.to;
     }
     // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
-    const sent = withOverride({ subject: template.subject, blocks: template.blocks as readonly Record<string, unknown>[] }, override);
+    // First, the blocks whose own condition is not met leave: nothing below asks for what only they print.
+    const shown = withoutUnmetBlocks(template, vars, withheld);
+    const sent = withOverride({ subject: shown.subject, blocks: shown.blocks as readonly Record<string, unknown>[] }, override);
     // The rows each list names (an order's tickets), each row judged the same way: every `{{row.*}}` filled, a code only to its holder.
     const rows: Record<string, Record<string, string>[]> = {};
     // The codes drawn as QR codes (the whole value of an image, a row's image); met in text, a code prints as itself.
@@ -1328,7 +1354,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         templateKey,
         locale,
         vars,
-        template,
+        template: shown,
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
         ...(override.subject === undefined && override.body === undefined ? {} : { override }),
         ...(replyTo === null ? {} : { replyTo }),

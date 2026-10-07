@@ -77,10 +77,7 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
   'column.codeLast4': PRICE_QUESTION_RELEASE,
-  // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table and a row.
-  'email.onlyWith': ADD_ON_INSTALL_RELEASE,
-  'email.onlyWithout': ADD_ON_INSTALL_RELEASE,
-  'outbox.pages.app': ADD_ON_INSTALL_RELEASE,
+  // Rows found by a table and a row: an add-on's rows for an order, listed in mail and in a document.
   'rows.pair': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
@@ -132,6 +129,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.tables',
   // An add-on that may use another (`addOns.suggests`): a document the other draws waits for it, and is mailed without it meanwhile.
   'addOns',
+  // A mail block sent only with a value, or only without it; and an add-on's mail that links into a page of the app it serves.
+  'email.onlyWith',
+  'email.onlyWithout',
+  'outbox.pages.app',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.
