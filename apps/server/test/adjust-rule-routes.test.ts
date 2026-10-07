@@ -25,6 +25,7 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
   let served: Served;
   let boss = '';
   let clerk = '';
+  let mapper = '';
   const trusted = process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
   const ids = new Map<string, string>();
   const api = (method: string, url: string, payload?: Doc, cookie = boss) =>
@@ -52,6 +53,9 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     const id = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
     await w.rows(`CREATE TABLE own_sales (id ${id}, note VARCHAR(80), subtotal NUMERIC(12,2) DEFAULT 0, discount NUMERIC(12,2) DEFAULT 0, total NUMERIC(12,2))`);
     await w.rows(`CREATE TABLE own_sale_lines (id ${id}, sale_id INT NOT NULL, label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, amount NUMERIC(12,2), discount NUMERIC(12,2) DEFAULT 0, FOREIGN KEY (sale_id) REFERENCES own_sales(id))`);
+    // …and two more with nothing but what was sold: no amount, no total, nowhere to write a reduction.
+    await w.rows(`CREATE TABLE bare_sales (id ${id}, note VARCHAR(80))`);
+    await w.rows(`CREATE TABLE bare_lines (id ${id}, sale_id INT NOT NULL, label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, FOREIGN KEY (sale_id) REFERENCES bare_sales(id))`);
     await w.h.introspect();
     for (const table of parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema).tables) ids.set(table.name, table.id);
     // The totals the owner drew in Studio: a line's amount, the sale's subtotal over them, and its total.
@@ -64,13 +68,19 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     const login = async (name: string, grant: (userId: string) => Promise<void>) => {
       const user = await usersRepo(w.h.meta).create({ email: `${name}@market.example`, name, passwordHash: await adminPasswordHash(), status: 'active' });
       await grant(user.id);
-      return sessionCookie((await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: name === 'boss' ? '10.4.0.1' : '10.4.0.2', payload: { email: `${name}@market.example`, password: ADMIN_PASSWORD } })).headers['set-cookie']);
+      return sessionCookie((await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: name === 'boss' ? '10.4.0.1' : name === 'clerk' ? '10.4.0.2' : '10.4.0.3', payload: { email: `${name}@market.example`, password: ADMIN_PASSWORD } })).headers['set-cookie']);
     };
     boss = await login('boss', async (userId) => rolesRepo(w.h.meta).assignToUser(userId, (await rolesRepo(w.h.meta).findBySlug('super-admin'))!.id));
     // Reads and writes orders, and may not change what a table's columns mean.
     clerk = await login('clerk', async (userId) => {
       const role = await rolesRepo(w.h.meta).create({ slug: 'clerk-role', name: 'Clerk' } as never);
       await permissionsRepo(w.h.meta).grant(role.id, 'table', `${w.h.connectionId}/${ids.get('market_orders')!}`, { read: true, create: true, update: true, delete: false, export: false, import: false } as never);
+      await rolesRepo(w.h.meta).assignToUser(userId, role.id);
+    });
+    // May change what a table's columns mean, and may not change the schema; no Super Admin.
+    mapper = await login('mapper', async (userId) => {
+      const role = await rolesRepo(w.h.meta).create({ slug: 'mapper-role', name: 'Mapper' } as never);
+      await permissionsRepo(w.h.meta).grant(role.id, 'system', 'schema.remap', { allowed: true } as never);
       await rolesRepo(w.h.meta).assignToUser(userId, role.id);
     });
   }, 240_000);
@@ -147,6 +157,108 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     expect((await api('PATCH', `/connections/${w.h.connectionId}/tables/${encodeURIComponent(ids.get('market_items')!)}/adjust/switch`, { enabled: false })).statusCode).toBe(404);
   });
 
+  it.skipIf(!available)('"make them for me": the columns and the table of codes a rule needs are added with it, after a dry run that adds nothing', async () => {
+    const bare = {
+      by: { addOn: PRICE_KIT },
+      lines: [{ table: ids.get('bare_lines'), via: 'sale_id', price: 'price', quantity: 'qty', discount: 'discount', what: [{ column: 'label', as: 'tag' }] }],
+      order: { discount: 'discount' },
+      codes: { table: 'bare_sale_codes', via: 'sale_id', typed: 'typed', code: 'code_id', voucher: 'voucher_id', removed: 'removed_at' },
+      expect: 'total',
+    };
+    const make = { lineAmount: true, subtotal: true, discount: true, total: true, codes: { table: 'bare_sale_codes' } };
+    const columnsOf = async (table: string) => {
+      await w.h.introspect();
+      return parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema).tables.find((one) => one.name === table)?.columns.map((column) => column.name) ?? null;
+    };
+    // A dry run and a checksum go with `make`; a rule that names what is not there is refused without it.
+    const alone = await api('PUT', rule('bare_sales'), { adjust: bare, dryRun: true });
+    expect(alone.statusCode, alone.body).toBe(422);
+    expect((alone.json() as { error: { details: Doc } }).error.details).toMatchObject({ fields: { dryRun: { code: 'not-allowed' } } });
+    expect((await api('PUT', rule('bare_sales'), { adjust: bare })).statusCode).toBe(422);
+    expect((await api('PUT', rule('bare_sales'), { adjust: bare, make }, clerk)).statusCode).toBe(403);
+    // Somebody who may say what columns mean, and may not change the schema: no column is added on their word, not even planned.
+    const noDdl = await api('PUT', rule('bare_sales'), { adjust: bare, make, dryRun: true }, mapper);
+    expect(noDdl.statusCode, noDdl.body).toBe(403);
+    expect(noDdl.body).toContain('system:schema:ddl');
+    // What is no rule is refused as one, whatever is asked to be made; a total with nothing to work it out from, a table of codes under two names: said before anything is made.
+    for (const broken of [{ by: { addOn: PRICE_KIT } }, { ...bare, lines: [null] }, { ...bare, order: { discount: 'drop table x' } }]) {
+      expect((await api('PUT', rule('bare_sales'), { adjust: broken, make, dryRun: true })).statusCode).toBe(422);
+    }
+    const partial = (await api('PUT', rule('bare_sales'), { adjust: bare, make: { total: true }, dryRun: true })).json() as { refusals: { column?: string }[] };
+    expect(partial.refusals.map((one) => one.column).sort()).toEqual(['discount', 'subtotal']);
+    expect(JSON.stringify((await api('PUT', rule('bare_sales'), { adjust: bare, make: { subtotal: true }, dryRun: true })).json())).toContain('ask for the line amount too');
+    expect(JSON.stringify((await api('PUT', rule('bare_sales'), { adjust: bare, make: { codes: { table: 'other_codes' } }, dryRun: true })).json())).toContain('name one table');
+    expect(JSON.stringify((await api('PUT', rule('bare_sales'), { adjust: { ...bare, expect: 'discount' }, make, dryRun: true })).json())).toContain('asked for twice');
+    expect((await api('PUT', rule('bare_sales'), { adjust: bare, make: { total: true } })).statusCode).toBe(422);
+    expect(await columnsOf('bare_sales')).toEqual(['id', 'note']);
+
+    const dry = await api('PUT', rule('bare_sales'), { adjust: bare, make, dryRun: true });
+    expect(dry.statusCode, dry.body).toBe(200);
+    const planned = dry.json() as { checksum: string; made: { columns: Doc[]; tables: string[]; rules: Doc[] }; refusals: unknown[] };
+    expect(planned.refusals).toEqual([]);
+    expect(planned.made.tables).toEqual(['bare_sale_codes']);
+    expect(planned.made.columns.map((one) => `${String(one['table'])}.${String(one['column'])} ${String(one['made'])}`).sort()).toEqual(
+      ['bare_lines.amount true', 'bare_lines.discount true', 'bare_sales.discount true', 'bare_sales.net true', 'bare_sales.subtotal true', 'bare_sales.total true'].sort(),
+    );
+    expect(planned.made.rules.map((one) => String(one['op'])).sort()).toEqual(['column.addOnLink', 'column.addOnLink', 'column.formula', 'column.formula', 'column.formula', 'column.rollup', 'table.adjust']);
+    // Nothing was added, and no rule stored.
+    expect(await columnsOf('bare_sales')).toEqual(['id', 'note']);
+    expect(await columnsOf('bare_sale_codes')).toBeNull();
+    expect((await adjusts()).adjusts.some((one) => one.table === ids.get('bare_sales'))).toBe(false);
+
+    // A plan somebody else's change overtook is not run.
+    expect((await api('PUT', rule('bare_sales'), { adjust: bare, make, checksum: 'not-the-plan' })).statusCode).toBe(409);
+    const stored = await api('PUT', rule('bare_sales'), { adjust: bare, make, checksum: planned.checksum });
+    expect(stored.statusCode, stored.body).toBe(200);
+    const kept = stored.json() as { adjust: Doc; made: typeof planned.made };
+    expect(kept.made.tables).toEqual(['bare_sale_codes']);
+    expect((await columnsOf('bare_sales'))!.sort()).toEqual(['discount', 'id', 'net', 'note', 'subtotal', 'total']);
+    expect((await columnsOf('bare_lines'))!.sort()).toEqual(['amount', 'discount', 'id', 'label', 'price', 'qty', 'sale_id']);
+    expect((await columnsOf('bare_sale_codes'))!.sort()).toEqual(['code_id', 'id', 'removed_at', 'sale_id', 'typed', 'voucher_id']);
+    for (const table of parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema).tables) ids.set(table.name, table.id);
+    // The rule names the table of codes by what it became.
+    expect((kept.adjust['codes'] as Doc)['table']).toBe(ids.get('bare_sale_codes'));
+    expect((await adjusts()).adjusts.find((one) => one.table === ids.get('bare_sales'))).toMatchObject({ owner: null, state: 'live' });
+
+    // A sale of the bare shop, priced end to end: its lines add up, ten percent comes off, a code is typed and taken.
+    await w.rows(`UPDATE price_kit_offers SET status = 'active' WHERE name = 'Tenth'`);
+    if ((await w.rows(`SELECT id FROM price_kit_offers WHERE name = 'Tenth'`)).length === 0) await w.insert('price_kit_offers', { name: 'Tenth', kind: 'percent', value: '10.00', trigger: 'auto', scope: 'order' });
+    const sale = await api('POST', data('bare_sales'), { values: { note: 'first' } });
+    expect(sale.statusCode, sale.body).toBe(201);
+    const id = (sale.json() as { data: Doc }).data['id'];
+    // A reduction that was made starts at nothing, never empty: what is left is worked out from it.
+    expect(money((await w.rows(`SELECT discount FROM bare_sales WHERE id = ${String(id)}`))[0]!['discount'])).toBe('0.00');
+    const line = await api('POST', data('bare_lines'), { values: { sale_id: id, label: 'Lamp', price: '40.00', qty: 2 } });
+    expect(line.statusCode, line.body).toBe(201);
+    const figures = async () => {
+      const [row] = await w.rows(`SELECT subtotal, discount, net, total FROM bare_sales WHERE id = ${String(id)}`);
+      return [money(row!['subtotal']), money(row!['discount']), money(row!['net']), money(row!['total'])];
+    };
+    expect(await figures()).toEqual(['80.00', '8.00', '72.00', '72.00']);
+    const typed = await api('POST', data('bare_sale_codes'), { values: { sale_id: id, typed: 'autumn-5' } });
+    expect(typed.statusCode, typed.body).toBe(201);
+    // Five off first (an amount comes after a percent: 80.00 − 8.00 − 5.00).
+    expect((await figures())[3]).toBe('67.00');
+    expect((await w.rows(`SELECT code_id FROM bare_sale_codes WHERE sale_id = ${String(id)}`))[0]!['code_id']).not.toBeNull();
+    await w.rows(`UPDATE price_kit_offers SET status = 'ended' WHERE name = 'Tenth'`);
+
+    // Asked again, what is there is used and nothing is made twice; the table of codes is there already and is said so.
+    const again = await api('PUT', rule('bare_sales'), { adjust: { ...bare, codes: { ...bare.codes, table: ids.get('bare_sale_codes') } }, make: { lineAmount: true, subtotal: true, discount: true, total: true }, dryRun: true });
+    expect(again.statusCode, again.body).toBe(200);
+    expect((again.json() as typeof planned).made.columns.every((one) => one['made'] === false)).toBe(true);
+    // The same call again, as after one that stopped half way: everything is found and used, the table of codes too, and the rule is stored.
+    const twice = await api('PUT', rule('bare_sales'), { adjust: bare, make, dryRun: true });
+    expect(twice.json()).toMatchObject({ checksum: 'nothing-to-make', refusals: [], made: { tables: [] } });
+    const redone = await api('PUT', rule('bare_sales'), { adjust: bare, make, checksum: 'nothing-to-make' });
+    expect(redone.statusCode, redone.body).toBe(200);
+    expect(((redone.json() as { adjust: Doc }).adjust['codes'] as Doc)['table']).toBe(ids.get('bare_sale_codes'));
+    // A table of that name that is not a table of codes is not taken for one.
+    expect(JSON.stringify((await api('PUT', rule('bare_sales'), { adjust: { ...bare, codes: { ...bare.codes, table: 'bare_lines' } }, make: { codes: { table: 'bare_lines' } }, dryRun: true })).json())).toContain('there already, without');
+    // A column of another kind under a name the rule needs is a refusal, by name.
+    const clash = await api('PUT', rule('own_sales'), { adjust: { by: { addOn: PRICE_KIT }, lines: [{ table: ids.get('own_sale_lines'), via: 'sale_id', price: 'price', quantity: 'qty', discount: 'label', what: [{ column: 'label', as: 'tag' }] }], order: { discount: 'note' } }, make: { discount: true }, dryRun: true });
+    expect(JSON.stringify((clash.json() as typeof planned).refusals)).toMatch(/note is there already and is .*not a decimal/);
+  });
+
   it.skipIf(!available)('an owner draws a rule on a table of their own, and its orders are priced; a column another rule writes is refused; taken away, the columns stay', async () => {
     const own = (over: Doc = {}): Doc => ({
       by: { addOn: PRICE_KIT },
@@ -180,12 +292,13 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     expect((await api('PUT', rule('own_sales'), { adjust: own({ order: { discount: 'no_such' } }) })).statusCode).toBe(422);
     expect((await api('PUT', rule('own_sales'), { adjust: { by: { addOn: PRICE_KIT } } })).statusCode).toBe(422);
     expect((await api('PUT', rule('own_sales'), { adjust: own({ by: { addOn: 'no-such' } }) })).statusCode).toBe(422);
-    expect((await adjusts()).adjusts).toHaveLength(1);
+    expect((await adjusts()).adjusts.some((one) => one.table === ids.get('own_sales'))).toBe(false);
 
+    const storedBefore = await audited('ledger.rule.stored');
     const stored = await api('PUT', rule('own_sales'), { adjust: own() });
     expect(stored.statusCode, stored.body).toBe(200);
+    expect(await audited('ledger.rule.stored')).toBe(storedBefore + 1);
     expect(stored.json()).toMatchObject({ owner: null, adjust: { order: { discount: 'discount' } } });
-    expect(await audited('ledger.rule.stored')).toBe(1);
     const listed = (await adjusts()).adjusts.find((one) => one.table === ids.get('own_sales'))!;
     expect(listed).toMatchObject({ owner: null, enabled: true, state: 'live', holding: 0 });
     expect(listed).not.toHaveProperty('ownerName');
@@ -207,7 +320,7 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     const gone = await api('DELETE', rule('own_sales'));
     expect(gone.statusCode, gone.body).toBe(204);
     expect(await audited('ledger.rule.removed')).toBe(1);
-    expect((await adjusts()).adjusts.map((one) => one.table)).toEqual([ids.get('market_orders')]);
+    expect((await adjusts()).adjusts.some((one) => one.table === ids.get('own_sales'))).toBe(false);
     expect((await api('DELETE', rule('own_sales'))).statusCode).toBe(404);
     expect(money((await w.rows(`SELECT discount FROM own_sales WHERE id = ${String(id)}`))[0]!['discount'])).toBe('8.00');
     // A rule stored anew is on: the switch of the one before went with it.

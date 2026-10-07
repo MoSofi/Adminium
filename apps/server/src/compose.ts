@@ -1692,7 +1692,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(optionListsRoutes({ meta }));
       // The rules that hand rows to an add-on's ledger: read by its rules page, drawn and switched by the owner.
       await api.register(ledgerRoutes({ manager, meta, ledgers, writes: recordWrites }));
-      await api.register(adjustRuleRoutes({ manager, meta, ledgers }));
+      await api.register(adjustRuleRoutes({ manager, meta, ledgers, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }));
       // One typed code looked up across an add-on's code tables, as the caller reads them.
       await api.register(addOnLookUpRoutes({ manager, meta }));
       await api.register(addOnCodesRoutes({ manager, meta }));

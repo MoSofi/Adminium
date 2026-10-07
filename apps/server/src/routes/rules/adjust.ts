@@ -28,7 +28,7 @@
 import { isDeepStrictEqual } from 'node:util';
 
 import { adjustDecidedColumns, type Adjust } from '@adminium/manifest';
-import { MetaValidationError, validateOverrideInput, type MetaDb } from '@adminium/meta';
+import { MetaValidationError, overridesRepo, validateOverrideInput, type DsnCrypto, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -39,22 +39,47 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { ruleDecidedColumns } from '../../crud/decided-columns.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { requestWriteContext } from '../../crud/write-service.js';
+import { runIntrospection } from '../../connections/introspect.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
-import { ConflictError, ForbiddenError, NotFoundError, PostingRefusedError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, PostingRefusedError, ValidationFailedError } from '../../errors.js';
 import type { LedgerRuntime } from '../../ledgers/registry.js';
 import { changeTableRule, holdingCount, ownTableRule, storedAdjustIssue } from '../../ledgers/rules.js';
+import { unauthorableReason } from '../../schema-ddl/authorable.js';
+import { applyServerEdit, planServerEdit } from '../../schema-ddl/programmatic.js';
+import { SCHEMA_DDL } from '../schema-ddl/index.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
+import { FILLS, NUMBERS, planMake, type Made } from './adjust-make.js';
 
 export interface AdjustRuleDeps {
   manager: ConnectionManager;
   meta: MetaDb;
   ledgers: LedgerRuntime;
+  /** For the schema edit a rule's `make` runs. */
+  crypto: DsnCrypto;
 }
 
 const name = z.string().min(1).max(128);
 export const adjustRuleParams = z.object({ id: z.string().min(1).max(64), table: name });
-export const adjustRuleBody = z.object({ adjust: z.record(z.string(), z.unknown()) }).strict();
-export const adjustRuleReply = z.object({ adjust: z.record(z.string(), z.unknown()), owner: z.null() });
+const madeSchema = z.object({
+  columns: z.array(z.object({ table: z.string(), column: z.string(), type: z.string(), made: z.boolean() })),
+  tables: z.array(z.string()),
+  rules: z.array(z.object({ table: z.string(), column: z.string().optional(), op: z.string() })),
+});
+export const adjustRuleBody = z
+  .object({
+    adjust: z.record(z.string(), z.unknown()),
+    /** Which of the columns the rule names, and the table of typed codes, Adminium is to add. `codes.table`: the new table's name; the rule names it by that name. */
+    make: z.object({ lineAmount: z.literal(true).optional(), subtotal: z.literal(true).optional(), discount: z.literal(true).optional(), total: z.literal(true).optional(), codes: z.object({ table: z.string().regex(/^[a-z][a-z0-9_]*$/).max(60) }).strict().optional() }).strict().optional(),
+    /** With `make`: answer what would be added, and add nothing. */
+    dryRun: z.literal(true).optional(),
+    /** With `make`: the checksum a dry run answered; a database that moved since is `SCHEMA_DRIFT`. */
+    checksum: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+export const adjustRuleReply = z.union([
+  z.object({ adjust: z.record(z.string(), z.unknown()), owner: z.null(), made: madeSchema.optional() }),
+  z.object({ checksum: z.string(), made: madeSchema, refusals: z.array(z.object({ table: z.string().optional(), column: z.string().optional(), reason: z.string() }).passthrough()) }),
+]);
 export const adjustSwitchBody = z.object({ enabled: z.boolean() }).strict();
 export const adjustSwitchReply = z.object({ enabled: z.boolean() });
 export const adjustsParams = z.object({ key: z.string().min(1).max(64) });
@@ -79,10 +104,23 @@ export const adjustsReply = z.object({
   canChange: z.boolean(),
 });
 
-/** The rules of a column that fill it: a column one of them writes is not also a price rule's to write. */
-const FILLS = ['formula', 'rollup', 'copy', 'sequence', 'code', 'stamp', 'perNight', 'customerKey', 'codeLast4', 'format', 'fill', 'tableRef', 'retryKey'] as const;
-/** What a reduction is kept in. */
-const NUMBERS: ReadonlySet<string> = new Set(['decimal', 'numeric', 'money', 'float', 'double', 'real']);
+/** What a dry run answers for a checksum when there is nothing to make. */
+const NOTHING_TO_MAKE = 'nothing-to-make';
+const column = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).max(64);
+/**
+ * As much of a rule as what Adminium is to make is planned from: every name a
+ * column or a table is made under, or a made rule reads, is a plain name. The
+ * whole rule is held to its full shape once what it names is there.
+ */
+const makeNames = z
+  .object({
+    by: z.object({ addOn: z.string().min(1).max(80) }).passthrough(),
+    lines: z.array(z.union([z.object({ self: z.literal(true), discount: column }).passthrough(), z.object({ table: z.string().min(1).max(200), via: column, price: column, quantity: column.optional(), discount: column }).passthrough()])).min(1).max(3),
+    order: z.object({ discount: column }).passthrough(),
+    codes: z.object({ table: z.string().min(1).max(200), via: column, typed: column, code: column, voucher: column, removed: column.optional() }).passthrough().optional(),
+    expect: column.optional(),
+  })
+  .passthrough();
 
 export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
   const { manager, meta, ledgers } = deps;
@@ -148,7 +186,7 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
     }
 
     /** What a rule's own shape gets wrong beyond what it names being there: said in a sentence, or null. */
-    function shapeIssue(view: SnapshotView, at: ResolvedTable, adjust: TableAdjust): string | null {
+    function shapeIssue(view: SnapshotView, at: ResolvedTable, adjust: TableAdjust, typed = true): string | null {
       if (adjust.lines.filter((part) => 'self' in part && part.self === true).length > 1) return 'A rule reads the order itself as a line once at most.';
       // The add-on's own tables are priced by nobody, and are no part of another table's order.
       const tables = [...adjust.lines.map((part) => partTable(at, part)), adjust.codes?.table, adjust.refunds?.table, adjust.refunds?.lines?.table].filter((table): table is string => table !== undefined);
@@ -158,7 +196,7 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
       const numbers: [string, string][] = [[at.id, adjust.order.discount], ...adjust.lines.map((part): [string, string] => [partTable(at, part), part.discount])];
       for (const [tableId, column] of numbers) {
         const found = view.model.tables.find((table) => table.id === tableId)?.columns.find((candidate) => candidate.name === column);
-        if (found !== undefined && !NUMBERS.has(String(found.logicalType))) return `${column} is ${String(found.logicalType)}: a reduction is kept in a decimal column.`;
+        if (typed && found !== undefined && !NUMBERS.has(String(found.logicalType))) return `${column} is ${String(found.logicalType)}: a reduction is kept in a decimal column.`;
       }
       return null;
     }
@@ -213,13 +251,77 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
       { preHandler: app.rbac.require(SCHEMA_REMAP), config: { audit: audited('rbac') }, schema: { params: adjustRuleParams, body: adjustRuleBody, response: { 200: adjustRuleReply } } },
       async (request) => {
         const { id: connectionId } = request.params;
-        const view = await viewOf(connectionId);
-        const at = tableOf(view, request.params.table);
+        let view = await viewOf(connectionId);
+        let at = tableOf(view, request.params.table);
         if (at.table.managedAdjust === true) throw managedRefusal(view, at);
+        const { make, dryRun, checksum } = request.body;
+        if (make === undefined && (dryRun === true || checksum !== undefined)) throw new ValidationFailedError('A dry run and a checksum go with `make`.', { fields: { [dryRun === true ? 'dryRun' : 'checksum']: { code: 'not-allowed' } } });
+        let made: Made | undefined;
+        let body = request.body.adjust;
+        if (make !== undefined) {
+          // Columns and a table are made: the grant, the signed-in person and the connection a schema edit asks for — before anything is read.
+          if (!(await request.can(SCHEMA_DDL))) throw new ForbiddenError('Adding columns needs leave to change the schema.', 'FORBIDDEN', { permission: SCHEMA_DDL });
+          if (request.apiKeyPrincipal !== null) throw new ForbiddenError('Schema changes cannot be made with an API key. Sign in to the Studio to edit your schema.', 'FORBIDDEN');
+          const unauthorable = unauthorableReason(await manager.mustFind(connectionId));
+          if (unauthorable !== null) throw new ForbiddenError(unauthorable.message, 'READ_ONLY_MODE', { reason: unauthorable.reason });
+          // The names a plan is made from, held to being names before anything is built from them.
+          const named = makeNames.safeParse(body);
+          if (!named.success) throw new ValidationFailedError('This is not a price rule.', { table: at.id, path: named.error.issues[0]?.path.join('.') ?? '', issue: named.error.issues[0]?.message ?? '' });
+          const wanted = body as unknown as TableAdjust;
+          // A plan is made against the database as it is, not as it was last read.
+          await runIntrospection({ manager, meta, connectionId });
+          view = await viewOf(connectionId);
+          at = tableOf(view, request.params.table);
+          // What can be told before anything is made is told before: the add-on's own tables, and a column kept from readers.
+          if (ledgers.refOf(connectionId, at.id).startsWith(`${wanted.by.addOn}:`)) throw new ValidationFailedError(`${at.name} is one of the add-on's own tables.`, { table: at.id });
+          const ownIssue = shapeIssue(view, at, { ...wanted, codes: make.codes === undefined ? wanted.codes : undefined } as TableAdjust, false);
+          if (ownIssue !== null) throw new ValidationFailedError(ownIssue, { table: at.id });
+          await refuseKeptColumns(request, view, at, { ...wanted, codes: make.codes === undefined ? wanted.codes : undefined } as TableAdjust);
+          const declared = ledgers.manifestOf(connectionId, wanted.by.addOn)?.addOn?.adjuster as { codes?: { table?: unknown }; vouchers?: { table?: unknown } } | undefined;
+          const adjuster = typeof declared?.codes?.table === 'string' && typeof declared.vouchers?.table === 'string' ? { addOn: wanted.by.addOn, codes: declared.codes.table, vouchers: declared.vouchers.table } : null;
+          const plan = planMake({ model: view.model, table: at.table, adjust: wanted, make, adjuster });
+          const superAdmin = (await app.rbac.resolve(request)).superAdmin;
+          const empty = Object.keys(plan.edit).length === 0;
+          const edit = { meta, manager, crypto: deps.crypto };
+          if (dryRun === true) {
+            const planned = empty ? null : await planServerEdit(edit, connectionId, () => plan.edit, { superAdmin });
+            const refused = (planned?.refusals ?? []) as unknown as { code?: unknown; message?: unknown; table?: unknown; column?: unknown }[];
+            return {
+              checksum: planned?.checksum ?? NOTHING_TO_MAKE,
+              made: plan.made,
+              refusals: [...plan.refusals, ...refused.map((one) => ({ reason: String(one.message ?? one.code ?? 'refused'), ...(typeof one.table === 'string' ? { table: one.table } : {}), ...(typeof one.column === 'string' ? { column: one.column } : {}) }))],
+            };
+          }
+          if (plan.refusals.length > 0) throw new AppError(422, 'SCHEMA_EDIT_REFUSED', 'This cannot be made on this database.', { refusals: plan.refusals });
+          // A review that found nothing to make reviewed nothing that is made now.
+          if (!empty && checksum === NOTHING_TO_MAKE) throw new ConflictError('The database changed since this change was reviewed. Review it again.', 'SCHEMA_DRIFT', { expected: checksum });
+          if (!empty) {
+            await applyServerEdit(edit, connectionId, () => plan.edit, { superAdmin, createdBy: by(request), ...(checksum === undefined ? {} : { expectedChecksum: checksum }) });
+            // …and the tables read again: the rule is held to what is there now, and every page reads the snapshot. (Tried once more
+            // where it fails: what was made is made, and the rule below is judged on the tables as they are read.)
+            await runIntrospection({ manager, meta, connectionId }).catch(() => runIntrospection({ manager, meta, connectionId }));
+          }
+          // The tables as they stand now, and the rules the made columns need: each held to its shape, each written once.
+          view = await viewOf(connectionId);
+          at = tableOf(view, request.params.table);
+          const idOf = (name: string): string => view.model.tables.find((table) => table.id === name || table.name === name)?.id ?? name;
+          const stored = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
+          for (const rule of plan.rules) {
+            const tableName = idOf(rule.table);
+            if (stored.some((row) => row.op === rule.op && row.tableName === tableName && row.columnName === rule.column)) continue;
+            const value = rule.op === 'column.rollup' ? { ...rule.value, from: idOf(String(rule.value['from'])) } : rule.value;
+            validateOverrideInput({ connectionId, op: rule.op, tableName, columnName: rule.column, value } as never);
+            await overridesRepo(meta).create({ connectionId, op: rule.op, tableName, columnName: rule.column, value, origin: 'user', createdBy: by(request) } as never);
+          }
+          if (make.codes !== undefined && wanted.codes !== undefined) body = { ...body, codes: { ...wanted.codes, table: idOf(make.codes.table) } };
+          made = plan.made;
+          view = await viewOf(connectionId);
+          at = tableOf(view, request.params.table);
+        }
         // The shape first, as the store itself holds a stored rule to it (real table and column names).
         let adjust: TableAdjust;
         try {
-          adjust = validateOverrideInput({ connectionId, op: 'table.adjust', tableName: at.id, columnName: null, value: request.body.adjust }).value as unknown as TableAdjust;
+          adjust = validateOverrideInput({ connectionId, op: 'table.adjust', tableName: at.id, columnName: null, value: body }).value as unknown as TableAdjust;
         } catch (error) {
           if (!(error instanceof MetaValidationError)) throw error;
           throw new ValidationFailedError('This is not a price rule.', { table: at.id, issue: error.message });
@@ -245,8 +347,8 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
           if (!isDeepStrictEqual(stored, before)) throw new ConflictError('The rule of this table was changed a moment ago. Read it again.', 'CONFLICT', { retry: true });
           return adjust;
         });
-        await app.rbac.audit(request, { category: 'schema', action: 'ledger.rule.stored', connectionId, changes: { ...(before === null ? {} : { before: { adjust: before } }), after: { table: at.id, adjust } } });
-        return { adjust: adjust as unknown as Record<string, unknown>, owner: null };
+        await app.rbac.audit(request, { category: 'schema', action: 'ledger.rule.stored', connectionId, changes: { ...(before === null ? {} : { before: { adjust: before } }), after: { table: at.id, adjust, ...(made === undefined ? {} : { made }) } } });
+        return { adjust: adjust as unknown as Record<string, unknown>, owner: null, ...(made === undefined ? {} : { made }) };
       },
     );
 
