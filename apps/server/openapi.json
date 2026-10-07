@@ -14103,6 +14103,49 @@
                         "additionalProperties": false
                       }
                     },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
+                    },
                     "told": {
                       "type": "array",
                       "items": {
@@ -14350,6 +14393,49 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
                     },
                     "told": {
                       "type": "array",
@@ -15465,6 +15551,49 @@
                         "additionalProperties": false
                       }
                     },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
+                    },
                     "told": {
                       "type": "array",
                       "items": {
@@ -16057,6 +16186,49 @@
                         "additionalProperties": false
                       }
                     },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
+                    },
                     "told": {
                       "type": "array",
                       "items": {
@@ -16363,6 +16535,49 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "refund": {
+                          "type": "object",
+                          "properties": {
+                            "refundable": {
+                              "type": "string"
+                            },
+                            "taxRefundable": {
+                              "type": "string"
+                            },
+                            "payments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "took": {
+                                    "type": "string"
+                                  },
+                                  "givenBack": {
+                                    "type": "string"
+                                  },
+                                  "max": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "took",
+                                  "givenBack",
+                                  "max"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "refundable",
+                            "payments"
+                          ],
+                          "additionalProperties": false
                         },
                         "told": {
                           "type": "array",
@@ -17387,6 +17602,49 @@
                         "additionalProperties": false
                       }
                     },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
+                    },
                     "told": {
                       "type": "array",
                       "items": {
@@ -17801,6 +18059,49 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
                     },
                     "told": {
                       "type": "array",
@@ -18602,6 +18903,49 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "refund": {
+                      "type": "object",
+                      "properties": {
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "taxRefundable": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "took": {
+                                "type": "string"
+                              },
+                              "givenBack": {
+                                "type": "string"
+                              },
+                              "max": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "took",
+                              "givenBack",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "refundable",
+                        "payments"
+                      ],
+                      "additionalProperties": false
                     },
                     "told": {
                       "type": "array",
