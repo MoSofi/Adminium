@@ -24497,6 +24497,45 @@
                             ],
                             "additionalProperties": false
                           },
+                          "managed": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "app",
+                                      "add-on"
+                                    ]
+                                  },
+                                  "templateKey": {
+                                    "type": "string"
+                                  },
+                                  "edited": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "name",
+                                  "kind",
+                                  "templateKey",
+                                  "edited"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "createdAt": {
                             "type": "integer",
                             "minimum": -9007199254740991,
@@ -24521,6 +24560,7 @@
                           "valid",
                           "incompleteNodeId",
                           "stats",
+                          "managed",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -30960,6 +31000,45 @@
                       ],
                       "additionalProperties": false
                     },
+                    "managed": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "app",
+                                "add-on"
+                              ]
+                            },
+                            "templateKey": {
+                              "type": "string"
+                            },
+                            "edited": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "name",
+                            "kind",
+                            "templateKey",
+                            "edited"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -30984,6 +31063,7 @@
                     "valid",
                     "incompleteNodeId",
                     "stats",
+                    "managed",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -34654,6 +34734,45 @@
                       ],
                       "additionalProperties": false
                     },
+                    "managed": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "app",
+                                "add-on"
+                              ]
+                            },
+                            "templateKey": {
+                              "type": "string"
+                            },
+                            "edited": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "name",
+                            "kind",
+                            "templateKey",
+                            "edited"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -34678,6 +34797,7 @@
                     "valid",
                     "incompleteNodeId",
                     "stats",
+                    "managed",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -41105,6 +41225,45 @@
                       ],
                       "additionalProperties": false
                     },
+                    "managed": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "app",
+                                "add-on"
+                              ]
+                            },
+                            "templateKey": {
+                              "type": "string"
+                            },
+                            "edited": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "name",
+                            "kind",
+                            "templateKey",
+                            "edited"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -41129,6 +41288,7 @@
                     "valid",
                     "incompleteNodeId",
                     "stats",
+                    "managed",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -44509,6 +44669,45 @@
                       ],
                       "additionalProperties": false
                     },
+                    "managed": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "app",
+                                "add-on"
+                              ]
+                            },
+                            "templateKey": {
+                              "type": "string"
+                            },
+                            "edited": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "name",
+                            "kind",
+                            "templateKey",
+                            "edited"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -44533,6 +44732,7 @@
                     "valid",
                     "incompleteNodeId",
                     "stats",
+                    "managed",
                     "createdAt",
                     "updatedAt"
                   ],

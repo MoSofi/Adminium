@@ -46,6 +46,23 @@ export const ruleViewSchema = z.object({
   /** The first step that is not finished; null when `valid`. */
   incompleteNodeId: z.string().nullable(),
   stats: ruleStatsSchema,
+  /**
+   * What shipped the rule, for one an app or an add-on brought with it; null
+   * for a rule somebody made here. Such a rule is switched on and off like
+   * any other, and may be changed — it is then `edited`, the owner's, and an
+   * update of what shipped it leaves it alone. It cannot be deleted: an
+   * update would bring it back.
+   */
+  managed: z
+    .object({
+      key: z.string(),
+      /** The app's or add-on's own name; its key when it is no longer installed. */
+      name: z.string(),
+      kind: z.enum(['app', 'add-on']),
+      templateKey: z.string(),
+      edited: z.boolean(),
+    })
+    .nullable(),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 });

@@ -54,6 +54,7 @@ import { templatePlaceholders } from '../../automations/actions/email.js';
 import { nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { firstIncompleteNode, requiredGrants, resolveRule } from '../../automations/validate.js';
+import { automationHashOf } from '../../apps/manifest-automations.js';
 import { redactWebhookSecrets, sealWebhookSecrets } from '../../automations/webhook-secrets.js';
 import { watchColumnFor } from '../../automations/watch-columns.js';
 import { isDateColumn } from '../../automations/relative-time.js';
@@ -113,7 +114,21 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     }
   }
 
+  /** What shipped a rule: its manifest's key, name and kind — its key alone once that manifest is gone. */
+  async function ownerOf(key: string): Promise<{ name: string; kind: 'app' | 'add-on' }> {
+    const row = await meta.db.selectFrom('adminium_manifests').select(['manifest', 'kind']).where('manifestKey', '=', key).executeTakeFirst();
+    if (row === undefined) return { name: key, kind: 'add-on' };
+    let name: unknown;
+    try {
+      name = ((typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest) as { name?: unknown } | null)?.name;
+    } catch {
+      name = undefined;
+    }
+    return { name: typeof name === 'string' && name !== '' ? name : key, kind: row.kind === 'app' ? 'app' : 'add-on' };
+  }
+
   async function toView(rule: Automation, stats: Map<string, { runs: number; succeeded: number; failed: number }>): Promise<RuleView> {
+    const owner = rule.managedBy === null || rule.templateKey === null ? null : await ownerOf(rule.managedBy);
     const incomplete = firstIncompleteNode(rule.graph);
     const period = stats.get(rule.id) ?? { runs: 0, succeeded: 0, failed: 0 };
     const finished = period.succeeded + period.failed;
@@ -135,6 +150,10 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         successRate30d: finished === 0 ? null : period.succeeded / finished,
         lastRunAt: rule.lastRunAt,
       },
+      managed:
+        owner === null
+          ? null
+          : { key: rule.managedBy, name: owner.name, kind: owner.kind, templateKey: rule.templateKey, edited: rule.contentHash === null || automationHashOf(rule) !== rule.contentHash },
       createdAt: rule.createdAt,
       updatedAt: rule.updatedAt,
     });
@@ -464,6 +483,11 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       async (request) => {
         const rule = await rules.findById(request.params.id);
         if (rule === null) throw new NotFoundError('No such rule.', { id: request.params.id });
+        // A rule an app or an add-on shipped is switched off, or copied — never deleted: its next update would bring it back.
+        if (rule.managedBy !== null) {
+          const owner = await ownerOf(rule.managedBy);
+          throw new AppError(409, 'AUTOMATION_MANAGED', `This rule came with ${owner.name}. Switch it off, or edit a copy.`, { owner: owner.name });
+        }
         // The FK cascades the runs; the history goes with the rule, which the
         // confirm modal says out loud.
         await rules.remove(rule.id);
