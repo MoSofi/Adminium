@@ -20,6 +20,7 @@
 | `references/errors/public-api-codes--out-of-stock-and-a-refused-card.md` | Public API codes — Out of stock, and a refused card | 1500 |
 | `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2094 |
 | `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 4543 |
+| `references/errors/staff-and-api-key-write-codes--a-refused-price.md` | Staff and API-key write codes — A refused price | 1581 |
 | `references/errors/staff-and-api-key-write-codes--validation-failed.md` | Staff and API-key write codes — VALIDATION_FAILED | 2335 |
 | `references/errors/staff-and-api-key-write-codes--unique-violation.md` | Staff and API-key write codes — UNIQUE_VIOLATION | 589 |
 | `references/errors/staff-and-api-key-write-codes--capacity-full.md` | Staff and API-key write codes — CAPACITY_FULL | 1086 |

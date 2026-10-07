@@ -5,6 +5,7 @@
 | Rule | Shape | What it does |
 |---|---|---|
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
+| `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](https://docs.adminium.dev/reference/manifest/#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
@@ -42,16 +43,3 @@ Studio save refuses the same rules on an installed outbox's columns.
 Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
 table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
 only.
-
-The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
-automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
-rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
-data are not [stamped](https://docs.adminium.dev/reference/manifest/#stamps), not [capped](https://docs.adminium.dev/reference/manifest/#totals-and-balances), and not held to `notAfter` or
-`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
-`notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
-A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
-`requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
-`VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
-holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
-code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
-refuses.

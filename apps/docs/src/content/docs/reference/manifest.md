@@ -384,6 +384,7 @@ change or delete is theirs from then on.
 | `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
+| `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
@@ -1673,6 +1674,30 @@ A mapped column is the row's own to say. It may be a default, a formula, a stamp
 once; it may not be a total, a balance or a copy that follows another row, since Adminium settles
 those in the same save. A column mapped to an input the action **decides** is written by Adminium
 and by nobody else: it is not the key, the state column, a formula, a running number or a total.
+
+### A price an add-on lowers
+
+A table's `adjust` has an add-on that keeps offers lower the price of its rows, inside the save. How
+it behaves is in [Discounts, codes and refunds](/guides/apps/discounts-and-codes/). From Adminium
+0.3.19.
+
+| Field | Rule |
+|---|---|
+| `by` | `{ "addOn" }`: the add-on that answers. It must declare [`addOn.adjuster`](#the-price-question). |
+| `needs` | Optional. A feature of the app (`addOns.features[].id`): the rule runs only while it is on. |
+| `lines` | 1–3 parts. A child table: `table`, `via` (its link to this table), `price`, `quantity?` (absent: one), `discount` (written by Adminium), `what` (1–4 of `{ "column", "as": "item" \| "category" \| "type" \| "tag" }`: what the line sells), `excludes?` (`{ "column", "set": true }`: nothing reduces a row whose column is filled), `paidBy?`, `only?` (`{ "column", "eq" }` or `{ "column", "in" }`), `unlessSet?` (a row whose column is filled is no line). Or the row itself: `{ "self": true, "price", "quantity?", "discount", … }`, once at most, with `nights?` for a price by the night. A child table's part must add up into this table through the same `via`. |
+| `order.discount` | The order's reduction: a decimal column, written by Adminium. |
+| `order.customer` | `link` (the foreign key to the customer), `address` (that table's address column), `proved` (a yes/no Adminium writes: whether the customer's identity was proved), `counts?` (`{ "column", "in" }`: which of the customer's other rows count as earlier orders). |
+| `order.staff` | A reduction by hand: `kind` (an enum with `percent` and `amount`, and `comp` where offered), `value`, `reason`, `by` (written by Adminium: who gave it). |
+| `order.currency` | A column, `{ "value" }` or `{ "setting" }`. |
+| `codes` | Where codes are typed: `table`, `via`, `typed` (text, up to 64), `code` and `voucher` (columns carrying `addOnLink` into the add-on's codes and vouchers tables, filled by Adminium), `removed?` (a row with it set is no code any more). |
+| `uses` | The id of a [posting](#postings) on this table into the same add-on: where what the order used is recorded, once. |
+| `frozen` | From when the price stands: `{ "to": [states] }`, `{ "column", "in" }` or `{ "column", "set": true }`. |
+| `expect` | The money column a price check compares. |
+| `refunds` | Money given back: `table`, `via`, `amount` and `tax?` (decided by Adminium), `of` and `taxOf?` (this table's columns the order's cost is read from), `against?` (the refund's link to the payment it gives back), `lines?` (`{ "table", "via", "line", "quantity" }`: the lines a refund returns). |
+
+Every column Adminium writes here — a reduction, `proved`, `staff.by`, a code's links, a refund's
+amount and tax — is read-only to every writer and in no public entry's `writable`.
 
 ### Shared tables
 
@@ -3656,6 +3681,26 @@ The add-on's package provides the contract `posting-rows`, version 1, as one sel
 script. Adminium calls its `rows(input)` with the lines, the rows it read and the add-on's
 settings, and writes what it answers. See
 [A ledger, and code that decides](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides).
+
+### The price question
+
+An add-on that keeps offers declares `addOn.adjuster` and provides the contract `price-adjust`
+(`provides: [{ "contract": "price-adjust", "version": 1, "server": "dist/server.js" }]`). Adminium
+reads what the adjuster names, asks the add-on's code, and writes the answer. From Adminium 0.3.19.
+
+| Field | Rule |
+|---|---|
+| `offers` | Up to 6 reads of the add-on's own tables, in order: `{ "as", "table", "by": [{ "column", "from" }], "where"?, "limit"? }`. `from` is `now`, `input.codes` (the keys of the code rows the typed codes found), `setting.<name>` or `<as>.<column>` of an earlier read. The first read's table is the table of offers. |
+| `codes` | `{ "table", "column", "where"?, "reserved"? }`: discount codes. `reserved`: 1–8 words of 2–4 capital letters no discount code may start with (a voucher's and a gift card's routing words). |
+| `vouchers` | `{ "table", "column", "prefixes" }`: vouchers and packs, found by the typed text with its prefix cut (`VC-`). |
+| `applied` | Where Adminium keeps what was applied: `table`, `source` (`table`, `row`, `line`), `columns` (`offer`, `code`, `voucher`, `name`, `kind`, `amount`, `reason`, `typed`, `at`). |
+| `person` | Optional, read only for a proved customer: `groups` (`table`, `member`, `group`), `uses` (`table`, `customer`, `offer`, `state`, `counted`), `orders?`. |
+| `ceilings` | Optional: `{ "table", "role", "maxPercent", "maxAmount", "comp"? }` — what each role may take off by hand. |
+| `customerKey` | `"hash"`: a customer reaches the add-on as a keyed hash, never as an address. |
+
+The codes and the vouchers are two tables. A discount code written with a reserved start is refused
+(`VALIDATION_FAILED`, the code column `reserved`), whichever way it is written; a code Adminium
+makes for that column never has one.
 
 ### Shapes
 

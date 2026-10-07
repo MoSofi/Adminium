@@ -74,6 +74,7 @@
 | `references/guides/orders-with-lines--the-price-check.md` | The price check | 1152 |
 | `references/guides/orders-with-lines--retries.md` | Retries | 1973 |
 | `references/guides/orders-with-lines--what-a-guest-is-told.md` | What a guest is told | 2002 |
+| `references/guides/orders-with-lines--what-a-price-was-reduced-by.md` | What a price was reduced by | 1259 |
 | `references/guides/orders-with-lines--limits-on-a-stranger-s-order.md` | Limits on a stranger's order | 2002 |
 | `references/guides/orders-with-lines--tickets-for-a-show.md` | Tickets for a show | 1044 |
 | `references/guides/orders-with-lines--a-stay-and-its-extras.md` | A stay and its extras | 898 |
@@ -84,6 +85,5 @@
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
 | `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
-| `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1372 |
 
 More: `references/guides/INDEX-2.md`

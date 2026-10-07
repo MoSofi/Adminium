@@ -32,3 +32,29 @@ housekeeper writes a transfer without holding a second role:
 An add-on's own page prints its documents through the
 [data kit](https://docs.adminium.dev/guides/add-ons-with-tables/#printing-from-a-page). Your app's screens print a document
 of your own tables as in step 6.
+
+### Answering the price question
+
+An add-on that keeps offers exports `adjust(input)` from the server file it names under
+`provides` (contract `price-adjust`, version 1). It is handed the order's lines, the codes typed on
+it (each already looked up in your tables), who is buying when that was proved, what staff took off
+by hand with the most its giver may give, the rows of your `offers` reads and your settings row —
+and answers one reduction per line, what was applied, the codes it refuses with a reason, and, where
+the order posts, the uses to record. From Adminium 0.3.19.
+
+- **Pure and synchronous.** It reads nothing and keeps no clock: `now`, `today`, `weekday`, `time`
+  and `zone` are inputs, on the venue's clock. The same input gives the same answer. A promise, a
+  throw or more than a moment's work refuses the save.
+- **Nothing it says is taken on trust.** Every line answered once and no other, no reduction above
+  its line, the order's reduction the sum of the lines', what was applied adding up line by line,
+  every offer, code and voucher named being a row that was read for this call, a reduction by hand
+  within what was asked and within its giver's limit. One miss and the save is refused; nothing was
+  written yet.
+- **Modes.** `save` and `dry` price an order; `try` is staff's preview and may carry a `draft`
+  offer and ask you to `explain` every offer; `refund` prices the lines kept (`kept: false` for a
+  returned line) under the offers the order had.
+- **Adminium writes.** You never write the reductions, the applied rows or the uses: Adminium does,
+  in the save's own transaction, from your answer.
+
+The code runs with the clock, timers, the network and dynamic code taken away. That is hardening
+against mistakes, not a sandbox: an add-on's server file is code its installer chose to trust.

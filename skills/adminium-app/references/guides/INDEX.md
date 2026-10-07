@@ -52,6 +52,7 @@
 | `references/guides/orders-with-lines--the-price-check.md` | The price check | 1152 |
 | `references/guides/orders-with-lines--retries.md` | Retries | 1973 |
 | `references/guides/orders-with-lines--what-a-guest-is-told.md` | What a guest is told | 2002 |
+| `references/guides/orders-with-lines--what-a-price-was-reduced-by.md` | What a price was reduced by | 1259 |
 | `references/guides/orders-with-lines--limits-on-a-stranger-s-order.md` | Limits on a stranger's order | 2002 |
 | `references/guides/orders-with-lines--tickets-for-a-show.md` | Tickets for a show | 1044 |
 | `references/guides/orders-with-lines--a-stay-and-its-extras.md` | A stay and its extras | 898 |
@@ -87,6 +88,5 @@
 | `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 | `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
 | `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
-| `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |
 
 More: `references/guides/INDEX-2.md`

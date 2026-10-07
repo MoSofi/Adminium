@@ -2,6 +2,16 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+```json
+{ "ref": "ticket_count", "type": "int", "default": 0,
+  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
+                         "unlessSet": "refunded_at" } } }
+```
+
+A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
+column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
+for a sum.
+
 A total may also add up another table's totals: an option's price into its line, the line into
 its order, the order into the customer's lifetime total. Such totals **climb**, at most three
 tables high, and never in a circle (a table adding up its own rows, or two tables adding up each

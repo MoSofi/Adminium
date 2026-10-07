@@ -22,7 +22,7 @@ file. Every file is 8 KB or less.
 | `references/guides/building-on-an-add-on--get-the-add-on-s-manifest.md` | Get the add-on's manifest | 800 |
 | `references/guides/building-on-an-add-on--an-add-on-that-keeps-its-own-tables.md` | An add-on that keeps its own tables | 2415 |
 | `references/guides/building-on-an-add-on--take-stock-when-a-row-is-saved.md` | Take stock when a row is saved | 3284 |
-| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 1945 |
+| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 3778 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
 | `references/guides/emails--what-queues-a-row.md` | What queues a row | 6600 |

@@ -1,0 +1,9 @@
+<!-- produced by scripts/skills/build-references.mjs; do not edit -->
+
+# `adminium-app` references: manifest
+
+| File | What it covers | Bytes |
+|---|---|---|
+| `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
+| `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
+| `references/manifest/validation.md` | Validation | 3648 |

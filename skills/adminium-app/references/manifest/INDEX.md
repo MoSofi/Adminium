@@ -17,9 +17,9 @@
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7718 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7629 |
-| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7383 |
-| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6969 |
-| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 6987 |
+| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 6689 |
+| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7739 |
+| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7395 |
 | `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7396 |
 | `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 6620 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 5692 |
@@ -34,6 +34,7 @@
 | `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 2077 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
+| `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
 | `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 3754 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
@@ -81,9 +82,9 @@
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |
 | `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5187 |
+| `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 1853 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
 | `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2828 |
-| `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
-| `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
-| `references/manifest/validation.md` | Validation | 3648 |
+
+More: `references/manifest/INDEX-2.md`

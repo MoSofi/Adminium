@@ -2,6 +2,19 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
+automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
+rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
+data are not [stamped](https://docs.adminium.dev/reference/manifest/#stamps), not [capped](https://docs.adminium.dev/reference/manifest/#totals-and-balances), and not held to `notAfter` or
+`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
+`notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
+A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
+`requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
+`VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
+holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
+code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
+refuses.
+
 The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
 was refused for itself, in a column the entry lets the caller write, `params` names the column and
 why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
@@ -95,13 +108,3 @@ still saves.
 
 A total may count its child rows instead of adding a column up: how many tickets an order holds,
 how many lines a kitchen ticket has.
-
-```json
-{ "ref": "ticket_count", "type": "int", "default": 0,
-  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
-                         "unlessSet": "refunded_at" } } }
-```
-
-A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
-column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
-for a sum.

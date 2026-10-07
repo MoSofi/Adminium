@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |
 | `references/guides/postings--overview.md` | Rows that post into an add-on's ledger | 874 |
 | `references/guides/postings--a-posting.md` | A posting | 1971 |
 | `references/guides/postings--the-moment-a-phase-fires.md` | The moment a phase fires | 1040 |
