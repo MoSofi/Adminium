@@ -3610,7 +3610,7 @@ An **action**:
 
 | Field | Rule |
 |---|---|
-| `inputs` | What a posting maps: each `link`, `number`, `decimal`, `text`, `date`, `bool` (with `?` when it may be empty), `tableRef` or `rowRef` (a row of any table: `{ "row": true }` in a posting). |
+| `inputs` | What a posting maps: each `link`, `number`, `decimal`, `text`, `date`, `bool` (with `?` when it may be empty), `tableRef` or `rowRef` (a row of any table: `{ "row": true }` in a posting for the row itself, or a link column for the row it points at). |
 | `phases` | Which of `reserve`, `post`, `reverse` it has. |
 | `reads` | Up to six `{ "as", "table", "by", "where"?, "limit"? }`: the rows Adminium reads for the code, from the add-on's own tables only. `by` is 1–3 `{ "column", "from" }`; `from` is `input.<name>`, `<an earlier read>.<column>`, `receipt.id`, `setting.<column>`, or a list of up to three of them. Up to 1,000 rows a read, 3,000 a call. |
 | `locks` | 1–4 `{ "read", "column", "table" }`: the rows a save stands on. Two saves that would take from the same row wait for one another. Every table in `writes` that feeds a capped balance has that balance's table (or the table it stands for) here. |

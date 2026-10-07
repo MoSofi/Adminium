@@ -78,7 +78,7 @@
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4077 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2197 |
-| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5125 |
+| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5187 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 1853 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
 | `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2592 |
