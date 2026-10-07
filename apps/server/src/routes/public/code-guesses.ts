@@ -25,6 +25,7 @@ import type { CompiledResource } from '../../public-api/scope.js';
 import type { SnapshotView, ResolvedTable } from '../../crud/identifiers.js';
 import { canonicalCode, codeBodyLength, spellingOf, unlockedByCode, unlockedTargets, type CodeUnlock } from '../../crud/code-lookup.js';
 import type { GuessTicket, PublicGuessRung, PublicRateLimiter, RateDecision } from '../../public-api/limiter.js';
+import { adjustParentsOf } from '../../crud/adjust/rule.js';
 import type { Row } from '../../crud/mask.js';
 import type { TreeNode } from '../../crud/write-tree.js';
 import type { Kysely } from 'kysely';
@@ -46,12 +47,17 @@ export function typedCodeOf(request: FastifyRequest): string | null {
 }
 
 /** The codes a write's values type into the table's lookups (none: the write guesses nothing). */
-export function typesCode(table: ResolvedTable, values: Row): string[] {
+export function typesCode(table: ResolvedTable, values: Row, view?: Pick<SnapshotView, 'model'> | undefined): string[] {
   const out: string[] = [];
-  for (const column of table.table.columns ?? []) {
-    if (column.lookup === undefined) continue;
-    const typed = values[column.lookup.from];
+  const take = (typed: unknown): void => {
     if (typed !== null && typed !== undefined && !(typeof typed === 'string' && typed.trim() === '')) out.push(String(typed));
+  };
+  for (const column of table.table.columns ?? []) {
+    if (column.lookup !== undefined) take(values[column.lookup.from]);
+  }
+  // A code typed on an order (a row of the table a price rule keeps typed codes in) is a guess like any other.
+  for (const parent of adjustParentsOf(view?.model, table.table)) {
+    if (parent.typed !== undefined) take(values[parent.typed]);
   }
   return out;
 }
@@ -86,7 +92,7 @@ export function cardInputs(table: ResolvedTable): ReadonlySet<string> {
 }
 
 /** How many codes the values type: all of them, and those that are a card's. */
-function typedCounts(table: ResolvedTable, values: Row): { all: number; cards: number } {
+function typedCounts(table: ResolvedTable, values: Row, view?: Pick<SnapshotView, 'model'> | undefined): { all: number; cards: number; either?: boolean } {
   const cards = cardInputs(table);
   let all = 0;
   let card = 0;
@@ -97,11 +103,20 @@ function typedCounts(table: ResolvedTable, values: Row): { all: number; cards: n
     all += 1;
     if (cards.has(column.lookup.from)) card += 1;
   }
-  return { all, cards: card };
+  // A code typed on an order may be a discount code or a voucher — money: it is a guess on both counts, so guessing at vouchers
+  // through an order never rides a count of its own beside the card's.
+  let either = false;
+  for (const parent of adjustParentsOf(view?.model, table.table)) {
+    const typed = parent.typed === undefined ? null : values[parent.typed];
+    if (typed === null || typed === undefined || (typeof typed === 'string' && typed.trim() === '')) continue;
+    all += 1;
+    either = true;
+  }
+  return { all, cards: card, ...(either ? { either } : {}) };
 }
 
-const treeCounts = (node: TreeNode): { all: number; cards: number } =>
-  node.children.map(treeCounts).reduce((sum, one) => ({ all: sum.all + one.all, cards: sum.cards + one.cards }), typedCounts(node.target.table, node.values));
+const treeCounts = (node: TreeNode): { all: number; cards: number; either?: boolean } =>
+  node.children.map(treeCounts).reduce((sum, one) => ({ all: sum.all + one.all, cards: sum.cards + one.cards, either: sum.either === true || one.either === true }), typedCounts(node.target.table, node.values, node.target.view));
 
 /**
  * The count a write's typed codes are guesses on: a card's, a discount
@@ -110,13 +125,13 @@ const treeCounts = (node: TreeNode): { all: number; cards: number } =>
  * discount count never saw.
  */
 export type WriteRung = PublicGuessRung | 'both';
-const rungFor = (typed: { all: number; cards: number }): WriteRung => (typed.cards === 0 ? 'code' : typed.cards < typed.all ? 'both' : 'card');
-export const writeRung = (table: ResolvedTable, values: Row): WriteRung => rungFor(typedCounts(table, values));
+const rungFor = (typed: { all: number; cards: number; either?: boolean | undefined }): WriteRung => (typed.either === true ? 'both' : typed.cards === 0 ? 'code' : typed.cards < typed.all ? 'both' : 'card');
+export const writeRung = (table: ResolvedTable, values: Row, view?: Pick<SnapshotView, 'model'>  ): WriteRung => rungFor(typedCounts(table, values, view));
 export const treeRung = (node: TreeNode): WriteRung => rungFor(treeCounts(node));
 
 /** The codes a create with its rows types anywhere in it. */
 export function treeTypesCode(node: TreeNode): string[] {
-  return [...typesCode(node.target.table, node.values), ...node.children.flatMap(treeTypesCode)];
+  return [...typesCode(node.target.table, node.values, node.target.view), ...node.children.flatMap(treeTypesCode)];
 }
 
 /** Thrown out of a read asked with a code when the visitor's guesses are spent (answered 429). */
@@ -171,6 +186,13 @@ export function guessRung(limiter: PublicRateLimiter, admit: (reply: FastifyRepl
     missed(request: FastifyRequest): void {
       const guess = held.get(request);
       if (guess !== undefined) guess.missed = true;
+    },
+    /** The request looked no code up after all (a retry answered with what an earlier one made): its guess is handed back, and its codes are not remembered as codes that worked. */
+    forget(request: FastifyRequest): void {
+      const guess = held.get(request);
+      if (guess === undefined) return;
+      held.delete(request);
+      for (const ticket of guess.tickets) ticket.giveBack();
     },
     /** A refusal that answered a typed code as a miss spends the guess; any other leaves it to be handed back. */
     spendMiss(request: FastifyRequest, error: unknown): void {

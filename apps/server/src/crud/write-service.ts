@@ -93,6 +93,7 @@ import type { StateLink } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
 import { getPrincipal } from '../rbac/principal.js';
+import { negotiateLocale } from '../plugins/surfaces.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
@@ -197,11 +198,14 @@ function judgedBy(rules: TableRules | null, target: WriteTarget, context: WriteC
 /** The context of a write that a signed-in person or an API key asked for. */
 export function requestWriteContext(request: FastifyRequest, origin: WriteOrigin): WriteContext {
   const principal = getPrincipal(request);
+  // The language the request asked for: what a price's reductions are named in.
+  const locale = negotiateLocale((request.headers as FastifyRequest['headers'] | undefined)?.['accept-language']);
   return {
     origin,
     hops: 0,
     actor: principal === null ? null : { kind: principal.kind, id: principal.id, label: principal.label },
     request,
+    ...(locale === null ? {} : { adjust: { locale } }),
   };
 }
 
@@ -1408,7 +1412,7 @@ export interface UpdateRecordInput {
    * The row as the change leaves it, inside its transaction, against the
    * figure the caller expected: throws to refuse the change (a save only).
    */
-  expect?: ((db: Kysely<SourceDatabase>, after: Row) => Promise<void>) | undefined;
+  expect?: ((db: Kysely<SourceDatabase>, after: Row, adjusted?: readonly AdjustedOrder[]) => Promise<void>) | undefined;
   /**
    * The row as the change leaves it, inside its transaction, before the price
    * check: throws to refuse the change — a save and a quote alike (an entry's
@@ -3335,10 +3339,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * it adds up into nothing), its balances are worked out here from what the
    * price wrote, and a capped one is judged against the order as it was held.
    */
-  async function adjustHeld(db: Db, priced: readonly PricedOrder[], input: { mode: 'save' | 'dry'; context: WriteContext; clock: WriteClock }): Promise<AdjustedOrder[]> {
+  async function adjustHeld(db: Db, priced: readonly PricedOrder[], input: { mode: 'save' | 'dry'; context: WriteContext; clock: WriteClock; expects?: boolean | undefined }): Promise<AdjustedOrder[]> {
     const out: AdjustedOrder[] = [];
     for (const one of priced) {
-      const result = await adjuster.run(db, { for: one.for, key: one.key, order: one.order, stood: one.stood, touches: one.touches, mode: input.mode, context: input.context, clock: input.clock });
+      const result = await adjuster.run(db, { for: one.for, key: one.key, order: one.order, stood: one.stood, touches: one.touches, mode: input.mode, context: input.context, clock: input.clock, expects: input.expects });
       if (result === null) continue;
       out.push({ ...result, table: one.for.target.table.id, key: one.key });
       if (one.settled || (Object.keys(result.wrote).length === 0 && result.changedLines === 0)) continue;
@@ -3828,6 +3832,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           return input.mapError(error, row?.node.at ?? []);
         }
 
+        /** A code that does not stand is refused on the row it was typed into. */
+        const refusedCode = (error: unknown): never => {
+          const where = refusedAt(error);
+          const row = where === undefined ? undefined : everyRow.find((candidate) => candidate.target.table.id === where.table && keyOf(candidate.target.table, written.get(candidate)!) === where.key);
+          return input.mapError(error, row?.node.at ?? rootRow.node.at);
+        };
         // 9b. The price, asked once for each order the rows belong to — after every row is in and the limits are judged, before any
         // total is worked out: the settle below reads the reductions it writes.
         const adjusted: AdjustedOrder[] = [];
@@ -3855,13 +3865,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           }
           for (const one of priced.values()) {
             try {
-              adjusted.push(...(await ledgerWriter.audited(() => adjustHeld(trx, [one], { mode: dry ? 'dry' : 'save', context, clock }), about)));
+              adjusted.push(...(await ledgerWriter.audited(() => adjustHeld(trx, [one], { mode: dry ? 'dry' : 'save', context, clock, expects: input.expect !== undefined }), about)));
             } catch (error) {
               if (error instanceof LockMoved) throw error;
-              // A code that does not stand is refused on the row it was typed into.
-              const where = refusedAt(error);
-              const row = where === undefined ? undefined : everyRow.find((candidate) => candidate.target.table.id === where.table && keyOf(candidate.target.table, written.get(candidate)!) === where.key);
-              return input.mapError(error, row?.node.at ?? rootRow.node.at);
+              return refusedCode(error);
             }
           }
         }
@@ -3923,7 +3930,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false, ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }) };
         // 11. The price the caller expected (a save only), then 12: commit — or a quote rolled back.
-        if (!dry) await input.expect?.(trx, outcome.root, rows);
+        if (!dry) await input.expect?.(trx, outcome.root, rows, adjusted);
+        // The price is as the caller was shown it without the code that no longer stands: the code is refused after all.
+        const heldBack = adjusted.find((one) => one.heldBack !== undefined)?.heldBack;
+        if (heldBack !== undefined) refusedCode(heldBack);
         if (dry) throw new TreeSignal('dry', outcome);
         return outcome;
       };
@@ -4072,6 +4082,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const write = async (db: Db) => {
         // A try that is run again starts from nothing: what an undone try posted was undone with it.
         posted = [];
+        // (An attempt that is made again starts with nothing priced: what an earlier one asked was rolled back with it.)
+        adjusted = [];
         const within = { ...target, db, timezone: zone, origin: context.origin };
         // The row as stored, read under the lock: what the guard leaves out
         // of its sum, the parent a moved child leaves, and what a formula
@@ -4179,7 +4191,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const freezing = !frozenNow(ownPricing.adjust, stood, column) && frozenNow(ownPricing.adjust, { ...stood, ...written }, column);
             if (inputs.length > 0 || freezing || followed) priced.push({ for: ownPricing, key: stood[ownPricing.adjust.key], stood, touches: inputs.length > 0 || followed, settled: false });
           }
-          adjusted = await ledgerStep(() => adjustHeld(db, priced, { mode: dry ? 'dry' : 'save', context, clock }), about, input.mapError);
+          adjusted = await ledgerStep(() => adjustHeld(db, priced, { mode: dry ? 'dry' : 'save', context, clock, expects: input.expect !== undefined }), about, input.mapError);
           // Its totals from the rows that followed, and its balances, judged now the price is in — against the row as it was held.
           if (followedFirst && stood !== null) await guarded(() => settleOwn(rules, within, 'create', { ...stood, ...written }, {}, currency, prior ?? stood), input.mapError);
         }
@@ -4225,7 +4237,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (quoted && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           if (after !== null) await input.inside?.(db, after);
-          if (!dry && after !== null) await input.expect?.(db, after);
+          if (!dry && after !== null) await input.expect?.(db, after, adjusted);
+          // The price is as the caller was shown it without the code that no longer stands: the code is refused after all.
+          const heldBack = adjusted.find((one) => one.heldBack !== undefined)?.heldBack;
+          if (heldBack !== undefined) await ledgerStep(() => Promise.reject(heldBack), about, input.mapError);
           // A quote ends here: nothing it wrote is kept.
           if (dry) throw new UpdateQuoted(after, changed);
         }

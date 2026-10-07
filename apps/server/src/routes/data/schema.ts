@@ -216,7 +216,22 @@ export const postingAnswerSchema = z.object({
   item: z.string().optional(),
 });
 
+/** The reductions a price came to, one named entry each, in the reader's language; and a word beside a typed code that was not needed. */
+export const appliedSchema = z.array(
+  z.object({
+    line: z.string().nullable(),
+    name: z.string(),
+    kind: z.enum(['offer', 'code', 'voucher', 'pack', 'staff']),
+    amount: z.string(),
+    typed: z.boolean(),
+    codeLast4: z.string().optional(),
+  }),
+);
+export const toldSchema = z.array(z.object({ column: z.string(), note: z.literal('better-offer-applied'), name: z.string() }));
+
 export const recordDryRunReply = z.object({
+  applied: appliedSchema.optional(),
+  told: toldSchema.optional(),
   postings: z.array(postingAnswerSchema).optional(),
   data: rowSchema.nullable(),
   children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
@@ -307,6 +322,8 @@ export const recordChangeDryRunBody = z.object({
  * the night — the nights it would then be made of.
  */
 export const recordChangeDryRunReply = z.object({
+  applied: appliedSchema.optional(),
+  told: toldSchema.optional(),
   postings: z.array(postingAnswerSchema).optional(),
   data: rowSchema,
   children: z.record(z.string(), z.array(z.object({ data: rowSchema }))),
@@ -473,6 +490,9 @@ export const recordMutationReply = z.object({
   postings: z.array(postingAnswerSchema).optional(),
   /** The money code of each coded row this save made, for its maker, this once — with a token that prints it once. */
   once: z.array(onceEntrySchema).optional(),
+  /** The reductions of the order the row is (or is a line of), when the save asked its price. Such a save answers no undo token either. */
+  applied: appliedSchema.optional(),
+  told: toldSchema.optional(),
 });
 
 export const recordCascadeReply = z.object({

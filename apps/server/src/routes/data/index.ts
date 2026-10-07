@@ -103,7 +103,10 @@ import {
   type ResolvedChild,
 } from '../../crud/child-rows.js';
 import { availabilityColumns, readAvailability } from '../../crud/availability.js';
-import { STAFF_TREE_MAX_ROWS, type TreeNode, type TreeOutcome, type TreePath } from '../../crud/write-tree.js';
+import { STAFF_TREE_MAX_ROWS, type TreeNode, type TreeOutcome, type TreePath, type TreeWritten } from '../../crud/write-tree.js';
+import { priceAnswer, type PriceAnswer } from '../../crud/adjust/replies.js';
+import type { AdjustedOrder } from '../../crud/adjust/step.js';
+import { recipientLocale } from '../../i18n/server-i18n.js';
 import { TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { staffTreeRules } from './tree.js';
 import { declaredColumns, expectColumnOf, priceCheck, staffRetryKey } from './staff-quote.js';
@@ -1034,7 +1037,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       raw: Record<string, { key?: Row | undefined; values: Row; children?: Record<string, { values: Row }[]> | undefined }[]>,
       mode: 'save' | 'dry',
       /** A save's price check on the record as it leaves it, and the retry key it is found again by. */
-      guards: { expect?: ((row: Row) => void) | undefined; retry?: { column: string; hash: string } | undefined } = {},
+      guards: { expect?: ((row: Row, priced?: PriceAnswer) => void) | undefined; retry?: { column: string; hash: string } | undefined } = {},
     ): Promise<{ outcome: TreeOutcome; links: { relationId: string; before: string[]; after: string[] }[]; children: UndoChildren[]; events: ChildEvent[] }> {
       const relations = new Map<string, ResolvedChild>();
       // What the app declares for its guests' creates of these rows: the lists below each row, and what they are held to.
@@ -1118,7 +1121,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
             }),
         // The price the desk showed, against the record as the save leaves it (a save only).
-        ...(guards.expect === undefined ? {} : { expect: async (_db, made) => guards.expect!(made) }),
+        ...(guards.expect === undefined ? {} : { expect: (_db, made, rows, adjusted) => checked(guards.expect!, made, () => pricedAs(request, ctx, adjusted, rows)) }),
         // The record an earlier save under the same retry key made: answered again, nothing made.
         ...(guards.retry === undefined
           ? {}
@@ -1188,14 +1191,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       values: Row,
       body: { expect?: { total: string; column?: string | undefined } | undefined; clientKey?: string | undefined },
       repeated: boolean,
-    ): Promise<{ expect?: (row: Row) => void; retry?: { column: string; hash: string } } | null> {
+    ): Promise<{ expect?: (row: Row, priced?: PriceAnswer) => void; retry?: { column: string; hash: string } } | null> {
       const { expect, clientKey } = body;
       if (expect === undefined && clientKey === undefined) return null;
       if (repeated) {
         throw new ValidationFailedError('A field that makes one record per value checks no price and keeps no retry key.', { fields: { [expect !== undefined ? 'expect' : 'clientKey']: { code: 'not-allowed' } } });
       }
       const declared = await declaredColumns(meta, ctx.connectionId, ctx.view, ctx.table);
-      const out: { expect?: (row: Row) => void; retry?: { column: string; hash: string } } = {};
+      const out: { expect?: (row: Row, priced?: PriceAnswer) => void; retry?: { column: string; hash: string } } = {};
       if (expect !== undefined) out.expect = priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.readView.readableColumn(ctx.readTable, column, ctx.unmasked)), expect.total);
       if (clientKey !== undefined) {
         out.retry = staffRetryKey(retrySecret, declared, ctx.connectionId, ctx.table, principalId(request), clientKey);
@@ -1205,7 +1208,30 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     }
 
     /** A change's price check, from its body, or null. */
-    async function changeCheck(ctx: DataContext, expect: { total: string; column?: string | undefined } | undefined): Promise<((row: Row) => void) | null> {
+    /** Whether a save asked an order's price. */
+    const pricedBy = (adjusted: readonly AdjustedOrder[] | undefined): boolean => adjusted !== undefined && adjusted.length > 0;
+    /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
+    async function pricedAs(request: FastifyRequest, ctx: DataContext, adjusted: readonly AdjustedOrder[] | undefined, tree?: readonly TreeWritten[]): Promise<PriceAnswer> {
+      if (!pricedBy(adjusted)) return {};
+      // An order's reductions are told to somebody who may read the order: a role that only writes its lines is told nothing of them.
+      const readable: AdjustedOrder[] = [];
+      for (const one of adjusted ?? []) if (await request.can(`table:${ctx.connectionId}:${one.table}:read`)) readable.push(one);
+      if (readable.length === 0) return {};
+      // In the language the user reads the dashboard in.
+      return priceAnswer(readable, { locale: await recipientLocale(meta, principalId(request)), nameOf: (id) => ctx.view.table(id).name, tree });
+    }
+    /** A price check, told what the order would have only when the price is not the one shown. */
+    async function checked(check: (row: Row, priced?: PriceAnswer) => void, row: Row, priced: () => Promise<PriceAnswer>): Promise<void> {
+      try {
+        check(row);
+      } catch (error) {
+        if (!(error instanceof ConflictError) || error.code !== 'PRICE_CHANGED') throw error;
+        check(row, await priced());
+        throw error;
+      }
+    }
+
+    async function changeCheck(ctx: DataContext, expect: { total: string; column?: string | undefined } | undefined): Promise<((row: Row, priced?: PriceAnswer) => void) | null> {
       if (expect === undefined) return null;
       const declared = await declaredColumns(meta, ctx.connectionId, ctx.view, ctx.table);
       return priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.readView.readableColumn(ctx.readTable, column, ctx.unmasked)), expect.total);
@@ -2879,29 +2905,32 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (tree.outcome.replayed) return reply.status(200).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
           const told = postingAnswers(tree.outcome.postings);
           // A save that posted is not undone by a token: the rule's own way back is.
-          if (told === undefined) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
+          if (told === undefined && !pricedBy(tree.outcome.adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
           await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
           const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
-          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
+          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)) });
         }
         if (links.length === 0 && children.length === 0) {
           let told: PostingAnswer[] | undefined;
+          let asked: readonly AdjustedOrder[] | undefined;
           const inserted = await writes.create({
             target: ctx.target,
             values,
             context,
             recheck: (final) => assertFileColumns(ctx, final),
             mapError: (error) => mapDbError(error, ctx.table),
-            announce: async (row, _values, posted) => {
+            announce: async (row, _values, posted, adjusted) => {
               const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
               told = postingAnswers(posted);
-              if (told === undefined) undoToken = await issueUndo(request, ctx, 'create', [], [row]);
+              asked = adjusted;
+              // A save that moved an order's price has no Undo: its way back is another save, priced in its turn.
+              if (told === undefined && !pricedBy(adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [row]);
               await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
               await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: posted, origin: 'dashboard', request });
             },
           });
           const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
-          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
+          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, asked)) });
         }
 
         /*
@@ -2926,12 +2955,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             if (tree.outcome.replayed) return reply.status(200).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, created[c]]));
             const told = postingAnswers(tree.outcome.postings);
-            if (told === undefined) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
+            if (told === undefined && !pricedBy(tree.outcome.adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
             await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
             const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
-            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
+            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)) });
           }
         }
         if (rowsBelow) {
@@ -3091,7 +3120,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // The desk's booking summary: the nights a price by the night is made of.
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight));
         const told = await answersFor((permission) => request.can(permission), tree.outcome.postings);
-        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }) };
+        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)) };
       },
     );
 
@@ -3186,7 +3215,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight);
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
         const told = await answersFor((permission) => request.can(permission), outcome.postings);
-        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }) };
+        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)) };
       },
     );
 
@@ -3225,7 +3254,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const inside = agrees === null ? {} : { inside: agrees };
       // The price the desk showed for the change, against the record as the change leaves it.
       const check = await changeCheck(ctx, body.expect);
-      const priced = check === null ? {} : { expect: async (_db: Kysely<SourceDatabase>, after: Row) => check(after) };
+      const priced = check === null ? {} : { expect: (_db: Kysely<SourceDatabase>, after: Row, adjusted?: readonly AdjustedOrder[]) => checked(check, after, () => pricedAs(request, ctx, adjusted)) };
       // Rows below a child row come with a new record only.
       if (Object.values(body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
         throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
@@ -3259,7 +3288,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           ...priced,
           announce: async (result) => {
             const after = result.after ?? before;
-            if (result.postings === undefined) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
+            if (result.postings === undefined && !pricedBy(result.adjusted)) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
             await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
             // The rows this move moved too (a room turned to cleaning), as changes of their own.
             await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
@@ -3268,7 +3297,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         });
         // Masked columns may be written but are never echoed back.
         const told = postingAnswers(outcome.postings);
-        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }) };
+        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)) };
       }
 
       /*
@@ -3334,7 +3363,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             },
             announce: async (result) => {
               const after = result.after ?? before;
-              if (result.postings === undefined) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
+              if (result.postings === undefined && !pricedBy(result.adjusted)) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
               for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
               // The rows the record's and its child rows' moves moved too, as changes of their own.
@@ -3344,7 +3373,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
           const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
           const told = postingAnswers(outcome.postings);
-          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }) };
+          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)) };
         }
       }
 
@@ -3473,24 +3502,27 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           );
         }
         let undoToken: string | null = null;
+        let asked: readonly AdjustedOrder[] | undefined;
         await writes.delete({
           target: ctx.target,
           pk,
           before,
           context,
           mapError: (error) => mapDbError(error, ctx.table),
-          announce: async () => {
+          announce: async (_count, _before, adjusted) => {
+            asked = adjusted;
             const entity = recordRef(ctx, pk);
             // The record is gone; its files go with it — sidecar
             // attachments AND anything its file columns named. Trashed, not
             // deleted, so the 60 s undo below can put them back and the
             // retention sweep owns the bytes.
             const trashedFileIds = await trashRecordFiles(ctx, entity, before);
-            undoToken = await issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
+            // A line taken off an order moved its price: no Undo, as for any save that did.
+            if (!pricedBy(adjusted)) undoToken = await issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
             await afterMutation(request, ctx, 'delete', entity, before, null);
           },
         });
-        return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken };
+        return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken, ...(await pricedAs(request, ctx, asked)) };
       },
     );
   };

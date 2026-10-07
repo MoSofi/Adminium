@@ -19,6 +19,7 @@ import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
 
 import { ConflictError, ValidationFailedError } from '../../errors.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import type { PriceAnswer } from '../../crud/adjust/replies.js';
 import type { Row } from '../../crud/mask.js';
 import { definitionToResource, parseDefinition } from '../../public-api/endpoint.js';
 import { CLIENT_KEY_FORMAT, clientKeyHash, placesOfColumn } from '../public/tree.js';
@@ -54,6 +55,9 @@ export async function declaredColumns(meta: MetaDb, connectionId: string, view: 
   }
   // A table no public entry creates rows of names its own (`retryKey`): a desk's payments and refunds.
   clientKey ??= table.table?.columns.find((column) => column.retryKey === true && table.columns.has(column.name))?.name ?? null;
+  // An order no public entry price-checks is checked by the figure its price rule names.
+  const ruled = table.table?.adjust?.expect;
+  if (expect === null && ruled !== undefined && table.columns.has(ruled)) expect = ruled;
   return { expect, clientKey };
 }
 
@@ -89,12 +93,13 @@ export function expectColumnOf(
  * refuses the save — 409 `PRICE_CHANGED` with the figure it would have
  * saved — and nothing is kept.
  */
-export function priceCheck(view: SnapshotView, table: ResolvedTable, column: string, expected: string): (row: Row) => void {
+export function priceCheck(view: SnapshotView, table: ResolvedTable, column: string, expected: string): (row: Row, priced?: PriceAnswer) => void {
   const places = placesOfColumn(view, table, column);
-  return (row) => {
+  return (row, priced) => {
     if (sameDecimal(row[column], expected, places)) return;
     const total = toRatio(row[column]);
-    throw new ConflictError('The price changed. Nothing was saved.', 'PRICE_CHANGED', { column, total: total === null ? null : ratioText(total, places) });
+    // With the reductions the figure it would have saved came to, when a price was asked.
+    throw new ConflictError('The price changed. Nothing was saved.', 'PRICE_CHANGED', { column, total: total === null ? null : ratioText(total, places), ...(priced?.applied === undefined ? {} : { applied: priced.applied }) });
   };
 }
 

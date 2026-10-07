@@ -5,6 +5,7 @@
  * the meta store's own counters and settings. What a test saves goes through
  * the same steps every door's save does.
  */
+import type { AdjustedOrder } from '../src/crud/adjust/step.js';
 import type { PostedOutcome } from '../src/crud/ledger-write.js';
 import type { Row } from '../src/crud/mask.js';
 import type { WriteContext, WriteTarget } from '../src/crud/write-context.js';
@@ -38,10 +39,10 @@ export interface SaveWorld extends PriceWorld {
   service(runtime?: LedgerRuntime | null, more?: Partial<WriteServiceOptions>): RecordWriteService;
   key(address: string): string;
   create(table: string, values: Doc, context?: WriteContext, service?: RecordWriteService): Promise<Row>;
-  update(table: string, id: unknown, values: Doc, opts?: { context?: WriteContext; mode?: 'dry'; service?: RecordWriteService; expect?: (after: Row) => void }): Promise<UpdateOutcome>;
+  update(table: string, id: unknown, values: Doc, opts?: { context?: WriteContext; mode?: 'dry'; service?: RecordWriteService; expect?: (after: Row, adjusted?: readonly AdjustedOrder[]) => void }): Promise<UpdateOutcome>;
   remove(table: string, id: unknown, context?: WriteContext, service?: RecordWriteService): Promise<number>;
   /** A row with the rows below it, in one write; a refusal carries where in the tree it is about (`at`). */
-  tree(root: TreeSpec, opts?: { context?: WriteContext; mode?: 'dry'; service?: RecordWriteService }): Promise<TreeOutcome>;
+  tree(root: TreeSpec, opts?: { context?: WriteContext; mode?: 'dry'; service?: RecordWriteService; expect?: (root: Row, adjusted?: readonly AdjustedOrder[]) => void }): Promise<TreeOutcome>;
   /** What the last create or change handed its door. */
   posted(): PostedOutcome[];
   /** An order's figures as stored, each as money text. */
@@ -118,7 +119,7 @@ export function saveWorld(w: PriceWorld): SaveWorld {
         values: bound(target, values),
         context: opts.context ?? STAFF,
         ...(opts.mode === undefined ? {} : { mode: opts.mode }),
-        ...(opts.expect === undefined ? {} : { expect: async (_db, after) => opts.expect!(after) }),
+        ...(opts.expect === undefined ? {} : { expect: async (_db, after, adjusted) => opts.expect!(after, adjusted) }),
         announce: async (outcome) => {
           posted = [...(outcome.postings ?? [])];
         },
@@ -133,6 +134,7 @@ export function saveWorld(w: PriceWorld): SaveWorld {
         root: node(root, root.table, []),
         context: opts.context ?? STAFF,
         mode: opts.mode ?? 'save',
+        ...(opts.expect === undefined ? {} : { expect: async (_db, made, _rows, adjusted) => opts.expect!(made, adjusted) }),
         announce: async () => undefined,
         mapError: (error, at) => {
           if (error !== null && typeof error === 'object') Object.defineProperty(error, 'at', { value: at, enumerable: false, configurable: true });

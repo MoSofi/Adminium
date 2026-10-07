@@ -113,7 +113,7 @@ export interface CreateTreeInput {
    * The root as settled against the price the caller expected, with every row
    * as its totals left it; throws when they differ (a save only).
    */
-  expect?: ((db: Db, root: Row, rows: readonly TreeWritten[]) => Promise<void>) | undefined;
+  expect?: ((db: Db, root: Row, rows: readonly TreeWritten[], adjusted?: readonly AdjustedOrder[]) => Promise<void>) | undefined;
   /** Links a staff form writes with the root, inside the transaction. */
   inside?: ((db: Db, root: Row) => Promise<void>) | undefined;
   /** The retry key, looked up again inside the transaction after the locks (a save only). */

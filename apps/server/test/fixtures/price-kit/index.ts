@@ -293,8 +293,9 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
             fk('category_id', 'categories', { nullable: true }),
             text('tag', 40, { nullable: true }),
             text('kind', 20, { default: 'item' }),
-            money('unit_price', { default: 0 }),
-            { ref: 'qty', type: 'int', default: 1 },
+            // (Bounded, as the manifest asks of what a guest may write into a price.)
+            money('unit_price', { default: 0, rules: { validation: { min: 0, max: 100000 } } }),
+            { ref: 'qty', type: 'int', default: 1, rules: { validation: { min: 0, max: 1000 } } },
             money('amount', { nullable: true, rules: { formula: { mul: ['unit_price', 'qty'] } } }),
             money('discount', { default: 0 }),
             ...(wide ? [money('net', { nullable: true, rules: { formula: { sub: ['amount', 'discount'] } } })] : []),

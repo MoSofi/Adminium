@@ -292,10 +292,11 @@ export class PublicApiError extends Error {
   /** On a `PUBLIC_PRICE_CHANGED`, the total it would have saved and each line's figures; null on any other. */
   get priceChanged(): PriceChanged | null {
     if (this.code !== 'PUBLIC_PRICE_CHANGED') return null;
-    const { total, lines } = this.params;
+    const { total, lines, applied } = this.params;
     return {
       total: typeof total === 'string' ? total : null,
       lines: typeof lines === 'object' && lines !== null ? (lines as Record<string, TreeReplyRow[]>) : {},
+      applied: Array.isArray(applied) ? (applied as AppliedReduction[]) : [],
     };
   }
 
@@ -310,10 +311,12 @@ export interface TreeRefusal {
   reason: string | null;
   /** A group of choices out of bounds (a size left out): the group row's key. */
   group: string | number | null;
+  /** For a code under its minimum (`needs-minimum`): the minimum, as text. Null otherwise. */
+  amount: string | null;
 }
 
 function treeRefusalOf(params: Readonly<Record<string, unknown>>): TreeRefusal {
-  const { child, index, path, column, reason, group } = params;
+  const { child, index, path, column, reason, group, amount } = params;
   return {
     child: typeof child === 'string' ? child : null,
     index: typeof index === 'number' ? index : null,
@@ -321,13 +324,41 @@ function treeRefusalOf(params: Readonly<Record<string, unknown>>): TreeRefusal {
     column: typeof column === 'string' ? column : null,
     reason: typeof reason === 'string' ? reason : null,
     group: typeof group === 'string' || typeof group === 'number' ? group : null,
+    amount: typeof amount === 'string' ? amount : null,
   };
 }
 
-/** What a `PUBLIC_PRICE_CHANGED` says: the total the order came to, and its lines' figures. */
+/** What a `PUBLIC_PRICE_CHANGED` says: the total the order came to, its lines' figures, and the reductions that total has. */
 export interface PriceChanged {
   total: string | null;
   lines: Record<string, TreeReplyRow[]>;
+  /** Empty when the order asks no price of an offers add-on. */
+  applied: AppliedReduction[];
+}
+
+/**
+ * One reduction of an order, as a quote and a save answer it: what it is
+ * called (in the language the request asked for), what kind it is, how much
+ * it takes off, and whether the customer typed it. `line` is the reduced
+ * line's place in the request (`order_lines/2`); null for a reduction spread
+ * over several lines. `codeLast4`: for a voucher, the last four characters
+ * of the code as typed. `name` is empty for a reduction staff gave by hand
+ * (`kind: 'staff'`): the page says its own word for one.
+ */
+export interface AppliedReduction {
+  line: string | null;
+  name: string;
+  kind: 'offer' | 'code' | 'voucher' | 'pack' | 'staff';
+  amount: string;
+  typed: boolean;
+  codeLast4?: string;
+}
+
+/** Said beside a typed code that was not needed: another offer took more off. `column` is where the code was typed (`order_codes/0/typed`). */
+export interface ToldOfCode {
+  column: string;
+  note: 'better-offer-applied';
+  name: string;
 }
 
 /** The rows a create carries below it, by the list name the entry declares; one more level below each. */
@@ -364,6 +395,9 @@ export interface TreeCreated<T = Row> {
   replayed: boolean;
   /** The new row's own link; null on a replay (the email carries it) and where the entry answers none. */
   link: CreatedLink | null;
+  /** The reductions the order was saved with. Empty when it asks no price of an offers add-on. */
+  applied: AppliedReduction[];
+  told: ToldOfCode[];
 }
 
 /**
@@ -392,6 +426,9 @@ export interface Quote<T = Row> {
   exact: boolean;
   /** A row priced by the night (a stay): each night, its rate, and the names of what was added to it. Empty otherwise. */
   nights: QuoteNight[];
+  /** The reductions the order would be saved with. Empty when it asks no price of an offers add-on. */
+  applied: AppliedReduction[];
+  told: ToldOfCode[];
 }
 
 /** One night of a row priced by the night, as a quote answers it. */
@@ -414,6 +451,9 @@ export interface ChangeQuote<T = Row> {
   nights: QuoteNight[];
   /** The rows below it the change moves (extras that follow a stay's nights), as it would leave them, by the ref each is read through. Empty otherwise. */
   children: Record<string, { data: Row }[]>;
+  /** The reductions the row's order would then have. Empty when it asks no price of an offers add-on. */
+  applied: AppliedReduction[];
+  told: ToldOfCode[];
 }
 
 /**
@@ -1433,7 +1473,7 @@ export function createPublicClient(
 
     async createTree<T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string }; replaces?: string }) {
       const out = await withProof('write', ref, (proof) =>
-        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink }>(
+        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink; applied?: AppliedReduction[]; told?: ToldOfCode[] }>(
           `/api/v1/public/records/${ref}`,
           { method: 'POST', body: JSON.stringify(write) },
           proof,
@@ -1445,20 +1485,22 @@ export function createPublicClient(
         rank: typeof out.rank === 'number' ? out.rank : null,
         replayed: out.replayed === true,
         link: linkOf(out.link),
+        applied: out.applied ?? [],
+        told: out.told ?? [],
       };
     },
 
     async quote<T = Row>(ref: string, write: { values: Row; children?: TreeRows }) {
       const out = await request<Partial<Quote<T>> & { data: T }>(`/api/v1/public/records/${ref}/dry-run`, { method: 'POST', body: JSON.stringify(write) });
-      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [], postings: out.postings ?? [] };
+      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [], postings: out.postings ?? [], applied: out.applied ?? [], told: out.told ?? [] };
     },
 
     async quoteChange<T = Row>(ref: string, id: string, values: Row) {
-      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[]; children?: Record<string, { data: Row }[]>; postings?: QuotePosting[] }>(
+      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[]; children?: Record<string, { data: Row }[]>; postings?: QuotePosting[]; applied?: AppliedReduction[]; told?: ToldOfCode[] }>(
         `/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`,
         { method: 'POST', body: JSON.stringify({ values }) },
       );
-      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [], children: out.children ?? {}, postings: out.postings ?? [] };
+      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [], children: out.children ?? {}, postings: out.postings ?? [], applied: out.applied ?? [], told: out.told ?? [] };
     },
 
     async replace<T = Row>(ref: string, id: string, values: Row) {

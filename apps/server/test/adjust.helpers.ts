@@ -184,7 +184,7 @@ export async function seedOffers(world: PriceWorld, options: { timeless?: boolea
   await add('Welcome 10', { public_name: { 'en-US': 'Welcome 10', 'de-DE': 'Willkommen 10' }, kind: 'percent', value: '10.00', trigger: 'code', scope: 'order', max_per_customer: 1, starts_on: '2026-08-01' });
   await add('Monday mugs', { kind: 'percent', value: '15.00', trigger: 'auto', scope: 'lines', target_as: 'category', target_table: categories, target_row: String(world.categories['Mugs']), weekdays: '1', starts_on: '2026-09-14' });
   await add('Tote pair', { kind: 'bonus_item', trigger: 'auto', scope: 'lines', target_as: 'category', target_table: categories, target_row: String(world.categories['Bags']), buy_qty: 2, starts_on: '2026-09-24' });
-  await add('Autumn 5', { kind: 'amount', value: '5.00', trigger: 'code', scope: 'order', min_spend: '30.00', max_uses: 100, uses: 20, starts_on: '2026-09-14', ends_on: '2026-11-30' });
+  await add('Autumn 5', { public_name: { 'en-US': 'Autumn 5', 'de-DE': 'Herbst 5' }, kind: 'amount', value: '5.00', trigger: 'code', scope: 'order', min_spend: '30.00', max_uses: 100, uses: 20, starts_on: '2026-09-14', ends_on: '2026-11-30' });
   await add('Launch week', { kind: 'percent', value: '20.00', trigger: 'code', scope: 'order', max_uses: 50, uses: 50, starts_on: '2026-09-01', ends_on: '2026-09-30' });
   await add('Summer close-out', { status: 'ended', kind: 'percent', value: '25.00', trigger: 'auto', scope: 'order', starts_on: '2026-07-01', ends_on: '2026-08-31' });
   const codes: Record<string, number> = {};

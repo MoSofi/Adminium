@@ -35,7 +35,28 @@ describe('a create with its child rows', () => {
     const made = await client.createTree('orders', { ...ORDER, expect: { total: '34.64' } });
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders');
     expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ ...ORDER, expect: { total: '34.64' } });
-    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null });
+    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null, applied: [], told: [] });
+  });
+
+  it('reads which reductions an order has, from the quote, the save and a changed price; and the minimum of a code under it', async () => {
+    const applied = [
+      { line: 'order_lines/1', name: 'Tote pair', kind: 'offer', amount: '15.00', typed: false },
+      { line: null, name: 'Welcome 10', kind: 'code', amount: '4.95', typed: true },
+      { line: null, name: 'Voucher', kind: 'voucher', amount: '5.00', typed: true, codeLast4: 'Q4XP' },
+    ];
+    const told = [{ column: 'order_codes/1/typed', note: 'better-offer-applied', name: 'Autumn 5' }];
+    const { client } = over((url) => (url.endsWith('/dry-run') ? { data: { total: '48.11' }, exact: true, applied, told } : new Response(JSON.stringify({ data: { id: 7, total: '48.11' }, applied, told }), { status: 201 })));
+    expect(await client.quote('orders', ORDER)).toMatchObject({ applied, told });
+    expect(await client.createTree('orders', ORDER)).toMatchObject({ applied, told });
+    expect(await client.quoteChange('lines', '7', { qty: 3 })).toMatchObject({ applied, told });
+    const priced = await over(() => refusal(409, 'PUBLIC_PRICE_CHANGED', { total: '53.46', lines: {}, applied: applied.slice(0, 1) }))
+      .client.createTree('orders', ORDER)
+      .catch((error: unknown) => error as PublicApiError);
+    expect(priced.priceChanged).toEqual({ total: '53.46', lines: {}, applied: applied.slice(0, 1) });
+    const under = await over(() => refusal(400, 'PUBLIC_WRITE_REFUSED', { child: 'order_codes', index: 0, path: ['order_codes', 0], column: 'typed', reason: 'needs-minimum', amount: '30.00' }))
+      .client.createTree('orders', ORDER)
+      .catch((error: unknown) => error as PublicApiError);
+    expect(under.refused).toMatchObject({ column: 'typed', reason: 'needs-minimum', amount: '30.00' });
   });
 
   it('knows a retry answered with the order already made', async () => {
@@ -49,9 +70,9 @@ describe('a create with its child rows', () => {
     );
     const quote = await client.quote('orders', ORDER);
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders/dry-run');
-    expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true, nights: [], postings: [] });
+    expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true, nights: [], postings: [], applied: [], told: [] });
     // A change the app's own code runs for: the quote says the save may come out otherwise.
-    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false, nights: [], children: {}, postings: [] });
+    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false, nights: [], children: {}, postings: [], applied: [], told: [] });
     expect(calls[1]!.url).toBe('https://x/api/v1/public/records/lines/7/dry-run');
   });
 
@@ -86,12 +107,12 @@ describe('a create with its child rows', () => {
     )
       .client.createTree('orders', ORDER)
       .catch((error: unknown) => error as PublicApiError);
-    expect(refused.refused).toEqual({ child: 'order_item_modifiers', index: 0, path: ['order_items', 0, 'order_item_modifiers', 0], column: 'modifier_id', reason: 'not-offered', group: null });
+    expect(refused.refused).toEqual({ child: 'order_item_modifiers', index: 0, path: ['order_items', 0, 'order_item_modifiers', 0], column: 'modifier_id', reason: 'not-offered', group: null, amount: null });
     expect(refused.priceChanged).toBeNull();
     const priced = await over(() => refusal(409, 'PUBLIC_PRICE_CHANGED', { total: '90.00', lines: { tickets: [{ data: { price: '45.00' } }] } }))
       .client.createTree('orders', ORDER)
       .catch((error: unknown) => error as PublicApiError);
-    expect(priced.priceChanged).toEqual({ total: '90.00', lines: { tickets: [{ data: { price: '45.00' } }] } });
+    expect(priced.priceChanged).toEqual({ total: '90.00', lines: { tickets: [{ data: { price: '45.00' } }] }, applied: [] });
     const gone = await over(() => refusal(409, 'PUBLIC_SOLD_OUT', { child: 'tickets', index: 1, path: ['tickets', 1] }))
       .client.createTree('orders', ORDER)
       .catch((error: unknown) => error as PublicApiError);

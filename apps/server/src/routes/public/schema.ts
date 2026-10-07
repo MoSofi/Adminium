@@ -201,8 +201,31 @@ export const publicListShapes = z.union([
   z.record(z.string(), z.unknown()),
 ]);
 
+/**
+ * The reductions a price came to, one named entry each, in the reader's
+ * language: a name, a kind, an amount, whether they typed it, and for a
+ * voucher the last four characters of what was typed. `line` is the reduced
+ * line's place (`order_lines/2`), or null for one over several lines. What
+ * staff took off by hand (`kind: 'staff'`) has an empty name here.
+ */
+export const publicApplied = z.array(
+  z.object({
+    line: z.string().nullable(),
+    name: z.string(),
+    kind: z.enum(['offer', 'code', 'voucher', 'pack', 'staff']),
+    amount: z.string(),
+    typed: z.boolean(),
+    codeLast4: z.string().optional(),
+  }),
+);
+/** Said beside a typed code that was not needed: another offer was better. */
+export const publicTold = z.array(z.object({ column: z.string(), note: z.literal('better-offer-applied'), name: z.string() }));
+
 export const publicRecordReply = z.object({
   data: z.record(z.string(), z.unknown()),
+  /** Which reductions the row's order has, when the write asked its price. */
+  applied: publicApplied.optional(),
+  told: publicTold.optional(),
   /**
    * A create on an endpoint that ranks: how many matching rows are ordered at
    * or before the new one ("you are 3rd on the list"). No other row is told.
@@ -328,6 +351,8 @@ export const publicPostingAnswers = z.array(
 
 /** A dry run's reply: every figure a save would write, and how the limits it takes from stand. */
 export const publicDryRunReply = z.object({
+  applied: publicApplied.optional(),
+  told: publicTold.optional(),
   postings: publicPostingAnswers.optional(),
   data: z.record(z.string(), z.unknown()),
   children: publicTreeReplyChildren.optional(),
@@ -340,6 +365,8 @@ export const publicDryRunReply = z.object({
 
 /** A dry run of a change: the row as the change would leave it. */
 export const publicChangeQuoteReply = z.object({
+  applied: publicApplied.optional(),
+  told: publicTold.optional(),
   postings: publicPostingAnswers.optional(),
   data: z.record(z.string(), z.unknown()),
   /** False when a before hook runs on the change: a dry run runs none, so the save may differ. */

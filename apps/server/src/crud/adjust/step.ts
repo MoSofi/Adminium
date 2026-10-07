@@ -47,7 +47,7 @@ import { venueClock } from '../venue-time.js';
 import type { WriteClock } from '../write-clock.js';
 import type { WriteAction, WriteActor, WriteContext, WriteTarget } from '../write-context.js';
 import { bindWriteValue, booleanOf, sameValue } from '../write-values.js';
-import { adjustWords, refusalOf, type RefusedCode } from './answers.js';
+import { adjustWords, publicReason, refusalOf, type RefusedCode } from './answers.js';
 import { checkAdjust } from './check.js';
 import { AdjustTooLarge, adjustCodeOf, adjustLineOf, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
 import { frozenNow, moved, touched, type CompiledAdjust } from './rule.js';
@@ -180,6 +180,8 @@ export interface AdjustRun {
   clock: WriteClock;
   /** The reader's language, for a name the answer gives in several. */
   locale?: string | undefined;
+  /** The save checks the price it was shown (`expect`): a code that no longer stands is held back for that check to answer. */
+  expects?: boolean | undefined;
 }
 
 export interface AdjustResult {
@@ -197,6 +199,12 @@ export interface AdjustResult {
   codes: LoadedCode[];
   /** What the call wrote on the order's own row: its reduction, and its formulas that read one. */
   wrote: Row;
+  /** The decimals the order's reduction is kept at. */
+  places: number;
+  /** Where codes are typed on the order: the table, the column, and the row each typed value is on (null for one only tried). */
+  typed?: { table: string; column: string; rows: { typed: string; key: string | null }[] };
+  /** A code's refusal held back for the save's price check (see `expects`): raised by the caller when the price is as expected without it. */
+  heldBack?: Error;
 }
 
 /** One order a save priced: the answer, and which order it was. */
@@ -225,6 +233,16 @@ export const adjustOrigin = (context: Pick<WriteContext, 'origin'>): 'staff' | '
 
 /** The longest a typed code is handed on, as it was typed: what the add-on's answer may say back of one. */
 const TYPED_MAX = 64;
+
+/**
+ * The language a name is kept in where the add-on's column holds one name and
+ * not a name per language: one, whoever saves — a reply names a reduction in
+ * its reader's language from the answer, never from the stored row.
+ */
+const STORED_LOCALE = 'en-US';
+
+/** The reasons a code can come to be refused for between the price being shown and the save: what a price check answers in their place. */
+const TURNS: ReadonlySet<string> = new Set(['used-up', 'over-limit', 'expired', 'inactive', 'void', 'not-yet']);
 
 const empty = (value: unknown): boolean => value === null || value === undefined || value === '';
 /** Whether a stored value is what a formula now works out: the same value, or the same number however it is written. */
@@ -450,7 +468,8 @@ export function createAdjuster(kit: AdjustKit) {
       zone,
       currency: empty(said) ? currency : String(said),
       scale: places,
-      locale: input.locale ?? 'en-US',
+      // (As a language is named in what an add-on keeps: `de-DE`.)
+      locale: (input.locale ?? input.context.adjust?.locale ?? 'en-US').replace('_', '-'),
       lines: handed,
       codes: codes.map((code) => adjustCodeOf(adjuster, code)),
       customer: person,
@@ -462,13 +481,6 @@ export function createAdjuster(kit: AdjustKit) {
       version: adjuster.version,
     };
 
-    let answer: AdjustOutput;
-    try {
-      answer = callDecider('adjust', decider, question, { shape: adjustOutputSchema }) as AdjustOutput;
-    } catch (error) {
-      if (error instanceof DeciderFailed) throw new AdjustFailed(error.cause, error.detail);
-      throw error;
-    }
     // The rows read for this call: an answer may name no other.
     const first = adjuster.declared.offers[0];
     const offerKeys = new Map<string, unknown>();
@@ -480,18 +492,58 @@ export function createAdjuster(kit: AdjustKit) {
     const rawKey = (code: LoadedCode): unknown => code.found?.[code.table?.primaryKey[0] ?? 'id'];
     const codeKeys = new Map(codes.flatMap((code) => (code.kind === 'code' && code.id !== null ? [[code.id, rawKey(code)] as const] : [])));
     const voucherKeys = new Map(codes.flatMap((code) => (code.kind === 'voucher' && code.id !== null ? [[code.id, rawKey(code)] as const] : [])));
-    const issue = checkAdjust(question, answer, { offers: new Set(offerKeys.keys()), codes: new Set(codeKeys.keys()), vouchers: new Set(voucherKeys.keys()) });
-    if (issue !== null) throw new AdjustFailed('check', issue.slice(0, 200));
-
-    // A code, or a reduction staff gave, that does not stand refuses the write: on the column it was typed into.
-    const refused = answer.refused[0] as RefusedCode | undefined;
-    if (refused !== undefined) {
+    /** The add-on asked, and its answer checked before anything is read from it. */
+    const ask = (asked: AdjustInput): AdjustOutput => {
+      let said: AdjustOutput;
+      try {
+        said = callDecider('adjust', decider, asked, { shape: adjustOutputSchema }) as AdjustOutput;
+      } catch (error) {
+        if (error instanceof DeciderFailed) throw new AdjustFailed(error.cause, error.detail);
+        throw error;
+      }
+      const issue = checkAdjust(asked, said, { offers: new Set(offerKeys.keys()), codes: new Set(codeKeys.keys()), vouchers: new Set(voucherKeys.keys()) });
+      if (issue !== null) throw new AdjustFailed('check', issue.slice(0, 200));
+      return said;
+    };
+    /** The refusal of the first thing an answer refused: what staff gave on its own column; a code on the column it was typed into, with the row it is on. */
+    const refusalIn = (said: AdjustOutput): Error | null => {
+      const refused = said.refused[0] as RefusedCode | undefined;
+      if (refused === undefined) return null;
       const typedIn = codes.find((code) => code.typed === refused.typed);
       const at = typedIn === undefined ? undefined : codeAt(view, adjust, typedIn);
-      // What staff gave is refused on its own column; a code on the column it was typed into, with the row it is on.
-      if (refused.reason === 'over-ceiling' || adjust.codes === undefined || at === undefined) throw refusalOf(origin, refused, adjust.rule.order.staff?.value ?? adjust.rule.order.discount);
-      throw refusalOf(origin, refused, adjust.codes.typed, at);
+      if (refused.reason === 'over-ceiling' || adjust.codes === undefined || at === undefined) return refusalOf(origin, refused, adjust.rule.order.staff?.value ?? adjust.rule.order.discount);
+      return refusalOf(origin, refused, adjust.codes.typed, at);
+    };
+    let answer = ask(question);
+    // A code, or a reduction staff gave, that does not stand refuses the write.
+    let refusal = refusalIn(answer);
+    /**
+     * In a save that checks the price it was shown, a code that stood when the
+     * price was shown and does not now (its uses ran out, it ended) is not
+     * refused yet: the order is priced without it, and the price check says the
+     * price changed. Only when the price is the same without it — the code was
+     * worth nothing — is the refusal raised after all, by the caller.
+     */
+    let heldBack: Error | undefined;
+    /**
+     * Which refusals a price check answers. At the desk: the ones that can
+     * turn. For a customer: every refusal they would hear as "not a valid
+     * code" — a code that never was is answered exactly as one that ran out,
+     * so a price check sent on purpose tells the two apart no better than the
+     * refusal itself does.
+     */
+    const answeredByCheck = (reason: string): boolean => (origin === 'public' ? publicReason(reason) === 'unknown' : TURNS.has(reason));
+    let asked = question;
+    // Each such code in its turn: a second one beside it is held back as the first was.
+    for (let held = 0; refusal !== null && input.expects === true && input.mode === 'save' && held < question.codes.length; held += 1) {
+      const turned = answer.refused[0];
+      if (turned === undefined || turned.typed === '' || !answeredByCheck(turned.reason)) break;
+      heldBack ??= refusal;
+      asked = { ...asked, codes: asked.codes.filter((code) => code.typed !== turned.typed) };
+      answer = ask(asked);
+      refusal = refusalIn(answer);
     }
+    if (refusal !== null) throw refusal;
 
     // Each row's reduction, where it differs from what is stored — with the row's formulas that read it. A row that is no line any more gives its reduction back.
     const reduced = new Map(answer.lines.map((line) => [line.key, line.discount]));
@@ -543,7 +595,7 @@ export function createAdjuster(kit: AdjustKit) {
     if (input.mode === 'save') {
       const key = (id: string | null, known: ReadonlyMap<string, unknown>): unknown => (id === null ? null : (known.get(id) ?? id));
       try {
-        await writeApplied(trx, input, answer.applied, { table: refOf(target.table.id), row: String(order[adjust.key]) }, { now, locale: question.locale, places }, {
+        await writeApplied(trx, input, answer.applied, { table: refOf(target.table.id), row: String(order[adjust.key]) }, { now, locale: STORED_LOCALE, places }, {
           offer: (id) => key(id, offerKeys),
           code: (id) => key(id, codeKeys),
           voucher: (id) => key(id, voucherKeys),
@@ -554,7 +606,11 @@ export function createAdjuster(kit: AdjustKit) {
         throw error;
       }
     }
-    return { applied: answer.applied, told: answer.told ?? [], uses: answer.uses, discount: answer.order.discount, lines: outLines, changedLines, codes, wrote };
+    const typed =
+      adjust.codes === undefined
+        ? undefined
+        : { table: view.table(adjust.codes.table).id, column: adjust.codes.typed, rows: codes.map((code) => ({ typed: code.typed, key: codeAt(view, adjust, code)?.key ?? null })) };
+    return { applied: answer.applied, told: answer.told ?? [], uses: answer.uses, discount: answer.order.discount, lines: outLines, changedLines, codes, wrote, places, ...(typed === undefined ? {} : { typed }), ...(heldBack === undefined ? {} : { heldBack }) };
   }
 
   /** An order table's own rule with its add-on as it stands now, when the rule is live; null otherwise. Refuses nothing. */

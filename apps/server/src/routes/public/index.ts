@@ -64,6 +64,8 @@ import { publicConfigOf, type CompiledResource, type CompiledScope, type PublicA
 import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
+import { priceAnswer, type PriceAnswer } from '../../crud/adjust/replies.js';
+import type { AdjustedOrder } from '../../crud/adjust/step.js';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placeheldTexts, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
@@ -341,7 +343,11 @@ class PublicSlotRefused extends Error {
  * it would have saved, and its rows' figures. Nothing was written.
  */
 class PublicPriceChanged extends Error {
-  constructor(readonly params: { total: string | null; lines?: Record<string, unknown> }) {
+  constructor(
+    readonly params: { total: string | null; lines?: Record<string, unknown>; applied?: unknown; told?: unknown },
+    /** A code typed stood when the price was shown and does not now: a guess, spent. */
+    readonly missed = false,
+  ) {
     super('The price changed. Nothing was saved.');
   }
 }
@@ -610,12 +616,15 @@ function asCard(named: { column?: string | undefined; reason: string } | null, c
 }
 
 /** The first refused field of a check the caller may be told of, or null. */
-function namedIn(fields: unknown, told: Told): { column: string; reason: string } | null {
+function namedIn(fields: unknown, told: Told): { column: string; reason: string; amount?: string } | null {
   if (typeof fields !== 'object' || fields === null) return null;
   for (const [column, issue] of Object.entries(fields as Record<string, unknown>)) {
     const code = typeof issue === 'object' && issue !== null ? (issue as { code?: unknown }).code : undefined;
     // Only a column this caller could have sent: one the entry fills itself is not theirs to hear of.
-    if (typeof code === 'string' && told.reasons.has(code) && told.writable.has(column)) return { column, reason: code };
+    if (typeof code !== 'string' || !told.reasons.has(code) || !told.writable.has(column)) continue;
+    // A code under its minimum says the minimum: the one figure a refused code tells.
+    const amount = code === 'needs-minimum' ? (issue as { amount?: unknown }).amount : undefined;
+    return { column, reason: code, ...(typeof amount === 'string' ? { amount } : {}) };
   }
   return null;
 }
@@ -907,10 +916,35 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     actor: { kind: 'public', id: null, label: `public:${ok.key.keyId}` },
     request,
     claimed: await claimedRowOf(ok),
-    ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
-      ? {}
-      : { adjust: { proved: { table: entry.table, column: entry.claim.column, link: ok.session.grant.value } } }),
+    adjust: {
+      ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
+      ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
+        ? {}
+        : { proved: { table: entry.table, column: entry.claim.column, link: ok.session.grant.value } }),
+    },
   });
+
+  /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
+  /**
+   * A customer is told of the order their own write made or changed, and of
+   * no other: a line changed on an order somebody else may read answers
+   * nothing of that order's reductions. A line is named by its place in what
+   * they sent, or not at all; what staff took off by hand has no name here.
+   */
+  const pricedAs = async (
+    request: FastifyRequest,
+    adjusted: readonly AdjustedOrder[] | undefined,
+    own: { tree: readonly TreeWritten[] } | { table: ResolvedTable; pk: Row },
+  ): Promise<PriceAnswer> => {
+    const mine = (adjusted ?? []).filter((one) =>
+      'tree' in own
+        ? own.tree.some((row) => row.node.target.table.id === one.table && row.node.target.table.primaryKey.length === 1 && String(row.record[row.node.target.table.primaryKey[0]!]) === String(one.key))
+        : own.table.id === one.table && own.table.primaryKey.length === 1 && String(own.pk[own.table.primaryKey[0]!]) === String(one.key),
+    );
+    if (mine.length === 0) return {};
+    const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+    return priceAnswer(mine, { locale, nameOf: () => null, guest: true, ...('tree' in own ? { tree: own.tree } : {}) });
+  };
 
   /** The signed-in person's row, or null. */
   const claimedRowOf = async (ok: { key: ResolvedKey; session: PublicSessionContext | null }): Promise<Row | null> => {
@@ -2618,6 +2652,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if (!dry && retryKey !== null) {
         const before = await replay(found.db);
         if (before !== null) {
+          // No code was looked up: the guess is handed back, and the codes sent are not remembered as codes that worked.
+          guesses.forget(request);
           const shown = await asMade(before.rows, before.root);
           return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? before.root), children: projectChildren(shown), replayed: true as const });
         }
@@ -2827,11 +2863,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           ...(dry || expected === undefined || expectColumn === null
             ? {}
             : {
-                expect: async (_db, saved, rows) => {
+                expect: async (_db, saved, rows, adjusted) => {
                   const places = placesOfColumn(view, table, expectColumn);
                   if (sameDecimal(saved[expectColumn], expected.total, places)) return;
                   const total = toRatio(saved[expectColumn]);
-                  throw new PublicPriceChanged({ total: total === null ? null : ratioText(total, places), lines: projectChildren(rows) });
+                  throw new PublicPriceChanged(
+                    { total: total === null ? null : ratioText(total, places), lines: projectChildren(rows), ...(await pricedAs(request, adjusted, { tree: rows })) },
+                    adjusted?.some((one) => one.heldBack !== undefined) === true,
+                  );
                 },
               }),
           ...(retryKey === null ? {} : { replay }),
@@ -2862,6 +2901,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const took = carried as { subject: string } | null;
         if (took !== null && page !== null) await sessions.rebindFrom(page.id, took.subject, page.before);
         if (guessing) spendMiss(request, ok, error);
+        // A code that stood when the price was shown and does not now: the price check answers, and the guess is spent all the same.
+        if (error instanceof PublicPriceChanged && error.missed) guesses.missed(request);
         // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']) && error.params['reason'] !== 'used-up';
         if (own) await release?.();
@@ -2875,6 +2916,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       }
 
       if (outcome.replayed) {
+        guesses.forget(request);
         const shown = await asMade(outcome.rows, outcome.root);
         return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root), children: projectChildren(shown), replayed: true as const });
       }
@@ -2894,7 +2936,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // What each ledger would say — and a card not valid is a guess spent, quote or not.
         const told = publicPostings(outcome.postings);
         if (told?.some((one) => one.reason === 'not-valid') === true) guesses.missed(request);
-        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }) });
+        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })) });
       }
       // The person the address made, heard of once the whole write has committed.
       const made = madePerson as Row | null;
@@ -2907,7 +2949,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const rank = await rankOf(found, outcome.root);
       // The new row's own link, answered this once (a retry answers the rows, never the link).
       const link = shareLink === null ? null : await ownLinkOf(ok, view, table, outcome.root, shareLink, carried);
-      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }) });
+      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })) });
     };
 
     app.options('/public/claim', { schema: { hide: true } }, preflight);
@@ -2957,9 +2999,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
-        const typedCodes = typesCode(found.table, values);
+        const typedCodes = typesCode(found.table, values, found.view);
         const guessing = typedCodes.length > 0;
-        if (guessing && !admitGuess(request, reply, ok, typedCodes, writeRung(found.table, values))) return reply;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes, writeRung(found.table, values, found.view))) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
         // A signed-in person may hold only so many open rows: a found session
@@ -3243,9 +3285,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
-        const typedCodes = typesCode(found.table, values);
+        const typedCodes = typesCode(found.table, values, found.view);
         const guessing = typedCodes.length > 0;
-        if (guessing && !admitGuess(request, reply, ok, typedCodes, writeRung(found.table, values))) return reply;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes, writeRung(found.table, values, found.view))) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this change needs is missing.', { column: missing });
         // A child's references are fixed when it is made: a change never moves it under another parent.
@@ -3462,11 +3504,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             ...(expected === undefined || expectColumn === null
               ? {}
               : {
-                  expect: async (_db: Kysely<SourceDatabase>, after: Row) => {
+                  expect: async (_db: Kysely<SourceDatabase>, after: Row, adjusted?: readonly AdjustedOrder[]) => {
                     const places = placesOfColumn(found.view, found.table, expectColumn);
                     if (sameDecimal(after[expectColumn], expected.total, places)) return;
                     const total = toRatio(after[expectColumn]);
-                    throw new PublicPriceChanged({ total: total === null ? null : ratioText(total, places) });
+                    throw new PublicPriceChanged({ total: total === null ? null : ratioText(total, places), ...(await pricedAs(request, adjusted, { table: found.table, pk })) }, adjusted?.some((one) => one.heldBack !== undefined) === true);
                   },
                 }),
             announce: async ({ before, after, effects, postings }) => {
@@ -3514,6 +3556,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // Nothing was sent on: what the limits counted for it is handed back.
           await releaseLimits?.();
           if (guessing) spendMiss(request, ok, error);
+          if (error instanceof PublicPriceChanged && error.missed) guesses.missed(request);
           if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
@@ -3592,9 +3635,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 });
           const told = publicPostings(outcome.postings);
           if (told?.some((one) => one.reason === 'not-valid') === true) guesses.missed(request);
-          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }), ...(told === undefined ? {} : { postings: told }) });
+          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, outcome.adjusted, { table: found.table, pk })) });
         }
-        return reply.send({ data });
+        return reply.send({ data, ...(await pricedAs(request, outcome.adjusted, { table: found.table, pk })) });
       };
 
     app.patch(
@@ -3892,7 +3935,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         const { resource, table } = found;
         // A code a guest types is tried one write at a time, where each miss is counted.
-        if (rows.some((row) => typesCode(table, row as Row).length > 0)) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A code is applied one write at a time.');
+        if (rows.some((row) => typesCode(table, row as Row, found.view).length > 0)) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A code is applied one write at a time.');
 
         const refuseRow = (index: number, message: string, named: { column: string; reason: string } | null = null) =>
           fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index, ...(named ?? {}) });
