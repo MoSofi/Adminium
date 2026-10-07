@@ -72,6 +72,7 @@ import { up as up0047 } from './0047_mysql_longtext.js';
 import { up as up0048 } from './0048_public_key_peak.js';
 import { up as up0049 } from './0049_project_apps.js';
 import { up as up0050 } from './0050_catalog_default.js';
+import { up as up0051 } from './0051_automation_ownership.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -131,4 +132,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0048_public_key_peak', up: up0048 },
   { name: '0049_project_apps', up: up0049 },
   { name: '0050_catalog_default', up: up0050 },
+  { name: '0051_automation_ownership', up: up0051 },
 ];

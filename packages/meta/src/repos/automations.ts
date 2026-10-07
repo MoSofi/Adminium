@@ -48,6 +48,10 @@ export interface Automation {
   watchCursor: AutomationWatchCursor | null;
   timeSavedMinutes: number | null;
   createdBy: string | null;
+  /** The app or add-on that shipped the rule; null for an owner's own. */
+  managedBy: string | null;
+  templateKey: string | null;
+  contentHash: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -63,6 +67,10 @@ export interface CreateAutomationInput {
   nextRunAt?: number | null | undefined;
   timeSavedMinutes?: number | null | undefined;
   createdBy?: string | null | undefined;
+  /** A rule a manifest ships: its manifest's key and the rule's own name there. */
+  managedBy?: string | null | undefined;
+  templateKey?: string | null | undefined;
+  contentHash?: string | null | undefined;
 }
 
 export interface UpdateAutomationInput {
@@ -97,6 +105,9 @@ function decode(row: Selectable<AdminiumAutomationsTable>): Automation {
     watchCursor: cursor === null ? null : automationWatchCursorSchema.parse(cursor),
     timeSavedMinutes: row.timeSavedMinutes,
     createdBy: row.createdBy,
+    managedBy: row.managedBy ?? null,
+    templateKey: row.templateKey ?? null,
+    contentHash: row.contentHash ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -143,6 +154,9 @@ export function automationsRepo(meta: MetaDb) {
         watchCursor: null,
         timeSavedMinutes: input.timeSavedMinutes ?? null,
         createdBy: input.createdBy ?? null,
+        managedBy: input.managedBy ?? null,
+        templateKey: input.templateKey ?? null,
+        contentHash: input.contentHash ?? null,
         createdAt: at,
         updatedAt: at,
       };
@@ -187,6 +201,19 @@ export function automationsRepo(meta: MetaDb) {
         .executeTakeFirst();
       if (affected(res.numUpdatedRows) === 0) return null;
       return findById(id);
+    },
+
+    /** The rules one manifest shipped onto one database, oldest first. */
+    async listManagedBy(managedBy: string, connectionId: string | null): Promise<Automation[]> {
+      let query = db.selectFrom('adminium_automations').selectAll().where('managedBy', '=', managedBy);
+      query = connectionId === null ? query.where('connectionId', 'is', null) : query.where('connectionId', '=', connectionId);
+      const rows = await query.orderBy('createdAt', 'asc').orderBy('id', 'asc').execute();
+      return rows.map(decode);
+    },
+
+    /** The fingerprint of what was written for the manifest; `updatedAt` is left alone, so a re-hash is no edit. */
+    async setHash(id: string, contentHash: string | null): Promise<void> {
+      await db.updateTable('adminium_automations').set({ contentHash }).where('id', '=', id).execute();
     },
 
     async remove(id: string): Promise<boolean> {

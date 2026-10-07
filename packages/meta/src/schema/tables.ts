@@ -587,6 +587,12 @@ export interface AdminiumAutomationsTable {
   /** The comp's ROI segment; NULL = not stated (0028, 42 F6). */
   timeSavedMinutes: number | null;
   createdBy: Id | null;
+  /** The app or add-on that shipped the rule (its manifest key); NULL for a rule an owner made (0051). */
+  managedBy: string | null;
+  /** The name the manifest gave the rule; one a manifest and a database (0051). */
+  templateKey: string | null;
+  /** A fingerprint of what was written for the manifest: a rule that no longer matches it was edited (0051). */
+  contentHash: string | null;
   createdAt: Ts;
   updatedAt: Ts;
 }
