@@ -73,17 +73,23 @@ import {
   HOST_API_VERSION,
   installAddOnRuntime,
   type AddOnAppNamespace,
+  type AddOnHostApi,
 } from '@adminium/add-on-contracts/runtime';
 
 let installing: Promise<void> | null = null;
+/** The one host object: the data kit is put on it when a page first needs it. */
+let host: AddOnHostApi | null = null;
+let kit: Promise<void> | null = null;
 
-export function ensureAddOnRuntime(): Promise<void> {
+/**
+ * Publishes the host API once. With `data`, the data kit too — its own chunk,
+ * fetched the first time a page built on it is opened and put on the SAME
+ * host object, so a page built before the kit never pays for it and the
+ * host's own version never moves.
+ */
+export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<void> {
   installing ??= Promise.resolve().then(() => {
-    installAddOnRuntime({
-      react: React as unknown as Readonly<Record<string, unknown>>,
-      jsx: { jsx, jsxs, Fragment },
-      reactDom: ReactDOM as unknown as Readonly<Record<string, unknown>>,
-      host: {
+    host = {
         version: HOST_API_VERSION,
         ui: { Alert, AutosaveIndicator, Badge, Button, EmptyState, IconButton, Modal, ModalBody, ModalFooter, ModalHeader, Popover, PopoverContent, PopoverTrigger, SearchInput, SegmentedControl, Spinner, Tabs, TabsContent, TabsList, TabsTrigger, Tag, cn },
         router: { useBlocker, useNavigate, useParams, useSearch },
@@ -115,13 +121,29 @@ export function ensureAddOnRuntime(): Promise<void> {
           useAppToasts,
           useShortcut,
         } satisfies AddOnAppNamespace,
-      },
+    };
+    installAddOnRuntime({
+      react: React as unknown as Readonly<Record<string, unknown>>,
+      jsx: { jsx, jsxs, Fragment },
+      reactDom: ReactDOM as unknown as Readonly<Record<string, unknown>>,
+      host,
     });
   });
-  return installing;
+  if (options.data !== true) return installing;
+  kit ??= installing.then(async () => {
+    const { dataKit } = await import('./data-kit/index.js');
+    (host as { data?: AddOnHostApi['data'] }).data = dataKit;
+  });
+  // A chunk that would not load is asked for again by the next page that needs it.
+  kit.catch(() => {
+    kit = null;
+  });
+  return kit;
 }
 
 /** Test seam. */
 export function resetAddOnRuntime(): void {
   installing = null;
+  host = null;
+  kit = null;
 }

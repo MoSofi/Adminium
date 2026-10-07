@@ -21,12 +21,19 @@
  * another tab should not be permanently broken in this one.
  */
 
+import { AddOnHostTooOld } from '@adminium/add-on-contracts/runtime';
+
 export interface AddOnModuleRef {
   /** `/api/v1/add-ons/<key>/bundle/<path>`, from the add-ons list reply. */
   url: string;
   /** `sha256-…`, recorded at unpack and re-checked on every read. */
   integrity: string;
+  /** What the add-on's pages are built against (the add-ons list says): 2 also needs the data kit. Absent: 1. */
+  hostApi?: number | undefined;
 }
+
+/** The host API versions this dashboard serves pages of. */
+export const HOST_APIS_SERVED: readonly number[] = [1, 2];
 
 export type ImportModule = (url: string) => Promise<unknown>;
 
@@ -69,8 +76,10 @@ export function loadAddOnModule(ref: AddOnModuleRef): Promise<unknown> {
   if (existing !== undefined) return existing;
   const pending = (async () => {
     // The runtime first: a bundle reads it as its first module initialises.
+    // A page built against something this dashboard does not publish is not fetched at all.
+    if (ref.hostApi !== undefined && !HOST_APIS_SERVED.includes(ref.hostApi)) throw new AddOnHostTooOld(ref.hostApi, null);
     const { ensureAddOnRuntime } = await import('./runtime.js');
-    await ensureAddOnRuntime();
+    await ensureAddOnRuntime({ data: ref.hostApi === 2 });
     preload(ref);
     const mod = (await importModule(ref.url)) as { default?: unknown } | null;
     return mod?.default;

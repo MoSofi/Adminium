@@ -32,6 +32,7 @@ import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { addOnMessagesReady } from './addOnMessages.js';
 import { isComponent, loadAddOnModule } from './client.js';
+import { AddOnKeyContext } from './data-kit/context.js';
 
 /** What an add-on page module's default export must be: a component. */
 type PageComponent = (props: Record<string, never>) => ReactNode;
@@ -99,7 +100,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
     if (bundle === undefined) return;
     let alive = true;
     setState({ status: 'loading' });
-    loadAddOnModule({ url: bundle.url, integrity: bundle.integrity }).then(
+    loadAddOnModule({ url: bundle.url, integrity: bundle.integrity, hostApi: installed?.hostApi }).then(
       (value) => {
         if (!alive) return;
         if (!isComponent(value)) {
@@ -120,7 +121,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
     return () => {
       alive = false;
     };
-  }, [bundle?.url, bundle?.integrity, attempt]);
+  }, [bundle?.url, bundle?.integrity, installed?.hostApi, attempt]);
 
   // Still asking which bundles this add-on ships.
   if (addOns.isPending) {
@@ -169,6 +170,23 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
     );
   }
 
+  /*
+   * The page was built for a newer Adminium than this one: for a host API this
+   * dashboard does not publish, or a data kit newer than its own. Said as what
+   * it is — an update opens it, a retry does not — and never as a broken file.
+   */
+  if (state.status === 'failed' && state.error.name === 'AddOnHostTooOld') {
+    return (
+      <Failed
+        title={t('addOns:tooOld.title', 'This page needs a newer Adminium')}
+        body={t(
+          'addOns:tooOld.body',
+          'This add-on\'s page was built for a newer version of Adminium than this one. Updating Adminium is what opens it; nothing from the page has been run.',
+        )}
+      />
+    );
+  }
+
   if (state.status === 'failed') {
     return (
       <Failed
@@ -204,7 +222,10 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
           </div>
         }
       >
-        <Page />
+        {/* Whose page this is: the data kit's hooks read it to know whose tables a short name means. */}
+        <AddOnKeyContext.Provider value={page.addOnKey}>
+          <Page />
+        </AddOnKeyContext.Provider>
       </Suspense>
     </PageBoundary>
   );

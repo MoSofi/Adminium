@@ -99,8 +99,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   'availability.words': ADD_ON_INSTALL_RELEASE,
   // An add-on's rows listed on another table's record page.
   'addOn.recordTabs': ADD_ON_INSTALL_RELEASE,
-  // Pages built on the data kit: the host publishes it with the kit itself.
-  'addOn.hostApi.2': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
   'addOn.adjuster': PRICE_QUESTION_RELEASE,
@@ -132,6 +130,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'states.actions',
   // One typed code looked up across an add-on's code tables, as the caller reads them.
   'addOn.lookUp',
+  // Pages built on the data kit: the dashboard publishes it to a page whose add-on asks for it.
+  'addOn.hostApi.2',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

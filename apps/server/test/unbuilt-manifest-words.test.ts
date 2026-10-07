@@ -91,20 +91,24 @@ describe('a word this server does not run yet', () => {
     expect(installed.statusCode, installed.body).toBe(200);
   });
 
-  it('an add-on whose pages are built on the data kit, which this server does not hand out yet, is refused at its install, and makes no table', async () => {
+  it('an add-on whose pages are built on the data kit installs: the dashboard hands the kit to its pages, and the list says which need it', async () => {
     const h = (openAddOns = await addOnHarness('sqlite'));
-    await h.stageAddOn({ ...KIT, addOn: { ...(KIT['addOn'] as Doc), hostApi: 2 } }, { bundled: true });
+    const page = { ref: 'kit-count', title: { key: 'kit.count', fallback: 'Count' }, icon: 'clipboard', client: 'dist/count.js' };
+    await h.stageAddOn({ ...KIT, addOn: { ...(KIT['addOn'] as Doc), hostApi: 2, pages: [page] } }, { bundled: true, files: { 'dist/count.js': 'export default function Count() { return null; }' } });
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'kit', version: '1.0.0', attachTo: [] } });
-    expect(installed.statusCode, installed.body).toBe(422);
-    expect(installed.body).toContain('uses \\"addOn.hostApi.2\\", which Adminium 0.3.18 runs');
-    expect((await h.tableNames()).filter((name) => name.includes('items'))).toEqual([]);
+    expect(installed.statusCode, installed.body).toBe(200);
+    expect(await h.tableNames()).toContain('kit_items');
+    const listed = (await h.inject({ method: 'GET', url: '/add-ons' })).json().addOns.find((entry: { key: string }) => entry.key === 'kit');
+    expect(listed.hostApi).toBe(2);
   });
 
-  it('the same add-on without it installs: its prefixed table and its page are words this server runs', async () => {
+  it('the same add-on built before the kit installs too, and says so: its prefixed table and its page are words this server runs', async () => {
     const h = (openAddOns = await addOnHarness('sqlite'));
     await h.stageAddOn(KIT, { bundled: true });
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'kit', version: '1.0.0', attachTo: [] } });
     expect(installed.statusCode, installed.body).toBe(200);
     expect(await h.tableNames()).toContain('kit_items');
+    const listed = (await h.inject({ method: 'GET', url: '/add-ons' })).json().addOns.find((entry: { key: string }) => entry.key === 'kit');
+    expect(listed.hostApi).toBe(1);
   });
 });

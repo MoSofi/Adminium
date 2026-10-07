@@ -31,6 +31,14 @@
     "status": "mt",
     "srcHash": "042c862e4467"
   },
+  "addOns.tooOld.body": {
+    "status": "mt",
+    "srcHash": "aef4a74b5624"
+  },
+  "addOns.tooOld.title": {
+    "status": "mt",
+    "srcHash": "4640d97bb72d"
+  },
   "addOns.unknown.body": {
     "status": "mt",
     "srcHash": "a801eea2a378"

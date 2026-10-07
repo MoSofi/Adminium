@@ -28,5 +28,9 @@ export default {
   },
   "listFailed": {
     "body": "无法读取已安装的 Add-on 列表，因此无法确定此页面应加载哪个文件。"
+  },
+  "tooOld": {
+    "title": "此页面需要更新版本的 Adminium",
+    "body": "此附加组件的页面是为比当前更新的 Adminium 版本构建的。更新 Adminium 后即可打开；页面中的任何内容都未运行。"
   }
 } as const;

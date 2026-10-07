@@ -28,5 +28,9 @@ export default {
   },
   "listFailed": {
     "body": "Die Liste der installierten Add-ons konnte nicht gelesen werden, daher lässt sich nicht bestimmen, welche Datei diese Seite laden soll."
+  },
+  "tooOld": {
+    "title": "Diese Seite braucht ein neueres Adminium",
+    "body": "Die Seite dieses Add-ons wurde für eine neuere Version von Adminium gebaut als diese. Ein Update von Adminium öffnet sie; von der Seite wurde nichts ausgeführt."
   }
 } as const;

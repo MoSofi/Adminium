@@ -45,6 +45,8 @@ const ALIASES: Record<string, string> = {
   '@tanstack/react-query': `${SHIM}/query`,
   '@adminium/i18n': `${SHIM}/i18n`,
   '@adminium/add-on-sdk': `${SHIM}/app`,
+  // The data kit, for a page of an add-on that says `hostApi: 2`.
+  '@adminium/add-on-data': `${SHIM}/data`,
 };
 
 const FIXTURE = `
@@ -55,6 +57,16 @@ import { t, api } from '@adminium/add-on-sdk';
 
 export default function Page() {
   return { Button, useNavigate, useQuery, t, api };
+}
+`;
+
+/** A page of an add-on that keeps tables: a list, a table and a save, all the host's. */
+const KIT_FIXTURE = `
+import { Button } from '@adminium/ui';
+import { DataTable, NumberInput, useRecords, useWrite } from '@adminium/add-on-data';
+
+export default function Page() {
+  return { Button, DataTable, NumberInput, useRecords, useWrite };
 }
 `;
 
@@ -74,12 +86,12 @@ afterEach(async () => {
   built = null;
 });
 
-async function buildFixture(): Promise<{ code: string; file: string }> {
+async function buildFixture(source: string = FIXTURE): Promise<{ code: string; file: string }> {
   const dir = join(WORKROOT, `.add-on-bundle-${randomBytes(4).toString('hex')}`);
   built = dir;
   await mkdir(dir, { recursive: true });
   const entry = join(dir, 'page.jsx');
-  await writeFile(entry, FIXTURE, 'utf8');
+  await writeFile(entry, source, 'utf8');
 
   const { build } = await import('vite');
   await build({
@@ -142,10 +154,32 @@ describe('an add-on page bundle', () => {
     expect(used['t']).toBe(sdk.t);
   });
 
+  it('a page built with the data alias takes its table, its list and its save from the host\'s kit', { timeout: 60_000 }, async () => {
+    const { code, file } = await buildFixture(KIT_FIXTURE);
+    // The shim is inlined like the others: a bare import of it would resolve to nothing in a browser.
+    const statements = [...code.matchAll(/^\s*import\s+(?:[^'"]*?from\s*)?["']([^"']+)["'];?\s*$/gm)].map((m) => m[1] ?? '');
+    expect(statements).toEqual([]);
+    expect(code).not.toContain('@adminium/add-on-data');
+
+    // The kit is published before the page is imported — as the loader does for a page that asks for it.
+    await ensureAddOnRuntime({ data: true });
+    const mod = (await import(/* @vite-ignore */ file)) as { default: () => Record<string, unknown> };
+    const used = mod.default();
+    const { dataKit } = await import('./data-kit/index.js');
+    expect(used['DataTable']).toBe(dataKit.DataTable);
+    expect(used['useRecords']).toBe(dataKit.useRecords);
+    expect(used['useWrite']).toBe(dataKit.useWrite);
+    expect(used['NumberInput']).toBe(dataKit.NumberInput);
+    // And the five namespaces it had before are still the host's own.
+    const ui = await import('@adminium/ui');
+    expect(used['Button']).toBe(ui.Button);
+  });
+
   it('names every specifier an add-on has to alias', () => {
     // The list is the recipe. A specifier missing from an add-on's config is
     // not an error at build time — it is a second copy in the output.
     expect(Object.keys(ALIASES).sort()).toEqual([
+      '@adminium/add-on-data',
       '@adminium/add-on-sdk',
       '@adminium/i18n',
       '@adminium/ui',

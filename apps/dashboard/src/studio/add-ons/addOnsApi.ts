@@ -64,6 +64,8 @@ export interface AddOnDto {
   /** The stored NON-SECRET values. A credential is never read back. */
   settingValues: Record<string, unknown>;
   /** `ref`: the one page this address serves the code of, when that page is kept behind its own permission. */
+  /** What the add-on's pages are built against; 2 also needs the data kit. Absent from an older server: 1. */
+  hostApi?: 1 | 2;
   bundles: { path: string; url: string; integrity: string; ref?: string }[];
   /**
    * The installed apps that name it, and how — read before any click, so a

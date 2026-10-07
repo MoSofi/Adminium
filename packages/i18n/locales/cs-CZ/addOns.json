@@ -18,5 +18,9 @@
   },
   "listFailed": {
     "body": "Seznam nainstalovaných add-onů se nepodařilo načíst, takže nelze určit, který soubor má tato stránka načíst."
+  },
+  "tooOld": {
+    "title": "Tato stránka potřebuje novější Adminium",
+    "body": "Stránka tohoto doplňku byla vytvořena pro novější verzi Adminia, než je tato. Otevře ji aktualizace Adminia; nic ze stránky nebylo spuštěno."
   }
 }

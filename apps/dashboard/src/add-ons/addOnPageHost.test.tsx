@@ -270,6 +270,64 @@ describe('mounting an add-on page', () => {
     expect(attempts).toBe(2);
   });
 
+  it('a page built for a newer Adminium is told so — it is not fetched, and a retry is not offered', async () => {
+    stubFetch({ addOns: [{ ...INSTALLED, hostApi: 3 }] });
+    let fetched = 0;
+    restoreImporter = setAddOnModuleImporter(() => {
+      fetched += 1;
+      return Promise.resolve({ default: () => <p>never drawn</p> });
+    });
+    await renderAt('/add-ons/invoices/documents');
+    expect(await screen.findByText('This page needs a newer Adminium')).toBeDefined();
+    expect(fetched).toBe(0);
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(screen.queryByText('This page could not be loaded')).toBeNull();
+  });
+
+  it('a page whose own code says the host is too old shows the same words, not a broken file', async () => {
+    stubFetch({ addOns: [{ ...INSTALLED, hostApi: 2 }] });
+    const { AddOnHostTooOld } = await import('@adminium/add-on-contracts/runtime');
+    // What the kit's shim throws as it loads on a host whose kit is older than the page's.
+    restoreImporter = setAddOnModuleImporter(() => Promise.reject(new AddOnHostTooOld(2, 1)));
+    await renderAt('/add-ons/invoices/documents');
+    expect(await screen.findByText('This page needs a newer Adminium')).toBeDefined();
+  });
+
+  it('a page that needs the data kit is given it, and is told whose page it is', async () => {
+    stubFetch({ addOns: [{ ...INSTALLED, hostApi: 2 }] });
+    const { requireAddOnHost, DATA_KIT_VERSION, ADD_ON_DATA_EXPORTS } = await import('@adminium/add-on-contracts/runtime');
+    const { useAddOnKey } = await import('./data-kit/context.js');
+    let kitAtImport: unknown = 'not asked';
+    restoreImporter = setAddOnModuleImporter(() => {
+      // The kit is on the host BEFORE the page's module runs: its shim reads it as it loads.
+      kitAtImport = requireAddOnHost().data;
+      return Promise.resolve({ default: function Page() { return <p>page of {useAddOnKey()}</p>; } });
+    });
+    await renderAt('/add-ons/invoices/documents');
+    expect(await screen.findByText('page of invoices')).toBeDefined();
+    const kit = kitAtImport as Record<string, unknown>;
+    expect(kit['version']).toBe(DATA_KIT_VERSION);
+    expect(Object.keys(kit).filter((name) => name !== 'version').sort()).toEqual([...ADD_ON_DATA_EXPORTS].sort());
+    // The host's own version did not move for it.
+    expect(requireAddOnHost().version).toBe(1);
+  });
+
+  it('a page built before the kit never loads it', async () => {
+    const { resetAddOnRuntime } = await import('./runtime.js');
+    const { requireAddOnHost } = await import('@adminium/add-on-contracts/runtime');
+    resetAddOnRuntime();
+    stubFetch();
+    let kitAtImport: unknown = 'not asked';
+    restoreImporter = setAddOnModuleImporter(() => {
+      kitAtImport = requireAddOnHost().data;
+      return Promise.resolve({ default: () => <p>an older page</p> });
+    });
+    await renderAt('/add-ons/invoices/documents');
+    expect(await screen.findByText('an older page')).toBeDefined();
+    expect(kitAtImport).toBeUndefined();
+    expect(requireAddOnHost().data).toBeUndefined();
+  });
+
   it('refuses a module whose default export is not a component', async () => {
     stubFetch();
     restoreImporter = setAddOnModuleImporter(() => Promise.resolve({ default: { nope: true } }));

@@ -18,5 +18,9 @@
   },
   "listFailed": {
     "body": "無法讀取已安裝的 Add-on 清單，因此無法確定此頁面應載入哪個檔案。"
+  },
+  "tooOld": {
+    "title": "此頁面需要較新版本的 Adminium",
+    "body": "此附加元件的頁面是為比目前更新的 Adminium 版本所建置。更新 Adminium 後即可開啟；頁面中的任何內容都未執行。"
   }
 }

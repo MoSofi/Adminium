@@ -18,5 +18,9 @@
   },
   "listFailed": {
     "body": "La liste des modules installés n’a pas pu être lue ; impossible donc de savoir quel fichier cette page doit charger."
+  },
+  "tooOld": {
+    "title": "Cette page demande un Adminium plus récent",
+    "body": "La page de ce module a été conçue pour une version d'Adminium plus récente que celle-ci. Mettre Adminium à jour l'ouvrira ; rien de cette page n'a été exécuté."
   }
 }

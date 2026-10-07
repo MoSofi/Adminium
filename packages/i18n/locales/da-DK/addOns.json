@@ -18,5 +18,9 @@
   },
   "listFailed": {
     "body": "Listen over installerede add-ons kunne ikke læses, så det kan ikke afgøres, hvilken fil denne side skal indlæse."
+  },
+  "tooOld": {
+    "title": "Denne side kræver en nyere Adminium",
+    "body": "Denne tilføjelses side er bygget til en nyere version af Adminium end denne. En opdatering af Adminium åbner den; intet fra siden er blevet kørt."
   }
 }
