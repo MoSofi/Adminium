@@ -43,10 +43,11 @@ export interface BuiltAddOn {
   files: Record<string, string>;
 }
 
-/** Every built file an add-on's manifest names: what decides, and each page's bundle. */
+/** Every file of its package an add-on's manifest names: what decides, each page's bundle, and its sample data. */
 function namedFiles(manifest: Doc): string[] {
   const addOn = (manifest['addOn'] ?? {}) as { provides?: { server?: string }[]; pages?: { client?: string }[]; slots?: { client?: string }[] };
-  const named = [...(addOn.provides ?? []).map((one) => one.server), ...(addOn.pages ?? []).map((one) => one.client), ...(addOn.slots ?? []).map((one) => one.client)];
+  const sample = (manifest['sampleData'] as { file?: string } | undefined)?.file;
+  const named = [...(addOn.provides ?? []).map((one) => one.server), ...(addOn.pages ?? []).map((one) => one.client), ...(addOn.slots ?? []).map((one) => one.client), sample];
   return [...new Set(named.filter((path): path is string => typeof path === 'string'))];
 }
 
