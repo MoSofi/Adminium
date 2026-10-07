@@ -1953,6 +1953,22 @@ export default {
         "loading": "Indlæser vedhæftninger",
         "removed": "{name} blev flyttet til papirkurven.",
         "tooLarge": "Filen er større, end dette arbejdsområde tillader."
+      },
+      "action": {
+        "more": "Mere",
+        "cancel": "Annuller",
+        "add": "Tilføj",
+        "working": "Arbejder…",
+        "needsRows": "Tilføj først mindst {n} række(r) i {rows}.",
+        "roles": "Din rolle må ikke gøre dette.",
+        "moved": "En anden har ændret denne post; den er nu {state}. Se igen.",
+        "waits": "Det kan ikke gøres endnu.",
+        "already": "Det er allerede gjort.",
+        "rowChanged": "Denne post blev ændret, mens du så på den. Se igen.",
+        "locked": "Denne post er låst, så dette kan ikke ændres.",
+        "forbidden": "Din rolle må ikke ændre dette.",
+        "notFound": "Denne post eller denne handling findes ikke længere.",
+        "fieldRequired": "Udfyld dette først."
       }
     },
     "pageRecord": {

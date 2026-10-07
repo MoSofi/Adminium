@@ -1943,6 +1943,22 @@
         "loading": "Chargement des pièces jointes",
         "removed": "{name} a été déplacé vers la corbeille.",
         "tooLarge": "Ce fichier dépasse ce que cet espace de travail autorise."
+      },
+      "action": {
+        "more": "Plus",
+        "cancel": "Annuler",
+        "add": "Ajouter",
+        "working": "En cours…",
+        "needsRows": "Ajoutez d'abord au moins {n} ligne(s) dans {rows}.",
+        "roles": "Votre rôle ne permet pas cette action.",
+        "moved": "Quelqu'un d'autre a modifié cet enregistrement ; il est maintenant {state}. Regardez à nouveau.",
+        "waits": "Ce n'est pas encore possible.",
+        "already": "C'est déjà fait.",
+        "rowChanged": "Cet enregistrement a changé pendant que vous le regardiez. Regardez à nouveau.",
+        "locked": "Cet enregistrement est verrouillé et ne peut donc pas être modifié.",
+        "forbidden": "Votre rôle ne permet pas de modifier ceci.",
+        "notFound": "Cet enregistrement, ou cette action, n'existe plus.",
+        "fieldRequired": "Renseignez d'abord ce champ."
       }
     },
     "pageRecord": {

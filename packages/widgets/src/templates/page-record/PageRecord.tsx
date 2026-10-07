@@ -79,6 +79,10 @@ export interface PageRecordTabConfig {
   /** FK column into this page's table; absent ⇒ counts only, no body. */
   fkColumn?: string | undefined;
   label?: string | undefined;
+  /** What the tab says while it holds no row — already in the reader's language (the host picks). Absent: the general words. */
+  empty?: { title: string; body?: string | undefined } | undefined;
+  /** The tab offers no "New": its rows are made elsewhere (by a button of the record, by a posting). */
+  noNew?: boolean | undefined;
 }
 
 /** Grid metadata for a referencing table that has its own page. */
@@ -271,6 +275,12 @@ export interface PageRecordProps {
    * an add-on was installed.
    */
   actions?: readonly PageRecordAction[] | undefined;
+  /**
+   * Something the host has to say about the record, drawn between its heading
+   * and its fields — why an action was refused. Announced as it appears
+   * (`role="alert"`); the host takes it away again.
+   */
+  notice?: ReactNode;
   labels?: PageRecordLabels | undefined;
   testId?: string | undefined;
 }
@@ -441,6 +451,8 @@ function RelatedRecordsTab({
     resolution !== 'pending' &&
     resolution !== null &&
     resolution.canCreate === true &&
+    // A tab whose rows are made elsewhere (by a button of the record, by a posting) offers no New.
+    tab.noNew !== true &&
     crud !== null;
   // Domain framing from the tab's label ("Invoice items" → "invoice item"),
   // falling back to the table-derived noun; singularized ONCE either way.
@@ -553,7 +565,9 @@ function RelatedRecordsTab({
         <EmptyState
           compact
           preset="no-data"
-          title={t('ui:templates.record.relatedEmptyTitle', 'No related records')}
+          // The tab's own words where its page gave some (already in the reader's language); else the general ones.
+          title={tab.empty?.title ?? t('ui:templates.record.relatedEmptyTitle', 'No related records')}
+          {...(tab.empty?.body === undefined ? {} : { body: tab.empty.body })}
           {...(addButton === null ? {} : { actions: addButton })}
         />
         {createDrawer}
@@ -918,6 +932,7 @@ export function PageRecord({
   canAttach = false,
   maxFileBytes,
   panels,
+  notice,
   actions,
   onEvent,
   onDeleted,
@@ -1223,6 +1238,12 @@ export function PageRecord({
           </div>
         )}
       </div>
+
+      {notice === undefined || notice === null || notice === false ? null : (
+        <div role="alert" data-part="record-notice" className="mb-4">
+          {notice}
+        </div>
+      )}
 
       {/* Field grid — two columns at lg, one below (D4). */}
       <div

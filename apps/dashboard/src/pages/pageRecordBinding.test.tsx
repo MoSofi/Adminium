@@ -559,6 +559,46 @@ describe('grants-driven write affordances', () => {
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
+  it('the record\'s own actions sit before Edit, Delete stays last, and a refusal is said under the heading', async () => {
+    const states = { column: 'status', initial: 'active', moves: { active: ['paused'] } };
+    const { fetchMock } = await renderAt('/p/customers/r/1', {
+      schemaReply: () => jsonResponse(200, { model: { tables: [{ id: 'public.customers', name: 'customers', states, columns: [{ name: 'status' }] }] } }),
+      pageReply: () =>
+        jsonResponse(200, {
+          data: recordEnvelope(),
+          canUpdate: true,
+          canDelete: true,
+          stateActions: [
+            { id: 'pause', kind: 'move', label: 'Pause', tone: 'neutral', from: ['active'] },
+            { id: 'wake', kind: 'move', label: 'Wake', tone: 'primary', from: ['paused'] },
+          ],
+        }),
+    });
+    // Only what the row's state offers; then Edit; Delete where it has always been.
+    const pause = await screen.findByRole('button', { name: 'Pause' });
+    expect(screen.queryByRole('button', { name: 'Wake' })).toBeNull();
+    const hero = pause.closest('[data-testid="record-action-state-actions"]')!.parentElement!;
+    expect(Array.from(hero.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['Pause', 'Edit', 'Delete']);
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // The stub knows no action route: the server's "not there" is said on the page, in the page's words.
+    await userEvent.setup().click(pause);
+    expect((await screen.findByRole('alert')).textContent).toContain('This record, or this action, is no longer there.');
+    const sent = fetchMock.mock.calls.find(([url, init]) => String(url).includes('/actions/pause') && (init as RequestInit | undefined)?.method === 'POST');
+    expect(String(sent![0])).toBe('/api/v1/data/conn_1/public.customers/1/actions/pause');
+    expect(JSON.parse(String((sent![1] as RequestInit).body))).toEqual({ from: 'active' });
+  });
+
+  it('a page whose reply offers no actions, or none for the row\'s state, shows none', async () => {
+    await renderAt('/p/customers/r/1', {
+      schemaReply: () => jsonResponse(200, { model: { tables: [{ id: 'public.customers', name: 'customers', states: { column: 'status', initial: 'active', moves: {} }, columns: [{ name: 'status' }] }] } }),
+      pageReply: () => jsonResponse(200, { data: recordEnvelope(), canUpdate: true, canDelete: true, stateActions: [{ id: 'wake', kind: 'move', label: 'Wake', tone: 'primary', from: ['paused'] }] }),
+    });
+    await screen.findByRole('button', { name: 'Edit' });
+    expect(screen.queryByRole('button', { name: 'Wake' })).toBeNull();
+    expect(document.querySelector('[data-testid="record-action-state-actions"]')).toBeNull();
+  });
+
   it('capabilities apply per action: update-only shows Edit but not Delete', async () => {
     await renderAt('/p/customers/r/1', {
       pageReply: () =>

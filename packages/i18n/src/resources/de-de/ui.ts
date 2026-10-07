@@ -1953,6 +1953,22 @@ export default {
         "loading": "Anhänge werden geladen",
         "removed": "{name} wurde in den Papierkorb verschoben.",
         "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt."
+      },
+      "action": {
+        "more": "Mehr",
+        "cancel": "Abbrechen",
+        "add": "Hinzufügen",
+        "working": "Wird ausgeführt…",
+        "needsRows": "Fügen Sie zuerst mindestens {n} Zeile(n) bei {rows} hinzu.",
+        "roles": "Ihre Rolle darf das nicht tun.",
+        "moved": "Jemand anderes hat diesen Datensatz geändert; er ist jetzt {state}. Sehen Sie noch einmal nach.",
+        "waits": "Das ist noch nicht möglich.",
+        "already": "Das ist bereits erledigt.",
+        "rowChanged": "Dieser Datensatz wurde geändert, während Sie ihn angesehen haben. Sehen Sie noch einmal nach.",
+        "locked": "Dieser Datensatz ist gesperrt und kann daher nicht geändert werden.",
+        "forbidden": "Ihre Rolle darf das nicht ändern.",
+        "notFound": "Diesen Datensatz oder diese Aktion gibt es nicht mehr.",
+        "fieldRequired": "Füllen Sie dies zuerst aus."
       }
     },
     "pageRecord": {

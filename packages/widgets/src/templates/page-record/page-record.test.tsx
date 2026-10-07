@@ -362,6 +362,43 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
     expect(await screen.findByText('No related records')).toBeDefined();
     expect(screen.getByRole('button', { name: 'New row' })).toBeDefined();
   });
+
+  it('a tab says its own empty words, where its page gave some', async () => {
+    const related = creatableRelated(makeChildApi(), { list: vi.fn(async () => ({ data: [], cursor: { next: null } })) });
+    renderRecord(makeApi(), { related, tabs: TABS.map((tab) => ({ ...tab, empty: { title: 'Nothing done yet', body: 'A top up shows here.' } })) });
+    expect(await screen.findByText('Nothing done yet')).toBeDefined();
+    expect(screen.getByText('A top up shows here.')).toBeDefined();
+    expect(screen.queryByText('No related records')).toBeNull();
+  });
+
+  it('no New row where rows are made elsewhere, empty or not', async () => {
+    const empty = creatableRelated(makeChildApi(), { list: vi.fn(async () => ({ data: [], cursor: { next: null } })) });
+    const first = renderRecord(makeApi(), { related: empty, tabs: TABS.map((tab) => ({ ...tab, noNew: true })) });
+    expect(await screen.findByText('No related records')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'New row' })).toBeNull();
+    first.unmount();
+    // With rows in it: the same tab without the flag offers New, with it does not.
+    renderRecord(makeApi(), { related: creatableRelated(makeChildApi()), tabs: TABS.map((tab) => ({ ...tab, noNew: true })) });
+    await screen.findByRole('heading', { name: 'INV-1007' });
+    // The tab's rows are in: this is where a tab with rows offers New.
+    await waitFor(() => expect(document.querySelectorAll('[role="row"]').length).toBeGreaterThan(1));
+    expect(screen.queryByRole('button', { name: 'New row' })).toBeNull();
+  });
+});
+
+describe('what the host has to say about the record', () => {
+  it('is drawn between the heading and the fields, announced as it appears, and absent when there is nothing to say', async () => {
+    const quiet = renderRecord(makeApi(), { related: makeRelated() });
+    await screen.findByRole('heading', { name: 'INV-1007' });
+    expect(screen.queryByRole('alert')).toBeNull();
+    quiet.unmount();
+    const { container } = renderRecord(makeApi(), { related: makeRelated(), notice: <p>Add at least 1 row of order lines first.</p> });
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toBe('Add at least 1 row of order lines first.');
+    const fields = container.querySelector('[data-part="record-fields"]')!;
+    // Before the fields, in document order.
+    expect(notice.compareDocumentPosition(fields) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 // --- attachments panel ------------------

@@ -1943,6 +1943,22 @@
         "loading": "正在載入附件",
         "removed": "{name} 已移至回收桶。",
         "tooLarge": "該檔案超過此工作區允許的大小。"
+      },
+      "action": {
+        "more": "更多",
+        "cancel": "取消",
+        "add": "新增",
+        "working": "處理中…",
+        "needsRows": "請先在{rows}中至少新增 {n} 列。",
+        "roles": "您的角色不能執行此操作。",
+        "moved": "其他人變更了此記錄；它現在是{state}。請重新查看。",
+        "waits": "暫時還不能這樣做。",
+        "already": "此操作已完成。",
+        "rowChanged": "您查看時此記錄已有變更。請重新查看。",
+        "locked": "此記錄已鎖定，因此無法變更。",
+        "forbidden": "您的角色不能變更此項目。",
+        "notFound": "此記錄或此操作已不存在。",
+        "fieldRequired": "請先填寫此項目。"
       }
     },
     "pageRecord": {

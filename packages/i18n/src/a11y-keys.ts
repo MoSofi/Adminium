@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2728 entries. */
+/** `namespace:key` — 2729 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2393,6 +2393,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:templates.queue.statusFilterLabel',
   'ui:templates.queue.undoFailedToast',
   'ui:templates.queue.undoneToast',
+  'ui:templates.record.action.more',
   'ui:templates.record.attachments.loading',
   'ui:templates.record.loadError',
   'ui:templates.record.loadingActivity',

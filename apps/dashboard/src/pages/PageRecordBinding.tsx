@@ -79,6 +79,8 @@ import {
   withFkDisplay,
   withLookups,
 } from './columnSpecs.js';
+import { Alert } from '@adminium/ui';
+import { RecordStateActions } from './RecordStateActions.js';
 import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, timedMove, type TableStateFacts } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
 
@@ -90,6 +92,7 @@ export function PageRecordBinding({
   canAttach,
   canDelete,
   canUnmask,
+  stateActions,
   columnFacts,
   formRelations,
   currency,
@@ -577,9 +580,54 @@ export function PageRecordBinding({
     return api;
     // `actionRuns` makes a new object after a project action, so the record is read again.
   }, [boundCrud, crud, actionRuns]);
-  const recordActions = useMemo(() => {
-    if (recordId === undefined || projectActions.record.length === 0) return documentActions;
+  /*
+   * THE RECORD'S OWN ACTIONS — the buttons its table's states declare, as the
+   * server offered them to this reader. First among the host's actions, so
+   * before Edit and Delete. Why one was refused is said under the record's
+   * heading, and stays there until the next action.
+   */
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const rowState = facts === null || row === null ? null : stateOf(facts, row);
+  const afterAction = useCallback(() => {
+    setActionRuns((n) => n + 1);
+    invalidateList();
+  }, [invalidateList]);
+  const stateButtons = useMemo(() => {
+    const table = sourceTable ?? crud?.table;
+    if (recordId === undefined || connectionId === null || table === undefined || stateActions === undefined || stateActions.length === 0) return [];
+    // Nothing is offered in the state the row is in: no empty slot in the heading.
+    if (rowState === null || !stateActions.some((action) => action.from.includes(rowState) && (!(readOnly || parentClosed) || action.kind === 'link'))) return [];
     return [
+      {
+        id: 'state-actions',
+        label: t('ui:templates.record.action.more', 'More'),
+        content: (
+          <RecordStateActions actions={stateActions} state={rowState} connectionId={connectionId} table={table} recordId={recordId} linksOnly={readOnly || parentClosed} onDone={afterAction} onRefused={setRefusal} />
+        ),
+      },
+    ];
+  }, [stateActions, rowState, recordId, connectionId, sourceTable, crud, readOnly, parentClosed, afterAction, t]);
+  /** Each related tab with its own empty words in the reader's language, where its page gave some. */
+  const locale = bootstrap.prefs.locale;
+  const tabs = useMemo(
+    () =>
+      (detail?.tabs ?? []).map((tab) =>
+        tab.empty === undefined
+          ? tab
+          : {
+              ...tab,
+              empty: {
+                title: tab.empty.titles?.[locale] ?? tab.empty.title,
+                ...((tab.empty.bodies?.[locale] ?? tab.empty.body) === undefined ? {} : { body: tab.empty.bodies?.[locale] ?? tab.empty.body }),
+              },
+            },
+      ),
+    [detail, locale],
+  );
+  const recordActions = useMemo(() => {
+    if (recordId === undefined || projectActions.record.length === 0) return [...stateButtons, ...documentActions];
+    return [
+      ...stateButtons,
       ...documentActions,
       {
         id: 'project-actions',
@@ -587,7 +635,7 @@ export function PageRecordBinding({
         content: <ProjectActionButtons actions={projectActions} id={recordId} />,
       },
     ];
-  }, [documentActions, projectActions, recordId, t]);
+  }, [stateButtons, documentActions, projectActions, recordId, t]);
 
   if (crud === null) {
     // Bad generation output (record page without a source) — caught by the
@@ -641,7 +689,7 @@ export function PageRecordBinding({
         {...(formRelations === undefined ? {} : { relations: formRelations })}
         // The connection's own currency for money cells.
         {...(currency === undefined ? {} : { currency })}
-        tabs={detail?.tabs ?? []}
+        tabs={tabs}
         related={related}
         activity={activity}
         // Sidecar attachments. Absent ⇒ no panel, the same rule
@@ -673,6 +721,7 @@ export function PageRecordBinding({
               ],
             })}
         {...(recordActions.length === 0 ? {} : { actions: recordActions })}
+        {...(refusal === null ? {} : { notice: <Alert tone="warn" title={refusal} /> })}
         onEvent={adapters.onEvent}
         onDeleted={handleDeleted}
         onMissing={() => setMissing(true)}

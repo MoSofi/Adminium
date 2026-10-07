@@ -29,6 +29,7 @@ import {
   type FormChildFactReply,
   type FormColumnFactReply,
   type FormRelationFactReply,
+  type StateActionFact,
 } from '../api/pages.js';
 import { useDashboardData } from '../api/widgetData.js';
 import { bootstrapQuery, findPageBySlug, isDisabledAppPage, slugForTable } from '../app/bootstrap.js';
@@ -138,6 +139,7 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       canDelete={result.canDelete}
       canAttach={result.canAttach}
       canUnmask={result.canUnmask}
+      stateActions={result.stateActions}
       columnFacts={result.columnFacts}
       formColumns={result.formColumns}
       formRelations={result.formRelations}
@@ -182,6 +184,7 @@ export function TemplateMount({
   canDelete,
   canAttach,
   canUnmask,
+  stateActions,
   columnFacts,
   formColumns,
   formRelations,
@@ -198,6 +201,7 @@ export function TemplateMount({
   canDelete?: boolean | undefined;
   canAttach?: boolean | undefined;
   canUnmask?: boolean | undefined;
+  stateActions?: readonly StateActionFact[] | undefined;
   columnFacts?: ColumnFacts | undefined;
   formColumns?: readonly FormColumnFactReply[] | undefined;
   formRelations?: readonly FormRelationFactReply[] | undefined;
@@ -314,6 +318,7 @@ export function TemplateMount({
             canDelete={canDelete}
             canAttach={canAttach}
             canUnmask={canUnmask}
+            {...(stateActions === undefined ? {} : { stateActions })}
             {...(columnFacts === undefined ? {} : { columnFacts })}
             {...(formColumns === undefined ? {} : { formColumns })}
             {...(formRelations === undefined ? {} : { formRelations })}

@@ -109,6 +109,26 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
   return facts;
 }
 
+/** One button of a record page, as the server offers it to one reader (`GET /pages/:id` · `stateActions`). */
+export interface StateActionFact {
+  id: string;
+  kind: 'move' | 'set' | 'link' | 'child';
+  /** In the reader's language. */
+  label: string;
+  tone: 'primary' | 'neutral' | 'danger';
+  confirm?: string;
+  /** The states of the row it may be used in. */
+  from: string[];
+  /** What a move or a set asks for before it is made. */
+  ask?: { column: string; label: string; required: boolean }[];
+  /** A link: the record's key is appended. */
+  href?: string;
+  /** A child form: the child table's id, its link to this row, the columns it asks for. */
+  child?: { table: string; via: string; form: string[] };
+  /** A child form's fixed values. */
+  set?: Record<string, string | number | boolean>;
+}
+
 export type PageDocumentResult =
   | {
       status: 'ok';
@@ -128,6 +148,12 @@ export type PageDocumentResult =
        *  reveal affordance. Defaults CLOSED (false) when absent: the reveal is
        *  only honest when the server actually sent values in clear. */
       canUnmask: boolean;
+      /**
+       * The buttons a record of the source table may show this reader
+       * (`states.actions`), each with the states of the row it is offered in.
+       * The server decided them; empty when it computed none.
+       */
+      stateActions: readonly StateActionFact[];
       /**
        * The source table as it stands right now — who fills each column and
        * which ones the create form has to ask for. Empty when the server did
@@ -222,6 +248,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     // Closed default, unlike the write capabilities: a reveal button is only
     // honest when the server said it sent PII in clear.
     canUnmask: false,
+    stateActions: [],
     columnFacts: {},
     formColumns: [],
     formRelations: [],
@@ -247,6 +274,7 @@ export function pageQuery(pageId: string) {
         canDelete?: boolean;
         canAttach?: boolean;
         canUnmask?: boolean;
+        stateActions?: StateActionFact[];
         columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = parsePageDocument(reply.data);
@@ -262,6 +290,7 @@ export function pageQuery(pageId: string) {
             canAttach: reply.canAttach !== false,
             // `=== true`: opposite polarity — absent means keep cells masked.
             canUnmask: reply.canUnmask === true,
+            stateActions: reply.stateActions ?? [],
             columnFacts: factsByColumn(reply.columnFacts),
             formColumns: reply.columnFacts?.columns ?? [],
             formRelations: reply.columnFacts?.relations ?? [],

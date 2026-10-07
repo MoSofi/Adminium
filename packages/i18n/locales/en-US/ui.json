@@ -1943,6 +1943,22 @@
         "loading": "Loading attachments",
         "removed": "{name} was moved to the trash.",
         "tooLarge": "That file is larger than this workspace allows."
+      },
+      "action": {
+        "more": "More",
+        "cancel": "Cancel",
+        "add": "Add",
+        "working": "Working…",
+        "needsRows": "Add at least {n} row(s) of {rows} first.",
+        "roles": "Your role may not do this.",
+        "moved": "Someone else changed this record; it is {state} now. Look again.",
+        "waits": "This cannot be done yet.",
+        "already": "This is already done.",
+        "rowChanged": "This record changed while you were looking at it. Look again.",
+        "locked": "This record is locked, so this cannot be changed.",
+        "forbidden": "Your role may not change this.",
+        "notFound": "This record, or this action, is no longer there.",
+        "fieldRequired": "Fill this in first."
       }
     },
     "pageRecord": {

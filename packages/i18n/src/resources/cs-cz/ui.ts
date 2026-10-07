@@ -1953,6 +1953,22 @@ export default {
         "loading": "Načítání příloh",
         "removed": "{name} byl přesunut do koše.",
         "tooLarge": "Soubor je větší, než tento pracovní prostor dovoluje."
+      },
+      "action": {
+        "more": "Více",
+        "cancel": "Zrušit",
+        "add": "Přidat",
+        "working": "Pracuji…",
+        "needsRows": "Nejprve přidejte alespoň {n} řádek(ů) v {rows}.",
+        "roles": "Vaše role to nesmí provést.",
+        "moved": "Tento záznam změnil někdo jiný; nyní je ve stavu {state}. Podívejte se znovu.",
+        "waits": "Zatím to nelze provést.",
+        "already": "To už je hotovo.",
+        "rowChanged": "Tento záznam se změnil, zatímco jste si jej prohlíželi. Podívejte se znovu.",
+        "locked": "Tento záznam je uzamčen, takže jej nelze změnit.",
+        "forbidden": "Vaše role to nesmí změnit.",
+        "notFound": "Tento záznam nebo tato akce už neexistuje.",
+        "fieldRequired": "Nejprve vyplňte toto pole."
       }
     },
     "pageRecord": {
