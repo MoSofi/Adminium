@@ -16,10 +16,11 @@ import { item, movementsOf, n, notes, opening, place, pointOf } from './world.js
 const inventory = builtAddOn('inventory');
 const into = (action: string) => ({ addOn: 'inventory', ledger: 'stock', action });
 // A sale and a refund point at what was sold by a real link: that is what tells the rule which row it means.
+// (A key written on its own line: MySQL 8.4 reads one written beside the column and keeps nothing of it.)
 const HOSTS = {
   shop_products: { columns: 'name VARCHAR(80) NOT NULL', postings: [] },
-  shop_sales: { columns: 'product_id INT NOT NULL REFERENCES shop_products(id), qty INT NOT NULL', postings: [{ id: 'stock-1', into: into('use'), post: { on: { create: true } }, map: { what: 'product_id', quantity: 'qty' } }] },
-  shop_refunds: { columns: 'product_id INT NOT NULL REFERENCES shop_products(id), qty INT NOT NULL', postings: [{ id: 'stock-1', into: into('return'), post: { on: { create: true } }, map: { what: 'product_id', quantity: 'qty', to: { value: 'shelf' } } }] },
+  shop_sales: { columns: 'product_id INT NOT NULL, qty INT NOT NULL, FOREIGN KEY (product_id) REFERENCES shop_products(id)', postings: [{ id: 'stock-1', into: into('use'), post: { on: { create: true } }, map: { what: 'product_id', quantity: 'qty' } }] },
+  shop_refunds: { columns: 'product_id INT NOT NULL, qty INT NOT NULL, FOREIGN KEY (product_id) REFERENCES shop_products(id)', postings: [{ id: 'stock-1', into: into('return'), post: { on: { create: true } }, map: { what: 'product_id', quantity: 'qty', to: { value: 'shelf' } } }] },
 };
 
 describe.each(LEGS)('an owner\'s table taking from stock — %s', (dialect, available) => {
