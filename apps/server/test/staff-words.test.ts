@@ -10,7 +10,7 @@
  * Nothing is kept between two asks, and an add-on that cannot answer is said
  * to have failed — never "in stock".
  */
-import { overridesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { connectionTenantConfig, overridesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { WordsLine } from '../src/crud/ledger-write.js';
@@ -133,7 +133,9 @@ describe.each(LEGS)('stock words for staff — %s', (dialect, available) => {
         { id: '2', state: 'in', left: 2, exact: '2.000', cause: 'stock', first: { item: 'Butter', unit: 'g' } },
       ]);
       // Two of the stew's three are served today: one left. All three: out, whatever the shelf holds.
-      const today = new Date().toISOString().slice(0, 10);
+      // Today as the venue's clock reads it, which is the day the route means: near midnight it is not UTC's.
+      const zone = (await connectionTenantConfig(w.h.meta, w.h.connectionId))?.timezone ?? 'UTC';
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       await w.h.rows(`INSERT INTO servings (account_id, qty, on_day) VALUES (1, 2, '${today}')`);
       expect(await lines('owner', '1')).toEqual([{ id: '1', state: 'in', exact: '1', cause: 'portions' }]);
       await w.h.rows(`INSERT INTO servings (account_id, qty, on_day) VALUES (1, 1, '${today}')`);
