@@ -84,6 +84,7 @@ export function RuleCard({
   onSelect,
   onToggle,
   now,
+  owner,
 }: {
   rule: RuleView;
   selected: boolean;
@@ -91,6 +92,8 @@ export function RuleCard({
   onSelect: () => void;
   onToggle: () => void;
   now: number;
+  /** The app or add-on the rule came with, shown as a chip; and whether the owner has changed it since. */
+  owner?: { name: string; edited: boolean } | undefined;
 }): ReactNode {
   const Icon = automationIcon(ruleIcon(rule));
   const Zap = automationIcon('zap');
@@ -127,6 +130,18 @@ export function RuleCard({
             <Zap aria-hidden className="size-[11px]" />
             <span className="truncate">{triggerLine}</span>
           </div>
+          {owner === undefined ? null : (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span data-part="rule-owner" className="rounded-full bg-surface-3 px-2 py-0.5 text-[10.5px] font-bold text-fg-muted">
+                {owner.name}
+              </span>
+              {owner.edited ? (
+                <span data-part="rule-edited" className="rounded-full bg-warn-soft-solid px-2 py-0.5 text-[10.5px] font-bold text-warn">
+                  {t('automations:shipped.edited', 'Changed by you')}
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -194,6 +209,11 @@ export interface FlowHeaderProps {
   onRename: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /**
+   * The rule came with an app or an add-on: its flow is shown, not changed.
+   * No save, no rename, no delete — a switch on its card, and a copy to edit.
+   */
+  shipped?: { owner: string; copying: boolean; onCopy: () => void } | undefined;
 }
 
 export function FlowHeader(props: FlowHeaderProps): ReactNode {
@@ -245,6 +265,18 @@ export function FlowHeader(props: FlowHeaderProps): ReactNode {
             re-labelled for it, the way the email and invoice editors label
             their own; the labels are namespace-local, which is why this is
             three lines here rather than a lifted component. */}
+        {props.shipped === undefined ? null : (
+          <button
+            type="button"
+            onClick={props.shipped.onCopy}
+            disabled={props.shipped.copying}
+            data-testid="rule-copy"
+            className="rounded-[9px] border border-border bg-surface px-3.5 py-2 text-[12.5px] font-bold text-fg disabled:opacity-40"
+          >
+            {t('automations:shipped.copy', 'Edit a copy')}
+          </button>
+        )}
+        {props.shipped !== undefined ? null : (
         <AutosaveIndicator
           status={props.saveError !== null ? 'error' : props.saving ? 'saving' : props.dirty ? 'dirty' : 'saved'}
           savingLabel={t('automations:save.saving', 'Saving…')}
@@ -253,7 +285,8 @@ export function FlowHeader(props: FlowHeaderProps): ReactNode {
           errorLabel={t('automations:save.unsaved', 'Unsaved changes')}
           data-testid="rule-save-chip"
         />
-        {props.dirty ? (
+        )}
+        {props.dirty && props.shipped === undefined ? (
           <button
             type="button"
             onClick={props.onSave}
@@ -264,11 +297,13 @@ export function FlowHeader(props: FlowHeaderProps): ReactNode {
           </button>
         ) : null}
 
-        <RuleMenu
-          onRename={props.onRename}
-          onDuplicate={props.onDuplicate}
-          onDelete={props.onDelete}
-        />
+        {props.shipped !== undefined ? null : (
+          <RuleMenu
+            onRename={props.onRename}
+            onDuplicate={props.onDuplicate}
+            onDelete={props.onDelete}
+          />
+        )}
 
         <button
           type="button"
@@ -326,5 +361,74 @@ function RuleMenu({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+// --- rules that came with an app or an add-on ------------------------------
+
+/** The owner's own rules, and the ones an app or an add-on brought: listed apart, never mixed. */
+export function splitShipped(all: readonly RuleView[]): { own: RuleView[]; shipped: RuleView[] } {
+  const isShipped = (rule: RuleView): boolean => rule.managed !== null && rule.managed !== undefined;
+  return { own: all.filter((rule) => !isShipped(rule)), shipped: all.filter(isShipped) };
+}
+
+/** The zone a rule by the clock runs in, said with its sentence: "Every day at 17:00 (Europe/Berlin)". */
+export function withZone(sentence: string, trigger: RuleView['trigger']): string {
+  if (trigger.kind !== 'schedule') return sentence;
+  // "Every 15 minutes" has no clock, and so no zone.
+  const zone = (trigger.schedule as { timezone?: string }).timezone;
+  return zone === undefined || zone === '' ? sentence : `${sentence} (${zone})`;
+}
+
+/**
+ * The rules an app or an add-on brought with it, apart from the owner's own:
+ * one group per kind of owner, each rule with its owner's name, its schedule
+ * with the zone it runs in, the same switch every rule has, and "Changed by
+ * you" once it was. They are not in the main list, and nothing here deletes
+ * one.
+ */
+export function ShippedRuleGroups({
+  rules,
+  selectedId,
+  triggerLine,
+  now,
+  onSelect,
+  onToggle,
+}: {
+  rules: readonly RuleView[];
+  selectedId: string | null;
+  triggerLine: (rule: RuleView) => string;
+  now: number;
+  onSelect: (rule: RuleView) => void;
+  onToggle: (rule: RuleView) => void;
+}): ReactNode {
+  const groups = [
+    { kind: 'add-on' as const, title: t('automations:shipped.addOns', 'From your add-ons') },
+    { kind: 'app' as const, title: t('automations:shipped.apps', 'From your apps') },
+  ];
+  return (
+    <>
+      {groups.map((group) => {
+        const mine = rules.filter((rule) => rule.managed?.kind === group.kind);
+        if (mine.length === 0) return null;
+        return (
+          <section key={group.kind} aria-label={group.title} data-part={`rules-shipped-${group.kind}`} className="flex min-w-0 flex-col gap-3">
+            <h3 className="mt-2 text-[11px] font-extrabold uppercase tracking-[0.06em] text-fg-subtle">{group.title}</h3>
+            {mine.map((rule) => (
+              <RuleCard
+                key={rule.id}
+                rule={rule}
+                selected={rule.id === selectedId}
+                triggerLine={withZone(triggerLine(rule), rule.trigger)}
+                now={now}
+                owner={{ name: rule.managed?.name ?? '', edited: rule.managed?.edited === true }}
+                onSelect={() => onSelect(rule)}
+                onToggle={() => onToggle(rule)}
+              />
+            ))}
+          </section>
+        );
+      })}
+    </>
   );
 }

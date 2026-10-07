@@ -431,5 +431,12 @@ export default {
   "saved": {
     "h": "{h}h",
     "m": "{m}m"
+  },
+  "shipped": {
+    "addOns": "From your add-ons",
+    "apps": "From your apps",
+    "edited": "Changed by you",
+    "copy": "Edit a copy",
+    "readOnly": "This rule came with {name}. Switch it on or off here; to change what it does, edit a copy."
   }
 } as const;

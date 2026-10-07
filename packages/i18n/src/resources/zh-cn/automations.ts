@@ -431,5 +431,12 @@ export default {
   "saved": {
     "h": "{h} 小时",
     "m": "{m} 分钟"
+  },
+  "shipped": {
+    "addOns": "来自您的附加组件",
+    "apps": "来自您的应用",
+    "edited": "已由您更改",
+    "copy": "编辑副本",
+    "readOnly": "此规则随 {name} 提供。可在此处开启或关闭；要更改其行为，请编辑副本。"
   }
 } as const;

@@ -47,7 +47,7 @@ import { StepInspector } from './flow/StepInspector.js';
 import { StepPicker } from './flow/StepPicker.js';
 import { useTestRun } from './flow/useTestRun.js';
 import { NewRuleModal } from './rules/NewRuleModal.js';
-import { FlowHeader, RuleCard, RulesEmpty, RulesKpiStrip, type RulesKpi } from './rules/parts.js';
+import { FlowHeader, RuleCard, RulesEmpty, RulesKpiStrip, ShippedRuleGroups, splitShipped, type RulesKpi } from './rules/parts.js';
 import { FilterPills } from './logs/parts.js';
 import { countSteps, locate, type Condition, type Graph, type Trigger } from './model/graph.js';
 import type { Action, FlowNode } from './model/graph.js';
@@ -132,7 +132,10 @@ export function AutomationRulesPage(): ReactNode {
   });
 
   const all = rules.data?.rules ?? [];
-  const selected = all.find((rule) => rule.id === search.rule) ?? all[0] ?? null;
+  // The owner's own rules, and the ones an app or an add-on brought: listed apart, never mixed.
+  const { own, shipped } = splitShipped(all);
+  const selected = all.find((rule) => rule.id === search.rule) ?? own[0] ?? shipped[0] ?? null;
+  const selectedShipped = selected?.managed ?? null;
   const dirty = draft !== null && selected !== null && draft.id === selected.id;
   const graph: Graph | null = dirty ? draft.graph : (selected?.graph ?? null);
   const trigger: Trigger | null = dirty ? draft.trigger : (selected?.trigger ?? null);
@@ -146,7 +149,8 @@ export function AutomationRulesPage(): ReactNode {
 
   const edit = useCallback(
     (next: { graph?: Graph; trigger?: Trigger }) => {
-      if (selected === null) return;
+      // A rule that came with an app or an add-on is shown, not changed: its copy is what is edited.
+      if (selected === null || (selected.managed !== null && selected.managed !== undefined)) return;
       setDraft((current) => {
         const base =
           current !== null && current.id === selected.id
@@ -225,9 +229,11 @@ export function AutomationRulesPage(): ReactNode {
 
   const duplicate = useMutation({
     mutationFn: (rule: RuleView) => automationsApi.duplicate(rule.id),
-    onSuccess: async (copy) => {
+    onSuccess: async (copy, source) => {
       toastSuccess(t('automations:toast.duplicated', '{name} duplicated', { name: copy.name }));
       await invalidateRules(queryClient);
+      // "Edit a copy" of a rule that came with an add-on: the copy is the owner's, and is what opens.
+      if (source.managed !== null && source.managed !== undefined) selectRule(copy.id);
     },
   });
 
@@ -298,7 +304,7 @@ export function AutomationRulesPage(): ReactNode {
     },
   ];
 
-  const visible = all.filter(
+  const visible = own.filter(
     (rule) => filter === 'all' || (filter === 'active' ? rule.enabled : !rule.enabled),
   );
   const inspectNode: FlowNode | null =
@@ -362,8 +368,8 @@ export function AutomationRulesPage(): ReactNode {
               label: t(FILTER_LABELS[key].key, FILTER_LABELS[key].fallback),
               count:
                 key === 'all'
-                  ? all.length
-                  : all.filter((rule) => (key === 'active' ? rule.enabled : !rule.enabled)).length,
+                  ? own.length
+                  : own.filter((rule) => (key === 'active' ? rule.enabled : !rule.enabled)).length,
             }))}
             onSelect={setFilter}
           />
@@ -386,6 +392,18 @@ export function AutomationRulesPage(): ReactNode {
               />
             ))
           )}
+          <ShippedRuleGroups
+            rules={shipped}
+            selectedId={selected?.id ?? null}
+            triggerLine={(rule) => triggerSentence(rule.trigger)}
+            now={Date.now()}
+            onSelect={(rule) => {
+              selectRule(rule.id);
+            }}
+            onToggle={(rule) => {
+              toggle.mutate(rule);
+            }}
+          />
         </div>
 
         {selected === null || graph === null || trigger === null ? (
@@ -422,7 +440,25 @@ export function AutomationRulesPage(): ReactNode {
               onDelete={() => {
                 setConfirmDelete(selected);
               }}
+              {...(selectedShipped === null
+                ? {}
+                : {
+                    shipped: {
+                      owner: selectedShipped.name,
+                      copying: duplicate.isPending,
+                      onCopy: () => {
+                        duplicate.mutate(selected);
+                      },
+                    },
+                  })}
             />
+            {selectedShipped === null ? null : (
+              <p data-part="rule-shipped-note" className="border-b border-border bg-surface-2 px-5 py-2.5 text-[12.5px] text-fg-muted">
+                {t('automations:shipped.readOnly', 'This rule came with {name}. Switch it on or off here; to change what it does, edit a copy.', { name: selectedShipped.name })}
+              </p>
+            )}
+            {/* Shown, not changed: nothing in a shipped rule's flow takes a click or a key. */}
+            <div {...(selectedShipped === null ? {} : { inert: true })} data-part="rule-flow">
             <FlowBuilder
               graph={graph}
               selectedId={inspectId}
@@ -443,6 +479,7 @@ export function AutomationRulesPage(): ReactNode {
                 edit({ graph: moveIntoBranch(graph, dragId, branchId) });
               }}
             />
+            </div>
           </div>
         )}
       </div>

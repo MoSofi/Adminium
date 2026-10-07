@@ -431,5 +431,12 @@ export default {
   "saved": {
     "h": "{h} t",
     "m": "{m} min"
+  },
+  "shipped": {
+    "addOns": "Fra dine tilføjelser",
+    "apps": "Fra dine apps",
+    "edited": "Ændret af dig",
+    "copy": "Rediger en kopi",
+    "readOnly": "Denne regel fulgte med {name}. Slå den til eller fra her; rediger en kopi for at ændre, hvad den gør."
   }
 } as const;

@@ -1987,6 +1987,26 @@
     "status": "mt",
     "srcHash": "158f3da59275"
   },
+  "automations.shipped.addOns": {
+    "status": "mt",
+    "srcHash": "f3b73eb5f7ea"
+  },
+  "automations.shipped.apps": {
+    "status": "mt",
+    "srcHash": "0c264f9d0904"
+  },
+  "automations.shipped.copy": {
+    "status": "mt",
+    "srcHash": "518d14afab5d"
+  },
+  "automations.shipped.edited": {
+    "status": "mt",
+    "srcHash": "fd556128d61e"
+  },
+  "automations.shipped.readOnly": {
+    "status": "mt",
+    "srcHash": "f9d600a2ff92"
+  },
   "automations.status.active": {
     "status": "src",
     "srcHash": "a733b809d2f1"

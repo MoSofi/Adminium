@@ -38,6 +38,11 @@ export interface RuleView {
   valid: boolean;
   incompleteNodeId: string | null;
   stats: RuleStats;
+  /**
+   * What shipped the rule, for one an app or an add-on brought with it; null
+   * (or absent, from an older server) for a rule somebody made here.
+   */
+  managed?: { key: string; name: string; kind: 'app' | 'add-on'; templateKey: string; edited: boolean } | null;
   createdAt: number;
   updatedAt: number;
 }

@@ -431,5 +431,12 @@ export default {
   "saved": {
     "h": "{h} h",
     "m": "{m} min"
+  },
+  "shipped": {
+    "addOns": "Z vašich doplňků",
+    "apps": "Z vašich aplikací",
+    "edited": "Změněno vámi",
+    "copy": "Upravit kopii",
+    "readOnly": "Toto pravidlo přišlo s {name}. Zde jej zapnete nebo vypnete; chcete-li změnit, co dělá, upravte kopii."
   }
 } as const;

@@ -421,5 +421,12 @@
   "saved": {
     "h": "{h} Std.",
     "m": "{m} Min."
+  },
+  "shipped": {
+    "addOns": "Von Ihren Add-ons",
+    "apps": "Von Ihren Apps",
+    "edited": "Von Ihnen geändert",
+    "copy": "Kopie bearbeiten",
+    "readOnly": "Diese Regel kam mit {name}. Schalten Sie sie hier ein oder aus; um zu ändern, was sie tut, bearbeiten Sie eine Kopie."
   }
 }

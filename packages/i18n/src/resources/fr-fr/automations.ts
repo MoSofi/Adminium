@@ -431,5 +431,12 @@ export default {
   "saved": {
     "h": "{h} h",
     "m": "{m} min"
+  },
+  "shipped": {
+    "addOns": "De vos modules",
+    "apps": "De vos applications",
+    "edited": "Modifiée par vous",
+    "copy": "Modifier une copie",
+    "readOnly": "Cette règle est fournie avec {name}. Activez-la ou désactivez-la ici ; pour changer ce qu'elle fait, modifiez une copie."
   }
 } as const;
