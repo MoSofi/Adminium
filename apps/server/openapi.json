@@ -10847,6 +10847,61 @@
                       "type": "string"
                     },
                     "additionalProperties": {}
+                  },
+                  "make": {
+                    "type": "object",
+                    "properties": {
+                      "lineAmount": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "subtotal": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "discount": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "total": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "codes": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string",
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          }
+                        },
+                        "required": [
+                          "table"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "dryRun": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "checksum": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -10885,24 +10940,195 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "adjust": {
+                  "anyOf": [
+                    {
                       "type": "object",
-                      "propertyNames": {
-                        "type": "string"
+                      "properties": {
+                        "adjust": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "owner": {
+                          "type": "null"
+                        },
+                        "made": {
+                          "type": "object",
+                          "properties": {
+                            "columns": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "made": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column",
+                                  "type",
+                                  "made"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "tables": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rules": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "op": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "op"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "columns",
+                            "tables",
+                            "rules"
+                          ],
+                          "additionalProperties": false
+                        }
                       },
-                      "additionalProperties": {}
+                      "required": [
+                        "adjust",
+                        "owner"
+                      ],
+                      "additionalProperties": false
                     },
-                    "owner": {
-                      "type": "null"
+                    {
+                      "type": "object",
+                      "properties": {
+                        "checksum": {
+                          "type": "string"
+                        },
+                        "made": {
+                          "type": "object",
+                          "properties": {
+                            "columns": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "made": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column",
+                                  "type",
+                                  "made"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "tables": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rules": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "op": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "op"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "columns",
+                            "tables",
+                            "rules"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "refusals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "reason"
+                            ],
+                            "additionalProperties": {}
+                          }
+                        }
+                      },
+                      "required": [
+                        "checksum",
+                        "made",
+                        "refusals"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "adjust",
-                    "owner"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
