@@ -45,6 +45,28 @@ export async function settingValue(db: Db, setting: RuleSetting, reader: RuleSet
 const empty = (value: unknown) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 
 /**
+ * A create's values with every LINK the settings fill, filled — before the
+ * copies run, so what is copied through such a link is copied in the same
+ * save (a new item with no unit chosen takes the settings' unit, and the
+ * unit's code with it). Only a link no copy fills itself: where a copy and
+ * the settings may both fill a column, the copy stands and the settings are
+ * the fallback (`fillFromElsewhere`, after the copies). The same object when
+ * nothing was filled.
+ */
+export async function fillLinksFromElsewhere(
+  rules: TableRules | null,
+  action: WriteAction,
+  target: { db: Db; connectionId: string },
+  values: Row,
+  reader: RuleSettingsReader | undefined,
+): Promise<Row> {
+  if (action !== 'create' || (rules?.defaultsFrom?.length ?? 0) === 0 || (rules?.copies?.length ?? 0) === 0) return values;
+  const copies = rules!.copies!;
+  const links = rules!.defaultsFrom!.filter((rule) => copies.some((copy) => copy.via === rule.column) && !copies.some((copy) => copy.column === rule.column));
+  return links.length === 0 ? values : fillFromElsewhere({ ...rules!, defaultsFrom: links }, action, target, values, reader);
+}
+
+/**
  * A create's values with every `default {from}` column that is still empty
  * filled — after a copy on the same column, so a client's own tax rate wins
  * and a client with none falls back to the settings' rate. The same object

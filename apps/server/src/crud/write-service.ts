@@ -125,7 +125,7 @@ import {
 import { inTransaction, withNamedLock } from './capacity-guard.js';
 import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
-import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
+import { fillFromElsewhere, fillLinksFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
@@ -2381,7 +2381,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rules,
         action,
         target,
-        localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)),
+        await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), opts.settings),
         memo,
         context.origin === 'undo',
         { origin: context.origin, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
@@ -2893,7 +2893,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const hooks = current();
     const rules = rulesOf(target);
     const zone = await zoneFor(rules, target);
-    const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone);
+    // A link the settings fill is filled first: what is copied through it is copied in this save.
+    const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone), opts.settings);
     const resolved = await fillFromElsewhere(
       rules,
       'create',
@@ -2935,7 +2936,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     try {
       const rules = rulesOf(target);
       const zone = await zoneFor(rules, target);
-      const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone);
+      const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), opts.settings);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), opts.settings);
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
       return await formulate(rules, 'create', target, decided, null, context.origin);
