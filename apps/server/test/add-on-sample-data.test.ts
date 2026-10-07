@@ -25,7 +25,7 @@ const pk = { ref: 'id', type: 'int', role: 'pk' };
 /** The stock kit with a table of notes that name another table, and sample rows of its own. */
 function kit(): { manifest: Record<string, unknown>; files: Record<string, string> } {
   const manifest = stockKitManifest() as Record<string, unknown> & { requiredSchema: { tables: unknown[] } };
-  manifest.requiredSchema.tables.push({ ref: 'notes', columns: [pk, { ref: 'about_table', type: 'text', maxLength: 64, rules: { tableRef: true } }, { ref: 'body', type: 'text', maxLength: 80, nullable: true }] });
+  manifest.requiredSchema.tables.push({ ref: 'notes', columns: [pk, { ref: 'about_table', type: 'text', maxLength: 64, rules: { tableRef: true } }, { ref: 'about_row', type: 'text', maxLength: 64, nullable: true }, { ref: 'body', type: 'text', maxLength: 80, nullable: true }] });
   manifest['sampleData'] = { file: 'seeds/stock.sample.json' };
   const bundle = {
     format: 'adminium.sample/1',
@@ -33,7 +33,7 @@ function kit(): { manifest: Record<string, unknown>; files: Record<string, strin
     tables: [
       { ref: 'items', rows: [{ '@label': 'flour', name: 'Flour', zone: 'shelf', opening: '10.00' }, { '@label': 'salt', name: 'Salt', opening: '4.00' }, { name: 'Yeast', opening: '1.00' }] },
       { ref: 'takes', rows: [{ item_id: { '@ref': 'flour' }, qty: '2.50' }, { item_id: { '@ref': 'flour' }, qty: '1.50' }, { item_id: { '@ref': 'salt' }, qty: '4.00' }] },
-      { ref: 'notes', rows: [{ about_table: { '@table': 'items' }, body: 'Counted on Monday' }] },
+      { ref: 'notes', rows: [{ about_table: { '@table': 'items' }, about_row: { '@ref': 'salt' }, body: 'Counted on Monday' }] },
     ],
   };
   return { manifest, files: { 'seeds/stock.sample.json': JSON.stringify(bundle) } };
@@ -74,6 +74,9 @@ describe.each(LEGS)('an add-on\'s own sample data — %s', (dialect, available) 
     expect(items.map((item) => [item['name'], Number(item['taken']), Number(item['remaining'])])).toEqual([['Flour', 4, 6], ['Salt', 4, 0], ['Yeast', 0, 1]]);
     // A row names one of its tables the way rows name a table: by who made it and its short name.
     expect((await h.rows('SELECT about_table FROM stock_kit_notes')).map((note) => note['about_table'])).toEqual(['stock-kit:items']);
+    // And a row by its key, as text where the column is text — "2", the way a save writes it, on every engine.
+    const salt = (await h.rows(`SELECT id FROM stock_kit_items WHERE name = 'Salt'`))[0]!['id'];
+    expect((await h.rows('SELECT about_row FROM stock_kit_notes')).map((note) => note['about_row'])).toEqual([String(Number(salt))]);
 
     const loaded = (await get(h, '/add-ons/stock-kit/sample-data')).json();
     expect(loaded).toMatchObject({ offered: true, loaded: true, total: 7, available: null });

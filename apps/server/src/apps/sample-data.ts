@@ -657,6 +657,25 @@ function spellInstants(values: Row, table: ResolvedTable): Row {
   return out;
 }
 
+/** Column types that hold text. */
+const TEXT_TYPES = new Set(['text', 'varchar']);
+
+/**
+ * A row's key named into a TEXT column — a receipt's source row — goes in as
+ * the text a save writes there ("12"). Left a number, an engine spells it its
+ * own way (SQLite: "12.0"), and the receipt would name no row: nothing posted
+ * for it could be found again or given back.
+ */
+function keysAsText(values: Row, given: Row, table: ResolvedTable): Row {
+  const out: Row = { ...values };
+  for (const [column, value] of Object.entries(values)) {
+    if (typeof value !== 'number' && typeof value !== 'bigint') continue;
+    if (sampleDirective(given[column])?.kind !== 'ref') continue;
+    if (TEXT_TYPES.has(table.columns.get(column)?.logicalType ?? '')) out[column] = String(value);
+  }
+  return out;
+}
+
 /** Key types an identity sequence counts in. */
 const INTEGER_TYPES = new Set(['integer', 'bigint', 'smallint']);
 
@@ -1592,7 +1611,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               continue;
             }
             const resolvedRow = resolveValues(chosen, ctx);
-            const values = spellInstants(resolvedRow, resolved);
+            const values = keysAsText(spellInstants(resolvedRow, resolved), chosen, resolved);
             const label = typeof row['@label'] === 'string' ? row['@label'] : null;
             // A part of a row this add took back: that row came back with the parts it has.
             const underTakenBack = partLinks(view, resolved).some((link) => {
