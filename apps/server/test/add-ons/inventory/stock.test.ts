@@ -41,6 +41,8 @@ describe.each(LEGS)('stock received, used and given back — %s', (dialect, avai
     const [each] = await w.rowsOf('units', "code = 'each'");
     expect(row).toMatchObject({ when_out: 'default' });
     expect(String(row['unit_id'])).toBe(String(each?.['id']));
+    // The unit came from the settings, and what is copied through it came with it in the same save.
+    expect([row['unit'], n(row['decimals'])]).toEqual(['each', 0]);
     expect(n(row['allow_short'])).toBe(1);
     expect(n(row['on_hand'])).toBe(0);
   });
@@ -55,7 +57,8 @@ describe.each(LEGS)('stock received, used and given back — %s', (dialect, avai
     await expect(w.update('receipt_lines', line, { status: 'posted' })).rejects.toMatchObject({ code: 'STATE_MOVE_REFUSED' });
     await w.update('receipts', receipt, { status: 'posting' });
     const posted = await w.update('receipt_lines', line, { status: 'posted' });
-    expect(posted.posted.map(said)).toEqual(['stock receive post planned']);
+    // The delivery's own call wrote the rows; the order's step was asked and, with no order, wrote none.
+    expect(posted.posted.filter((one) => one.rows > 0).map(said)).toEqual(['stock receive post planned']);
     await w.update('receipts', receipt, { status: 'posted' });
 
     expect(await movements()).toEqual(['opening 10']);

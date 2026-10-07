@@ -94,8 +94,10 @@ export async function installBuilt(dialect: Dialect, addOn: BuiltAddOn, opts: Ha
   return { h, addOn, reply: res.json() as Doc, real, rowsOf: (ref, where) => h.rows(`select * from ${real(ref)}${where === undefined ? '' : ` where ${where}`}`) };
 }
 
-/** Staff at a desk, as the dashboard writes. */
+/** Staff at a desk, as the dashboard writes: somebody who holds every role an add-on ships. */
 export const DESK: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy' }, request: null };
+/** Staff who hold no role of the add-on's: a move that names roles is refused them. */
+export const CLERK: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_cal', label: 'Cal' }, request: null };
 
 export interface Saved {
   row: Record<string, unknown>;
@@ -147,7 +149,8 @@ export async function writing(installed: Installed): Promise<Writing> {
       refused.push(event);
     },
   };
-  const writes = createWriteService({ ...writeStores(h.meta), ledgers: createLedgerRuntime(deps) });
+  // Who holds which role is the server's to read; here Ivy holds them all and nobody else holds any.
+  const writes = createWriteService({ ...writeStores(h.meta), ledgers: createLedgerRuntime(deps), rolesOf: async (actor) => (actor?.kind === 'user' && actor.id === 'usr_ivy' ? 'any' : new Set<string>()) });
   const one = async (ref: string, id: unknown) => {
     const [row] = await installed.rowsOf(ref, `id = ${String(id)}`);
     if (row === undefined) throw new Error(`no row ${String(id)} in ${ref}`);
