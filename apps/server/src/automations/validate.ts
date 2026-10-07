@@ -273,8 +273,17 @@ function checkAction(
   }
 }
 
+/**
+ * Whether a table is one of Adminium's own, which no rule reads or writes.
+ * Told by the table's own name: a database or a schema may be called anything
+ * (a MySQL database named `adminium_shop` holds ordinary tables).
+ */
+export function isOwnTable(table: Pick<ResolvedTable, 'name'>): boolean {
+  return table.name.startsWith('adminium_');
+}
+
 function assertNotSystem(table: ResolvedTable, where: string): void {
-  if (table.id.includes('adminium_')) {
+  if (isOwnTable(table)) {
     throw new ValidationFailedError(`${where}: ${table.id} is one of Adminium's own tables.`, {
       table: table.id,
     });

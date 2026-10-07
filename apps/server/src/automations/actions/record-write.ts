@@ -49,6 +49,7 @@ import { writeStores } from '../../crud/write-stores.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
+import { isOwnTable } from '../validate.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 import { announceEffects } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
@@ -58,7 +59,7 @@ type UpdateAction = Extract<AutomationAction, { kind: 'record.update' }>;
 
 /** Adminium's own tables are never a rule's target (the existing guard). */
 function assertWritable(table: ResolvedTable): void {
-  if (table.id.includes('adminium_')) {
+  if (isOwnTable(table)) {
     throw new ActionFailure(`${table.id} is one of Adminium's own tables and cannot be written.`);
   }
   if (table.readOnly) throw new ActionFailure(`${table.id} is read-only.`);
