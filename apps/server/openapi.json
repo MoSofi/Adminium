@@ -90017,6 +90017,44 @@
                               },
                               "seeded": {
                                 "type": "number"
+                              },
+                              "tables": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "addOn": {
+                                      "type": "string"
+                                    },
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "actions": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "skipped": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unknown-table",
+                                        "unknown-column",
+                                        "ledger-table"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "addOn",
+                                    "table",
+                                    "actions"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
                             },
                             "required": [
@@ -91527,6 +91565,40 @@
                             "additionalProperties": false
                           }
                         },
+                        "roleTables": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "addOn": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "actions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "addOn",
+                              "table",
+                              "actions"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "publicAccess": {
                           "type": "object",
                           "properties": {
@@ -92579,6 +92651,44 @@
                         },
                         "seeded": {
                           "type": "number"
+                        },
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "addOn": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "actions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "skipped": {
+                                "type": "string",
+                                "enum": [
+                                  "unknown-table",
+                                  "unknown-column",
+                                  "ledger-table"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "addOn",
+                              "table",
+                              "actions"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
@@ -93313,6 +93423,44 @@
                             },
                             "seeded": {
                               "type": "number"
+                            },
+                            "tables": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "role": {
+                                    "type": "string"
+                                  },
+                                  "addOn": {
+                                    "type": "string"
+                                  },
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "actions": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "skipped": {
+                                    "type": "string",
+                                    "enum": [
+                                      "unknown-table",
+                                      "unknown-column",
+                                      "ledger-table"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "role",
+                                  "addOn",
+                                  "table",
+                                  "actions"
+                                ],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": [
@@ -101807,6 +101955,39 @@
                         "skipped"
                       ],
                       "additionalProperties": false
+                    },
+                    "roleTables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string"
+                          },
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "skipped": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "addOn",
+                          "table",
+                          "actions"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [

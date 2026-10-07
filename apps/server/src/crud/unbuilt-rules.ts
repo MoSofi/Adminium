@@ -84,8 +84,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   'email.onlyWithout': ADD_ON_INSTALL_RELEASE,
   'outbox.pages.app': ADD_ON_INSTALL_RELEASE,
   'rows.pair': ADD_ON_INSTALL_RELEASE,
-  // What a generated page says and offers beyond its form; a role's grant on an add-on's table; a typed code's look-up.
-  'roles.tables': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
   'addOn.adjuster': PRICE_QUESTION_RELEASE,
@@ -132,6 +130,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'addOn.recordTabs',
   // Two links on a dashboard's toolbar, one of them the page's main action: each drawn for who may open its page.
   'toolbar.links',
+  // What an app's role holds of a table of an add-on it names: written while the add-on is there for the app, taken back when it is not.
+  'roles.tables',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

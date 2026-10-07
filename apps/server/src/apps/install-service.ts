@@ -132,6 +132,7 @@ import { installOutbox, templateProblems, type OutboxResult } from './manifest-o
 import { installAutomations } from './manifest-automations.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { liveAddOnsFor } from './live-add-ons.js';
+import { roleTablesAsked, settleRoleTables, type RoleTableResult } from './manifest-role-tables.js';
 import { installAppDocuments } from '../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
@@ -1005,6 +1006,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(ruleWarnings.length === 0 ? {} : { ruleWarnings }),
         sampleData: manifest.kind === 'app' && manifest.sampleData !== undefined,
         ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
+        // What each role would hold of the tables of the add-ons the app names, once each is there for it.
+        ...(roleTablesAsked(manifest).length === 0 ? {} : { roleTables: roleTablesAsked(manifest) }),
         pageWarnings:
           manifest.kind === 'app'
             ? checkManifestPages(manifest).map((issue) => ({
@@ -1437,6 +1440,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
             });
+      // What the app's roles hold of the tables of the add-ons that are here for it: written with the roles, taken back for any that is not.
+      const roleTables = connectionId === null || manifest.kind !== 'app' ? [] : await settleRoleTables({ meta: deps.meta, app: manifest, connectionId, live: await liveAddOnsFor(deps.meta, manifest, connectionId) });
       /*
        * WHOEVER INSTALLS AN ADD-ON HOLDS ITS FIRST ROLE. An add-on's pages and
        * tables are seen only by its own roles, so without this the person who
@@ -1578,7 +1583,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           }
         }
       }
-      return { pages: result, rules, roles, publicAccess: made, outbox };
+      return { pages: result, rules, roles: roles === undefined || roleTables.length === 0 ? roles : { ...roles, tables: roleTables }, publicAccess: made, outbox };
     } catch (error) {
       if (strict) throw error;
       host.log.warn({ err: error, manifestRowId }, 'app installed, but its pages were not written');
@@ -2895,9 +2900,24 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    */
   async function settleHost(input: Parameters<InstallCore['settleHost']>[0]): Promise<Awaited<ReturnType<InstallCore['settleHost']>>> {
     const { addOnKey, appKey, connectionId, actor } = input;
-    const out = { roleTables: null, publicAccess: { granted: [] as string[], withdrawn: [] as string[], skipped: [] as { ref: string; reason: string }[] } };
+    const out = { roleTables: null as RoleTableResult[] | null, publicAccess: { granted: [] as string[], withdrawn: [] as string[], skipped: [] as { ref: string; reason: string }[] } };
     const access = deps.publicAccess;
     const app = await appHere(appKey, connectionId);
+    /*
+     * WHAT THE APP'S ROLES HOLD OF THE ADD-ON'S TABLES, first and whatever
+     * else this server can do: written while the add-on is here for the app,
+     * taken back when it is not. The event has happened by now, so a failure
+     * here is logged and the role is left narrower than declared — never
+     * wider; the next event, and the app's next update, settle it again.
+     */
+    if (app !== null && app !== 'unreadable') {
+      try {
+        const live = await liveAddOnsFor(deps.meta, app, connectionId, input.addOn === undefined ? undefined : { key: addOnKey, as: input.addOn });
+        out.roleTables = (await settleRoleTables({ meta: deps.meta, app, connectionId, live })).filter((entry) => entry.addOn === addOnKey);
+      } catch (error) {
+        input.host?.log.warn({ err: error, addOn: addOnKey, app: appKey }, 'an add-on moved, and what the roles of its app hold of its tables was not settled');
+      }
+    }
     if (access === undefined || app === null) return out;
     const record = publicAccessRecorder(actor, appKey, connectionId, actor.id);
     const taken = async (change: PublicAccessCommit) => {

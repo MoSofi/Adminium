@@ -91,13 +91,11 @@ describe('the stored buttons of a record page', () => {
 });
 
 describe('the words a server reads and does not run yet', () => {
-  const NEW = ['roles.tables'] as const;
   const found = (doc: unknown) => unbuiltInManifest(doc).map((word) => `${word.word} ${word.release}`);
 
   it('each names the release that runs it', () => {
-    for (const word of NEW) expect(UNBUILT_MANIFEST_WORDS[word], word).toBe('0.3.18');
     // A record page's buttons are run: nothing is refused for them any more.
-    for (const run of ['states.actions', 'addOn.lookUp', 'config.tabs', 'config.bulk', 'toolbar.links'] as const) {
+    for (const run of ['states.actions', 'addOn.lookUp', 'config.tabs', 'config.bulk', 'toolbar.links', 'roles.tables'] as const) {
       expect(UNBUILT_MANIFEST_WORDS[run], run).toBeUndefined();
       expect(MANIFEST_WORDS_RUN, run).toContain(run);
     }
@@ -105,7 +103,8 @@ describe('the words a server reads and does not run yet', () => {
     expect(found(DESK).some((word) => word.startsWith('addOn.lookUp'))).toBe(false);
     // What is left of the desk kit's words for a later release: the last four of a code, kept beside it.
     expect(found(DESK)).toEqual(['column.codeLast4 0.3.19']);
-    expect(found(DESK_HOST)).toContain('roles.tables 0.3.18');
+    // A role's hold on an add-on's table is written now: the host app asks for nothing this server does not run.
+    expect(found(DESK_HOST)).toEqual([]);
     const linked = structuredClone(DESK_HOST) as Doc;
     linked.pages[0].config = { layout: { toolbar: { links: [{ label: 'New sale', href: '/p/sales' }, { label: 'Count', href: '/p/sales', tone: 'primary' }] } } };
     // Two links on a dashboard's toolbar are drawn now: nothing is refused for them.
@@ -132,14 +131,10 @@ describe('the words a server reads and does not run yet', () => {
     });
   }
 
-  it('an app whose role reaches an add-on\'s table is refused at the upload, and makes no table', async () => {
+  it('an app whose role reaches an add-on\'s table is taken at the upload: nothing in it waits for a later release', async () => {
     const h = (open = await installHarness('sqlite'));
     const staged = await upload(h, DESK_HOST);
-    expect(staged.statusCode, staged.body).toBe(422);
-    expect(JSON.parse(staged.body)).toMatchObject({
-      error: { code: 'VALIDATION_FAILED', details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.3.18', words: [{ word: 'roles.tables', path: 'roles.0.tables', release: '0.3.18' }] } },
-    });
-    expect(await h.rows(`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'desk_host_%'`)).toEqual([]);
+    expect(staged.statusCode, staged.body).toBe(200);
   });
 
   it('an app whose own table has buttons is taken: its upload and its install go through', async () => {

@@ -44,7 +44,10 @@ type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[num
 /** `adminium_roles.slug` is `str(40)`. */
 export const ROLE_SLUG_MAX = 40;
 
-const SEEDED_APP_ROLE_GRANTS_KEY = 'system.seededAppRoleGrants';
+export const SEEDED_APP_ROLE_GRANTS_KEY = 'system.seededAppRoleGrants';
+
+/** A ledger pair of a grant on an add-on's table (`table:@<addOn>/<ref>:<action>`): the role-table writer's, never read here. */
+const ADD_ON_TABLE = /^table:@[a-z][a-z0-9-]{1,79}\//;
 
 const TABLE = /^table:@([A-Za-z0-9_]+):(read|create|update|delete|export|import|read_pii)$/;
 const PAGE = /^page:@([a-z][a-z0-9-]*):(view|edit)$/;
@@ -186,6 +189,8 @@ export interface RolesResult {
   created: string[];
   /** Grants given now. */
   seeded: number;
+  /** What the roles hold of the tables of the add-ons here for the app (the role-table writer's answer), when it asks for any. */
+  tables?: { role: string; addOn: string; table: string; actions: string[]; skipped?: 'unknown-table' | 'unknown-column' | 'ledger-table' }[];
 }
 
 /**
@@ -229,6 +234,8 @@ export async function writeManifestRoles(input: {
       if (row.resourceKind !== 'table' || !row.resourceRef.startsWith(`${connectionId}/`)) continue;
       const actions = row.actions as TableActions;
       const limit = wanted.get(row.resourceRef);
+      // Only the manifest's own tables: a limit on a row of an add-on's table is another writer's, written with its grant.
+      if (!own.has(row.resourceRef)) continue;
       if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined && actions.createLimit === undefined) continue;
       const { updateLimit: _previous, readLimit: _read, createLimit: _create, ...rest } = actions;
       const update: UpdateLimit | undefined =
@@ -244,6 +251,10 @@ export async function writeManifestRoles(input: {
       });
     }
   };
+  const own = new Set((manifest.requiredSchema?.tables ?? []).flatMap((table) => {
+    const id = tableId(table.ref);
+    return id === null ? [] : [`${connectionId}/${id}`];
+  }));
   const before = seeded.size;
   let changed = false;
 
@@ -299,6 +310,15 @@ export async function writeManifestRoles(input: {
      */
     for (const pair of [...seeded].filter((entry) => entry.startsWith(`${slug}|`))) {
       const grant = pair.slice(slug.length + 1);
+      // What the role holds of an add-on's table comes and goes with that add-on: settled by its own writer —
+      // which gives it afresh to a role made a moment ago, whatever the ledger remembers of one of the same name.
+      if (ADD_ON_TABLE.test(grant)) {
+        if (fresh) {
+          seeded.delete(pair);
+          changed = true;
+        }
+        continue;
+      }
       if (wanted.includes(grant)) continue;
       // A role made a moment ago holds nothing to take back; the entry is stale.
       if (!fresh) await revokeGrant(role.id, grant);

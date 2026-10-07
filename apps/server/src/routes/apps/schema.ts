@@ -396,6 +396,12 @@ export const appInstallPlanDto = z.object({
     .array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), grant: z.literal('settings') }))
     .optional(),
   /**
+   * What each role of the app would hold of the tables of the add-ons it
+   * names (`roles[].tables`), for the check step to show: written when that
+   * add-on is there for the app, taken back when it is not. Absent when none.
+   */
+  roleTables: z.array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()) })).optional(),
+  /**
    * What the app's guests could do through the public API, as it asks, for
    * the check step to show and the installer to allow or not. Absent for an
    * app asking for none.
@@ -625,7 +631,14 @@ export const installedAppReply = z.object({
     })
     .optional(),
   /** The manifest's roles made now, and the grants given now (each once). Absent where pages are. */
-  roles: z.object({ created: z.array(z.string()), seeded: z.number() }).optional(),
+  roles: z
+    .object({
+      created: z.array(z.string()),
+      seeded: z.number(),
+      /** What the roles hold of the tables of the add-ons that are here for the app, entry by entry — and what was left out, by name. */
+      tables: z.array(z.object({ role: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()), skipped: z.enum(['unknown-table', 'unknown-column', 'ledger-table']).optional() })).optional(),
+    })
+    .optional(),
   /** The public endpoints the manifest asked for, saved now, and the guests' key if one was made now. */
   publicAccess: z
     .object({

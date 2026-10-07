@@ -47,7 +47,7 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFaile
 import { PERMISSIONS } from '../rbac/permissions.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 import { DECIDER_CONTRACTS, deciderGate } from './decide.js';
-import type { InstallActor, InstallCore, InstallHost } from './install-core.js';
+import type { HostSettled, InstallActor, InstallCore, InstallHost } from './install-core.js';
 import { needsOf } from './needs.js';
 import type { AddOnSchemaTarget } from './schema-target.js';
 import type { AddOnStore } from './store.js';
@@ -488,10 +488,10 @@ function settler(actor: Actor): InstallActor {
 const appHosts = (hosts: readonly string[]): string[] => hosts.filter((host) => host !== DASHBOARD_HOST);
 
 /** Whether settling changed or left out anything: an add-on with no public side says nothing of it in a reply. */
-const saysSomething = (settled: SettledByApp): boolean => Object.values(settled).some((app) => app.granted.length + app.withdrawn.length + app.skipped.length > 0);
+const saysSomething = (settled: SettledByApp): boolean => Object.values(settled).some((app) => app.granted.length + app.withdrawn.length + app.skipped.length + (app.roleTables?.length ?? 0) > 0);
 
 /** One app's key after the add-on moved, as the reply says it. */
-type SettledByApp = Record<string, { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[] }>;
+type SettledByApp = Record<string, { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[]; /** What the app's roles hold of the add-on's tables now, and what was left out, by name. */ roleTables?: HostSettled['roleTables'] }>;
 
 async function settleHosts(
   core: InstallCore,
@@ -508,7 +508,7 @@ async function settleHosts(
       host: input.host,
       ...(input.addOn === undefined ? {} : { addOn: input.addOn }),
     });
-    out[appKey] = settled.publicAccess;
+    out[appKey] = { ...settled.publicAccess, ...(settled.roleTables === null || settled.roleTables.length === 0 ? {} : { roleTables: settled.roleTables }) };
   }
   return out;
 }

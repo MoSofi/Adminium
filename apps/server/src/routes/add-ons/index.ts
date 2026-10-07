@@ -1935,7 +1935,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
         const after = await manifests.findByKey(request.params.key);
         const features = request.body.enabled ? [] : needs.filter((need) => need.need === 'feature');
-        return { addOn: await toDto(after!), ...(features.length === 0 ? {} : { features: needsDto(features) }), ...(settled === undefined || (!publicEntries && settled.publicAccess.withdrawn.length === 0) ? {} : { publicAccess: settled.publicAccess }) };
+        return { addOn: await toDto(after!), ...(features.length === 0 ? {} : { features: needsDto(features) }), ...(settled?.roleTables === undefined || settled.roleTables === null || settled.roleTables.length === 0 ? {} : { roleTables: settled.roleTables }), ...(settled === undefined || (!publicEntries && settled.publicAccess.withdrawn.length === 0) ? {} : { publicAccess: settled.publicAccess }) };
       },
     );
 

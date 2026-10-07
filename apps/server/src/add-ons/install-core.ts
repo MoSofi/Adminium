@@ -70,8 +70,8 @@ export interface CoreUninstallList {
 
 /** What settling an app after one of its add-ons moved did to the app's public key. */
 export interface HostSettled {
-  /** What the app's roles hold of the add-on's tables: written by the role-table writer, when there is one. */
-  roleTables: unknown;
+  /** What the app's roles hold of the add-on's tables after it: each entry, with what was left out and why; null when nothing was settled. */
+  roleTables: { role: string; addOn: string; table: string; actions: string[]; skipped?: string }[] | null;
   publicAccess: { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[] };
 }
 
