@@ -100,6 +100,10 @@ the last*, *was more than … ago*, *is more than … from now*.
 That is how a rule asks "did they claim it?" or "has this patient missed an
 appointment before?".
 
+On a yes/no column only `is` and `is not` apply, and the value is yes or no; it compares the same
+on every database. A count of related records cannot be used in the conditions of **For each
+record** on a schedule: keep the count in a column of the row and compare that.
+
 Two comparisons behave slightly differently depending on where they run.
 `is` matches without regard to letter case everywhere. `is not` compares
 exactly when it runs as part of a schedule scan (there is no
@@ -174,6 +178,22 @@ would choose.
 - **Imports** do not fire record triggers. A watching rule sees the imported
   rows anyway, on its next tick.
 - **Bulk edits** do fire them, once per row.
+
+## Rules from your add-ons
+
+An app or an add-on may bring rules with it. They are listed below your own, under **From your
+add-ons** and **From your apps**, each with the name of what brought it.
+
+- **The switch is yours.** A rule arrives on or off as its maker chose; after that your switch
+  stands, through every update.
+- **The rule is not.** A shipped rule opens read-only and cannot be deleted. **Edit a copy** makes
+  an ordinary rule of your own from it; switch the shipped one off if the copy replaces it.
+- **An update replaces it.** A newer version of the app or add-on rewrites its rules and removes
+  the ones it no longer ships. Your copies are never touched.
+- **It rests with its add-on.** While the add-on is switched off the rule is skipped, and the
+  workflow log says so.
+- **A schedule runs on your clock.** A shipped rule names no time zone: it takes the database's,
+  else the server's, and the card says which.
 
 ## Who can use this
 

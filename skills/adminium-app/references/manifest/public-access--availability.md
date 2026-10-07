@@ -25,3 +25,7 @@ the pool's rows, so the key also needs a plain read entry on the pool's table. R
 session's own open hold are left out of a count when asked (`exclude`); ids outside the session
 are ignored. A code that unlocks a hidden pool travels in the `x-adminium-code` header. For the
 query parameters, see the [REST API](https://docs.adminium.dev/reference/rest-api/).
+
+An entry may instead be answered by an add-on: `"words": "<add-on key>:<words id>"` names one of
+its [stock words](https://docs.adminium.dev/reference/manifest/#stock-words), and each row asked about is `in`, `low` or `out`. The add-on is one
+the manifest names.

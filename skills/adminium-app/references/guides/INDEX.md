@@ -9,6 +9,7 @@
 | `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 2004 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3042 |
+| `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
 | `references/guides/manifest-by-task--let-a-customer-find-their-own-row.md` | Let a customer find their own row | 2981 |
@@ -88,6 +89,5 @@
 | `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |
 | `references/guides/postings--overview.md` | Rows that post into an add-on's ledger | 874 |
 | `references/guides/postings--a-posting.md` | A posting | 1971 |
-| `references/guides/postings--the-moment-a-phase-fires.md` | The moment a phase fires | 1040 |
 
 More: `references/guides/INDEX-2.md`

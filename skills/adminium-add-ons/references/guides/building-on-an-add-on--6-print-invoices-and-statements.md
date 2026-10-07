@@ -41,3 +41,7 @@ copied from the invoice the payment is for:
 ```
 
 See [Documents](https://docs.adminium.dev/reference/manifest/#documents).
+
+A document that prints a money code, a gift card's, is drawn when asked and never kept, so it is
+not in the documents register. See
+[Documents that print a money code](https://docs.adminium.dev/reference/manifest/#documents-that-print-a-money-code).

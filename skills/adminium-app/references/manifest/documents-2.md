@@ -15,6 +15,3 @@ already drawn is handed back while the row is unchanged, with `contentUrl` for i
 document reads, a statement's sources included. An app, kind, row or table they cannot reach is
 the one `404`; an add-on that is detached, or a feature switched off, is `409` `FEATURE_OFF`; a
 document that cannot be drawn (a required slot left empty) is `422` `DOCUMENT_NOT_DRAWN`.
-
-A signed-in person reaches the documents of their own rows through a [public entry's
-`documents`](https://docs.adminium.dev/reference/manifest/#public-access).

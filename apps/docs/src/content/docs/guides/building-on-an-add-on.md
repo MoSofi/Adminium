@@ -248,6 +248,10 @@ copied from the invoice the payment is for:
 
 See [Documents](/reference/manifest/#documents).
 
+A document that prints a money code, a gift card's, is drawn when asked and never kept, so it is
+not in the documents register. See
+[Documents that print a money code](/reference/manifest/#documents-that-print-a-money-code).
+
 ## 7. Open a portal for clients
 
 A client signs in with a link emailed to their address, sees their sent invoices with the lines
@@ -308,3 +312,28 @@ that names such an add-on can ship [sample rows for its tables](/guides/apps/sam
 and lets it serve [public entries through the app's key](/guides/apps/public-access/#what-an-add-on-adds).
 What such an add-on declares, and how it is installed, is in
 [Add-ons that keep tables of their own](/guides/add-ons-with-tables/).
+
+### Your app's roles on an add-on's tables
+
+An add-on's own roles grant its tables. Your app's roles may too, with
+[`tables`](/reference/manifest/#a-role-on-an-add-ons-tables), so a waiter reads stock and a
+housekeeper writes a transfer without holding a second role:
+
+```json
+{ "key": "housekeeper", "name": { "en-US": "Housekeeper" }, "permissions": ["table:@rooms:read"],
+  "tables": [{ "addOn": "inventory", "table": "transfers", "actions": ["read", "create"],
+               "limit": { "creatable": ["from_place_id", "to_place_id", "note"] } }] }
+```
+
+- The grant is made when the add-on is connected to the app and taken back when it is
+  disconnected. The install check lists it.
+- It gives `read`, `create` and `update` only: no delete, no export, no import, and no limit to
+  some rows.
+- `limit` narrows the columns for this role. A person who also holds a role with a plain read of
+  the same table reads every column: grants add up.
+
+### Printing from an add-on's page
+
+An add-on's own page prints its documents through the
+[data kit](/guides/add-ons-with-tables/#printing-from-a-page). Your app's screens print a document
+of your own tables as in step 6.

@@ -396,6 +396,23 @@ The add-on's real table names reach the app's screens in the config: `addOns.<ke
 staff side (`{ "cards": "cards_kit_cards" }`), so a screen never builds a prefixed name itself. An
 add-on's own link key, when it has one, is in the customer config under `addOns.<key>.keys`.
 
+### In stock, low or out
+
+An add-on that keeps stock may answer whether each row of one of your tables is `in`, `low` or
+`out`. The entry is on your table and names the add-on's
+[stock words](/reference/manifest/#stock-words):
+
+```json
+{ "table": "menu_items", "kind": "availability", "methods": ["GET"], "words": "inventory:on-hand" }
+```
+
+A page asks the entry's availability address with `?under=12,14,15`: up to 60 row ids. It gets
+`{ "id", "state" }` for each row the key can read. `left`, how many are left, is there only when
+the owner switched it on in the add-on's settings and few are left. An answer may be up to five
+seconds old. While the add-on is switched off every row reads `in`: the page does not say "sold
+out" for an add-on that is off, and the order is still refused when the stock is not there. Whose
+rule it is does not change: the save decides, the words only tell.
+
 ## What the app's keys can never do
 
 The keys were made in your name from what the install check showed, so they stay that narrow:

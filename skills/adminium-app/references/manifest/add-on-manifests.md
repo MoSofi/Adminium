@@ -33,7 +33,9 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `demoTransport` | no | The module that stands in for the real third-party service in a demo. |
 | `pages` | no | Dashboard pages it renders from its own bundle: `{ "ref", "title", "icon", "client", "nav"?, "detail"? }`, served at `/add-ons/<key>/<ref>`. Needs `hostApi`. |
 | `navGroups` | no | Sidebar groups for those pages: `{ "key", "label", "order" }`. A group may not reuse a built-in key (`workspace`, `library`, `planning`, `people`, `account`), and every declared group must be used by a page. |
-| `hostApi` | with `pages` | The version of the host API its pages are built against: `1`. |
+| `hostApi` | with `pages` | The version of the host API its pages are built against: `1`, or `2` for a page that reads the [data kit](https://docs.adminium.dev/guides/add-ons-with-tables/#the-data-kit). `2` needs `compatibility.minAdminiumVersion` `0.3.18` or later. |
+| `words` | no | 1–4 questions asked of a ledger with nothing written. See [Stock words](https://docs.adminium.dev/reference/manifest/#stock-words). |
+| `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](https://docs.adminium.dev/reference/manifest/#a-tab-on-another-tables-record). |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
 
 Contract ids and slot ids come from closed registries in the add-on contracts package. How

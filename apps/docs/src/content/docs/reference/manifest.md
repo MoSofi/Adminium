@@ -2243,6 +2243,36 @@ document reads, a statement's sources included. An app, kind, row or table they 
 the one `404`; an add-on that is detached, or a feature switched off, is `409` `FEATURE_OFF`; a
 document that cannot be drawn (a required slot left empty) is `422` `DOCUMENT_NOT_DRAWN`.
 
+### A list of an add-on's rows
+
+A `collection` may list rows of an add-on's table that belong to the document's row. The add-on's
+table has no foreign key into the app, so the rows are found by the pair the add-on keeps: the
+stored name of a table and a row's key. A manifest that uses it sets
+`compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"applied": { "collection": { "addOn": "offers", "table": "applications",
+                             "match": { "table": "source_table", "row": "source_row" },
+                             "orderBy": "id", "columns": { "label": "label", "amount": "amount" } } }
+```
+
+`addOn` is an add-on the manifest names in [`addOns`](#add-ons). `table`, `match`, `orderBy`, `where`,
+`unless` and the columns are the add-on's own short names; `match.table` is a column that carries
+`"rules": { "tableRef": true }` and `match.row` a text column. Only plain columns are listed, none
+read through a link. While the add-on is absent, detached or switched off the list is empty and
+the document is drawn without it. The rows are the row's own, so whoever may draw the document
+needs no grant on the add-on's table. Keep a [money code](#documents-that-print-a-money-code) out
+of a table listed this way.
+
+### Documents that print a money code
+
+A money code is a code worth something to whoever holds it, a gift card's: a `code` column of
+which another column of the same table keeps the last four. A document that prints one, from its
+own row, a row it links to or the rows listed under it, is drawn when it is asked for and kept
+nowhere: no row in the documents register, no stored file, and it cannot be drawn again from the
+register. Whoever made the code prints it from the page that made it, once, with the ticket the
+create answered (see the `once` block in the [REST API](/reference/rest-api/)).
+
 A signed-in person reaches the documents of their own rows through a [public entry's
 `documents`](#public-access).
 
@@ -2535,6 +2565,44 @@ A QR code is the whole value of an image: an `email.image` block's `qr`, written
 message is delivered, only of a code column, and only for a code of at most 64 bytes. A code the
 [withhold](#withheld-columns) or share-code rules keep from the message's recipient is printed
 empty, in every form, its QR code included.
+
+#### Blocks sent only with a value
+
+A block's `data` may carry `onlyWith` or `onlyWithout`, the name of one variable the template
+reads (`"onlyWith": "card.balance"`). With `onlyWith` the block is sent when the variable holds
+something; with `onlyWithout`, when it does not. Empty means missing, blank, or held back from
+this reader. The block is dropped before the message is checked, so a variable read only inside a
+dropped block may stay empty, and the HTML and the plain text drop the same blocks. A manifest
+that uses either sets `compatibility.minAdminiumVersion` to `0.3.18` or later. A template with
+such a block is sent by the outbox only, never by a rule the manifest [ships](#automations).
+
+#### An add-on's links into an app
+
+An add-on has no customer side of its own. Its outbox may name routes of whichever app it serves:
+
+```json
+"pages": { "app": { "balance": "giftCard" } }
+```
+
+`app` maps a kebab-case name of the add-on's own to the key of a route an app declares on its
+customer side. A template reads it as `{{app_url.balance}}`: the address of that route in the
+first app, by key, that names the add-on, has it connected and switched on, declares the route and
+has a customer address. With no such app the variable is empty, so put the button that uses it in
+a block marked `onlyWith`.
+
+#### Rows of an add-on's table in an email
+
+An `email.rows` block may list an add-on's rows for the row a link names, found by the same
+[pair](#a-list-of-an-add-ons-rows) a document uses:
+
+```json
+"from": { "link": "sale", "addOn": "offers", "table": "applications",
+          "match": { "table": "source_table", "row": "source_row" }, "orderBy": "id", "limit": 20 }
+```
+
+While the add-on is absent, detached or switched off the list is empty and the message still goes
+(the block's `empty` text is said, or the block is left out). A `match` column the add-on's table
+no longer has fails the message with a reason.
 
 ## Public access
 
@@ -3153,6 +3221,10 @@ session's own open hold are left out of a count when asked (`exclude`); ids outs
 are ignored. A code that unlocks a hidden pool travels in the `x-adminium-code` header. For the
 query parameters, see the [REST API](/reference/rest-api/).
 
+An entry may instead be answered by an add-on: `"words": "<add-on key>:<words id>"` names one of
+its [stock words](#stock-words), and each row asked about is `in`, `low` or `out`. The add-on is one
+the manifest names.
+
 ### Limits on a stranger's create
 
 `anonymous` limits a create that nobody signed in for: an entry with no claim at all, or an
@@ -3239,6 +3311,72 @@ claims `by: "token"`, and every entry on it is `GET` only, reaching the rest thr
     "visibleWith": { "table": "projects", "via": "project_id" }, "files": ["file"] }
 ]
 ```
+
+## Automations
+
+`automations` lists up to 12 rules an app or an add-on brings with it: "when a stock point falls
+to its reorder level, write a request and tell the managers". A rule is written the way the
+[rules page](/guides/automations/) stores one, a trigger and then a flow of steps. A manifest
+that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"automations": [{
+  "key": "low-stock",
+  "name": { "en-US": "Tell the managers when stock is low" },
+  "enabled": true,
+  "trigger": { "kind": "record", "event": "updated", "table": "stock_points", "changedColumn": "state",
+               "when": [{ "left": { "field": "state" }, "op": "is", "right": "low" }] },
+  "graph": { "version": 1, "nodes": [
+    { "id": "t", "kind": "trigger", "title": "A stock point turns low" },
+    { "id": "n", "kind": "action", "title": "Tell the managers",
+      "action": { "kind": "notification", "to": { "roles": ["manager"] },
+                  "title": { "en-US": "{{record.name}} is running low" } } }
+  ] }
+}]
+```
+
+| Field | Rule |
+|---|---|
+| `key` | kebab-case, up to 80 characters, unique in the manifest. It is how an update finds the rule it shipped before. |
+| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`, and a notice's `title` and `body`. |
+| `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
+| `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
+| `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
+
+A step's action is one of four:
+
+| `kind` | Keys | What it does |
+|---|---|---|
+| `notification` | `to: { "roles" }`, `title`, `body`? | Tells everyone who holds one of the manifest's own roles. |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds. |
+| `record.create` | `table`, `values` | Adds a row of one of the manifest's tables. |
+| `record.update` | `values` | Writes columns of the record. |
+
+A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`.
+
+A manifest knows nothing of the install it lands on, so a shipped rule differs from one drawn on
+the rules page in three ways:
+
+- Tables are the manifest's own, by their short names. It names no connection and no time zone: a
+  rule by the clock runs on the database's zone, else the server's.
+- A notice goes to the manifest's own roles and an email to a column of the record: never a fixed
+  address, a user, a web address or a document.
+- An email's template carries no document and no block marked `withAttachment`, `onlyWith` or
+  `onlyWithout`: those are the outbox's.
+
+A condition is `{ "left", "op", "right"? }`. `left` is `{ "field" }`, a column of the record, or
+`{ "count": { "table", "matchColumn", "equalsField", "where"? } }`, a count of related rows. On a
+yes/no column only `is` and `is_not` are allowed, with `"true"` or `"false"`. A count cannot be
+used in a schedule's `forEach.where`: keep the count in a [rollup](#totals-and-balances)
+column and compare that. A `changedColumn` that is a total Adminium settles after the save needs
+a formula column over it with `"announce": true`. A rule that visits each row `once` needs a
+condition that picks the row.
+
+Each rule is installed with the app or add-on and listed on the rules page under "From your
+add-ons" or "From your apps". The owner may switch it, test it and copy it; a shipped rule itself
+is never edited or deleted there (`409` `AUTOMATION_MANAGED`). An update rewrites a rule nobody
+changed, keeping the owner's switch, and removes one the new version no longer ships. While its
+add-on is switched off a rule is skipped. Uninstalling removes the shipped rules.
 
 ## Sample data
 
@@ -3400,7 +3538,9 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `demoTransport` | no | The module that stands in for the real third-party service in a demo. |
 | `pages` | no | Dashboard pages it renders from its own bundle: `{ "ref", "title", "icon", "client", "nav"?, "detail"? }`, served at `/add-ons/<key>/<ref>`. Needs `hostApi`. |
 | `navGroups` | no | Sidebar groups for those pages: `{ "key", "label", "order" }`. A group may not reuse a built-in key (`workspace`, `library`, `planning`, `people`, `account`), and every declared group must be used by a page. |
-| `hostApi` | with `pages` | The version of the host API its pages are built against: `1`. |
+| `hostApi` | with `pages` | The version of the host API its pages are built against: `1`, or `2` for a page that reads the [data kit](/guides/add-ons-with-tables/#the-data-kit). `2` needs `compatibility.minAdminiumVersion` `0.3.18` or later. |
+| `words` | no | 1–4 questions asked of a ledger with nothing written. See [Stock words](#stock-words). |
+| `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](#a-tab-on-another-tables-record). |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
 
 Contract ids and slot ids come from closed registries in the add-on contracts package. How
@@ -3520,6 +3660,83 @@ tables. A column's `references` names another part of the same shape (`"document
 another of the add-on's shapes (`"quote@1/document"`). A rule in a part that reads a setting reads
 one of the add-on's own (`{ "addOn": "<its key>", "setting" }`), since the add-on cannot know an
 app's settings row.
+
+### Stock words
+
+`addOn.words` names a question a page may ask of one of the add-on's [ledgers](#ledgers) with
+nothing written: for each row asked about, is one of it `in`, `low` or `out`. A manifest that uses
+it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"words": [{ "id": "units-left", "ledger": "units", "action": "use", "input": "what",
+            "showLeftBelow": { "setting": "show_left_below" } }]
+```
+
+| Field | Rule |
+|---|---|
+| `id` | kebab-case, unique among the add-on's words. |
+| `ledger`, `action` | One of the add-on's ledgers and one of its actions. The add-on's code is asked what that action would do for a quantity of one, in the action's `words` mode. |
+| `input` | The action's input that takes the row asked about. |
+| `showLeftBelow` | `{ "setting" }`: a column of the add-on's [settings table](#an-add-on-with-tables-of-its-own). A customer is told how many are left only when fewer than the number it holds are, and only for today. Without it, never. |
+
+A customer's page asks through a public entry of the table the rows are of, with
+`"kind": "availability"`, `"methods": ["GET"]` and `"words": "<add-on key>:<id>"` in place of a
+limit of the table; such an entry takes no `rule`, `showLeft`, `under` or `unlockBy`. The page asks
+`GET /public/availability/<entry>?under=<id>,<id>` with up to 60 row ids. The answer lists
+`{ "id", "state", "left"? }` for each row a plain read of the same key would show; any other row
+is left out. Answers are kept for five seconds. An add-on that cannot answer (switched off, not
+loaded, its code failing) says nothing and every row reads `in`: a page never says "sold out"
+because an add-on is off, and the save still refuses what is not there.
+
+Staff ask `GET /api/v1/words/<add-on key>/<id>?table=<stored name>&ids=<id>,<id>` and are told the
+same, never from a kept answer. A caller who also reads the add-on's stock tables is given the
+figure behind the word: the exact count, the batch a use would take and its expiry, and the line
+that runs out first. When the add-on cannot answer, staff are told so (`409`), never "in stock".
+
+### A tab on another table's record
+
+`addOn.recordTabs` adds a tab of the add-on's rows to the record page of another table: the stock
+a dish uses, on the dish. The tab is declared, not coded. Adminium draws it with the page's own
+parts and the reader's own grants. A manifest that uses it sets
+`compatibility.minAdminiumVersion` to `0.3.18` or later.
+
+```json
+"recordTabs": [{
+  "id": "stock", "label": { "key": "kit.tab.stock", "fallback": "Stock" },
+  "table": "links", "match": { "table": "source_table", "row": "source_row" },
+  "on": "linked",
+  "columns": ["item_id", "qty", "note"], "edit": ["qty"],
+  "add": { "pick": { "table": "items", "label": "name" } }, "remove": true,
+  "empty": { "key": "kit.tab.empty", "fallback": "Nothing is linked yet." },
+  "summary": { "words": "units-left" },
+  "actions": [{ "id": "use", "label": { "key": "kit.tab.use", "fallback": "Use stock" },
+                "child": { "table": "uses", "form": ["qty"] } }]
+}]
+```
+
+| Field | Rule |
+|---|---|
+| `table`, `match` | The add-on's own table whose rows the tab lists, and its two columns that say which record a row belongs to: `match.table` holds a table's stored name (`"rules": { "tableRef": true }`), `match.row` the row's key as text. |
+| `on` | `"linked"`: every table a [posting rule](#postings) hands in to this add-on as the row asked about. Or up to 24 tables by their stored names. |
+| `columns` | 1–8 columns shown. `edit` lists those a reader who may change the rows edits in place. |
+| `add` | `{ "pick" }`: a row is added by picking a row of another of the add-on's tables, shown by its `label` column. One pick, or two (an item or a kit). |
+| `remove` | `true`: a row may be removed from the tab. |
+| `form` | 1–8 columns: one row edited as a form, in place of a list. |
+| `summary` | `{ "words" }`: one of the add-on's [stock words](#stock-words), whose answer heads the tab. |
+| `actions` | 1–2 buttons that add a row of another own table for the same record. |
+
+An app's table has the tab only while the add-on is connected to that app and switched on. A
+reader who cannot read the add-on's table has no tab; one who can is offered only what their role
+allows. The add-on ships the tab's `label` and `empty` in its own strings; the rest of the tab's
+words are Adminium's.
+
+### An add-on that works with another
+
+An add-on never requires another, and may name up to 8 in `addOns.suggests`. Naming one lets it
+ship a [document](#documents) the other draws and list the other's rows by a
+[pair](#a-list-of-an-add-ons-rows). Each works only while
+both are installed: a document whose add-on is absent is not made, and is made the moment that
+add-on is installed, and an email that would carry it goes without it.
 
 ### What a typed code may find
 

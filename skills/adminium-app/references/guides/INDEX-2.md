@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/postings--the-moment-a-phase-fires.md` | The moment a phase fires | 1040 |
 | `references/guides/postings--the-lines-of-an-order.md` | The lines of an order | 1707 |
 | `references/guides/postings--put-it-back-first.md` | Put it back first | 1194 |
 | `references/guides/postings--a-hold-has-an-end.md` | A hold has an end | 1103 |
@@ -59,7 +60,7 @@
 | `references/guides/public-access--limits-on-a-stranger-s-create.md` | Limits on a stranger's create | 2319 |
 | `references/guides/public-access--a-kiosk.md` | A kiosk | 2376 |
 | `references/guides/public-access--switches-in-the-settings-row.md` | Switches in the settings row | 915 |
-| `references/guides/public-access--what-an-add-on-adds.md` | What an add-on adds | 1450 |
+| `references/guides/public-access--what-an-add-on-adds.md` | What an add-on adds | 2366 |
 | `references/guides/public-access--what-the-app-s-keys-can-never-do.md` | What the app's keys can never do | 1221 |
 | `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
 | `references/guides/public-access--origins.md` | Origins | 853 |

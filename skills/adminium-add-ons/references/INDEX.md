@@ -15,11 +15,11 @@ file. Every file is 8 KB or less.
 | `references/guides/building-on-an-add-on--3-add-what-is-yours.md` | 3. Add what is yours | 1473 |
 | `references/guides/building-on-an-add-on--4-keep-the-part-s-states.md` | 4. Keep the part's states | 1837 |
 | `references/guides/building-on-an-add-on--5-send-the-shape-s-emails.md` | 5. Send the shape's emails | 2343 |
-| `references/guides/building-on-an-add-on--6-print-invoices-and-statements.md` | 6. Print invoices and statements | 2553 |
+| `references/guides/building-on-an-add-on--6-print-invoices-and-statements.md` | 6. Print invoices and statements | 2804 |
 | `references/guides/building-on-an-add-on--7-open-a-portal-for-clients.md` | 7. Open a portal for clients | 1780 |
 | `references/guides/building-on-an-add-on--8-ship-sample-data.md` | 8. Ship sample data | 758 |
 | `references/guides/building-on-an-add-on--9-check-it-before-you-release.md` | 9. Check it before you release | 659 |
-| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 726 |
+| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 1945 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
 | `references/guides/emails--what-queues-a-row.md` | What queues a row | 6600 |

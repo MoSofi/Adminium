@@ -57,6 +57,65 @@ while the add-on is switched off for the dashboard. Three rules keep that true:
 - A version that drops a page takes the page back from the add-on's roles, and uninstalling takes
   it back from every role, your own included.
 
+## The data kit
+
+A page of the add-on's own code does not fetch its tables itself. It imports
+`@adminium/add-on-data`, which the build aliases to a shim, and gets the dashboard's own parts and
+hooks: the signed-in reader's grants, the dashboard's cache, its look in light, dark and
+right-to-left. A manifest whose pages use it says `"hostApi": 2`.
+
+```tsx
+import { Card, DataTable, StatusPill, useAccess, useRecords, useWrite } from '@adminium/add-on-data';
+
+export default function Transfers() {
+  const { rows, loading } = useRecords('transfers', { sort: [{ column: 'id', direction: 'desc' }] });
+  const { canCreate } = useAccess();
+  // …
+}
+```
+
+Tables are named by the add-on's own short names (`transfers`, never `inventory_transfers`).
+Nothing a page does through the kit is something its reader could not do on a generated page: a
+read or a write the role does not grant is refused the same way.
+
+| Hook | What it gives |
+|---|---|
+| `useRecords(table, options?)` | A filtered, sorted page of rows, and whether more exist. The server filters and pages. |
+| `useRecord(table, key)` | One row. |
+| `useWrite(table)` | `create`, `update`, `remove`, and `createEach` / `updateEach` for up to 500 rows, one save each. |
+| `useTreeWrite(table)` | A row with the rows under it in one save, and a `dryRun` of it. |
+| `useStateMove(table)` | Makes one of the table's declared [actions](/reference/manifest/#buttons-on-a-record) on a row. |
+| `useAccess()` | `canRead`, `canCreate`, `canUpdate`, `canMove`, and `has(feature)`. |
+| `useLookUp()` | Finds a row by a typed or scanned code, through the add-on's [`lookUp`](/reference/manifest/#what-a-typed-code-may-find). |
+| `useWords(id)` | Asks the add-on's [stock words](/reference/manifest/#stock-words) about up to 60 rows. |
+| `useDocument()` | Draws a document for a row and opens it, or prints it. |
+| `useExport()` | Starts an export of a table's rows and downloads it. |
+
+The parts are `Card`, `Grid`, `Stack`, `Sheet` (with `SheetHeader`, `SheetBody`, `SheetFooter`),
+`StickyBar`, `Divider`, `Skeleton`, `DataTable`, `Stat`, `KeyValueList`, `StatusPill`,
+`ProgressBar`, `Pagination`, `MonoText`, `Field`, `Input`, `NumberInput`, `Textarea`, `DateInput`,
+`Select`, `Combobox`, `Switch`, `Checkbox`, `RadioGroup`, `RadioCard`, `ToggleChip`, `InputGroup`,
+`Menu`, `MenuItem`, `ConfirmModal` and `Link`.
+
+Three things to know:
+
+- **Lay a page out with the parts.** A class of your own is in no stylesheet the dashboard
+  loads. A part carries no words: pass every label from the add-on's own strings.
+- **Money and decimals are text** in a row, so no figure is rounded on the way.
+- **An older Adminium has no kit.** Importing the shim there throws, and the dashboard shows "This
+  page needs a newer Adminium." in place of the page. `compatibility.minAdminiumVersion` keeps the
+  add-on from being installed there in the first place.
+
+### Printing from a page
+
+`useDocument().open(kind, table, key, options?)` draws one of the add-on's
+[documents](/reference/manifest/#documents) for a row of one of its tables and opens it;
+`{ "print": true }` opens the print dialog, and `paper` picks one of the papers the kind lists
+(`a4`, `letter`, `receipt-80mm`, `a6`). The reader must be able to read everything the document
+reads. A document that prints a [money code](/reference/manifest/#documents-that-print-a-money-code)
+is kept nowhere, so it is not in the documents register: pass the `once` ticket the create
+answered to print the code that was shown once.
+
 ## Starting rows
 
 An add-on may ship rows its tables hold from the first second. They are written once, at install,
@@ -115,6 +174,20 @@ text (`now`, `today`, `zone`). It answers the rows to insert or update, any refu
 The contracts package ships a conformance suite, `postingRowsConformance`, that an add-on's own
 tests run over its case table: every answer inside `writes`, a give-back that nets to zero, two
 calls that agree.
+
+## Rules, tabs and stock words
+
+Three more things are declared, not coded:
+
+- **Rules it ships** ([`automations`](/reference/manifest/#automations)): installed with the
+  add-on and shown on the rules page under "From your add-ons", where the owner switches them or
+  edits a copy.
+- **A tab on another table's record** ([`addOn.recordTabs`](/reference/manifest/#a-tab-on-another-tables-record)):
+  the add-on's rows for a dish, a product or an order, listed on that record's own page.
+- **Stock words** ([`addOn.words`](/reference/manifest/#stock-words)): "in", "low" or "out" for
+  each row a page asks about, answered by the ledger's code with nothing written. Answer each line
+  by itself: a page asks about many rows at once, and one row's answer must not depend on the
+  others in the same question.
 
 ## What it opens to the public
 
