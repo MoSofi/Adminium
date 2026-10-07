@@ -71,3 +71,14 @@ export function registerMessages(addOnKey: string, bundles: AddOnMessageBundles)
   // i18n-dynamic-key: the key is an add-on's and the namespace is derived from its key, so neither half can be a literal here
   return (key, fallback, args) => t(`${namespace}:${key}`, fallback, args);
 }
+
+/**
+ * An add-on's own words where it has them in the reader's language, else the
+ * English it ships — for a place that shows an add-on's name for something
+ * without its page being open (a tab of its rows on a record).
+ */
+export function addOnWords(addOnKey: string, key: string | null, fallback: string): string {
+  if (key === null) return fallback;
+  // i18n-dynamic-key: the key is an add-on's and the namespace is derived from its key, so neither half can be a literal here
+  return t(`${addOnNamespaceFor(addOnKey)}:${key}`, fallback);
+}

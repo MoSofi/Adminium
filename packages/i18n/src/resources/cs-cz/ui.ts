@@ -2078,6 +2078,28 @@ export default {
       "cancel": "Zrušit",
       "close": "Zavřít",
       "working": "Pracuji…"
+    },
+    "linked": {
+      "add": "Přidat",
+      "pick": "Vyberte",
+      "which": "Co chcete přidat?",
+      "nothing": "Není z čeho vybírat",
+      "empty": "Zatím není nic propojeno.",
+      "remove": "Odebrat",
+      "removed": "Odebráno",
+      "loading": "Načítání…",
+      "failed": "Nepodařilo se načíst.",
+      "previous": "Předchozí",
+      "next": "Další",
+      "range": "{from}–{to} z {total}",
+      "enough": "Stačí na dalších {exact}",
+      "first": "{item} dojde jako první",
+      "onHand": "{exact} {unit} skladem",
+      "onHandBare": "{exact} skladem",
+      "soon": "Brzy vyprší",
+      "in": "Skladem",
+      "low": "Dochází",
+      "out": "Vyprodáno"
     }
   }
 } as const;

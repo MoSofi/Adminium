@@ -2078,6 +2078,28 @@ export default {
       "cancel": "Abbrechen",
       "close": "Schließen",
       "working": "Wird ausgeführt…"
+    },
+    "linked": {
+      "add": "Hinzufügen",
+      "pick": "Auswählen",
+      "which": "Was möchten Sie hinzufügen?",
+      "nothing": "Nichts zur Auswahl",
+      "empty": "Noch nichts verknüpft.",
+      "remove": "Entfernen",
+      "removed": "Entfernt",
+      "loading": "Wird geladen…",
+      "failed": "Das konnte nicht geladen werden.",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "range": "{from}–{to} von {total}",
+      "enough": "Reicht für {exact} weitere",
+      "first": "{item} geht zuerst aus",
+      "onHand": "{exact} {unit} vorrätig",
+      "onHandBare": "{exact} vorrätig",
+      "soon": "Läuft bald ab",
+      "in": "Vorrätig",
+      "low": "Knapp",
+      "out": "Aus"
     }
   }
 } as const;

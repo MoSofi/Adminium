@@ -110,10 +110,11 @@ describe.each(LEGS)('the tabs of an add-on\'s rows a record has — %s', (dialec
       label: 'Stock',
       labelKey: 'kit.tab.stock',
       tableId: id('ledger_kit_links'),
+      key: 'id',
       // The pair a row is found by, and this table as the add-on's rows name it.
       match: { table: 'source_table', row: 'source_row', tableRef: id('dishes') },
       edit: ['qty'],
-      add: [{ fk: 'account_id', table: id('ledger_kit_accounts'), label: 'name' }],
+      add: [{ fk: 'account_id', table: id('ledger_kit_accounts'), key: 'id', label: 'name' }],
       remove: true,
       empty: 'Nothing is linked yet.',
       emptyKey: 'kit.tab.empty',

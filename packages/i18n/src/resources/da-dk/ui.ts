@@ -2078,6 +2078,28 @@ export default {
       "cancel": "Annuller",
       "close": "Luk",
       "working": "Arbejder…"
+    },
+    "linked": {
+      "add": "Tilføj",
+      "pick": "Vælg",
+      "which": "Hvad vil du tilføje?",
+      "nothing": "Intet at vælge",
+      "empty": "Intet er tilknyttet endnu.",
+      "remove": "Fjern",
+      "removed": "Fjernet",
+      "loading": "Indlæser…",
+      "failed": "Dette kunne ikke indlæses.",
+      "previous": "Forrige",
+      "next": "Næste",
+      "range": "{from}–{to} af {total}",
+      "enough": "Nok til {exact} mere",
+      "first": "{item} slipper først op",
+      "onHand": "{exact} {unit} på lager",
+      "onHandBare": "{exact} på lager",
+      "soon": "Udløber snart",
+      "in": "På lager",
+      "low": "Lav",
+      "out": "Udsolgt"
     }
   }
 } as const;

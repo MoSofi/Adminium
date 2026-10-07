@@ -40,6 +40,8 @@ export interface RecordTabFact {
   labelKey: string;
   /** The add-on's table whose rows the tab lists, by its id here. */
   tableId: string;
+  /** That table's key column: what a row is changed and removed by. */
+  key: string;
   /** The two columns that say which record a row belongs to, and the stored name of THIS page's table. */
   match: { table: string; row: string; tableRef: string };
   /** One row edited as a form (the record is the row a rule asks about), or a list. */
@@ -48,7 +50,7 @@ export interface RecordTabFact {
   edit: string[];
   form: string[];
   /** What "Add" picks from: the tab table's link column, the table it picks a row of, and the column a row is shown by. */
-  add: { fk: string; table: string; label: string }[];
+  add: { fk: string; table: string; key: string; label: string }[];
   remove: boolean;
   actions: { id: string; label: string; labelKey: string; tableId: string; form: ColumnFact[]; can: boolean }[];
   empty: string | null;
@@ -113,6 +115,10 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
       return names.flatMap((name) => byName.get(name) ?? []);
     };
 
+    const keyOf = (id: string): string | undefined => {
+      const keys = view.table(id).primaryKey;
+      return keys.length === 1 ? keys[0] : undefined;
+    };
     const out: RecordTabFact[] = [];
     for (const key of installs.keys?.(connectionId) ?? []) {
       const addOn = installs.installed(connectionId, key);
@@ -129,6 +135,9 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
         if (Array.isArray(tab.on) ? !tab.on.includes(tableRef) : ways === undefined) continue;
         const tabTable = installs.tableOf(connectionId, key, tab.table);
         if (tabTable === null || !(await may(tabTable, 'read'))) continue;
+        const rowKey = keyOf(tabTable);
+        // A table with no single key has rows nobody can change or remove one by one: no tab.
+        if (rowKey === undefined) continue;
         const columns = await factsOf(tabTable, tab.columns);
         const shown = new Set(columns.map((column) => String(column.spec['name'])));
         const picks = tab.add === undefined ? [] : Array.isArray(tab.add.pick) ? tab.add.pick : [tab.add.pick];
@@ -138,7 +147,8 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
           const fk = declared?.columns.find((column) => column.type === 'fk' && column.references === pick.table)?.ref;
           const picked = installs.tableOf(connectionId, key, pick.table);
           // A picker lists rows of its table: offered to who reads them.
-          if (fk !== undefined && picked !== null && (await may(picked, 'read'))) add.push({ fk, table: picked, label: pick.label });
+          const pickedKey = picked === null ? undefined : keyOf(picked);
+          if (fk !== undefined && picked !== null && pickedKey !== undefined && (await may(picked, 'read'))) add.push({ fk, table: picked, key: pickedKey, label: pick.label });
         }
         const actions: RecordTabFact['actions'] = [];
         for (const action of tab.actions ?? []) {
@@ -152,6 +162,7 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
           label: tab.label.fallback,
           labelKey: tab.label.key,
           tableId: tabTable,
+          key: rowKey,
           match: { table: tab.match.table, row: tab.match.row, tableRef },
           // One row, as a form, where the record is itself the row a rule asks about; a list where it is reached by a link.
           mode: tab.form !== undefined && ways?.has('row') === true ? 'form' : 'list',

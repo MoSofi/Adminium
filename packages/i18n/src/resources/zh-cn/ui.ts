@@ -2078,6 +2078,28 @@ export default {
       "cancel": "取消",
       "close": "关闭",
       "working": "处理中…"
+    },
+    "linked": {
+      "add": "添加",
+      "pick": "请选择",
+      "which": "要添加什么？",
+      "nothing": "没有可选项",
+      "empty": "尚未关联任何内容。",
+      "remove": "移除",
+      "removed": "已移除",
+      "loading": "正在加载…",
+      "failed": "无法加载。",
+      "previous": "上一页",
+      "next": "下一页",
+      "range": "第 {from}–{to} 项，共 {total} 项",
+      "enough": "还够 {exact} 份",
+      "first": "{item} 最先用完",
+      "onHand": "现有 {exact} {unit}",
+      "onHandBare": "现有 {exact}",
+      "soon": "即将过期",
+      "in": "有货",
+      "low": "库存低",
+      "out": "缺货"
     }
   }
 } as const;

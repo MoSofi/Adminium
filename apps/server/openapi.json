@@ -70574,6 +70574,9 @@
                           "tableId": {
                             "type": "string"
                           },
+                          "key": {
+                            "type": "string"
+                          },
                           "match": {
                             "type": "object",
                             "properties": {
@@ -70816,6 +70819,9 @@
                                 "table": {
                                   "type": "string"
                                 },
+                                "key": {
+                                  "type": "string"
+                                },
                                 "label": {
                                   "type": "string"
                                 }
@@ -70823,6 +70829,7 @@
                               "required": [
                                 "fk",
                                 "table",
+                                "key",
                                 "label"
                               ],
                               "additionalProperties": false
@@ -71128,6 +71135,7 @@
                           "label",
                           "labelKey",
                           "tableId",
+                          "key",
                           "match",
                           "mode",
                           "columns",

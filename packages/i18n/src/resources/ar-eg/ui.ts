@@ -2078,6 +2078,28 @@ export default {
       "cancel": "إلغاء",
       "close": "إغلاق",
       "working": "جارٍ التنفيذ…"
+    },
+    "linked": {
+      "add": "إضافة",
+      "pick": "اختر",
+      "which": "ماذا تريد أن تضيف؟",
+      "nothing": "لا يوجد ما تختاره",
+      "empty": "لا يوجد شيء مرتبط بعد.",
+      "remove": "إزالة",
+      "removed": "تمت الإزالة",
+      "loading": "جارٍ التحميل…",
+      "failed": "تعذّر التحميل.",
+      "previous": "السابق",
+      "next": "التالي",
+      "range": "{from}–{to} من {total}",
+      "enough": "يكفي لـ {exact} أخرى",
+      "first": "{item} ينفد أولًا",
+      "onHand": "{exact} {unit} متوفرة",
+      "onHandBare": "{exact} متوفرة",
+      "soon": "تنتهي صلاحيته قريبًا",
+      "in": "متوفر",
+      "low": "منخفض",
+      "out": "نفد"
     }
   }
 } as const;

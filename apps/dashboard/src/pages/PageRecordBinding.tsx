@@ -25,7 +25,7 @@
  */
 import { useQueries, useQuery, useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseCrudAttachmentsConfig, parseCrudDetailConfig } from '@adminium/engine/config';
 // The DEEP path, not `@adminium/engine/config`: that barrel is entry-resident
 // (its blocks are read on first paint) and a re-export through it would pull
@@ -80,9 +80,13 @@ import {
   withLookups,
 } from './columnSpecs.js';
 import { Alert } from '@adminium/ui';
+import { addOnWords } from '../add-ons/messages.js';
 import { RecordStateActions } from './RecordStateActions.js';
 import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, timedMove, type TableStateFacts } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
+
+// The tab of an add-on's rows is loaded when a record has one, never with the page.
+const LinkedRowsTab = lazy(() => import('../add-ons/LinkedRowsTab.js'));
 
 export function PageRecordBinding({
   page,
@@ -93,6 +97,7 @@ export function PageRecordBinding({
   canDelete,
   canUnmask,
   stateActions,
+  recordTabs,
   columnFacts,
   formRelations,
   currency,
@@ -624,6 +629,20 @@ export function PageRecordBinding({
       ),
     [detail, locale],
   );
+  // The tabs of add-ons' rows this record has, as the server offered them to this reader.
+  const hostTabs = useMemo(() => {
+    if (recordId === undefined || connectionId === null || recordTabs === undefined) return [];
+    return recordTabs.map((tab) => ({
+      id: `${tab.addOn}-${tab.id}`,
+      label: addOnWords(tab.addOn, tab.labelKey, tab.label),
+      content: (
+        <Suspense fallback={null}>
+          <LinkedRowsTab tab={tab} connectionId={connectionId} recordId={recordId} />
+        </Suspense>
+      ),
+    }));
+  }, [recordTabs, recordId, connectionId]);
+
   const recordActions = useMemo(() => {
     if (recordId === undefined || projectActions.record.length === 0) return [...stateButtons, ...documentActions];
     return [
@@ -691,6 +710,8 @@ export function PageRecordBinding({
         {...(currency === undefined ? {} : { currency })}
         tabs={tabs}
         related={related}
+        // An add-on's rows for this record (the stock links of a dish): a tab each, drawn by its own lazy part.
+        {...(hostTabs.length === 0 ? {} : { hostTabs })}
         activity={activity}
         // Sidecar attachments. Absent ⇒ no panel, the same rule
         // `related` and `activity` follow — a page whose `config.attachments`

@@ -589,6 +589,18 @@ describe('grants-driven write affordances', () => {
     expect(JSON.parse(String((sent![1] as RequestInit).body))).toEqual({ from: 'active' });
   });
 
+  it('a record with a tab of an add-on\'s rows shows it by the add-on\'s name for it; a record with none has no such tab', async () => {
+    const tab = { addOn: 'inventory', id: 'stock', label: 'Stock', labelKey: 'tab.stock', tableId: 'public.inventory_links', key: 'id', match: { table: 'source_table', row: 'source_row', tableRef: 'pos:customers' }, mode: 'list', columns: [], edit: [], form: [], add: [], remove: false, actions: [], empty: 'Nothing here yet.', emptyKey: null, summary: null, can: { read: true, create: false, update: false, delete: false } };
+    const { fetchMock } = await renderAt('/p/customers/r/1', { pageReply: () => jsonResponse(200, { data: recordEnvelope(), canUpdate: true, canDelete: true, recordTabs: [tab] }) });
+    const stock = await screen.findByRole('tab', { name: 'Stock' });
+    // Nothing of the add-on is asked for until its tab is opened: the record opens on its own first tab.
+    const asked = () => fetchMock.mock.calls.map(([url]) => decodeURIComponent(String(url))).filter((url) => url.startsWith('/api/v1/data/conn_1/public.inventory_links?'));
+    expect(asked()).toEqual([]);
+    await userEvent.setup().click(stock);
+    // Its rows are asked for by this record's table and key, of the add-on's own table.
+    await waitFor(() => expect(asked().some((url) => url.includes('"value":"pos:customers"') && url.includes('"column":"source_row","op":"eq","value":"1"'))).toBe(true));
+  });
+
   it('a page whose reply offers no actions, or none for the row\'s state, shows none', async () => {
     await renderAt('/p/customers/r/1', {
       schemaReply: () => jsonResponse(200, { model: { tables: [{ id: 'public.customers', name: 'customers', states: { column: 'status', initial: 'active', moves: {} }, columns: [{ name: 'status' }] }] } }),

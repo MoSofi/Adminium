@@ -1850,6 +1850,28 @@ export default {
       "cancel": "Cancel",
       "close": "Close",
       "working": "Working…"
+    },
+    "linked": {
+      "add": "Add",
+      "pick": "Pick one",
+      "which": "What do you want to add?",
+      "nothing": "Nothing to pick",
+      "empty": "Nothing is linked yet.",
+      "remove": "Remove",
+      "removed": "Removed",
+      "loading": "Loading…",
+      "failed": "This could not be loaded.",
+      "previous": "Previous",
+      "next": "Next",
+      "range": "{from}–{to} of {total}",
+      "enough": "Enough for {exact} more",
+      "first": "{item} runs out first",
+      "onHand": "{exact} {unit} on hand",
+      "onHandBare": "{exact} on hand",
+      "soon": "Expires soon",
+      "in": "In stock",
+      "low": "Low",
+      "out": "Out"
     }
   }
 } as const;

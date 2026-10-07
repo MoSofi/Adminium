@@ -101,8 +101,10 @@ describe('a manifest that uses a word this server does not run yet', () => {
     expect(unbuiltInManifest(ADD_ON)).toEqual([]);
     // So are the words a ledger answers about stock.
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { words: [{ id: 'stock' }] } })).toEqual([]);
-    // One it does not run yet: its rows listed on another table's record page.
-    expect(unbuiltInManifest({ ...ADD_ON, addOn: { recordTabs: [{ id: 'stock' }] } })).toEqual([{ word: 'addOn.recordTabs', path: 'addOn.recordTabs', release: '0.3.18' }]);
+    // And its rows listed on another table's record page.
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { recordTabs: [{ id: 'stock' }] } })).toEqual([]);
+    // One it does not run yet: the price question an add-on answers.
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { adjuster: { contract: 'price-adjust' } } })).toEqual([{ word: 'addOn.adjuster', path: 'addOn.adjuster', release: '0.3.19' }]);
   });
 
   it('an app\'s own pages, roles, prefix and its link into an add-on are no such word; the last four of a code is', () => {

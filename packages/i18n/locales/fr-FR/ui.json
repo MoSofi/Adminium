@@ -2068,6 +2068,28 @@
       "cancel": "Annuler",
       "close": "Fermer",
       "working": "En cours…"
+    },
+    "linked": {
+      "add": "Ajouter",
+      "pick": "Choisir",
+      "which": "Que voulez-vous ajouter ?",
+      "nothing": "Rien à choisir",
+      "empty": "Rien n’est encore lié.",
+      "remove": "Retirer",
+      "removed": "Retiré",
+      "loading": "Chargement…",
+      "failed": "Chargement impossible.",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "range": "{from}–{to} sur {total}",
+      "enough": "Assez pour {exact} de plus",
+      "first": "{item} sera épuisé en premier",
+      "onHand": "{exact} {unit} en stock",
+      "onHandBare": "{exact} en stock",
+      "soon": "Expire bientôt",
+      "in": "En stock",
+      "low": "Faible",
+      "out": "Épuisé"
     }
   }
 }

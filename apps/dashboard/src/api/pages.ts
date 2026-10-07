@@ -142,6 +142,32 @@ export interface BulkActionFact {
   done: string;
 }
 
+/** One tab of an add-on's rows on a record page, as the server offers it to one reader (`GET /pages/:id` · `recordTabs`). */
+export interface RecordTabFact {
+  addOn: string;
+  id: string;
+  /** The add-on's English words for the tab, and its key for them in the add-on's own strings. */
+  label: string;
+  labelKey: string;
+  /** The add-on's table the rows are of. */
+  tableId: string;
+  /** That table's key column. */
+  key: string;
+  /** The two columns a row is found by, and the stored name of the page's own table. */
+  match: { table: string; row: string; tableRef: string };
+  mode: 'list' | 'form';
+  columns: FormColumnFactReply[];
+  edit: string[];
+  form: string[];
+  add: { fk: string; table: string; key: string; label: string }[];
+  remove: boolean;
+  actions: { id: string; label: string; labelKey: string; tableId: string; form: FormColumnFactReply[]; can: boolean }[];
+  empty: string | null;
+  emptyKey: string | null;
+  summary: { words: string } | null;
+  can: { read: true; create: boolean; update: boolean; delete: boolean };
+}
+
 export type PageDocumentResult =
   | {
       status: 'ok';
@@ -169,6 +195,8 @@ export type PageDocumentResult =
       stateActions: readonly StateActionFact[];
       /** The list's own bulk actions this reader may run (`config.bulk`); empty when the page has none. */
       bulkActions: readonly BulkActionFact[];
+      /** The tabs of add-ons' rows a record of the source table has, for this reader (`addOn.recordTabs`); empty when it has none. */
+      recordTabs: readonly RecordTabFact[];
       /**
        * The source table as it stands right now — who fills each column and
        * which ones the create form has to ask for. Empty when the server did
@@ -265,6 +293,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     canUnmask: false,
     stateActions: [],
     bulkActions: [],
+    recordTabs: [],
     columnFacts: {},
     formColumns: [],
     formRelations: [],
@@ -292,6 +321,7 @@ export function pageQuery(pageId: string) {
         canUnmask?: boolean;
         stateActions?: StateActionFact[];
         bulkActions?: BulkActionFact[];
+        recordTabs?: RecordTabFact[];
         columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = parsePageDocument(reply.data);
@@ -309,6 +339,7 @@ export function pageQuery(pageId: string) {
             canUnmask: reply.canUnmask === true,
             stateActions: reply.stateActions ?? [],
             bulkActions: reply.bulkActions ?? [],
+            recordTabs: reply.recordTabs ?? [],
             columnFacts: factsByColumn(reply.columnFacts),
             formColumns: reply.columnFacts?.columns ?? [],
             formRelations: reply.columnFacts?.relations ?? [],

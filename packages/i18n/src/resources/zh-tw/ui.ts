@@ -2078,6 +2078,28 @@ export default {
       "cancel": "取消",
       "close": "關閉",
       "working": "處理中…"
+    },
+    "linked": {
+      "add": "新增",
+      "pick": "請選擇",
+      "which": "要新增什麼？",
+      "nothing": "沒有可選項目",
+      "empty": "尚未連結任何內容。",
+      "remove": "移除",
+      "removed": "已移除",
+      "loading": "載入中…",
+      "failed": "無法載入。",
+      "previous": "上一頁",
+      "next": "下一頁",
+      "range": "第 {from}–{to} 項，共 {total} 項",
+      "enough": "還夠 {exact} 份",
+      "first": "{item} 最先用完",
+      "onHand": "現有 {exact} {unit}",
+      "onHandBare": "現有 {exact}",
+      "soon": "即將到期",
+      "in": "有貨",
+      "low": "庫存低",
+      "out": "缺貨"
     }
   }
 } as const;

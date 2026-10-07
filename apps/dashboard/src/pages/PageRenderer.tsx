@@ -30,6 +30,7 @@ import {
   type FormColumnFactReply,
   type FormRelationFactReply,
   type BulkActionFact,
+  type RecordTabFact,
   type StateActionFact,
 } from '../api/pages.js';
 import { useDashboardData } from '../api/widgetData.js';
@@ -142,6 +143,7 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       canUnmask={result.canUnmask}
       stateActions={result.stateActions}
       bulkActions={result.bulkActions}
+      recordTabs={result.recordTabs}
       columnFacts={result.columnFacts}
       formColumns={result.formColumns}
       formRelations={result.formRelations}
@@ -188,6 +190,7 @@ export function TemplateMount({
   canUnmask,
   stateActions,
   bulkActions,
+  recordTabs,
   columnFacts,
   formColumns,
   formRelations,
@@ -206,6 +209,7 @@ export function TemplateMount({
   canUnmask?: boolean | undefined;
   stateActions?: readonly StateActionFact[] | undefined;
   bulkActions?: readonly BulkActionFact[] | undefined;
+  recordTabs?: readonly RecordTabFact[] | undefined;
   columnFacts?: ColumnFacts | undefined;
   formColumns?: readonly FormColumnFactReply[] | undefined;
   formRelations?: readonly FormRelationFactReply[] | undefined;
@@ -324,6 +328,7 @@ export function TemplateMount({
             canUnmask={canUnmask}
             {...(stateActions === undefined ? {} : { stateActions })}
             {...(bulkActions === undefined ? {} : { bulkActions })}
+            {...(recordTabs === undefined ? {} : { recordTabs })}
             {...(columnFacts === undefined ? {} : { columnFacts })}
             {...(formColumns === undefined ? {} : { formColumns })}
             {...(formRelations === undefined ? {} : { formRelations })}
