@@ -75,7 +75,7 @@ export async function refused(run: Promise<unknown>): Promise<{ code?: string; d
 
 export function saveWorld(w: PriceWorld): SaveWorld {
   const service: SaveWorld['service'] = (runtime, more = {}) =>
-    createWriteService({ ...writeStores(w.h.meta), customerKey: keyOf, ...(runtime === null ? {} : { ledgers: runtime ?? w.runtime }), ...more });
+    createWriteService({ ...writeStores(w.h.meta), rolesOf: async () => 'any' as const, customerKey: keyOf, ...(runtime === null ? {} : { ledgers: runtime ?? w.runtime }), ...more });
   const writes = service();
   let posted: PostedOutcome[] = [];
   const bound = (target: WriteTarget, values: Doc): Row => Object.fromEntries(Object.entries(values).map(([column, value]) => [column, target.table.columns.has(column) ? normalizeWriteValue(target.table.columns.get(column)!, value) : value]));

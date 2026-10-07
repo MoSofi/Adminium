@@ -392,6 +392,11 @@ export interface TableRules {
    * writer's values but an import's, which brings in history as it was.
    */
   priced?: string[];
+  /**
+   * Of those, what Adminium attests and no file can: who gave a reduction by
+   * hand, whether the customer was proved. Dropped from an import's values too.
+   */
+  attested?: string[];
   /** The columns Adminium decides; absent on a table with none. */
   copies?: ColumnCopy[];
   sequences?: ColumnSequence[];
@@ -861,6 +866,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(adjust === undefined ? {} : { adjust }),
           ...(adjustParents.length === 0 ? {} : { adjustParents }),
           ...(priced.length === 0 ? {} : { priced }),
+          ...((adjust?.attested.length ?? 0) === 0 ? {} : { attested: adjust!.attested }),
           ...(decided ? { copies, sequences, codes, ...(stamps.length === 0 ? {} : { stamps }) } : {}),
           ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
           ...(ownRollups.length === 0 ? {} : { ownRollups }),
@@ -1127,7 +1133,7 @@ function rollupOf(
 export function withoutReadOnly(rules: TableRules | null, values: Row, origin?: WriteOrigin): Row {
   // An import brings in history: a stay's price as it was charged, not today's rates.
   const imported = origin === 'import' && rules?.perNight !== undefined ? rules.perNight.column : null;
-  const dropped = [...(rules?.readOnly ?? []).filter((column) => column !== imported), ...(origin === 'import' ? [] : [...(rules?.numbered ?? []), ...(rules?.priced ?? [])])];
+  const dropped = [...(rules?.readOnly ?? []).filter((column) => column !== imported), ...(origin === 'import' ? (rules?.attested ?? []) : [...(rules?.numbered ?? []), ...(rules?.priced ?? [])])];
   if (!dropped.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
   const out = { ...values };
   for (const column of dropped) delete out[column];

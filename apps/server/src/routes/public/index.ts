@@ -899,12 +899,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const publicWriteContext = async (
     request: FastifyRequest,
     ok: { key: ResolvedKey; session: PublicSessionContext | null },
+    /** The entry written through, and its table: a verified session whose grant is the entry's own claim proves that customer for this save. */
+    entry?: { table: string; claim?: { ref?: string | undefined; column?: string | undefined } | null | undefined },
   ): Promise<WriteContext> => ({
     origin: 'public',
     hops: 0,
     actor: { kind: 'public', id: null, label: `public:${ok.key.keyId}` },
     request,
     claimed: await claimedRowOf(ok),
+    ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
+      ? {}
+      : { adjust: { proved: { table: entry.table, column: entry.claim.column, link: ok.session.grant.value } } }),
   });
 
   /** The signed-in person's row, or null. */
@@ -2684,7 +2689,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       };
       const expected = body.expect;
       const expectColumn = resource.expect ?? null;
-      const context = await publicWriteContext(request, ok);
+      const context = await publicWriteContext(request, ok, { table: table.id, claim: resource.claim });
       /** The person this write made (announced once it has committed), when the address was nobody's. */
       let madePerson: Row | null = null;
       /*
@@ -3048,7 +3053,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
         };
         let inserted: Row;
-        const context = await publicWriteContext(request, ok);
+        const context = await publicWriteContext(request, ok, { table: found.table.id, claim: found.resource.claim });
         try {
           const create = (on: WriteTarget, told: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) => {
             // The row's own announcement, then what it handed to a ledger.
@@ -3318,7 +3323,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           label: pkLabel(found.table, pk),
         };
         let outcome;
-        const context = await publicWriteContext(request, ok);
+        const context = await publicWriteContext(request, ok, { table: found.table.id, claim: found.resource.claim });
         /*
          * A change a guest sends on (a ticket offered to a friend): a name that
          * is only a name, and so many a day to one address. A quote refuses

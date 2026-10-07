@@ -19,7 +19,8 @@ import { AdjustRefusedError, ValidationFailedError } from '../../errors.js';
 /** A code, or a reduction staff gave, the add-on refused. */
 export interface RefusedCode {
   typed: string;
-  reason: AdjustReason;
+  /** The add-on's reason — or Adminium's own, for a reduction by hand its writer may not give or change. */
+  reason: AdjustReason | 'not-allowed';
   params?: { amount?: string | undefined; max?: string | undefined; name?: string | undefined } | undefined;
 }
 

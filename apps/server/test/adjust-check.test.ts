@@ -151,7 +151,7 @@ describe('an answer that is refused', () => {
   });
 
   it('more taken off by hand than its giver may give, in the save that gives it', () => {
-    const giving = (ceiling: { percent: string; amount: string | null }, kind: 'percent' | 'amount' = 'percent', value = '20.00') => ({ kind, value, reason: null, ceiling: ceiling as { percent: string; amount: string }, judge: true });
+    const giving = (ceiling: { percent: string; amount: string | null }, kind: 'percent' | 'amount' = 'percent', value = '20.00') => ({ kind, value, reason: null, ceiling, judge: true });
     // Twenty percent asked, ten allowed: 11.60 applied is over what ten percent comes to.
     const over = staffed(giving({ percent: '10.00', amount: null }), ['5.60', '6.00']);
     expect(check(over.output, over.input)).toContain('more than its giver may give');
@@ -165,8 +165,13 @@ describe('an answer that is refused', () => {
     // An amount is held to the giver's amount alone.
     const amount = staffed(giving({ percent: '0.00', amount: '5.00' }, 'amount', '8.00'), ['4.00', '4.00']);
     expect(check(amount.output, amount.input)).toContain('more than its giver may give');
-    const free = staffed(giving({ percent: '0.00', amount: null }, 'amount', '8.00'), ['4.00', '4.00']);
-    expect(check(free.output, free.input)).toBeNull();
+    // With no limit in money, an amount is held to what the giver's percent of the goods comes to: a role allowed ten percent is not allowed any sum.
+    const none = staffed(giving({ percent: '0.00', amount: null }, 'amount', '8.00'), ['4.00', '4.00']);
+    expect(check(none.output, none.input)).toContain('more than its giver may give');
+    const tenth = staffed(giving({ percent: '10.00', amount: null }, 'amount', '8.00'), ['4.00', '4.00']);
+    expect(check(tenth.output, tenth.input)).toContain('more than its giver may give');
+    const fifth = staffed(giving({ percent: '20.00', amount: null }, 'amount', '8.00'), ['4.00', '4.00']);
+    expect(check(fifth.output, fifth.input)).toBeNull();
     // Not judged again (a later save by somebody else): the stored reduction stands, whatever a limit would say.
     const later = staffed({ ...giving({ percent: '10.00', amount: null }), judge: false }, ['5.60', '6.00']);
     expect(check(later.output, later.input)).toBeNull();

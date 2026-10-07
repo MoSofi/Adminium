@@ -64,6 +64,7 @@ export function stepperOf(w: PriceWorld): Stepper {
     },
     currency: async () => 'USD',
     customerKey: keyOf,
+    rolesOf: async () => 'any',
   });
   const kit = kitFor(w.runtime);
   const adjuster = createAdjuster(kit);
@@ -75,7 +76,9 @@ export function stepperOf(w: PriceWorld): Stepper {
   };
   const args = async (order: number, over: Partial<Omit<AdjustRun, 'for' | 'key'>> & { runtime?: LedgerRuntime } = {}): Promise<AdjustRun> => {
     const { runtime: _runtime, ...rest } = over;
-    return { for: await orders(over.runtime), key: order, stood: null, touches: true, mode: 'save', context: STAFF, clock: writeClock(null, () => new Date(SAMPLE_NOW)), ...rest };
+    // An order already stored, priced again: it stood as it is read. (A test of an order the save itself makes says `stood: null`.)
+    const stood = ((await w.db.selectFrom(w.table('market_orders').id as never).selectAll().where('id' as never, '=', order as never).executeTakeFirst()) as Row | undefined) ?? null;
+    return { for: await orders(over.runtime), key: order, stood, touches: true, mode: 'save', context: STAFF, clock: writeClock(null, () => new Date(SAMPLE_NOW)), ...rest };
   };
   return {
     kit,

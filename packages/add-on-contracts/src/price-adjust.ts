@@ -120,8 +120,12 @@ export interface AdjustInput {
   customer: { key: string; groups: string[]; orders: number; uses: Record<string, number> } | null;
   /** True when no identity was proved. */
   guest: boolean;
-  /** What staff took off by hand, with the ceiling Adminium read for whoever gave it. */
-  staff: { kind: 'percent' | 'amount' | 'comp'; value: string; reason: string | null; ceiling: { percent: string; amount: string } | null; judge: boolean } | null;
+  /**
+   * What staff took off by hand, with the ceiling Adminium read for whoever gave it. `ceiling.amount` null: the giver
+   * has no limit in money — a percent is then held to `ceiling.percent` alone, and an amount to what that percent of the
+   * goods comes to. With `judge` true, a reduction that comes to more than the ceiling is answered `over-ceiling`.
+   */
+  staff: { kind: 'percent' | 'amount' | 'comp'; value: string; reason: string | null; ceiling: { percent: string; amount: string | null } | null; judge: boolean } | null;
   /** The adjuster's declared reads, by name. */
   offers: Record<string, Record<string, PostingScalar | null>[]>;
   /** The add-on's settings row. */

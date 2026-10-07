@@ -95,6 +95,13 @@ export interface WriteContext {
    * `action` write's code columns are heard.
    */
   renewing?: readonly string[] | undefined;
+  /**
+   * What a door knows that an order's price turns on. `proved`: the customer
+   * row the door itself proved for THIS save — a verified session whose grant
+   * is the entry's own claim — by the table written, the column that names
+   * the customer, and the row named. Never set from anything the writer sent.
+   */
+  adjust?: { proved?: { table: string; column: string; link: unknown } | undefined; locale?: string | undefined } | undefined;
 }
 
 /** The table a write goes to, and the connection it goes through. */

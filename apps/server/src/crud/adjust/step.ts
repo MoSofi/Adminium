@@ -45,12 +45,12 @@ import type { Row } from '../mask.js';
 import { priceNights } from '../per-night.js';
 import { venueClock } from '../venue-time.js';
 import type { WriteClock } from '../write-clock.js';
-import type { WriteAction, WriteContext, WriteTarget } from '../write-context.js';
+import type { WriteAction, WriteActor, WriteContext, WriteTarget } from '../write-context.js';
 import { bindWriteValue, booleanOf, sameValue } from '../write-values.js';
 import { adjustWords, refusalOf, type RefusedCode } from './answers.js';
 import { checkAdjust } from './check.js';
 import { AdjustTooLarge, adjustCodeOf, adjustLineOf, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
-import { frozenNow, touched, type CompiledAdjust } from './rule.js';
+import { frozenNow, moved, touched, type CompiledAdjust } from './rule.js';
 
 type Db = Kysely<SourceDatabase>;
 
@@ -71,6 +71,78 @@ export interface AdjustKit {
   currency(target: WriteTarget): Promise<string | null>;
   /** A customer's key in a connection; absent on a service built without one. */
   customerKey: CustomerKeyOf | undefined;
+  /** The roles a writer holds, by slug; `any` for one no limit binds. Absent: nobody holds a role. */
+  rolesOf: ((actor: WriteActor | null) => Promise<ReadonlySet<string> | 'any'>) | undefined;
+}
+
+/** What a user may take off by hand: the most their roles allow. `amount` null: no limit in money. */
+interface Ceiling {
+  percent: string;
+  amount: string | null;
+  comp: boolean;
+}
+const NO_LEAVE: Ceiling = { percent: '0', amount: '0', comp: false };
+type Ratio = NonNullable<ReturnType<typeof toRatio>>;
+const ZERO: Ratio = { n: 0n, d: 1n };
+const more = (a: Ratio, b: Ratio): boolean => a.n * b.d > b.n * a.d;
+const plus = (a: Ratio, b: Ratio): Ratio => ({ n: a.n * b.d + b.n * a.d, d: a.d * b.d });
+/** A figure cut down to so many decimals: the most a limit gives is never said as more than it is. */
+const floorTo = (value: Ratio, places: number): Ratio => {
+  const factor = 10n ** BigInt(places);
+  return { n: (value.n * factor) / value.d, d: factor };
+};
+
+/**
+ * The limit of whoever holds these roles, read from the add-on's own table on
+ * the save's transaction: the highest percent of their rows, the highest
+ * amount (none at all when one row sets none), and leave to give a comp when
+ * a row says so. No row is a limit of nothing.
+ */
+async function ceilingOf(trx: Db, adjuster: ResolvedAdjuster, roles: readonly string[], places: number): Promise<Ceiling> {
+  const declared = adjuster.declared.ceilings;
+  const table = declared === undefined ? null : adjuster.table(declared.table);
+  if (declared === undefined || table === null || roles.length === 0) return NO_LEAVE;
+  const rows = (await trx
+    .selectFrom(table.id as never)
+    .selectAll()
+    .where(sql.ref(declared.role), 'in', roles as never)
+    .execute()) as Row[];
+  if (rows.length === 0) return NO_LEAVE;
+  let percent: Ratio = ZERO;
+  let amount: Ratio | null = ZERO;
+  for (const row of rows) {
+    // A figure that is no number, or less than nothing, raises no limit.
+    const p = toRatio(row[declared.maxPercent]);
+    if (p !== null && more(p, percent)) percent = p;
+    if (empty(row[declared.maxAmount])) amount = null;
+    else {
+      const a = toRatio(row[declared.maxAmount]);
+      if (amount !== null && a !== null && more(a, amount)) amount = a;
+    }
+  }
+  return { percent: ratioText(percent, 2), amount: amount === null ? null : ratioText(amount, places), comp: declared.comp !== undefined && rows.some((row) => booleanOf(row[declared.comp!]) === true) };
+}
+
+/**
+ * Whether a reduction by hand is more than a limit allows, judged on the
+ * figure asked: the most the limit gives, as text, or null when it is within.
+ * A percent is held to the limit's percent; an amount to the limit's amount —
+ * and, where the limit names no amount, to what its percent of the goods
+ * comes to (a role allowed ten percent is not allowed any sum). A comp needs
+ * the leave to give one. What a percent COMES TO against an amount limit is
+ * the add-on's to judge and the answer's check to hold: it depends on the
+ * offers applied before it.
+ */
+function beyond(limit: Ceiling, kind: string, value: string, goods: Ratio, places: number): string | null {
+  if (kind === 'comp') return limit.comp ? null : '0';
+  const asked = toRatio(value);
+  // A figure that is no number takes nothing off.
+  if (asked === null) return null;
+  const percent = toRatio(limit.percent) ?? ZERO;
+  if (kind === 'percent') return more(asked, percent) ? limit.percent : null;
+  if (limit.amount !== null) return more(asked, toRatio(limit.amount) ?? ZERO) ? limit.amount : null;
+  const share: Ratio = { n: goods.n * percent.n, d: goods.d * percent.d * 100n };
+  return more(asked, share) ? ratioText(floorTo(share, places), places) : null;
 }
 
 /** One order table whose price a write may move, with the add-on that answers it as it stands now. */
@@ -261,8 +333,29 @@ export function createAdjuster(kit: AdjustKit) {
       if (input.touches) throw new AdjustRefusedError(adjustWords('frozen'), { reason: 'frozen' });
       return null;
     }
-    const order = input.order ?? (await loadOrder(trx, target.table, adjust, input.key));
-    if (order === undefined) return null;
+    const read = input.order ?? (await loadOrder(trx, target.table, adjust, input.key));
+    if (read === undefined) return null;
+    let order: Row = read;
+    /** What this save decides of the order beside its reduction: whether its customer was proved, and who gave what was taken off by hand. */
+    const stamps: Row = {};
+    const actor = input.context.actor;
+    /** A signed-in user saving now — never a rule's or an import's writer, whoever it runs as: the only writer who names a customer on their own word, or takes anything off by hand. */
+    const giver = actor !== null && actor.kind === 'user' && actor.id !== null && input.context.origin !== 'automation' && input.context.origin !== 'import' ? actor : null;
+
+    // WHO IS BUYING. The save that writes the customer's link says whether it was proved — by the door (a verified session of that very
+    // customer) or by staff naming them; any other writer of the link (the address finder, an automation) leaves it unproved. A save that
+    // does not write the link leaves the answer as it was stored: a later price is asked about the same customer.
+    const customer = adjust.rule.order.customer;
+    if (customer?.proved !== undefined) {
+      const link = order[customer.link];
+      const written = input.stood === null ? !empty(link) : !sameValue(link ?? null, input.stood[customer.link] ?? null);
+      if (written) {
+        const proof = input.context.adjust?.proved;
+        const proved = !empty(link) && (giver !== null || (proof !== undefined && proof.table === target.table.id && proof.column === customer.link && !empty(proof.link) && String(proof.link) === String(link)));
+        if (booleanOf(order[customer.proved]) !== proved) stamps[customer.proved] = proved;
+        order = { ...order, [customer.proved]: proved };
+      }
+    }
 
     const currency = await kit.currency(target);
     const scale = (rules?.scales ?? []).find((entry) => entry.column === adjust.rule.order.discount)?.scale ?? 2;
@@ -304,6 +397,45 @@ export function createAdjuster(kit: AdjustKit) {
       const nights = line.part.nights !== undefined && perNight !== undefined && perNight.column === line.part.nights.rate ? (await priceNights(trx, perNight, line.row, places)).nights : undefined;
       handed.push(adjustLineOf({ view, line, index, places, refOf, nights }));
     }
+    // WHO GAVE. A reduction by hand that this save sets, changes or takes away — or one that stands with nobody on record as its giver
+    // (brought in by an import, written while the rule was off) — is the saver's: held to the most their roles allow, which Adminium
+    // reads, judges the asked figure against itself, and hands in for the add-on to judge what it comes to. One that stands with its
+    // giver on record is handed in as stored: judged by nobody when somebody else saves (a manager's 20 % stays when a cashier adds a
+    // line), and held to its giver's own limit again when its giver does (the order may have grown since they gave it).
+    let staff = storedStaff(adjust, order, places);
+    const byHand = adjust.rule.order.staff;
+    if (byHand !== undefined) {
+      const was = input.stood;
+      const stoodStaff = was === null ? null : storedStaff(adjust, was, places);
+      const changed = was === null ? staff !== null : moved([byHand.kind, byHand.value, byHand.reason], order, was).length > 0;
+      const unsigned = staff !== null && empty(order[byHand.by]);
+      /** The goods a reduction by hand is a share of, as the answer's check counts them. */
+      const goods = handed.filter((line) => line.kept && !line.excluded).reduce<Ratio>((sum, line) => plus(sum, toRatio(line.amount) ?? ZERO), ZERO);
+      const limitOf = async (who: WriteActor): Promise<Ceiling | null> => {
+        const roles = (await kit.rolesOf?.(who)) ?? new Set<string>();
+        // (No limit binds a Super Admin: nothing is read, nothing judged.)
+        return roles === 'any' ? null : ceilingOf(trx, adjuster, [...roles], places);
+      };
+      if (changed || unsigned) {
+        const notAllowed = (): Error => refusalOf(origin, { typed: '', reason: 'not-allowed' }, byHand.value);
+        if (giver === null) throw notAllowed();
+        const limit = await limitOf(giver);
+        // Another user's reduction — or one nobody is on record as giving — is changed or taken away only by somebody who could have given it.
+        const theirs = stoodStaff !== null && String(was![byHand.by] ?? '') !== giver.id;
+        if (limit !== null && theirs && beyond(limit, String(was![byHand.kind]) === 'comp' ? 'comp' : stoodStaff.kind, stoodStaff.value, goods, places) !== null) throw notAllowed();
+        if (staff !== null && limit !== null) {
+          // A comp has a leave of its own: a limit of a hundred percent is not one.
+          const max = beyond(limit, String(order[byHand.kind]) === 'comp' ? 'comp' : staff.kind, staff.value, goods, places);
+          if (max !== null) throw refusalOf(origin, { typed: '', reason: 'over-ceiling', params: { max } }, byHand.value);
+          if (String(order[byHand.kind]) !== 'comp') staff = { ...staff, ceiling: { percent: limit.percent, amount: limit.amount }, judge: true };
+        }
+        const by = staff === null ? null : giver.id;
+        if (!sameValue(order[byHand.by] ?? null, by)) stamps[byHand.by] = by;
+      } else if (staff !== null && giver !== null && String(order[byHand.by]) === giver.id && String(order[byHand.kind]) !== 'comp') {
+        const limit = await limitOf(giver);
+        if (limit !== null) staff = { ...staff, ceiling: { percent: limit.percent, amount: limit.amount }, judge: true };
+      }
+    }
     const mapped = adjust.rule.order.currency;
     const said = mapped === undefined ? null : typeof mapped === 'string' ? order[mapped] : 'value' in mapped ? mapped.value : 'setting' in mapped ? settings[mapped.setting] : null;
     const question: AdjustInput = {
@@ -323,7 +455,7 @@ export function createAdjuster(kit: AdjustKit) {
       codes: codes.map((code) => adjustCodeOf(adjuster, code)),
       customer: person,
       guest: person === null && origin === 'public',
-      staff: storedStaff(adjust, order, places),
+      staff,
       offers,
       settings,
       explain: false,
@@ -367,7 +499,7 @@ export function createAdjuster(kit: AdjustKit) {
     const differs = (stored: unknown, wanted: string): boolean => (empty(stored) ? !sameDecimal(wanted, zero, places) : !sameDecimal(stored, wanted, places));
     let changedLines = 0;
     const outLines: AdjustResult['lines'] = [];
-    const orderSet: Row = {};
+    const orderSet: Row = { ...stamps };
     for (const row of rows) {
       const wanted = row.line ? (reduced.get(row.key) ?? zero) : zero;
       if (row.line) outLines.push({ table: row.table.id, key: row.table.primaryKey.map((column) => String(row.row[column])).join('/'), line: row.key, discount: wanted });
@@ -477,7 +609,8 @@ export function createAdjuster(kit: AdjustKit) {
       const out: { table: string; column: string }[] = [];
       if (own !== undefined) {
         const state = rules?.states?.column;
-        const [input] = touched([...own.inputs.uses, ...own.inputs.lines], values);
+        // (An import keeps the reductions its rows bring: on a row already stored that is a change of its price like any other.)
+        const [input] = touched([...own.inputs.uses, ...own.inputs.lines, ...(action === 'update' ? own.decided : [])], values);
         // A new order that is its own line (a stay) is priced as it is made; an order moved to where its price stands is priced one last time;
         // and one that goes takes what was applied to it with it.
         const column =
@@ -487,7 +620,7 @@ export function createAdjuster(kit: AdjustKit) {
         if (column !== undefined) out.push({ table: target.table.id, column });
       }
       for (const parent of parents) {
-        const [column] = action === 'update' ? touched(parent.inputs, values) : [parent.via];
+        const [column] = action === 'update' ? touched([...parent.inputs, ...parent.decided], values) : [parent.via];
         if (column !== undefined) out.push({ table: parent.order, column });
       }
       return out;

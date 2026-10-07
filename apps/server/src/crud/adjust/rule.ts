@@ -77,6 +77,8 @@ export interface CompiledAdjust {
   inputs: { uses: string[]; lines: string[] };
   /** The order's columns only Adminium writes: its reduction, who gave one by hand, whether the customer was proved. */
   decided: string[];
+  /** Of those, what Adminium ATTESTS — who gave a reduction, whether the customer was proved: never taken from any writer, an import included. */
+  attested: string[];
   /** The posting of this table that records what was used, when the rule names one. */
   uses?: string;
 }
@@ -151,6 +153,7 @@ export function compileAdjust(table: Pick<EffectiveTable, 'id' | 'primaryKey' | 
       lines: uniq([...self.flatMap((part) => part.inputs), typeof order.currency === 'string' ? order.currency : undefined]),
     },
     decided: uniq([order.discount, order.staff?.by, order.customer?.proved, ...self.map((part) => part.discount)]),
+    attested: uniq([order.staff?.by, order.customer?.proved]),
     ...(rule.uses === undefined ? {} : { uses: rule.uses }),
   };
 }

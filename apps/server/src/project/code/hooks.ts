@@ -172,7 +172,9 @@ export function createHookRunner(deps: HookRunnerDeps): RecordHooks {
   }
 
   function childContext(context: WriteContext): WriteContext {
-    return { ...context, origin: 'hook', hops: context.hops + 1 };
+    // What a door proved, it proved for its own save: a write project code makes carries none of it.
+    const { adjust: _proved, ...rest } = context;
+    return { ...rest, origin: 'hook', hops: context.hops + 1 };
   }
 
   function recordFailure(hook: LoadedHook, event: HookEvent, key: string, target: WriteTarget, message: string): void {

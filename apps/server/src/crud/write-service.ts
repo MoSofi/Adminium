@@ -3234,6 +3234,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
     currency: (target) => currencyFor(target)(),
     customerKey: opts.customerKey,
+    rolesOf: opts.rolesOf,
   });
 
   /** One order a save is about to price: held, as it stood before the save's own statement. */

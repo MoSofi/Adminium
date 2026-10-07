@@ -99,9 +99,10 @@ export function checkAdjust(input: AdjustInput, output: AdjustOutput, loaded: Ad
     const allowed = (kind: string, value: string): bigint => (kind === 'amount' ? units(value, scale) : percentUp(base, kind === 'comp' ? '100' : value) + slack);
     if (staff > allowed(given.kind, given.value)) return `applied: staff took ${given.value} ${given.kind} off, and the answer applies more than that comes to`;
     if (given.judge && given.ceiling !== null) {
-      // A percent is held to the giver's percent, and to their amount when they have one; an amount to their amount alone.
+      // A percent is held to the giver's percent, and to their amount when they have one; an amount to their amount — and to what their
+      // percent comes to when they have none (a role allowed ten percent is not allowed any sum).
       const byAmount = given.ceiling.amount === null || given.ceiling.amount === undefined ? null : units(given.ceiling.amount, scale);
-      const byPercent = given.kind === 'amount' ? null : percentUp(base, given.ceiling.percent) + slack;
+      const byPercent = given.kind === 'amount' && byAmount !== null ? null : percentUp(base, given.ceiling.percent) + slack;
       if ((byPercent !== null && staff > byPercent) || (byAmount !== null && staff > byAmount)) return 'applied: the reduction staff gave is more than its giver may give, and the answer did not say so';
     }
   }
