@@ -341,16 +341,23 @@ export function seedRowIdentity(manifest: Manifest, table: string, row: Record<s
 }
 
 /**
- * An add-on's own sample may hold its ledger's history: rows of its ledger
- * tables and of its receipt table, written as they are (nothing is posted).
- * They are listed AFTER every table their rows name, receipts before ledger
- * rows — the removal runs in reverse, so it takes them out first, before the
- * rows a foreign key of theirs points at.
+ * An add-on's own sample may hold its ledger's history: rows of its receipt
+ * table and of the tables its ledger writes, written as they are (nothing is
+ * posted). A table of either kind is listed AFTER every table its rows name,
+ * and so a ledger row after the receipt it names — the removal runs in
+ * reverse, so it takes them out first, before the rows a foreign key of
+ * theirs points at. Once the receipts are listed only the ledger's own tables
+ * follow: the history is the last thing a sample adds.
+ *
+ * "Names" is what the rows of the file give, not what the table could hold:
+ * a ledger may also write a table people fill (an item it makes on the way),
+ * and a sample's items name no receipt, so they stand where items stand.
  */
 function ledgerOrderIssues(bundle: SampleBundle, manifest: Manifest, declared: ReadonlyMap<string, DeclaredTable>): SampleIssue[] {
   const issues: SampleIssue[] = [];
   const position = new Map(bundle.tables.map((table, t) => [table.ref, t]));
-  for (const ledger of ledgersOf(manifest)) {
+  const everyLedger = ledgersOf(manifest);
+  for (const ledger of everyLedger) {
     const written = Object.keys(ledger.writes);
     const receipts = position.get(ledger.receipts);
     for (const ref of [ledger.receipts, ...written]) {
@@ -358,22 +365,25 @@ function ledgerOrderIssues(bundle: SampleBundle, manifest: Manifest, declared: R
       const shape = declared.get(ref);
       if (t === undefined || shape === undefined) continue;
       const what = ref === ledger.receipts ? 'the receipt table' : 'a ledger table';
+      const rows = bundle.tables[t]!.rows;
       for (const column of shape.columns) {
         const named = column.type === 'fk' ? column.references : undefined;
         if (named === undefined || named === ref) continue;
+        // A column no row of the file fills names nothing.
+        if (!rows.some((row) => row[column.ref] !== undefined && row[column.ref] !== null)) continue;
         const listed = position.get(named);
-        if (listed !== undefined && listed > t) {
-          issues.push({ path: `tables.${String(t)}.ref`, message: `"${ref}" is ${what} of "${ledger.id}": list it after "${named}", which its rows name (${column.ref}).` });
-        }
-      }
-      if (ref !== ledger.receipts && receipts !== undefined && receipts > t) {
-        issues.push({ path: `tables.${String(t)}.ref`, message: `"${ref}" is a ledger table of "${ledger.id}": list the receipt table "${ledger.receipts}" before it.` });
+        if (listed === undefined || listed < t) continue;
+        issues.push(
+          named === ledger.receipts
+            ? { path: `tables.${String(t)}.ref`, message: `"${ref}" is a ledger table of "${ledger.id}": list the receipt table "${ledger.receipts}" before it.` }
+            : { path: `tables.${String(t)}.ref`, message: `"${ref}" is ${what} of "${ledger.id}": list it after "${named}", which its rows name (${column.ref}).` },
+        );
       }
     }
-    // Everything else comes first: a ledger's history is the last thing a sample adds.
-    const first = Math.min(...[ledger.receipts, ...written].map((ref) => position.get(ref) ?? Number.POSITIVE_INFINITY));
+    // Everything else comes first: after the receipts, only what a ledger writes.
+    if (receipts === undefined) continue;
     bundle.tables.forEach((table, t) => {
-      if (t > first && table.ref !== ledger.receipts && !written.includes(table.ref) && !ledgersOf(manifest).some((other) => other.receipts === table.ref || other.writes[table.ref] !== undefined)) {
+      if (t > receipts && !everyLedger.some((other) => other.receipts === table.ref || other.writes[table.ref] !== undefined)) {
         issues.push({ path: `tables.${String(t)}.ref`, message: `"${table.ref}" comes after the history of the ledger "${ledger.id}": list a ledger's receipt and ledger tables last.` });
       }
     });

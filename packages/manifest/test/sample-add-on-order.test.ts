@@ -57,14 +57,34 @@ describe('an add-on\'s sample with its ledger\'s history', () => {
 
   it('a ledger table listed before a table it names is refused', () => {
     // The label check already asks for an earlier row; the order check names the table and why.
-    const issues = messages([RECEIPTS, { ...ENTRIES, rows: [{ amount: 2, kind: 'use', receipt_id: { '@ref': 'r1' } }] }, ACCOUNTS]);
+    const issues = messages([RECEIPTS, ENTRIES, ACCOUNTS]);
     expect(issues).toContain('tables.1.ref: "entries" is a ledger table of "units": list it after "accounts", which its rows name (account_id).');
     expect(issues).toContain('tables.2.ref: "accounts" comes after the history of the ledger "units": list a ledger\'s receipt and ledger tables last.');
   });
 
   it('receipts come before ledger rows', () => {
-    const issues = messages([ACCOUNTS, { ...ENTRIES, rows: [{ account_id: { '@ref': 'flour' }, amount: 2, kind: 'use' }] }, RECEIPTS]);
+    const issues = messages([ACCOUNTS, ENTRIES, RECEIPTS]);
     expect(issues).toContain('tables.1.ref: "entries" is a ledger table of "units": list the receipt table "postings" before it.');
+  });
+
+  it('a ledger row that names no receipt may stand before them: the order is about what the rows name', () => {
+    expect(messages([ACCOUNTS, { ...ENTRIES, rows: [{ account_id: { '@ref': 'flour' }, amount: 2, kind: 'use' }] }, RECEIPTS])).toBe('');
+  });
+
+  it('a table the ledger may also write, filled by the sample as people fill it, stands where its rows are named', () => {
+    // A ledger that makes an account on the way (as a stock ledger makes an item): the sample's accounts name no receipt.
+    const kit = structuredClone(KIT) as AddOnManifest;
+    const ledger = kit.addOn.ledgers![0]!;
+    (ledger.writes as Record<string, unknown>)['accounts'] = { insert: ['name'] };
+    kit.requiredSchema!.tables.push({ ref: 'requests', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'account_id', type: 'fk', references: 'accounts' }] } as never);
+    const REQUESTS = { ref: 'requests', rows: [{ '@label': 'q1', account_id: { '@ref': 'flour' } }] };
+    const told = (tables: Doc[]) =>
+      sampleBundleIssues(sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'ledger-kit', tables }), kit)
+        .map((issue) => `${issue.path}: ${issue.message}`)
+        .join('\n');
+    expect(told([ACCOUNTS, REQUESTS, RECEIPTS, ENTRIES])).toBe('');
+    // What is not the ledger's still comes before the receipts.
+    expect(told([ACCOUNTS, RECEIPTS, ENTRIES, REQUESTS])).toContain('tables.3.ref: "requests" comes after the history of the ledger "units"');
   });
 });
 
