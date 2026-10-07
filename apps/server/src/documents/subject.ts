@@ -59,6 +59,14 @@ export interface CollectionSource {
   unless?: string | undefined;
   /** Slot columns that list names one level below the line: `table`'s `column`, by its link to the line. */
   lists?: Record<string, { table: string; fkColumn: string; column: string; orderBy?: string | undefined }> | undefined;
+  /**
+   * The rows are an ADD-ON's, found by the pair each one stores — the stored
+   * name of the document's table and the row's key — in place of a foreign
+   * key: `table` and `fkColumn` are then empty. Kept by the add-on's own short
+   * names and resolved at each read, so a rename or a reinstall never leaves
+   * a stale table in a profile; with the add-on absent the list is empty.
+   */
+  pair?: { addOn: string; table: string; matchTable: string; matchRow: string } | undefined;
 }
 
 /**
@@ -468,6 +476,8 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
 export function mappedColumns(mapping: ProfileMapping, base: string, linked: (ref: string) => string | undefined): { table: string; column: string }[] {
   const out: { table: string; column: string }[] = [];
   const lists = (c: CollectionSource) => {
+    // An add-on's rows found by a pair have no table to name until they are read.
+    if (c.pair !== undefined) return;
     for (const column of Object.values(c.columns)) out.push({ table: c.table, column });
     for (const list of Object.values(c.lists ?? {})) out.push({ table: list.table, column: list.column });
   };
@@ -490,6 +500,7 @@ export function mappedTables(mapping: ProfileMapping, base: string): readonly st
   const tables = new Set<string>([base]);
   for (const mapped of Object.values(mapping)) {
     const lists = (c: CollectionSource) => {
+      if (c.pair !== undefined) return;
       tables.add(c.table);
       for (const list of Object.values(c.lists ?? {})) tables.add(list.table);
     };

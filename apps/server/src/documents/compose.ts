@@ -26,6 +26,8 @@
  * resolve at all.
  */
 
+import { addOnTablesFor } from '../apps/add-on-tables.js';
+import { storedTableRef, tableRefIndex } from '../apps/table-ref.js';
 import type { Dialect } from '@adminium/engine';
 import type { Kysely } from 'kysely';
 
@@ -189,13 +191,18 @@ async function readLookups(
 async function readLines(
   db: Kysely<SourceDatabase>,
   child: ResolvedTable,
-  fkColumn: string,
+  /** The link to the document's row — or, for an add-on's rows, the two columns of the pair each row stores, with the pair. */
+  fkColumn: string | { match: readonly (readonly [string, string])[] },
   parentValue: unknown,
   orderBy: string | null,
   dialect: Dialect,
   filter: Pick<Extract<SlotMapping, { collection: unknown }>['collection'], 'where' | 'unless'> = {},
 ): Promise<Record<string, unknown>[]> {
-  if (!child.columns.has(fkColumn)) return [];
+  const matches: readonly (readonly [string, unknown])[] = typeof fkColumn === 'string' ? [[fkColumn, parentValue]] : fkColumn.match;
+  // A pair's column the add-on's table does not have is a broken manifest, said as such; a link that is gone reads nothing.
+  if (typeof fkColumn !== 'string') {
+    for (const [column] of matches) if (!child.columns.has(column)) throw new DocumentReadError(`${child.name} has no column ${column}`);
+  } else if (!child.columns.has(fkColumn)) return [];
   // A column the filter names that the table does not have is a stale
   // mapping; reading every line instead would print the voided ones.
   for (const column of [filter.where?.column, filter.unless]) {
@@ -203,10 +210,8 @@ async function readLines(
   }
   const rows: Record<string, unknown>[] = [];
   for (let offset = 0; ; offset += LINES_PAGE) {
-    let query = db
-      .selectFrom(child.id as never)
-      .selectAll()
-      .where(fkColumn as never, '=', parentValue as never);
+    let query = db.selectFrom(child.id as never).selectAll();
+    for (const [column, value] of matches) query = query.where(column as never, '=', value as never);
     if (orderBy !== null && child.columns.has(orderBy)) query = query.orderBy(orderBy as never, 'asc');
     for (const pk of child.primaryKey) query = query.orderBy(pk as never, 'asc');
     const page = (await query.limit(LINES_PAGE).offset(offset).execute()) as Record<string, unknown>[];
@@ -512,9 +517,25 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
         dialect,
         ...(readFilters === undefined ? {} : { narrow: narrowingOf(db as Kysely<SourceDatabase>, view, dialect, readFilters) }),
         ...(withhold === undefined ? {} : { withhold }),
+        ...((await pairsFor(deps.meta, profile, view)) ?? {}),
       });
     },
   };
+}
+
+/**
+ * What a list of an add-on's rows needs before the read: where the add-on's
+ * tables are right now (nothing while it is absent, detached from the app
+ * that made this table, or switched off there) and how this table is named
+ * in the add-on's rows. Asked only of a profile that has such a list; the
+ * meta store is read here, before the source's handle is used.
+ */
+async function pairsFor(meta: MetaDb, profile: DocumentProfile, view: SnapshotView): Promise<{ pairs: NonNullable<Parameters<typeof readProfileSource>[0]['pairs']> } | null> {
+  const paired = Object.values(profile.mapping as ProfileMapping).some((mapped) => ('collection' in mapped ? mapped.collection.pair !== undefined : 'sources' in mapped && mapped.sources.some((source) => 'collection' in source && source.collection.pair !== undefined)));
+  if (!paired) return null;
+  const tables = await addOnTablesFor(meta, profile.connectionId, view.model);
+  const index = await tableRefIndex(meta, profile.connectionId, view.model);
+  return { pairs: { tableOf: (addOn, ref) => tables(addOn, ref, profile.table)?.tableId ?? null, stored: storedTableRef(index, profile.table) } };
 }
 
 /** Each row as the reader may see it: the columns a `withhold` keeps for another holder emptied (no withhold: as read). */
@@ -583,6 +604,8 @@ export async function readProfileSource(input: {
   dialect: Dialect;
   /** Columns kept for a row's holder, emptied for the reader the document is drawn for. */
   withhold?: DocumentWithhold | undefined;
+  /** For a list of an add-on's rows found by a pair: the add-on's table as it stands (null: not here for this row's table), and this table's stored name. */
+  pairs?: { tableOf(addOn: string, ref: string): string | null; stored: string } | undefined;
 }): Promise<SourceRead | null> {
   const { db, view, profile, facts, dialect } = input;
   const table = view.table(profile.table);
@@ -609,14 +632,19 @@ export async function readProfileSource(input: {
   const collections: Record<string, readonly Record<string, unknown>[]> = {};
   const parentKey = table.primaryKey[0];
   /** One child-row source's lines, with the names each lists one level below it. */
-  const linesOf = async (source: CollectionSource): Promise<{ child: ResolvedTable; lines: Record<string, unknown>[] } | null> => {
+  const linesOf = async (source: CollectionSource): Promise<{ child: ResolvedTable | null; lines: Record<string, unknown>[] } | null> => {
     let child: ResolvedTable;
+    // An add-on's rows for this row: its table as it stands now, and the pair they carry. Absent, detached or off: an empty list.
+    const pairTable = source.pair === undefined ? undefined : (input.pairs?.tableOf(source.pair.addOn, source.pair.table) ?? null);
+    if (pairTable === null) return { child: null, lines: [] };
     try {
-      child = view.table(source.table);
+      child = view.table(pairTable ?? source.table);
     } catch {
-      return null;
+      return source.pair === undefined ? null : { child: null, lines: [] };
     }
-    const read = await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source);
+    // The row's key as text: the pair's column is text on every engine, and a number is never cast in SQL.
+    const by = source.pair === undefined ? source.fkColumn : { match: [[source.pair.matchTable, input.pairs?.stored ?? table.id], [source.pair.matchRow, String(row[parentKey!])]] as const };
+    const read = await readLines(db, child, by, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source);
     await unheld.warm?.(db, child, read);
     const lines = read.map((line) => unheld(child, line));
     await addLists(db, view, child, lines, source.lists, unheld);

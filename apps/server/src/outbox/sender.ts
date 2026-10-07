@@ -141,6 +141,8 @@ import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { addOnAvailability, appDocumentDetached, appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { appUrlsFor } from './app-url.js';
+import { addOnTablesFor } from '../apps/add-on-tables.js';
+import { storedTableRef, tableRefIndex } from '../apps/table-ref.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
@@ -1143,20 +1145,43 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       link?: string;
       table?: string;
       via?: string;
+      /** The rows are an add-on's, found by the pair each stores: the stored name of the message's row's table, and its key. */
+      addOn?: string;
+      match?: { table: string; row: string };
       orderBy?: string;
       where?: { column: string; in: unknown[] };
       unless?: string;
       limit?: number;
     };
     const column = from.link === undefined ? undefined : box.definition.links?.[from.link];
-    if (column === undefined || !ctx.outbox.columns.has(column) || from.table === undefined || from.via === undefined) return null;
+    const paired = from.addOn !== undefined && from.match !== undefined;
+    if (column === undefined || !ctx.outbox.columns.has(column) || from.table === undefined || (from.via === undefined && !paired)) return null;
     let child: ResolvedTable;
-    try {
-      child = view.table(from.table);
-    } catch {
-      return null;
+    /** What a row of the list is found by: its link to the message's row, or — an add-on's rows — the pair it stores. */
+    let by: readonly (readonly [string, unknown])[] | null = null;
+    if (paired) {
+      // The add-on's table as it stands now: absent, detached from this app or switched off for it, the list is empty and the mail still goes.
+      const found = (await addOnTablesFor(deps.meta, box.connectionId, view.model))(from.addOn!, from.table, ctx.outbox.id);
+      if (found === null) return [];
+      const parentTable = referenced(view, box.definition.table, column);
+      if (parentTable === undefined) return null;
+      try {
+        child = view.table(found.tableId);
+      } catch {
+        return [];
+      }
+      // The row's table by its stored name (a rename keeps it), and its key as text on every engine.
+      const stored = storedTableRef(await tableRefIndex(deps.meta, box.connectionId, view.model), parentTable);
+      const parentKey = message[column];
+      by = parentKey === null || parentKey === undefined ? null : [[from.match!.table, stored], [from.match!.row, String(parentKey)]];
+    } else {
+      try {
+        child = view.table(from.table);
+      } catch {
+        return null;
+      }
     }
-    const named = [from.via, ...(from.where === undefined ? [] : [from.where.column]), ...(from.unless === undefined ? [] : [from.unless])];
+    const named = [...(paired ? [from.match!.table, from.match!.row] : [from.via!]), ...(from.where === undefined ? [] : [from.where.column]), ...(from.unless === undefined ? [] : [from.unless])];
     if (named.some((name) => !child.columns.has(name))) return null;
     const joins = (typeof data['joins'] === 'object' && data['joins'] !== null ? data['joins'] : {}) as Record<string, { table: string; via: string; column: string; orderBy?: string; separator?: string }>;
     const joinTables = new Map<string, ResolvedTable>();
@@ -1171,7 +1196,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const parent = message[column];
     // The message names no row to list from: its list is empty.
     if (parent === null || parent === undefined) return [];
-    let query = db.selectFrom(child.id as never).selectAll().where(from.via as never, '=', parent as never);
+    let query = db.selectFrom(child.id as never).selectAll();
+    for (const [name, value] of by ?? [[from.via!, parent] as const]) query = query.where(name as never, '=', value as never);
     if (from.where !== undefined && from.where.in.length > 0) {
       // A yes or no as a word every engine knows (SQLite binds none).
       query = query.where(from.where.column as never, 'in', from.where.in.map((value) => (typeof value === 'boolean' ? sql.lit(value) : value)) as never);

@@ -294,8 +294,27 @@ export function storedProfile(
           sources.push({ nightly: { column: one.nightly, columns: { ...one.columns } } });
           continue;
         }
-        // Rows of an add-on's table, found by a table and a row: not drawn yet (a manifest that says so is refused before this).
-        if ('addOn' in one) return { reason: `the rows of "${one.addOn}"'s "${one.table}" are found by a table and a row, which this Adminium does not draw yet` };
+        // Rows of an add-on's table, found by a table and a row: kept by the add-on's own names, and looked up each time the document is drawn.
+        if ('addOn' in one) {
+          const columns: Record<string, string> = {};
+          for (const [slotColumn, column] of Object.entries(one.columns)) {
+            if (typeof column !== 'string') return { reason: `"${one.table}" of "${one.addOn}" lists a name one level down, which rows found by a table and a row cannot` };
+            columns[slotColumn] = column;
+          }
+          sources.push({
+            collection: {
+              table: '',
+              fkColumn: '',
+              columns,
+              ...(one.orderBy === undefined ? {} : { orderBy: one.orderBy }),
+              ...(one.where === undefined ? {} : { where: { column: one.where.column, in: [...one.where.in] } }),
+              ...(one.unless === undefined ? {} : { unless: one.unless }),
+              pair: { addOn: one.addOn, table: one.table, matchTable: one.match.table, matchRow: one.match.row },
+            },
+          });
+          orderBy ??= one.orderBy ?? null;
+          continue;
+        }
         const stored = storedCollection(one, realId);
         if ('reason' in stored) return stored;
         sources.push({ collection: stored });

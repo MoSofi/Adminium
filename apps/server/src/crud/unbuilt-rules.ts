@@ -63,8 +63,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
 /** The public entry keys whose behaviour is not built yet. */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
 
-/** The release that installs an add-on like an app, and runs the words that come with it. */
-const ADD_ON_INSTALL_RELEASE = '0.3.18';
 /** The release that asks an add-on what an order's price is lowered by. */
 const PRICE_QUESTION_RELEASE = '0.3.19';
 
@@ -77,8 +75,6 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
   // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
   'column.codeLast4': PRICE_QUESTION_RELEASE,
-  // Rows found by a table and a row: an add-on's rows for an order, listed in mail and in a document.
-  'rows.pair': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
   'table.adjust': PRICE_QUESTION_RELEASE,
   'addOn.adjuster': PRICE_QUESTION_RELEASE,
@@ -133,6 +129,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'email.onlyWith',
   'email.onlyWithout',
   'outbox.pages.app',
+  // Rows found by a table and a row: an add-on's rows for an order, listed in mail and in a document.
+  'rows.pair',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

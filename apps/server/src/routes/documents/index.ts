@@ -188,8 +188,10 @@ function documentColumnRefused(profile: DocumentProfile, view: SnapshotView): st
   }
   const own = (column: string | undefined) => hidden(profile.table, column);
   const listed = (source: CollectionSource): boolean =>
-    [...Object.values(source.columns), source.orderBy, source.where?.column, source.unless].some((column) => hidden(source.table, column)) ||
-    Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.column) || hidden(list.table, list.orderBy));
+    // An add-on's rows found by a pair are no table of this reader's view to hide a column of: they are this row's own, wherever it is read.
+    source.pair === undefined &&
+    ([...Object.values(source.columns), source.orderBy, source.where?.column, source.unless].some((column) => hidden(source.table, column)) ||
+      Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.column) || hidden(list.table, list.orderBy)));
   // A night's own figures are the price's dates and rates; `<via>.<column>` is a column of the rate row.
   const nightly = (source: { column: string; columns: Record<string, string> }): boolean => {
     if (own(source.column)) return true;
