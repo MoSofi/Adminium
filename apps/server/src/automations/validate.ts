@@ -28,6 +28,7 @@ import type {
   AutomationNode,
   AutomationTrigger,
 } from '@adminium/meta';
+import { yesNo } from './yes-no.js';
 import { isRelativeAutomationOp } from '@adminium/meta';
 
 import { ValidationFailedError } from '../errors.js';
@@ -168,6 +169,15 @@ function checkCondition(
       `${where}: ${name} is not a date column, so it has no relative time.`,
       { column: name },
     );
+  }
+  // A yes/no is asked whether it is yes or no, and nothing else: "greater than" or "contains" would hold on no engine.
+  if (column.logicalType === 'boolean' && condition.op !== 'is_empty' && condition.op !== 'not_empty') {
+    if (condition.op !== 'is' && condition.op !== 'is_not') {
+      throw new ValidationFailedError(`${where}: ${name} is a yes/no, so a rule asks whether it is or is not.`, { column: name });
+    }
+    if (condition.right !== undefined && yesNo(condition.right) === null) {
+      throw new ValidationFailedError(`${where}: ${name} is a yes/no: compare it with yes or no.`, { column: name });
+    }
   }
 }
 
@@ -332,6 +342,10 @@ export function resolveRule(
       );
     }
     for (const condition of trigger.forEach.where) {
+      // The scan is one query: a count of related rows is a second one, and would throw at every tick with nobody told.
+      if ('count' in condition.left) {
+        throw new ValidationFailedError("A schedule's conditions are read by the database. Count related rows in a step after it.", { table: table.id });
+      }
       checkCondition(condition, table, ctx, 'The schedule');
     }
   }

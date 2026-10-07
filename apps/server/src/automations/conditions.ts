@@ -37,6 +37,7 @@ import type {
   AutomationConditionOp,
   AutomationRelativeOperand,
 } from '@adminium/meta';
+import { yesNo } from './yes-no.js';
 import { automationDurationMs, isRelativeAutomationOp } from '@adminium/meta';
 
 import type { ResolvedTable } from '../crud/identifiers.js';
@@ -243,6 +244,12 @@ export async function evaluateCondition(
     return evaluateRelative(op, value, condition.right, ctx.now, day);
   }
   if (condition.right === undefined) return false;
+  // A yes/no column: both sides as a yes or a no, and only "is" and "is not" compare them.
+  if (ctx.table?.columns.get(condition.left.field)?.logicalType === 'boolean') {
+    const [left, right] = [yesNo(value), yesNo(condition.right)];
+    if (left === null || right === null || (op !== 'is' && op !== 'is_not')) return false;
+    return op === 'is' ? left === right : left !== right;
+  }
   return compareValues(op, value, condition.right);
 }
 

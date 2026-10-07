@@ -44,6 +44,7 @@
  * an integer is a type error on Postgres and nonsense everywhere else.
  */
 
+import { yesNo } from './yes-no.js';
 import type { Dialect } from '@adminium/engine';
 import type { AutomationCondition } from '@adminium/meta';
 import { automationDurationMs, isRelativeAutomationOp } from '@adminium/meta';
@@ -144,6 +145,14 @@ export function toRecordFilter(
   const value = condition.right;
   if (value === undefined) {
     throw new ValidationFailedError('A condition needs a value.', { column: name });
+  }
+  // A yes/no column is bound as a yes or a no (the filter grammar spells it for each engine), whatever the rule wrote.
+  if (column.logicalType === 'boolean') {
+    const answer = yesNo(value);
+    if (answer === null || (condition.op !== 'is' && condition.op !== 'is_not')) {
+      throw new ValidationFailedError(`${JSON.stringify(name)} is a yes/no: a rule asks whether it is yes or no.`, { column: name });
+    }
+    return condition.op === 'is' ? { column: name, op: 'eq', value: answer } : { or: [{ column: name, op: 'neq', value: answer }, { column: name, op: 'is_null' }] };
   }
   switch (condition.op) {
     case 'gt':
