@@ -11,6 +11,7 @@
  * `widget-data:<connectionId>:<schema.table>` when the realtime hub is wired.
  */
 
+import { onceFor } from './once.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { z } from 'zod';
@@ -1979,7 +1980,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 },
               });
               const key = ctx.table.primaryKey.length === 1 ? inserted[ctx.table.primaryKey[0]!] : Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
-              results.push({ index, id: key, ok: true, data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), ...(told === undefined ? {} : { postings: told }) });
+              const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
+              results.push({ index, id: key, ok: true, data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
             } catch (error) {
               results.push({ index, ok: false, error: await refusedAs(error) });
             }
@@ -2866,7 +2868,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // A save that posted is not undone by a token: the rule's own way back is.
           if (told === undefined) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
           await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
-          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }) });
+          const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
+          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
         }
         if (links.length === 0 && children.length === 0) {
           let told: PostingAnswer[] | undefined;
@@ -2884,7 +2887,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: posted, origin: 'dashboard', request });
             },
           });
-          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }) });
+          const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
+          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
         }
 
         /*
@@ -2913,7 +2917,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
-            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }) });
+            const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
+            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
           }
         }
         if (rowsBelow) {
@@ -3027,7 +3032,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await writes.afterEach('create', ctx.target, context, [{ record: inserted, before: null }]);
         // The reply is the row as stored, its own totals settled after the commit.
         inserted = (await writes.stored(ctx.target, [inserted]))[0] ?? inserted;
-        return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken });
+        const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
+        return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(once === undefined ? {} : { once }) });
       },
     );
 

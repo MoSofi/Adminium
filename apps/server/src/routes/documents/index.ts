@@ -47,12 +47,15 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { providersFor, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { audited } from '../../audit/coverage.js';
 import { appDocumentOff, appProfileFor, ownedDocumentOff } from '../../documents/app-documents.js';
-import { registerAddOnRender } from './add-on-render.js';
+import { ephemeralDocumentReply, printOnce, registerAddOnRender } from './add-on-render.js';
+import { moneyCodeOf } from '../../documents/money-code.js';
+import { printStore, type PrintStore } from '../../documents/print-tokens.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
@@ -111,6 +114,8 @@ export interface DocumentRoutesDeps {
    * cannot be drawn here.
    */
   pipeline?: RenderDeps | undefined;
+  /** The print tokens and tickets of this process; a test's own otherwise. */
+  prints?: PrintStore | undefined;
 }
 
 /** Where this server mounts its API (`routes/index.ts`), for the links a reply hands out. */
@@ -608,7 +613,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
          * document they got.
          */
         config: { audit: audited('worker') },
-        schema: { body: documentRenderBody, response: { 200: documentRenderReply } },
+        schema: { body: documentRenderBody, response: { 200: z.union([documentRenderReply, ephemeralDocumentReply]) } },
       },
       async (request) => {
         const profile = await profiles.findById(request.body.profileId);
@@ -639,6 +644,17 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
             addOn: off.addOn,
             feature: off.feature,
           });
+        }
+
+        // A document that prints a money code is kept nowhere: nothing is queued, and what is answered is an address that prints it once.
+        if (whole !== null && moneyCodeOf(whole, profile) !== null) {
+          const userId = request.user?.id ?? null;
+          // The row's key as its column holds it, and nothing else a caller sent beside it.
+          const table = whole.table(profile.table);
+          const sent = request.body.pk as Record<string, unknown>;
+          const pk = recordKeyOf(table, (table.primaryKey.length === 1 ? sent[table.primaryKey[0]!] : JSON.stringify(sent)) as never);
+          if (userId === null || pk === null) throw new NotFoundError('That document mapping does not exist.');
+          return printOnce(deps.prints ?? printStore, deps.runtime(), API_PREFIX, { userId, profile, pk, locale: request.body.locale, once: false })!;
         }
 
         const job = await deps.enqueue({
@@ -777,7 +793,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     );
 
     // An add-on's own page asks for a document of one of its own tables: the same rule, by the add-on's names.
-    registerAddOnRender(app, { meta: deps.meta, runtime: deps.runtime, pipeline: deps.pipeline }, { apiPrefix: API_PREFIX, notFound, documentReads, documentColumnRefused, toReply });
+    registerAddOnRender(app, { meta: deps.meta, runtime: deps.runtime, pipeline: deps.pipeline, prints: deps.prints }, { apiPrefix: API_PREFIX, notFound, documentReads, documentColumnRefused, toReply });
 
     app.post(
       '/documents/:id/void',

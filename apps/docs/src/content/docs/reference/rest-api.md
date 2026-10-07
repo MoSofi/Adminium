@@ -112,7 +112,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/connections/*` | 26 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/data/*` | 22 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
-| `/api/v1/documents/*` | 13 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
+| `/api/v1/documents/*` | 14 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs` | 1 | Campaign sends — cancel a scheduled or running run |
 | `/api/v1/email-templates/*` | 17 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
@@ -412,6 +412,7 @@ GET /api/v1/documents/{id}
 GET /api/v1/documents/{id}/content
 GET /api/v1/documents/{id}/print
 POST /api/v1/documents/render
+GET /api/v1/documents/print-once/{ticket}
 POST /api/v1/documents/{id}/void
 POST /api/v1/documents/{id}/send
 ```

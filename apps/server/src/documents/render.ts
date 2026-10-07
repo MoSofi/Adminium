@@ -96,6 +96,8 @@ import { AppError } from '../errors.js';
 import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
 import { withholdsOn } from '../public-api/withholds-on.js';
 import { ownedDocumentOff } from './app-documents.js';
+import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { moneyCodeOf } from './money-code.js';
 import { emailDocument, type DocumentDelivery } from './deliver.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
@@ -287,6 +289,8 @@ export interface RenderRequest {
    * a document reusable: the same row on another paper is another document.
    */
   paper?: string | undefined;
+  /** Set by `renderEphemeral` alone: draw it and keep nothing. `renderDocument` never honours it from a caller. */
+  ephemeral?: boolean | undefined;
 }
 
 /** A value a render request carries for a slot, refused: the slot is named. */
@@ -346,6 +350,9 @@ export type RenderOutcome =
   | { status: 'rendered'; document: DocumentRow; reused?: boolean }
   | { status: 'skipped'; reason: string }
   | { status: 'failed'; document: DocumentRow | null; error: string };
+
+/** A document drawn and kept nowhere: the bytes, for whoever asked, this once — or why there are none. */
+export type EphemeralOutcome = { status: 'drawn'; rendered: RenderedDocument[]; paper: string } | { status: 'skipped'; reason: string } | { status: 'failed'; error: string };
 
 const MIME = { html: 'text/html; charset=utf-8', pdf: 'application/pdf' } as const;
 
@@ -462,10 +469,27 @@ async function storeRendered(
   return stored;
 }
 
-export async function renderDocument(
+export async function renderDocument(deps: RenderDeps, request: RenderRequest): Promise<RenderOutcome> {
+  const outcome = await renderCore(deps, { ...request, ephemeral: false });
+  if (outcome.status === 'drawn') throw new Error('a stored render answered bytes');
+  return outcome;
+}
+
+/**
+ * DRAW IT AND KEEP NOTHING: no register row, no number taken, no stored
+ * bytes. The one way a document that prints a money code is drawn. Whoever
+ * calls has already decided the asker may have it.
+ */
+export async function renderEphemeral(deps: RenderDeps, request: RenderRequest): Promise<EphemeralOutcome> {
+  const outcome = await renderCore(deps, { ...request, ephemeral: true, reuse: false });
+  if (outcome.status === 'rendered') throw new Error('a draw that keeps nothing answered a stored document');
+  return outcome.status === 'failed' ? { status: 'failed', error: outcome.error } : outcome;
+}
+
+async function renderCore(
   deps: RenderDeps,
   request: RenderRequest,
-): Promise<RenderOutcome> {
+): Promise<RenderOutcome | Extract<EphemeralOutcome, { status: 'drawn' }>> {
   const now = deps.now ?? Date.now;
   const at = now();
   const profiles = documentProfilesRepo(deps.meta);
@@ -577,6 +601,14 @@ export async function renderDocument(
     return { status: 'skipped', reason: 'not-for-row' };
   }
 
+  // A document that prints a money code is kept nowhere: drawn only by the door that keeps nothing.
+  // (Read from the same stored schema the source was just read through: with none, there was no row to draw.)
+  const schema = await loadSnapshotView(deps.meta, profile.connectionId).catch(() => null);
+  const moneyCode = schema === null ? null : moneyCodeOf(schema, profile);
+  if (moneyCode !== null && request.ephemeral !== true) {
+    return { status: 'failed', document: null, error: `a ${profile.kind} prints a code that is shown once: it is printed when asked for, and kept nowhere` };
+  }
+
   // 4 — the subject, frozen into a row that exists before the bytes do.
   const options = profile.options as {
     locale?: string;
@@ -682,6 +714,20 @@ export async function renderDocument(
       number: printed,
     });
   let built = subjectFor(number);
+
+  if (request.ephemeral === true) {
+    // Drawn for this one ask: the row's own number if it has one, never one taken from the register.
+    const once = subjectFor(ownNumber ?? null);
+    if (once.missing.length > 0) return { status: 'failed', document: null, error: `unmapped or empty: ${once.missing.join(', ')}` };
+    let produced: unknown;
+    try {
+      produced = await provider.render({ kind: profile.kind, subject: once.subject, formats, paper, settings });
+    } catch (cause) {
+      return { status: 'failed', document: null, error: cause instanceof Error ? cause.message : String(cause) };
+    }
+    if (!Array.isArray(produced)) return { status: 'failed', document: null, error: (produced as { code?: string }).code ?? 'INVALID_SUBJECT' };
+    return { status: 'drawn', rendered: produced as RenderedDocument[], paper };
+  }
 
   const document = await documents.create(
     {

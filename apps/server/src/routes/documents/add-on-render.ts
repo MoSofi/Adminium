@@ -17,7 +17,7 @@
  * (400 DOCUMENT_VALUE_REFUSED, slot `paper`).
  */
 import type { Manifest } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, type DocumentProfile, type DocumentRow, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, auditRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type DocumentRow, type MetaDb } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -28,8 +28,12 @@ import type { SnapshotView } from '../../crud/identifiers.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { appProfileFor, ownedDocumentOff } from '../../documents/app-documents.js';
-import { renderDocument, type RenderDeps } from '../../documents/render.js';
-import { AppError } from '../../errors.js';
+import { providerByKey } from '../../add-ons/runtime.js';
+import { moneyCodeOf } from '../../documents/money-code.js';
+import { printRow, printStore, type PrintStore } from '../../documents/print-tokens.js';
+import { renderingProviderOf } from '../../documents/provider.js';
+import { renderDocument, renderEphemeral, type RenderDeps } from '../../documents/render.js';
+import { AppError, NotFoundError } from '../../errors.js';
 import { canReadTableFor } from '../../rbac/table-grants.js';
 import { recordKeyOf } from '../public/documents.js';
 import { appDocumentRenderReply } from './schema.js';
@@ -48,13 +52,50 @@ export const addOnDocumentRenderBody = z
     locale: z.string().max(35).optional(),
     /** Values for slots the profile lets a request fill, by slot id. */
     values: z.record(z.string().max(64), z.union([z.string().max(400), z.number(), z.boolean()])).optional(),
+    /** The print token a save handed its maker with a new row's code: lets that person print that row once, whatever their role reads. */
+    once: z.string().min(20).max(100).optional(),
   })
   .strict();
+
+/** A document kept nowhere is answered as an address that prints it once. */
+export const ephemeralDocumentReply = z.object({ printUrl: z.string(), ephemeral: z.literal(true) });
+export const printTicketParams = z.object({ ticket: z.string().min(20).max(100) }).strict();
+
+/** The papers a profile's kind is drawn on, as the add-on that draws it says; null when it is not loaded. */
+export function papersOf(runtime: AddOnRuntimeState | null, profile: Pick<DocumentProfile, 'addOnKey' | 'kind'>): readonly string[] | null {
+  const entry = runtime === null ? null : providerByKey(runtime, 'document-render', 1, profile.addOnKey);
+  const provider = entry === null ? null : renderingProviderOf(entry.module);
+  return provider === null ? null : ((provider.kinds().find((kind) => kind.id === profile.kind)?.paper ?? []) as readonly string[]);
+}
+
+/**
+ * The address that prints a money-code document once: a ticket for whoever
+ * asked, good for a minute. A paper the kind does not list is refused here,
+ * by name, before a ticket is made.
+ */
+export function printOnce(
+  store: PrintStore,
+  runtime: AddOnRuntimeState | null,
+  apiPrefix: string,
+  input: { userId: string; profile: DocumentProfile; pk: Readonly<Record<string, unknown>>; paper?: string | undefined; locale?: string | undefined; values?: Readonly<Record<string, string | number | boolean>> | undefined; once: boolean },
+  /** The last thing before the ticket is made (a maker's token is spent here); false, and there is no ticket. */
+  spend?: () => boolean,
+): z.infer<typeof ephemeralDocumentReply> | null {
+  const papers = papersOf(runtime, input.profile);
+  if (input.paper !== undefined && papers !== null && !papers.includes(input.paper)) {
+    throw new AppError(400, 'DOCUMENT_VALUE_REFUSED', `A ${input.profile.kind} is not drawn on "${input.paper}".`, { slot: 'paper' });
+  }
+  if (spend !== undefined && !spend()) return null;
+  const ticket = store.mintTicket({ userId: input.userId, profileId: input.profile.id, pk: input.pk, once: input.once, ...(input.paper === undefined ? {} : { paper: input.paper }), ...(input.locale === undefined ? {} : { locale: input.locale }), ...(input.values === undefined ? {} : { values: input.values }) });
+  return { printUrl: `${apiPrefix}/documents/print-once/${ticket}`, ephemeral: true };
+}
 
 export interface AddOnRenderDeps {
   meta: MetaDb;
   runtime: () => AddOnRuntimeState | null;
   pipeline?: RenderDeps | undefined;
+  /** The print tokens and tickets of this process; a test's own otherwise. */
+  prints?: PrintStore | undefined;
 }
 
 /** What the documents routes already know how to do, handed over rather than written twice. */
@@ -124,7 +165,7 @@ export function registerAddOnRender(instance: FastifyInstance, deps: AddOnRender
       preHandler: app.requireAuth,
       // The pipeline writes `document.rendered` itself, with the number.
       config: { audit: audited('rbac') },
-      schema: { params: addOnDocumentParams, body: addOnDocumentRenderBody, response: { 200: appDocumentRenderReply, 201: appDocumentRenderReply } },
+      schema: { params: addOnDocumentParams, body: addOnDocumentRenderBody, response: { 200: z.union([appDocumentRenderReply, ephemeralDocumentReply]), 201: appDocumentRenderReply } },
     },
     async (request, reply) => {
       const pipeline = deps.pipeline;
@@ -132,12 +173,41 @@ export function registerAddOnRender(instance: FastifyInstance, deps: AddOnRender
       const body = request.body;
       const found = await addOnDocumentFor(deps, helpers, { addOnKey: request.params.key, table: body.table, kind: body.kind, key: body.key });
       const { profile } = found;
-      if (!(await readsWholeDocument(deps, helpers, request, profile, found.connectionId, found.view))) helpers.notFound();
+      const prints = deps.prints ?? printStore;
+      const userId = request.user?.id ?? null;
+      // A document that prints a money code (a gift card's): drawn when asked, kept nowhere.
+      const moneyCode = moneyCodeOf(found.view, profile);
+      /*
+       * Who may: a caller who reads every table the document reads and every
+       * column it prints — or, for a money-code document only, the person who
+       * made the row a moment ago, by the token that save handed them: a
+       * cashier whose role does not read codes prints the card they just sold,
+       * once.
+       */
+      const row = printRow(found.connectionId, found.tableId, body.key);
+      let byToken = false;
+      if (!(await readsWholeDocument(deps, helpers, request, profile, found.connectionId, found.view))) {
+        // Looked at, not yet spent: a refusal further down must not cost the maker their one print.
+        byToken = moneyCode !== null && body.once !== undefined && userId !== null && prints.holdsToken(body.once, userId, row);
+        if (!byToken) helpers.notFound();
+        // The token stands for the row they made — not for any other table the document reads.
+        const canRead = await canReadTableFor(deps.meta, userId, found.connectionId);
+        for (const table of await helpers.documentReads(profile, async () => found.view)) {
+          if (table !== found.tableId && !(await canRead(table))) helpers.notFound();
+        }
+      }
 
       // Declared, readable — and switched on?
       const off = await ownedDocumentOff(deps.meta, profile, deps.runtime);
       if (off !== null || !profile.enabled) {
         throw new AppError(409, 'FEATURE_OFF', `This document is not available right now: ${off?.reason ?? 'its profile is switched off'}.`, { addOn: off?.addOn ?? profile.addOnKey, feature: off?.feature ?? null });
+      }
+
+      if (moneyCode !== null) {
+        if (userId === null) helpers.notFound();
+        // Spent now, when nothing is left that could refuse: taken by somebody else in the meantime, it is nothing.
+        const spend = byToken ? () => prints.takeToken(body.once ?? '', userId, row) : undefined;
+        return reply.code(200).send(printOnce(prints, deps.runtime(), helpers.apiPrefix, { userId, profile, pk: found.pk, paper: body.paper, locale: body.locale, values: body.values, once: byToken }, spend) ?? helpers.notFound());
       }
 
       const outcome = await renderDocument(pipeline, {
@@ -164,6 +234,63 @@ export function registerAddOnRender(instance: FastifyInstance, deps: AddOnRender
         reused: outcome.reused === true,
         document: helpers.toReply(outcome.document),
       });
+    },
+  );
+
+  /*
+   * `GET /documents/print-once/:ticket` — the bytes of a document kept
+   * nowhere, once, for the person the ticket was handed to. The ticket is
+   * spent before anything is drawn; unknown, spent, a minute old or another
+   * person's, it is the one 404. Served as the print route serves a document:
+   * sandboxed, and never cached.
+   */
+  app.get(
+    '/documents/print-once/:ticket',
+    // No HEAD of its own: asking about the address would spend it.
+    { preHandler: app.requireAuth, exposeHeadRoute: false, schema: { params: printTicketParams } },
+    async (request, reply) => {
+      const pipeline = deps.pipeline;
+      const userId = request.user?.id ?? null;
+      const ticket = userId === null ? null : (deps.prints ?? printStore).takeTicket(request.params.ticket, userId);
+      if (pipeline === undefined || ticket === null || userId === null) throw new NotFoundError('There is nothing to print here.');
+      const outcome = await renderEphemeral(pipeline, {
+        profileId: ticket.profileId,
+        pk: ticket.pk,
+        requestedBy: userId,
+        actorKind: 'user',
+        ...(ticket.paper === undefined ? {} : { paper: ticket.paper }),
+        ...(ticket.locale === undefined ? {} : { locale: ticket.locale }),
+        ...(ticket.values === undefined ? {} : { values: ticket.values }),
+      });
+      if (outcome.status === 'skipped') throw new NotFoundError('There is nothing to print here.');
+      // Said in these words only: what an add-on says of a failed draw may quote what it was drawing.
+      if (outcome.status === 'failed') {
+        request.log.warn({ profileId: ticket.profileId }, 'a document kept nowhere could not be drawn');
+        throw new AppError(422, 'DOCUMENT_NOT_DRAWN', 'The document could not be drawn.');
+      }
+      const page = outcome.rendered.find((one) => one.format === 'html') ?? outcome.rendered[0];
+      if (page === undefined) throw new AppError(422, 'DOCUMENT_NOT_DRAWN', 'The document could not be drawn: its add-on answered no bytes.');
+      const profile = await documentProfilesRepo(deps.meta).findById(ticket.profileId);
+      // That it was printed, for which row, on what, by whom — never the code, the subject or the ticket.
+      await auditRepo(deps.meta).append({
+        actorKind: 'user',
+        actorId: userId,
+        actorLabel: userId,
+        category: 'data',
+        action: 'document.printed',
+        connectionId: profile?.connectionId ?? null,
+        changes: { after: { addOn: profile?.addOnKey ?? null, kind: profile?.kind ?? null, table: profile?.table ?? null, key: ticket.pk, paper: outcome.paper, once: ticket.once } },
+      });
+      const pdf = page.format === 'pdf';
+      // Bytes an add-on drew, full of text people typed: no script, no fetch, an origin that holds none of this server's cookies.
+      if (!pdf) reply.header('content-security-policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+      return reply
+        .header('content-type', pdf ? 'application/pdf' : 'text/html; charset=utf-8')
+        .header('content-disposition', 'inline')
+        .header('x-content-type-options', 'nosniff')
+        // Shown once: nothing between here and the screen keeps a copy.
+        .header('cache-control', 'no-store')
+        .send(Buffer.from(page.bytes));
     },
   );
 }

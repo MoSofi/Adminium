@@ -172,6 +172,34 @@ describe('the Make button', () => {
   });
 });
 
+describe('a document that is kept nowhere', () => {
+  const card = { id: 'dpf_card', addOnKey: 'offers', kind: 'gift-card', name: 'Gift card', connectionId: 'conn_1', table: 'public.offers_gift_cards', enabled: true };
+  const renderCard = () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MakeDocumentButton profiles={[card]} pk={{ id: 7 }} />
+      </QueryClientProvider>,
+    );
+  };
+
+  it('opens the address that prints it once, in a tab of its own — and a stored document opens none', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    renderDocumentFor.mockResolvedValue({ printUrl: '/api/v1/documents/print-once/tkt_1', ephemeral: true });
+    const user = userEvent.setup();
+    renderCard();
+    await user.click(screen.getByRole('button', { name: /gift card/i }));
+    await waitFor(() => expect(open).toHaveBeenCalledWith('/api/v1/documents/print-once/tkt_1', '_blank', 'noopener'));
+    expect(open).toHaveBeenCalledTimes(1);
+    // An invoice is a job: the register shows it when it is drawn, and nothing is opened.
+    renderDocumentFor.mockResolvedValue({ jobId: 'job_1' });
+    await user.click(screen.getByRole('button', { name: /gift card/i }));
+    await waitFor(() => expect(renderDocumentFor).toHaveBeenCalledTimes(2));
+    expect(open).toHaveBeenCalledTimes(1);
+    open.mockRestore();
+  });
+});
+
 describe('the register’s key for a source row', () => {
   it('is the same literal string the server writes', () => {
     /*

@@ -13935,6 +13935,37 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "once": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "print": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "key",
+                          "column",
+                          "value",
+                          "print"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -14056,6 +14087,37 @@
                         "required": [
                           "ledger",
                           "state"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "once": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "print": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "key",
+                          "column",
+                          "value",
+                          "print"
                         ],
                         "additionalProperties": false
                       }
@@ -14271,6 +14333,37 @@
                               "required": [
                                 "ledger",
                                 "state"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "once": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "table": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string"
+                                },
+                                "column": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                },
+                                "print": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "table",
+                                "key",
+                                "column",
+                                "value",
+                                "print"
                               ],
                               "additionalProperties": false
                             }
@@ -15018,6 +15111,37 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "once": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "print": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "key",
+                          "column",
+                          "value",
+                          "print"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -15486,6 +15610,37 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "once": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "print": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "key",
+                          "column",
+                          "value",
+                          "print"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -15666,6 +15821,37 @@
                             "required": [
                               "ledger",
                               "state"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "once": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              },
+                              "print": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "key",
+                              "column",
+                              "value",
+                              "print"
                             ],
                             "additionalProperties": false
                           }
@@ -17267,6 +17453,37 @@
                         "required": [
                           "ledger",
                           "state"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "once": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "print": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "key",
+                          "column",
+                          "value",
+                          "print"
                         ],
                         "additionalProperties": false
                       }
@@ -81179,16 +81396,39 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "jobId": {
-                      "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "jobId"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "printUrl": {
+                          "type": "string"
+                        },
+                        "ephemeral": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      },
+                      "required": [
+                        "printUrl",
+                        "ephemeral"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "jobId"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -81752,6 +81992,11 @@
                         }
                       ]
                     }
+                  },
+                  "once": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 100
                   }
                 },
                 "required": [
@@ -81782,196 +82027,219 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "contentUrl": {
-                      "type": "string"
-                    },
-                    "printUrl": {
-                      "type": "string"
-                    },
-                    "reused": {
-                      "type": "boolean"
-                    },
-                    "document": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "profileId": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "addOnKey": {
+                        "contentUrl": {
                           "type": "string"
                         },
-                        "kind": {
+                        "printUrl": {
                           "type": "string"
                         },
-                        "connectionId": {
-                          "anyOf": [
-                            {
+                        "reused": {
+                          "type": "boolean"
+                        },
+                        "document": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "entityTable": {
-                          "anyOf": [
-                            {
+                            "profileId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "addOnKey": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "entityId": {
-                          "anyOf": [
-                            {
+                            "kind": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "subject": {
-                          "anyOf": [
-                            {},
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "number": {
-                          "anyOf": [
-                            {
+                            "connectionId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "entityTable": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "entityId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "subject": {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "number": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "locale": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "locale": {
-                          "type": "string"
-                        },
-                        "format": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "error": {
-                          "anyOf": [
-                            {
+                            "format": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "delivery": {
-                          "anyOf": [
-                            {
+                            "status": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "renderedAt": {
-                          "anyOf": [
-                            {
+                            "error": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "delivery": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "renderedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "voidedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "voidReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "createdAt": {
                               "type": "number"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "voidedAt": {
-                          "anyOf": [
-                            {
-                              "type": "number"
+                            "redacted": {
+                              "type": "boolean"
                             },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "voidReason": {
-                          "anyOf": [
-                            {
-                              "type": "string"
+                            "hasContent": {
+                              "type": "boolean"
                             },
-                            {
-                              "type": "null"
+                            "replaced": {
+                              "type": "boolean"
                             }
-                          ]
-                        },
-                        "createdAt": {
-                          "type": "number"
-                        },
-                        "redacted": {
-                          "type": "boolean"
-                        },
-                        "hasContent": {
-                          "type": "boolean"
-                        },
-                        "replaced": {
-                          "type": "boolean"
+                          },
+                          "required": [
+                            "id",
+                            "profileId",
+                            "addOnKey",
+                            "kind",
+                            "connectionId",
+                            "entityTable",
+                            "entityId",
+                            "subject",
+                            "number",
+                            "locale",
+                            "format",
+                            "status",
+                            "error",
+                            "delivery",
+                            "renderedAt",
+                            "voidedAt",
+                            "voidReason",
+                            "createdAt",
+                            "redacted",
+                            "hasContent",
+                            "replaced"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "id",
-                        "profileId",
-                        "addOnKey",
-                        "kind",
-                        "connectionId",
-                        "entityTable",
-                        "entityId",
-                        "subject",
-                        "number",
-                        "locale",
-                        "format",
-                        "status",
-                        "error",
-                        "delivery",
-                        "renderedAt",
-                        "voidedAt",
-                        "voidReason",
-                        "createdAt",
-                        "redacted",
-                        "hasContent",
-                        "replaced"
+                        "contentUrl",
+                        "printUrl",
+                        "reused",
+                        "document"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "printUrl": {
+                          "type": "string"
+                        },
+                        "ephemeral": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      },
+                      "required": [
+                        "printUrl",
+                        "ephemeral"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "id",
-                    "contentUrl",
-                    "printUrl",
-                    "reused",
-                    "document"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -82174,6 +82442,27 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/print-once/{ticket}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 100
+            },
+            "in": "path",
+            "name": "ticket",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

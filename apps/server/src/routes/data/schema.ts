@@ -6,6 +6,7 @@
  * handlers, never here.
  */
 
+import { onceEntrySchema } from './once.js';
 import { z } from 'zod';
 
 import { MAX_COMPUTE_BYTES } from '../../crud/compute.js';
@@ -470,6 +471,8 @@ export const recordMutationReply = z.object({
   replayed: z.literal(true).optional(),
   /** What each ledger the row handed something to did. A save that posted answers no undo token: its way back is the rule's own. */
   postings: z.array(postingAnswerSchema).optional(),
+  /** The money code of each coded row this save made, for its maker, this once — with a token that prints it once. */
+  once: z.array(onceEntrySchema).optional(),
 });
 
 export const recordCascadeReply = z.object({
@@ -525,6 +528,8 @@ export const recordOneByOneReply = z.object({
       ok: z.boolean(),
       data: rowSchema.optional(),
       postings: z.array(postingAnswerSchema).optional(),
+      /** On a row made here: its money code, for its maker, this once. Never on a row changed. */
+      once: z.array(onceEntrySchema).optional(),
       error: z.object({ code: z.string(), message: z.string().optional(), reason: z.string().optional(), details: z.unknown().optional() }).optional(),
     }),
   ),

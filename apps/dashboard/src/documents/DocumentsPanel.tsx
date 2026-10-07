@@ -163,7 +163,12 @@ export function MakeDocumentButton({
   const queryClient = useQueryClient();
   const draw = useMutation({
     mutationFn: (profileId: string) => renderDocumentFor({ profileId, pk }),
-    onSuccess: () => {
+    onSuccess: (reply) => {
+      // Kept nowhere: there is no row to wait for — the address prints it, once, in a tab of its own.
+      if ('printUrl' in reply) {
+        window.open(reply.printUrl, '_blank', 'noopener');
+        return;
+      }
       /*
        * The render is a JOB, so the row does not exist yet when this resolves.
        * Invalidating anyway is right: the panel refetches, shows nothing new,

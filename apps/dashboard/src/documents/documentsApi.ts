@@ -96,7 +96,8 @@ export async function fetchProfilesForTable(input: {
 export async function renderDocumentFor(input: {
   profileId: string;
   pk: Record<string, unknown>;
-}): Promise<{ jobId: string }> {
+}): Promise<{ jobId: string } | { printUrl: string; ephemeral: true }> {
+  // A document that is kept nowhere (a gift card's) answers the address that prints it once, in place of a job.
   return await api.post(`${BASE}/render`, input);
 }
 
