@@ -146,6 +146,23 @@ describe.each(LEGS)('what a posting reads — %s', (dialect, available) => {
     expect(shaped['held']!.map((row) => Number(row['id']))).toEqual([2, 3]);
     expect(shaped['theirs']!.map((row) => row['name'])).toEqual(['Sugar']);
     expect(shaped['byRow']!.map((row) => Number(row['id']))).toEqual([1]);
+
+    // A condition on a yes/no reads the same on every engine: which of the two accounts with a hold may go below.
+    const flagged = (where: { column: string; eq?: boolean; in?: boolean[] }) =>
+      runReads(db, {
+        ...context,
+        action: {
+          reads: [
+            { as: 'held', table: 'holds', by: [{ column: 'receipt_id', from: 'receipt.id' }] },
+            { as: 'theirs', table: 'accounts', by: [{ column: 'id', from: 'held.account_id' }], where: [where] },
+          ],
+        },
+        lines: [{ line: '', inputs: {} }],
+        receiptIds: [3],
+      }).then((read) => read['theirs']!.map((row) => row['name']));
+    expect(await flagged({ column: 'allow_below', eq: true })).toEqual(['Sugar']);
+    expect(await flagged({ column: 'allow_below', eq: false })).toEqual(['Flour']);
+    expect(await flagged({ column: 'allow_below', in: [true, false] })).toEqual(['Flour', 'Sugar']);
   });
 
   it.skipIf(!available)('a read over its limit is too large, not cut short', async () => {

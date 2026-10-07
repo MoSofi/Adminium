@@ -219,6 +219,14 @@ function sourceValues(from: string, context: ReadContext, done: Readonly<Record<
 }
 
 /**
+ * A value a read's condition asks for, as the statement carries it. A yes or
+ * a no is written into the statement as `true` / `false`, which every engine
+ * reads the same — SQLite as 1 and 0 — where a bound boolean is refused by
+ * SQLite's driver outright.
+ */
+const asked = (value: unknown): unknown => (typeof value === 'boolean' ? sql.lit(value) : value);
+
+/**
  * The action's reads, in the order it declares them, each a plain select of
  * one of the add-on's own tables: `where <key> in (…)` for each key (a key
  * with several sources reads them together), the read's own conditions, by
@@ -240,7 +248,7 @@ export async function runReads(db: Db, context: ReadContext): Promise<Record<str
       else query = query.where(sql.ref(by.column), 'in', values as never);
     }
     for (const where of read.where ?? []) {
-      query = where.eq !== undefined ? query.where(sql.ref(where.column), '=', where.eq as never) : query.where(sql.ref(where.column), 'in', (where.in ?? []) as never);
+      query = where.eq !== undefined ? query.where(sql.ref(where.column), '=', asked(where.eq) as never) : query.where(sql.ref(where.column), 'in', (where.in ?? []).map(asked) as never);
     }
     for (const column of table.primaryKey) query = query.orderBy(sql.ref(column));
     const rows = nothing ? [] : ((await query.limit(limit + 1).execute()) as Row[]);
