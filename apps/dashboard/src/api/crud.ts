@@ -28,7 +28,6 @@ import type {
 } from '@adminium/widgets';
 
 import { ApiError, api } from '../app/api.js';
-import { inReadersWords, ledgerRefusalText } from './ledgerRefusal.js';
 
 export type {
   CrudApi,
@@ -100,6 +99,18 @@ function fieldIssuesIn(error: unknown): FieldIssues | null {
   return Object.keys(out).length === 0 ? null : out;
 }
 
+/**
+ * The words for a ledger's refusal, fetched when a save is refused and never
+ * with the page: most sessions never see one. Where they cannot be fetched
+ * (the connection just dropped) the refusal is told as the server said it.
+ */
+const refusalWords = (): Promise<typeof import('./ledgerRefusal.js') | null> => import('./ledgerRefusal.js').catch(() => null);
+
+/** A failed save as the reader is told it: a ledger's refusal in their own language, anything else as it is. */
+async function inReadersWords(error: unknown): Promise<unknown> {
+  return (await refusalWords())?.inReadersWords(error) ?? error;
+}
+
 /** Run a write, rethrowing a per-field refusal in the shape the form reads. */
 async function withFieldIssues<T>(run: () => Promise<T>): Promise<T> {
   try {
@@ -107,7 +118,7 @@ async function withFieldIssues<T>(run: () => Promise<T>): Promise<T> {
   } catch (error) {
     const issues = fieldIssuesIn(error);
     // A ledger's refusal is told in the reader's own language, whichever screen shows it.
-    if (issues === null) throw inReadersWords(error);
+    if (issues === null) throw await inReadersWords(error);
     throw new FieldRefusedError(error as ApiError, issues);
   }
 }
@@ -307,7 +318,7 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
         return await api.delete<CrudMutationResult | CrudDeletePreview>(`${base}/${encodeURIComponent(recordId)}${suffix}`);
       } catch (error) {
         // A row that still holds something under a ledger is not deleted: said in the reader's words.
-        throw inReadersWords(error);
+        throw await inReadersWords(error);
       }
     },
 
@@ -337,8 +348,9 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
             ids: ids.slice(start, start + ONE_BY_ONE_CHUNK),
             values,
           });
+          const words = reply.results.every((row) => row.ok) ? null : await refusalWords();
           for (const [i, row] of reply.results.entries()) {
-            results.push({ id: row.id ?? ids[start + i], ok: row.ok, ...(row.ok ? {} : { error: ledgerRefusalText(row.error?.reason) ?? row.error?.reason ?? row.error?.code ?? 'REFUSED' }) });
+            results.push({ id: row.id ?? ids[start + i], ok: row.ok, ...(row.ok ? {} : { error: words?.ledgerRefusalText(row.error?.reason) ?? row.error?.reason ?? row.error?.code ?? 'REFUSED' }) });
           }
         }
         // Nothing saved this way is undone as one.
