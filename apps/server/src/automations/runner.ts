@@ -165,6 +165,21 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   const trace = new TraceBuilder();
   for (const step of input.trace?.steps ?? []) trace.append(step);
 
+  /*
+   * A rule an app or an add-on shipped runs only while that one is installed
+   * and switched on: its tables may be half-changed by an update, its code not
+   * loaded. Skipped and said, never run against what is not there. One read of
+   * the manifest's row for such a rule; none for a rule an owner made.
+   */
+  if (input.rule.managedBy !== null && !dryRun) {
+    const owner = await deps.meta.db.selectFrom('adminium_manifests').select('status').where('manifestKey', '=', input.rule.managedBy).executeTakeFirst();
+    if (owner !== undefined && owner.status !== 'installed') {
+      trace.add({ nodeId: 'owner', name: input.rule.name, kind: 'trigger', status: 'skip', startedAt: now, log: text.ownerOff() });
+      trace.setResume(null);
+      return { kind: 'finished', status: 'skipped', trace: trace.snapshot(), workMs: 0, error: null };
+    }
+  }
+
   const source = await openSource(deps, input.event);
   if (source === 'gone') {
     trace.add({

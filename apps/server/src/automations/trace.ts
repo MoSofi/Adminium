@@ -44,6 +44,8 @@ export type TraceStatus = AutomationTraceStep['status'];
  * `automations:trace.*` key behind it (Appendix A).
  */
 export interface TraceText {
+  /** A rule an app or add-on shipped, while that one is switched off or being changed. */
+  ownerOff(): string;
   trigger(label: string, summary: string): string;
   scheduleTick(stamp: string): string;
   evaluated(result: boolean): string;
@@ -105,6 +107,7 @@ export const TRACE_EN: TraceText = {
   stop: () => 'Stopped here',
   undone: () => 'Undone before it ran',
   gone: () => 'Record no longer exists',
+  ownerOff: () => 'Its add-on is switched off.',
   ruleOff: () => 'Rule was switched off while waiting',
 };
 

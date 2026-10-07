@@ -129,6 +129,8 @@ import {
   type PublicAccessCommit,
 } from './manifest-public.js';
 import { installOutbox, templateProblems, type OutboxResult } from './manifest-outbox.js';
+import { installAutomations } from './manifest-automations.js';
+import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { liveAddOnsFor } from './live-add-ons.js';
 import { installAppDocuments } from '../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
@@ -1492,6 +1494,27 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         });
         if (documents.skipped.length > 0) {
           host.log.info({ skipped: documents.skipped, app: manifest.key }, 'app document profiles skipped');
+        }
+      }
+      /*
+       * The rules it ships: bound to the real tables and roles made above, checked whole, and stored as
+       * the manifest's own. After the tables, the roles, the emails and the documents; before the guests.
+       */
+      if (connectionId !== null && ownsBlocks(manifest)) {
+        const view = (await deps.publicAccess?.viewFor(connectionId)) ?? null;
+        if (view !== null) {
+          const realNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+          const shippedRules = await installAutomations({
+            meta: deps.meta,
+            manifest,
+            connectionId,
+            view,
+            realId: (ref) => view.model.tables.find((table) => table.name === (realNames[ref] ?? ref))?.id ?? ref,
+          });
+          if (shippedRules !== undefined) {
+            if (shippedRules.kept.length > 0) host.log.info({ kept: shippedRules.kept, app: manifest.key }, 'shipped rules the owner changed were left as they are');
+            await announceRulesChanged(deps.meta);
+          }
         }
       }
       // Guests last: the endpoints read tables that must exist, and the key is made from them.

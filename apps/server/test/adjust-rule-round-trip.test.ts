@@ -127,7 +127,8 @@ describe('until the price question is asked', () => {
     expect(unbuiltInManifest(OFFERS_KIT).find((found) => found.word === 'addOn.adjuster')).toEqual({ word: 'addOn.adjuster', path: 'addOn.adjuster', release: '0.3.19' });
     const deciding = { kind: 'add-on', addOn: { ledgers: [{ id: 'value', actions: { spend: { decides: [{ input: 'amount' }] }, load: {} } }] } };
     expect(unbuiltInManifest(deciding).filter((found) => found.word === 'ledger.decides')).toEqual([{ word: 'ledger.decides', path: 'addOn.ledgers.0.actions.spend.decides', release: '0.3.19' }]);
-    expect(UNBUILT_MANIFEST_WORDS['automations']).toBe('0.3.18');
+    // The rules a manifest ships are run: nothing waits on them any more.
+    expect(UNBUILT_MANIFEST_WORDS['automations']).toBeUndefined();
   });
 });
 

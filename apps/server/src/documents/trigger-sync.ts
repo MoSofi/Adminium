@@ -168,6 +168,16 @@ async function rulesChanged(meta: MetaDb): Promise<void> {
   await rulesListeners.get(meta)?.();
 }
 
+/**
+ * The same news for whoever else writes rules outside a person's own save —
+ * an install writing the rules its manifest ships, an uninstall taking them
+ * away. The matcher's index is in memory: untold, a new rule would do nothing
+ * until the process restarted.
+ */
+export async function announceRulesChanged(meta: MetaDb): Promise<void> {
+  await rulesChanged(meta);
+}
+
 export async function syncProfileTrigger(
   meta: MetaDb,
   profile: DocumentProfile | null,

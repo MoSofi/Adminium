@@ -51,6 +51,8 @@ import type { EditBody } from '../schema-ddl/programmatic.js';
 import { addOnTablesByName, addOnsKeptBy } from './add-ons.js';
 import { builtOnTables } from './app-shapes.js';
 import { removeOutbox } from './manifest-outbox.js';
+import { removeAutomations } from './manifest-automations.js';
+import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { forgetAppRoleGrants, roleSlugFor } from './manifest-roles.js';
 import { removeManifestRules } from './manifest-rules.js';
 import type { AppSchemaTarget, RowTest } from './schema-target.js';
@@ -430,6 +432,9 @@ export function createRemovals(deps: RemovalDeps) {
       list.connectionId === null ? 0 : await removeManifestRules(deps.meta, list.tables.map((entry) => entry.record), list.connectionId);
     // Its emails: the outbox definition, and the templates nobody edited.
     const emailsRemoved = await removeOutbox(deps.meta, list.key);
+    // The rules it shipped: gone unless the owner changed one, and that one switched off when its tables go too.
+    const rulesGone = await removeAutomations(deps.meta, list.key, list.connectionId, { tablesDropped: opts.dropTables && list.tables.some((entry) => entry.droppable) });
+    if (rulesGone > 0 || opts.dropTables) await announceRulesChanged(deps.meta);
     // The document profiles it made; an operator's own stay.
     if (list.connectionId !== null) await uninstallAppDocuments(deps.meta, list.connectionId, list.key);
     /*

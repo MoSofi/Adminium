@@ -82,8 +82,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   addOns: ADD_ON_INSTALL_RELEASE,
   // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
   'column.codeLast4': PRICE_QUESTION_RELEASE,
-  // Rules an app or an add-on ships.
-  automations: ADD_ON_INSTALL_RELEASE,
   // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table and a row.
   'email.onlyWith': ADD_ON_INSTALL_RELEASE,
   'email.onlyWithout': ADD_ON_INSTALL_RELEASE,
@@ -134,6 +132,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'config.tabs',
   // A list's own bulk action: one row of a child table for each row ticked, offered to who may make it.
   'config.bulk',
+  // The rules an app or an add-on ships: bound to its install, the owner's once they change one.
+  'automations',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

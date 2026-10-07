@@ -97,10 +97,10 @@ describe('a manifest that uses a word this server does not run yet', () => {
   };
 
   it('names each word, where it is written and the release that runs it', () => {
-    expect(unbuiltInManifest(ADD_ON)).toEqual([
-      { word: 'automations', path: 'automations', release: '0.3.18' },
-    ]);
-    // Its pages, its roles, its prefix, its index, its stored table name, its public entries and its emails are words this server runs.
+    // An add-on's pages, roles, prefix, index, stored table name, public entries, emails and shipped rules are all words this server runs.
+    expect(unbuiltInManifest(ADD_ON)).toEqual([]);
+    // One it does not run yet: the words a ledger answers about stock.
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { words: [{ id: 'stock' }] } })).toEqual([{ word: 'addOn.words', path: 'addOn.words', release: '0.3.18' }]);
   });
 
   it('an app\'s own pages, roles, prefix and its link into an add-on are no such word; the last four of a code is', () => {
