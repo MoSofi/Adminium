@@ -155,6 +155,25 @@ describe('a table is a short name', () => {
     await expect(read.result.current.list('public.stock_items')).rejects.toThrow('is not a table of stock');
   });
 
+  it('hands a page the same reads and the same access on every draw', async () => {
+    serve();
+    // One cache for the page's life, as the dashboard has: only then is "the same on every draw" a fair question.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['add-on-kit', 'stock'], KIT);
+    const stable = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        <AddOnKeyContext.Provider value="stock">{children}</AddOnKeyContext.Provider>
+      </QueryClientProvider>
+    );
+    const drawn = renderHook(() => ({ read: useRead(), access: useAccess() }), { wrapper: stable });
+    const first = drawn.result.current;
+    drawn.rerender();
+    drawn.rerender();
+    // A page keys its loading on these: a new object each draw would read, draw and read again without end.
+    expect(drawn.result.current.read).toBe(first.read);
+    expect(drawn.result.current.access).toBe(first.access);
+  });
+
   it('a row-by-row change carries the state the rows were seen in, and what the ledger said of each', async () => {
     const calls = serve((call) => (call.path.endsWith('/one-by-one') ? jsonResponse(200, { results: [{ id: 1, ok: true, data: { id: 1, status: 'posted' }, postings: [{ ledger: 'stock', state: 'ok', notes: [{ line: 0, note: 'short' }] }] }, { id: 2, ok: true, data: { id: 2, status: 'posted' } }], done: 2, notRun: 0 }) : undefined));
     const write = await use(() => useWrite('orders'));

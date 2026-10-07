@@ -7,6 +7,7 @@
  * may do there; no hook takes a real table name or a connection.
  */
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { api } from '../../app/api.js';
 import { useAddOnKey } from './context.js';
@@ -42,7 +43,9 @@ export interface Kit {
 export function useKit(): Kit {
   const addOnKey = useAddOnKey();
   const { data } = useSuspenseQuery(addOnKitQuery(addOnKey));
-  return { addOnKey, reply: data };
+  // The same object while the read is the same: a hook that keys on it (`useRead`, `useAccess`) hands a page the
+  // same value on every draw, so a page's effect keyed on that value runs once and not for ever.
+  return useMemo(() => ({ addOnKey, reply: data }), [addOnKey, data]);
 }
 
 export interface ResolvedKitTable {
