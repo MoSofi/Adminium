@@ -42,6 +42,7 @@ import { clearedLinks, resolveLookups, type LookupOptions } from './code-lookup.
 import type { ColumnCode, ColumnSequence, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
+import { settingValue } from './rule-settings.js';
 import type { WriteAction } from './write-context.js';
 
 /**
@@ -305,6 +306,12 @@ export async function claimSequences(
     }
     const next = await store.claim(key);
     out[sequence.column] = sequence.logicalType === 'text' || sequence.logicalType === 'varchar' ? String(next) : next;
+    // The number as people read it, written with it: its prefix (the setting's, when a settings row names one) and its digits.
+    const format = sequence.format;
+    if (format !== undefined && !has(values, format.column)) {
+      const set = format.prefixSetting === undefined ? undefined : await settingValue(target.db, format.prefixSetting, undefined);
+      out[format.column] = `${typeof set === 'string' ? set : (format.prefix ?? '')}${String(next).padStart(format.pad, '0')}`;
+    }
   }
   return out;
 }

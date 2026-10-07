@@ -202,6 +202,8 @@ export interface ColumnSequence {
   column: string;
   logicalType: LogicalType;
   start: number;
+  /** A text column of the same row written from the number when it is claimed (`RC-0042`). */
+  format?: { column: string; prefix?: string; prefixSetting?: RuleSetting; pad: number };
 }
 
 /**
@@ -656,7 +658,23 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
             }),
       });
     } else if (column.sequence !== undefined) {
-      sequences.push({ column: column.name, logicalType: column.logicalType, start: column.sequence.start ?? 1 });
+      // A plain running number may be written out too: the same `format`, with no promise that none is skipped.
+      const format = columns.find((other) => other.format?.from === column.name);
+      sequences.push({
+        column: column.name,
+        logicalType: column.logicalType,
+        start: column.sequence.start ?? 1,
+        ...(format?.format === undefined
+          ? {}
+          : {
+              format: {
+                column: format.name,
+                ...(format.format.prefix === undefined ? {} : { prefix: format.format.prefix }),
+                ...(format.format.prefixSetting === undefined ? {} : { prefixSetting: format.format.prefixSetting }),
+                pad: format.format.pad ?? 0,
+              },
+            }),
+      });
     }
     if (column.stamp !== undefined) {
       const stamp = { ...column.stamp, column: column.name, logicalType: column.logicalType };
@@ -1351,7 +1369,7 @@ function filledColumns(rules: TableRules): Set<string> {
   return new Set([
     ...rules.fills.filter((f) => f.kind !== 'none').map((f) => f.column),
     ...(rules.copies ?? []).map((c) => c.column),
-    ...(rules.sequences ?? []).map((c) => c.column),
+    ...(rules.sequences ?? []).flatMap((c) => (c.format === undefined ? [c.column] : [c.column, c.format.column])),
     ...(rules.codes ?? []).map((c) => c.column),
     ...(rules.stamps ?? []).map((c) => c.column),
     ...(rules.seals ?? []).map((c) => c.column),

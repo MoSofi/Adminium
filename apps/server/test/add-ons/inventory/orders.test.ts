@@ -46,6 +46,8 @@ describe.each(LEGS)('purchase orders — %s', (dialect, available) => {
     await expect(w.update('purchase_orders', empty, { status: 'sent', sent_how: 'none' })).rejects.toMatchObject({ code: 'STATE_MOVE_REFUSED' });
     const { po } = await order();
     expect((await w.rowsOf('stock_points', `item_id = ${String(tote)}`)).map((row) => n(row['on_order']))).toEqual([]);
+    // An order is numbered as people read it, with the settings' prefix; a receipt with its own.
+    expect((await w.one('purchase_orders', po))['number']).toMatch(/^PO-\d{4}$/);
     await w.update('purchase_orders', po, { status: 'cancelled' });
   });
 

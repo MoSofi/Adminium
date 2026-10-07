@@ -16,7 +16,7 @@
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2506 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7718 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
-| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7809 |
+| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7825 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7603 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7760 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7658 |

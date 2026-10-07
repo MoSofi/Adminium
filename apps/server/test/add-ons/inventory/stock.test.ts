@@ -73,6 +73,7 @@ describe.each(LEGS)('stock received, used and given back — %s', (dialect, avai
     expect(n(stocked['value'])).toBe(20);
     // The receipt's own totals settled with its line.
     const header = await w.one('receipts', receipt);
+    expect(header['number']).toBe('RC-0001');
     expect([n(header['lines']), n(header['units']), n(header['total']), n(header['unposted'])]).toEqual([1, 10, 20, 0]);
   });
 
