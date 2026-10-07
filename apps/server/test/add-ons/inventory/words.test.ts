@@ -57,6 +57,12 @@ describe.each(LEGS)('the item words — %s', (dialect, available) => {
     const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: '10.4.0.1', payload: { email: 'max@stock.dev', password: ADMIN_PASSWORD } });
     cookies.set('max', sessionCookie(login.headers['set-cookie']));
     cookie = cookies.get('max')!;
+    // A server loads its add-ons' code behind its start: until it has, it rightly says the add-on cannot answer.
+    for (let tries = 0; tries < 100; tries += 1) {
+      const res = await served.composed.app.inject({ method: 'GET', url: `/api/v1/words/inventory/item?table=${encodeURIComponent('inventory:items')}&ids=${String(tote)}`, headers: { cookie } });
+      if (res.statusCode === 200) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }, 240_000);
   afterAll(async () => {
     if (trusted === undefined) delete process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
