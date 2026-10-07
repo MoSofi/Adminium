@@ -21,7 +21,8 @@ describe('the widget and template words', () => {
     const { createI18n, hasUiWords, UI_DEFERRED_GROUPS } = await import('@adminium/i18n');
     const { I18nProvider } = await import('@adminium/i18n/react');
     const { useMaybeT } = await import('../lib/i18n.js');
-    expect([...UI_DEFERRED_GROUPS]).toEqual(['widgets', 'templates']);
+    // The widgets' and the templates' words, and the words of the host's own page chrome (a record's buttons, a list's bulk action).
+    expect([...UI_DEFERRED_GROUPS]).toEqual(['widgets', 'templates', 'pages']);
 
     const i18n = await createI18n({ locale: 'en_US' });
     // The eager `ui` carries the frame's words, never the widgets' or the templates'.

@@ -1943,22 +1943,6 @@
         "loading": "Anhänge werden geladen",
         "removed": "{name} wurde in den Papierkorb verschoben.",
         "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt."
-      },
-      "action": {
-        "more": "Mehr",
-        "cancel": "Abbrechen",
-        "add": "Hinzufügen",
-        "working": "Wird ausgeführt…",
-        "needsRows": "Fügen Sie zuerst mindestens {n} Zeile(n) bei {rows} hinzu.",
-        "roles": "Ihre Rolle darf das nicht tun.",
-        "moved": "Jemand anderes hat diesen Datensatz geändert; er ist jetzt {state}. Sehen Sie noch einmal nach.",
-        "waits": "Das ist noch nicht möglich.",
-        "already": "Das ist bereits erledigt.",
-        "rowChanged": "Dieser Datensatz wurde geändert, während Sie ihn angesehen haben. Sehen Sie noch einmal nach.",
-        "locked": "Dieser Datensatz ist gesperrt und kann daher nicht geändert werden.",
-        "forbidden": "Ihre Rolle darf das nicht ändern.",
-        "notFound": "Diesen Datensatz oder diese Aktion gibt es nicht mehr.",
-        "fieldRequired": "Füllen Sie dies zuerst aus."
       }
     },
     "pageRecord": {
@@ -2056,5 +2040,34 @@
     "deleteRefused": "Dieser Datensatz kann nicht gelöscht werden. Stornieren Sie ihn stattdessen.",
     "timedMoveAt": "Wechselt am {time} von selbst zu {to}.",
     "timedMoveSoon": "Wechselt von selbst zu {to}."
+  },
+  "pages": {
+    "record": {
+      "more": "Mehr",
+      "cancel": "Abbrechen",
+      "add": "Hinzufügen",
+      "working": "Wird ausgeführt…",
+      "needsRows": "Fügen Sie zuerst mindestens {n} Zeile(n) bei {rows} hinzu.",
+      "roles": "Ihre Rolle darf das nicht tun.",
+      "moved": "Jemand anderes hat diesen Datensatz geändert; er ist jetzt {state}. Sehen Sie noch einmal nach.",
+      "waits": "Das ist noch nicht möglich.",
+      "already": "Das ist bereits erledigt.",
+      "rowChanged": "Dieser Datensatz wurde geändert, während Sie ihn angesehen haben. Sehen Sie noch einmal nach.",
+      "locked": "Dieser Datensatz ist gesperrt und kann daher nicht geändert werden.",
+      "forbidden": "Ihre Rolle darf das nicht ändern.",
+      "notFound": "Diesen Datensatz oder diese Aktion gibt es nicht mehr.",
+      "fieldRequired": "Füllen Sie dies zuerst aus."
+    },
+    "bulk": {
+      "tooMany": "Wählen Sie höchstens {max} Zeilen aus.",
+      "leftOut": "{left} von {count} werden ausgelassen: Für sie gilt dies nicht.",
+      "none": "Keine der markierten Zeilen ist eine, für die dies gilt.",
+      "notReached": "{count} nicht erreicht – drücken Sie für diese noch einmal.",
+      "unknown": "Es ist nicht bekannt, ob etwas angelegt wurde. Sehen Sie in der Liste nach und drücken Sie noch einmal.",
+      "refused": "{count} konnten nicht angelegt werden:",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "working": "Wird ausgeführt…"
+    }
   }
 }

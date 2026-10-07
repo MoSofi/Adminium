@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/ui.json (its widgets, templates groups: en-US's deferred part of `ui`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/ui.json (its widgets, templates, pages groups: en-US's deferred part of `ui`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1810,22 +1810,6 @@ export default {
         "loading": "Loading attachments",
         "removed": "{name} was moved to the trash.",
         "tooLarge": "That file is larger than this workspace allows."
-      },
-      "action": {
-        "more": "More",
-        "cancel": "Cancel",
-        "add": "Add",
-        "working": "Working…",
-        "needsRows": "Add at least {n} row(s) of {rows} first.",
-        "roles": "Your role may not do this.",
-        "moved": "Someone else changed this record; it is {state} now. Look again.",
-        "waits": "This cannot be done yet.",
-        "already": "This is already done.",
-        "rowChanged": "This record changed while you were looking at it. Look again.",
-        "locked": "This record is locked, so this cannot be changed.",
-        "forbidden": "Your role may not change this.",
-        "notFound": "This record, or this action, is no longer there.",
-        "fieldRequired": "Fill this in first."
       }
     },
     "pageRecord": {
@@ -1837,6 +1821,35 @@ export default {
         "board": "None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.",
         "scheduler": "None of this table’s rows has a person, a date and a shift type yet, so the schedule is empty. A row appears here as soon as it has all three."
       }
+    }
+  },
+  "pages": {
+    "record": {
+      "more": "More",
+      "cancel": "Cancel",
+      "add": "Add",
+      "working": "Working…",
+      "needsRows": "Add at least {n} row(s) of {rows} first.",
+      "roles": "Your role may not do this.",
+      "moved": "Someone else changed this record; it is {state} now. Look again.",
+      "waits": "This cannot be done yet.",
+      "already": "This is already done.",
+      "rowChanged": "This record changed while you were looking at it. Look again.",
+      "locked": "This record is locked, so this cannot be changed.",
+      "forbidden": "Your role may not change this.",
+      "notFound": "This record, or this action, is no longer there.",
+      "fieldRequired": "Fill this in first."
+    },
+    "bulk": {
+      "tooMany": "Select {max} rows or fewer.",
+      "leftOut": "{left} of {count} are left out: this is not for them.",
+      "none": "None of the rows ticked is one this is for.",
+      "notReached": "{count} not reached — press again for these.",
+      "unknown": "Nothing is known to be made. Look at the list and press again.",
+      "refused": "{count} could not be made:",
+      "cancel": "Cancel",
+      "close": "Close",
+      "working": "Working…"
     }
   }
 } as const;

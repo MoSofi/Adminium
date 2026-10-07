@@ -277,6 +277,25 @@ export const pageReply = z.object({
    */
   canUnmask: z.boolean().optional(),
   /**
+   * The bulk actions of a list page this caller may run (`config.bulk`, from
+   * the app's manifest): each makes one row of a child table for every row
+   * ticked. In the reader's language; an action the caller may not run is
+   * left out. Absent means the page has none.
+   */
+  bulkActions: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        child: z.object({ table: z.string(), via: z.string(), form: z.array(z.string()) }),
+        set: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+        where: z.object({ column: z.string(), eq: z.union([z.string(), z.number(), z.boolean()]) }).optional(),
+        confirm: z.object({ title: z.string(), body: z.string(), columns: z.array(z.string()) }),
+        done: z.string(),
+      }),
+    )
+    .optional(),
+  /**
    * The buttons a record page of this table may show this caller
    * (`states.actions`): each with the states of the row it may be used in,
    * its words in the reader's language, and what it asks for first. Decided

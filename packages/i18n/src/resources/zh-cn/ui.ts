@@ -1953,22 +1953,6 @@ export default {
         "loading": "正在加载附件",
         "removed": "{name} 已移入回收站。",
         "tooLarge": "该文件超过此工作区允许的大小。"
-      },
-      "action": {
-        "more": "更多",
-        "cancel": "取消",
-        "add": "添加",
-        "working": "处理中…",
-        "needsRows": "请先在{rows}中至少添加 {n} 行。",
-        "roles": "您的角色不能执行此操作。",
-        "moved": "其他人更改了此记录；它现在是{state}。请重新查看。",
-        "waits": "暂时还不能这样做。",
-        "already": "此操作已完成。",
-        "rowChanged": "您查看时此记录已发生变化。请重新查看。",
-        "locked": "此记录已锁定，因此无法更改。",
-        "forbidden": "您的角色不能更改此项。",
-        "notFound": "此记录或此操作已不存在。",
-        "fieldRequired": "请先填写此项。"
       }
     },
     "pageRecord": {
@@ -2066,5 +2050,34 @@ export default {
     "deleteRefused": "无法删除此记录。请改为作废。",
     "timedMoveAt": "将于 {time} 自动变为 {to}。",
     "timedMoveSoon": "将自动变为 {to}。"
+  },
+  "pages": {
+    "record": {
+      "more": "更多",
+      "cancel": "取消",
+      "add": "添加",
+      "working": "处理中…",
+      "needsRows": "请先在{rows}中至少添加 {n} 行。",
+      "roles": "您的角色不能执行此操作。",
+      "moved": "其他人更改了此记录；它现在是{state}。请重新查看。",
+      "waits": "暂时还不能这样做。",
+      "already": "此操作已完成。",
+      "rowChanged": "您查看时此记录已发生变化。请重新查看。",
+      "locked": "此记录已锁定，因此无法更改。",
+      "forbidden": "您的角色不能更改此项。",
+      "notFound": "此记录或此操作已不存在。",
+      "fieldRequired": "请先填写此项。"
+    },
+    "bulk": {
+      "tooMany": "请选择不超过 {max} 行。",
+      "leftOut": "{count} 行中有 {left} 行被排除：此操作不适用于它们。",
+      "none": "所选行中没有适用此操作的行。",
+      "notReached": "有 {count} 行未处理——请对这些行再按一次。",
+      "unknown": "无法确定是否已创建任何内容。请查看列表后再按一次。",
+      "refused": "有 {count} 行无法创建：",
+      "cancel": "取消",
+      "close": "关闭",
+      "working": "处理中…"
+    }
   }
 } as const;

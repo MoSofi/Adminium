@@ -48,6 +48,7 @@ import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
+import { useManifestBulkActions } from './ManifestBulkAction.js';
 import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
 import { linkPiecesOf, searchWithout, useLinkFilters, usePageSearch, withLinkWhere } from './linkFilters.js';
@@ -78,6 +79,7 @@ export function PageCrudBinding({
   canUpdate,
   canDelete,
   canUnmask,
+  bulkActions: offeredBulk,
   columnFacts,
   formColumns,
   formRelations,
@@ -314,15 +316,24 @@ export function PageCrudBinding({
     () => (actionRuns === 0 || linkedCrud === null ? linkedCrud : (Object.create(linkedCrud) as typeof linkedCrud)),
     [linkedCrud, actionRuns],
   );
+  // The list's own bulk actions (an app's manifest declares them), after a project's.
+  const manifestBulk = useManifestBulkActions({
+    connectionId: page.source.connectionId,
+    table: page.source.table ?? crud?.table,
+    actions: offeredBulk,
+    onDone: useCallback(() => setActionRuns((n) => n + 1), []),
+  });
   const bulkActions = useMemo(
-    () =>
-      projectActions.bulk.map((action) => ({
+    () => [
+      ...projectActions.bulk.map((action) => ({
         key: action.id,
         label: action.label,
         disabled: projectActions.busy,
         run: (ids: readonly string[]) => projectActions.start(action, ids),
       })),
-    [projectActions],
+      ...manifestBulk.bulk,
+    ],
+    [projectActions, manifestBulk.bulk],
   );
 
   if (crud === null) {
@@ -500,6 +511,7 @@ export function PageCrudBinding({
           : { linkFilters: link.data.filters, onRemoveLinkFilter: dropLinkFilter, onClearLinkFilters: () => dropLinkFilter('all') })}
       />
       {projectActions.dialog}
+      {manifestBulk.dialog}
     </>
   );
 }

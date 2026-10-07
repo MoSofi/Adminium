@@ -195,7 +195,7 @@ export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
  * build whose entry names one), and every call site's inline fallback is the
  * catalogue's text byte for byte (the dashboard's `uiWordsNamespace.test.ts`).
  */
-export const UI_DEFERRED_GROUPS = ['widgets', 'templates'] as const;
+export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
 
 /**
  * The groups of en-US `common` that do not ship eagerly either: the words of

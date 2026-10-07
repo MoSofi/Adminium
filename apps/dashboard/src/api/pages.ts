@@ -129,6 +129,19 @@ export interface StateActionFact {
   set?: Record<string, string | number | boolean>;
 }
 
+/** One bulk action of a list, as the server offers it to one reader (`GET /pages/:id` · `bulkActions`). */
+export interface BulkActionFact {
+  id: string;
+  label: string;
+  /** The row made for each ticked row: the child table's id, its link back, the columns its form asks for once. */
+  child: { table: string; via: string; form: string[] };
+  set?: Record<string, string | number | boolean>;
+  /** Only the ticked rows that hold this value get one. */
+  where?: { column: string; eq: string | number | boolean };
+  confirm: { title: string; body: string; columns: string[] };
+  done: string;
+}
+
 export type PageDocumentResult =
   | {
       status: 'ok';
@@ -154,6 +167,8 @@ export type PageDocumentResult =
        * The server decided them; empty when it computed none.
        */
       stateActions: readonly StateActionFact[];
+      /** The list's own bulk actions this reader may run (`config.bulk`); empty when the page has none. */
+      bulkActions: readonly BulkActionFact[];
       /**
        * The source table as it stands right now — who fills each column and
        * which ones the create form has to ask for. Empty when the server did
@@ -249,6 +264,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     // honest when the server said it sent PII in clear.
     canUnmask: false,
     stateActions: [],
+    bulkActions: [],
     columnFacts: {},
     formColumns: [],
     formRelations: [],
@@ -275,6 +291,7 @@ export function pageQuery(pageId: string) {
         canAttach?: boolean;
         canUnmask?: boolean;
         stateActions?: StateActionFact[];
+        bulkActions?: BulkActionFact[];
         columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = parsePageDocument(reply.data);
@@ -291,6 +308,7 @@ export function pageQuery(pageId: string) {
             // `=== true`: opposite polarity — absent means keep cells masked.
             canUnmask: reply.canUnmask === true,
             stateActions: reply.stateActions ?? [],
+            bulkActions: reply.bulkActions ?? [],
             columnFacts: factsByColumn(reply.columnFacts),
             formColumns: reply.columnFacts?.columns ?? [],
             formRelations: reply.columnFacts?.relations ?? [],

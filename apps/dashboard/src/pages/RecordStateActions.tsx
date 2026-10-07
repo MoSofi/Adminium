@@ -137,10 +137,10 @@ export function RecordStateActions({ actions, state, connectionId, table, record
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="secondary" iconLeft={<MoreHorizontal />} disabled={busy !== null}>
-              {t('ui:templates.record.action.more', 'More')}
+              {t('ui:pages.record.more', 'More')}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" aria-label={t('ui:templates.record.action.more', 'More')}>
+          <DropdownMenuContent align="end" aria-label={t('ui:pages.record.more', 'More')}>
             {more.map((action) => (
               <DropdownMenuItem key={action.id} destructive={action.tone === 'danger'} onSelect={() => press(action)}>
                 {action.label}
@@ -157,7 +157,7 @@ export function RecordStateActions({ actions, state, connectionId, table, record
               event.preventDefault();
               const missing = asking.fields.filter((field) => field.required && asking.values[field.column] === '');
               if (missing.length > 0) {
-                setAsking({ ...asking, errors: Object.fromEntries(missing.map((field) => [field.column, t('ui:templates.record.action.fieldRequired', 'Fill this in first.')])) });
+                setAsking({ ...asking, errors: Object.fromEntries(missing.map((field) => [field.column, t('ui:pages.record.fieldRequired', 'Fill this in first.')])) });
                 return;
               }
               void make(asking.action, asking.values);
@@ -178,10 +178,10 @@ export function RecordStateActions({ actions, state, connectionId, table, record
             </ModalBody>
             <ModalFooter>
               <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => setAsking(null)}>
-                {t('ui:templates.record.action.cancel', 'Cancel')}
+                {t('ui:pages.record.cancel', 'Cancel')}
               </Button>
               <Button type="submit" variant={VARIANT[asking.action.tone === 'neutral' ? 'primary' : asking.action.tone]} disabled={busy !== null}>
-                {busy !== null ? t('ui:templates.record.action.working', 'Working…') : asking.action.label}
+                {busy !== null ? t('ui:pages.record.working', 'Working…') : asking.action.label}
               </Button>
             </ModalFooter>
           </form>

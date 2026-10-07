@@ -74,7 +74,7 @@ import { applyCompositionOverrides, applyOverrides } from '../../connections/eff
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
 import { columnFactsFor, factsViewFor, hiddenColumnsOf, withoutColumns, withYesNoColumns } from './column-facts.js';
-import { stateActionFacts } from './state-actions.js';
+import { bulkActionFacts, stateActionFacts } from './state-actions.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
 import { pageLayoutSchema } from './layout-schema.js';
@@ -670,7 +670,10 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           factsView === null || source === null || permissions === undefined
             ? undefined
             : await stateActionFacts(deps.meta, { can: (permission) => request.can(permission), permissions, locale: reader, rights, log: request.log }, factsView, source.table);
-        const facts = { ...(columnFacts === null ? {} : { columnFacts }), ...(stateActions === undefined ? {} : { stateActions }) };
+        // The list's own bulk actions (`config.bulk`, written at the app's install) this caller may run.
+        const storedBulk = ((page.config as { config?: { bulk?: unknown } } | null)?.config ?? {}).bulk;
+        const bulkActions = factsView === null || permissions === undefined || storedBulk === undefined ? undefined : await bulkActionFacts({ can: (permission) => request.can(permission), permissions, locale: reader, rights, log: request.log }, factsView, storedBulk);
+        const facts = { ...(columnFacts === null ? {} : { columnFacts }), ...(stateActions === undefined ? {} : { stateActions }), ...(bulkActions === undefined ? {} : { bulkActions }) };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.
         const typed = withYesNoColumns(page.config, columnFacts);

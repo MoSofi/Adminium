@@ -1953,22 +1953,6 @@ export default {
         "loading": "Načítání příloh",
         "removed": "{name} byl přesunut do koše.",
         "tooLarge": "Soubor je větší, než tento pracovní prostor dovoluje."
-      },
-      "action": {
-        "more": "Více",
-        "cancel": "Zrušit",
-        "add": "Přidat",
-        "working": "Pracuji…",
-        "needsRows": "Nejprve přidejte alespoň {n} řádek(ů) v {rows}.",
-        "roles": "Vaše role to nesmí provést.",
-        "moved": "Tento záznam změnil někdo jiný; nyní je ve stavu {state}. Podívejte se znovu.",
-        "waits": "Zatím to nelze provést.",
-        "already": "To už je hotovo.",
-        "rowChanged": "Tento záznam se změnil, zatímco jste si jej prohlíželi. Podívejte se znovu.",
-        "locked": "Tento záznam je uzamčen, takže jej nelze změnit.",
-        "forbidden": "Vaše role to nesmí změnit.",
-        "notFound": "Tento záznam nebo tato akce už neexistuje.",
-        "fieldRequired": "Nejprve vyplňte toto pole."
       }
     },
     "pageRecord": {
@@ -2066,5 +2050,34 @@ export default {
     "deleteRefused": "Tento záznam nelze smazat. Místo toho ho stornujte.",
     "timedMoveAt": "Přejde do stavu {to} sám v {time}.",
     "timedMoveSoon": "Přejde do stavu {to} sám."
+  },
+  "pages": {
+    "record": {
+      "more": "Více",
+      "cancel": "Zrušit",
+      "add": "Přidat",
+      "working": "Pracuji…",
+      "needsRows": "Nejprve přidejte alespoň {n} řádek(ů) v {rows}.",
+      "roles": "Vaše role to nesmí provést.",
+      "moved": "Tento záznam změnil někdo jiný; nyní je ve stavu {state}. Podívejte se znovu.",
+      "waits": "Zatím to nelze provést.",
+      "already": "To už je hotovo.",
+      "rowChanged": "Tento záznam se změnil, zatímco jste si jej prohlíželi. Podívejte se znovu.",
+      "locked": "Tento záznam je uzamčen, takže jej nelze změnit.",
+      "forbidden": "Vaše role to nesmí změnit.",
+      "notFound": "Tento záznam nebo tato akce už neexistuje.",
+      "fieldRequired": "Nejprve vyplňte toto pole."
+    },
+    "bulk": {
+      "tooMany": "Vyberte nejvýše {max} řádků.",
+      "leftOut": "{left} z {count} se vynechává: pro ně to neplatí.",
+      "none": "Žádný ze zaškrtnutých řádků není ten, pro který to platí.",
+      "notReached": "{count} nebylo dosaženo – pro ně stiskněte znovu.",
+      "unknown": "Není známo, zda bylo něco vytvořeno. Podívejte se do seznamu a stiskněte znovu.",
+      "refused": "{count} se nepodařilo vytvořit:",
+      "cancel": "Zrušit",
+      "close": "Zavřít",
+      "working": "Pracuji…"
+    }
   }
 } as const;

@@ -1953,22 +1953,6 @@ export default {
         "loading": "Chargement des pièces jointes",
         "removed": "{name} a été déplacé vers la corbeille.",
         "tooLarge": "Ce fichier dépasse ce que cet espace de travail autorise."
-      },
-      "action": {
-        "more": "Plus",
-        "cancel": "Annuler",
-        "add": "Ajouter",
-        "working": "En cours…",
-        "needsRows": "Ajoutez d'abord au moins {n} ligne(s) dans {rows}.",
-        "roles": "Votre rôle ne permet pas cette action.",
-        "moved": "Quelqu'un d'autre a modifié cet enregistrement ; il est maintenant {state}. Regardez à nouveau.",
-        "waits": "Ce n'est pas encore possible.",
-        "already": "C'est déjà fait.",
-        "rowChanged": "Cet enregistrement a changé pendant que vous le regardiez. Regardez à nouveau.",
-        "locked": "Cet enregistrement est verrouillé et ne peut donc pas être modifié.",
-        "forbidden": "Votre rôle ne permet pas de modifier ceci.",
-        "notFound": "Cet enregistrement, ou cette action, n'existe plus.",
-        "fieldRequired": "Renseignez d'abord ce champ."
       }
     },
     "pageRecord": {
@@ -2066,5 +2050,34 @@ export default {
     "deleteRefused": "Cet enregistrement ne peut pas être supprimé. Annulez-le plutôt.",
     "timedMoveAt": "Passe à {to} de lui-même le {time}.",
     "timedMoveSoon": "Passe à {to} de lui-même."
+  },
+  "pages": {
+    "record": {
+      "more": "Plus",
+      "cancel": "Annuler",
+      "add": "Ajouter",
+      "working": "En cours…",
+      "needsRows": "Ajoutez d'abord au moins {n} ligne(s) dans {rows}.",
+      "roles": "Votre rôle ne permet pas cette action.",
+      "moved": "Quelqu'un d'autre a modifié cet enregistrement ; il est maintenant {state}. Regardez à nouveau.",
+      "waits": "Ce n'est pas encore possible.",
+      "already": "C'est déjà fait.",
+      "rowChanged": "Cet enregistrement a changé pendant que vous le regardiez. Regardez à nouveau.",
+      "locked": "Cet enregistrement est verrouillé et ne peut donc pas être modifié.",
+      "forbidden": "Votre rôle ne permet pas de modifier ceci.",
+      "notFound": "Cet enregistrement, ou cette action, n'existe plus.",
+      "fieldRequired": "Renseignez d'abord ce champ."
+    },
+    "bulk": {
+      "tooMany": "Sélectionnez {max} lignes au plus.",
+      "leftOut": "{left} sur {count} sont laissées de côté : cela ne les concerne pas.",
+      "none": "Aucune des lignes cochées n'est concernée.",
+      "notReached": "{count} non atteintes — appuyez de nouveau pour celles-ci.",
+      "unknown": "On ne sait pas si quelque chose a été créé. Regardez la liste et appuyez de nouveau.",
+      "refused": "{count} n'ont pas pu être créées :",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "working": "En cours…"
+    }
   }
 } as const;

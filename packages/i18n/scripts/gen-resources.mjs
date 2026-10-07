@@ -36,7 +36,7 @@ const namespaces = fs
  * src/resources/namespaces.ts (src/ui-words.test.ts holds them together). The
  * JSON stays one `ui.json`: this is a delivery split, not a second namespace.
  */
-const UI_DEFERRED_GROUPS = ['widgets', 'templates'];
+const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'];
 /**
  * The groups of en-US `common` that leave its eager mirror the same way, for
  * `en-us/common-deferred.ts`: the words of four screens nobody sees on the

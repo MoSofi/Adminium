@@ -26451,6 +26451,98 @@
     "status": "mt",
     "srcHash": "2e2de0d7be24"
   },
+  "ui.pages.bulk.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "ui.pages.bulk.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "ui.pages.bulk.leftOut": {
+    "status": "mt",
+    "srcHash": "b6eea0ac67a9"
+  },
+  "ui.pages.bulk.none": {
+    "status": "mt",
+    "srcHash": "30e9cb9c2d71"
+  },
+  "ui.pages.bulk.notReached": {
+    "status": "mt",
+    "srcHash": "7263009a9565"
+  },
+  "ui.pages.bulk.refused": {
+    "status": "mt",
+    "srcHash": "884fa8a3060e"
+  },
+  "ui.pages.bulk.tooMany": {
+    "status": "mt",
+    "srcHash": "5f6b4d961538"
+  },
+  "ui.pages.bulk.unknown": {
+    "status": "mt",
+    "srcHash": "cfe1b031f48d"
+  },
+  "ui.pages.bulk.working": {
+    "status": "mt",
+    "srcHash": "13b7bfcac438"
+  },
+  "ui.pages.record.add": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "ui.pages.record.already": {
+    "status": "mt",
+    "srcHash": "3ad6ead5e6ca"
+  },
+  "ui.pages.record.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "ui.pages.record.fieldRequired": {
+    "status": "mt",
+    "srcHash": "4e0244b5c2c5"
+  },
+  "ui.pages.record.forbidden": {
+    "status": "mt",
+    "srcHash": "eb844d189c3a"
+  },
+  "ui.pages.record.locked": {
+    "status": "mt",
+    "srcHash": "911f4d217d1b"
+  },
+  "ui.pages.record.more": {
+    "status": "mt",
+    "srcHash": "4bab2d8fe13f"
+  },
+  "ui.pages.record.moved": {
+    "status": "mt",
+    "srcHash": "b25fdd753eba"
+  },
+  "ui.pages.record.needsRows": {
+    "status": "mt",
+    "srcHash": "826ac894682d"
+  },
+  "ui.pages.record.notFound": {
+    "status": "mt",
+    "srcHash": "698be211be6f"
+  },
+  "ui.pages.record.roles": {
+    "status": "mt",
+    "srcHash": "6c3f1b447805"
+  },
+  "ui.pages.record.rowChanged": {
+    "status": "mt",
+    "srcHash": "f7cefa9fcfba"
+  },
+  "ui.pages.record.waits": {
+    "status": "mt",
+    "srcHash": "02e5242e58e1"
+  },
+  "ui.pages.record.working": {
+    "status": "mt",
+    "srcHash": "13b7bfcac438"
+  },
   "ui.pagination.next": {
     "srcHash": "bc981983e7f5",
     "status": "mt"
@@ -27670,62 +27762,6 @@
   "ui.templates.queue.undoneToast": {
     "srcHash": "ff308429f063",
     "status": "mt"
-  },
-  "ui.templates.record.action.add": {
-    "status": "mt",
-    "srcHash": "61cc55aa0453"
-  },
-  "ui.templates.record.action.already": {
-    "status": "mt",
-    "srcHash": "3ad6ead5e6ca"
-  },
-  "ui.templates.record.action.cancel": {
-    "status": "mt",
-    "srcHash": "77dfd2135f4d"
-  },
-  "ui.templates.record.action.fieldRequired": {
-    "status": "mt",
-    "srcHash": "4e0244b5c2c5"
-  },
-  "ui.templates.record.action.forbidden": {
-    "status": "mt",
-    "srcHash": "eb844d189c3a"
-  },
-  "ui.templates.record.action.locked": {
-    "status": "mt",
-    "srcHash": "911f4d217d1b"
-  },
-  "ui.templates.record.action.more": {
-    "status": "mt",
-    "srcHash": "4bab2d8fe13f"
-  },
-  "ui.templates.record.action.moved": {
-    "status": "mt",
-    "srcHash": "b25fdd753eba"
-  },
-  "ui.templates.record.action.needsRows": {
-    "status": "mt",
-    "srcHash": "826ac894682d"
-  },
-  "ui.templates.record.action.notFound": {
-    "status": "mt",
-    "srcHash": "698be211be6f"
-  },
-  "ui.templates.record.action.roles": {
-    "status": "mt",
-    "srcHash": "6c3f1b447805"
-  },
-  "ui.templates.record.action.rowChanged": {
-    "status": "mt",
-    "srcHash": "f7cefa9fcfba"
-  },
-  "ui.templates.record.action.waits": {
-    "status": "mt",
-    "srcHash": "02e5242e58e1"
-  },
-  "ui.templates.record.action.working": {
-    "status": "mt",
-    "srcHash": "13b7bfcac438"
   },
   "ui.templates.record.activity.changedFields": {
     "status": "mt",

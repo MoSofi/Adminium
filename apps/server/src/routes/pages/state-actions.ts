@@ -227,3 +227,71 @@ export async function stateActionFacts(meta: MetaDb, asker: StateActionAsker, vi
     return undefined;
   }
 }
+
+/** A bulk action of a list page as it is stored with the page (`config.bulk`): the child table by its id, words by language. */
+interface StoredBulkAction {
+  id: string;
+  label: string;
+  labels?: Record<string, string>;
+  child: { table: string; via: string; form: string[] };
+  set?: Record<string, Scalar>;
+  where?: { column: string; eq: Scalar };
+  confirm: { title: string; titles?: Record<string, string>; body: string; bodies?: Record<string, string>; columns: string[] };
+  done: string;
+  dones?: Record<string, string>;
+}
+
+/** One bulk action of a list, as one caller may run it: in their language, its child table by id. */
+export interface BulkActionFact {
+  id: string;
+  label: string;
+  child: { table: string; via: string; form: string[] };
+  /** The new row's fixed values: the page sends them with each row it makes. */
+  set?: Record<string, Scalar>;
+  /** Only the ticked rows that hold this value get one. */
+  where?: { column: string; eq: Scalar };
+  confirm: { title: string; body: string; columns: string[] };
+  done: string;
+}
+
+/**
+ * The bulk actions of a list page this caller may run. An action makes one
+ * row of a child table for each ticked row, so it is offered where the caller
+ * may make that row with those values: the child table's `create`, and — for
+ * a role whose create is limited — every column the form asks for and the
+ * action sets, each fixed value among those the role may give. A miss leaves
+ * the action out; anything thrown leaves the key out, and the list is still
+ * a list.
+ */
+export async function bulkActionFacts(asker: StateActionAsker, view: SnapshotView, stored: unknown): Promise<BulkActionFact[] | undefined> {
+  if (!Array.isArray(stored) || stored.length === 0) return undefined;
+  try {
+    const connectionId = view.connectionId;
+    const pick = (text: string, texts: Record<string, string> | undefined): string => texts?.[asker.locale ?? 'en_US'] ?? text;
+    const out: BulkActionFact[] = [];
+    for (const action of stored as StoredBulkAction[]) {
+      const child = view.table(action.child.table);
+      const set = action.set ?? {};
+      const limit = createLimitOf(asker.permissions, connectionId, child.id);
+      const may =
+        (await asker.can(`table:${connectionId}:${child.id}:create`)) &&
+        !writeRefused(asker.rights ?? null, child.id, 'create') &&
+        (limit === null || [action.child.via, ...action.child.form].every((name) => limit.writable.includes(name))) &&
+        within(() => assertWithinCreateLimit(limit, child.id, set));
+      if (!may) continue;
+      out.push({
+        id: action.id,
+        label: pick(action.label, action.labels),
+        child: { table: child.id, via: action.child.via, form: [...action.child.form] },
+        ...(Object.keys(set).length === 0 ? {} : { set }),
+        ...(action.where === undefined ? {} : { where: action.where }),
+        confirm: { title: pick(action.confirm.title, action.confirm.titles), body: pick(action.confirm.body, action.confirm.bodies), columns: [...action.confirm.columns] },
+        done: pick(action.done, action.dones),
+      });
+    }
+    return out;
+  } catch (error) {
+    asker.log?.warn({ err: error }, 'the list\'s bulk actions could not be worked out; the list offers none of them');
+    return undefined;
+  }
+}

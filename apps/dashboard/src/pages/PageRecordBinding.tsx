@@ -600,7 +600,7 @@ export function PageRecordBinding({
     return [
       {
         id: 'state-actions',
-        label: t('ui:templates.record.action.more', 'More'),
+        label: t('ui:pages.record.more', 'More'),
         content: (
           <RecordStateActions actions={stateActions} state={rowState} connectionId={connectionId} table={table} recordId={recordId} linksOnly={readOnly || parentClosed} onDone={afterAction} onRefused={setRefusal} />
         ),

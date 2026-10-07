@@ -1943,22 +1943,6 @@
         "loading": "正在載入附件",
         "removed": "{name} 已移至回收桶。",
         "tooLarge": "該檔案超過此工作區允許的大小。"
-      },
-      "action": {
-        "more": "更多",
-        "cancel": "取消",
-        "add": "新增",
-        "working": "處理中…",
-        "needsRows": "請先在{rows}中至少新增 {n} 列。",
-        "roles": "您的角色不能執行此操作。",
-        "moved": "其他人變更了此記錄；它現在是{state}。請重新查看。",
-        "waits": "暫時還不能這樣做。",
-        "already": "此操作已完成。",
-        "rowChanged": "您查看時此記錄已有變更。請重新查看。",
-        "locked": "此記錄已鎖定，因此無法變更。",
-        "forbidden": "您的角色不能變更此項目。",
-        "notFound": "此記錄或此操作已不存在。",
-        "fieldRequired": "請先填寫此項目。"
       }
     },
     "pageRecord": {
@@ -2056,5 +2040,34 @@
     "deleteRefused": "無法刪除此記錄。請改為作廢。",
     "timedMoveAt": "將於 {time} 自動變為 {to}。",
     "timedMoveSoon": "將自動變為 {to}。"
+  },
+  "pages": {
+    "record": {
+      "more": "更多",
+      "cancel": "取消",
+      "add": "新增",
+      "working": "處理中…",
+      "needsRows": "請先在{rows}中至少新增 {n} 列。",
+      "roles": "您的角色不能執行此操作。",
+      "moved": "其他人變更了此記錄；它現在是{state}。請重新查看。",
+      "waits": "暫時還不能這樣做。",
+      "already": "此操作已完成。",
+      "rowChanged": "您查看時此記錄已有變更。請重新查看。",
+      "locked": "此記錄已鎖定，因此無法變更。",
+      "forbidden": "您的角色不能變更此項目。",
+      "notFound": "此記錄或此操作已不存在。",
+      "fieldRequired": "請先填寫此項目。"
+    },
+    "bulk": {
+      "tooMany": "請選擇不超過 {max} 列。",
+      "leftOut": "{count} 列中有 {left} 列被排除：此操作不適用於它們。",
+      "none": "所選列中沒有適用此操作的列。",
+      "notReached": "有 {count} 列未處理——請對這些列再按一次。",
+      "unknown": "無法確定是否已建立任何內容。請查看清單後再按一次。",
+      "refused": "有 {count} 列無法建立：",
+      "cancel": "取消",
+      "close": "關閉",
+      "working": "處理中…"
+    }
   }
 }

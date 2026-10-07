@@ -28,25 +28,25 @@ export function recordRefusal(error: unknown): string {
     case 'STATE_MOVE_REFUSED': {
       // Counted rows it waits for; a role it is kept for; a row somebody moved on; anything else it waits for.
       if (typeof details['requires'] === 'string' && typeof details['min'] === 'number') {
-        return t('ui:templates.record.action.needsRows', 'Add at least {n} row(s) of {rows} first.', { n: details['min'], rows: rowsOf(details['requires']) });
+        return t('ui:pages.record.needsRows', 'Add at least {n} row(s) of {rows} first.', { n: details['min'], rows: rowsOf(details['requires']) });
       }
-      if (Array.isArray(details['roles'])) return t('ui:templates.record.action.roles', 'Your role may not do this.');
+      if (Array.isArray(details['roles'])) return t('ui:pages.record.roles', 'Your role may not do this.');
       if (typeof details['named'] === 'string' && typeof details['from'] === 'string') {
-        return t('ui:templates.record.action.moved', 'Someone else changed this record; it is {state} now. Look again.', { state: details['from'] });
+        return t('ui:pages.record.moved', 'Someone else changed this record; it is {state} now. Look again.', { state: details['from'] });
       }
-      if (typeof details['from'] === 'string' && details['from'] === details['to']) return t('ui:templates.record.action.already', 'This is already done.');
-      return details['requires'] !== undefined ? t('ui:templates.record.action.waits', 'This cannot be done yet.') : error.message;
+      if (typeof details['from'] === 'string' && details['from'] === details['to']) return t('ui:pages.record.already', 'This is already done.');
+      return details['requires'] !== undefined ? t('ui:pages.record.waits', 'This cannot be done yet.') : error.message;
     }
     case 'ROW_CHANGED':
-      return t('ui:templates.record.action.rowChanged', 'This record changed while you were looking at it. Look again.');
+      return t('ui:pages.record.rowChanged', 'This record changed while you were looking at it. Look again.');
     case 'RECORD_LOCKED':
-      return t('ui:templates.record.action.locked', 'This record is locked, so this cannot be changed.');
+      return t('ui:pages.record.locked', 'This record is locked, so this cannot be changed.');
     case 'COLUMN_FORBIDDEN':
     case 'TABLE_FORBIDDEN':
     case 'FORBIDDEN':
-      return t('ui:templates.record.action.forbidden', 'Your role may not change this.');
+      return t('ui:pages.record.forbidden', 'Your role may not change this.');
     case 'NOT_FOUND':
-      return t('ui:templates.record.action.notFound', 'This record, or this action, is no longer there.');
+      return t('ui:pages.record.notFound', 'This record, or this action, is no longer there.');
     case 'POSTING_REFUSED': {
       // The ledger's own sentence, as every other save of the dashboard says it.
       const said = inReadersWords(error);
@@ -64,7 +64,7 @@ export function refusedFields(error: unknown): Record<string, string> | null {
   if (typeof fields !== 'object' || fields === null) return null;
   const out: Record<string, string> = {};
   for (const [column, issue] of Object.entries(fields as Record<string, { code?: unknown; message?: unknown }>)) {
-    out[column] = typeof issue?.message === 'string' ? issue.message : issue?.code === 'required' ? t('ui:templates.record.action.fieldRequired', 'Fill this in first.') : error.message;
+    out[column] = typeof issue?.message === 'string' ? issue.message : issue?.code === 'required' ? t('ui:pages.record.fieldRequired', 'Fill this in first.') : error.message;
   }
   return Object.keys(out).length === 0 ? null : out;
 }
