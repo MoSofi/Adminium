@@ -251,6 +251,7 @@ import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
 import { installCustomerKey } from './public-api/customer-key.js';
 import { ledgerRoutes } from './routes/ledgers/index.js';
+import { adjustRuleRoutes } from './routes/rules/adjust.js';
 import { optionListsRoutes } from './routes/option-lists/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
@@ -1691,6 +1692,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(optionListsRoutes({ meta }));
       // The rules that hand rows to an add-on's ledger: read by its rules page, drawn and switched by the owner.
       await api.register(ledgerRoutes({ manager, meta, ledgers, writes: recordWrites }));
+      await api.register(adjustRuleRoutes({ manager, meta, ledgers }));
       // One typed code looked up across an add-on's code tables, as the caller reads them.
       await api.register(addOnLookUpRoutes({ manager, meta }));
       await api.register(addOnCodesRoutes({ manager, meta }));

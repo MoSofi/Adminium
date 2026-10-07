@@ -2088,7 +2088,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * there for this table is refused outright; one that names no row there is
    * the column's own issue.
    */
-  async function linkIssues(rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, mapError?: ((error: unknown) => never) | undefined): Promise<FieldIssues | null> {
+  async function linkIssues(rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, mapError?: ((error: unknown) => never) | undefined, stored?: Row | null): Promise<FieldIssues | null> {
     if (action === 'delete' || context.origin === 'import' || context.origin === 'undo') return null;
     const inert = inertLinkWritten(rules, values);
     if (inert !== null) {
@@ -2097,7 +2097,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       throw error;
     }
     // A code typed on an order nobody would price: refused, never taken in silence at the full price.
-    const typed = adjuster.inertCode(target, rules, values);
+    const typed = adjuster.inertCode(target, rules, values, stored);
     if (typed !== null) {
       const error = new PostingRefusedError('The add-on that reads this code is not here for this table, so the code cannot be taken.', { reason: 'add-on-unavailable', column: typed });
       if (mapError !== undefined) mapError(error);
@@ -2118,7 +2118,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const judged = judgedBy(rules, target, context);
     const issues = mergeIssues(
       mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored)),
-      mergeIssues(await linkIssues(rules, action, target, context, values, mapError), action === 'delete' ? null : reservedIssue(rules, values)),
+      mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
     );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
     if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
@@ -4623,7 +4623,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const judged = judgedBy(rules, target, context);
         const issues = mergeIssues(
           mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record)),
-          mergeIssues(await linkIssues(rules, action, target, context, worked), action === 'delete' ? null : reservedIssue(rules, worked)),
+          mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
         );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };

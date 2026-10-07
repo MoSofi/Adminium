@@ -1319,15 +1319,20 @@ export function createAdjuster(kit: AdjustKit) {
 
   /**
    * A code typed on an order whose price rule reads as not there (its add-on
-   * is not installed, or not connected to the app) is refused: taken in
-   * silence, the customer would be charged the full price with a code on the
-   * order. Null when nothing is typed, or the rule is there to judge it.
+   * is not installed, or not connected to the app), or that the owner switched
+   * off, is refused: taken in silence, the customer would be charged the full
+   * price with a code on the order. Null when nothing is typed, or the rule is
+   * there to judge it.
    */
-  function inertCode(target: WriteTarget, rules: TableRules | null, values: Row): string | null {
+  function inertCode(target: WriteTarget, rules: TableRules | null, values: Row, stored?: Row | null): string | null {
     for (const parent of rules?.adjustParents ?? []) {
       if (parent.typed === undefined || empty(values[parent.typed])) continue;
+      // A code already on the order, sent back as it stands with something else of its row (taken off again, a note): nothing is typed.
+      if (stored !== undefined && stored !== null && sameValue(stored[parent.typed] ?? null, values[parent.typed] ?? null)) continue;
       try {
-        if (kit.ledgers?.adjuster?.(target.view, target.view.table(parent.order)).state === 'idle') return parent.typed;
+        // (Not there at all, or switched off by the owner: either way nobody would price the order the code is typed on.)
+        const state = kit.ledgers?.adjuster?.(target.view, target.view.table(parent.order)).state;
+        if (state === 'idle' || state === 'off') return parent.typed;
       } catch {
         // An order table the model no longer has takes no code.
       }
