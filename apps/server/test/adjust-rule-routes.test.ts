@@ -51,7 +51,7 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     // A shop the owner built before any app: two tables of their own.
     const id = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
     await w.rows(`CREATE TABLE own_sales (id ${id}, note VARCHAR(80), subtotal NUMERIC(12,2) DEFAULT 0, discount NUMERIC(12,2) DEFAULT 0, total NUMERIC(12,2))`);
-    await w.rows(`CREATE TABLE own_sale_lines (id ${id}, sale_id INT NOT NULL REFERENCES own_sales(id), label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, amount NUMERIC(12,2), discount NUMERIC(12,2) DEFAULT 0)`);
+    await w.rows(`CREATE TABLE own_sale_lines (id ${id}, sale_id INT NOT NULL, label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, amount NUMERIC(12,2), discount NUMERIC(12,2) DEFAULT 0, FOREIGN KEY (sale_id) REFERENCES own_sales(id))`);
     await w.h.introspect();
     for (const table of parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema).tables) ids.set(table.name, table.id);
     // The totals the owner drew in Studio: a line's amount, the sale's subtotal over them, and its total.

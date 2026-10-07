@@ -520,7 +520,7 @@ describe('a price rule that cannot be asked, is not here, or is switched off', (
     }
   });
 
-  it('the owner\'s switch is the way through: off, saves ask nothing, and the reductions stay as they were stored', async () => {
+  it('the owner\'s switch is the way through: off, saves ask nothing, the reductions stay as they were stored, and a typed code is refused', async () => {
     const w = saveWorld(await priceWorld('sqlite'));
     try {
       await seedOffers(w, { timeless: true });
@@ -534,8 +534,10 @@ describe('a price rule that cannot be asked, is not here, or is switched off', (
       const service = off.service(w.runtimeWith({ adjustDecider: () => null }));
       await off.create('market_order_lines', lineFor(off, id), STAFF, service);
       expect(await off.figures(id)).toMatchObject({ subtotal: '92.50', discount: '15.00', net: '77.50' });
-      await off.create('market_order_codes', { order_id: id, typed: 'AUTUMN5' }, STAFF, service);
+      // One thing is refused while it is off: a code typed on an order — never taken in silence at the full price.
+      expect(await refused(off.create('market_order_codes', { order_id: id, typed: 'AUTUMN5' }, STAFF, service))).toMatchObject({ code: 'POSTING_REFUSED', details: { reason: 'add-on-unavailable', column: 'typed' } });
       expect(await off.figures(id)).toMatchObject({ discount: '15.00' });
+      expect((await w.rows(`SELECT COUNT(*) AS n FROM market_order_codes WHERE order_id = ${String(id)}`))[0]!['n']).toBe(0);
     } finally {
       await w.close();
     }
