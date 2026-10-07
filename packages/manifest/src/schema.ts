@@ -2543,11 +2543,13 @@ function settingTableIssues(m: {
   publicAccess?: readonly unknown[] | undefined;
   publicKeys?: unknown;
   outbox?: { settings?: { table: string } | undefined } | undefined;
+  addOn?: { settingsTable?: string | undefined } | undefined;
 }): ReferenceIssue[] {
   const tables = m.requiredSchema.tables;
   const settingsTable = m.outbox?.settings?.table;
   const oneRow = (ref: string): boolean => {
-    if (ref === settingsTable) return true;
+    // An add-on's settings table is one row by its own word: the install makes the row, and it may link to others.
+    if (ref === settingsTable || ref === m.addOn?.settingsTable) return true;
     const table = tables.find((t) => t.ref === ref);
     if (table === undefined) return true; // a table the manifest lacks is refused where the rule is checked
     if (table.states !== undefined || table.capacity !== undefined || table.booking !== undefined) return false;

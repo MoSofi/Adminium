@@ -97,6 +97,15 @@ describe('the settings table', () => {
     expect(issuesOf(kit({ addOn: { settingsTable: 'settings' } })).join('\n')).toContain('"settings" is not one of this add-on\'s tables');
   });
 
+  it('is a one-row table a rule may read a setting from, even when it links to another table', () => {
+    const linked = { ...SETTINGS, columns: [...SETTINGS.columns, { ref: 'default_unit_id', type: 'fk', references: 'units', nullable: true }] };
+    const reads = { ref: 'crates', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'unit_id', type: 'fk', references: 'units', nullable: true, rules: { default: { from: { table: 'settings', column: 'default_unit_id' } } } }] };
+    // Named the settings table, its one row is what the rule reads.
+    expect(issuesOf(kit({ tables: [linked, reads], addOn: { settingsTable: 'settings' } }))).toEqual([]);
+    // The same table not named so links elsewhere, and may hold many rows.
+    expect(issuesOf(kit({ tables: [linked, reads] })).join('\n')).toContain('"settings" may hold many rows, so "settings.default_unit_id" is no setting');
+  });
+
   it('a settings table with a required column and no default is refused', () => {
     const required = { ...SETTINGS, columns: [...SETTINGS.columns, { ref: 'currency', type: 'text', maxLength: 3 }] };
     expect(issuesOf(kit({ tables: [required], addOn: { settingsTable: 'settings' } })).join('\n')).toContain('give "settings.currency" a default, or make it nullable');
