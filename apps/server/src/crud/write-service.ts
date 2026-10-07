@@ -3242,6 +3242,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let lookedAgain = false;
       let posted: PostedOutcome[] = [];
       const write = async (db: Db) => {
+        // A try that is run again starts from nothing: what an undone try posted was undone with it.
+        posted = [];
         const peeked = posting;
         const within = { ...target, db, timezone: zone, origin: context.origin };
         // The limits this row takes from, judged under their locks (the write's clock is read first, inside).
@@ -3774,6 +3776,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
       let posted: PostedOutcome[] = [];
       const write = async (db: Db) => {
+        // A try that is run again starts from nothing: what an undone try posted was undone with it.
+        posted = [];
         const within = { ...target, db, timezone: zone, origin: context.origin };
         // The row as stored, read under the lock: what the guard leaves out
         // of its sum, the parent a moved child leaves, and what a formula
