@@ -1106,11 +1106,19 @@ async function holdChainWith(db: Db, dialect: Dialect, start: readonly ClimbStar
       current = [...next.values()];
     }
   }
-  /** Held rows' links, read holding them, against what the peek found. */
-  const verify = (table: string, rows: Map<string, Row>): void => {
+  /**
+   * Held rows' links, read holding them, against what the peek found. Only
+   * the links THIS hold read: a table that is a start's parent and also a
+   * height above another start (a stock point under its own moves and above
+   * its levels') is held once at each, each time with the links that height
+   * climbs through — a link the other height peeked is not in this read, and
+   * its absence is not a row that moved.
+   */
+  const verify = (table: string, rows: Map<string, Row>, read: readonly string[]): void => {
     for (const [key, row] of rows) {
       const links = peeked.get(`${table}\u0000${key}`);
       for (const [via, was] of links ?? []) {
+        if (!read.includes(via)) continue;
         if (String(row[via] ?? null) !== String(was ?? null)) throw climbMoved(table);
       }
     }
@@ -1122,7 +1130,7 @@ async function holdChainWith(db: Db, dialect: Dialect, start: readonly ClimbStar
       const vias = [...new Set(climbsOf(level).map((climb) => climb.via))];
       const balances = level.rollups[0]?.balances ?? [];
       const rows = await rowsByKey(db, dialect, level.table, level.keyColumn, level.keys.values(), [...vias, ...balances.map((b) => b.column)], true);
-      verify(level.table, rows);
+      verify(level.table, rows, vias);
       const known = held.get(level.table) ?? new Map<string, Row>();
       for (const [key, row] of rows) known.set(key, row);
       held.set(level.table, known);
@@ -1133,7 +1141,7 @@ async function holdChainWith(db: Db, dialect: Dialect, start: readonly ClimbStar
     const rollup = level.rollups[0]!;
     const vias = dialect === 'sqlite' ? [] : [...new Set(climbsOf(level).map((climb) => climb.via))];
     const found = await rowsByKey(db, dialect, level.table, level.keyColumn, level.keys.values(), [...vias, ...rollup.balances.map((b) => b.column)], true);
-    verify(level.table, found);
+    verify(level.table, found, vias);
     if (rollup.balances.length > 0 && catchUp) {
       for (const key of level.keys.values()) {
         if (!found.has(String(key))) continue;
