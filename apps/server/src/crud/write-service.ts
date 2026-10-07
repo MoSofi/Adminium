@@ -1162,8 +1162,12 @@ async function holdChainWith(db: Db, dialect: Dialect, start: readonly ClimbStar
 export const settleChain: SettleChain = async (db, dialect, start, currency, opts = {}) => {
   const read = opts.read ?? 'locking';
   const done = new Set<string>();
-  let level: ClimbStart[] = [...start];
-  for (let hop = 0; hop < CLIMB_HOPS && level.length > 0; hop += 1) {
+  // A start whose total another start climbs INTO waits for it. One save may add a row and the rows above it together (a
+  // stock point, its level, a movement on that level): the level's total is added up first, then the point's from it. Settled
+  // in the order they were written, the point would be added up from a level that had not been yet — and never again.
+  const waits = start.map((one) => ({ one, at: Math.max(0, ...start.filter((other) => other !== one).map((other) => heightsAbove(other.rollup, totalId(one.rollup)))) }));
+  let level: ClimbStart[] = waits.filter((wait) => wait.at === 0).map((wait) => wait.one);
+  for (let hop = 0; hop < CLIMB_HOPS && (level.length > 0 || waits.some((wait) => wait.at > hop)); hop += 1) {
     const climbing = new Map<string, ChainLevel>();
     // The caps of this height, judged once a row after EVERY total of it that moved is added up again: a write that moves two totals of
     // one balance (what was held is taken: one goes up as the other comes down) is judged by where it leaves the balance, not by the
@@ -1208,9 +1212,23 @@ export const settleChain: SettleChain = async (db, dialect, start, currency, opt
         if (keys.length > 0) next.push({ rollup: climb, keys });
       }
     }
-    level = next;
+    level = [...next, ...waits.filter((wait) => wait.at === hop + 1).map((wait) => wait.one)];
   }
 };
+
+/** A total, by the table and the column that hold it. */
+const totalId = (rollup: RollupInto): string => `${rollup.parent}.${rollup.column}`;
+
+/** How many heights above one total another sits, when the first climbs into it; 0 when it does not. */
+function heightsAbove(from: RollupInto, to: string): number {
+  let reach = 0;
+  let above: RollupInto[] = [from];
+  for (let hop = 1; hop < CLIMB_HOPS && above.length > 0; hop += 1) {
+    above = above.flatMap((rollup) => rollup.climbs);
+    if (above.some((rollup) => totalId(rollup) === to)) reach = hop;
+  }
+  return reach;
+}
 
 /**
  * The columns a chain above this table's rows will write: every total the
