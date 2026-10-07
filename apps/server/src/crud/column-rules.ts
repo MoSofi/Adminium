@@ -70,6 +70,7 @@ import type {
   TablePosting,
 } from '../connections/effective-schema.js';
 import type { LinePosting } from './ledger-points.js';
+import { adjustParentsOf, compileAdjust, type AdjustParent, type CompiledAdjust } from './adjust/rule.js';
 import { holdsNul } from '../security/nul-bytes.js';
 import { PLAIN_TEXT_MAX } from '@adminium/manifest';
 import { linkFreeText, NAME_RULE, type PlainTextRule } from '../public-api/plain-text.js';
@@ -377,6 +378,20 @@ export interface TableRules {
   linePostings?: LinePosting[];
   /** The rules the owner switched off on the table: no new round; an open one is still given back. */
   switchedOff?: { postings: ReadonlySet<string>; adjust: boolean };
+  /**
+   * Where an add-on lowers the price of this table's rows, as declared —
+   * whether the rule is live is asked per write, of the ledger registry.
+   * `adjust`: this table's rows are orders. `adjustParents`: its rows are part
+   * of another table's orders (a line, a typed code, money given back).
+   */
+  adjust?: CompiledAdjust;
+  adjustParents?: AdjustParent[];
+  /**
+   * The columns a price rule makes Adminium's own — a reduction, the links a
+   * typed code fills, who gave a reduction by hand: dropped from every
+   * writer's values but an import's, which brings in history as it was.
+   */
+  priced?: string[];
   /** The columns Adminium decides; absent on a table with none. */
   copies?: ColumnCopy[];
   sequences?: ColumnSequence[];
@@ -579,6 +594,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       if (link !== undefined && link.to.columns.length === 1) linePostings.push({ child: other.id, via: posting.via, parentKey: link.to.columns[0]!, posting });
     }
   }
+  const adjust = compileAdjust(target.table.table);
+  const adjustParents = adjustParentsOf(target.view?.model, target.table.table);
+  const priced = [...new Set([...(adjust?.decided ?? []), ...adjustParents.flatMap((parent) => parent.decided)])];
   const off = target.table.table?.switchedOff;
   const switchedOff = off === undefined ? undefined : { postings: new Set(off.postings) as ReadonlySet<string>, adjust: off.adjust === true };
   const columns: readonly EffectiveColumn[] = target.table.table?.columns ?? [];
@@ -828,6 +846,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     follows.length === 0 &&
     ownPostings.length === 0 &&
     linePostings.length === 0 &&
+    adjust === undefined &&
+    adjustParents.length === 0 &&
     customerKeys.length === 0 &&
     addOnLinks.length === 0
       ? null
@@ -838,6 +858,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(asLine.length === 0 ? {} : { asLine }),
           ...(linePostings.length === 0 ? {} : { linePostings }),
           ...(switchedOff === undefined ? {} : { switchedOff }),
+          ...(adjust === undefined ? {} : { adjust }),
+          ...(adjustParents.length === 0 ? {} : { adjustParents }),
+          ...(priced.length === 0 ? {} : { priced }),
           ...(decided ? { copies, sequences, codes, ...(stamps.length === 0 ? {} : { stamps }) } : {}),
           ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
           ...(ownRollups.length === 0 ? {} : { ownRollups }),
@@ -1104,7 +1127,7 @@ function rollupOf(
 export function withoutReadOnly(rules: TableRules | null, values: Row, origin?: WriteOrigin): Row {
   // An import brings in history: a stay's price as it was charged, not today's rates.
   const imported = origin === 'import' && rules?.perNight !== undefined ? rules.perNight.column : null;
-  const dropped = [...(rules?.readOnly ?? []).filter((column) => column !== imported), ...(origin === 'import' ? [] : (rules?.numbered ?? []))];
+  const dropped = [...(rules?.readOnly ?? []).filter((column) => column !== imported), ...(origin === 'import' ? [] : [...(rules?.numbered ?? []), ...(rules?.priced ?? [])])];
   if (!dropped.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
   const out = { ...values };
   for (const column of dropped) delete out[column];

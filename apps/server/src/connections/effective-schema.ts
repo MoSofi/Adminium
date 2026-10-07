@@ -608,6 +608,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   managedPostings?: string[];
   /** Where an add-on lowers the price of this table's rows (`table.adjust`): the app's rule when it ships one, else the owner's. */
   adjust?: TableAdjust;
+  /** The price rule is one an app's manifest stored (absent: the owner's own). */
+  managedAdjust?: true;
   /** The postings the owner switched off (`table.switchedOff`). */
   switchedOff?: TableSwitchedOff;
   /** Rows of other tables that lock this table's rows (`lockedWhenReferencedBy`, resolved). */
@@ -1386,7 +1388,10 @@ export function applyOverrides(
       }
       case 'table.adjust': {
         // One rule a table. Where an app's and an owner's are both stored, the app's stands: an update keeps it current.
-        if (table !== undefined && (table.adjust === undefined || row.origin === 'app')) table.adjust = value as unknown as TableAdjust;
+        if (table !== undefined && (table.adjust === undefined || row.origin === 'app')) {
+          table.adjust = value as unknown as TableAdjust;
+          if (row.origin === 'app') table.managedAdjust = true;
+        }
         break;
       }
       case 'table.switchedOff': {

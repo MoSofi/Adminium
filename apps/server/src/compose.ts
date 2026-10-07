@@ -959,6 +959,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     installs: () => addOnInstalls.current(),
     refresh: () => addOnInstalls.fresh(),
     decider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'rows'),
+    adjustDecider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'adjust'),
     versionNow: async (addOnKey) => {
       const row = await meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();
       return row === undefined ? null : { version: row.version, status: row.status };

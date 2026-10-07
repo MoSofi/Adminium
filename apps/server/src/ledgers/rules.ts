@@ -16,12 +16,12 @@
  * saves were let through unasked and wait to be worked out.
  */
 import type { DatabaseModel, TableModel } from '@adminium/engine';
-import { optionalInput, postingFitIssues, type AddOnManifest, type Ledger, type LedgerAction, type Posting } from '@adminium/manifest';
+import { optionalInput, postingFitIssues, type AddOnManifest, type Adjuster, type Ledger, type LedgerAction, type Posting } from '@adminium/manifest';
 import { overridesRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
-import { postingsRuleIssue, viaPostingClash } from '../connections/column-rules-validation.js';
-import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
+import { adjustRuleIssue, postingsRuleIssue, viaPostingClash } from '../connections/column-rules-validation.js';
+import type { EffectiveModel, EffectiveTable, TableAdjust } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { ruleDecidedColumns } from '../crud/decided-columns.js';
 import { frozenColumns } from '../crud/ledger-points.js';
@@ -233,6 +233,52 @@ export function storedPostingIssue({ model, table, posting, manifest }: PostingJ
     if (stray !== undefined) return `"${stray}" is not a state of ${judged.name}.`;
   }
   return selfWrittenIssue(posting, table, parent);
+}
+
+export interface AdjustJudged {
+  model: Pick<EffectiveModel, 'tables' | 'relations'>;
+  table: EffectiveTable;
+  adjust: TableAdjust;
+  /** The installed add-on the rule names; null when it is not installed here. */
+  manifest: AddOnManifest | null;
+}
+
+/**
+ * Why a stored price rule cannot run on this table as things stand here, or
+ * null: what it NAMES must be there — its columns and child tables, an add-on
+ * that answers a price at all, the links a typed code fills into that
+ * add-on's own tables, the posting that records what was used, the states it
+ * says the price stands from. Held to this on every server that reads the
+ * rule; one that fails is never half-run.
+ */
+export function storedAdjustIssue({ model, table, adjust, manifest }: AdjustJudged): string | null {
+  const stored = adjustRuleIssue(adjust, table as unknown as TableModel, model as unknown as DatabaseModel);
+  if (stored !== null) return stored;
+  if (manifest === null) return `The add-on "${adjust.by.addOn}" is not installed on this connection.`;
+  const adjuster = manifest.addOn.adjuster as Adjuster | undefined;
+  if (adjuster === undefined) return `"${adjust.by.addOn}" answers no price question.`;
+  const codes = adjust.codes;
+  if (codes !== undefined) {
+    const kept = model.tables.find((candidate) => candidate.id === codes.table);
+    for (const [column, into] of [[codes.code, adjuster.codes.table], [codes.voucher, adjuster.vouchers.table]] as const) {
+      const link = kept?.columns.find((candidate) => candidate.name === column)?.addOnLink;
+      if (link === undefined || link.addOn !== adjust.by.addOn || link.table !== into) return `"${column}" of ${kept?.name ?? codes.table} is the link a typed code fills: it must link into "${adjust.by.addOn}"'s "${into}".`;
+    }
+  }
+  if (adjust.uses !== undefined) {
+    const posting = (table.postings ?? []).find((candidate) => candidate.id === adjust.uses);
+    if (posting === undefined) return `"${adjust.uses}" is not a posting of ${table.name}: what was used is recorded by a posting of the order's own table.`;
+    if (posting.into.addOn !== adjust.by.addOn) return `The posting "${adjust.uses}" goes into "${posting.into.addOn}", not into "${adjust.by.addOn}", which answers the price.`;
+    if (posting.via !== undefined) return `The posting "${adjust.uses}" is a line's: what an order used is recorded for the order itself.`;
+  }
+  const frozen = adjust.frozen;
+  if (frozen !== undefined && 'to' in frozen) {
+    if (table.states === undefined) return `${table.name} keeps no states: name a column and its values instead.`;
+    const known = new Set(statesOf(table));
+    const stray = frozen.to.find((state) => !known.has(state));
+    if (stray !== undefined) return `"${stray}" is not a state of ${table.name}.`;
+  }
+  return null;
 }
 
 /**
