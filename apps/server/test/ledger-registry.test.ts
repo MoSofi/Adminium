@@ -48,6 +48,7 @@ const posting = (id: string, over: Partial<DeclaredPosting> = {}): DeclaredPosti
 const APP_RULE = posting('app-rule');
 const NEEDS = posting('needs-rule', { needs: 'stock' });
 const OWN_RULE = posting('own-rule');
+const KIT_RULE = posting('kit-rule');
 
 function world(over: { switchedOff?: string[]; tables?: string[] } = {}) {
   const names = ['shop_orders', 'notes', ...(over.tables ?? KIT_TABLES.map((ref) => `ledger_kit_${ref}`))];
@@ -58,10 +59,13 @@ function world(over: { switchedOff?: string[]; tables?: string[] } = {}) {
       stored('public.shop_orders', 'table.postings', { postings: [APP_RULE, NEEDS] }, 'app'),
       stored('public.shop_orders', 'table.postings', { postings: [OWN_RULE] }, 'user'),
       stored('public.notes', 'table.postings', { postings: [posting('note-rule')] }, 'user'),
+      // A rule the kit ships on a table of its own, as its install stores it.
+      stored('public.ledger_kit_requests', 'table.postings', { postings: [KIT_RULE] }, 'app'),
       ...(over.switchedOff === undefined ? [] : [stored('public.shop_orders', 'table.switchedOff', { postings: over.switchedOff }, 'user')]),
     ]),
   );
-  return { view, orders: view.table('public.shop_orders'), notes: view.table('public.notes') };
+  const requests = over.tables === undefined ? view.table('public.ledger_kit_requests') : null;
+  return { view, orders: view.table('public.shop_orders'), notes: view.table('public.notes'), requests };
 }
 
 const DECIDER = { key: 'ledger-kit', version: '1.0.0', sha256: 'x', kinds: ['rows'] } as unknown as InstalledDecider;
@@ -72,7 +76,7 @@ function runtime(over: { addOn?: Partial<InstalledAddOn> | null; decider?: Insta
     installed: (connectionId, addOnKey) => (connectionId === 'cnx_test' && addOnKey === 'ledger-kit' ? addOn : null),
     tableOf: (_connectionId, addOnKey, ref) => (addOnKey === 'ledger-kit' && KIT_TABLES.includes(ref) ? `public.ledger_kit_${ref}` : null),
     // The shop made its orders; nobody made `notes`.
-    refOf: (_connectionId, tableId) => (tableId === 'public.shop_orders' ? 'shop:orders' : tableId),
+    refOf: (_connectionId, tableId) => (tableId === 'public.shop_orders' ? 'shop:orders' : tableId === 'public.ledger_kit_requests' ? 'ledger-kit:requests' : tableId),
     tableOfRef: () => null,
     featureOn: () => over.feature !== false,
   };
@@ -95,6 +99,17 @@ describe('whether a posting is live', () => {
     expect(answer.ledger.table('ghosts')).toBeNull();
     expect(answer.ledger.refOf('public.ledger_kit_entries')).toBe('entries');
     expect(answer.ledger.refOf('public.shop_orders')).toBe('public.shop_orders');
+  });
+
+  it('a rule the add-on ships on a table of its own needs no app: it is live with nothing connected', () => {
+    const w = world();
+    // No app is connected at all; an add-on is never a host of itself.
+    const alone = runtime({ addOn: { hosts: new Map() } });
+    expect(alone.resolve(w.view, w.requests!, KIT_RULE).state).toBe('live');
+    // An app's rule in the same database still waits for its app to be connected.
+    expect(alone.resolve(w.view, w.orders, APP_RULE)).toEqual({ state: 'idle' });
+    // And the add-on's own rule still stops with the add-on: no code, no posting.
+    expect(runtime({ addOn: { hosts: new Map() }, decider: null }).resolve(w.view, w.requests!, KIT_RULE)).toMatchObject({ state: 'unavailable', cause: 'no-decider' });
   });
 
   it('not installed in this database: the rule reads as not there, whoever made it', () => {

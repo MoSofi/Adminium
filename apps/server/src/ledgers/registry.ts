@@ -227,7 +227,9 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
             : { state: 'off', ledger: found, action: known, decider: null }
           : { state: 'unavailable', cause, ...(typeof found === 'string' || known === undefined ? {} : { ledger: found, action: known }), ...more };
       const owner = ruleOwner(installs, view, table, posting);
-      if (owner !== null) {
+      // A rule the add-on ships on one of its OWN tables (a receipt line that receives stock) is the add-on's
+      // own: it stands on no app, so it needs none connected. An add-on is never a host of itself.
+      if (owner !== null && owner !== posting.into.addOn) {
         // An app's rule for an add-on that is not connected to that app is inert, like the rest of what the app keeps for it.
         if (!addOn.hosts.has(owner)) return { state: 'idle' };
         if (addOn.hosts.get(owner) !== true) return cannot('switched-off-for-app');
