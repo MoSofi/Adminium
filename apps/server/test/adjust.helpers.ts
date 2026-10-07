@@ -97,7 +97,8 @@ export async function priceWorld(dialect: Dialect, options: PriceWorldOptions = 
   const deps: LedgerRuntimeDeps = {
     installs: () => installs.current(),
     refresh: () => installs.fresh(),
-    decider: () => null,
+    // One file answers both: which reductions an order has, and which rows record what it used.
+    decider: (key) => (key === PRICE_KIT ? decider : null),
     adjustDecider: (key) => (key === PRICE_KIT ? decider : null),
     versionNow: async (key) => {
       const row = await h.meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', key).executeTakeFirst();

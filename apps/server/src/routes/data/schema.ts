@@ -228,10 +228,13 @@ export const appliedSchema = z.array(
   }),
 );
 export const toldSchema = z.array(z.object({ column: z.string(), note: z.literal('better-offer-applied'), name: z.string() }));
+/** What a payment whose amount Adminium decided took, what is still to pay, and — for a caller who may read the ledger's rows — the balance it left. */
+export const paymentSchema = z.object({ amount: z.string(), due: z.string(), balanceAfter: z.string().optional() });
 
 export const recordDryRunReply = z.object({
   applied: appliedSchema.optional(),
   told: toldSchema.optional(),
+  payment: paymentSchema.optional(),
   postings: z.array(postingAnswerSchema).optional(),
   data: rowSchema.nullable(),
   children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
@@ -324,6 +327,7 @@ export const recordChangeDryRunBody = z.object({
 export const recordChangeDryRunReply = z.object({
   applied: appliedSchema.optional(),
   told: toldSchema.optional(),
+  payment: paymentSchema.optional(),
   postings: z.array(postingAnswerSchema).optional(),
   data: rowSchema,
   children: z.record(z.string(), z.array(z.object({ data: rowSchema }))),
@@ -493,6 +497,7 @@ export const recordMutationReply = z.object({
   /** The reductions of the order the row is (or is a line of), when the save asked its price. Such a save answers no undo token either. */
   applied: appliedSchema.optional(),
   told: toldSchema.optional(),
+  payment: paymentSchema.optional(),
 });
 
 export const recordCascadeReply = z.object({

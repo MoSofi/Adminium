@@ -398,6 +398,14 @@ export interface TreeCreated<T = Row> {
   /** The reductions the order was saved with. Empty when it asks no price of an offers add-on. */
   applied: AppliedReduction[];
   told: ToldOfCode[];
+  /** What a gift card (or any payment whose amount the server decides) took, and what is still to pay; null when the order had none. */
+  payment: DecidedPayment | null;
+}
+
+/** A payment whose amount the server decided: a gift card pays what is due as far as it goes. Nothing else of the card is ever answered. */
+export interface DecidedPayment {
+  amount: string;
+  due: string;
 }
 
 /**
@@ -429,6 +437,8 @@ export interface Quote<T = Row> {
   /** The reductions the order would be saved with. Empty when it asks no price of an offers add-on. */
   applied: AppliedReduction[];
   told: ToldOfCode[];
+  /** What a gift card would take, and what would still be to pay; null when the order has none. */
+  payment: DecidedPayment | null;
 }
 
 /** One night of a row priced by the night, as a quote answers it. */
@@ -1473,7 +1483,7 @@ export function createPublicClient(
 
     async createTree<T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string }; replaces?: string }) {
       const out = await withProof('write', ref, (proof) =>
-        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink; applied?: AppliedReduction[]; told?: ToldOfCode[] }>(
+        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink; applied?: AppliedReduction[]; told?: ToldOfCode[]; payment?: DecidedPayment }>(
           `/api/v1/public/records/${ref}`,
           { method: 'POST', body: JSON.stringify(write) },
           proof,
@@ -1487,12 +1497,13 @@ export function createPublicClient(
         link: linkOf(out.link),
         applied: out.applied ?? [],
         told: out.told ?? [],
+        payment: out.payment ?? null,
       };
     },
 
     async quote<T = Row>(ref: string, write: { values: Row; children?: TreeRows }) {
       const out = await request<Partial<Quote<T>> & { data: T }>(`/api/v1/public/records/${ref}/dry-run`, { method: 'POST', body: JSON.stringify(write) });
-      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [], postings: out.postings ?? [], applied: out.applied ?? [], told: out.told ?? [] };
+      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [], postings: out.postings ?? [], applied: out.applied ?? [], told: out.told ?? [], payment: out.payment ?? null };
     },
 
     async quoteChange<T = Row>(ref: string, id: string, values: Row) {

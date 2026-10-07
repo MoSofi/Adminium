@@ -24,7 +24,7 @@
  * Which check failed is written to the audit log and never told to the
  * person saving: to them the add-on's plan failed.
  */
-import { postingOutputSchema, type PostingOutput } from '@adminium/add-on-contracts';
+import { postingOutputSchema, type PostingOutput, type PostingUse } from '@adminium/add-on-contracts';
 import type { LedgerAction } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
 
@@ -322,6 +322,19 @@ interface CallLine {
   table: ResolvedTable;
   row: Row;
   parent: { table: ResolvedTable; row: Row } | null;
+}
+
+/**
+ * What a price question recorded for one order, handed to the posting its
+ * rule names as recording uses: before the locks, every row a use could be
+ * of (so its locks are named); inside the save, the uses it really has.
+ * `key` absent: any row of the table (a row not written yet has no key).
+ */
+export interface UsesFor {
+  table: string;
+  posting: string;
+  key?: string | undefined;
+  uses: readonly PostingUse[];
 }
 
 /** What a call stands on: the source row, and the lines it hands over. */
@@ -819,7 +832,21 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** The names the calls stand on, from a look on the pool with nothing held. */
-  async function namesFor(jobs: readonly Job[], target: WriteTarget, context: WriteContext, tables: ReadonlyMap<string, WriteTarget>): Promise<NamedLock[]> {
+  /**
+   * The uses of a call whose rule is the one its order's price rule names:
+   * `[]` when the price question recorded none; undefined for any other call.
+   */
+  const usesOf = (list: readonly UsesFor[] | undefined, call: PostingCall, source: Gathered['source']): readonly PostingUse[] | undefined | null => {
+    // (The order's own rule, on the order's own row: a line's rule of the same name is not it.)
+    if (call.role !== 'source' || source.table.table?.adjust?.uses !== call.posting.id) return undefined;
+    // Null: the rule that records uses, in a save where nobody asked what the order used (its price rule is switched off, or not there).
+    return list?.find((one) => one.posting === call.posting.id && one.table === source.table.id && (one.key === undefined || source.key === '' || one.key === source.key))?.uses ?? null;
+  };
+  /** A use is of rows the add-on keeps: what a read keyed by `uses.*` is given. */
+  const usesRead = (uses: readonly PostingUse[] | undefined | null): { uses?: { offer: string | null; code: string | null; voucher: string | null }[] } =>
+    uses === undefined || uses === null ? {} : { uses: uses.map((use) => ({ offer: use.offer, code: use.code, voucher: use.voucher })) };
+
+  async function namesFor(jobs: readonly Job[], target: WriteTarget, context: WriteContext, tables: ReadonlyMap<string, WriteTarget>, usesFor?: readonly UsesFor[]): Promise<NamedLock[]> {
     const out = new Map<string, NamedLock>();
     for (const job of jobs) {
       const { call } = job;
@@ -839,9 +866,14 @@ export function createLedgerWriter(kit: LedgerKit) {
         throw error;
       }
       if (due.length === 0) continue;
+      const uses = usesOf(usesFor, call, gathered.source);
+      // Nobody asked what the order used: nothing new is held or counted (what is held is still given back).
+      if (uses === null && call.phase !== 'reverse') continue;
+      // Nothing to hold: no row, and nothing to stand on.
+      if (uses !== null && uses !== undefined && uses.length === 0 && call.phase === 'reserve') continue;
       const roundIds = due.flatMap((entry) => [entry.round.reserved?.id, entry.round.posted?.id]).filter((id): id is string | number => id !== undefined);
       const lines = due.map((entry) => ({ line: entry.line.key, lineTable: entry.line.ref, inputs: entry.mapped.inputs, multipliers: entry.mapped.multipliers, round: entry.round.round }));
-      const reads = await readOrRefuse(target.db, call, { lines, source, settings, receiptIds: roundIds });
+      const reads = await readOrRefuse(target.db, call, { lines, source, settings, receiptIds: roundIds, ...usesRead(uses) });
       for (const name of lockNames(target.view.connectionId, call.ledger, call.action, reads)) out.set(name, { name, busy: 'CAPACITY_BUSY' });
       // A table it writes keeps a limit: the pools its rows will take from are named too — from the plan, asked once here with nothing held.
       const limited = [...call.ledger.writes.keys()].filter((tableId) => (call.action.writes === undefined || call.action.writes.includes(call.ledger.refOf(tableId))) && kit.limited(tables.get(tableId)!));
@@ -851,7 +883,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       let plan: PostingOutput;
       try {
         const written = call.phase === 'reverse' || (call.phase === 'post' && due.some((entry) => entry.round.reserved !== null)) ? await roundRows(target.db, call.ledger, roundIds) : {};
-        plan = askPlanner(call, 'peek', { target, context, at: new Date(), source, lines, reads, settings, written });
+        plan = askPlanner(call, 'peek', { target, context, at: new Date(), source, lines, reads, settings, written, uses: uses ?? undefined });
       } catch (error) {
         // Not a refusal yet: the save judges the plan under its locks, and fails there.
         if (error instanceof PlanFailed || error instanceof PostingRefusedError) continue;
@@ -875,7 +907,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** The calls this write fires on a row that is its own source; null when it hands nothing to any ledger now. */
-  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext; only?: OnePhase | undefined }): Promise<Peek | null> {
+  async function peek(input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; after: Row; context: WriteContext; only?: OnePhase | undefined; uses?: readonly UsesFor[] | undefined }): Promise<Peek | null> {
     if (postingScope(input.rules) === null) return null;
     await kit.ledgers?.refresh?.();
     const live = callsFor(input);
@@ -886,7 +918,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       calls: live,
       tables,
       addOns: [...new Set(live.map((call) => call.ledger.addOn))].sort(),
-      names: (row) => namesFor(live.map((call) => ({ call, gathered: () => gather(target.db, call, target, row, false) })), target, input.context, tables),
+      names: (row) => namesFor(live.map((call) => ({ call, gathered: () => gather(target.db, call, target, row, false) })), target, input.context, tables, input.uses),
     };
   }
 
@@ -905,7 +937,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   function askPlanner(
     call: PostingCall,
     mode: 'peek' | 'save' | 'dry',
-    input: { target: WriteTarget; context: WriteContext; at: Date; source: { table: string; row: string }; lines: readonly unknown[]; reads: Record<string, ScalarRow[]>; settings: ScalarRow; written: Record<string, ScalarRow[]> },
+    input: { target: WriteTarget; context: WriteContext; at: Date; source: { table: string; row: string }; lines: readonly unknown[]; reads: Record<string, ScalarRow[]>; settings: ScalarRow; written: Record<string, ScalarRow[]>; uses?: readonly PostingUse[] | undefined },
   ): PostingOutput {
     const planInput = {
       contract: 'posting-rows@1' as const,
@@ -922,6 +954,8 @@ export function createLedgerWriter(kit: LedgerKit) {
       reads: input.reads,
       settings: input.settings,
       written: input.written,
+      // What the order's price question recorded: only for the rule that records it.
+      ...(input.uses === undefined ? {} : { uses: [...input.uses] }),
       version: call.ledger.version,
     };
     try {
@@ -967,7 +1001,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   async function postStep(
     trx: Db,
     peeked: Peek | null,
-    input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock; only?: OnePhase | undefined },
+    input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock; only?: OnePhase | undefined; uses?: readonly UsesFor[] | undefined },
   ): Promise<PostedOutcome[]> {
     const { target } = input;
     /** The row that posts, as it stands: an amount decided for it by one call is what the next one reads. */
@@ -982,6 +1016,7 @@ export function createLedgerWriter(kit: LedgerKit) {
         context: input.context,
         clock: input.clock,
         creating: input.action === 'create',
+        uses: input.uses,
         decided: (line, after) => {
           if (line.table.id === target.table.id && keyText(target.table, line.row) === keyText(target.table, row)) row = after;
         },
@@ -999,6 +1034,8 @@ export function createLedgerWriter(kit: LedgerKit) {
       context: WriteContext;
       clock: WriteClock;
       creating: boolean;
+      /** What each order's price question recorded, for the rule that records it. */
+      uses?: readonly UsesFor[] | undefined;
       decided?: (line: CallLine, after: Row) => void;
       pathOf?: (line: CallLine) => readonly (string | number)[] | undefined;
       /**
@@ -1089,6 +1126,13 @@ export function createLedgerWriter(kit: LedgerKit) {
       if (settings === undefined) settingsOf.set(ledger.addOn, (settings = await ledgerSettings(ledger, trx)));
       const due = dueLines(call, gathered, receipts, settings, target);
       if (due.length === 0) return null;
+      const uses = usesOf(env.uses, call, gathered.source);
+      // Nobody asked what the order used (its price rule is switched off, or not there): nothing new is held or counted, and what a
+      // round already holds is left as it is — it is still given back when the order is.
+      if (uses === null && phase !== 'reverse') return dry ? answer({ state: 'ok', reason: 'switched-off' }, { source }) : null;
+      // Nothing to hold: no row, and no receipt. (An order that POSTS having used nothing still writes its receipt: from then on what it
+      // used is recorded as nothing, and a code typed later is refused, never taken for free.)
+      if (uses !== null && uses !== undefined && uses.length === 0 && phase === 'reserve') return dry ? answer({ state: 'ok' }, { source }) : null;
       // A line the look did not see run (a late line whose siblings' round opened since) stands on names nobody took.
       if (!dry && !known.has(callKey(call))) throw new LockMoved(`posting ${callKey(call)}`);
       const at = clock.locked(trx);
@@ -1224,7 +1268,7 @@ export function createLedgerWriter(kit: LedgerKit) {
           // Something new is taken only when every row it would take from says it may be taken unasked.
           const allow = call.action.unavailable?.allow;
           if (allow === undefined) throw refused('add-on-unavailable', call);
-          const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: [] });
+          const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: [], ...usesRead(uses) });
           const said = reads[allow.read] ?? [];
           if (said.length === 0 || !said.every((found) => yes(found[allow.column]))) throw refused('add-on-unavailable', call);
         }
@@ -1242,12 +1286,12 @@ export function createLedgerWriter(kit: LedgerKit) {
         return { ...outcome, state: 'unplanned' };
       }
 
-      const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: roundIds });
+      const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: roundIds, ...usesRead(uses) });
       // What this call stands on must be what the save locked: a row that moved in between starts the save again. (A quote locks nothing.)
       if (!dry) for (const name of lockNames(target.view.connectionId, ledger, call.action, reads)) if (!held.has(name)) throw new LockMoved(name);
       // What the round wrote so far: handed when it is given back, and when what was held is taken.
       const written = phase === 'reverse' || (phase === 'post' && asked.some((entry) => entry.round.reserved !== null)) ? await roundRows(trx, ledger, roundIds) : {};
-      const plan = askPlanner(call, dry ? 'dry' : 'save', { target, context, at, source, lines, reads, settings, written });
+      const plan = askPlanner(call, dry ? 'dry' : 'save', { target, context, at, source, lines, reads, settings, written, uses: uses ?? undefined });
       // A refusal fails the save — but never a giving back: what was written is always given back.
       const first = phase === 'reverse' ? undefined : plan.refusals?.[0];
       if (first !== undefined) {
@@ -1314,7 +1358,9 @@ export function createLedgerWriter(kit: LedgerKit) {
       for (const entry of asked) {
         const rows = plan.rows.filter((planRow) => planRow.line === entry.line.key).length;
         const decided = decisions.some((decision) => decision.line === entry.line.key);
-        if (rows === 0 && !decided && phase !== 'reverse' && entry.round.reserved === null && entry.pending === undefined) continue;
+        // (An order asked what it used, where its record posts, is recorded even when it used nothing: that it used nothing is then closed.)
+        const closes = uses !== undefined && uses !== null && phase === 'post';
+        if (rows === 0 && !decided && phase !== 'reverse' && entry.round.reserved === null && entry.pending === undefined && !closes) continue;
         await undecide(entry);
         receiptIds.set(entry.line.key, await record(entry, 'planned', rows));
         await close(entry.round);
@@ -1504,7 +1550,7 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** What a tree hands to any ledger, looked at before its locks: null when nothing. `rows`: the root as prepared, its children as previewed. */
-  async function treePeek(rows: readonly TreeRowIn[], context: WriteContext): Promise<{ calls: PostingCall[]; tables: Map<string, WriteTarget>; addOns: string[]; names(): Promise<NamedLock[]> } | null> {
+  async function treePeek(rows: readonly TreeRowIn[], context: WriteContext, uses?: readonly UsesFor[]): Promise<{ calls: PostingCall[]; tables: Map<string, WriteTarget>; addOns: string[]; names(): Promise<NamedLock[]> } | null> {
     if (rows.every((item) => postingScope(item.rules) === null)) return null;
     await kit.ledgers?.refresh?.();
     const root = rows[0]!.target;
@@ -1512,11 +1558,11 @@ export function createLedgerWriter(kit: LedgerKit) {
     if (jobs.length === 0) return null;
     const calls = jobs.map((job) => job.call);
     const tables = await writable(calls, root, context);
-    return { calls, tables, addOns: [...new Set(calls.map((call) => call.ledger.addOn))].sort(), names: () => namesFor(jobs, root, context, tables) };
+    return { calls, tables, addOns: [...new Set(calls.map((call) => call.ledger.addOn))].sort(), names: () => namesFor(jobs, root, context, tables, uses) };
   }
 
   /** The posting step of a tree, on its transaction, once every row of it is written and its totals settled. `rows`: as written. */
-  async function treeStep(trx: Db, peeked: Pick<Peek, 'calls' | 'tables'> | null, rows: readonly TreeRowIn[], env: { context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
+  async function treeStep(trx: Db, peeked: Pick<Peek, 'calls' | 'tables'> | null, rows: readonly TreeRowIn[], env: { context: WriteContext; clock: WriteClock; uses?: readonly UsesFor[] | undefined }): Promise<PostedOutcome[]> {
     if (rows.every((item) => postingScope(item.rules) === null)) return [];
     const paths = new Map(rows.map((item) => [`${item.target.table.id}\u0000${keyText(item.target.table, item.row)}`, item.path]));
     return runCalls(trx, peeked, treeJobs(rows, trx, true), {
@@ -1524,12 +1570,13 @@ export function createLedgerWriter(kit: LedgerKit) {
       context: env.context,
       clock: env.clock,
       creating: true,
+      uses: env.uses,
       pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`),
     });
   }
 
   /** What a change would hand to each ledger, and what each would say: the posting step of a quote, on the quote's own handle. */
-  async function quoteStep(trx: Db, input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
+  async function quoteStep(trx: Db, input: { target: WriteTarget; rules: TableRules | null; action: 'create' | 'update'; before: Row | null; row: Row; context: WriteContext; clock: WriteClock; uses?: readonly UsesFor[] | undefined }): Promise<PostedOutcome[]> {
     if (postingScope(input.rules) === null) return [];
     await kit.ledgers?.refresh?.();
     const { target } = input;
@@ -1541,6 +1588,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       clock: input.clock,
       creating: input.action === 'create',
       dry: true,
+      uses: input.uses,
       decided: (line, after) => {
         if (line.table.id === target.table.id && keyText(target.table, line.row) === keyText(target.table, row)) row = after;
       },
@@ -1548,11 +1596,11 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   /** The same for a create with its child rows, once the quote has written them. */
-  async function treeQuote(trx: Db, rows: readonly TreeRowIn[], env: { context: WriteContext; clock: WriteClock }): Promise<PostedOutcome[]> {
+  async function treeQuote(trx: Db, rows: readonly TreeRowIn[], env: { context: WriteContext; clock: WriteClock; uses?: readonly UsesFor[] | undefined }): Promise<PostedOutcome[]> {
     if (rows.every((item) => postingScope(item.rules) === null)) return [];
     await kit.ledgers?.refresh?.();
     const paths = new Map(rows.map((item) => [`${item.target.table.id}\u0000${keyText(item.target.table, item.row)}`, item.path]));
-    return runCalls(trx, null, treeJobs(rows, trx, false, true), { target: rows[0]!.target, context: env.context, clock: env.clock, creating: true, dry: true, pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`) });
+    return runCalls(trx, null, treeJobs(rows, trx, false, true), { target: rows[0]!.target, context: env.context, clock: env.clock, creating: true, dry: true, uses: env.uses, pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`) });
   }
 
   /**

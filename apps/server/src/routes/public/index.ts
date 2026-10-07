@@ -66,6 +66,7 @@ import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
 import { priceAnswer, type PriceAnswer } from '../../crud/adjust/replies.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
+import { paymentOf } from '../../ledgers/payment.js';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placeheldTexts, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
@@ -944,6 +945,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     if (mine.length === 0) return {};
     const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
     return priceAnswer(mine, { locale, nameOf: () => null, guest: true, ...('tree' in own ? { tree: own.tree } : {}) });
+  };
+
+  /** What a payment whose amount Adminium decided took, and what is still to pay: nothing else of the card ever leaves a public door. */
+  const paidAs = async (found: { db: Kysely<SourceDatabase> }, view: SnapshotView, outcome: TreeOutcome): Promise<{ payment?: { amount: string; due: string } }> => {
+    if (outcome.postings === undefined || !outcome.postings.some((one) => one.decided.length > 0)) return {};
+    const paid = await paymentOf({
+      view,
+      rows: outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })),
+      outcomes: outcome.postings,
+      parentOf: async (table, key) => (await fetchByPk(found.db, table, { [table.primaryKey[0]!]: key })) ?? null,
+    });
+    return paid === undefined ? {} : { payment: paid.payment };
   };
 
   /** The signed-in person's row, or null. */
@@ -2936,7 +2949,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // What each ledger would say — and a card not valid is a guess spent, quote or not.
         const told = publicPostings(outcome.postings);
         if (told?.some((one) => one.reason === 'not-valid') === true) guesses.missed(request);
-        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })) });
+        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })), ...(await paidAs(found, view, outcome)) });
       }
       // The person the address made, heard of once the whole write has committed.
       const made = madePerson as Row | null;
@@ -2949,7 +2962,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const rank = await rankOf(found, outcome.root);
       // The new row's own link, answered this once (a retry answers the rows, never the link).
       const link = shareLink === null ? null : await ownLinkOf(ok, view, table, outcome.root, shareLink, carried);
-      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })) });
+      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })), ...(await paidAs(found, view, outcome)) });
     };
 
     app.options('/public/claim', { schema: { hide: true } }, preflight);

@@ -218,6 +218,8 @@ export const publicApplied = z.array(
     codeLast4: z.string().optional(),
   }),
 );
+/** A payment's decided amount and what is still due: nothing else of a card leaves a public reply. */
+export const publicPayment = z.object({ amount: z.string(), due: z.string() });
 /** Said beside a typed code that was not needed: another offer was better. */
 export const publicTold = z.array(z.object({ column: z.string(), note: z.literal('better-offer-applied'), name: z.string() }));
 
@@ -226,6 +228,8 @@ export const publicRecordReply = z.object({
   /** Which reductions the row's order has, when the write asked its price. */
   applied: publicApplied.optional(),
   told: publicTold.optional(),
+  /** What a payment whose amount Adminium decided (a gift card, as far as it goes) took, and what is still to pay. */
+  payment: publicPayment.optional(),
   /**
    * A create on an endpoint that ranks: how many matching rows are ordered at
    * or before the new one ("you are 3rd on the list"). No other row is told.
@@ -353,6 +357,7 @@ export const publicPostingAnswers = z.array(
 export const publicDryRunReply = z.object({
   applied: publicApplied.optional(),
   told: publicTold.optional(),
+  payment: publicPayment.optional(),
   postings: publicPostingAnswers.optional(),
   data: z.record(z.string(), z.unknown()),
   children: publicTreeReplyChildren.optional(),

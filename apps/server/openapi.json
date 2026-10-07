@@ -14051,6 +14051,25 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -14280,6 +14299,25 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -15375,6 +15413,25 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -15948,6 +16005,25 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -16236,6 +16312,25 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "payment": {
+                          "type": "object",
+                          "properties": {
+                            "amount": {
+                              "type": "string"
+                            },
+                            "due": {
+                              "type": "string"
+                            },
+                            "balanceAfter": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "due"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -17241,6 +17336,25 @@
                         "additionalProperties": false
                       }
                     },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
+                    },
                     "postings": {
                       "type": "array",
                       "items": {
@@ -17636,6 +17750,25 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "postings": {
                       "type": "array",
@@ -18090,6 +18223,25 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        },
+                        "balanceAfter": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -111208,6 +111360,22 @@
                         "additionalProperties": false
                       }
                     },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -111389,6 +111557,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "rank": {
                       "type": "integer",
@@ -112434,6 +112618,22 @@
                         "additionalProperties": false
                       }
                     },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -112752,6 +112952,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "rank": {
                       "type": "integer",
@@ -113137,6 +113353,22 @@
                         "additionalProperties": false
                       }
                     },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -113498,6 +113730,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "rank": {
                       "type": "integer",
@@ -113902,6 +114150,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "postings": {
                       "type": "array",
@@ -114991,6 +115255,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "rank": {
                       "type": "integer",
@@ -119902,6 +120182,22 @@
                         "additionalProperties": false
                       }
                     },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -120204,6 +120500,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "rank": {
                       "type": "integer",
@@ -120569,6 +120881,22 @@
                         "additionalProperties": false
                       }
                     },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -120910,6 +121238,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "type": "string"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "due"
+                      ],
+                      "additionalProperties": false
                     },
                     "rank": {
                       "type": "integer",

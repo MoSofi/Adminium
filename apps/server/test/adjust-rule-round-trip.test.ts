@@ -118,11 +118,12 @@ describe('now that the price question is asked', () => {
     for (const ref of ['orders', 'order_lines', 'order_codes', 'refunds', 'customers', 'items', 'payments', 'refund_lines']) expect(unbuiltRuleOf(tableOf(ref), undefined, model), ref).toBeNull();
   });
 
-  it('a manifest that asks it, or answers it, is installed; an amount a ledger decides still needs the release that runs it', () => {
+  it('a manifest that asks it, or answers it, is installed — and so is one whose ledger decides an amount', () => {
     expect(unbuiltInManifest(hostDoc()).filter((found) => found.word === 'table.adjust')).toEqual([]);
     expect(unbuiltInManifest(OFFERS_KIT).find((found) => found.word === 'addOn.adjuster')).toBeUndefined();
     const deciding = { kind: 'add-on', addOn: { ledgers: [{ id: 'value', actions: { spend: { decides: [{ input: 'amount' }] }, load: {} } }] } };
-    expect(unbuiltInManifest(deciding).filter((found) => found.word === 'ledger.decides')).toEqual([{ word: 'ledger.decides', path: 'addOn.ledgers.0.actions.spend.decides', release: '0.3.19' }]);
+    expect(unbuiltInManifest(deciding).filter((found) => found.word === 'ledger.decides')).toEqual([]);
+    expect(UNBUILT_MANIFEST_WORDS['ledger.decides']).toBeUndefined();
     // The rules a manifest ships are run: nothing waits on them any more.
     expect(UNBUILT_MANIFEST_WORDS['automations']).toBeUndefined();
   });

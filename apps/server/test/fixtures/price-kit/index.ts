@@ -12,6 +12,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { RECEIPTS } from '../../../../../packages/manifest/test/ledger-kit-fixture.js';
+
 type Doc = Record<string, unknown>;
 
 export const PRICE_KIT = 'price-kit';
@@ -48,6 +50,43 @@ export const PRICE_ADJUSTER = {
   customerKey: 'hash',
 };
 
+/**
+ * The add-on's ledger of what was used: one row for each use of an offer, a
+ * code or a voucher by an order, written where the order posts, and the count
+ * beside each offer and code moved with it — under the lock of the rows it
+ * counts on, so the last use of a code is one order's and never two.
+ */
+export const USES_LEDGER = {
+  id: 'uses',
+  receipts: 'postings',
+  refusal: 'value',
+  writes: {
+    redemptions: { insert: ['customer', 'offer_id', 'code_id', 'voucher_id', 'state', 'amount', 'source_table', 'source_row'], update: { by: ['id'], set: ['state'] } },
+    offers: { update: { by: ['id'], set: ['uses'] } },
+    codes: { update: { by: ['id'], set: ['uses'] } },
+    vouchers: { update: { by: ['id'], set: ['uses_left'] } },
+  },
+  actions: {
+    redeem: {
+      inputs: { label: 'text?' },
+      phases: ['reserve', 'post', 'reverse'],
+      reads: [
+        // What this round wrote, then the rows a use — or a row this round wrote — counts on.
+        { as: 'mine', table: 'redemptions', by: [{ column: 'receipt_id', from: 'receipt.id' }] },
+        { as: 'offers', table: 'offers', by: [{ column: 'id', from: ['uses.offer', 'mine.offer_id'] }] },
+        { as: 'codes', table: 'codes', by: [{ column: 'id', from: ['uses.code', 'mine.code_id'] }] },
+        { as: 'vouchers', table: 'vouchers', by: [{ column: 'id', from: ['uses.voucher', 'mine.voucher_id'] }] },
+      ],
+      locks: [
+        { read: 'offers', column: 'id', table: 'offers' },
+        { read: 'codes', column: 'id', table: 'codes' },
+        { read: 'vouchers', column: 'id', table: 'vouchers' },
+      ],
+      holds: true,
+    },
+  },
+};
+
 /** The add-on's manifest, version 1.0.0. */
 export function priceKitManifest(over: Doc = {}): Doc {
   return {
@@ -65,8 +104,13 @@ export function priceKitManifest(over: Doc = {}): Doc {
       attaches: [{ app: '*', range: '*' }],
       connect: { kind: 'none' },
       hostApi: 1,
-      provides: [{ contract: 'price-adjust', version: 1, server: 'dist/server.js' }],
+      // One file answers both: which reductions an order has, and which rows record what it used.
+      provides: [
+        { contract: 'price-adjust', version: 1, server: 'dist/server.js' },
+        { contract: 'posting-rows', version: 1, server: 'dist/server.js' },
+      ],
       adjuster: PRICE_ADJUSTER,
+      ledgers: [USES_LEDGER],
       settingsTable: 'settings',
     },
     requiredSchema: {
@@ -161,8 +205,10 @@ export function priceKitManifest(over: Doc = {}): Doc {
             money('amount', { default: 0 }),
             text('source_table', 128, { nullable: true, rules: { tableRef: true } }),
             text('source_row', 64, { nullable: true }),
+            fk('receipt_id', 'postings', { nullable: true }),
           ],
         },
+        RECEIPTS,
         {
           ref: 'ceilings',
           columns: [pk, text('role', 80), { ref: 'max_percent', type: 'decimal', scale: 2, default: 0 }, money('max_amount', { nullable: true }), { ref: 'may_comp', type: 'bool', default: false }],
@@ -217,6 +263,20 @@ export const WIDE_ADJUST = {
 };
 
 /**
+ * Where an order's uses are recorded: counted when it is paid, given back
+ * when it is cancelled. `uses: 'held'` holds them from the moment it is
+ * placed; `uses: 'placed'` counts them then, while its price can still move;
+ * `uses: 'made'` counts them as the order is made (an order placed online).
+ */
+const REDEEM = {
+  id: 'redeem',
+  into: { addOn: PRICE_KIT, ledger: 'uses', action: 'redeem' },
+  post: { on: { to: ['paid'] } },
+  reverse: { on: { to: ['cancelled'], from: ['placed', 'paid'] } },
+  map: { label: 'note' },
+};
+
+/**
  * The shop whose orders ask the price kit. `uncapped`: what is paid may pass
  * what is owed — a table that feeds a balance kept at zero or more takes its
  * rows one at a time for that reason alone, which a test of another reason
@@ -224,8 +284,9 @@ export const WIDE_ADJUST = {
  * own reduction — a line's net added up on its order, an order's total on its
  * customer — and rows charged by the night, whose nights follow the order's.
  */
-export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUST, options: { uncapped?: boolean; wide?: boolean } = {}): Doc {
+export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUST, options: { uncapped?: boolean; wide?: boolean; uses?: 'held' | 'paid' | 'placed' | 'made' } = {}): Doc {
   const wide = options.wide === true;
+  const posts = options.uses;
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -254,8 +315,21 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
         { ref: 'items', columns: [pk, text('name', 80), fk('category_id', 'categories', { nullable: true }), money('price', { default: 0 })] },
         {
           ref: 'orders',
-          ...(adjust === null ? {} : { adjust }),
-          states: { column: 'status', initial: 'open', moves: { open: ['placed', 'cancelled'], placed: ['paid', 'cancelled'] } },
+          ...(adjust === null ? {} : { adjust: posts === undefined ? adjust : { ...adjust, uses: 'redeem' } }),
+          ...(posts === undefined
+            ? {}
+            : {
+                postings: [
+                  posts === 'held'
+                    ? { ...REDEEM, reserve: { on: { to: ['placed'] } } }
+                    : posts === 'placed'
+                      ? { ...REDEEM, post: { on: { to: ['placed'] } } }
+                      : posts === 'made'
+                        ? { ...REDEEM, post: { on: { create: true } }, reverse: { on: { to: ['cancelled'] } } }
+                        : REDEEM,
+                ],
+              }),
+          states: { column: 'status', initial: 'open', moves: { open: ['placed', 'cancelled'], placed: ['paid', 'cancelled'], paid: ['cancelled'] } },
           columns: [
             pk,
             { ref: 'status', type: 'enum', enum: ['open', 'placed', 'paid', 'cancelled'], default: 'open' },

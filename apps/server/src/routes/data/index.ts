@@ -149,8 +149,9 @@ import {
   type WriteTarget,
   type WrittenRow,
 } from '../../crud/write-service.js';
-import { postingAnswers, type PostingAnswer } from '../../crud/ledger-write.js';
+import { postingAnswers, type PostedOutcome, type PostingAnswer } from '../../crud/ledger-write.js';
 import { tellPostings } from '../../ledgers/announce.js';
+import { paymentOf, type PaidRow, type PaymentAnswer } from '../../ledgers/payment.js';
 import { answersFor, hideLedgerFigures } from '../../ledgers/tell.js';
 import { writeStores } from '../../crud/write-stores.js';
 import {
@@ -1220,6 +1221,22 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // In the language the user reads the dashboard in.
       return priceAnswer(readable, { locale: await recipientLocale(meta, principalId(request)), nameOf: (id) => ctx.view.table(id).name, tree });
     }
+    /**
+     * What a payment whose amount Adminium decided took, and what is still to
+     * pay. The balance it left behind is told to somebody who may read the rows
+     * the ledger wrote for it, and to nobody else.
+     */
+    async function paidAs(request: FastifyRequest, ctx: DataContext, rows: readonly PaidRow[], outcomes: readonly PostedOutcome[] | undefined): Promise<{ payment?: PaymentAnswer }> {
+      if (outcomes === undefined || !outcomes.some((outcome) => outcome.decided.length > 0)) return {};
+      const found = await paymentOf({ view: ctx.view, rows, outcomes, parentOf: async (table, key) => (await fetchByPk(ctx.db, table, { [table.primaryKey[0]!]: key })) ?? null });
+      if (found === undefined) return {};
+      let reads = found.balanceAfter !== undefined && found.wrote.length > 0;
+      for (const table of reads ? found.wrote : []) if (!(await request.can(`table:${ctx.connectionId}:${table.id}:read`))) reads = false;
+      return { payment: { ...found.payment, ...(reads ? { balanceAfter: found.balanceAfter! } : {}) } };
+    }
+    /** The rows a write with child rows made, as the save left them. */
+    const treeRows = (tree: TreeOutcome): PaidRow[] => tree.rows.map((made) => ({ table: made.node.target.table, row: made.record }));
+
     /** A price check, told what the order would have only when the price is not the one shown. */
     async function checked(check: (row: Row, priced?: PriceAnswer) => void, row: Row, priced: () => Promise<PriceAnswer>): Promise<void> {
       try {
@@ -2908,11 +2925,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (told === undefined && !pricedBy(tree.outcome.adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
           await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
           const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
-          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)) });
+          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings)) });
         }
         if (links.length === 0 && children.length === 0) {
           let told: PostingAnswer[] | undefined;
           let asked: readonly AdjustedOrder[] | undefined;
+          let outcomes: readonly PostedOutcome[] | undefined;
           const inserted = await writes.create({
             target: ctx.target,
             values,
@@ -2923,6 +2941,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
               told = postingAnswers(posted);
               asked = adjusted;
+              outcomes = posted;
               // A save that moved an order's price has no Undo: its way back is another save, priced in its turn.
               if (told === undefined && !pricedBy(adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [row]);
               await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
@@ -2930,7 +2949,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             },
           });
           const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
-          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, asked)) });
+          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, asked)), ...(await paidAs(request, ctx, [{ table: ctx.table, row: inserted }], outcomes)) });
         }
 
         /*
@@ -2960,7 +2979,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
             const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
-            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)) });
+            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings)) });
           }
         }
         if (rowsBelow) {
@@ -3120,7 +3139,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // The desk's booking summary: the nights a price by the night is made of.
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight));
         const told = await answersFor((permission) => request.can(permission), tree.outcome.postings);
-        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)) };
+        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings)) };
       },
     );
 
@@ -3215,7 +3234,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight);
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
         const told = await answersFor((permission) => request.can(permission), outcome.postings);
-        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)) };
+        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings)) };
       },
     );
 
@@ -3297,7 +3316,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         });
         // Masked columns may be written but are never echoed back.
         const told = postingAnswers(outcome.postings);
-        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)) };
+        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings)) };
       }
 
       /*
@@ -3373,7 +3392,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
           const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
           const told = postingAnswers(outcome.postings);
-          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)) };
+          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings)) };
         }
       }
 

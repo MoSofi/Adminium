@@ -190,7 +190,7 @@ function meetsWhere(row: Row, where: readonly { column: string; eq?: unknown; in
  * word. Text that could not be a code makes no query. Two rows that fold
  * alike are no row.
  */
-export async function findCodes(db: Db, adjuster: ResolvedAdjuster, typed: readonly string[]): Promise<LoadedCode[]> {
+export async function findCodes(db: Db, adjuster: ResolvedAdjuster, typed: readonly string[], opts: { any?: boolean | undefined } = {}): Promise<LoadedCode[]> {
   if (typed.length > ADJUST_CODES_MAX) throw new AdjustTooLarge('codes');
   const { codes, vouchers } = adjuster.declared;
   const codesTable = adjuster.table(codes.table)!;
@@ -223,7 +223,8 @@ export async function findCodes(db: Db, adjuster: ResolvedAdjuster, typed: reado
       if (looked.has(once)) continue;
       looked.add(once);
       const found = await findByCode(db, table.id, kind.of === 'code' ? codes.column : vouchers.column, kind.spelling, needle);
-      if (found === null || (kind.of === 'code' && !meetsWhere(found, codes.where))) continue;
+      // (`any`: a code an order already has, read again whatever became of it since — switched off, it is still the code the order used.)
+      if (found === null || (kind.of === 'code' && opts.any !== true && !meetsWhere(found, codes.where))) continue;
       hit = { typed: value, kind: kind.of, table, found, id: keyOf(table, found), row: null };
       break;
     }
@@ -237,7 +238,7 @@ export async function findCodes(db: Db, adjuster: ResolvedAdjuster, typed: reado
  * first, but those marked removed — each looked up. A row with nothing typed
  * is no code.
  */
-export async function loadCodes(db: Db, view: SnapshotView, adjust: CompiledAdjust, adjuster: ResolvedAdjuster, order: Row): Promise<LoadedCode[]> {
+export async function loadCodes(db: Db, view: SnapshotView, adjust: CompiledAdjust, adjuster: ResolvedAdjuster, order: Row, opts: { any?: boolean | undefined } = {}): Promise<LoadedCode[]> {
   const rule = adjust.codes;
   if (rule === undefined) return [];
   const table = view.table(rule.table);
@@ -251,7 +252,7 @@ export async function loadCodes(db: Db, view: SnapshotView, adjust: CompiledAdju
     return !empty(row[rule.typed]) && (empty(removed) || booleanOf(removed) === false);
   });
   if (rows.length > ADJUST_CODES_MAX) throw new AdjustTooLarge('codes');
-  const found = await findCodes(db, adjuster, rows.map((row) => String(row[rule.typed])));
+  const found = await findCodes(db, adjuster, rows.map((row) => String(row[rule.typed])), opts);
   return found.map((code, index) => ({ ...code, row: rows[index]! }));
 }
 

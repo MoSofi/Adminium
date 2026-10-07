@@ -117,13 +117,17 @@ function sells(line, as, table, row) {
 function ownHeld(input, column, id) {
   var rows = (input.held && input.held.redemptions) || [];
   var n = 0;
-  for (var i = 0; i < rows.length; i += 1) if (String(rows[i][column]) === String(id)) n += 1;
+  // (A row the round gave back is nobody's any more.)
+  for (var i = 0; i < rows.length; i += 1) if (rows[i].state !== 'back' && String(rows[i][column]) === String(id)) n += 1;
   return n;
 }
 
 /** Why an offer does not stand for this order now, or null. */
 function standing(input, offer, typedFor) {
   if (input.mode === 'refund') return null;
+  // An offer the order's own round already holds a use of stands for that order, whatever became of it since: the order has it.
+  // (`own-not-kept`: an add-on that does not, and judges the order by its customer's count as Adminium hands it in.)
+  if (input.settings.misbehave !== 'own-not-kept' && ownHeld(input, 'offer_id', offer.id) > 0) return typedFor === undefined && offer.trigger === 'code' ? 'no-code-typed' : null;
   if (offer.status === 'draft') return 'draft';
   if (offer.status === 'paused') return 'paused';
   if (offer.status === 'ended') return 'ended';
@@ -203,7 +207,7 @@ function adjust(input) {
         refused.push({ typed: code.typed, reason: 'expired' });
         continue;
       }
-      if (input.mode !== 'refund' && filled(code.row.max_uses) && Number(code.row.uses) - ownHeld(input, 'code_id', code.row.id) >= Number(code.row.max_uses)) {
+      if (wrong !== 'adjust-uncounted' && input.mode !== 'refund' && filled(code.row.max_uses) && Number(code.row.uses) - ownHeld(input, 'code_id', code.row.id) >= Number(code.row.max_uses)) {
         refused.push({ typed: code.typed, reason: 'used-up' });
         continue;
       }
@@ -476,4 +480,73 @@ function adjust(input) {
   return answer;
 }
 
-module.exports = { adjust: adjust };
+/**
+ * WHICH ROWS RECORD WHAT AN ORDER USED — the `uses` ledger, action `redeem`.
+ *
+ *   reserve  one row per use, held; the count beside its offer and its code moved up
+ *   post     a use this round held is counted; one it did not hold is written, counted;
+ *            one it held and the order no longer has is given back
+ *   reverse  every row of the round given back, and the counts moved down again
+ *
+ * A use past what an offer or a code allows is refused: under the lock of the
+ * row it counts on, so the last use is one order's and never two.
+ */
+function rows(input) {
+  var wrong = input.settings.misbehave || null;
+  if (wrong === 'rows-throw') throw new Error('the kit was told to throw');
+  var out = { rows: [], refusals: [], notes: [] };
+  var at = input.lines.length > 0 ? input.lines[0].line : '';
+  var mine = (input.reads.mine || []).filter(function (row) { return row.state !== 'back'; });
+  var uses = input.phase === 'reverse' ? [] : input.uses || [];
+  var same = function (row, use) { return String(row.offer_id === null || row.offer_id === undefined ? '' : row.offer_id) === String(use.offer === null ? '' : use.offer) && String(row.code_id === null || row.code_id === undefined ? '' : row.code_id) === String(use.code === null ? '' : use.code) && String(row.voucher_id === null || row.voucher_id === undefined ? '' : row.voucher_id) === String(use.voucher === null ? '' : use.voucher); };
+  // How far each count moves: up for a use newly written, down for a row given back.
+  var moved = { offers: {}, codes: {}, vouchers: {} };
+  var move = function (table, id, by) { if (id !== null && id !== undefined && id !== '') moved[table][String(id)] = (moved[table][String(id)] || 0) + by; };
+  var kept = {};
+  for (var u = 0; u < uses.length; u += 1) {
+    var use = uses[u];
+    var held = null;
+    for (var m = 0; m < mine.length; m += 1) if (kept[String(mine[m].id)] !== true && same(mine[m], use)) { held = mine[m]; break; }
+    if (held !== null) {
+      kept[String(held.id)] = true;
+      if (input.phase === 'post' && held.state === 'held') out.rows.push({ op: 'update', table: 'redemptions', line: at, key: { id: held.id }, set: { state: 'counted' } });
+      continue;
+    }
+    out.rows.push({ op: 'insert', table: 'redemptions', line: at, values: { customer: use.customer === undefined ? null : use.customer, offer_id: use.offer === null ? null : Number(use.offer), code_id: use.code === null ? null : Number(use.code), voucher_id: use.voucher === null ? null : Number(use.voucher), state: input.phase === 'reserve' ? 'held' : 'counted', amount: use.amount, source_table: input.source.table, source_row: input.source.row } });
+    move('offers', use.offer, 1);
+    move('codes', use.code, 1);
+    move('vouchers', use.voucher, use.units === undefined ? 1 : use.units);
+  }
+  // What the round holds and the order no longer has — everything, when the round is given back.
+  for (var b = 0; b < mine.length; b += 1) {
+    if (kept[String(mine[b].id)] === true) continue;
+    out.rows.push({ op: 'update', table: 'redemptions', line: at, key: { id: mine[b].id }, set: { state: 'back' } });
+    move('offers', mine[b].offer_id, -1);
+    move('codes', mine[b].code_id, -1);
+    move('vouchers', mine[b].voucher_id, -1);
+  }
+  var count = function (table, column, limit, left) {
+    var read = input.reads[table] || [];
+    for (var id in moved[table]) {
+      if (moved[table][id] === 0) continue;
+      var row = null;
+      for (var r = 0; r < read.length; r += 1) if (String(read[r].id) === id) row = read[r];
+      // A use of a row nobody read for this call: the count it moves would be nobody's. Said out loud, never skipped.
+      if (row === null) throw new Error('a use of ' + table + ' ' + id + ', which was not read');
+      // A voucher counts what is left of it; an offer and a code count what was used.
+      var now = left ? Number(row[column]) - moved[table][id] : Number(row[column]) + moved[table][id];
+      if (wrong !== 'uses-unlimited' && moved[table][id] > 0 && (left ? now < 0 : row[limit] !== null && row[limit] !== undefined && now > Number(row[limit]))) {
+        out.refusals.push({ line: at, reason: 'used-up' });
+        continue;
+      }
+      out.rows.push({ op: 'update', table: table, line: at, key: { id: row.id }, set: (function () { var set = {}; set[column] = now; return set; })() });
+    }
+  };
+  count('offers', 'uses', 'max_uses', false);
+  count('codes', 'uses', 'max_uses', false);
+  count('vouchers', 'uses_left', null, true);
+  if (out.refusals.length > 0) out.rows = [];
+  return out;
+}
+
+module.exports = { adjust: adjust, rows: rows };

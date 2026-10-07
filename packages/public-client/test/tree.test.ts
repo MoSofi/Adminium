@@ -35,7 +35,7 @@ describe('a create with its child rows', () => {
     const made = await client.createTree('orders', { ...ORDER, expect: { total: '34.64' } });
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders');
     expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ ...ORDER, expect: { total: '34.64' } });
-    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null, applied: [], told: [] });
+    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null, applied: [], told: [], payment: null });
   });
 
   it('reads which reductions an order has, from the quote, the save and a changed price; and the minimum of a code under it', async () => {
@@ -48,6 +48,10 @@ describe('a create with its child rows', () => {
     const { client } = over((url) => (url.endsWith('/dry-run') ? { data: { total: '48.11' }, exact: true, applied, told } : new Response(JSON.stringify({ data: { id: 7, total: '48.11' }, applied, told }), { status: 201 })));
     expect(await client.quote('orders', ORDER)).toMatchObject({ applied, told });
     expect(await client.createTree('orders', ORDER)).toMatchObject({ applied, told });
+    // A gift card's payment: what it took and what is still to pay, and nothing else of the card.
+    const paid = over((url) => (url.endsWith('/dry-run') ? { data: {}, exact: true, payment: { amount: '19.00', due: '29.11' } } : new Response(JSON.stringify({ data: { id: 8 }, payment: { amount: '19.00', due: '29.11' } }), { status: 201 })));
+    expect((await paid.client.quote('orders', ORDER)).payment).toEqual({ amount: '19.00', due: '29.11' });
+    expect((await paid.client.createTree('orders', ORDER)).payment).toEqual({ amount: '19.00', due: '29.11' });
     expect(await client.quoteChange('lines', '7', { qty: 3 })).toMatchObject({ applied, told });
     const priced = await over(() => refusal(409, 'PUBLIC_PRICE_CHANGED', { total: '53.46', lines: {}, applied: applied.slice(0, 1) }))
       .client.createTree('orders', ORDER)
@@ -70,7 +74,7 @@ describe('a create with its child rows', () => {
     );
     const quote = await client.quote('orders', ORDER);
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders/dry-run');
-    expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true, nights: [], postings: [], applied: [], told: [] });
+    expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true, nights: [], postings: [], applied: [], told: [], payment: null });
     // A change the app's own code runs for: the quote says the save may come out otherwise.
     expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false, nights: [], children: {}, postings: [], applied: [], told: [] });
     expect(calls[1]!.url).toBe('https://x/api/v1/public/records/lines/7/dry-run');

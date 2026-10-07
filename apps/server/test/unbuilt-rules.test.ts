@@ -105,8 +105,8 @@ describe('a manifest that uses a word this server does not run yet', () => {
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { recordTabs: [{ id: 'stock' }] } })).toEqual([]);
     // And the price question an add-on answers.
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { adjuster: { contract: 'price-adjust' } } })).toEqual([]);
-    // One it does not run yet: an amount a ledger's action decides.
-    expect(unbuiltInManifest({ ...ADD_ON, addOn: { ledgers: [{ id: 'cards', actions: { pay: { decides: [{ input: 'amount' }] } } }] } })).toMatchObject([{ word: 'ledger.decides', release: '0.3.19' }]);
+    // And an amount a ledger's action decides. (The one word not run yet is an app's: the last four of a code, below.)
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { ledgers: [{ id: 'cards', actions: { pay: { decides: [{ input: 'amount' }] } } }] } })).toEqual([]);
   });
 
   it('an app\'s own pages, roles, prefix and its link into an add-on are no such word; the last four of a code is', () => {
