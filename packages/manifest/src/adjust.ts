@@ -486,6 +486,8 @@ export function adjusterIssues(adjuster: Adjuster, tables: ReadonlyMap<string, A
 
   need(own(adjuster.codes.table, at('codes', 'table')), adjuster.codes.column, at('codes', 'column'));
   need(own(adjuster.vouchers.table, at('vouchers', 'table')), adjuster.vouchers.column, at('vouchers', 'column'));
+  // A typed value is a code or a voucher by the table its row is found in: one table for both could tell neither apart.
+  if (adjuster.codes.table === adjuster.vouchers.table) out.push({ path: at('vouchers', 'table'), message: `"${adjuster.vouchers.table}" keeps the discount codes: vouchers are kept in a table of their own, so a typed value is one or the other by where it is found` });
   // A discount code may never look like a voucher's or a card's: every routing prefix is a reserved start.
   const reserved = new Set(adjuster.codes.reserved ?? []);
   adjuster.vouchers.prefixes.forEach((prefix, p) => {

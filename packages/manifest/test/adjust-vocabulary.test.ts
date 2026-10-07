@@ -185,6 +185,10 @@ describe('the add-on\'s adjuster', () => {
     expect(offers([{ as: 'offers', table: 'offers', by: [] }])).toContain('the read "offers" has no key: bound it with a "limit"');
   });
 
+  it('keeps discount codes and vouchers in two tables, so a typed value is one or the other by where it is found', () => {
+    expect(issuesOf(kit({ adjuster: { vouchers: { ...ADJUSTER.vouchers, table: 'codes' } } })).join('\n')).toContain('"codes" keeps the discount codes: vouchers are kept in a table of their own');
+  });
+
   it('reserves every routing prefix, so no discount code looks like a voucher', () => {
     expect(issuesOf(kit({ adjuster: { codes: { ...ADJUSTER.codes, reserved: ['GC'] } } })).join('\n')).toContain('"VC-" routes a typed code to a voucher, so no discount code may start with it: add "VC" to codes.reserved');
     expect(adjusterSchema.safeParse({ ...ADJUSTER, codes: { ...ADJUSTER.codes, reserved: ['gift'] } }).success).toBe(false);
