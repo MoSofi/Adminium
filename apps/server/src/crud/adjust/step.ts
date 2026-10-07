@@ -887,6 +887,17 @@ export function createAdjuster(kit: AdjustKit) {
       const worked = touchedFormulas(rules?.formulas ?? [], Object.keys(orderSet));
       wrote = { ...orderSet, ...evaluateAll(worked, { ...order, ...orderSet }, rules?.currencyColumn, currency) };
       await kit.update(target, wrote, pkOf(target.table, order));
+    } else if (input.stood === null) {
+      // An order the save itself makes, with nothing off: its formulas that read a reduction were worked out before the row had one
+      // (a column's default is the database's to fill), so they are brought in step here — as a line's are, above. An order with lines
+      // has its totals settled after this; one that is its own line (a stay) has nothing else that would.
+      const reads = [adjust.rule.order.discount, ...adjust.parts.filter((part) => part.self).map((part) => part.discount)];
+      const worked = evaluateAll(touchedFormulas(rules?.formulas ?? [], reads), order, rules?.currencyColumn, currency);
+      const stale = Object.fromEntries(Object.entries(worked).filter(([column, value]) => !sameWorked(order[column], value)));
+      if (Object.keys(stale).length > 0) {
+        wrote = stale;
+        await kit.update(target, wrote, pkOf(target.table, order));
+      }
     }
     if (adjust.codes !== undefined) {
       const codesTarget: WriteTarget = { ...target, table: view.table(adjust.codes.table) };
