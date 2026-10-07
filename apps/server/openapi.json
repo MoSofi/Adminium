@@ -13977,6 +13977,80 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -14129,6 +14203,80 @@
                           "column",
                           "value",
                           "print"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
                         ],
                         "additionalProperties": false
                       }
@@ -15153,6 +15301,80 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -15652,6 +15874,80 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -15863,6 +16159,80 @@
                               "column",
                               "value",
                               "print"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "applied": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "line": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "offer",
+                                  "code",
+                                  "voucher",
+                                  "pack",
+                                  "staff"
+                                ]
+                              },
+                              "amount": {
+                                "type": "string"
+                              },
+                              "typed": {
+                                "type": "boolean"
+                              },
+                              "codeLast4": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "line",
+                              "name",
+                              "kind",
+                              "amount",
+                              "typed"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "told": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string"
+                              },
+                              "note": {
+                                "type": "string",
+                                "enum": [
+                                  "better-offer-applied"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "note",
+                              "name"
                             ],
                             "additionalProperties": false
                           }
@@ -16797,6 +17167,80 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "postings": {
                       "type": "array",
                       "items": {
@@ -17119,6 +17563,80 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "postings": {
                       "type": "array",
                       "items": {
@@ -17495,6 +18013,80 @@
                           "column",
                           "value",
                           "print"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
                         ],
                         "additionalProperties": false
                       }
@@ -110542,6 +111134,80 @@
                       },
                       "additionalProperties": {}
                     },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -110649,6 +111315,80 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "rank": {
                       "type": "integer",
@@ -111620,6 +112360,80 @@
                       },
                       "additionalProperties": {}
                     },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -111864,6 +112678,80 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "rank": {
                       "type": "integer",
@@ -112175,6 +113063,80 @@
                       },
                       "additionalProperties": {}
                     },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -112462,6 +113424,80 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "rank": {
                       "type": "integer",
@@ -112793,6 +113829,80 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "postings": {
                       "type": "array",
                       "items": {
@@ -113315,6 +114425,80 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "postings": {
                       "type": "array",
                       "items": {
@@ -113733,6 +114917,80 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "rank": {
                       "type": "integer",
@@ -118570,6 +119828,80 @@
                       },
                       "additionalProperties": {}
                     },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -118798,6 +120130,80 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "rank": {
                       "type": "integer",
@@ -119089,6 +120495,80 @@
                       },
                       "additionalProperties": {}
                     },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "rank": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -119356,6 +120836,80 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "offer",
+                              "code",
+                              "voucher",
+                              "pack",
+                              "staff"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "typed": {
+                            "type": "boolean"
+                          },
+                          "codeLast4": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "name",
+                          "kind",
+                          "amount",
+                          "typed"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "told": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string",
+                            "enum": [
+                              "better-offer-applied"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "note",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "rank": {
                       "type": "integer",
