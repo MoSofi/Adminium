@@ -24,9 +24,11 @@ import type {
   OpenDocumentOptions,
   TreeNode,
   UseAccessResult,
+  PostingSaid,
   UseDocumentResult,
   UseExportResult,
   UseLookUpResult,
+  UseReadResult,
   UseRecordResult,
   UseRecordsOptions,
   UseRecordsResult,
@@ -147,13 +149,50 @@ export function useRecord(table: string, key: string | number | null): UseRecord
 interface Saved {
   data: unknown;
   once?: { column: string; value: string; print?: string }[];
+  postings?: PostingSaid[];
 }
 
 /** A save's reply as a page reads it: the row as stored, and a code shown once with the ticket its print takes. */
 function written(table: string, reply: Saved): WriteResult {
   const row = (reply.data ?? {}) as DataRow;
   const once = (reply.once ?? []).map((entry): OnceValue => ({ table, key: String(row['id'] ?? ''), column: entry.column, value: entry.value, print: entry.print ?? '' }));
-  return { row, ...(once.length === 0 ? {} : { once }) };
+  return { row, ...(once.length === 0 ? {} : { once }), ...(reply.postings === undefined || reply.postings.length === 0 ? {} : { postings: reply.postings }) };
+}
+
+/**
+ * Reads asked for when something happens, not while the page is drawn: a
+ * scan that must know now whether a code names an item, a run that reads
+ * which lines are still to go. The lists' own routes, the reader's own grants.
+ */
+export function useRead(): UseReadResult {
+  const kit = useKit();
+  const client = useQueryClient();
+  return useMemo<UseReadResult>(
+    () => ({
+      list: async (table, options = {}) => {
+        const at = resolveTable(kit, table);
+        const { params, pageSize } = listParams(options);
+        try {
+          const rows = ((await createCrudApi(at.connectionId, at.id).list(params)).data ?? []) as DataRow[];
+          return { rows: rows.length > pageSize ? rows.slice(0, pageSize) : rows, hasMore: rows.length > pageSize };
+        } catch (caught) {
+          refreshOnRefusal(client, kit, caught);
+          throw caught;
+        }
+      },
+      get: async (table, key) => {
+        const at = resolveTable(kit, table);
+        try {
+          return (await createCrudApi(at.connectionId, at.id).get(keyText(key))).data as DataRow;
+        } catch (caught) {
+          if (caught instanceof ApiError && caught.status === 404) return null;
+          refreshOnRefusal(client, kit, caught);
+          throw caught;
+        }
+      },
+    }),
+    [kit, client],
+  );
 }
 
 /** What every write hook shares: how many are running, the last refusal, and a refresh of everything that read the table. */
@@ -183,7 +222,7 @@ function useRunner(kit: Kit, connectionId: string) {
 }
 
 interface EachReply {
-  results: { id?: unknown; index?: number; ok: boolean; data?: DataRow; error?: { code: string; message?: string; details?: unknown } }[];
+  results: { id?: unknown; index?: number; ok: boolean; data?: DataRow; postings?: PostingSaid[]; error?: { code: string; message?: string; details?: unknown } }[];
 }
 
 /**
@@ -206,7 +245,7 @@ async function each<Item>(items: readonly Item[], keyOf: (item: Item, index: num
         const result = reply.results[i];
         const key = result?.data?.['id'] !== undefined && result.data['id'] !== null ? String(result.data['id']) : keyOf(item, start + i);
         if (result === undefined || result.error?.code === 'NOT_RUN') out.push({ key, ok: false, notRun: true });
-        else if (result.ok) out.push({ key, ok: true, row: result.data ?? {} });
+        else if (result.ok) out.push({ key, ok: true, row: result.data ?? {}, ...(result.postings === undefined || result.postings.length === 0 ? {} : { postings: result.postings }) });
         else out.push({ key, ok: false, error: { code: result.error?.code ?? 'REFUSED', message: result.error?.message ?? '', ...(typeof result.error?.details === 'object' && result.error.details !== null ? { details: result.error.details as Record<string, unknown> } : {}) } });
       });
     } catch (caught) {
@@ -233,7 +272,7 @@ export function useWrite(table: string): UseWriteResult {
           const reply = await crud.remove(keyText(key), { confirm: true });
           if (isDeletePreview(reply)) throw new Error('Other rows refer to this one: it was not deleted.');
         }),
-      updateEach: (keys, values) => run(() => each(keys, (key) => keyText(key), (chunk) => api.post<EachReply>(`${base}/one-by-one`, { ids: chunk, values }))),
+      updateEach: (keys, values, options) => run(() => each(keys, (key) => keyText(key), (chunk) => api.post<EachReply>(`${base}/one-by-one`, { ids: chunk, values, ...(options?.from === undefined ? {} : { from: options.from }) }))),
       createEach: (rows) => run(() => each(rows, (_row, index) => String(index), (chunk) => api.post<EachReply>(`${base}/one-by-one`, { creates: chunk }))),
       saving,
       error,

@@ -51,6 +51,7 @@ export const ConfirmModal = data['ConfirmModal'] as never;
 export const Link = data['Link'] as never;
 export const useRecords = data['useRecords'] as never;
 export const useRecord = data['useRecord'] as never;
+export const useRead = data['useRead'] as never;
 export const useWrite = data['useWrite'] as never;
 export const useTreeWrite = data['useTreeWrite'] as never;
 export const useStateMove = data['useStateMove'] as never;

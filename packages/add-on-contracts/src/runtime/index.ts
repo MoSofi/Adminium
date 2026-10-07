@@ -439,6 +439,7 @@ export const ADD_ON_DATA_EXPORTS = [
   // Hooks
   'useRecords',
   'useRecord',
+  'useRead',
   'useWrite',
   'useTreeWrite',
   'useStateMove',

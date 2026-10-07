@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { jsonResponse } from '../test/fixtures.js';
 import { AddOnKeyContext } from './data-kit/context.js';
-import { EACH_CALL_MAX, listParams, useAccess, useDocument, useExport, useLookUp, useRecord, useRecords, useStateMove, useTreeWrite, useWords, useWrite } from './data-kit/hooks.js';
+import { EACH_CALL_MAX, listParams, useAccess, useDocument, useExport, useLookUp, useRead, useRecord, useRecords, useStateMove, useTreeWrite, useWords, useWrite } from './data-kit/hooks.js';
 import type { KitReply } from './data-kit/resolve.js';
 
 const CONN = 'cnx_1';
@@ -130,6 +130,42 @@ describe('a table is a short name', () => {
     expect([sent.get('limit'), sent.get('offset')]).toEqual(['21', '40']);
     // Never more than the data routes give in one read.
     expect(listParams({ pageSize: 5000 }).params.limit).toBe(200);
+  });
+
+  it('reads when asked, not when drawn: a page of rows with "more", one row or null, and a refusal as itself', async () => {
+    const rows = Array.from({ length: 3 }, (_unused, index) => ({ id: index + 1 }));
+    const calls = serve((call) => {
+      if (call.path === `/api/v1/data/${CONN}/public.stock_items`) return jsonResponse(200, { data: rows });
+      if (call.path.endsWith('public.stock_items/7')) return jsonResponse(200, { data: { id: 7, name: 'Flour' } });
+      if (call.path.endsWith('public.stock_items/8')) return jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'No.', requestId: 'r' } });
+      if (call.path.endsWith('public.stock_items/9')) return jsonResponse(403, { error: { code: 'TABLE_FORBIDDEN', message: 'No.', requestId: 'r' } });
+      return undefined;
+    });
+    const read = await use(() => useRead());
+    // Nothing is asked until the page asks.
+    expect(calls).toEqual([]);
+    const listed = await read.result.current.list('items', { filter: [{ column: 'barcode', op: 'eq', value: '506' }], pageSize: 2, columns: ['id'] });
+    expect(listed).toEqual({ rows: [{ id: 1 }, { id: 2 }], hasMore: true });
+    expect(JSON.parse(calls[0]!.search.get('where')!)).toEqual({ column: 'barcode', op: 'eq', value: '506' });
+    expect(calls[0]!.search.get('limit')).toBe('3');
+    expect(await read.result.current.get('items', 7)).toEqual({ id: 7, name: 'Flour' });
+    expect(await read.result.current.get('items', 8)).toBeNull();
+    await expect(read.result.current.get('items', 9)).rejects.toMatchObject({ code: 'TABLE_FORBIDDEN' });
+    // A table that is not the add-on's is no name a read may use either.
+    await expect(read.result.current.list('public.stock_items')).rejects.toThrow('is not a table of stock');
+  });
+
+  it('a row-by-row change carries the state the rows were seen in, and what the ledger said of each', async () => {
+    const calls = serve((call) => (call.path.endsWith('/one-by-one') ? jsonResponse(200, { results: [{ id: 1, ok: true, data: { id: 1, status: 'posted' }, postings: [{ ledger: 'stock', state: 'ok', notes: [{ line: 0, note: 'short' }] }] }, { id: 2, ok: true, data: { id: 2, status: 'posted' } }], done: 2, notRun: 0 }) : undefined));
+    const write = await use(() => useWrite('orders'));
+    let results!: Awaited<ReturnType<typeof write.result.current.updateEach>>;
+    await act(async () => {
+      results = await write.result.current.updateEach([1, 2], { status: 'posted' }, { from: 'draft' });
+    });
+    expect(calls.find((call) => call.path.endsWith('/one-by-one'))?.body).toEqual({ ids: [1, 2], values: { status: 'posted' }, from: 'draft' });
+    expect(results[0]).toEqual({ key: '1', ok: true, row: { id: 1, status: 'posted' }, postings: [{ ledger: 'stock', state: 'ok', notes: [{ line: 0, note: 'short' }] }] });
+    // A row the ledger said nothing of carries no key for it.
+    expect(results[1]).toEqual({ key: '2', ok: true, row: { id: 2, status: 'posted' } });
   });
 
   it('a list that waits reads nothing; one record that is not there is null, not an error', async () => {

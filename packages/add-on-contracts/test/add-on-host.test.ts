@@ -82,7 +82,7 @@ describe('the data kit', () => {
       'DataTable', 'Stat', 'KeyValueList', 'StatusPill', 'ProgressBar', 'Pagination', 'MonoText',
       'Field', 'Input', 'NumberInput', 'Textarea', 'DateInput', 'Select', 'Combobox', 'Switch', 'Checkbox', 'RadioGroup', 'RadioCard', 'ToggleChip', 'InputGroup', 'Menu', 'MenuItem', 'ConfirmModal',
       'Link',
-      'useRecords', 'useRecord', 'useWrite', 'useTreeWrite', 'useStateMove', 'useAccess', 'useLookUp', 'useWords', 'useDocument', 'useExport',
+      'useRecords', 'useRecord', 'useRead', 'useWrite', 'useTreeWrite', 'useStateMove', 'useAccess', 'useLookUp', 'useWords', 'useDocument', 'useExport',
     ]);
     expect(new Set(ADD_ON_DATA_EXPORTS).size).toBe(ADD_ON_DATA_EXPORTS.length);
     // None of them is a name the UI namespace already publishes: a page imports each from one place.

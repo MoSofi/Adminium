@@ -62,8 +62,17 @@ export interface UseRecordResult {
   refetch: () => void;
 }
 
+/** What a ledger said of one save: whether its answer was written, and what it told staff of the line. */
+export interface PostingSaid {
+  ledger: string;
+  state: string;
+  reason?: string;
+  left?: string;
+  notes?: readonly { line: number; note: string }[];
+}
+
 /** One row's outcome of a write made row by row. */
-export type EachResult = { key: string; ok: true; row: DataRow } | { key: string; ok: false; error: DataError } | { key: string; ok: false; notRun: true };
+export type EachResult = { key: string; ok: true; row: DataRow; postings?: readonly PostingSaid[] } | { key: string; ok: false; error: DataError } | { key: string; ok: false; notRun: true };
 
 /**
  * A code Adminium made that is shown once and stored nowhere it can be read
@@ -82,6 +91,8 @@ export interface WriteResult {
   /** The row as it was saved, with every column Adminium decided. */
   row: DataRow;
   once?: readonly OnceValue[];
+  /** What each ledger the save posted into said of it; absent where it posted into none. */
+  postings?: readonly PostingSaid[];
 }
 
 export interface UseWriteResult {
@@ -89,11 +100,23 @@ export interface UseWriteResult {
   update: (key: string | number, values: Readonly<Record<string, DataValue>>) => Promise<WriteResult>;
   remove: (key: string | number) => Promise<void>;
   /** The same change to up to 500 rows, one save each: what a bulk change is where a save may post. */
-  updateEach: (keys: readonly (string | number)[], values: Readonly<Record<string, DataValue>>) => Promise<readonly EachResult[]>;
+  /** `from`: the state every row was seen in — a row that moved meanwhile is refused, never moved twice. */
+  updateEach: (keys: readonly (string | number)[], values: Readonly<Record<string, DataValue>>, options?: { from?: string }) => Promise<readonly EachResult[]>;
   /** Up to 500 rows made, one save each. */
   createEach: (rows: readonly Readonly<Record<string, DataValue>>[]) => Promise<readonly EachResult[]>;
   saving: boolean;
   error: DataError | null;
+}
+
+/**
+ * Reads made when something happens — a scan, a run over a sheet's lines —
+ * and not while the page is drawn: the same routes and the same grants as
+ * the lists, answered as a promise.
+ */
+export interface UseReadResult {
+  list: (table: string, options?: Omit<UseRecordsOptions, 'enabled'>) => Promise<{ rows: readonly DataRow[]; hasMore: boolean }>;
+  /** One row by its key; null where there is none the reader may see. */
+  get: (table: string, key: string | number) => Promise<DataRow | null>;
 }
 
 /** A row with the rows that belong to it, made in one save. */
@@ -194,6 +217,7 @@ export interface UseExportResult {
 export interface AddOnDataHooks {
   useRecords: (table: string, options?: UseRecordsOptions) => UseRecordsResult;
   useRecord: (table: string, key: string | number | null) => UseRecordResult;
+  useRead: () => UseReadResult;
   useWrite: (table: string) => UseWriteResult;
   useTreeWrite: (table: string) => UseTreeWriteResult;
   useStateMove: (table: string) => UseStateMoveResult;
