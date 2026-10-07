@@ -251,5 +251,7 @@ describe('how what is given back is shared', () => {
     // An order that came to cost MORE without the thing (a pair broken) gives nothing back, never less than nothing.
     expect(share('-2.00', '-0.10', [{ key: 'a' }])).toEqual({ rows: [{ key: 'a', amount: '0.00', tax: '0.00' }] });
     expect(share('5.00', '0.40', [{ key: 'a', against: 'gone' }])).toEqual({ rows: [{ key: 'a', amount: '5.00', tax: '0.40' }] });
+    // The tax given back is part of what is given back: never more than it.
+    expect(share('1.00', '2.00', [{ key: 'a' }])).toEqual({ rows: [{ key: 'a', amount: '1.00', tax: '1.00' }] });
   });
 });
