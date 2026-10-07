@@ -7,6 +7,8 @@
  * removed in reverse. A value is a plain JSON value or one of these directives:
  *
  *   `{"@ref": "<label>"}`      the key of an earlier row with that `@label`
+ *                               (or of a labelled starting row of the manifest's
+ *                               own `seeds`: see `seedLabelsOf`)
  *   `{"@ago": "PT19M"}`        an ISO-8601 duration before now
  *   `{"@in": "PT20M", "@grid": 15}`   an ISO-8601 duration after now; with
  *                               `@grid`, rounded up to the next time on that
@@ -293,9 +295,49 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
     if (table.own === true) issues.push({ path: `tables.${String(t)}.own`, message: '"own" marks a table of the app in its rows for an add-on; a manifest\'s own sample file takes none.' });
   });
   const declared = new Map<string, DeclaredTable>((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
-  issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false }));
+  issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false, known: seedLabelsOf(manifest) }));
   issues.push(...ledgerOrderIssues(bundle, manifest, declared));
   return issues;
+}
+
+/**
+ * The labels a manifest's starting rows carry (`seeds`, rows written in the
+ * manifest itself). A sample row may point at one: the starting row is found
+ * again by what tells it apart (`seedRowIdentity`), so the sample's items can
+ * name the unit an install seeded. A starting row kept in a file carries no
+ * label a sample can name.
+ */
+export function seedLabelsOf(manifest: Manifest): Set<string> {
+  const out = new Set<string>();
+  for (const seed of manifest.seeds ?? []) {
+    for (const row of seed.rows ?? []) if (typeof row['@label'] === 'string') out.add(row['@label']);
+  }
+  return out;
+}
+
+/**
+ * What tells a labelled starting row apart once it is in its table: the
+ * values it gives its table's one-of-a-kind columns, else the value of the
+ * table's key field. A text in several languages (`@t`) is any of them — the
+ * row was written in the installing person's. Empty when the row gives
+ * neither: such a label cannot be found again.
+ */
+export function seedRowIdentity(manifest: Manifest, table: string, row: Record<string, unknown>): { column: string; values: (string | number | boolean)[] }[] {
+  const shape = (manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === table);
+  if (shape === undefined) return [];
+  const valuesOf = (value: unknown): (string | number | boolean)[] | null => {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return [value];
+    const found = sampleDirective(value);
+    return found?.kind === 't' ? [...new Set(Object.values(found.texts))] : null;
+  };
+  const told = (columns: readonly string[]) =>
+    columns.flatMap((column) => {
+      const values = valuesOf(row[column]);
+      return values === null ? [] : [{ column, values }];
+    });
+  const unique = told(shape.columns.filter((column) => column.unique === true).map((column) => column.ref));
+  if (unique.length > 0) return unique;
+  return shape.keyField === undefined ? [] : told([shape.keyField]);
 }
 
 /**
@@ -406,10 +448,12 @@ function rowIssues(
     what: 'app' | 'add-on';
     /** Whether a `@ref` may name a row of another file (so an unknown label is not an error here). */
     otherLabels: boolean;
+    /** Labels of rows that are there before the file's first: the manifest's own starting rows. */
+    known?: ReadonlySet<string>;
   },
 ): SampleIssue[] {
   const issues: SampleIssue[] = [];
-  const seen = new Set<string>();
+  const seen = new Set<string>(opts.known ?? []);
   // The labels of a table whose rows may all be left out: nothing may point at them.
   const mayBeLeftOut = new Set(bundle.tables.filter((table) => table.onlyIfEmpty === true).flatMap((table) => table.rows.map((row) => row['@label']).filter((l): l is string => typeof l === 'string')));
   for (const [t, table] of bundle.tables.entries()) {

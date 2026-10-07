@@ -108,6 +108,81 @@ describe.each(LEGS)('an add-on\'s own sample data — %s', (dialect, available) 
   });
 });
 
+/** The stock kit with starting rows a sample can name: shelves told apart by a code, causes by their name (in the installing person's language). */
+function seededKit(): { manifest: Record<string, unknown>; files: Record<string, string> } {
+  const manifest = stockKitManifest() as Record<string, unknown> & { requiredSchema: { tables: unknown[] } };
+  manifest.requiredSchema.tables.push(
+    { ref: 'shelves', columns: [pk, { ref: 'code', type: 'text', maxLength: 12, unique: true }, { ref: 'name', type: 'text', maxLength: 40 }] },
+    { ref: 'causes', keyField: 'label', columns: [pk, { ref: 'label', type: 'text', maxLength: 40 }] },
+    {
+      ref: 'tags',
+      columns: [pk, { ref: 'shelf_id', type: 'fk', references: 'shelves' }, { ref: 'cause_id', type: 'fk', references: 'causes', nullable: true }, { ref: 'body', type: 'text', maxLength: 80 }],
+    },
+  );
+  manifest['seeds'] = [
+    { table: 'shelves', rows: [{ '@label': 'shelf:top', code: 'top', name: { '@t': { 'en-US': 'Top shelf', 'de-DE': 'Oberes Regal' } } }, { '@label': 'shelf:low', code: 'low', name: { '@t': { 'en-US': 'Low shelf' } } }, { code: 'back', name: 'Back' }] },
+    { table: 'causes', rows: [{ '@label': 'cause:broken', label: { '@t': { 'en-US': 'Broken', 'de-DE': 'Kaputt' } } }] },
+  ];
+  manifest['sampleData'] = { file: 'seeds/stock.sample.json' };
+  const bundle = {
+    format: 'adminium.sample/1',
+    app: 'stock-kit',
+    tables: [
+      {
+        ref: 'tags',
+        rows: [
+          { '@label': 'tag:first', shelf_id: { '@ref': 'shelf:top' }, cause_id: { '@ref': 'cause:broken' }, body: 'On the top shelf' },
+          { shelf_id: { '@ref': 'shelf:low' }, body: 'On the low shelf' },
+        ],
+      },
+    ],
+  };
+  return { manifest, files: { 'seeds/stock.sample.json': JSON.stringify(bundle) } };
+}
+
+describe.each(LEGS)('a sample row names a row the install seeded — %s', (dialect, available) => {
+  async function installed(locale?: string): Promise<Harness> {
+    const harness = await addOnHarness(dialect, { unbuiltWords: {} });
+    const { manifest, files } = seededKit();
+    await harness.stageAddOn(manifest, { files });
+    const reply = await harness.inject({ method: 'POST', url: '/add-ons', payload: { key: 'stock-kit', version: '1.0.0', attachTo: [] }, ...(locale === undefined ? {} : { headers: { 'accept-language': locale } }) });
+    expect(reply.statusCode, reply.body).toBe(200);
+    return harness;
+  }
+  const tags = async (harness: Harness) =>
+    (await harness.rows('SELECT t.body AS body, s.code AS shelf, c.label AS cause FROM stock_kit_tags t JOIN stock_kit_shelves s ON s.id = t.shelf_id LEFT JOIN stock_kit_causes c ON c.id = t.cause_id ORDER BY t.id')).map((row) => [row['body'], row['shelf'], row['cause'] ?? null]);
+  const count = async (harness: Harness, table: string) => Number((await harness.rows(`SELECT COUNT(*) AS n FROM stock_kit_${table}`))[0]!['n']);
+
+  it.runIf(available)('by the starting row\'s label; the starting rows are never the sample\'s to take out', async () => {
+    h = await installed();
+    const added = await add(h);
+    expect(added.counts).toEqual({ tags: 2 });
+    expect(await tags(h)).toEqual([['On the top shelf', 'top', 'Broken'], ['On the low shelf', 'low', null]]);
+    // Only the sample's own rows are listed: a unit the install seeded is the owner's from the first second.
+    expect((await get(h, '/add-ons/stock-kit/sample-data')).json()).toMatchObject({ loaded: true, total: 2 });
+    const removed = await post(h, '/add-ons/stock-kit/sample-data/remove', { keepChanged: true });
+    expect(removed.json()).toMatchObject({ removed: 2, kept: 0 });
+    expect([await count(h, 'tags'), await count(h, 'shelves'), await count(h, 'causes')]).toEqual([0, 3, 1]);
+  });
+
+  it.runIf(available)('with that starting row deleted, or renamed where its name is all that tells it apart, the row that names it is left out', async () => {
+    h = await installed();
+    const db = await source(h);
+    await sql`delete from stock_kit_shelves where code = 'low'`.execute(db);
+    await sql`update stock_kit_causes set label = 'Smashed'`.execute(db);
+    const added = await add(h);
+    // The low shelf is gone, so its tag is left out; the first tag names the renamed cause, so it goes too. Nothing fails.
+    expect(added.counts).toEqual({});
+    expect(await tags(h)).toEqual([]);
+    // A shelf is told apart by its code alone: renamed, it is still the row the sample means.
+    await post(h, '/add-ons/stock-kit/sample-data/remove', { keepChanged: true });
+    await sql`update stock_kit_causes set label = 'Kaputt'`.execute(db);
+    await sql`update stock_kit_shelves set name = 'The high one' where code = 'top'`.execute(db);
+    expect((await add(h)).counts).toEqual({ tags: 1 });
+    expect(await tags(h)).toEqual([['On the top shelf', 'top', 'Kaputt']]);
+  });
+});
+
 describe('the job an add-on\'s sample is added by', () => {
   it('is queued as the add-on\'s, and the handler adds the add-on\'s rows — never an app\'s of the same key', async () => {
     h = await addOnHarness('sqlite', { unbuiltWords: {} });

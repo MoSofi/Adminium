@@ -58,6 +58,8 @@ import {
   sampleBundleSchema,
   sampleDirective,
   sampleSectionIssues,
+  seedLabelsOf,
+  seedRowIdentity,
   shareCodeColumns,
   type Manifest,
   type SampleBundle,
@@ -1131,6 +1133,44 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return out;
   }
 
+  /**
+   * The owner's labelled starting rows (its manifest's `seeds`), found again
+   * in their tables by what tells each apart: `found` is label → key, `gone`
+   * the labels whose row is not there any more (the operator deleted the
+   * unit, or renamed it). A sample row that names one of the first points at
+   * the operator's row, which is never the sample's own; one that names one
+   * of the second is left out.
+   */
+  async function seededLabels(owner: SampleApp, connectionId: string, handle: DataHandle): Promise<{ found: Map<string, unknown>; gone: Set<string> }> {
+    const found = new Map<string, unknown>();
+    const gone = new Set<string>();
+    const seeds = (owner.manifest.seeds ?? []).filter((seed) => (seed.rows ?? []).some((row) => typeof row['@label'] === 'string'));
+    if (seeds.length === 0) return { found, gone };
+    const names = await sampleNames(connectionId, owner.key, []);
+    const view = await viewFor(connectionId);
+    const db = asDb(handle.db);
+    for (const seed of seeds) {
+      const real = names[seed.table];
+      const table = real === undefined ? null : safeTable(view, real);
+      for (const row of seed.rows ?? []) {
+        const label = row['@label'];
+        if (typeof label !== 'string') continue;
+        const identity = seedRowIdentity(owner.manifest, seed.table, row);
+        if (table === null || identity.length === 0) {
+          gone.add(label);
+          continue;
+        }
+        let query = db.selectFrom(table.id as never).selectAll();
+        for (const part of identity) query = query.where(sql.ref(part.column), 'in', part.values as never);
+        for (const column of table.primaryKey) query = query.orderBy(sql.ref(column), 'asc');
+        const there = (await query.limit(1).executeTakeFirst()) as Row | undefined;
+        if (there === undefined) gone.add(label);
+        else found.set(label, table.primaryKey.length === 1 ? there[table.primaryKey[0]!] : Object.fromEntries(table.primaryKey.map((column) => [column, there[column]])));
+      }
+    }
+    return { found, gone };
+  }
+
   /** An app's file of rows for one add-on, read and checked against both manifests; and whether a row of it points at the add-on's own sample. */
   async function readSection(app: SampleApp, addOnKey: string, addOn: SampleApp) {
     const file = app.manifest.kind === 'app' ? app.manifest.sampleData?.addOns?.[addOnKey]?.file : undefined;
@@ -1153,7 +1193,9 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const own = labelsOf(section);
     const named = new Set(section.tables.flatMap((table) => table.rows.flatMap((row) => Object.entries(row).flatMap(([column, value]) => (ROW_DIRECTIVES.has(column) ? [] : refsIn(value))))));
     const appBundleLabels = labelsOf(await loadBundle(app));
-    return { section, own, named, namesTheirSample: [...named].some((label) => !own.has(label) && !appBundleLabels.has(label)) };
+    // A starting row of the add-on is there whether its sample is or not: naming one holds nothing back.
+    const seeded = seedLabelsOf(addOn.manifest);
+    return { section, own, named, namesTheirSample: [...named].some((label) => !own.has(label) && !appBundleLabels.has(label) && !seeded.has(label)) };
   }
 
   /** The apps whose loaded section for this add-on points at a row of the add-on's own sample: those rows leave before that sample does. */
@@ -1198,6 +1240,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     // A row that points at the ADD-ON's own sample: the whole file waits until that sample is in.
     if (namesTheirSample && theirs.size === 0) return null;
     for (const [label, key] of theirs) if (!labels.has(label)) labels.set(label, key);
+    for (const [label, key] of (await seededLabels(addOn, connectionId, handle)).found) if (!labels.has(label)) labels.set(label, key);
     return {
       bundle: { ...section, assets: {}, tables: section.tables.map((table) => ({ ...table, ref: table.own === true ? table.ref : `${addOnKey}:${table.ref}` })) },
       section: addOnKey,
@@ -1889,7 +1932,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       if (status.loaded) {
         throw new ConflictError(`"${app.key}" already has its sample data. Remove it first to add it again.`, 'CONFLICT');
       }
-      const done = await addPass(app, { bundle, owns: (ref) => !ref.includes(':') }, opts);
+      const seeded = await seededLabels(app, connectionId, await deps.manager.data(connectionId));
+      const done = await addPass(app, { bundle, owns: (ref) => !ref.includes(':'), labels: seeded.found, leftOut: seeded.gone }, opts);
       const counts = { ...done.counts };
       for (const section of await sectionsFor(app, connectionId)) {
         const added = await addPass(app, section, opts);

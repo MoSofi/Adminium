@@ -309,6 +309,8 @@ export {
   byStaySchema,
   isoDurationMs,
   sampleBundleIssues,
+  seedLabelsOf,
+  seedRowIdentity,
   sampleSectionIssues,
   sampleBundleSchema,
   sampleDirective,
