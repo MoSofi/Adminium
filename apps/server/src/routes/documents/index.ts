@@ -52,6 +52,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { providersFor, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { audited } from '../../audit/coverage.js';
 import { appDocumentOff, appProfileFor, ownedDocumentOff } from '../../documents/app-documents.js';
+import { registerAddOnRender } from './add-on-render.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
@@ -774,6 +775,9 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         });
       },
     );
+
+    // An add-on's own page asks for a document of one of its own tables: the same rule, by the add-on's names.
+    registerAddOnRender(app, { meta: deps.meta, runtime: deps.runtime, pipeline: deps.pipeline }, { apiPrefix: API_PREFIX, notFound, documentReads, documentColumnRefused, toReply });
 
     app.post(
       '/documents/:id/void',

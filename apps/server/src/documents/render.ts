@@ -279,6 +279,14 @@ export interface RenderRequest {
    * cannot hold.
    */
   values?: Readonly<Record<string, string | number | boolean>> | undefined;
+  /**
+   * The paper whoever asked wants this one drawn on (a card on A6, the same
+   * card as a till strip): first in the chain — before the profile's own
+   * option and the kind's first — and only one the kind lists; any other is
+   * refused by name (`paper`) before anything is written. Part of what makes
+   * a document reusable: the same row on another paper is another document.
+   */
+  paper?: string | undefined;
 }
 
 /** A value a render request carries for a slot, refused: the slot is named. */
@@ -582,7 +590,10 @@ export async function renderDocument(
   const outline = provider.describe(profile.kind);
   const kind = provider.kinds().find((entry) => entry.id === profile.kind);
   const formats = (options.formats ?? kind?.formats ?? ['html']) as ('html' | 'pdf')[];
-  const paper = (options.paper ?? kind?.paper[0] ?? 'a4') as string;
+  if (request.paper !== undefined && !((kind?.paper ?? []) as readonly string[]).includes(request.paper)) {
+    throw new DocumentValueError('paper', `A ${profile.kind} is not drawn on "${request.paper}".`);
+  }
+  const paper = (request.paper ?? options.paper ?? kind?.paper[0] ?? 'a4') as string;
   const settings = await deps.settingsFor(profile.addOnKey);
   const business = await deps.business(profile.addOnKey);
   const values =
