@@ -89,6 +89,7 @@ export default {
       "usedUp": "Denne kode er brugt så mange gange, som den kan.",
       "plainText": "Brug kun bogstaver, mellemrum og almindelig tegnsætning: ingen web- eller e-mailadresse.",
       "notFound": "Dette findes ikke længere. Vælg et andet.",
+      "reserved": "En rabatkode må ikke begynde som en værdibevis- eller gavekortkode.",
       "email": "Indtast en gyldig e-mailadresse.",
       "url": "Indtast en gyldig webadresse.",
       "phone": "Indtast et gyldigt telefonnummer.",

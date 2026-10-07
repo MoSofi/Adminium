@@ -47,6 +47,7 @@ export function recordRefusal(error: unknown): string {
       return t('ui:pages.record.forbidden', 'Your role may not change this.');
     case 'NOT_FOUND':
       return t('ui:pages.record.notFound', 'This record, or this action, is no longer there.');
+    case 'ADJUST_REFUSED':
     case 'POSTING_REFUSED': {
       // The ledger's own sentence, as every other save of the dashboard says it.
       const said = inReadersWords(error);

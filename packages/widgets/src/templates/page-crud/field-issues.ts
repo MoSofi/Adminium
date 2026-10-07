@@ -38,6 +38,7 @@ export const FIELD_ISSUE_CODES = [
   'used-up',
   'plain-text',
   'not-found',
+  'reserved',
 ] as const;
 
 export type FieldIssueCode = (typeof FIELD_ISSUE_CODES)[number];
@@ -101,6 +102,9 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
       return t('ui:formDialog.issue.plainText', 'Use letters, spaces and ordinary punctuation only: no web or email address.');
     case 'not-found':
       return t('ui:formDialog.issue.notFound', 'This is no longer there. Choose another.');
+    // A discount code spelled like a voucher's or a gift card's: a typed value starting so would be taken for one of those.
+    case 'reserved':
+      return t('ui:formDialog.issue.reserved', 'A discount code cannot start like a voucher or a gift card code.');
     // `format` is the server's word for "a validation rule said no" with no
     // shape named; it reads as the general refusal, which is what it is.
     case 'format':

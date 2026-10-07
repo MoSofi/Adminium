@@ -66,5 +66,23 @@ export default {
     "hooked": "Kód projektu mění tabulku, kterou vede doplněk, takže do ní při ukládání nelze nic zapsat.",
     "guarded": "Tabulka, kterou vede doplněk, má vlastní zámek, takže do ní při ukládání nelze nic zapsat.",
     "card-pays-card": "Toto nelze zaplatit tímto způsobem."
+  },
+  "ADJUST_REFUSED": "Toto se nepodařilo uplatnit na cenu.",
+  "ADJUST_REASON": {
+    "unknown": "Takový kód tu není v nabídce.",
+    "used-up": "Tento kód už byl použit tolikrát, kolikrát to jde.",
+    "needs-minimum": "Tento kód vyžaduje útratu {amount} nebo vyšší.",
+    "not-for-these-items": "Tento kód se nevztahuje na nic v této objednávce.",
+    "needs-sign-in": "Tento kód je pro přihlášené zákazníky.",
+    "needs-customer": "Nejprve uveďte zákazníka: tento kód platí jednou pro každého.",
+    "over-ceiling": "To je víc, než smíte odečíst. Nejvýše {max}.",
+    "expired": "Platnost tohoto kódu vypršela.",
+    "inactive": "Tento kód není aktivní.",
+    "void": "Tento kód byl zrušen.",
+    "not-yet": "Tento kód zatím nelze použít.",
+    "over-limit": "Tento zákazník už kód použil tolikrát, kolikrát dovoluje.",
+    "frozen": "Cena této objednávky je konečná a už ji nelze změnit.",
+    "not-allowed": "Toto nesmíte změnit.",
+    "refund-over": "To je víc, než kolik zbývá vrátit."
   }
 } as const;

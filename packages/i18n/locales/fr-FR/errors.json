@@ -56,5 +56,23 @@
     "hooked": "Du code du projet modifie une table tenue par le module ; rien ne peut y être inscrit pendant un enregistrement.",
     "guarded": "Une table tenue par le module a son propre verrou ; rien ne peut y être inscrit pendant un enregistrement.",
     "card-pays-card": "Ceci ne peut pas être payé de cette façon."
+  },
+  "ADJUST_REFUSED": "Cela n’a pas pu être appliqué au prix.",
+  "ADJUST_REASON": {
+    "unknown": "Aucun code de ce type n’est proposé ici.",
+    "used-up": "Ce code a été utilisé autant de fois que possible.",
+    "needs-minimum": "Ce code demande un montant de {amount} ou plus.",
+    "not-for-these-items": "Ce code ne s’applique à rien dans cette commande.",
+    "needs-sign-in": "Ce code est réservé aux clients connectés.",
+    "needs-customer": "Indiquez d’abord le client : ce code vaut une fois par client.",
+    "over-ceiling": "C’est plus que ce que vous pouvez retirer. Le maximum est {max}.",
+    "expired": "Ce code a expiré.",
+    "inactive": "Ce code n’est pas actif.",
+    "void": "Ce code a été annulé.",
+    "not-yet": "Ce code ne peut pas encore être utilisé.",
+    "over-limit": "Ce client a utilisé ce code autant de fois qu’il le permet.",
+    "frozen": "Le prix de cette commande est arrêté : il ne peut plus être modifié.",
+    "not-allowed": "Vous ne pouvez pas modifier cela.",
+    "refund-over": "C’est plus que ce qu’il reste à rembourser."
   }
 }

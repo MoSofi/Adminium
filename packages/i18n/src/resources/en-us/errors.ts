@@ -66,5 +66,23 @@ export default {
     "hooked": "Project code changes a table the add-on keeps, so nothing can be recorded there during a save.",
     "guarded": "A table the add-on keeps has a lock of its own, so nothing can be recorded there during a save.",
     "card-pays-card": "This cannot be paid for this way."
+  },
+  "ADJUST_REFUSED": "This could not be applied to the price.",
+  "ADJUST_REASON": {
+    "unknown": "No code like this is on offer here.",
+    "used-up": "This code has been used as many times as it can be.",
+    "needs-minimum": "This code needs a spend of {amount} or more.",
+    "not-for-these-items": "This code is not for anything on this order.",
+    "needs-sign-in": "This code is for a signed-in customer.",
+    "needs-customer": "Name the customer first: this code is kept for one use each.",
+    "over-ceiling": "This is more than you may take off. The most is {max}.",
+    "expired": "This code has expired.",
+    "inactive": "This code is not active.",
+    "void": "This code was voided.",
+    "not-yet": "This code cannot be used yet.",
+    "over-limit": "This customer has used this code as often as it allows.",
+    "frozen": "This order’s price stands: it cannot be changed any more.",
+    "not-allowed": "You may not change this.",
+    "refund-over": "This is more than is left to give back."
   }
 } as const;

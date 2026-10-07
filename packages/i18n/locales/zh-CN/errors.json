@@ -56,5 +56,23 @@
     "hooked": "项目代码会更改附加组件管理的表，因此保存期间无法在其中记录。",
     "guarded": "附加组件管理的表有自己的锁，因此保存期间无法在其中记录。",
     "card-pays-card": "不能用这种方式支付。"
+  },
+  "ADJUST_REFUSED": "无法将此应用于价格。",
+  "ADJUST_REASON": {
+    "unknown": "这里没有这样的优惠码。",
+    "used-up": "此优惠码的使用次数已达上限。",
+    "needs-minimum": "此优惠码需消费满 {amount}。",
+    "not-for-these-items": "此优惠码不适用于本订单中的任何商品。",
+    "needs-sign-in": "此优惠码仅供已登录的顾客使用。",
+    "needs-customer": "请先指定顾客：此优惠码每位顾客限用一次。",
+    "over-ceiling": "这超出了您可以减免的额度。最多为 {max}。",
+    "expired": "此优惠码已过期。",
+    "inactive": "此优惠码未启用。",
+    "void": "此优惠码已作废。",
+    "not-yet": "此优惠码尚不能使用。",
+    "over-limit": "该顾客使用此优惠码的次数已达上限。",
+    "frozen": "此订单的价格已确定，不能再更改。",
+    "not-allowed": "您不能更改此项。",
+    "refund-over": "这超出了剩余可退的金额。"
   }
 }

@@ -56,5 +56,23 @@
     "hooked": "Projektkode ændrer en tabel, som tilføjelsen fører, så intet kan registreres der under en lagring.",
     "guarded": "En tabel, som tilføjelsen fører, har sin egen lås, så intet kan registreres der under en lagring.",
     "card-pays-card": "Dette kan ikke betales på denne måde."
+  },
+  "ADJUST_REFUSED": "Dette kunne ikke anvendes på prisen.",
+  "ADJUST_REASON": {
+    "unknown": "Der findes ingen kode som denne her.",
+    "used-up": "Denne kode er brugt så mange gange, som den kan.",
+    "needs-minimum": "Denne kode kræver et køb på {amount} eller mere.",
+    "not-for-these-items": "Denne kode gælder ikke for noget i denne ordre.",
+    "needs-sign-in": "Denne kode er for kunder, der er logget ind.",
+    "needs-customer": "Angiv kunden først: denne kode gælder én gang pr. kunde.",
+    "over-ceiling": "Det er mere, end du må trække fra. Højst {max}.",
+    "expired": "Denne kode er udløbet.",
+    "inactive": "Denne kode er ikke aktiv.",
+    "void": "Denne kode er annulleret.",
+    "not-yet": "Denne kode kan ikke bruges endnu.",
+    "over-limit": "Denne kunde har brugt koden så mange gange, som den tillader.",
+    "frozen": "Prisen på denne ordre står fast og kan ikke længere ændres.",
+    "not-allowed": "Du må ikke ændre dette.",
+    "refund-over": "Det er mere, end der er tilbage at give tilbage."
   }
 }

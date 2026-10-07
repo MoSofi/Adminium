@@ -13175,6 +13175,70 @@
     "status": "mt",
     "srcHash": "19df8742962d"
   },
+  "errors.ADJUST_REASON.expired": {
+    "status": "mt",
+    "srcHash": "1d3888fca6b7"
+  },
+  "errors.ADJUST_REASON.frozen": {
+    "status": "mt",
+    "srcHash": "68131a603806"
+  },
+  "errors.ADJUST_REASON.inactive": {
+    "status": "mt",
+    "srcHash": "b49bab798a80"
+  },
+  "errors.ADJUST_REASON.needs-customer": {
+    "status": "mt",
+    "srcHash": "ab63a4a1ef42"
+  },
+  "errors.ADJUST_REASON.needs-minimum": {
+    "status": "mt",
+    "srcHash": "3f1b33460361"
+  },
+  "errors.ADJUST_REASON.needs-sign-in": {
+    "status": "mt",
+    "srcHash": "712d9d3622bc"
+  },
+  "errors.ADJUST_REASON.not-allowed": {
+    "status": "mt",
+    "srcHash": "006935434b05"
+  },
+  "errors.ADJUST_REASON.not-for-these-items": {
+    "status": "mt",
+    "srcHash": "320dc671d22f"
+  },
+  "errors.ADJUST_REASON.not-yet": {
+    "status": "mt",
+    "srcHash": "d526ee54a22e"
+  },
+  "errors.ADJUST_REASON.over-ceiling": {
+    "status": "mt",
+    "srcHash": "4df738651bd6"
+  },
+  "errors.ADJUST_REASON.over-limit": {
+    "status": "mt",
+    "srcHash": "9e88a3c615ec"
+  },
+  "errors.ADJUST_REASON.refund-over": {
+    "status": "mt",
+    "srcHash": "e3bf118046b7"
+  },
+  "errors.ADJUST_REASON.unknown": {
+    "status": "mt",
+    "srcHash": "41062948ca4c"
+  },
+  "errors.ADJUST_REASON.used-up": {
+    "status": "mt",
+    "srcHash": "395b6a9fc778"
+  },
+  "errors.ADJUST_REASON.void": {
+    "status": "mt",
+    "srcHash": "2e5439452ffe"
+  },
+  "errors.ADJUST_REFUSED": {
+    "status": "mt",
+    "srcHash": "2ece85d745f0"
+  },
   "errors.CONFLICT": {
     "srcHash": "b28abca7131d",
     "status": "mt"
@@ -26230,6 +26294,10 @@
   "ui.formDialog.issue.required": {
     "status": "mt",
     "srcHash": "ab90d9d736f9"
+  },
+  "ui.formDialog.issue.reserved": {
+    "status": "mt",
+    "srcHash": "ccd555cd07a7"
   },
   "ui.formDialog.issue.tooLarge": {
     "status": "mt",

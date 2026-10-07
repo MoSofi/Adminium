@@ -56,5 +56,23 @@
     "hooked": "專案程式碼會變更附加元件管理的資料表，因此儲存期間無法在其中記錄。",
     "guarded": "附加元件管理的資料表有自己的鎖，因此儲存期間無法在其中記錄。",
     "card-pays-card": "無法以這種方式付款。"
+  },
+  "ADJUST_REFUSED": "無法將此套用於價格。",
+  "ADJUST_REASON": {
+    "unknown": "這裡沒有這樣的優惠碼。",
+    "used-up": "此優惠碼的使用次數已達上限。",
+    "needs-minimum": "此優惠碼需消費滿 {amount}。",
+    "not-for-these-items": "此優惠碼不適用於本訂單中的任何商品。",
+    "needs-sign-in": "此優惠碼僅供已登入的顧客使用。",
+    "needs-customer": "請先指定顧客：此優惠碼每位顧客限用一次。",
+    "over-ceiling": "這超出了您可以減免的額度。最多為 {max}。",
+    "expired": "此優惠碼已過期。",
+    "inactive": "此優惠碼未啟用。",
+    "void": "此優惠碼已作廢。",
+    "not-yet": "此優惠碼尚不能使用。",
+    "over-limit": "該顧客使用此優惠碼的次數已達上限。",
+    "frozen": "此訂單的價格已確定，無法再變更。",
+    "not-allowed": "您無法變更此項目。",
+    "refund-over": "這超出了剩餘可退的金額。"
   }
 }

@@ -66,5 +66,23 @@ export default {
     "hooked": "Projektcode ändert eine Tabelle des Add-ons. Deshalb kann dort beim Speichern nichts eingetragen werden.",
     "guarded": "Eine Tabelle des Add-ons hat eine eigene Sperre. Deshalb kann dort beim Speichern nichts eingetragen werden.",
     "card-pays-card": "Das kann so nicht bezahlt werden."
+  },
+  "ADJUST_REFUSED": "Das konnte nicht auf den Preis angewendet werden.",
+  "ADJUST_REASON": {
+    "unknown": "Einen solchen Code gibt es hier nicht.",
+    "used-up": "Dieser Code wurde so oft verwendet, wie es möglich ist.",
+    "needs-minimum": "Dieser Code gilt ab einem Betrag von {amount}.",
+    "not-for-these-items": "Dieser Code gilt für nichts in dieser Bestellung.",
+    "needs-sign-in": "Dieser Code ist für angemeldete Kunden.",
+    "needs-customer": "Wählen Sie zuerst den Kunden: Dieser Code gilt einmal pro Kunde.",
+    "over-ceiling": "Das ist mehr, als Sie nachlassen dürfen. Höchstens {max}.",
+    "expired": "Dieser Code ist abgelaufen.",
+    "inactive": "Dieser Code ist nicht aktiv.",
+    "void": "Dieser Code wurde storniert.",
+    "not-yet": "Dieser Code kann noch nicht verwendet werden.",
+    "over-limit": "Dieser Kunde hat den Code so oft verwendet, wie er es erlaubt.",
+    "frozen": "Der Preis dieser Bestellung steht fest und kann nicht mehr geändert werden.",
+    "not-allowed": "Das dürfen Sie nicht ändern.",
+    "refund-over": "Das ist mehr, als noch zurückgegeben werden kann."
   }
 } as const;

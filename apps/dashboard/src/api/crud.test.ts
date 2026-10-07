@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse } from '../test/fixtures.js';
 import { ApiError } from '../app/api.js';
 import { createCrudApi, crudListQuery, forgetStateColumns } from './crud.js';
-import { ledgerRefusalText } from './ledgerRefusal.js';
+import { adjustRefusalText, inReadersWords, ledgerRefusalText } from './ledgerRefusal.js';
 
 describe('a bulk change of rows that post', () => {
   const refused = () => jsonResponse(409, { error: { code: 'POSTING_REFUSED', message: 'one at a time', requestId: 'r', details: { reason: 'one-at-a-time', posting: 'visit' } } });
@@ -70,6 +70,22 @@ describe('a save a ledger refused', () => {
     expect(new Set(said).size).toBe(reasons.length);
     expect(ledgerRefusalText('nothing-known')).toBeNull();
     expect(ledgerRefusalText(undefined)).toBeNull();
+  });
+
+  it('has a sentence for every reason a price is refused with, naming the figure the server gave', () => {
+    const reasons = ['unknown', 'used-up', 'needs-minimum', 'not-for-these-items', 'needs-sign-in', 'needs-customer', 'over-ceiling', 'expired', 'inactive', 'void', 'not-yet', 'over-limit', 'frozen', 'not-allowed', 'refund-over'];
+    const said = reasons.map((reason) => adjustRefusalText(reason, { amount: '30.00', max: '10' }));
+    expect(said.every((text) => typeof text === 'string' && text.length > 0)).toBe(true);
+    expect(new Set(said).size).toBe(reasons.length);
+    expect(adjustRefusalText('needs-minimum', { amount: '30.00' })).toContain('30.00');
+    expect(adjustRefusalText('over-ceiling', { max: '10' })).toContain('10');
+    expect(adjustRefusalText('nothing-known')).toBeNull();
+    // A refused price is told in the reader's words, its code and details kept for whoever routes on them.
+    const told = inReadersWords(new ApiError(409, 'ADJUST_REFUSED', 'This code has expired.', 'r', { reason: 'expired', column: 'typed' })) as ApiError;
+    expect(told).toBeInstanceOf(ApiError);
+    expect([told.code, told.status, told.details]).toEqual(['ADJUST_REFUSED', 409, { reason: 'expired', column: 'typed' }]);
+    expect(told.message).toBe(adjustRefusalText('expired'));
+    expect((inReadersWords(new ApiError(409, 'ADJUST_REFUSED', 'x', 'r', { reason: 'new-word' })) as ApiError).message).toBe('This could not be applied to the price.');
   });
 });
 

@@ -89,6 +89,7 @@ export default {
       "usedUp": "Dieser Code wurde so oft verwendet, wie er kann.",
       "plainText": "Verwenden Sie nur Buchstaben, Leerzeichen und übliche Satzzeichen: keine Web- oder E-Mail-Adresse.",
       "notFound": "Das gibt es nicht mehr. Wählen Sie etwas anderes.",
+      "reserved": "Ein Rabattcode darf nicht wie ein Gutschein- oder Geschenkkartencode beginnen.",
       "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
       "url": "Geben Sie eine gültige Webadresse ein.",
       "phone": "Geben Sie eine gültige Telefonnummer ein.",
