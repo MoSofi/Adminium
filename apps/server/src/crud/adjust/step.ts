@@ -48,14 +48,11 @@ import { priceNights } from '../per-night.js';
 import { venueClock } from '../venue-time.js';
 import type { WriteClock } from '../write-clock.js';
 import type { WriteAction, WriteActor, WriteContext, WriteTarget } from '../write-context.js';
-import type { TreeWritten } from '../write-tree.js';
 import { bindWriteValue, booleanOf, sameValue } from '../write-values.js';
 import { adjustWords, publicReason, refusalOf, type RefusedCode } from './answers.js';
 import { checkAdjust } from './check.js';
 import { orderFigures, type FiguredRow } from './figures.js';
 import { refundShares } from './refund.js';
-import type { AppliedReply } from './replies.js';
-import { storedReductions } from './stored.js';
 import { AdjustTooLarge, CODE_ROWS_MAX, adjustCodeOf, adjustLineOf, findCodes, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
 import { frozenNow, moved, touched, type CompiledAdjust } from './rule.js';
 
@@ -241,6 +238,21 @@ export interface RefundAnswer {
   /** The order's payments: what each took, what it had given back before, and the most it could be given now. */
   payments: { key: string; took: string; givenBack: string; max: string }[];
   rows: { key: string; amount: string; tax?: string }[];
+}
+
+/** A row of a write as its maker sent it: where it was in what was sent, and the row as written. */
+export interface SentRow {
+  node: { at: readonly (string | number)[]; target: { table: ResolvedTable } };
+  record: Row;
+}
+
+/** What was kept of a stored order's reductions, read for a door to tell. */
+export interface StoredFor {
+  rows: Row[];
+  columns: { line: string; offer: string; code: string; voucher: string; name: string; kind: string; amount: string; typed: string };
+  codes: { typed: string; voucher: string }[];
+  places: number;
+  lineOf(line: string): string | null;
 }
 
 /** One order money is given back from, in a save that makes the refund rows. */
@@ -1225,11 +1237,13 @@ export function createAdjuster(kit: AdjustKit) {
   }
 
   /**
-   * Which reductions a stored order took, read off the rows kept for it; null
-   * where the table's price rule is not live (nothing is told of a rule that
-   * is not there). Plain reads on the handle given.
+   * What was kept of the reductions a stored order took — its rows, the codes
+   * typed on it that found a voucher, the decimals, and where each line was in
+   * what its maker sent — for a door to tell (`stored.ts`). Null where the
+   * table's price rule is not live (nothing is told of a rule that is not
+   * there). Plain reads on the handle given.
    */
-  async function reductions(target: WriteTarget, key: unknown, opts: { locale: string; guest: boolean; tree?: readonly TreeWritten[] | undefined }): Promise<AppliedReply[] | null> {
+  async function reductions(target: WriteTarget, key: unknown, opts: { tree?: readonly SentRow[] | undefined }): Promise<StoredFor | null> {
     const on = await live(target);
     if (on === null) return null;
     const { adjust, adjuster } = on;
@@ -1237,9 +1251,10 @@ export function createAdjuster(kit: AdjustKit) {
     const declared = adjuster.declared.applied;
     // The order as stored: its key as the save wrote it (never as a caller spelled it), and its own currency for the decimals.
     const order = await loadOrder(db, target.table, adjust, key);
-    if (order === undefined) return [];
+    const none: StoredFor = { rows: [], columns: { line: declared.source.line, ...declared.columns }, codes: [], places: 2, lineOf: () => null };
+    if (order === undefined) return none;
     const rows = await storedApplied(db, on, { table: kit.ledgers!.refOf(target.connectionId, target.table.id), row: String(order[adjust.key]) });
-    if (rows.length === 0) return [];
+    if (rows.length === 0) return none;
     // The last four of a voucher are those of what was typed on the order for it.
     const codes: { typed: string; voucher: string }[] = [];
     if (adjust.codes !== undefined && rows.some((row) => !empty(row[declared.columns.voucher]))) {
@@ -1268,7 +1283,7 @@ export function createAdjuster(kit: AdjustKit) {
       if (part === undefined || part.self) return null;
       return sent.get(`${target.view.table(part.table).id}\u0000${line.slice(cut + 1)}`) ?? null;
     };
-    return storedReductions({ rows, columns: { line: declared.source.line, ...declared.columns }, codes, locale: opts.locale, places, guest: opts.guest, lineOf });
+    return { rows, columns: { line: declared.source.line, ...declared.columns }, codes, places, lineOf };
   }
 
   /** An order table's own rule with its add-on as it stands now, when the rule is live; null otherwise. Refuses nothing. */

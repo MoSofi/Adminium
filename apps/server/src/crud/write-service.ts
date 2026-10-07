@@ -135,6 +135,7 @@ import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { refusedAt } from './adjust/answers.js';
 import { frozenNow, isLine, moved as movedInputs, type AdjustParent } from './adjust/rule.js';
 import type { AppliedReply } from './adjust/replies.js';
+import { storedReductions } from './adjust/stored.js';
 import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek, type AdjustTried, type AdjustTry } from './adjust/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
@@ -4478,7 +4479,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return rulesOf(target)?.codes ?? [];
     },
 
-    storedReductions: (target, key, options) => adjuster.reductions(target, key, options),
+    async storedReductions(target, key, options) {
+      const kept = await adjuster.reductions(target, key, { tree: options.tree });
+      return kept === null ? null : storedReductions({ ...kept, locale: options.locale, guest: options.guest });
+    },
 
     async tryPrice(input) {
       const addOn = input.target.table.table?.adjust?.by.addOn;
