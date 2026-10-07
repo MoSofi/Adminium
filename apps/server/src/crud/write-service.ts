@@ -134,6 +134,7 @@ import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { refusedAt } from './adjust/answers.js';
 import { frozenNow, isLine, moved as movedInputs, type AdjustParent } from './adjust/rule.js';
+import type { AppliedReply } from './adjust/replies.js';
 import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek, type AdjustTried, type AdjustTry } from './adjust/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
@@ -1627,6 +1628,12 @@ export interface RecordWriteService {
    * For a door that makes a code itself (a new link, an undo of a change of hands).
    */
   codeRules(target: WriteTarget): Promise<readonly ColumnCode[]>;
+  /**
+   * Which reductions a stored order took, read off the rows kept for it —
+   * what a read of the order says where a save said it. Null for a table whose
+   * price rule is not live.
+   */
+  storedReductions(target: WriteTarget, key: unknown, opts: { locale: string; guest: boolean; tree?: readonly TreeWritten[] | undefined }): Promise<AppliedReply[] | null>;
   /**
    * A price tried on a stored order of a table whose price an add-on lowers:
    * other codes in place of its own, a buyer supposed, an offer not saved yet.
@@ -4470,6 +4477,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await freshCodes(target);
       return rulesOf(target)?.codes ?? [];
     },
+
+    storedReductions: (target, key, options) => adjuster.reductions(target, key, options),
 
     async tryPrice(input) {
       const addOn = input.target.table.table?.adjust?.by.addOn;

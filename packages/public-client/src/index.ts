@@ -936,6 +936,12 @@ export interface PublicClient {
   config: () => Promise<PublicConfig>;
   list: <T = Row>(ref: string, options?: ListOptions) => Promise<ListResult<T>>;
   get: <T = Row>(ref: string, id: string, signal?: AbortSignal, options?: { code?: string }) => Promise<T>;
+  /**
+   * One record with the reductions its order took, as its save said them. `applied` is null where nothing is told of
+   * them (a record no price rule reads, a rule that is off, an entry that does not show what the order was reduced by)
+   * — which is not the same as an order that took none (`[]`).
+   */
+  getPriced: <T = Row>(ref: string, id: string, signal?: AbortSignal, options?: { code?: string }) => Promise<{ data: T; applied: AppliedReduction[] | null }>;
   create: <T = Row>(ref: string, values: Row) => Promise<T>;
   /**
    * `create`, with where the new row stands. Its own verb so that `create`
@@ -1462,6 +1468,18 @@ export function createPublicClient(
         codeHeader(options?.code),
       );
       return out.data;
+    },
+
+    /**
+     * One record with the reductions its order took, as the save that priced
+     * it said them: for an order whose price an add-on lowers (a receipt page
+     * opened again). `applied` is null where nothing is told of them.
+     */
+    async getPriced<T = Row>(ref: string, id: string, signal?: AbortSignal, options?: { code?: string }): Promise<{ data: T; applied: AppliedReduction[] | null }> {
+      const init: RequestInit = {};
+      if (signal !== undefined) init.signal = signal;
+      const out = await request<{ data: T; applied?: AppliedReduction[] }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}`, init, codeHeader(options?.code));
+      return { data: out.data, applied: out.applied ?? null };
     },
 
     async create<T = Row>(ref: string, values: Row) {

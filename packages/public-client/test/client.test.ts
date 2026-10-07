@@ -758,6 +758,19 @@ describe('the human check', () => {
   });
 });
 
+describe('an order read again', () => {
+  it('answers the record with the reductions it took; null where nothing is told of them', async () => {
+    const applied = [{ line: null, name: 'Autumn 5', kind: 'code', amount: '5.00', typed: true }];
+    const priced = clientOver(() => ({ data: { id: 7, total: '48.06' }, applied }));
+    expect(await priced.client.getPriced('orders', '7')).toEqual({ data: { id: 7, total: '48.06' }, applied });
+    expect(priced.calls[0]!.url).toContain('/api/v1/public/records/orders/7');
+    const plain = clientOver(() => ({ data: { id: 1 } }));
+    expect(await plain.client.getPriced('menu', '1')).toEqual({ data: { id: 1 }, applied: null });
+    const none = clientOver(() => ({ data: { id: 2 }, applied: [] }));
+    expect((await none.client.getPriced('orders', '2')).applied).toEqual([]);
+  });
+});
+
 describe('a kiosk: a key bound to staff', () => {
   it('sends the staff member’s CSRF token on every write, and on no read', async () => {
     const { client, calls } = clientOver(() => ({ data: { id: 1 } }), { csrfToken: 'csrf-tok' });

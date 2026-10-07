@@ -48,12 +48,15 @@ import { priceNights } from '../per-night.js';
 import { venueClock } from '../venue-time.js';
 import type { WriteClock } from '../write-clock.js';
 import type { WriteAction, WriteActor, WriteContext, WriteTarget } from '../write-context.js';
+import type { TreeWritten } from '../write-tree.js';
 import { bindWriteValue, booleanOf, sameValue } from '../write-values.js';
 import { adjustWords, publicReason, refusalOf, type RefusedCode } from './answers.js';
 import { checkAdjust } from './check.js';
 import { orderFigures, type FiguredRow } from './figures.js';
 import { refundShares } from './refund.js';
-import { AdjustTooLarge, adjustCodeOf, adjustLineOf, findCodes, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
+import type { AppliedReply } from './replies.js';
+import { storedReductions } from './stored.js';
+import { AdjustTooLarge, CODE_ROWS_MAX, adjustCodeOf, adjustLineOf, findCodes, loadCodes, loadLines, loadOffers, loadOrder, loadPerson, type LoadedCode, type LoadedLine } from './load.js';
 import { frozenNow, moved, touched, type CompiledAdjust } from './rule.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -1221,6 +1224,53 @@ export function createAdjuster(kit: AdjustKit) {
     };
   }
 
+  /**
+   * Which reductions a stored order took, read off the rows kept for it; null
+   * where the table's price rule is not live (nothing is told of a rule that
+   * is not there). Plain reads on the handle given.
+   */
+  async function reductions(target: WriteTarget, key: unknown, opts: { locale: string; guest: boolean; tree?: readonly TreeWritten[] | undefined }): Promise<AppliedReply[] | null> {
+    const on = await live(target);
+    if (on === null) return null;
+    const { adjust, adjuster } = on;
+    const db = target.db;
+    const declared = adjuster.declared.applied;
+    // The order as stored: its key as the save wrote it (never as a caller spelled it), and its own currency for the decimals.
+    const order = await loadOrder(db, target.table, adjust, key);
+    if (order === undefined) return [];
+    const rows = await storedApplied(db, on, { table: kit.ledgers!.refOf(target.connectionId, target.table.id), row: String(order[adjust.key]) });
+    if (rows.length === 0) return [];
+    // The last four of a voucher are those of what was typed on the order for it.
+    const codes: { typed: string; voucher: string }[] = [];
+    if (adjust.codes !== undefined && rows.some((row) => !empty(row[declared.columns.voucher]))) {
+      // (The codes on it now, oldest first: one taken off again tells nothing.)
+      const codesTable = target.view.table(adjust.codes.table);
+      let query = db.selectFrom(codesTable.id as never).selectAll().where(sql.ref(adjust.codes.via), '=', order[adjust.key] as never);
+      for (const column of codesTable.primaryKey) query = query.orderBy(sql.ref(column));
+      for (const one of (await query.limit(CODE_ROWS_MAX).execute()) as Row[]) {
+        const removed = adjust.codes.removed === undefined ? null : one[adjust.codes.removed];
+        if (empty(one[adjust.codes.typed]) || empty(one[adjust.codes.voucher]) || !(empty(removed) || booleanOf(removed) === false)) continue;
+        codes.push({ typed: String(one[adjust.codes.typed]), voucher: String(one[adjust.codes.voucher]) });
+      }
+    }
+    const rules = kit.rulesOf(target);
+    const scale = (rules?.scales ?? []).find((entry) => entry.column === adjust.rule.order.discount)?.scale ?? 2;
+    const places = placesFor(scale, order, rules?.currencyColumn, await kit.currency(target));
+    // A line's place in what the caller sent, where the rows of that write are in hand (a create answered again).
+    const sent = new Map<string, string>();
+    for (const row of opts.tree ?? []) {
+      const table = row.node.target.table;
+      if (row.node.at.length > 0) sent.set(`${table.id}\u0000${table.primaryKey.map((column) => String(row.record[column])).join('/')}`, row.node.at.join('/'));
+    }
+    const lineOf = (line: string): string | null => {
+      const cut = line.indexOf(':');
+      const part = cut <= 1 ? undefined : adjust.parts[Number(line.slice(1, cut))];
+      if (part === undefined || part.self) return null;
+      return sent.get(`${target.view.table(part.table).id}\u0000${line.slice(cut + 1)}`) ?? null;
+    };
+    return storedReductions({ rows, columns: { line: declared.source.line, ...declared.columns }, codes, locale: opts.locale, places, guest: opts.guest, lineOf });
+  }
+
   /** An order table's own rule with its add-on as it stands now, when the rule is live; null otherwise. Refuses nothing. */
   async function live(target: WriteTarget): Promise<AdjustFor | null> {
     const adjust = kit.rulesOf(target)?.adjust;
@@ -1503,5 +1553,5 @@ export function createAdjuster(kit: AdjustKit) {
     if (made.length > 0) await kit.insert(target, made.map((row) => bound(target, row)));
   }
 
-  return { peek, run, tried, refund, live, forget, refuseBatch, inertCode, candidates };
+  return { peek, run, tried, refund, reductions, live, forget, refuseBatch, inertCode, candidates };
 }

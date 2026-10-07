@@ -351,6 +351,10 @@ export function marketManifest(over: Doc = {}, adjust: Doc | null = MARKET_ADJUS
             fk('customer_id', 'customers', { nullable: true }),
             { ref: 'customer_proved', type: 'bool', nullable: true },
             text('note', 200, { nullable: true }),
+            // What a create sent twice is recognised by.
+            text('client_key', 64, { nullable: true, unique: true }),
+            // What a guest opens their own order again with.
+            text('link_code', 24, { nullable: true, rules: { code: { length: 12 } } }),
             money('subtotal', { default: 0, rules: { rollup: { from: 'order_lines', via: 'order_id', sum: 'amount' } } }),
             money('discount', { default: 0 }),
             ...(wide

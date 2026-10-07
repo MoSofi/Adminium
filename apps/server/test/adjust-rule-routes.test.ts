@@ -227,7 +227,9 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     expect(sale.statusCode, sale.body).toBe(201);
     const id = (sale.json() as { data: Doc }).data['id'];
     // A reduction that was made starts at nothing, never empty: what is left is worked out from it.
-    expect(money((await w.rows(`SELECT discount FROM bare_sales WHERE id = ${String(id)}`))[0]!['discount'])).toBe('0.00');
+    const fresh = (await w.rows(`SELECT discount FROM bare_sales WHERE id = ${String(id)}`))[0]!['discount'];
+    expect(fresh).not.toBeNull();
+    expect(money(fresh)).toBe('0.00');
     const line = await api('POST', data('bare_lines'), { values: { sale_id: id, label: 'Lamp', price: '40.00', qty: 2 } });
     expect(line.statusCode, line.body).toBe(201);
     const figures = async () => {

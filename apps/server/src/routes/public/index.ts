@@ -64,7 +64,7 @@ import { publicConfigOf, type CompiledResource, type CompiledScope, type PublicA
 import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
-import { priceAnswer, type PriceAnswer } from '../../crud/adjust/replies.js';
+import { priceAnswer, type AppliedReply, type PriceAnswer } from '../../crud/adjust/replies.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
 import { paymentOf } from '../../ledgers/payment.js';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
@@ -945,6 +945,38 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     if (mine.length === 0) return {};
     const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
     return priceAnswer(mine, { locale, nameOf: () => null, guest: true, ...('tree' in own ? { tree: own.tree } : {}) });
+  };
+
+  /**
+   * Which reductions a stored row's order took, for a caller who was just
+   * shown that row: nothing for a table whose price no rule lowers (or whose
+   * rule is not live), and never an id, a reason or a whole code.
+   */
+  /** Whether an entry's rows are read only by somebody who showed they are theirs: a claim, a code that opens them, or a row above them that does. */
+  const ownedRead = (resource: { claim?: unknown; unlockBy?: unknown; visibleWith?: unknown; claimedBy?: unknown }): boolean =>
+    [resource.claim, resource.unlockBy, resource.visibleWith, resource.claimedBy].some((one) => one !== undefined && one !== null);
+  const storedAs = async (
+    request: FastifyRequest,
+    found: { view: SnapshotView; table: ResolvedTable; db: Kysely<SourceDatabase>; dialect: Dialect; resource?: { claim?: unknown; unlockBy?: unknown; visibleWith?: unknown; claimedBy?: unknown; expose: readonly string[] } },
+    row: Row,
+    tree?: readonly TreeWritten[],
+  ): Promise<{ applied?: AppliedReply[] }> => {
+    const adjust = found.table.table?.adjust;
+    if (adjust === undefined || found.table.primaryKey.length !== 1) return {};
+    const key = row[found.table.primaryKey[0]!];
+    if (key === null || key === undefined) return {};
+    // A read tells them only through an entry a person proves an order is theirs by, and that shows what the order was reduced by:
+    // an entry that shows anybody an order's status says nothing of its offers. (A create sent again is its maker's own.)
+    if (tree === undefined && (found.resource === undefined || !ownedRead(found.resource) || !found.resource.expose.includes(adjust.order.discount))) return {};
+    try {
+      const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+      const applied = await writes.storedReductions({ connectionId: found.view.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect }, key, { locale, guest: true, tree });
+      return applied === null ? {} : { applied };
+    } catch (error) {
+      // What the add-on keeps could not be read: the order is still the guest's to read, and a create sent again still answers.
+      request.log.warn({ err: error, table: found.table.id }, 'the reductions of a stored order could not be read');
+      return {};
+    }
   };
 
   /** What a payment whose amount Adminium decided took, and what is still to pay: nothing else of the card ever leaves a public door. */
@@ -2305,7 +2337,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         await touchKey(ok.key.keyId);
         await withheld.prepare(found.db, [row]);
-        return reply.send({ data: wallTimesAsInstants(withheld.apply(row), found.table.columns, found.dialect) });
+        // An order whose price an add-on lowers says which reductions it took, as its save said: read off the rows kept for it.
+        return reply.send({ data: wallTimesAsInstants(withheld.apply(row), found.table.columns, found.dialect), ...(await storedAs(request, found, pk)) });
       },
     );
 
@@ -2668,7 +2701,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // No code was looked up: the guess is handed back, and the codes sent are not remembered as codes that worked.
           guesses.forget(request);
           const shown = await asMade(before.rows, before.root);
-          return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? before.root), children: projectChildren(shown), replayed: true as const });
+          return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? before.root), children: projectChildren(shown), replayed: true as const, ...(await storedAs(request, found, before.root, before.rows)) });
         }
       }
       // Nothing to replay: a new create, and online creates are switched off.
@@ -2931,7 +2964,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if (outcome.replayed) {
         guesses.forget(request);
         const shown = await asMade(outcome.rows, outcome.root);
-        return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root), children: projectChildren(shown), replayed: true as const });
+        return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root), children: projectChildren(shown), replayed: true as const, ...(await storedAs(request, found, outcome.root, outcome.rows)) });
       }
       // The first answer shows what a read of the same rows would: a withhold (an unpaid order's codes) holds here too.
       const shown = await asMade(outcome.rows, outcome.root);
