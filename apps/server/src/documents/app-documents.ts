@@ -23,7 +23,7 @@
  * of document it does not draw — a mistake in the app, found before anything
  * is written.
  */
-import type { AppManifest, Manifest } from '@adminium/manifest';
+import { satisfiesSemverRange, type AppManifest, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
@@ -64,11 +64,14 @@ export async function drawersFor(meta: MetaDb, ownerKey: string): Promise<Set<st
   if (owner === null || owner.row.kind !== 'add-on') return new Set((await manifests.enabledForHost(ownerKey)).map((m) => m.row.manifestKey));
   const out = new Set<string>();
   if (owner.row.status === 'installed') out.add(ownerKey);
-  const suggests = (owner.document as { addOns?: { suggests?: { key?: unknown }[] } } | null)?.addOns?.suggests ?? [];
+  const suggests = (owner.document as { addOns?: { suggests?: { key?: unknown; range?: unknown }[] } } | null)?.addOns?.suggests ?? [];
   for (const need of suggests) {
     if (typeof need.key !== 'string') continue;
     const other = await manifests.findByKey(need.key);
-    if (other !== null && other.row.kind === 'add-on' && other.row.status === 'installed') out.add(need.key);
+    // Installed, and a version the add-on said it works with: an older one is as good as absent until it is updated.
+    if (other === null || other.row.kind !== 'add-on' || other.row.status !== 'installed') continue;
+    if (typeof need.range === 'string' && !satisfiesSemverRange(other.row.version, need.range)) continue;
+    out.add(need.key);
   }
   return out;
 }
@@ -222,6 +225,45 @@ export async function attachAppDocuments(input: {
   return out;
 }
 
+/**
+ * AN ADD-ON ARRIVED, OR WAS UPDATED: every installed add-on that SUGGESTS it
+ * gets the documents it was waiting for — the ones that add-on draws, where
+ * they are missing. An add-on that prints purchase orders through another
+ * mails them as text until that other is here, and as a PDF from then on,
+ * with no reinstall of either.
+ *
+ * Only what is missing, nothing changed, nothing removed; and it never
+ * refuses: a kind the arrived add-on does not draw (yet) stays off and is
+ * listed, and comes with the update that draws it.
+ */
+export async function suggestedDocuments(input: { meta: MetaDb; addOnKey: string; runtime: () => AddOnRuntimeState | null; createdBy?: string | null | undefined }): Promise<{ owner: string; result: AppProfilesResult }[]> {
+  const manifests = manifestsRepo(input.meta, NO_SECRETS);
+  const out: { owner: string; result: AppProfilesResult }[] = [];
+  for (const installed of await manifests.list('add-on')) {
+    const manifest = installed.document as Manifest | null;
+    const connectionId = installed.row.connectionId;
+    if (manifest === null || installed.row.manifestKey === input.addOnKey || installed.row.status !== 'installed' || connectionId === null || !ownsBlocks(manifest)) continue;
+    const suggests = ((manifest as { addOns?: { suggests?: { key?: unknown }[] } }).addOns?.suggests ?? []).some((need) => need.key === input.addOnKey);
+    if (!suggests || !((manifest as { documents?: { addOn?: unknown }[] }).documents ?? []).some((entry) => entry.addOn === input.addOnKey)) continue;
+    const view = await loadSnapshotView(input.meta, connectionId).catch(() => null);
+    // Its tables cannot be read right now: left as it is; the next arrival, or its own update, makes them.
+    if (view === null) continue;
+    const owner = installed.row.manifestKey;
+    const result = await makeAppProfiles({
+      meta: input.meta,
+      manifest: manifest as never,
+      connectionId,
+      realId: realIdIn(view, await appTablesRepo(input.meta).realNames(connectionId, owner)),
+      shapes: await installedShapes(input.meta),
+      availability: await addOnAvailability(input.meta, owner, input.runtime),
+      only: { addOn: input.addOnKey },
+      createdBy: input.createdBy,
+    });
+    out.push({ owner, result });
+  }
+  return out;
+}
+
 /** The uninstall's step: the app's own profiles on its connection, and nothing else. */
 export async function uninstallAppDocuments(meta: MetaDb, connectionId: string, appKey: string): Promise<number> {
   return await removeAppProfiles(meta, connectionId, appKey);
@@ -286,11 +328,30 @@ export async function appProfileFor(meta: MetaDb, connectionId: string, appKey: 
  * `addOnKey`: the add-on a made profile names (a shape's document), else the
  * app's own entry for the table and kind says.
  */
-export async function appDocumentDetached(meta: MetaDb, manifest: AppManifest, table: string | undefined, kind: string, addOnKey?: string): Promise<boolean> {
+export async function appDocumentDetached(
+  meta: MetaDb,
+  manifest: AppManifest,
+  table: string | undefined,
+  kind: string,
+  addOnKey?: string,
+  /** The kinds a loaded add-on draws now (null: not loaded). Asked only for an add-on's own document that was never made. */
+  kindsOf?: (addOnKey: string) => ReadonlySet<string> | null,
+): Promise<boolean> {
   const entry = (manifest.documents ?? []).find((d) => d.table === table && d.kind === kind);
   const addOn = addOnKey ?? entry?.addOn;
   if (addOn === undefined) return true;
   const feature = entry?.feature === undefined ? undefined : manifest.addOns?.features?.find((f) => f.id === entry.feature);
   const attached = await drawersFor(meta, manifest.key);
-  return [addOn, ...(feature?.requires ?? [])].some((key) => !attached.has(key));
+  if ([addOn, ...(feature?.requires ?? [])].some((key) => !attached.has(key))) return true;
+  /*
+   * An ADD-ON's document drawn by an add-on it only suggests: the other is
+   * here and loaded, and does not draw this kind (yet) — the version that does
+   * has not been installed. As good as not there: the mail goes without it.
+   * (For an app this is a mistake in the app, refused at its install.)
+   */
+  if ((manifest as Manifest).kind === 'add-on' && addOn !== manifest.key && kindsOf !== undefined) {
+    const kinds = kindsOf(addOn);
+    return kinds !== null && !kinds.has(kind);
+  }
+  return false;
 }

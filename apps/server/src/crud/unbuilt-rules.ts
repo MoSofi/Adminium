@@ -75,8 +75,6 @@ const PRICE_QUESTION_RELEASE = '0.3.19';
  * in one of the two, and a test says so.
  */
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // An add-on's own blocks: what it declares in an app's words.
-  addOns: ADD_ON_INSTALL_RELEASE,
   // The last four characters of a code, kept beside it: its first user is a card, which comes with the price question.
   'column.codeLast4': PRICE_QUESTION_RELEASE,
   // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table and a row.
@@ -132,6 +130,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'toolbar.links',
   // What an app's role holds of a table of an add-on it names: written while the add-on is there for the app, taken back when it is not.
   'roles.tables',
+  // An add-on that may use another (`addOns.suggests`): a document the other draws waits for it, and is mailed without it meanwhile.
+  'addOns',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

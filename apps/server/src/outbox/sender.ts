@@ -139,7 +139,7 @@ import type { Row } from '../crud/mask.js';
 import type { RecordWriteService, UpdateRecordInput } from '../crud/write-service.js';
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
-import { appDocumentDetached, appDocumentOff, appProfileFor } from '../documents/app-documents.js';
+import { addOnAvailability, appDocumentDetached, appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
@@ -729,7 +729,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       requires: needs.flatMap((need) => (typeof need.key === 'string' ? [need.key] : [])),
       routes: Object.fromEntries(Object.entries(routes).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
       attach,
-      manifest: manifest?.['kind'] === 'app' ? (manifest as unknown as AppManifest) : null,
+      // An app's, or an add-on's that sends its own mail: both say which documents their templates carry and who draws them.
+      manifest: manifest?.['kind'] === 'app' || manifest?.['kind'] === 'add-on' ? (manifest as unknown as AppManifest) : null,
     };
     factsCache.set(manifestId, { at: Date.now(), facts });
     return facts;
@@ -1605,8 +1606,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
     const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
     const detached = async (addOnKey?: string) => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, addOnKey));
+    // Never made, for an add-on's own mail: absent also when the add-on it suggests is here and does not draw the kind yet.
+    const neverMade = async () => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, undefined, (await addOnAvailability(deps.meta, box.appKey, pipeline.runtime)).kindsOf));
     if (profile === null || key === undefined || ref === undefined || facts.manifest === null) {
-      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, ...((await detached()) ? { absent: true as const } : {}) };
+      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, ...((await neverMade()) ? { absent: true as const } : {}) };
     }
     if (!profile.enabled) return { error: `The ${wanted.kind} is not available: its profile is switched off` };
     const off = await appDocumentOff({ meta: deps.meta, manifest: facts.manifest, profile, table: ref, runtime: pipeline.runtime });

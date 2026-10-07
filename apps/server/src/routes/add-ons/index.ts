@@ -139,7 +139,7 @@ import {
   enqueueCatalogRefresh,
 } from '../../jobs/add-on-acquire.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { attachAppDocuments } from '../../documents/app-documents.js';
+import { attachAppDocuments, suggestedDocuments } from '../../documents/app-documents.js';
 import { ForbiddenError, AddOnUntrustedError, AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { settingValueIssues } from '../../apps/settings-values.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
@@ -546,6 +546,20 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     for (const { app, result } of made) {
       if (result.skipped.length + result.refused.length === 0) continue;
       request.log.info({ app, skipped: result.skipped, refused: result.refused }, 'app document profiles skipped');
+    }
+  }
+
+  /** The documents of other installed add-ons that suggest this one, made where they were missing: after the runtime knows what it draws. */
+  async function makeSuggestedDocuments(request: FastifyRequest, addOnKey: string): Promise<void> {
+    if (deps.runtime === undefined) return;
+    try {
+      for (const { owner, result } of await suggestedDocuments({ meta: deps.meta, addOnKey, runtime: deps.runtime, createdBy: request.user?.id ?? null })) {
+        if (result.made.length + result.skipped.length + result.refused.length === 0) continue;
+        request.log.info({ owner, made: result.made.length, skipped: result.skipped, refused: result.refused }, 'documents an add-on was waiting for');
+      }
+    } catch (error) {
+      // The add-on is installed by now: what could not be made is made by the next arrival or update.
+      request.log.warn({ err: error, addOn: addOnKey }, 'the documents other add-ons were waiting for could not be made');
     }
   }
 
@@ -1411,6 +1425,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             ...(request.server.hasDecorator('realtime') ? { publish: (channel, event, payload) => request.server.realtime.publish(channel, event, payload) } : {}),
           },
         });
+        // A version that draws a kind another add-on was waiting for: made now, not at that add-on's next update.
+        await makeSuggestedDocuments(request, request.params.key);
         const { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp, publicAccessRemoved } = written ?? {};
         return {
           addOn: await toDto(installed),
@@ -1533,6 +1549,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           },
         });
         await makeAppDocuments(request, key, attachTo);
+        // …and the documents other add-ons were waiting for it to draw.
+        await makeSuggestedDocuments(request, key);
         const { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp } = written ?? {};
         return {
           addOn: await toDto(installed),
