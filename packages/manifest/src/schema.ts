@@ -1955,7 +1955,9 @@ export function appReferenceIssues(
         // Never empty already, or always asked for: the condition would say nothing.
         if (column.nullable !== true) out.push({ path: here('requiredWhen'), message: 'a column required only sometimes may be empty the rest of the time, so make it nullable' });
         if (rules.required === true) out.push({ path: here('requiredWhen'), message: 'a column is required always, or only when another column says so, not both' });
-        if (deciders.length > 0) out.push({ path: here('requiredWhen'), message: 'Adminium fills this column, so nobody is asked for it' });
+        // A copy that only fills what a write leaves out still leaves a person to ask when there is nothing to copy.
+        const fillsWhatIsLeftOut = deciders.length === 1 && deciders[0] === 'copy' && (rules.copy?.mode ?? 'default') === 'default' && rules.copy?.follow !== true;
+        if (deciders.length > 0 && !fillsWhatIsLeftOut) out.push({ path: here('requiredWhen'), message: 'Adminium fills this column, so nobody is asked for it' });
       }
       if (rules.default !== undefined) {
         const from = rules.default.from;

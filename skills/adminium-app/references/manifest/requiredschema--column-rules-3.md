@@ -24,7 +24,10 @@ of the values, and asks nothing of an edit that changes neither.
 enum, a number for a number column, `true` or `false` for a `bool`). The rule's own column must be
 `nullable`: one that is never empty is simply `required`. A column cannot take both `required` and
 `requiredWhen`, and a column Adminium fills (`copy`, `default`, `sequence`, `format`, `code`,
-`rollup`, `formula`, `stamp`) takes no `requiredWhen`, because nobody is asked for it.
+`rollup`, `formula`, `stamp`) takes no `requiredWhen`, because nobody is asked for it. The one
+exception is a `copy` that only fills what a write leaves out (`mode: "default"`, without
+`follow`): the copy runs first, and the column is asked for only when there was nothing to copy
+either (an order sent by email needs an address: its supplier's, or one typed on the order).
 
 ```json
 { "ref": "subtotal", "type": "money", "default": 0,
@@ -107,11 +110,3 @@ writable while the capped rows can exist: lock those columns with the table's
 written in or reached from.
 
 #### Formulas
-
-A `formula` works a number out from the other columns of the same row: a line's amount, a
-document's tax and total.
-
-```json
-{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
-  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
-```

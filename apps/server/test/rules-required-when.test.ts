@@ -45,7 +45,17 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 /** People, and the events that place them: an away event names who is away. */
 function manifest(): Record<string, unknown> {
   return invoicingManifest([
-    { ref: 'people', columns: [id, { ref: 'name', type: 'text', maxLength: 120 }] },
+    { ref: 'people', columns: [id, { ref: 'name', type: 'text', maxLength: 120 }, { ref: 'email', type: 'text', maxLength: 254, nullable: true, rules: { personal: false } }] },
+    {
+      // An order's address is its person's unless one is typed; sent by email it must have one, from either.
+      ref: 'orders',
+      columns: [
+        id,
+        { ref: 'person_id', type: 'fk', references: 'people' },
+        { ref: 'how', type: 'enum', enum: ['email', 'none'], nullable: true },
+        { ref: 'address', type: 'text', maxLength: 254, nullable: true, rules: { personal: false, copy: { via: 'person_id', from: 'email', mode: 'default' }, requiredWhen: { column: 'how', in: ['email'] } } },
+      ],
+    },
     {
       ref: 'events',
       columns: [
@@ -118,6 +128,37 @@ for (const [dialect, available] of LEGS) {
       return { h, w, ann, row };
     }
 
+    it('beside a copy that fills what is left out: asked for only when there is nothing to copy either', async () => {
+      const { w, ann, row } = await harness();
+      const bea = await w.create('people', { name: 'Bea', email: 'bea@example.test' });
+      const missing = { code: 'VALIDATION_FAILED', details: { fields: { address: { code: 'required' } } } };
+      // The person's address is copied, so nobody is asked.
+      const copied = await w.create('orders', { person_id: bea['id'], how: 'email' });
+      expect((await row('orders', copied['id']))!['address']).toBe('bea@example.test');
+      // Nothing to copy and nothing typed: refused on the column, and no row is left.
+      await expect(w.create('orders', { person_id: ann['id'], how: 'email' })).rejects.toMatchObject(missing);
+      // Typed, it stands; not sent by email, none is needed.
+      const typed = await w.create('orders', { person_id: ann['id'], how: 'email', address: 'desk@example.test' });
+      expect((await row('orders', typed['id']))!['address']).toBe('desk@example.test');
+      const draft = await w.create('orders', { person_id: ann['id'] });
+      expect((await row('orders', draft['id']))!['address']).toBeNull();
+      // The change that makes it sent by email is the one refused; with an address in the same change it is made.
+      await expect(w.update('orders', draft['id'], { how: 'email' })).rejects.toMatchObject(missing);
+      expect((await row('orders', draft['id']))!['how']).toBeNull();
+      await w.update('orders', draft['id'], { how: 'email', address: 'late@example.test' });
+      expect(await row('orders', draft['id'])).toMatchObject({ how: 'email', address: 'late@example.test' });
+      // And the live check takes the pair an install was given, and still refuses a copy that always wins.
+      const { h } = { h: open! };
+      const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
+      const address = model.tables.find((t) => t.name === h.real('orders'))!.columns.find((c) => c.name === 'address')!;
+      const beside = (copy: Record<string, unknown>) => ({ rules: [{ op: 'column.copy', columnName: 'address', value: { via: 'person_id', from: 'email', ...copy } }] });
+      const issue = (copy: Record<string, unknown>) => columnRuleIssue('column.requiredWhen', { column: 'how', in: ['email'] }, address, model, undefined, beside(copy));
+      expect(issue({ mode: 'default' })).toBeNull();
+      expect(issue({})).toBeNull();
+      expect(issue({ mode: 'always' })).toBe('Adminium fills "address", so nobody is asked for it.');
+      expect(issue({ mode: 'default', follow: true })).toBe('Adminium fills "address", so nobody is asked for it.');
+    });
+
     it('is stored at install against the real table, and an operator\'s rule is checked against the columns', async () => {
       const { h } = await harness();
       const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
@@ -138,7 +179,9 @@ for (const [dialect, available] of LEGS) {
       expect(columnRuleIssue('column.required', { required: true }, column('person_id'), model, undefined, beside('column.requiredWhen', 'person_id', { column: 'kind', in: ['away'] }))).toBe(
         '"person_id" is required always, or only when another column says so, not both.',
       );
-      expect(withRules(beside('column.copy', 'person_id', { via: 'x', from: 'y' }))).toBe('Adminium fills "person_id", so nobody is asked for it.');
+      // A copy that always wins fills the column whatever is sent; one that only fills what is left out leaves a person to ask.
+      expect(withRules(beside('column.copy', 'person_id', { via: 'x', from: 'y', mode: 'always' }))).toBe('Adminium fills "person_id", so nobody is asked for it.');
+      expect(withRules(beside('column.copy', 'person_id', { via: 'x', from: 'y' }))).toBeNull();
       expect(withRules(beside('column.default', 'person_id', { kind: 'literal', text: '1' }))).toBe('Adminium fills "person_id", so nobody is asked for it.');
       expect(withRules(beside('column.default', 'person_id', { kind: 'none' }))).toBeNull();
       // A value the other column's own list does not have, inline or by key.

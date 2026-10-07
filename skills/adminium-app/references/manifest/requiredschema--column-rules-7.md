@@ -2,6 +2,20 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+The new code is written in the same statement as the change: the old one stops as the write
+commits, and every session a [token link](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows) on that column opened stops with
+it. What never renews: a create (it makes a code anyway), an import or other history, a change that
+sends back the value the row already holds, and a server action that writes the code itself (a
+[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link)). A [timed move's](https://docs.adminium.dev/reference/manifest/#timed-moves) `set` renews like any other change.
+Undoing a change of hands renews once more, so neither the old code nor the one handed on works
+after it; see [Undo of a move](https://docs.adminium.dev/reference/manifest/#undo-of-a-move). A renewed code is never shown to a public caller
+in the change's reply, and only to staff who may read the table.
+
+#### Stamps
+
+A stamp writes a value when a row is created, or when another column changes to one of a list of
+values: the time a patient checked in, who took a payment.
+
 ```json
 { "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
   "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }

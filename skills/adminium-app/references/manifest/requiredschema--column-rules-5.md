@@ -2,6 +2,13 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
+is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
+no, or a time would be spelled differently by each database. An empty column is left out, and so
+is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
+result is trimmed, and empty when every column is. A join is the whole formula of its column,
+never a part of a sum.
+
 A join that reads personal data lands it only in a personal column. A guest's first and last
 names beside their email read as personal by their names, so the joined name needs
 `"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
@@ -127,13 +134,3 @@ them under the caller's role, or would move more than 500, is refused before any
 the base rate read from the row `rate.via` points at, plus every adjustment row that matches that
 night (a weekend, a season). Each night is rounded to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places), and
 the column holds their sum.
-
-```json
-{ "ref": "room_total", "type": "money", "scale": "currency", "nullable": true,
-  "rules": { "perNight": {
-    "from": "arrive", "to": "depart",
-    "rate": { "via": "room_type_id", "column": "base_rate" },
-    "adjust": { "table": "rate_rules",
-                "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
-                "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
-```

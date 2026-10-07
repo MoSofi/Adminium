@@ -1360,6 +1360,18 @@ function filledColumns(rules: TableRules): Set<string> {
   ]);
 }
 
+/**
+ * The columns nobody is asked for when another column says they are needed:
+ * the filled ones, but for a copy that only fills what a write leaves out.
+ * With nothing to copy such a column is still empty, and a person is the one
+ * to ask (an order's address is its supplier's unless one is typed).
+ */
+function neverAskedFor(rules: TableRules): Set<string> {
+  const filled = filledColumns(rules);
+  for (const copy of rules.copies ?? []) if (copy.mode === 'default' && copy.follow !== true) filled.delete(copy.column);
+  return filled;
+}
+
 /** Whether the other column's value is one the rule lists, as the database would compare it. */
 export function requiredBy(check: Pick<ColumnCheck, 'requiredWhen' | 'requiredWhenFolds'>, value: unknown): boolean {
   const when = check.requiredWhen;
@@ -1394,6 +1406,7 @@ export function checkRow(
     issues[column] ??= issue;
   };
   const filled = filledColumns(rules);
+  const unasked = neverAskedFor(rules);
   for (const check of rules.checks) {
     const supplied = Object.prototype.hasOwnProperty.call(values, check.column);
     /*
@@ -1417,7 +1430,7 @@ export function checkRow(
      * neither leaves a row as it was, and is not judged.
      */
     const when = check.requiredWhen;
-    if (when !== undefined && !filled.has(check.column)) {
+    if (when !== undefined && !unasked.has(check.column)) {
       const sent = Object.prototype.hasOwnProperty.call(values, when.column);
       // A yes or a no the rule cannot read is no answer to it (SQLite keeps whatever it is given).
       if (sent && readsBoolean(when) && !blank(values[when.column]) && booleanOf(values[when.column]) === null) add(when.column, { code: 'invalid' });
@@ -1727,11 +1740,11 @@ type Guarded = Row & { [REQUIRED_GUARDS]?: RequiredGuard[] };
  */
 export function requiredGuards(rules: TableRules | null, action: WriteAction, values: Row, stored: Row | null): RequiredGuard[] {
   if (rules === null || action !== 'update') return [];
-  const filled = filledColumns(rules);
+  const unasked = neverAskedFor(rules);
   const out: RequiredGuard[] = [];
   for (const check of rules.checks) {
     const when = check.requiredWhen;
-    if (when === undefined || filled.has(check.column)) continue;
+    if (when === undefined || unasked.has(check.column)) continue;
     const own = Object.prototype.hasOwnProperty.call(values, check.column);
     const other = Object.prototype.hasOwnProperty.call(values, when.column);
     if (!own && changes(values, stored, when.column) && requiredBy(check, values[when.column])) {

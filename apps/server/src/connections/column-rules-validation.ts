@@ -111,6 +111,20 @@ function filledByRule(related: RelatedRules | undefined, column: string): boolea
   );
 }
 
+/**
+ * Whether Adminium fills the column whatever a write sends. A copy that only
+ * fills what a write leaves out is not that: with nothing to copy, a person is
+ * still the one to ask.
+ */
+function alwaysFilledByRule(related: RelatedRules | undefined, column: string): boolean {
+  const others = (related?.rules ?? []).filter((rule) => {
+    if (rule.columnName !== column || rule.op !== 'column.copy') return true;
+    const copy = rule.value as Value | null;
+    return (copy?.['mode'] ?? 'default') !== 'default' || copy?.['follow'] === true;
+  });
+  return filledByRule({ ...related, rules: others }, column);
+}
+
 /** The values a column's own rule allows, when it lists them: inline, or a list by key. */
 function listedValues(related: RelatedRules | undefined, column: string): readonly string[] | null {
   const options = (related?.rules ?? []).find((rule) => rule.op === 'column.options' && rule.columnName === column)?.value as Value | undefined;
@@ -265,7 +279,7 @@ export function columnRuleIssue(
       if ((related?.rules ?? []).some((rule) => rule.op === 'column.required' && rule.columnName === column.name)) {
         return `${name} is required always, or only when another column says so, not both.`;
       }
-      if (filledByRule(related, column.name)) return `Adminium fills ${name}, so nobody is asked for it.`;
+      if (alwaysFilledByRule(related, column.name)) return `Adminium fills ${name}, so nobody is asked for it.`;
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       const other = table?.columns.find((c) => c.name === value['column']);
       if (other === undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(value['column'])}.`;

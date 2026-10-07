@@ -57,6 +57,23 @@ describe('requiredWhen', () => {
     expectIssue(m, 'Adminium fills this column, so nobody is asked for it');
   });
 
+  it('takes it beside a copy that only fills what a write leaves out, and beside no other copy', () => {
+    // An order's address is its supplier's unless one is typed; sent by email it must have one, from either.
+    const withCopy = (copy: Doc) => {
+      const m = valid();
+      const projects = tableOf(m, 'projects');
+      (projects['columns'] as Doc[]).push(
+        { ref: 'buddy_id', type: 'fk', references: 'projects', nullable: true },
+        { ref: 'buddy_file', type: 'text', maxLength: 200, nullable: true, rules: { copy: { via: 'buddy_id', from: 'handover_file', ...copy }, requiredWhen: { column: 'status', in: ['done'] } } },
+      );
+      return m;
+    };
+    expect(validateManifest(withCopy({})).ok).toBe(true);
+    expect(validateManifest(withCopy({ mode: 'default' })).ok).toBe(true);
+    expectIssue(withCopy({ mode: 'always' }), 'Adminium fills this column, so nobody is asked for it');
+    expectIssue(withCopy({ mode: 'default', follow: true }), 'Adminium fills this column, so nobody is asked for it');
+  });
+
   it('may be added to a column of an add-on part, as required may', () => {
     const shape = structuredClone(((addOnManifest()['addOn'] as Doc)['shapes'] as Doc[])[0]!) as unknown as ShapeDefinitionView;
     const shapes = new Map([[shapeKey('invoices', shape), shape]]);

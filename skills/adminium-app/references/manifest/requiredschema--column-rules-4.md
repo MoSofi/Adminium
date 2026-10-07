@@ -2,6 +2,14 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A `formula` works a number out from the other columns of the same row: a line's amount, a
+document's tax and total.
+
+```json
+{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
+```
+
 An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
 
 | Expression | Value |
@@ -107,10 +115,3 @@ line's description.
 { "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
   "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
 ```
-
-A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
-is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
-no, or a time would be spelled differently by each database. An empty column is left out, and so
-is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
-result is trimmed, and empty when every column is. A join is the whole formula of its column,
-never a part of a sum.
