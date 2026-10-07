@@ -108,6 +108,17 @@ describe.each(LEGS)('what a posting reads — %s', (dialect, available) => {
     // A multiplier that is not a number is one.
     expect(mapped.multipliers).toEqual({ quantity: 1, other: 6, none: 1 });
 
+    // A row of another table, through a link: the link's table by its stored name and the key the column holds.
+    const linkRef = (_table: unknown, column: string) => (column === 'account_id' ? 'ledger-kit:accounts' : null);
+    const through = mapInputs({ posting: { map: { what: 'account_id', plain: 'note' } }, action: { inputs: { what: 'rowRef', plain: 'rowRef' } }, table: entries, tableRef: 'ledger-kit:entries', row: line, parent, settings, linkRef });
+    expect(through.inputs['what']).toEqual({ table: 'ledger-kit:accounts', row: '2' });
+    // A column that is no link is no row, and neither is a link nobody resolves.
+    expect(through.inputs['plain']).toBeNull();
+    expect(through.missing).toEqual([{ input: 'plain', column: 'note' }]);
+    expect(mapInputs({ posting: { map: { what: 'account_id' } }, action: { inputs: { what: 'rowRef' } }, table: entries, tableRef: 'e', row: line, settings }).missing).toEqual([{ input: 'what', column: 'account_id' }]);
+    // An empty link is an empty row: named as missing on its column.
+    expect(mapInputs({ posting: { map: { what: 'account_id' } }, action: { inputs: { what: 'rowRef' } }, table: entries, tableRef: 'e', row: { ...line, account_id: null }, settings, linkRef }).missing).toEqual([{ input: 'what', column: 'account_id' }]);
+
     // A needed input left empty is named with its column; an optional one is handed empty.
     const bare = (await linesOf(db, entries, 'account_id', 2))[1]!;
     const short = mapInputs({ posting: { map: { account: 'account_id', quantity: 'kind', note: 'note', gone: { parent: 'x' } } }, action: { inputs: { account: 'link', quantity: 'decimal', note: 'text?', gone: 'link', unmapped: 'link?' } }, table: entries, tableRef: 'e', row: { ...bare, kind: null }, settings });

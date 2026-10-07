@@ -39,6 +39,7 @@ import type { ClimbStart, HeldBalances } from './climb.js';
 import type { ColumnCode, RollupInto, TableRules } from './column-rules.js';
 import { readDbRefusal, writeConflict } from './db-errors.js';
 import { isUniqueViolation } from './decided-columns.js';
+import { outboundKey } from '../documents/compose.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import { firedPoints, frozenColumns, lineTaken, ownPoint, postingScope, standsAt, type DeclaredPosting, type FiredPoint, type PostingPhaseName } from './ledger-points.js';
 import { LedgerTooLarge, ledgerSettings, linesOf, lockNames, mapInputs, runReads, type LineInputs, type MappedLine, type ReadContext, type ScalarRow } from './ledger-reads.js';
@@ -911,7 +912,11 @@ export function createLedgerWriter(kit: LedgerKit) {
   }
 
   function mapOrRefuse(call: PostingCall, target: WriteTarget, line: CallLine, settings: ScalarRow): MappedLine {
-    const mapped = mapInputs({ posting: call.posting, action: call.action, table: line.table, tableRef: kit.ledgers!.refOf(target.view.connectionId, line.table.id), row: line.row, parent: line.parent, settings });
+    const linkRef = (table: ResolvedTable, column: string): string | null => {
+      const at = outboundKey(target.view, table, column);
+      return at === null ? null : kit.ledgers!.refOf(target.view.connectionId, at.tableId);
+    };
+    const mapped = mapInputs({ posting: call.posting, action: call.action, table: line.table, tableRef: kit.ledgers!.refOf(target.view.connectionId, line.table.id), row: line.row, parent: line.parent, settings, linkRef });
     // An amount Adminium is asked to decide is empty until it is decided.
     const decided = new Set((call.action.decides ?? []).map((entry) => entry.input));
     const missing = mapped.missing.filter((entry) => !decided.has(entry.input));

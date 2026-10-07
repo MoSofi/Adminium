@@ -73,6 +73,14 @@ export interface Installed {
   real: (ref: string) => string;
   /** Every row of one of the add-on's tables, by its short name. */
   rowsOf: (ref: string, where?: string) => Promise<Record<string, unknown>[]>;
+  /** Tables of the owner's own, made beside the add-on's, by name. */
+  hosts: string[];
+}
+
+/** A table of the owner's own that hands rows to the add-on: its columns after the key, and the rules that post. */
+export interface HostTable {
+  columns: string;
+  postings: readonly unknown[];
 }
 
 /**
@@ -81,7 +89,7 @@ export interface Installed {
  * of words it does not run yet: an add-on that leans on one is refused here
  * as it would be on a real server.
  */
-export async function installBuilt(dialect: Dialect, addOn: BuiltAddOn, opts: HarnessOptions = {}): Promise<Installed> {
+export async function installBuilt(dialect: Dialect, addOn: BuiltAddOn, opts: HarnessOptions = {}, hosts: Record<string, HostTable> = {}): Promise<Installed> {
   const h = await addOnHarness(dialect, opts);
   await h.stageAddOn(addOn.manifest, { bundled: true, files: addOn.files });
   const res = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: addOn.key, version: addOn.version, attachTo: [] } });
@@ -89,13 +97,26 @@ export async function installBuilt(dialect: Dialect, addOn: BuiltAddOn, opts: Ha
     await h.close();
     throw new Error(`installing ${addOn.key} answered ${String(res.statusCode)}: ${res.body.slice(0, 1200)}`);
   }
+  // The owner's own tables come after the install, as on a real connection: made, read, then given their rules.
+  if (Object.keys(hosts).length > 0) {
+    const serial = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+    for (const [name, table] of Object.entries(hosts)) await h.rows(`CREATE TABLE ${name} (id ${serial}, ${table.columns})`);
+    await h.introspect();
+    const read = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
+    for (const [name, table] of Object.entries(hosts)) {
+      const id = read.tables.find((one) => one.name === name)!.id;
+      if (table.postings.length > 0) await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'table.postings', tableName: id, columnName: null, value: { postings: table.postings }, origin: 'user' } as never);
+    }
+  }
   const prefix = `${addOn.key.replace(/-/g, '_')}_`;
   const real = (ref: string) => `${prefix}${ref}`;
-  return { h, addOn, reply: res.json() as Doc, real, rowsOf: (ref, where) => h.rows(`select * from ${real(ref)}${where === undefined ? '' : ` where ${where}`}`) };
+  return { h, addOn, reply: res.json() as Doc, real, rowsOf: (ref, where) => h.rows(`select * from ${real(ref)}${where === undefined ? '' : ` where ${where}`}`), hosts: Object.keys(hosts) };
 }
 
 /** Staff at a desk, as the dashboard writes: somebody who holds every role an add-on ships. */
 export const DESK: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy' }, request: null };
+/** Somebody buying through an app's public page. */
+export const BUYER: WriteContext = { origin: 'public', hops: 0, actor: { kind: 'public', id: null, label: 'public:key_1' }, request: null };
 /** Staff who hold no role of the add-on's: a move that names roles is refused them. */
 export const CLERK: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_cal', label: 'Cal' }, request: null };
 
@@ -111,6 +132,8 @@ export interface Writing extends Installed {
   update(ref: string, id: unknown, values: Record<string, unknown>, context?: WriteContext): Promise<Saved>;
   /** One row of a table by its key, as the database holds it now. */
   one(ref: string, id: unknown): Promise<Record<string, unknown>>;
+  /** The name a table goes by in a row that points at it from anywhere (a link Inventory keeps to an owner's row). */
+  storedName(ref: string): string;
   /** Every answer of the add-on's code that Adminium refused, with the check that refused it: what an audit row would say. */
   refused: LedgerRefusal[];
 }
@@ -127,7 +150,8 @@ export async function writing(installed: Installed): Promise<Writing> {
   const view = new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
   const { db, dialect } = await h.manager.data(h.connectionId);
   const idOf = (ref: string) => {
-    const found = model.tables.find((table) => table.name === installed.real(ref));
+    // One of the owner's own tables goes by its own name; the add-on's by their short ones.
+    const found = model.tables.find((table) => table.name === (installed.hosts.includes(ref) ? ref : installed.real(ref)));
     if (found === undefined) throw new Error(`no table ${installed.real(ref)}`);
     return found.id;
   };
@@ -150,9 +174,10 @@ export async function writing(installed: Installed): Promise<Writing> {
     },
   };
   // Who holds which role is the server's to read; here Ivy holds them all and nobody else holds any.
-  const writes = createWriteService({ ...writeStores(h.meta), ledgers: createLedgerRuntime(deps), rolesOf: async (actor) => (actor?.kind === 'user' && actor.id === 'usr_ivy' ? 'any' : new Set<string>()) });
+  const runtime = createLedgerRuntime(deps);
+  const writes = createWriteService({ ...writeStores(h.meta), ledgers: runtime, rolesOf: async (actor) => (actor?.kind === 'user' && actor.id === 'usr_ivy' ? 'any' : new Set<string>()) });
   const one = async (ref: string, id: unknown) => {
-    const [row] = await installed.rowsOf(ref, `id = ${String(id)}`);
+    const [row] = installed.hosts.includes(ref) ? await h.rows(`select * from ${ref} where id = ${String(id)}`) : await installed.rowsOf(ref, `id = ${String(id)}`);
     if (row === undefined) throw new Error(`no row ${String(id)} in ${ref}`);
     return row;
   };
@@ -160,6 +185,7 @@ export async function writing(installed: Installed): Promise<Writing> {
     ...installed,
     one,
     refused,
+    storedName: (ref) => runtime.refOf(h.connectionId, idOf(ref)),
     async create(ref, values, context = DESK) {
       const at = target(ref);
       let posted: PostedOutcome[] = [];

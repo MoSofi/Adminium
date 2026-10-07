@@ -136,8 +136,10 @@ export interface MappedLine {
 /**
  * The inputs of one line, as the host's rule maps them: a column of the row,
  * the row itself, a column of the `via` parent, a column of the add-on's
- * settings row, or a fixed value. An optional input left empty is handed
- * empty; a needed one left empty is named in `missing`, and the caller
+ * settings row, or a fixed value. An input that takes a ROW of any table
+ * (`rowRef`) is the row itself, or the row a link column points at: the
+ * link's table by its stored name, and the key the column holds. An optional
+ * input left empty is handed empty; a needed one left empty is named in `missing`, and the caller
  * refuses the save on that column.
  */
 export function mapInputs(input: {
@@ -150,13 +152,18 @@ export function mapInputs(input: {
   /** The `via` parent and its table, for a `{parent}` mapping. */
   parent?: { table: ResolvedTable; row: Row } | null;
   settings: ScalarRow;
+  /** The stored name of the table a link column of `table` points at; null for a column that is no link. Absent: no column is read as a row. */
+  linkRef?: (table: ResolvedTable, column: string) => string | null;
 }): MappedLine {
   const { posting, table, row } = input;
   const keyOf = (): string => table.primaryKey.map((column) => String(row[column])).join('/');
-  const read = (mapping: DeclaredPosting['map'][string]): { value: Scalar | { table: string; row: string } | null; column: string | null } => {
-    if (typeof mapping === 'string') return { value: scalarOf(table.columns.get(mapping), row[mapping]), column: mapping };
+  const read = (mapping: DeclaredPosting['map'][string]): { value: Scalar | { table: string; row: string } | null; column: string | null; pointsAt?: string | null } => {
+    if (typeof mapping === 'string') return { value: scalarOf(table.columns.get(mapping), row[mapping]), column: mapping, pointsAt: input.linkRef?.(table, mapping) ?? null };
     if ('row' in mapping) return { value: { table: input.tableRef, row: keyOf() }, column: null };
-    if ('parent' in mapping) return { value: input.parent == null ? null : scalarOf(input.parent.table.columns.get(mapping.parent), input.parent.row[mapping.parent]), column: null };
+    if ('parent' in mapping) {
+      if (input.parent == null) return { value: null, column: null };
+      return { value: scalarOf(input.parent.table.columns.get(mapping.parent), input.parent.row[mapping.parent]), column: null, pointsAt: input.linkRef?.(input.parent.table, mapping.parent) ?? null };
+    }
     if ('setting' in mapping) return { value: input.settings[mapping.setting] ?? null, column: null };
     return { value: mapping.value, column: null };
   };
@@ -167,7 +174,9 @@ export function mapInputs(input: {
     const found = mapping === undefined ? { value: null, column: null } : read(mapping);
     let value: LineInputs[string];
     if (type === 'rowRef') {
-      value = found.value !== null && typeof found.value === 'object' ? found.value : null;
+      // The row itself; or the row a link points at, named by the link's table and the key the column holds.
+      if (found.value !== null && typeof found.value === 'object') value = found.value;
+      else value = found.value !== null && typeof found.pointsAt === 'string' ? { table: found.pointsAt, row: String(found.value) } : null;
     } else if (found.value !== null && typeof found.value === 'object') {
       // The row itself, mapped to a plain input: its key.
       value = asInput(type, found.value.row);
