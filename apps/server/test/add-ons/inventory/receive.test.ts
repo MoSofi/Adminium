@@ -73,9 +73,11 @@ describe.each(LEGS)('receiving against a purchase order — %s', (dialect, avail
     expect(header.posted).toEqual([]);
     expect(n((await pointOf(w, lidocaine, room))['on_hand'])).toBe(14);
     const posted = await w.update('receipt_lines', line, { status: 'posted' });
-    // The delivery, and the order's own step beside it.
-    expect(posted.posted.map(said).sort()).toEqual(['stock order-progress post planned', 'stock receive post planned']);
-    await w.update('receipts', receipt, { status: 'posted' });
+    expect(posted.posted.map(said)).toEqual(['stock receive post planned']);
+    // The order moves on once, when the whole receipt is posted.
+    expect((await w.one('purchase_orders', order))['status']).toBe('sent');
+    const whole = await w.update('receipts', receipt, { status: 'posted' });
+    expect(whole.posted.map(said)).toEqual(['stock order-progress post planned']);
 
     const at = await pointOf(w, lidocaine, room);
     expect([n(at['on_hand']), n(at['on_order']), n(at['cost_avg'])]).toEqual([64, 0, 1.1]);

@@ -97,6 +97,24 @@ describe.each(LEGS)('purchase orders — %s', (dialect, available) => {
     expect([last?.['kind'], n(last?.['qty']), n(last?.['unit_cost'])]).toEqual(['sent_back', -20, 3.1]);
   });
 
+  it.skipIf(!run)('an order its last delivery closed reads closed on its lines and receipts, and its receipt waits for Reopen', async () => {
+    const { po, toteLine, shirtLine } = await order();
+    await w.update('purchase_orders', po, { status: 'sent', sent_how: 'none' });
+    const got = await receive(w, { po_id: po, place_id: floor }, [
+      { po_line_id: toteLine, item_id: tote, packs: 2, pack_size: 10 },
+      { po_line_id: shirtLine, item_id: shirt, packs: 2, pack_size: 6 },
+    ]);
+    // Nobody closed it: the delivery's own answer did. What keeps a copy of its state follows all the same.
+    expect((await w.one('purchase_orders', po))['status']).toBe('received');
+    expect((await w.one('po_lines', toteLine))['order_status']).toBe('received');
+    const receipt = await w.one('receipts', got.receipt);
+    expect([receipt['order_status'], n(receipt['can_undo'])]).toEqual(['received', 0]);
+    await expect(w.update('receipts', got.receipt, { status: 'reversing' })).rejects.toMatchObject({ code: 'STATE_MOVE_REFUSED' });
+    await w.update('purchase_orders', po, { status: 'part_received' });
+    expect(n((await w.one('receipts', got.receipt))['can_undo'])).toBe(1);
+    await w.update('receipts', got.receipt, { status: 'reversing' });
+  });
+
   it.skipIf(!run)('a receipt with no order is undone with nothing to wait for', async () => {
     const got = await receive(w, { place_id: floor }, [{ item_id: shirt, qty_typed: 3, unit_cost: 7.4 }]);
     const before = n((await pointOf(w, shirt, floor))['on_hand']);

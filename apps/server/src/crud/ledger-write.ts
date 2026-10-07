@@ -451,6 +451,12 @@ export interface LedgerKit {
   starts(rules: TableRules | null, rows: readonly { record: Row | null; before: Row | null }[]): ClimbStart[];
   hold(target: WriteTarget, starts: readonly ClimbStart[]): Promise<HeldBalances>;
   settle(target: WriteTarget, starts: readonly ClimbStart[], held: HeldBalances): Promise<void>;
+  /**
+   * The rows that keep a copy of this one in step, brought into step: a row
+   * an add-on's answer changed is followed as one a person changed is (an
+   * order its last delivery closed reads closed on its lines and receipts).
+   */
+  follow(target: WriteTarget, rules: TableRules | null, before: Row, after: Row): Promise<void>;
 }
 
 const ORIGINS: Readonly<Record<string, 'staff' | 'public' | 'system'>> = { public: 'public', automation: 'system', import: 'system', hook: 'system', action: 'system' };
@@ -1342,6 +1348,7 @@ export function createLedgerWriter(kit: LedgerKit) {
           const after = (await kit.change(item.target, item.set, item.key, item.before, ledgerContext, clock)) ?? { ...item.before, ...item.set };
           writtenRows.push({ rules: item.rules, record: after, before: item.before });
           outcome.written.push({ table: item.target.table, row: after, before: item.before });
+          await kit.follow(item.target, item.rules, item.before, after);
         }
       } catch (error) {
         // The plan's own row was refused by the table's rules or the database: the plan was wrong, not the person.

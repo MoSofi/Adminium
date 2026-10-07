@@ -57,8 +57,7 @@ describe.each(LEGS)('stock received, used and given back — %s', (dialect, avai
     await expect(w.update('receipt_lines', line, { status: 'posted' })).rejects.toMatchObject({ code: 'STATE_MOVE_REFUSED' });
     await w.update('receipts', receipt, { status: 'posting' });
     const posted = await w.update('receipt_lines', line, { status: 'posted' });
-    // The delivery's own call wrote the rows; the order's step was asked and, with no order, wrote none.
-    expect(posted.posted.filter((one) => one.rows > 0).map(said)).toEqual(['stock receive post planned']);
+    expect(posted.posted.map(said)).toEqual(['stock receive post planned']);
     await w.update('receipts', receipt, { status: 'posted' });
 
     expect(await movements()).toEqual(['opening 10']);
