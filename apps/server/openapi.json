@@ -10974,6 +10974,151 @@
         }
       }
     },
+    "/api/v1/words/{addOn}/{wordsId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "in": "query",
+            "name": "ids",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "date",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "in": "path",
+            "name": "wordsId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "in",
+                              "low",
+                              "out"
+                            ]
+                          },
+                          "left": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "exact": {
+                            "type": "string"
+                          },
+                          "after": {
+                            "type": "string"
+                          },
+                          "batch": {
+                            "type": "string"
+                          },
+                          "expires": {
+                            "type": "string"
+                          },
+                          "cause": {
+                            "type": "string",
+                            "enum": [
+                              "stock",
+                              "portions"
+                            ]
+                          },
+                          "first": {
+                            "type": "object",
+                            "properties": {
+                              "item": {
+                                "type": "string",
+                                "maxLength": 80
+                              },
+                              "unit": {
+                                "type": "string",
+                                "maxLength": 80
+                              }
+                            },
+                            "required": [
+                              "item",
+                              "unit"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "soon": {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "state"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/add-ons/{key}/kit": {
       "get": {
         "parameters": [
@@ -109396,7 +109541,7 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 2000
+              "maxLength": 2400
             },
             "in": "query",
             "name": "under",

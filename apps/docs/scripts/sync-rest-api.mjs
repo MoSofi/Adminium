@@ -149,6 +149,11 @@ const DESCRIPTIONS = {
   system: 'Version and instance information',
   users: 'People in the workspace — invite, suspend, delete, assign roles',
   'widget-data': 'The queries widgets run, singly and in batches',
+  words:
+    'What staff are told of the rows a screen shows, in an add-on\'s stock words — in, low or out for ' +
+    'up to sixty rows of a table named as it is stored, and for a caller who reads the add-on\'s stock ' +
+    'tables the figure behind the word: the exact count, the batch and its expiry, the line that runs ' +
+    'out first, and whether stock or the day\'s portions bind',
 };
 
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'];

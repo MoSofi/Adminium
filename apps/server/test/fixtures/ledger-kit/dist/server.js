@@ -71,12 +71,19 @@ function reverse(input) {
 /** What is left of each account a line asks of, in words a page may show. */
 function words(input) {
   var out = [];
+  // What a test wants said of a row beside its state (a batch, the line that runs out first): `settings.note.words[<row>]`.
+  var note = input.settings.note;
+  if (typeof note === 'string') note = JSON.parse(note);
+  var more = (note && note.words) || {};
   for (var i = 0; i < input.lines.length; i += 1) {
     var line = input.lines[i];
     var account = accountOf(input, line);
     var left = account === null ? 0n : units(account.balance);
     var state = left <= 0n ? 'out' : left <= units(account.reorder_at) ? 'low' : 'in';
-    out.push({ line: line.line, state: state, left: decimal(left) });
+    var said = { line: line.line, state: state, left: decimal(left) };
+    var extra = more[line.line] || {};
+    for (var name in extra) said[name] = extra[name];
+    out.push(said);
   }
   return { rows: [], words: out };
 }
