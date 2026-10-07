@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "Les données d’exemple n’ont pas été retirées",
     "removeConfirm": "Retirer",
     "banner": "Les données d’exemple sont chargées",
-    "bannerRemove": "Les retirer"
+    "bannerRemove": "Les retirer",
+    "addOnAddBody": "Quelques exemples d’enregistrements dans les tables du module. Rien d’autre n’est modifié.",
+    "addOnNone": "Ce module ne fournit pas de données d’exemple"
   },
   "appPublicAccess": {
     "title": "Accès public",

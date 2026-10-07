@@ -86,6 +86,8 @@ interface Fixture {
   currency?: string | null;
   /** The installed app the `customers` page belongs to. */
   appKey?: string;
+  /** The installed add-on whose generated page `customers` is (an add-on's page names no app). */
+  addOnKey?: string;
   /** The session's system actions (absent: the fixture's roles decide). */
   systemActions?: string[];
   /** Whether that app's sample data is loaded. */
@@ -107,6 +109,10 @@ function stubFetch(fixture: Fixture = {}) {
         const item = bootstrap.nav.groups[0]?.items[0];
         if (item !== undefined) item.appKey = fixture.appKey;
       }
+      if (fixture.addOnKey !== undefined) {
+        const item = bootstrap.nav.groups[0]?.items[0];
+        if (item !== undefined) Object.assign(item, { addOnKey: fixture.addOnKey, appKey: null });
+      }
       if (fixture.systemActions !== undefined) {
         bootstrap.systemActions = fixture.systemActions as NonNullable<typeof bootstrap.systemActions>;
       }
@@ -124,6 +130,12 @@ function stubFetch(fixture: Fixture = {}) {
       return Promise.resolve(
         fixture.pageReply?.() ?? jsonResponse(200, { data: makeCrudEnvelope() }),
       );
+    }
+    if (url === '/api/v1/add-ons/inventory/sample-data') {
+      return Promise.resolve(jsonResponse(200, { offered: true, loaded: fixture.sampleLoaded ?? false, total: 12, addedAt: Date.UTC(2026, 8, 22), tables: [{ ref: 'items', count: 12 }], available: null }));
+    }
+    if (url === '/api/v1/add-ons/inventory/sample-data/remove-plan') {
+      return Promise.resolve(jsonResponse(200, { tables: [{ ref: 'items', count: 12 }], kept: [], changed: [], total: 12 }));
     }
     if (url === '/api/v1/apps/pos/sample-data') {
       return Promise.resolve(
@@ -489,5 +501,34 @@ describe('an app’s page with its sample data loaded', () => {
     expect(await screen.findByText('Northwind')).toBeDefined();
     await waitFor(() => expect(sampleCalls(second.fetchMock)).toHaveLength(1));
     expect(screen.queryByTestId('app-sample-banner')).toBeNull();
+  });
+});
+
+describe('an add-on’s generated page with its sample data loaded', () => {
+  const asked = (fetchMock: ReturnType<typeof vi.fn>) => fetchMock.mock.calls.map((call) => String(call[0])).filter((url) => url.includes('/sample-data') || url.endsWith('/overview'));
+
+  it('shows the notice to whoever manages add-ons, and asks the add-on’s route — never the app’s', async () => {
+    const { fetchMock } = await renderAt('/p/customers', { addOnKey: 'inventory', sampleLoaded: true, systemActions: ['manifests.manage'] });
+    const banner = await screen.findByTestId('app-sample-banner');
+    expect(banner.textContent).toContain('Sample data is loaded');
+    await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByTestId('sample-remove-tables')).toBeDefined();
+    // The status and the removal plan are the add-on's own; nothing is asked of an app of that name, nor of an app's overview.
+    expect([...new Set(asked(fetchMock))].sort()).toEqual(['/api/v1/add-ons/inventory/sample-data', '/api/v1/add-ons/inventory/sample-data/remove-plan']);
+  });
+
+  it('shows nobody else the notice, and asks nothing for them', async () => {
+    const { fetchMock } = await renderAt('/p/customers', { addOnKey: 'inventory', sampleLoaded: true, systemActions: [] });
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    expect(screen.queryByTestId('app-sample-banner')).toBeNull();
+    expect(asked(fetchMock)).toEqual([]);
+  });
+
+  it('a page of neither an app nor an add-on shows none', async () => {
+    const { fetchMock } = await renderAt('/p/customers', { systemActions: ['manifests.manage'] });
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    expect(screen.queryByTestId('app-sample-banner')).toBeNull();
+    expect(asked(fetchMock)).toEqual([]);
   });
 });

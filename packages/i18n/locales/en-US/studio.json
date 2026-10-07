@@ -3187,7 +3187,9 @@
     "removeFailed": "The sample data was not removed",
     "removeConfirm": "Remove",
     "banner": "Sample data is loaded",
-    "bannerRemove": "Remove it"
+    "bannerRemove": "Remove it",
+    "addOnAddBody": "A few example records in the add-on’s own tables. Nothing else is touched.",
+    "addOnNone": "This add-on ships no sample data"
   },
   "appPublicAccess": {
     "title": "Public access",

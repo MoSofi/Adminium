@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "Ukázková data nebyla odstraněna",
     "removeConfirm": "Odstranit",
     "banner": "Ukázková data jsou načtena",
-    "bannerRemove": "Odstranit je"
+    "bannerRemove": "Odstranit je",
+    "addOnAddBody": "Několik ukázkových záznamů ve vlastních tabulkách doplňku. Ničeho jiného se to nedotkne.",
+    "addOnNone": "Tento doplněk neobsahuje žádná ukázková data"
   },
   "appPublicAccess": {
     "title": "Veřejný přístup",

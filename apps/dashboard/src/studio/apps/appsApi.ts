@@ -385,25 +385,30 @@ export interface SampleRemovePlan {
   total: number;
 }
 
-export const sampleDataKey = (key: string) => ['app-sample-data', key] as const;
+/** Whose sample data: an app's, or an add-on's that keeps tables of its own. The same four routes, under each one's own address. */
+export type SampleOwnerKind = 'app' | 'add-on';
 
-export function sampleDataQuery(key: string) {
+const sampleDataUrl = (key: string, kind: SampleOwnerKind): string => `/api/v1/${kind === 'add-on' ? 'add-ons' : 'apps'}/${encodeURIComponent(key)}/sample-data`;
+
+export const sampleDataKey = (key: string, kind: SampleOwnerKind = 'app') => [kind === 'add-on' ? 'add-on-sample-data' : 'app-sample-data', key] as const;
+
+export function sampleDataQuery(key: string, kind: SampleOwnerKind = 'app') {
   return queryOptions({
-    queryKey: sampleDataKey(key),
-    queryFn: () => api.get<SampleDataStatus>(`/api/v1/apps/${encodeURIComponent(key)}/sample-data`),
+    queryKey: sampleDataKey(key, kind),
+    queryFn: () => api.get<SampleDataStatus>(sampleDataUrl(key, kind)),
   });
 }
 
 /** Queue the add; the job writes every record or none. */
-export function addSampleData(key: string): Promise<{ jobId: string }> {
-  return api.post<{ jobId: string }>(`/api/v1/apps/${encodeURIComponent(key)}/sample-data`);
+export function addSampleData(key: string, kind: SampleOwnerKind = 'app'): Promise<{ jobId: string }> {
+  return api.post<{ jobId: string }>(sampleDataUrl(key, kind));
 }
 
 /** What a removal would take and keep, read fresh each time the dialog opens. */
-export function sampleRemovePlanQuery(key: string) {
+export function sampleRemovePlanQuery(key: string, kind: SampleOwnerKind = 'app') {
   return queryOptions({
-    queryKey: ['app-sample-remove-plan', key] as const,
-    queryFn: () => api.post<SampleRemovePlan>(`/api/v1/apps/${encodeURIComponent(key)}/sample-data/remove-plan`),
+    queryKey: [kind === 'add-on' ? 'add-on-sample-remove-plan' : 'app-sample-remove-plan', key] as const,
+    queryFn: () => api.post<SampleRemovePlan>(`${sampleDataUrl(key, kind)}/remove-plan`),
     staleTime: 0,
     gcTime: 0,
   });
@@ -412,8 +417,9 @@ export function sampleRemovePlanQuery(key: string) {
 export function removeSampleData(
   key: string,
   keepChanged: boolean,
+  kind: SampleOwnerKind = 'app',
 ): Promise<{ removed: number; kept: number; byTable: Record<string, number> }> {
-  return api.post(`/api/v1/apps/${encodeURIComponent(key)}/sample-data/remove`, { keepChanged });
+  return api.post(`${sampleDataUrl(key, kind)}/remove`, { keepChanged });
 }
 
 /** Change only what is sent. */

@@ -52,6 +52,7 @@ import {
   removeSampleData,
   sampleDataKey,
   sampleDataQuery,
+  type SampleOwnerKind,
   sampleRemovePlanQuery,
   type AppOverview,
   type SampleDataStatus,
@@ -64,10 +65,11 @@ function formatters() {
 }
 
 /** Everything that reads the sample data or the tables it lives in. */
-export async function refreshSampleData(queryClient: ReturnType<typeof useQueryClient>, appKey: string): Promise<void> {
+export async function refreshSampleData(queryClient: ReturnType<typeof useQueryClient>, appKey: string, kind: SampleOwnerKind = 'app'): Promise<void> {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: sampleDataKey(appKey) }),
-    queryClient.invalidateQueries({ queryKey: appOverviewKey(appKey) }),
+    queryClient.invalidateQueries({ queryKey: sampleDataKey(appKey, kind) }),
+    // An app's overview counts its rows; an add-on has none here, and its tables are read as data.
+    kind === 'app' ? queryClient.invalidateQueries({ queryKey: appOverviewKey(appKey) }) : queryClient.invalidateQueries({ queryKey: ['data'] }),
   ]);
 }
 
@@ -83,8 +85,9 @@ function realName(overview: AppOverview | undefined, ref: string): string {
 export async function runSampleAdd(
   appKey: string,
   onProgress: (progress: { pct: number; message: string | null }) => void,
+  kind: SampleOwnerKind = 'app',
 ): Promise<void> {
-  const { jobId } = await addSampleData(appKey);
+  const { jobId } = await addSampleData(appKey, kind);
   await followAppJob(jobId, {
     onProgress,
     failed: t('studio:sampleData.addFailedBody', 'The sample data was not added. Nothing was written.'),
@@ -121,12 +124,14 @@ export function SampleInstallCard({ checked, onChange }: { checked: boolean; onC
 // ── The settings card ───────────────────────────────────────────────────────
 
 /** Drawn only for an app that ships sample data, or has some loaded. */
-export function SampleDataCard({ appKey, connectionName }: { appKey: string; connectionName: string | null }) {
-  const status = useQuery(sampleDataQuery(appKey));
+export function SampleDataCard({ appKey, connectionName, kind = 'app' }: { appKey: string; connectionName: string | null; kind?: SampleOwnerKind }) {
+  const status = useQuery(sampleDataQuery(appKey, kind));
   const [dialog, setDialog] = useState<'add' | 'remove' | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const data = status.data;
   if (data !== undefined && !data.offered && !data.loaded) return null;
+  // On an add-on's entry the card is there only when there is something to offer: most add-ons ship none.
+  if (kind === 'add-on' && data === undefined) return null;
 
   return (
     <section className={CARD} data-testid="app-sample-data">
@@ -160,6 +165,7 @@ export function SampleDataCard({ appKey, connectionName }: { appKey: string; con
       {dialog === 'add' ? (
         <AddSampleDataDialog
           appKey={appKey}
+          kind={kind}
           connectionName={connectionName}
           onClose={() => setDialog(null)}
           onAdded={() => {
@@ -171,6 +177,7 @@ export function SampleDataCard({ appKey, connectionName }: { appKey: string; con
       {dialog === 'remove' ? (
         <RemoveSampleDataDialog
           appKey={appKey}
+          kind={kind}
           onClose={() => setDialog(null)}
           onRemoved={(result) => {
             setDialog(null);
@@ -212,25 +219,27 @@ function SampleStatusPill({ status }: { status: SampleDataStatus }) {
 
 export function AddSampleDataDialog({
   appKey,
+  kind = 'app',
   connectionName,
   onClose,
   onAdded,
 }: {
   appKey: string;
+  kind?: SampleOwnerKind;
   connectionName: string | null;
   onClose: () => void;
   onAdded: () => void;
 }) {
   const queryClient = useQueryClient();
-  const status = useQuery(sampleDataQuery(appKey));
-  const overview = useQuery(appOverviewQuery(appKey));
+  const status = useQuery(sampleDataQuery(appKey, kind));
+  const overview = useQuery({ ...appOverviewQuery(appKey), enabled: kind === 'app' });
   const [progress, setProgress] = useState<{ pct: number; message: string | null } | null>(null);
   const available = status.data?.available ?? null;
 
   const add = useMutation({
-    mutationFn: () => runSampleAdd(appKey, setProgress),
+    mutationFn: () => runSampleAdd(appKey, setProgress, kind),
     onSuccess: async () => {
-      await refreshSampleData(queryClient, appKey);
+      await refreshSampleData(queryClient, appKey, kind);
       onAdded();
     },
     onSettled: () => setProgress(null),
@@ -257,7 +266,9 @@ export function AddSampleDataDialog({
         <div className="flex flex-col gap-3.5">
           <p className="text-[13px] leading-[1.55] text-fg-muted">
             {connectionName === null
-              ? t('studio:sampleData.addBodyNoConnection', 'A few example records in the app’s tables. Nothing else is touched.')
+              ? kind === 'add-on'
+                ? t('studio:sampleData.addOnAddBody', 'A few example records in the add-on’s own tables. Nothing else is touched.')
+                : t('studio:sampleData.addBodyNoConnection', 'A few example records in the app’s tables. Nothing else is touched.')
               : t('studio:sampleData.addBody', 'A few example records in the app’s tables. Nothing else in {connection} is touched.', {
                   connection: connectionName,
                 })}
@@ -295,7 +306,7 @@ export function AddSampleDataDialog({
             </div>
           )}
           {status.data !== undefined && available === null && !status.data.loaded ? (
-            <Alert tone="warn" title={t('studio:sampleData.none', 'This app ships no sample data')} />
+            <Alert tone="warn" title={kind === 'add-on' ? t('studio:sampleData.addOnNone', 'This add-on ships no sample data') : t('studio:sampleData.none', 'This app ships no sample data')} />
           ) : null}
           {progress === null ? null : (
             <div className="flex flex-col gap-1.5" role="status">
@@ -329,24 +340,26 @@ export function AddSampleDataDialog({
 
 export function RemoveSampleDataDialog({
   appKey,
+  kind = 'app',
   onClose,
   onRemoved,
 }: {
   appKey: string;
+  kind?: SampleOwnerKind;
   onClose: () => void;
   onRemoved: (result: { removed: number; kept: number }) => void;
 }) {
   const queryClient = useQueryClient();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const status = useQuery(sampleDataQuery(appKey));
-  const overview = useQuery(appOverviewQuery(appKey));
-  const plan = useQuery(sampleRemovePlanQuery(appKey));
+  const status = useQuery(sampleDataQuery(appKey, kind));
+  const overview = useQuery({ ...appOverviewQuery(appKey), enabled: kind === 'app' });
+  const plan = useQuery(sampleRemovePlanQuery(appKey, kind));
   const [keepChanged, setKeepChanged] = useState(true);
 
   const remove = useMutation({
-    mutationFn: () => removeSampleData(appKey, keepChanged),
+    mutationFn: () => removeSampleData(appKey, keepChanged, kind),
     onSuccess: async (result) => {
-      await refreshSampleData(queryClient, appKey);
+      await refreshSampleData(queryClient, appKey, kind);
       // The app's pages show these rows.
       await queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
       onRemoved(result);
@@ -508,9 +521,9 @@ export function RemoveSampleDataDialog({
  * outside the Studio routes that usually load the console's messages, so it
  * waits for them itself.
  */
-export function SampleDataBanner({ appKey }: { appKey: string }) {
+export function SampleDataBanner({ appKey, kind = 'app' }: { appKey: string; kind?: SampleOwnerKind }) {
   use(studioMessagesReady());
-  const status = useQuery(sampleDataQuery(appKey));
+  const status = useQuery(sampleDataQuery(appKey, kind));
   const [removing, setRemoving] = useState(false);
   if (status.data?.loaded !== true) return null;
   return (
@@ -530,7 +543,7 @@ export function SampleDataBanner({ appKey }: { appKey: string }) {
         {t('studio:sampleData.bannerRemove', 'Remove it')}
       </button>
       {removing ? (
-        <RemoveSampleDataDialog appKey={appKey} onClose={() => setRemoving(false)} onRemoved={() => setRemoving(false)} />
+        <RemoveSampleDataDialog appKey={appKey} kind={kind} onClose={() => setRemoving(false)} onRemoved={() => setRemoving(false)} />
       ) : null}
     </div>
   );

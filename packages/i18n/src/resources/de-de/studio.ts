@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "Die Beispieldaten wurden nicht entfernt",
     "removeConfirm": "Entfernen",
     "banner": "Beispieldaten sind geladen",
-    "bannerRemove": "Entfernen"
+    "bannerRemove": "Entfernen",
+    "addOnAddBody": "Einige Beispieldatensätze in den eigenen Tabellen des Add-ons. Sonst wird nichts verändert.",
+    "addOnNone": "Dieses Add-on enthält keine Beispieldaten"
   },
   "appPublicAccess": {
     "title": "Öffentlicher Zugriff",

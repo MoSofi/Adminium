@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "Eksempeldataene blev ikke fjernet",
     "removeConfirm": "Fjern",
     "banner": "Eksempeldata er indlæst",
-    "bannerRemove": "Fjern dem"
+    "bannerRemove": "Fjern dem",
+    "addOnAddBody": "Nogle få eksempelposter i tilføjelsens egne tabeller. Intet andet berøres.",
+    "addOnNone": "Denne tilføjelse har ingen eksempeldata"
   },
   "appPublicAccess": {
     "title": "Offentlig adgang",

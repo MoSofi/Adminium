@@ -55,6 +55,7 @@ import {
 import { ApiError } from '../../app/api.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
+import { SampleDataCard } from '../apps/SampleData.js';
 import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
 import { MakesSummary, PlanSummary, PublicAccessChoice } from './PlanSummary.js';
@@ -1086,6 +1087,9 @@ export function AddOnsPage() {
                     * only place they can be edited.
                     */}
                   <SettingsForm addOn={addOn} busy={busy} />
+
+                  {/* Its own example rows, where it ships some: added and removed here, as an app's are on its settings page. */}
+                  <SampleDataCard appKey={addOn.key} kind="add-on" connectionName={null} />
 
                   <div className="flex gap-2">
                     {addOn.connected && (

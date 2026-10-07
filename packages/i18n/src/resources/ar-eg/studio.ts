@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "لم تُزل البيانات التجريبية",
     "removeConfirm": "إزالة",
     "banner": "البيانات التجريبية محمّلة",
-    "bannerRemove": "إزالتها"
+    "bannerRemove": "إزالتها",
+    "addOnAddBody": "بضعة سجلات تجريبية في جداول الإضافة نفسها. لا يُمَسّ أي شيء آخر.",
+    "addOnNone": "هذه الإضافة لا تتضمن بيانات تجريبية"
   },
   "appPublicAccess": {
     "title": "الوصول العام",

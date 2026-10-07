@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What an installed app's own page says above its template: today, that the
- * app's sample data is loaded — to whoever manages apps, with a way to
+ * What an installed app's own page — or an add-on's generated page — says
+ * above its template: today, that its sample data is loaded — to whoever manages apps, with a way to
  * remove it.
  *
  * Wrapped around the built-in templates in `templateLoaders.ts`, so it rides
@@ -26,12 +26,14 @@ function AppPageNotice() {
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const { data: bootstrap } = useQuery(bootstrapQuery());
   const item = bootstrap === undefined ? null : findPageBySlug(bootstrap, slug);
-  if (bootstrap === undefined || item?.appKey == null || !holdsSystemAction(bootstrap, 'manifests.manage')) {
+  // Whose page it is: an add-on's generated page names its add-on (and no app); an app's page names its app.
+  const owner = item?.addOnKey != null ? ({ kind: 'add-on', key: item.addOnKey } as const) : item?.appKey != null ? ({ kind: 'app', key: item.appKey } as const) : null;
+  if (bootstrap === undefined || owner === null || !holdsSystemAction(bootstrap, 'manifests.manage')) {
     return null;
   }
   return (
     <Suspense fallback={null}>
-      <SampleDataBanner appKey={item.appKey} />
+      <SampleDataBanner appKey={owner.key} kind={owner.kind} />
     </Suspense>
   );
 }

@@ -23943,6 +23943,14 @@
     "status": "mt",
     "srcHash": "6298d0be2c13"
   },
+  "studio.sampleData.addOnAddBody": {
+    "status": "mt",
+    "srcHash": "e1e509ea1bda"
+  },
+  "studio.sampleData.addOnNone": {
+    "status": "mt",
+    "srcHash": "1332918b7dd8"
+  },
   "studio.sampleData.addSubtitle": {
     "status": "mt",
     "srcHash": "7e8870cf709d"

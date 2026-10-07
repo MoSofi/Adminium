@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "示例数据未删除",
     "removeConfirm": "删除",
     "banner": "示例数据已加载",
-    "bannerRemove": "删除"
+    "bannerRemove": "删除",
+    "addOnAddBody": "在该扩展自己的表中添加几条示例记录。不会改动其他任何内容。",
+    "addOnNone": "此扩展不附带示例数据"
   },
   "appPublicAccess": {
     "title": "公开访问",

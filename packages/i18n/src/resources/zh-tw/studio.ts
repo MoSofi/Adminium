@@ -3197,7 +3197,9 @@ export default {
     "removeFailed": "範例資料未移除",
     "removeConfirm": "移除",
     "banner": "範例資料已載入",
-    "bannerRemove": "移除"
+    "bannerRemove": "移除",
+    "addOnAddBody": "在此擴充功能自己的資料表中加入幾筆範例記錄。不會更動其他任何內容。",
+    "addOnNone": "此擴充功能未附帶範例資料"
   },
   "appPublicAccess": {
     "title": "公開存取",

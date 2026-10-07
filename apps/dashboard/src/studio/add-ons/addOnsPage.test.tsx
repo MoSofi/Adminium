@@ -310,6 +310,25 @@ describe('AddOnsPage', () => {
     expect(await screen.findByText(/express\.api\.dhl\.com/)).toBeTruthy();
   });
 
+  it('an add-on that ships sample data has the card on its own entry, asked of its own route; one that ships none has no card', async () => {
+    const user = userEvent.setup();
+    const status = { offered: true, loaded: false, total: 0, addedAt: null, tables: [], available: { total: 12, tables: [{ ref: 'items', count: 12 }], assets: 0 } };
+    const { calls } = await renderPage({
+      installed: [makeAddOn(), makeAddOn({ key: 'inventory', name: 'Inventory' })],
+      respond: (method, url) => (method === 'GET' && url === '/api/v1/add-ons/inventory/sample-data' ? { status: 200, body: status } : method === 'GET' && url.endsWith('/sample-data') ? { status: 200, body: { ...status, offered: false, available: null } } : undefined),
+    });
+    const card = await screen.findByTestId('app-sample-data');
+    expect(screen.getAllByTestId('app-sample-data')).toHaveLength(1);
+    expect(card.closest('li')!.id).toBe('add-on-inventory');
+    await user.click(within(card).getByRole('button', { name: 'Add sample data' }));
+    const dialog = await screen.findByRole('dialog');
+    // Said of the add-on's own tables; and the add is the add-on's route, never an app's of that name.
+    expect(dialog.textContent).toContain('A few example records in the add-on’s own tables.');
+    await user.click(within(dialog).getByRole('button', { name: 'Add sample data' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'POST' && call.url === '/api/v1/add-ons/inventory/sample-data')).toBe(true));
+    expect(calls.some((call) => call.url.startsWith('/api/v1/apps/'))).toBe(false);
+  });
+
   it('DISCONNECT and UNINSTALL say different things', async () => {
     // The whole reason there are two confirms. Disconnect keeps the files;
     // uninstall removes them. Both keep every table, and both say so.
