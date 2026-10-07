@@ -1234,7 +1234,7 @@ export function PageRecord({
           </div>
         </div>
         {(showEdit || showDelete || (actions !== undefined && actions.length > 0)) && (
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1.5">
             {/*
               * Host actions FIRST, then Edit, then Delete — and the order is
               * the point rather than a preference. Delete stays last, where it

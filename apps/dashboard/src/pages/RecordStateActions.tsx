@@ -116,7 +116,11 @@ export function RecordStateActions({ actions, state, connectionId, table, record
       if (action.href !== undefined) router.history.push(`${action.href}${encodeURIComponent(recordId)}`);
       return;
     }
-    const fields = action.kind === 'child' ? (action.child?.form ?? []).map((column) => ({ column, label: humanized(column), required: false })) : (action.ask ?? []);
+    const fields =
+      action.kind === 'child'
+        ? (action.child?.form ?? []).map((column) => ({ column, label: humanized(column), required: false }))
+        : // A column with no label of its own is named as a form names it, not by its raw name.
+          (action.ask ?? []).map((field) => (field.label === field.column ? { ...field, label: humanized(field.column) } : field));
     if (fields.length > 0 || action.confirm !== undefined) {
       setAsking({ action, fields, values: Object.fromEntries(fields.map((field) => [field.column, ''])), errors: {} });
       return;
@@ -127,7 +131,7 @@ export function RecordStateActions({ actions, state, connectionId, table, record
   const shown = offered.slice(0, BUTTONS_MAX);
   const more = offered.slice(BUTTONS_MAX);
   return (
-    <span className="inline-flex items-center gap-1.5" data-part="record-state-actions">
+    <span className="inline-flex flex-wrap items-center gap-1.5" data-part="record-state-actions">
       {shown.map((action) => (
         <Button key={action.id} size="sm" variant={VARIANT[action.tone]} disabled={busy !== null} onClick={() => press(action)}>
           {action.label}

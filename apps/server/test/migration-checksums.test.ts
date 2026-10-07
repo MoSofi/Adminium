@@ -45,6 +45,11 @@
  * `@adminiumjs/adminium@0.3.16` (installed from npm, hashed under plain node);
  * 0049 reads the same out of the published 0.3.13, and 0048 out of both.
  *
+ * 0051 ships in 0.3.18. It was read out of a tarball packed from the tree that
+ * first carried it, before any release, hashed under plain node (0049 and 0050
+ * read the same out of that tarball); cross-check it against the published
+ * `@adminiumjs/adminium@0.3.18` once that is on npm.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -219,6 +224,7 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0048_public_key_peak': 'aa404a282003fe5b810d3a80cb5ce0ad6ed2b785f237d542e2669f52e8f2b112',
   '0049_project_apps': '14d25789b679c533d552234cf792903a7f34aaea0851b1c4c5327fb36f011194',
   '0050_catalog_default': 'b93ccceac71bff5e193600102cc81e94d32011edda02cfa4e2c48d6eb329729b',
+  '0051_automation_ownership': 'ec5ebf0737187623e01b560151fbfa523860a04f1e843b0fe2a16acd04eedbea',
 });
 
 describe('shipped migration checksums', () => {

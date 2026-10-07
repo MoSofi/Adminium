@@ -155,6 +155,17 @@ describe('the buttons of a record', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it('a column with no label of its own is named as the page names it, not by its raw name', async () => {
+    const raw: StateActionFact[] = [{ id: 'close', kind: 'move', label: 'Close order', tone: 'neutral', from: ['sent'], ask: [{ column: 'close_reason', label: 'close_reason', required: false }, { column: 'note', label: 'Why', required: false }] }];
+    render(<RecordStateActions actions={raw} state="sent" connectionId="c" table="t" recordId="1" onDone={() => undefined} onRefused={() => undefined} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Close order' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Close reason')).toBeTruthy();
+    expect(within(dialog).queryByText('close_reason')).toBeNull();
+    // A label the app wrote stands as written.
+    expect(within(dialog).getByText('Why')).toBeTruthy();
+  });
+
   it('a link carries the record\'s id and asks the server nothing', async () => {
     const calls = serve();
     mount({ state: 'sent', recordId: 'PO 7/1' });

@@ -460,6 +460,7 @@ export function AutomationRulesPage(): ReactNode {
             {/* Shown, not changed: nothing in a shipped rule's flow takes a click or a key. */}
             <div {...(selectedShipped === null ? {} : { inert: true })} data-part="rule-flow">
             <FlowBuilder
+              readOnly={selectedShipped !== null}
               graph={graph}
               selectedId={inspectId}
               runningId={test.runningId}

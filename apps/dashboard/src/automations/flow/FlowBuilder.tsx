@@ -58,9 +58,20 @@ export interface FlowBuilderProps {
   onMoveIntoBranch: (dragId: string, branchId: string) => void;
   /** The node's sub-line, computed from its settings (Appendix A summaries). */
   subFor: (node: FlowNode) => string;
+  /** Shown, not changed (a rule that came with an app or an add-on): no place to add a step. */
+  readOnly?: boolean;
 }
 
 const STEM = 'w-0.5 flex-1 bg-border-strong';
+
+/** The line between two steps where none can be added. */
+function Stem(): ReactNode {
+  return (
+    <div className="flex h-[26px] flex-col items-center">
+      <span className={STEM} />
+    </div>
+  );
+}
 
 export function FlowBuilder(props: FlowBuilderProps): ReactNode {
   const [dragId, setDragId] = useState<string | null>(null);
@@ -96,7 +107,7 @@ export function FlowBuilder(props: FlowBuilderProps): ReactNode {
         <div className="mx-auto flex max-w-[660px] flex-col items-stretch">
           {props.graph.nodes.map((node, index) => (
             <div key={node.id} className="flex flex-col items-stretch">
-              {index > 0 ? <Connector onClick={() => { props.onInsert({ index }); }} /> : null}
+              {index > 0 ? props.readOnly === true ? <Stem /> : <Connector onClick={() => { props.onInsert({ index }); }} /> : null}
               <NodeCard {...props} node={node} dragId={dragId} small={false} />
               {node.kind === 'branch' ? (
                 <BranchGroup {...props} node={node} dragId={dragId} />
@@ -104,20 +115,24 @@ export function FlowBuilder(props: FlowBuilderProps): ReactNode {
             </div>
           ))}
 
-          <div className="flex h-[26px] flex-col items-center">
-            <span className={STEM} />
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              props.onInsert({ index: props.graph.nodes.length });
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-[13px] border-[1.5px] border-dashed border-border-strong bg-surface p-[13px] text-[13px] font-bold text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent"
-            data-testid="flow-add-end"
-          >
-            <Plus className="size-4" />
-            {t('automations:canvas.addStep', 'Add step')}
-          </button>
+          {props.readOnly === true ? null : (
+            <>
+              <div className="flex h-[26px] flex-col items-center">
+                <span className={STEM} />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  props.onInsert({ index: props.graph.nodes.length });
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-[13px] border-[1.5px] border-dashed border-border-strong bg-surface p-[13px] text-[13px] font-bold text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent"
+                data-testid="flow-add-end"
+              >
+                <Plus className="size-4" />
+                {t('automations:canvas.addStep', 'Add step')}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </DndContext>
@@ -321,25 +336,29 @@ function BranchColumn(
           <NodeCard {...props} node={child} small />
         </div>
       ))}
-      <div className="flex min-h-4 flex-1 flex-col items-center">
-        <span className={STEM} />
-      </div>
-      <button
-        ref={drop.setNodeRef}
-        type="button"
-        onClick={() => {
-          props.onInsert({ index: branch.nodes.length, branchId: branch.id });
-        }}
-        data-testid={`flow-branch-add-${branch.id}`}
-        className={`flex select-none items-center justify-center gap-1.5 rounded-[11px] border-[1.5px] border-dashed p-[9px] text-xs font-bold ${
-          drop.isOver
-            ? 'border-accent bg-accent-soft text-accent'
-            : 'border-border-strong bg-surface text-fg-subtle hover:border-accent hover:bg-accent-soft hover:text-accent'
-        }`}
-      >
-        <Plus className="size-3.5" />
-        {t('automations:canvas.addStep', 'Add step')}
-      </button>
+      {props.readOnly === true ? null : (
+        <>
+          <div className="flex min-h-4 flex-1 flex-col items-center">
+            <span className={STEM} />
+          </div>
+          <button
+            ref={drop.setNodeRef}
+            type="button"
+            onClick={() => {
+              props.onInsert({ index: branch.nodes.length, branchId: branch.id });
+            }}
+            data-testid={`flow-branch-add-${branch.id}`}
+            className={`flex select-none items-center justify-center gap-1.5 rounded-[11px] border-[1.5px] border-dashed p-[9px] text-xs font-bold ${
+              drop.isOver
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-border-strong bg-surface text-fg-subtle hover:border-accent hover:bg-accent-soft hover:text-accent'
+            }`}
+          >
+            <Plus className="size-3.5" />
+            {t('automations:canvas.addStep', 'Add step')}
+          </button>
+        </>
+      )}
     </div>
   );
 }
