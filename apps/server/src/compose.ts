@@ -2426,6 +2426,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         documents,
         storage,
         writes: recordWrites,
+        ledgers,
       }));
       },
       { prefix: API_PREFIX },

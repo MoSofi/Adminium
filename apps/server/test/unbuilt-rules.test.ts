@@ -99,8 +99,10 @@ describe('a manifest that uses a word this server does not run yet', () => {
   it('names each word, where it is written and the release that runs it', () => {
     // An add-on's pages, roles, prefix, index, stored table name, public entries, emails and shipped rules are all words this server runs.
     expect(unbuiltInManifest(ADD_ON)).toEqual([]);
-    // One it does not run yet: the words a ledger answers about stock.
-    expect(unbuiltInManifest({ ...ADD_ON, addOn: { words: [{ id: 'stock' }] } })).toEqual([{ word: 'addOn.words', path: 'addOn.words', release: '0.3.18' }]);
+    // So are the words a ledger answers about stock.
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { words: [{ id: 'stock' }] } })).toEqual([]);
+    // One it does not run yet: its rows listed on another table's record page.
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { recordTabs: [{ id: 'stock' }] } })).toEqual([{ word: 'addOn.recordTabs', path: 'addOn.recordTabs', release: '0.3.18' }]);
   });
 
   it('an app\'s own pages, roles, prefix and its link into an add-on are no such word; the last four of a code is', () => {
@@ -144,7 +146,7 @@ describe('a release', () => {
 
   it('refuses, table by table, exactly the rules listed here: each leaves in the change that builds it', () => {
     expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual(['adjust']);
-    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual(['words']);
+    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual([]);
   });
 
   it('every table rule refused has a word that refuses its manifest too', () => {

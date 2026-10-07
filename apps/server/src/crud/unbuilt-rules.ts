@@ -61,10 +61,7 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
 ];
 
 /** The public entry keys whose behaviour is not built yet. */
-export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
-  // Availability answered by an add-on's stock words: read as a plain limit it would answer every row as free.
-  { rule: 'words', on: (entry) => entry['words'] !== undefined },
-];
+export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
 
 /** The release that installs an add-on like an app, and runs the words that come with it. */
 const ADD_ON_INSTALL_RELEASE = '0.3.18';
@@ -90,9 +87,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   // What a generated page says and offers beyond its form; a role's grant on an add-on's table; a typed code's look-up.
   'toolbar.links': ADD_ON_INSTALL_RELEASE,
   'roles.tables': ADD_ON_INSTALL_RELEASE,
-  // Stock words, and a public entry answered by them.
-  'addOn.words': ADD_ON_INSTALL_RELEASE,
-  'availability.words': ADD_ON_INSTALL_RELEASE,
   // An add-on's rows listed on another table's record page.
   'addOn.recordTabs': ADD_ON_INSTALL_RELEASE,
   // The price question: a host's rule, the add-on's side of it, and an amount a ledger's action decides.
@@ -134,6 +128,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'config.bulk',
   // The rules an app or an add-on ships: bound to its install, the owner's once they change one.
   'automations',
+  // An add-on's stock words, and a public entry they answer: in, low or out for the rows a page asks about.
+  'addOn.words',
+  'availability.words',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

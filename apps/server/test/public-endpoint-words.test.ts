@@ -120,13 +120,12 @@ describe('a manifest entry answered by words', () => {
   });
 });
 
-describe('until words are answered', () => {
-  it('a stored entry with words serves nothing, and a manifest that declares one needs the release that answers', () => {
-    expect(unbuiltEntryRuleOf(def() as unknown as Record<string, unknown>)).toBe('words');
-    expect(unbuiltEntryRuleOf(def({ words: undefined }) as unknown as Record<string, unknown>)).toBeNull();
+describe('now that words are answered', () => {
+  it('a stored entry with words is served, and a manifest that declares one needs no newer release', () => {
+    expect(unbuiltEntryRuleOf(def() as unknown as Record<string, unknown>)).toBeNull();
     const doc = { ...structuredClone(LEDGER_HOST), publicAccess: [{ table: 'order_lines', methods: ['GET'], kind: 'availability', words: 'ledger-kit:units-left' }] };
-    expect(unbuiltInManifest(doc).find((found) => found.word === 'availability.words')).toEqual({ word: 'availability.words', path: 'publicAccess.0.words', release: '0.3.18' });
-    expect(unbuiltInManifest({ kind: 'add-on', addOn: { words: [{ id: 'stock' }] } })).toEqual([{ word: 'addOn.words', path: 'addOn.words', release: '0.3.18' }]);
+    expect(unbuiltInManifest(doc).filter((found) => found.word === 'availability.words')).toEqual([]);
+    expect(unbuiltInManifest({ kind: 'add-on', addOn: { words: [{ id: 'stock' }] } })).toEqual([]);
   });
 });
 

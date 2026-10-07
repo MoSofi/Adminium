@@ -68,7 +68,7 @@ export const publicAvailabilityQuery = z
     guests: z.coerce.number().int().min(1).max(50).optional(),
     earliest: z.coerce.number().int().min(1).max(90).optional(),
     /** A parent limit: the rows under this value of the entry's `under` column — or several values, comma-separated — and how many a page wants. */
-    under: z.string().min(1).max(2000).optional(),
+    under: z.string().min(1).max(2400).optional(),
     qty: z.coerce.number().int().min(1).max(50).optional(),
     /** A typed code that unlocks rows only it shows. */
     code: z.string().min(1).max(64).optional(),

@@ -62,6 +62,8 @@ export interface CapacityQuestion {
    * guest sent (absent: no code, and such a read shows nothing).
    */
   unlocked?: ((reader: CompiledResource) => Promise<unknown[]>) | undefined;
+  /** Whether the asker holds a session: a read kept for signed-in guests shows its rows to nobody else. */
+  signedIn?: boolean | undefined;
 }
 
 const refused = (message: string): CapacityAnswer => ({ ok: false, message });
@@ -154,9 +156,6 @@ async function excluded(q: CapacityQuestion, rule: Rule): Promise<Row[]> {
 export const MAX_PARENTS = 60;
 
 async function readableIds(q: CapacityQuestion, target: ResolvedTable, key: string): Promise<string[]> {
-  const readers = [...q.byRef.values()].filter(
-    (r) => r.table === target.id && r.kind === 'records' && r.actions.has('read') && r.claim === null && parentOf(r) === null,
-  );
   /*
    * One parent, or several in one ask (`under=12,15,19`): a page that lists
    * twenty shows read their tickets in twenty requests, and spent a fifth of
@@ -172,9 +171,26 @@ async function readableIds(q: CapacityQuestion, target: ResolvedTable, key: stri
         ? { column: q.resource.under, op: 'eq', value: parents[0]! }
         : { column: q.resource.under, op: 'in', value: parents };
   if (q.resource.under !== undefined && parents.length === 0) return [];
+  return readableKeys(q, target, key, under);
+}
+
+/** What says which rows of a table a guest may see: the key's plain reads, and the database they are asked of. */
+export type ReadableQuestion = Pick<CapacityQuestion, 'byRef' | 'timezone' | 'view' | 'db' | 'dialect' | 'now' | 'unlocked' | 'signedIn'>;
+
+/**
+ * The values of `key` in the rows of `target` a guest may see: what the
+ * key's plain public reads of the table show (no claim, no parent), and the
+ * rows the guest's code unlocks — only those `only` keeps, when it is
+ * given; at most 200.
+ */
+export async function readableKeys(q: ReadableQuestion, target: ResolvedTable, key: string, only: RecordFilter | null): Promise<string[]> {
+  const readers = [...q.byRef.values()].filter(
+    // A read kept for signed-in guests is no plain public read: without a session its rows are not listed, nor answered about.
+    (r) => r.table === target.id && r.kind === 'records' && r.actions.has('read') && r.claim === null && parentOf(r) === null && (r.sessionOnly !== true || q.signedIn === true),
+  );
   const out = new Set<string>();
   for (const reader of readers) {
-    let mandatory = combinePredicates(mandatoryAt(reader.where, target, q.timezone, q.now), under);
+    let mandatory = combinePredicates(mandatoryAt(reader.where, target, q.timezone, q.now), only);
     // A read that shows its rows only with a code: counted only for the rows the guest's code unlocks.
     if (reader.unlockBy !== null && reader.unlockBy !== undefined) {
       const keys = q.unlocked === undefined ? [] : await q.unlocked(reader);

@@ -97,6 +97,8 @@ export interface LedgerRuntime {
    * through for holds whose time has passed.
    */
   holdingLedgers?(view: SnapshotView): ResolvedLedger[];
+  /** Whether an add-on is installed, attached to this app and switched on for it: what an app's own page may ask it about. */
+  onFor?(connectionId: string, addOnKey: string, appKey: string): boolean;
   /** The table a stored name stands for here, or null when it is not there any more. */
   tableOfRef?(connectionId: string, tableRef: string): string | null;
   /** An installed add-on's ledger with its tables as they are here, whatever its code can answer; null when it or one of its tables is not there. */
@@ -269,6 +271,10 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       return out;
     },
     tableOfRef: (connectionId, tableRef) => deps.installs().tableOfRef(connectionId, tableRef),
+    onFor(connectionId, addOnKey, appKey) {
+      const addOn = deps.installs().installed(connectionId, addOnKey);
+      return addOn !== null && addOn.status === 'installed' && addOn.hosts.get(appKey) === true;
+    },
     ledgerOf(view, addOnKey, ledgerId) {
       const installs = deps.installs();
       const addOn = installs.installed(view.connectionId, addOnKey);

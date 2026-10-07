@@ -123,6 +123,8 @@ import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
 import { answerCapacity, beyondReleasedSlot } from './capacity-availability.js';
+import { answerWords, createWordsCache } from './words-availability.js';
+import type { LedgerRuntime } from '../../ledgers/registry.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { sendConfirmation } from '../../public-api/confirm.js';
 import {
@@ -278,6 +280,8 @@ export interface PublicRoutesDeps {
   storage?: FileStore | undefined;
   /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
   writes?: RecordWriteService | undefined;
+  /** The add-ons a stock-words entry is answered by. Absent = nothing answers, and such an entry says every row is in. */
+  ledgers?: LedgerRuntime | undefined;
   /**
    * The key resolver. `compose.ts` passes the one it also hands the admin
    * routes, so a revoke there empties THIS cache. A plugin mounted
@@ -827,6 +831,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const allowed = new Set(configured.filter((origin) => origin !== SELF_ORIGIN_SENTINEL));
   /** Does `self` appear in the list? — whether same-origin callers are allowed. */
   const sameOriginAllowed = configured.includes(SELF_ORIGIN_SENTINEL);
+  // What an add-on said of a row, trusted for five seconds.
+  const wordsCache = createWordsCache();
   const keys = publicKeysRepo(meta);
   const sessions = publicSessionsRepo(meta);
   const challenges = publicChallengesRepo(meta);
@@ -2068,6 +2074,29 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           timezone: ok.key.scope.timezone,
           origin: 'public' as const,
         };
+        // An entry an add-on answers in its own stock words: asked before any limit of the table.
+        if (found.resource.words !== undefined) {
+          const answer = await answerWords({
+            query,
+            connectionId: ok.key.connectionId,
+            words: found.resource.words,
+            app: ok.key.managedBy,
+            signedIn: ok.session !== null,
+            byRef: ok.key.scope.byRef,
+            timezone: ok.key.scope.timezone,
+            view: found.view,
+            table: found.table,
+            db: found.db,
+            dialect: found.dialect,
+            now: new Date(),
+            ledgers: deps.ledgers,
+            cache: wordsCache,
+            rollupsOf: (table) => tableRulesFor({ view: found.view, table })?.rollupsInto ?? [],
+            log: request.log,
+          });
+          if (!answer.ok) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', answer.message);
+          return reply.send({ data: answer.data });
+        }
         const rule = found.table.table.capacity;
         if (rule !== undefined) {
           if (beyondReleasedSlot(query)) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That request is not permitted here.');
@@ -2122,6 +2151,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             target: { ...target, view: found.view },
             own: (table, id) => claimedRowKey(ok, found.db, table, id),
             now: new Date(),
+            signedIn: ok.session !== null,
           });
           const answer = await asked.catch((error: unknown) => {
             if (error instanceof GuessesSpent) return null;
