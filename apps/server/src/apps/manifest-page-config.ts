@@ -25,7 +25,7 @@
 import { pageSourceTable, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
 import { z } from 'zod';
 import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSchema, parseCrudDefaultFilters, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
-import type { Manifest } from '@adminium/manifest';
+import { pageBulkSchema, pageFiltersSchema, pageTabsSchema, type Manifest } from '@adminium/manifest';
 
 import { childRelations } from '../crud/child-rows.js';
 import { filterProblem, type DayColumnKind } from '../widget-data/filter-checks.js';
@@ -51,7 +51,8 @@ export function formIssues(manifest: Manifest, page: ManifestPage): string[] {
 /** A records page's default filters: a readable list, over columns of its own table. */
 function defaultFilterIssues(manifest: Manifest, page: ManifestPage): string[] {
   const raw = page.config?.['defaultFilters'];
-  if (raw === undefined || manifest.kind !== 'app') return [];
+  // An add-on's page filters its own table as an app's does.
+  if (raw === undefined || (manifest.requiredSchema?.tables ?? []).length === 0) return [];
   const parsed = parseCrudDefaultFilters({ defaultFilters: raw });
   if (parsed === null) return ['its default filters are not valid filters (1–6, each a column, an op and a value)'];
   const own = pageSourceTable(page);
@@ -285,5 +286,123 @@ export function layoutQueryProblems(layout: PageLayout, manifest?: Manifest): st
     for (const child of Object.values(node)) visit(child);
   };
   visit(layout.items);
+  return out;
+}
+
+/** Words as a stored page keeps them: one string for the page's own language, and the others by locale (`de_DE`). */
+function wordsPair(words: string | Readonly<Record<string, string>>): { text: string; texts?: Record<string, string> } {
+  if (typeof words === 'string') return { text: words };
+  const texts = Object.fromEntries(Object.entries(words).map(([tag, text]) => [tag.replace('-', '_'), text]));
+  return { text: texts['en_US'] ?? Object.values(texts)[0] ?? '', texts };
+}
+
+export interface BoundListConfig {
+  /** The keys to lay over the page's stored config. `detail` is the generated one with its tabs worded. */
+  config: Record<string, unknown>;
+  warnings: { reason: 'PAGE_FILTERS_INVALID' | 'PAGE_DEFAULT_FILTERS_INVALID' | 'PAGE_TABS_INVALID' | 'PAGE_TAB_UNKNOWN' | 'PAGE_BULK_INVALID'; message: string }[];
+}
+
+/**
+ * WHAT A RECORDS PAGE SAYS OF ITSELF BESIDE ITS FORM, bound to the real
+ * tables: the list's filters and the filters it opens with, the words of its
+ * related tabs, its bulk actions. The manifest names tables by their short
+ * names; the stored page names them as the snapshot does. Columns keep their
+ * names.
+ *
+ * The manifest's own validation has refused a column that is not there, a
+ * control a column cannot take, a secret in a confirm. What is checked again
+ * here is what only the real database can say — that the table and its
+ * generated tab exist — and a key that does not fit is a warning with its
+ * page still written, never a page lost.
+ */
+export function bindListConfig(raw: Readonly<Record<string, unknown>> | undefined, view: SnapshotView, table: ResolvedTable, names: Readonly<Record<string, string>>, stored: Readonly<Record<string, unknown>>): BoundListConfig {
+  const out: BoundListConfig = { config: {}, warnings: [] };
+  if (raw === undefined) return out;
+  const realTable = (ref: string): ResolvedTable | null => {
+    const name = names[ref] ?? ref;
+    const model = view.model.tables.find((candidate) => candidate.name === name || candidate.id === name);
+    if (model === undefined) return null;
+    try {
+      return view.table(model.id);
+    } catch {
+      return null;
+    }
+  };
+  const missing = (columns: readonly string[], of: ResolvedTable = table): string | undefined => columns.find((column) => !of.columns.has(column));
+
+  if (raw['filters'] !== undefined) {
+    const parsed = pageFiltersSchema.safeParse(raw['filters']);
+    const gone = parsed.success ? missing(parsed.data.map((filter) => filter.column)) : undefined;
+    if (!parsed.success) out.warnings.push({ reason: 'PAGE_FILTERS_INVALID', message: 'its filters are not valid filters, so it has the filters Adminium picks' });
+    else if (gone !== undefined) out.warnings.push({ reason: 'PAGE_FILTERS_INVALID', message: `"${table.name}" has no column "${gone}", so it has the filters Adminium picks` });
+    else {
+      // A filter's label is one string: the page's own language.
+      out.config['filters'] = parsed.data.map((filter) => ({ column: filter.column, ...(filter.control === undefined ? {} : { control: filter.control }), ...(filter.label === undefined ? {} : { label: wordsPair(filter.label).text }) }));
+    }
+  }
+
+  if (raw['defaultFilters'] !== undefined) {
+    const parsed = parseCrudDefaultFilters({ defaultFilters: raw['defaultFilters'] });
+    const gone = parsed === null ? undefined : missing(parsed.map((filter) => filter.column));
+    if (parsed === null) out.warnings.push({ reason: 'PAGE_DEFAULT_FILTERS_INVALID', message: 'its default filters are not valid filters, so the list opens unfiltered' });
+    else if (gone !== undefined) out.warnings.push({ reason: 'PAGE_DEFAULT_FILTERS_INVALID', message: `"${table.name}" has no column "${gone}", so the list opens unfiltered` });
+    else out.config['defaultFilters'] = parsed;
+  }
+
+  if (raw['tabs'] !== undefined) {
+    const parsed = pageTabsSchema.safeParse(raw['tabs']);
+    const detail = stored['detail'] as { tabs?: { table: string }[] } | undefined;
+    if (!parsed.success) out.warnings.push({ reason: 'PAGE_TABS_INVALID', message: 'its tab words are not valid, so its tabs say what every tab says' });
+    else {
+      const tabs = (detail?.tabs ?? []).map((tab) => ({ ...tab }));
+      for (const [ref, words] of Object.entries(parsed.data)) {
+        const child = realTable(ref);
+        // Every tab over that child table: two links from one table cannot be told apart here, and both get the words.
+        const worded = child === null ? [] : tabs.filter((tab) => tab.table === child.id);
+        if (worded.length === 0) {
+          out.warnings.push({ reason: 'PAGE_TAB_UNKNOWN', message: `the page has no tab for "${ref}", so its words for one were left out` });
+          continue;
+        }
+        const title = words.empty === undefined ? undefined : wordsPair(words.empty);
+        const body = words.emptyBody === undefined ? undefined : wordsPair(words.emptyBody);
+        for (const tab of worded) {
+          Object.assign(tab, {
+            ...(title === undefined ? {} : { empty: { title: title.text, ...(title.texts === undefined ? {} : { titles: title.texts }), ...(body === undefined ? {} : { body: body.text, ...(body.texts === undefined ? {} : { bodies: body.texts }) }) } }),
+            ...(words.noNew === true ? { noNew: true } : {}),
+          });
+        }
+      }
+      if (detail !== undefined) out.config['detail'] = { ...detail, tabs };
+    }
+  }
+
+  if (raw['bulk'] !== undefined) {
+    const parsed = pageBulkSchema.safeParse(raw['bulk']);
+    if (!parsed.success) out.warnings.push({ reason: 'PAGE_BULK_INVALID', message: 'its bulk actions are not valid, so the list offers none of them' });
+    else {
+      const bound: Record<string, unknown>[] = [];
+      for (const action of parsed.data) {
+        const child = realTable(action.child.table);
+        const gone = child === null ? action.child.table : (missing([action.child.via, ...action.child.form, ...Object.keys(action.set ?? {})], child) ?? missing([...(action.where === undefined ? [] : [action.where.column]), ...action.confirm.columns]));
+        if (child === null || gone !== undefined) {
+          out.warnings.push({ reason: 'PAGE_BULK_INVALID', message: `"${action.id}" names "${String(gone)}", which is not here, so the list does not offer it` });
+          continue;
+        }
+        const [label, title, body, done] = [wordsPair(action.label), wordsPair(action.confirm.title), wordsPair(action.confirm.body), wordsPair(action.done)];
+        bound.push({
+          id: action.id,
+          label: label.text,
+          ...(label.texts === undefined ? {} : { labels: label.texts }),
+          child: { table: child.id, via: action.child.via, form: [...action.child.form] },
+          ...(action.set === undefined ? {} : { set: { ...action.set } }),
+          ...(action.where === undefined ? {} : { where: { ...action.where } }),
+          confirm: { title: title.text, ...(title.texts === undefined ? {} : { titles: title.texts }), body: body.text, ...(body.texts === undefined ? {} : { bodies: body.texts }), columns: [...action.confirm.columns] },
+          done: done.text,
+          ...(done.texts === undefined ? {} : { dones: done.texts }),
+        });
+      }
+      if (bound.length > 0) out.config['bulk'] = bound;
+    }
+  }
   return out;
 }

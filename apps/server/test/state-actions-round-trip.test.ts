@@ -91,19 +91,19 @@ describe('the stored buttons of a record page', () => {
 });
 
 describe('the words a server reads and does not run yet', () => {
-  const NEW = ['toolbar.links', 'config.tabs', 'config.bulk', 'roles.tables'] as const;
+  const NEW = ['toolbar.links', 'config.bulk', 'roles.tables'] as const;
   const found = (doc: unknown) => unbuiltInManifest(doc).map((word) => `${word.word} ${word.release}`);
 
   it('each names the release that runs it', () => {
     for (const word of NEW) expect(UNBUILT_MANIFEST_WORDS[word], word).toBe('0.3.18');
     // A record page's buttons are run: nothing is refused for them any more.
-    for (const run of ['states.actions', 'addOn.lookUp'] as const) {
+    for (const run of ['states.actions', 'addOn.lookUp', 'config.tabs'] as const) {
       expect(UNBUILT_MANIFEST_WORDS[run], run).toBeUndefined();
       expect(MANIFEST_WORDS_RUN, run).toContain(run);
     }
     expect(found(DESK).some((word) => word.startsWith('states.actions'))).toBe(false);
     expect(found(DESK).some((word) => word.startsWith('addOn.lookUp'))).toBe(false);
-    expect(found(DESK)).toEqual(expect.arrayContaining(['config.tabs 0.3.18', 'config.bulk 0.3.18']));
+    expect(found(DESK)).toEqual(expect.arrayContaining(['config.bulk 0.3.18']));
     expect(found(DESK_HOST)).toContain('roles.tables 0.3.18');
     const linked = structuredClone(DESK_HOST) as Doc;
     linked.pages[0].config = { layout: { toolbar: { links: [{ label: 'New sale', href: '/p/sales' }, { label: 'Count', href: '/p/sales', tone: 'primary' }] } } };
@@ -154,12 +154,12 @@ describe('the words a server reads and does not run yet', () => {
     expect(installed.statusCode, installed.body).toBe(200);
   });
 
-  it('an add-on with tab words and a bulk action is refused at its install', async () => {
+  it('an add-on with a bulk action is refused at its install', async () => {
     const h = (openAddOns = await addOnHarness('sqlite'));
     await h.stageAddOn(DESK as unknown as Doc, { bundled: true });
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'desk', version: '1.0.0', attachTo: [] } });
     expect(installed.statusCode, installed.body).toBe(422);
-    for (const word of ['config.tabs', 'config.bulk']) expect(installed.body, word).toContain(word);
+    for (const word of ['config.bulk']) expect(installed.body, word).toContain(word);
     expect((await h.tableNames()).filter((name) => name.includes('cards'))).toEqual([]);
   });
 });

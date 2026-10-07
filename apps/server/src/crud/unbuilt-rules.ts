@@ -91,7 +91,6 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   'rows.pair': ADD_ON_INSTALL_RELEASE,
   // What a generated page says and offers beyond its form; a role's grant on an add-on's table; a typed code's look-up.
   'toolbar.links': ADD_ON_INSTALL_RELEASE,
-  'config.tabs': ADD_ON_INSTALL_RELEASE,
   'config.bulk': ADD_ON_INSTALL_RELEASE,
   'roles.tables': ADD_ON_INSTALL_RELEASE,
   // Stock words, and a public entry answered by them.
@@ -132,6 +131,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'addOn.lookUp',
   // Pages built on the data kit: the dashboard publishes it to a page whose add-on asks for it.
   'addOn.hostApi.2',
+  // What a related tab says while it is empty, and whether it offers a new row: carried to the page at install.
+  'config.tabs',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.

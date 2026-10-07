@@ -46,12 +46,12 @@ import {
   parseDatabaseModel,
   type DatabaseModel,
 } from '@adminium/engine';
-import type { Manifest } from '@adminium/manifest';
+import { keptFromStaff, type Manifest } from '@adminium/manifest';
 import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
-import { bindForm, bindLayout, calendarOf } from './manifest-page-config.js';
+import { bindForm, bindLayout, bindListConfig, calendarOf } from './manifest-page-config.js';
 import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
@@ -72,7 +72,12 @@ export interface ManifestPageSkip {
     | 'PAGE_FORM_INVALID'
     | 'PAGE_LAYOUT_INVALID'
     // Created, plotted by the columns Adminium picks rather than the ones it named.
-    | 'PAGE_CALENDAR_INVALID';
+    | 'PAGE_CALENDAR_INVALID'
+    | 'PAGE_FILTERS_INVALID'
+    | 'PAGE_DEFAULT_FILTERS_INVALID'
+    | 'PAGE_TABS_INVALID'
+    | 'PAGE_TAB_UNKNOWN'
+    | 'PAGE_BULK_INVALID';
   message: string;
 }
 
@@ -319,6 +324,19 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       } else {
         envelope = { ...envelope, config: { ...own, layout: bound.layout } };
       }
+    }
+    // What a records page says of itself beside its form — the list's filters and the ones it opens with, the words
+    // of its tabs, its bulk actions — bound to the real tables and written BEFORE the page is stamped, so a fresh
+    // page does not read as one somebody edited.
+    if (template === 'page-crud' && composed !== null && tableId !== null) {
+      const current = (envelope['config'] ?? {}) as Record<string, unknown>;
+      const bound = bindListConfig(page.config, composed.view, composed.view.table(tableId), names, current);
+      for (const warning of bound.warnings) result.warnings.push({ page: page.ref, ...warning });
+      // A code only its last four characters are shown of, and a code staff never see, are on no list, form or peek.
+      const declared = (manifest.requiredSchema?.tables ?? []).find((candidate) => (names[candidate.ref] ?? candidate.ref) === composed.view.table(tableId).name);
+      const columns = current['columns'];
+      const shown = declared === undefined || !Array.isArray(columns) ? undefined : columns.filter((column) => keptFromStaff(declared, String((column as { name?: unknown }).name)) === null);
+      envelope = { ...envelope, config: { ...current, ...(shown === undefined ? {} : { columns: shown }), ...bound.config } };
     }
     // The manifest's own title: its key, its English, its translations
     //, and `from` — the English it came with, so the sidebar can

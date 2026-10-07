@@ -91,6 +91,7 @@ export { lookUpIssues, lookUpKindSchema, lookUpSchema, type LookUp, type LookUpK
 export {
   PAGE_FILTER_CONTROLS,
   pageBulkActionSchema,
+  keptFromStaff,
   pageBulkSchema,
   pageConfigIssues,
   pageFilterControls,
