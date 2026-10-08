@@ -127,6 +127,18 @@ describe.each(LEGS)('Inventory\'s email to a supplier — %s', (dialect, availab
     expect(n(point['on_order'])).toBeGreaterThanOrEqual(200);
   });
 
+  it.skipIf(!run)('an order with no address cannot be sent by email, and can be marked as sent', async () => {
+    const quiet = n((await w.create('suppliers', { name: 'Market stall', lead_days: 1 })).row['id']);
+    const made = (await w.create('purchase_orders', { supplier_id: quiet, place_id: room })).row;
+    await w.create('po_lines', { po_id: made['id'], item_id: gloves, packs: 1, pack_size: 100, price: '9.00' });
+    const before = (await mail()).length;
+    await expect(w.update('purchase_orders', made['id'], { status: 'sent', sent_how: 'email' })).rejects.toThrow();
+    expect((await one(`select status from ${t('purchase_orders')} where id = ${String(made['id'])}`))['status']).toBe('draft');
+    await change(made['id'], { status: 'sent', sent_how: 'none' });
+    expect((await one(`select status from ${t('purchase_orders')} where id = ${String(made['id'])}`))['status']).toBe('sent');
+    expect(await mail()).toHaveLength(before);
+  });
+
   it.skipIf(!run)('send again writes a second message', async () => {
     const id = await order();
     await change(id, { status: 'sent', sent_how: 'email' });
