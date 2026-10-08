@@ -61,9 +61,9 @@ function mailingKit(): Doc {
   };
 }
 
-function printerKit(version: string): Doc {
-  const { roles: _roles, pages: _pages, optionLists: _lists, ...base } = stockKitManifest();
-  return { ...base, key: PRINTER, name: 'Printer kit', version, requiredSchema: { prefixed: true, tables: [{ ref: 'jobs', columns: [pk] }] }, addOn: { attaches: [{ app: '*', range: '*' }], connect: { kind: 'none' }, hostApi: 1 } };
+function printerKit(version: string, codeOnly = false): Doc {
+  const { roles: _roles, pages: _pages, optionLists: _lists, requiredSchema: _tables, ...base } = stockKitManifest();
+  return { ...base, key: PRINTER, name: 'Printer kit', version, ...(codeOnly ? {} : { requiredSchema: { prefixed: true, tables: [{ ref: 'jobs', columns: [pk] }] } }), addOn: { attaches: [{ app: '*', range: '*' }], connect: { kind: 'none' }, hostApi: 1 } };
 }
 
 describe.each(LEGS)('a document waits for the add-on that draws it — %s', (dialect, available) => {
@@ -123,6 +123,19 @@ describe.each(LEGS)('a document waits for the add-on that draws it — %s', (dia
     const res = await h.inject({ method: 'POST', url: `/add-ons/${PRINTER}/update`, payload: { to: version } });
     expect(res.statusCode, res.body).toBe(200);
   };
+  /** A drawing add-on that keeps no tables (as Invoices & Receipts): installed, then moved to a newer version by the upgrade route. */
+  const installCodeOnly = async (version: string, kinds: string[]) => {
+    printer = { kinds, fail: false };
+    await h.stageAddOn(printerKit(version, true));
+    const res = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: PRINTER, version, attachTo: [] } });
+    expect(res.statusCode, res.body).toBe(200);
+  };
+  const upgrade = async (version: string, kinds: string[]) => {
+    printer = { kinds, fail: false };
+    await h.stageAddOn(printerKit(version, true));
+    const res = await h.inject({ method: 'POST', url: `/add-ons/${PRINTER}/upgrade` });
+    expect(res.statusCode, res.body).toBe(200);
+  };
   const profiles = async () => (await documentProfilesRepo(h.meta).listOwnedBy(h.connectionId, CARDS_KIT)).map((profile) => `${profile.kind}@${profile.addOnKey}`);
   const text = (one: { sent: { text: string; attachments?: unknown[] } | undefined }) => ({ attached: (one.sent?.attachments ?? []).length, says: one.sent?.text.includes('The card is attached.') });
 
@@ -153,6 +166,19 @@ describe.each(LEGS)('a document waits for the add-on that draws it — %s', (dia
     await update('1.1.0', ['card-pdf']);
     expect(await profiles()).toEqual([`card-pdf@${PRINTER}`]);
     expect(text(await send())).toEqual({ attached: 1, says: true });
+  });
+
+  it.skipIf(!available)('a drawing add-on with no tables of its own, upgraded into the range: the document is made then, and the next mail carries it', async () => {
+    await setUp();
+    await installCodeOnly('1.0.0', ['card-pdf']);
+    expect(await profiles()).toEqual([]);
+    expect(text(await send())).toEqual({ attached: 0, says: false });
+    // The upgrade is the other way an add-on gets newer (no tables to change): what waited for it is made here too.
+    await upgrade('1.1.0', ['card-pdf']);
+    expect(await profiles()).toEqual([`card-pdf@${PRINTER}`]);
+    const after = await send();
+    expect(after.row, JSON.stringify(after.row)).toMatchObject({ status: 'sent', error: null });
+    expect(text(after)).toEqual({ attached: 1, says: true });
   });
 
   it.skipIf(!available)('an installed version that lacks the kind is a skip and the mail goes as text; after the update that draws it the document is carried', async () => {

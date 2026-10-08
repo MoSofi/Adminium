@@ -1379,6 +1379,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           key: request.params.key,
           actor: actorOf(request),
         });
+        // The new version may draw a document another add-on has been waiting for (a purchase order): made now, as at an install.
+        await makeSuggestedDocuments(request, request.params.key);
         return { addOn: await toDto(installed), from, to, pruned };
       },
     );
