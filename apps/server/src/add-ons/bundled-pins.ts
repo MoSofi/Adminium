@@ -11,11 +11,12 @@
 import type { TrustedPackage } from './decide.js';
 
 export const BUNDLED_PINS: readonly TrustedPackage[] = [
-  { key: 'barcode-labels', version: '1.0.7', integrity: 'sha512-U3atemfywOUlwXOs+1aCrNaC1ViJPGUxutKJt9iPRE0GAO7qtHCMSyoSs3X83LyG/Ex1ys0oT65VpJVr5wnPzw==' },
-  { key: 'design-studio', version: '1.0.7', integrity: 'sha512-VNLfMRukz3AQPIiMB1F+9wAfth6V/Z1bDJPg3FZFSZfDQWnb03NACAiGsgTsfvCFTblRym5ZtSsUmO2rAGDm2Q==' },
-  { key: 'holiday-calendars', version: '1.0.7', integrity: 'sha512-NwO3rDfRm65AuyiYAps6R83dyZx0/u1YJgDa+T6V5aWPTQwBYCRY2zcOCUYMuQjF6p/wN0DaenakvVKoyrU+QA==' },
-  { key: 'import-canva', version: '1.0.7', integrity: 'sha512-9lAZVBNBNg2tc2e3GcJ4izXUWaaZSw/5AeG21v10A9o6je0Ah/tLbBkG4BgPXmmjlWJK0IHBounilvaidmzN0A==' },
-  { key: 'invoices', version: '1.0.7', integrity: 'sha512-A4ktI198ftL5RgJaNz0kIU6O7RAt5prb/IUa8/Vj9madh2cuB2eswH+Zbo86FTWk3gH86FixR1sSJAFcJu3AVw==' },
-  { key: 'personalizer', version: '1.0.7', integrity: 'sha512-hME/EpGm2DoBuA6gdzzqwUxsEe7Kh34q9CjBIjV6dl5JnRwiGipTOb8hQuTxAVH8euz/9PPBpFxmtpu+5r/33w==' },
-  { key: 'shipping-dhl', version: '1.0.7', integrity: 'sha512-Sbu8erXXWbY4BbBa+f6ezg5JWAKc5iErKxGxO4zf5haMBURiYjYlMTAgcdEJ5T1YppU5VLkkmSPz6aaiBIy1sg==' },
+  { key: 'barcode-labels', version: '1.0.8', integrity: 'sha512-oOlnJfT8N9MkBbqAwzu00x34q964pG3LMp5dPUjILrVRErGbjHduGPjWIuweovoCy/GCEi3Qglv7AJdK0WAvuw==' },
+  { key: 'design-studio', version: '1.0.8', integrity: 'sha512-zklVXP59UKzpsFkPmrPkbSG/tzhOk5uWperbxGzB0kzBXlyRKwWk8p6SZmoUuiwgDfrd2TQryJA1+SQEG4j1CA==' },
+  { key: 'holiday-calendars', version: '1.0.8', integrity: 'sha512-AxzZqhXb3lET4l1SiXyJVtlIo7Q9+UhX7d4vtowZrc2UkrMGJQzbA9Bh/iZqj8eME8NJAZIPkpdC1WN3i3AQLw==' },
+  { key: 'import-canva', version: '1.0.8', integrity: 'sha512-u3W5+n0LIWlgax7Mn7NN3Xvi4t0sYBP+ZwxqQpFvUCHuN7k0+eurYMeE1o50vwhQWcc6lXe3WcpR+/YyeGn3Xw==' },
+  { key: 'inventory', version: '1.0.8', integrity: 'sha512-Tek9t9e6bxyS7LygsAMA2CGftZ8jOTp+bu9c236ywLjwOkCWWKYRMpUOjtrYXV+GIOet06FND8ekG5k6MBOb/A==' },
+  { key: 'invoices', version: '1.0.8', integrity: 'sha512-Um7ZBVroDXJCRuI/sEgiU5wjLrKasj7s5mduO0PdOq6Dr3AlOBy3x+S2nWmBKv+ZoVfoXNJJu3/9C1+a4TQaEQ==' },
+  { key: 'personalizer', version: '1.0.8', integrity: 'sha512-j9C/7Vn5RzmS0OW/JqofCLGNompFeMTed0RhL9lHgVG4JGfQ3iK0OZCq3dads67xeyUN0CX/prhLI7YpJX01nw==' },
+  { key: 'shipping-dhl', version: '1.0.8', integrity: 'sha512-383ncUsLQXB1poEPbkScUbbLPXmSS7zQ0ZQMfWSFw7KM0QTxVS9PyGijSievWA0MQY92OB0hX1JK8qIpovSrXw==' },
 ];
