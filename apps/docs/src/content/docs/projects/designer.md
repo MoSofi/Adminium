@@ -417,6 +417,24 @@ saves a file only when it is on that list:
 | The dashboard pages, `manifest/pages/*.json` | `hooks/` and `actions/`, and anything outside the app's folder |
 | `design.md`, `look.json` and `manifest/app.json` | A link, a name that starts with a dot, a file over 256 KB, a file that is not text |
 
+The build page's **Code** tab is where you do it. It lists those files in groups (Customer
+side, Staff side, Dashboard side, Design and settings) and opens one in an editor with line
+numbers and syntax colours. The editor is loaded the first time the tab is opened.
+
+- A file you changed has a dot beside its name, and the bar says "Unsaved changes".
+- **Save** (Ctrl+S, or ⌘S on a Mac) keeps every edited file in one version. **Discard changes**
+  puts the open file back as it was; undo brings your text back.
+- Tab types two spaces in the editor, so Escape is the key that leaves it.
+- While the Designer works, or waits for your answer, the files can be read and not changed. A
+  line above the editor says why.
+- The Designer reads the files as they are saved. If you send a message with unsaved text, the
+  page asks first: "Save first" or "Send anyway". Leaving the page with unsaved text asks too.
+- If a file changed while you were editing it (a turn wrote it), the tab asks which to keep:
+  "Keep my changes" or "Use the changed file".
+- If a save was written and not applied, the tab shows the check's or the build's words, with
+  "Put the files back" and "Ask the Designer to fix it". The preview keeps showing the last
+  build that worked.
+
 A file is listed only when its name is made of letters, digits and `. _ - @ ( ) [ ]`. In a
 [copy of a published app](#start-with-an-app) the sides' sources are left out: its screens are
 built by its own build, and a change to what that build runs needs your yes in the chat.

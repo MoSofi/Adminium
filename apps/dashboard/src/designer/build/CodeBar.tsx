@@ -70,7 +70,7 @@ export function CodeBarEnd({ code }: { code: CodeFiles }): ReactNode {
           {code.saving ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
           {saveLabel}
           {/* A darker patch of the button, not a lighter one: the cap's letters are small, and on a lightened accent they fall under 4.5:1. */}
-          <kbd aria-hidden="true" className="rounded-[5px] bg-black/15 px-[5px] py-px font-mono text-[10.5px] font-semibold">
+          <kbd dir="ltr" aria-hidden="true" className="rounded-[5px] bg-black/15 px-[5px] py-px font-mono text-[10.5px] font-semibold">
             {saveKeyCap()}
           </kbd>
         </button>
