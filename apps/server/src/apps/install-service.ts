@@ -947,7 +947,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
       ...(await repeatedUniques(pure, connectionId, manifest, dialect)),
-      ...(await orphanedLinks(pure, connectionId, manifest)),
+      ...(await orphanedLinks(pure, connectionId, manifest, found)),
       ...(await shareRefProblems(manifest, connectionId, pure)),
     ];
     const plan: InstallPlan =
@@ -1283,7 +1283,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * points at a row that is not there: refused on the check, by name, before
    * anything moves — never an update the database stops midway.
    */
-  async function orphanedLinks(plan: InstallPlan, connectionId: string, manifest?: Manifest): Promise<PlanProblem[]> {
+  async function orphanedLinks(plan: InstallPlan, connectionId: string, manifest: Manifest | undefined, existing: readonly ExistingTable[]): Promise<PlanProblem[]> {
     const target = deps.schemaTarget;
     if (target?.orphans === undefined) return [];
     const out: PlanProblem[] = [];
@@ -1291,9 +1291,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       for (const edit of table.edits) {
         if (edit.kind !== 'add-link') continue;
         const to = (plan.tables ?? []).find((candidate) => candidate.ref === edit.to);
-        const key = (manifest?.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === edit.to)?.columns.find((column) => column.role === 'pk')?.ref ?? 'id';
-        // A table this same update makes has no rows yet: any value there points at nothing.
-        const broken = to?.action === 'create' && target.count !== undefined ? (await target.count(connectionId, table.table, { kind: 'not-null', column: edit.column })) > 0 : await target.orphans(connectionId, table.table, edit.column, to?.table ?? edit.to, key);
+        const real = to?.table ?? edit.to;
+        // A table this same update makes (new, or made afresh once the one there is moved aside) has no rows yet: any value points at nothing.
+        const fresh = to?.action === 'create' || to?.action === 'rename-existing';
+        // The key the foreign key will name: the live table's own (a host table's need not be `id`), as `linkColumnFor` reads it.
+        const liveKey = existing.find((candidate) => candidate.ref === real)?.columns.filter((column) => column.isPrimaryKey === true) ?? [];
+        const key = liveKey.length === 1 ? liveKey[0]!.ref : ((manifest?.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === edit.to)?.columns.find((column) => column.role === 'pk')?.ref ?? 'id');
+        const broken = fresh && target.count !== undefined ? (await target.count(connectionId, table.table, { kind: 'not-null', column: edit.column })) > 0 : await target.orphans(connectionId, table.table, edit.column, real, key);
         if (!broken) continue;
         out.push({
           code: 'LINK_ORPHANS',

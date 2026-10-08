@@ -131,20 +131,35 @@ export function uniqueWithOf(column: RequiredColumn): string[] | null {
 }
 
 /**
- * The logical type of the key a link points at: the live table's own key
- * column where the table is there, else what the manifest declares the key
- * of a table this plan makes. Null when it cannot be told (a key over
- * several columns, a type no plain column carries): no link is offered then.
+ * Whether a column that is there can carry a foreign key to the key a link
+ * points at: the live table's own key where the table is there, else the key
+ * the manifest declares for a table this plan makes. Their logical types must
+ * be the same; and on MySQL their own types too, to the letter — it reads
+ * `int` and `int unsigned` (and `smallint`) all as integers, and refuses a
+ * foreign key between any two of them. False when it cannot be told (a key
+ * over several columns, a type no plain column carries): no link is offered.
  */
-function keyTypeOf(references: string, required: readonly RequiredTable[], names: Readonly<Record<string, string>>, live: ReadonlyMap<string, { columns: readonly ExistingColumnView[] }>): string | null {
+function carriesLinkTo(
+  have: ExistingColumnView,
+  references: string,
+  required: readonly RequiredTable[],
+  names: Readonly<Record<string, string>>,
+  live: ReadonlyMap<string, { columns: readonly ExistingColumnView[] }>,
+  dialect: PlanContext['dialect'],
+): boolean {
   const existing = live.get(names[references] ?? references);
   if (existing !== undefined) {
     const keys = existing.columns.filter((c) => c.isPrimaryKey === true);
-    return keys.length === 1 ? (keys[0]!.logicalType ?? null) : null;
+    const key = keys.length === 1 ? keys[0]! : null;
+    if (key === null || key.logicalType === undefined || key.logicalType !== have.logicalType) return false;
+    if (dialect !== 'mysql') return true;
+    // Not told of either: nothing is offered on a guess.
+    return key.dbType !== undefined && have.dbType !== undefined && key.dbType.trim().toLowerCase() === have.dbType.trim().toLowerCase();
   }
   const keys = (required.find((t) => t.ref === references)?.columns ?? []).filter((c) => c.role === 'pk');
-  if (keys.length !== 1) return null;
-  return keys[0]!.type === 'int' ? 'integer' : keys[0]!.type === 'bigint' ? 'bigint' : keys[0]!.type === 'uuid' ? 'uuid' : null;
+  if (keys.length !== 1) return false;
+  const made = keys[0]!.type === 'int' ? 'integer' : keys[0]!.type === 'bigint' ? 'bigint' : keys[0]!.type === 'uuid' ? 'uuid' : null;
+  return made !== null && have.logicalType === made;
 }
 
 /**
@@ -543,8 +558,7 @@ export function planWithContext(
          * every row points at a row that is there.
          */
         if (plan.action === 'reuse' && column.type === 'fk' && column.references !== undefined && have.linksTo === null) {
-          const keyType = keyTypeOf(column.references, required, names, live);
-          if (keyType !== null && have.logicalType === keyType) plan.edits.push({ kind: 'add-link', column: column.ref, to: column.references });
+          if (carriesLinkTo(have, column.references, required, names, live, context.dialect)) plan.edits.push({ kind: 'add-link', column: column.ref, to: column.references });
         }
         /*
          * A column the app keeps unique that the table does not: made so, as

@@ -173,11 +173,11 @@ describe('a table this app made on an earlier install', () => {
       },
     } as unknown as Manifest;
     const id = (more: Record<string, unknown> = {}) => col('id', { isPrimaryKey: true, logicalType: 'integer', isIdentity: true, nullable: false, ...more });
-    const edits = (link: Record<string, unknown>, tickets: Record<string, unknown> | null = {}) =>
+    const edits = (link: Record<string, unknown>, tickets: Record<string, unknown> | null = {}, dialect: 'postgres' | 'mysql' | 'sqlite' = 'postgres') =>
       planInstall(
         linked,
         view([...(tickets === null ? [] : [{ ref: 'pos_tickets', columns: [id(tickets)] }]), { ref: 'pos_payments', columns: [id(), col('ticket_id', link)] }]),
-        ctx({ records: { ...records, tickets: { table: 'pos_tickets', state: 'created', owned: true } } }),
+        ctx({ dialect, records: tickets === null ? records : { ...records, tickets: { table: 'pos_tickets', state: 'created', owned: true } } }),
       ).tables?.find((t) => t.ref === 'payments')?.edits;
     // A plain number with no foreign key: linked, to the table as the manifest names it.
     expect(edits({ logicalType: 'integer', linksTo: null })).toEqual([{ kind: 'add-link', column: 'ticket_id', to: 'tickets' }]);
@@ -187,6 +187,17 @@ describe('a table this app made on an earlier install', () => {
     // A type that is not the key's cannot carry the link on every engine.
     expect(edits({ logicalType: 'bigint', linksTo: null })).toEqual([]);
     expect(edits({ logicalType: 'integer', linksTo: null }, { logicalType: 'bigint' })).toEqual([]);
+    // A table this same update makes: judged by the key the manifest declares for it.
+    expect(edits({ logicalType: 'integer', linksTo: null }, null)).toEqual([{ kind: 'add-link', column: 'ticket_id', to: 'tickets' }]);
+    expect(edits({ logicalType: 'bigint', linksTo: null }, null)).toEqual([]);
+    // MySQL reads `int` and `int unsigned` both as integers and links neither to the other: there the types match to the letter, or nothing is offered.
+    const link = [{ kind: 'add-link', column: 'ticket_id', to: 'tickets' }];
+    expect(edits({ logicalType: 'integer', dbType: 'int', linksTo: null }, { dbType: 'INT' }, 'mysql')).toEqual(link);
+    expect(edits({ logicalType: 'integer', dbType: 'int', linksTo: null }, { dbType: 'int unsigned' }, 'mysql')).toEqual([]);
+    expect(edits({ logicalType: 'integer', dbType: 'smallint', linksTo: null }, { dbType: 'int' }, 'mysql')).toEqual([]);
+    expect(edits({ logicalType: 'integer', linksTo: null }, { dbType: 'int' }, 'mysql')).toEqual([]);
+    // Postgres links an int4 to a serial key; nothing is asked of the names there.
+    expect(edits({ logicalType: 'integer', dbType: 'int4', linksTo: null }, { dbType: 'serial' }, 'postgres')).toEqual(link);
   });
 
   it('refuses on MySQL a unique text column wider than MySQL can index, whether the table is made or reused', () => {

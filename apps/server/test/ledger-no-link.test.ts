@@ -18,8 +18,16 @@ import { PostingRefusedError } from '../src/errors.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { ledgerWorld, type LedgerWorld } from './ledger.helpers.js';
 
-const USE = (id: string) => ({ id, into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' }, via: 'under', map: { account: 'account_id', quantity: 'qty' }, post: { on: { column: 'status', in: ['done'] } } });
-const LINE = 'under INT NULL, account_id INT NULL, qty DECIMAL(12,3) NULL';
+const USE = (id: string) => ({
+  id,
+  into: { addOn: 'ledger-kit', ledger: 'units', action: 'use' },
+  via: 'under',
+  map: { account: 'account_id', quantity: 'qty' },
+  post: { on: { column: 'status', in: ['done'] } },
+  // A line taken off by its own column: the line's own point, not its job's.
+  reverse: { on: { column: 'voided_at', set: true, own: true } },
+});
+const LINE = `under INT NULL, account_id INT NULL, qty DECIMAL(12,3) NULL, voided_at VARCHAR(40) NULL`;
 
 describe.each(LEGS)('a line under a rule with no link — %s', (dialect, available) => {
   let w: LedgerWorld;
@@ -56,6 +64,8 @@ describe.each(LEGS)('a line under a rule with no link — %s', (dialect, availab
     );
     expect(refused).toBeInstanceOf(PostingRefusedError);
     expect((refused as PostingRefusedError).details).toMatchObject({ reason: 'add-on-unavailable', posting: 'loose', column: 'under' });
+    // Said as what it is: no wait mends it.
+    expect((refused as PostingRefusedError).message).toBe('This cannot be saved: the rule that hands it to an add-on follows a link this table does not have. Updating the app, or linking the column, mends it.');
     expect(await w.h.rows('SELECT id FROM loose_lines')).toEqual([]);
   });
 
@@ -64,7 +74,16 @@ describe.each(LEGS)('a line under a rule with no link — %s', (dialect, availab
     await overridesRepo(w.h.meta).create({ connectionId: w.h.connectionId, op: 'table.switchedOff', tableName: id, columnName: null, value: { postings: ['loose'] }, origin: 'user' } as never);
     await w.reload();
     const job = await w.create('jobs', { status: 'open' });
-    await w.create('loose_lines', { under: job['id'], account_id: 1, qty: '3' });
+    const line = await w.create('loose_lines', { under: job['id'], account_id: 1, qty: '3' });
     expect((await w.h.rows('SELECT id FROM loose_lines')).length).toBe(1);
+
+    // The rule on again, the line from before is still there to be taken off: nothing was handed over for it, so nothing refuses.
+    const off = (await overridesRepo(w.h.meta).listForConnection(w.h.connectionId, { status: 'active' })).find((row) => row.op === 'table.switchedOff')!;
+    await overridesRepo(w.h.meta).delete(off.id);
+    await w.reload();
+    await w.update('loose_lines', line['id'], { voided_at: 'now' });
+    expect((await w.h.rows(`SELECT voided_at FROM loose_lines WHERE id = ${String(line['id'])}`))[0]!['voided_at']).toBe('now');
+    // …and a new one is still refused.
+    await expect(w.create('loose_lines', { under: job['id'], account_id: 1, qty: '1' })).rejects.toBeInstanceOf(PostingRefusedError);
   });
 });

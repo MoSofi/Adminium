@@ -52,6 +52,8 @@ export interface ExistingColumnView {
   isGenerated?: boolean;
   /** The engine's logical type (`integer`, `varchar`, …). Absent = not judged. */
   logicalType?: string;
+  /** The engine's own name for the type (`int unsigned`, `int4`), when the read tells it. */
+  dbType?: string;
   /** A `varchar`'s width, when it has one. */
   maxLength?: number | null;
   /** A key the database numbers itself. Absent = unknown, never offered a repair. */

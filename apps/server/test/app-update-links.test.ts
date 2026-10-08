@@ -18,11 +18,12 @@ import { LEGS, installInvoicing, invoicingManifest, type InvoicingHarness } from
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
-function version(v: string, link: Record<string, unknown>): Record<string, unknown> {
+function version(v: string, link: Record<string, unknown>, more: { columns?: Record<string, unknown>[]; tables?: Record<string, unknown>[] } = {}): Record<string, unknown> {
   return {
     ...invoicingManifest([
       { ref: 'proposals', columns: [id, { ref: 'title', type: 'text', maxLength: 80 }] },
-      { ref: 'versions', columns: [id, { ref: 'body', type: 'text', maxLength: 80 }, { ref: 'proposal_id', nullable: true, ...link }] },
+      { ref: 'versions', columns: [id, { ref: 'body', type: 'text', maxLength: 80 }, { ref: 'proposal_id', nullable: true, ...link }, ...(more.columns ?? [])] },
+      ...(more.tables ?? []),
     ]),
     version: v,
     compatibility: { minAdminiumVersion: '0.3.0', updatesFrom: '>=0.2.0' },
@@ -58,8 +59,7 @@ describe.each(LEGS)('an update links a column that was made a plain number — %
   const linksOf = async () => {
     const adapter = await h.manager.introspectAdapter(h.connectionId);
     try {
-      const names = new Set([h.real('versions'), h.real('proposals')]);
-      const model = await adapter.introspect({ tableFilter: (t) => names.has(t.name), collectRowEstimates: false, collectActivityStats: false });
+      const model = await adapter.introspect({ collectRowEstimates: false, collectActivityStats: false });
       const from = model.tables.find((t) => t.name === h.real('versions'))!.id;
       return model.relations.filter((r) => r.kind === 'declared-fk' && r.from.tableId === from).map((r) => `${r.from.columns.join(',')} -> ${model.tables.find((t) => t.id === r.to.tableId)?.name ?? r.to.tableId}`);
     } finally {
@@ -98,6 +98,72 @@ describe.each(LEGS)('an update links a column that was made a plain number — %
 
     await stage(version('0.2.2', LINK));
     expect((await plan('0.2.2')).tables.find((t) => t.ref === 'versions')!.edits).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!available)('the table keeps everything else it had: its unique rule, its value list, its default and its other link', async () => {
+    // What a rebuild could lose (SQLite copies the table to add the key).
+    const columns = [
+      { ref: 'ref_no', type: 'text', maxLength: 20, nullable: true, unique: true },
+      { ref: 'kind', type: 'enum', enum: ['draft', 'sent'], default: 'draft' },
+      { ref: 'author_id', type: 'fk', references: 'authors', nullable: true },
+    ];
+    const tables = [{ ref: 'authors', columns: [id, { ref: 'name', type: 'text', maxLength: 40 }] }];
+    h = await installInvoicing(dialect, version('0.2.0', NUMBER, { columns, tables }));
+    await h.rows(`INSERT INTO ${h.real('proposals')} (id, title) VALUES (1, 'One')`);
+    await h.rows(`INSERT INTO ${h.real('versions')} (body, proposal_id, ref_no) VALUES ('a', 1, 'R-1')`);
+    await stage(version('0.2.1', LINK, { columns, tables }));
+    expect((await plan('0.2.1')).tables.find((t) => t.ref === 'versions')!.edits).toEqual([{ kind: 'add-link', column: 'proposal_id', to: 'proposals' }]);
+    const res = await h.app.inject({ method: 'POST', url: '/apps/studio/update' });
+    expect(res.statusCode, res.body).toBe(200);
+    expect((await linksOf()).sort()).toEqual([`author_id -> ${h.real('authors')}`, `proposal_id -> ${h.real('proposals')}`]);
+    // The default still fills, the unique rule and the value list still refuse.
+    await h.rows(`INSERT INTO ${h.real('versions')} (body, proposal_id) VALUES ('b', 1)`);
+    expect((await h.rows(`SELECT kind FROM ${h.real('versions')} WHERE body = 'b'`))[0]!['kind']).toBe('draft');
+    await expect(h.rows(`INSERT INTO ${h.real('versions')} (body, ref_no) VALUES ('c', 'R-1')`)).rejects.toThrow();
+    await expect(h.rows(`INSERT INTO ${h.real('versions')} (body, kind) VALUES ('d', 'lost')`)).rejects.toThrow();
+    // …and nothing is left for the next check.
+    await stage(version('0.2.2', LINK, { columns, tables }));
+    expect((await plan('0.2.2')).tables.find((t) => t.ref === 'versions')!.edits).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!available)('a link to a table the same update makes is offered only while the column is empty', async () => {
+    const plain = { ref: 'batch_id', type: 'int', nullable: true };
+    const linked = { ref: 'batch_id', type: 'fk', references: 'batches', nullable: true };
+    const tables = [{ ref: 'batches', columns: [id, { ref: 'name', type: 'text', maxLength: 40 }] }];
+    h = await installInvoicing(dialect, version('0.2.0', LINK, { columns: [plain] }));
+    await h.rows(`INSERT INTO ${h.real('versions')} (body, batch_id) VALUES ('a', 7)`);
+    await stage(version('0.2.1', LINK, { columns: [linked], tables }));
+    // No batch exists yet: a value there names nothing.
+    const checked = await plan('0.2.1');
+    expect(checked.problems).toEqual([expect.objectContaining({ code: 'LINK_ORPHANS', column: 'batch_id' })]);
+    await h.rows(`UPDATE ${h.real('versions')} SET batch_id = NULL`);
+    const res = await h.app.inject({ method: 'POST', url: '/apps/studio/update' });
+    expect(res.statusCode, res.body).toBe(200);
+    expect((await linksOf()).sort()).toEqual([`batch_id -> ${h.real('batches')}`, `proposal_id -> ${h.real('proposals')}`]);
+  }, 120_000);
+
+  it.skipIf(!available)('a link to a table that was there before the app is checked by that table\'s own key, whatever its name', async () => {
+    const serial = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+    const plain = { ref: 'person_no', type: 'int', nullable: true };
+    const linked = { ref: 'person_no', type: 'fk', references: 'people_on_file', nullable: true };
+    h = await installInvoicing(dialect, version('0.2.0', LINK, { columns: [plain] }));
+    await h.rows(`CREATE TABLE people_on_file (person_no ${serial}, name VARCHAR(40))`);
+    await h.rows(`INSERT INTO people_on_file (person_no, name) VALUES (5, 'Ada')`);
+    await h.rows(`INSERT INTO ${h.real('versions')} (body, person_no) VALUES ('a', 5), ('stray', 6)`);
+    await stage(version('0.2.1', LINK, { columns: [linked] }));
+    // The check reads `person_no`, the key the table has: it answers, and names the stray row.
+    const checked = await plan('0.2.1');
+    expect(checked.problems).toEqual([expect.objectContaining({ code: 'LINK_ORPHANS', column: 'person_no' })]);
+    await h.rows(`UPDATE ${h.real('versions')} SET person_no = NULL WHERE body = 'stray'`);
+    const res = await h.app.inject({ method: 'POST', url: '/apps/studio/update' });
+    expect(res.statusCode, res.body).toBe(200);
+    const adapter = await h.manager.introspectAdapter(h.connectionId);
+    try {
+      const model = await adapter.introspect({ tableFilter: (t) => t.name === h.real('versions') || t.name === 'people_on_file', collectRowEstimates: false, collectActivityStats: false });
+      expect(model.relations.filter((r) => r.kind === 'declared-fk' && r.from.columns[0] === 'person_no').map((r) => r.to.columns)).toEqual([['person_no']]);
+    } finally {
+      await adapter.close();
+    }
   }, 120_000);
 
   it.skipIf(!available)('a row that names a parent that is not there is said on the check, and nothing moves', async () => {

@@ -513,6 +513,9 @@ const refused = (reason: string, call: Pick<PostingCall, 'ledger' | 'posting'> |
   // `family`: which of the two answers a customer hears (out of stock, a refused card) when the reason is the ledger's own.
   new PostingRefusedError(REFUSAL_WORDS[reason] ?? 'The add-on refused this.', { reason, ...(call === null ? {} : { ledger: call.ledger.id, posting: call.posting.id, family: call.ledger.refusal }), ...more });
 
+/** A line under a rule whose `via` the database does not link: no wait mends it. */
+const NO_LINK_WORDS = 'This cannot be saved: the rule that hands it to an add-on follows a link this table does not have. Updating the app, or linking the column, mends it.';
+
 const REFUSAL_WORDS: Readonly<Record<string, string>> = {
   'add-on-unavailable': 'The add-on this depends on cannot be asked right now, so this cannot be saved.',
   'planner-failed': 'The add-on this depends on did not answer as it should, so nothing was saved.',
@@ -697,7 +700,10 @@ export function createLedgerWriter(kit: LedgerKit) {
            */
           const stands = ledgers.resolve(target.view, target.table, point.posting).state;
           if (stands === 'idle' || stands === 'off' || input.dry === true) continue;
-          throw refused('add-on-unavailable', null, { posting: point.posting.id, column: point.posting.via });
+          // Nothing was ever handed over for such a line, so there is nothing to give back: taking it off is never refused.
+          if (point.phase === 'reverse') continue;
+          // Said as what it is: this does not pass by waiting, the table has to be mended.
+          throw new PostingRefusedError(NO_LINK_WORDS, { reason: 'add-on-unavailable', posting: point.posting.id, column: point.posting.via! });
         }
         link = { table: parent.table, via: point.posting.via!, parentKey: parent.parentKey };
       }
