@@ -16,7 +16,7 @@
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2506 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7718 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
-| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7527 |
+| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7546 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7261 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7739 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7395 |
@@ -81,7 +81,7 @@
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |
-| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5327 |
+| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5372 |
 | `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 1853 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |

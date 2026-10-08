@@ -73,8 +73,8 @@ export interface LedgerTableFacts {
   links: Readonly<Record<string, string>>;
   /** The columns Adminium decides on it: a plan gives none of them. */
   decided: ReadonlySet<string>;
-  /** Code columns a row the plan adds may bring a code for (`rules.code.givenByLedger`), each with its prefix. */
-  givenCodes?: ReadonlyMap<string, { prefix: string }>;
+  /** Code columns a row the plan adds may bring a code for (`rules.code.givenByLedger`), each with its prefix and the column's width. */
+  givenCodes?: ReadonlyMap<string, { prefix: string; max?: number | undefined }>;
 }
 
 export interface WriteScopeByRef {
@@ -205,7 +205,8 @@ export function checkOutput(input: CheckInput, output: PlannedOutput): CheckResu
       if (givenCode !== undefined) {
         const value: unknown = row.op === 'insert' ? row.values[column] : undefined;
         if (value === null || value === undefined) continue;
-        if (typeof value !== 'string' || !GIVEN_CODE.test(value.startsWith(givenCode.prefix) ? value.slice(givenCode.prefix.length) : value)) {
+        // The prefix is part of the code (a card's code with no `GC-` could be a discount's word), and the whole of it fits the column.
+        if (typeof value !== 'string' || !value.startsWith(givenCode.prefix) || !GIVEN_CODE.test(value.slice(givenCode.prefix.length)) || (givenCode.max !== undefined && value.length > givenCode.max)) {
           return fail('scope-op', `${at}: "${row.table}.${column}" is given a code that is not one: ${givenCode.prefix === '' ? '' : `"${givenCode.prefix}" and `}4 to 16 capital letters and digits`);
         }
         continue;
@@ -552,7 +553,7 @@ function tableFacts(kit: LedgerKit, target: WriteTarget, ledger: ResolvedLedger,
       links: Object.fromEntries(declared.columns.flatMap((column) => (column.type === 'fk' && column.references !== undefined ? [[column.ref, column.references] as const] : []))),
       decided: new Set([...(rules?.readOnly ?? []), ...(rules?.numbered ?? [])]),
       givenCodes: new Map(
-        (declared.columns as readonly { ref: string; rules?: { code?: { prefix?: string; givenByLedger?: true } } }[]).flatMap((column) => (column.rules?.code?.givenByLedger === true ? [[column.ref, { prefix: column.rules.code.prefix ?? '' }] as const] : [])),
+        (declared.columns as readonly { ref: string; maxLength?: number; rules?: { code?: { prefix?: string; givenByLedger?: true } } }[]).flatMap((column) => (column.rules?.code?.givenByLedger === true ? [[column.ref, { prefix: column.rules.code.prefix ?? '', max: column.maxLength }] as const] : [])),
       ),
     };
   }

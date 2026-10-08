@@ -95,11 +95,11 @@ describe('the plan an add-on answers', () => {
     const base = input();
     const coded = input({
       writes: { ...base.writes, holds: { insert: ['account_id', 'code'], update: { by: ['id'], set: ['state', 'code'] } } },
-      tables: { ...base.tables, holds: { key: ['id'], links: { account_id: 'accounts' }, decided: new Set(['code']), givenCodes: new Map([['code', { prefix: 'GC-' }]]) } },
+      tables: { ...base.tables, holds: { key: ['id'], links: { account_id: 'accounts' }, decided: new Set(['code']), givenCodes: new Map([['code', { prefix: 'GC-', max: 16 }]]) } },
     });
-    for (const code of ['GC-48219930', 'GC-7K2MW3HNQ4XP', '48219930', null]) expect(cause(checkOutput(coded, plan([insert('holds', { account_id: 2, code })]))), String(code)).toBe('ok');
-    // Too short, too long, small letters, a space, a sign, a number that is not text.
-    for (const code of ['GC-123', 'GC-12345678901234567', 'gc-48219930', 'GC-4821 9930', 'GC-4821-9930', 48219930]) expect(cause(checkOutput(coded, plan([insert('holds', { account_id: 2, code })]))), String(code)).toBe('scope-op');
+    for (const code of ['GC-48219930', 'GC-7K2MW3HNQ4XP', 'GC-1234567890123', null]) expect(cause(checkOutput(coded, plan([insert('holds', { account_id: 2, code })]))), String(code)).toBe('ok');
+    // Too short, wider than the column, with no prefix (it could be a discount's word), small letters, a space, a sign, a number that is not text.
+    for (const code of ['GC-123', 'GC-12345678901234', '48219930', 'SUMMER20', 'gc-48219930', 'GC-4821 9930', 'GC-4821-9930', 48219930]) expect(cause(checkOutput(coded, plan([insert('holds', { account_id: 2, code })]))), String(code)).toBe('scope-op');
     // On a change it is what it always was: Adminium's.
     expect(cause(checkOutput(coded, plan([update('holds', { id: 12 }, { code: 'GC-48219930' })])))).toBe('scope-op');
     // And a table whose rule does not say so takes none.
