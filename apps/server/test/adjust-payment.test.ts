@@ -136,6 +136,12 @@ describe('the payment a save decided, read off what it did', () => {
     const read = await paymentOf({ view: view(relations, { orders }), rows: [row], outcomes: decided, parentOf: async (of, key) => (asked.push([of, key]), { id: 8, due: '4' }) });
     expect(read?.payment).toEqual({ amount: '19.00', due: '4.00' });
     expect(asked).toEqual([[orders, 8]]);
+    // Asked without saving: the order has not heard of the payment, so the payment is taken off what it says — never below nothing.
+    const tried = await paymentOf({ view: view(relations, { orders }), rows: [row], outcomes: decided, dry: true, parentOf: async () => ({ id: 8, due: '29.11' }) });
+    expect(tried?.payment).toEqual({ amount: '19.00', due: '10.11' });
+    expect((await paymentOf({ view: view(relations, { orders }), rows: [row], outcomes: decided, dry: true, parentOf: async () => ({ id: 8, due: '12' }) }))?.payment).toEqual({ amount: '19.00', due: '0.00' });
+    // …and where the order was tried with it, it already says what would be left.
+    expect((await paymentOf({ view: view(relations, { orders }), rows: [{ table: orders, row: { id: 8, due: '10.11' } }, row], outcomes: decided, dry: true, parentOf: never }))?.payment).toEqual({ amount: '19.00', due: '10.11' });
     // Another line's decision is not this row's.
     expect(await paymentOf({ view: view(relations, { orders }), rows: [{ table: lines, row: { id: 32, order_id: 8 } }], outcomes: decided, parentOf: never })).toBeUndefined();
   });

@@ -1227,9 +1227,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * pay. The balance it left behind is told to somebody who may read the rows
      * the ledger wrote for it, and to nobody else.
      */
-    async function paidAs(request: FastifyRequest, ctx: DataContext, rows: readonly PaidRow[], outcomes: readonly PostedOutcome[] | undefined): Promise<{ payment?: PaymentAnswer }> {
+    async function paidAs(request: FastifyRequest, ctx: DataContext, rows: readonly PaidRow[], outcomes: readonly PostedOutcome[] | undefined, dry = false): Promise<{ payment?: PaymentAnswer }> {
       if (outcomes === undefined || !outcomes.some((outcome) => outcome.decided.length > 0)) return {};
-      const found = await paymentOf({ view: ctx.view, rows, outcomes, parentOf: async (table, key) => (await fetchByPk(ctx.db, table, { [table.primaryKey[0]!]: key })) ?? null });
+      const found = await paymentOf({ view: ctx.view, rows, outcomes, dry, parentOf: async (table, key) => (await fetchByPk(ctx.db, table, { [table.primaryKey[0]!]: key })) ?? null });
       if (found === undefined) return {};
       let reads = found.balanceAfter !== undefined && found.wrote.length > 0;
       for (const table of reads ? found.wrote : []) if (!(await request.can(`table:${ctx.connectionId}:${table.id}:read`))) reads = false;
@@ -3142,7 +3142,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // The desk's booking summary: the nights a price by the night is made of.
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight));
         const told = await answersFor((permission) => request.can(permission), tree.outcome.postings);
-        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings)) };
+        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings, true)) };
       },
     );
 
@@ -3237,7 +3237,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight);
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
         const told = await answersFor((permission) => request.can(permission), outcome.postings);
-        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings)) };
+        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }), ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings, true)) };
       },
     );
 

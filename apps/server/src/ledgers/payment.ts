@@ -47,6 +47,12 @@ export async function paymentOf(input: {
   rows: readonly PaidRow[];
   outcomes: readonly PostedOutcome[] | undefined;
   parentOf: (table: ResolvedTable, key: unknown) => Promise<Row | null>;
+  /**
+   * The request wrote nothing (a dry run): a row above that it did not carry
+   * still holds what was due BEFORE this payment, so the payment is taken off
+   * what it says. A save needs none of this: the row above is read after it.
+   */
+  dry?: boolean;
 }): Promise<{ payment: { amount: string; due: string }; balanceAfter?: string; wrote: readonly ResolvedTable[] } | undefined> {
   const { view } = input;
   for (const written of input.rows) {
@@ -70,7 +76,13 @@ export async function paymentOf(input: {
             // The row above, as the request left it when it wrote it too; else as it stands after the save.
             const among = input.rows.find((candidate) => candidate.table.id === parentTable.id && String(candidate.row[link.to.columns[0]!]) === String(parentKey));
             const parent = among?.row ?? (await input.parentOf(parentTable, parentKey));
-            if (parent !== null) due = money(view, parentTable, mapped.parent, parent[mapped.parent]);
+            if (parent !== null) {
+              // Nothing was saved, and the row above was not part of what was tried: it has not heard of this payment yet.
+              const stale = input.dry === true && among === undefined;
+              const stands = parent[mapped.parent];
+              const left = stale && stands !== null && stands !== undefined && Number.isFinite(Number(stands)) ? Math.max(0, Number(stands) - Number(amount.value)) : stands;
+              due = money(view, parentTable, mapped.parent, left);
+            }
           }
         }
         if (due === null) continue;

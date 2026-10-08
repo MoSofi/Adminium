@@ -35,7 +35,11 @@ describe.each(LEGS)('a gift card\'s balance, asked by a stranger — %s', (diale
   const read = (typed: string | null, address = fresh()) =>
     served.composed.app.inject({ method: 'GET', url: `/api/v1/public/records/${BALANCE}`, remoteAddress: address, headers: served.headers(undefined, typed === null ? {} : { 'x-adminium-code': typed }) });
   const codeOf = (res: Awaited<ReturnType<typeof read>>) => (res.json() as { error?: { code: string } }).error?.code;
-  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  // A day on this machine's own calendar, as the server reads "today" where no time zone is set: in UTC the two differ for the hours around midnight.
+  const day = (offset: number) => {
+    const at = new Date(Date.now() + offset * 86_400_000);
+    return `${String(at.getFullYear())}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
+  };
 
   beforeAll(async () => {
     if (!run) return;
