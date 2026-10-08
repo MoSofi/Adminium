@@ -460,6 +460,7 @@ export default {
     "installed": "已安裝 {version}",
     "keyCounts": "{reads} 讀，{writes} 寫",
     "posts": "記入",
+    "prices": "定價來自",
     "kind": "類型",
     "kindAddOn": "附加元件",
     "kindEmail": "傳送",

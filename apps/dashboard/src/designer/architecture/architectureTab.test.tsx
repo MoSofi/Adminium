@@ -144,6 +144,14 @@ describe('the Architecture tab', () => {
     expect(within(bar).getByRole('button', { name: 'Invoices & Receipts' })).toBeTruthy();
   });
 
+  it('a table an add-on prices says so on its line', async () => {
+    doc = { ...DOC, edges: [...DOC.edges, { id: 't_jobs>a_invoices>add-on', from: 't_jobs', to: 'a_invoices', kind: 'add-on', does: 'prices' }] };
+    mount();
+    await userEvent.click(await screen.findByRole('switch'));
+    const jobs = screen.getAllByRole('button', { name: /^jobs/ }).find((button) => button.textContent?.includes('Priced by')) as HTMLElement;
+    expect(jobs.textContent).toContain('Priced by Invoices & Receipts');
+  });
+
   it('lists the tables, roles, customer access, emails, add-ons and screens', async () => {
     doc = DOC;
     mount();

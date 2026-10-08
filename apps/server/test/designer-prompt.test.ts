@@ -102,7 +102,7 @@ describe('what the Designer’s model is told', () => {
 });
 
 describe('an add-on that does the job', () => {
-  it('the add-ons skill loads for stock, supplies and invoices, and not for a booking page', () => {
+  it('the add-ons skill loads for stock, supplies, invoices, discounts and gift cards, and not for a booking page', () => {
     for (const asked of [
       'A small clinic app: patients, visits, and track the supplies each visit uses.',
       'Keep stock of what we sell.',
@@ -112,10 +112,18 @@ describe('an add-on that does the job', () => {
       'Reordering should be automatic',
       'Send an invoice when the job is done',
       'Is there an add-on for it?',
+      'Sell gift cards at the till, and let people pay with one.',
+      'A 10% discount for members',
+      'We hand out coupons at the market',
+      'Vouchers for a free coffee',
+      'Customers keep store credit with us',
+      'A loyalty scheme: the tenth wash is free',
+      'Happy hour from five to seven',
+      'They pay with a giftcard',
     ]) {
       expect(MENTIONS_ADD_ON.test(asked), asked).toBe(true);
     }
-    for (const asked of ['A booking page for a hair salon', 'Our supplier list, with phone numbers', 'Track repair jobs and who is assigned', 'A stockbroker\'s client list']) {
+    for (const asked of ['A booking page for a hair salon', 'Our supplier list, with phone numbers', 'Track repair jobs and who is assigned', 'A stockbroker\'s client list', 'A list of discounted cash flows', 'Greeting cards for our gift shop']) {
       expect(MENTIONS_ADD_ON.test(asked), asked).toBe(false);
     }
   });
@@ -179,7 +187,8 @@ describe('an add-on that does the job', () => {
     const prompt = createPrompt({ root, version: '0.3.18', skills: createSkills(), providerOf: async () => 'anthropic' });
     const { system } = await prompt(session(), [say('user', 'Add a column.')]);
     expect(system).toContain('then call post_to_ledger with that table');
-    expect(system).toContain('Never build a stock table of the app\'s own.');
+    expect(system).toContain('Never build a stock table, a code table or a card table of the app\'s own.');
+    expect(system).toContain('For a discount, a code or a gift card on an order, write the order\'s tables first, then call build_on_shape with the Offers shape and your tables');
   });
 });
 
@@ -218,6 +227,7 @@ describe('an app that is new', () => {
     expect(names).toContain('adminium-app/references/guides/manifest-by-task--add-a-dashboard-page.md');
     // Stock is an add-on's job: the task is one line of every prompt, whatever words the person used.
     expect(guides).toContain('- adminium-app/references/guides/manifest-by-task--stock-from-the-inventory-add-on.md: Stock from the Inventory add-on');
+    expect(guides).toContain('- adminium-app/references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md: Discounts, codes and gift cards from the Offers add-on');
     expect(names.length).toBeGreaterThan(8);
     for (const name of names) expect(skills.read(name), name).not.toBeNull();
   });

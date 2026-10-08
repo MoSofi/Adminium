@@ -316,7 +316,7 @@ function Outline({ doc, selected, onSelect }: { doc: ArchitectureDoc; selected: 
             {group.ids.map((id) => {
               const lines = doc.edges
                 .filter((edge) => edge.from === id)
-                .map((edge) => `${edge.does === 'posts' ? t('designer:arch.posts', 'Posts into') : kindLabel(edge.kind)} ${names.get(edge.to) ?? edge.to}`);
+                .map((edge) => `${edge.does === 'posts' ? t('designer:arch.posts', 'Posts into') : edge.does === 'prices' ? t('designer:arch.prices', 'Priced by') : kindLabel(edge.kind)} ${names.get(edge.to) ?? edge.to}`);
               return (
                 <li key={id}>
                   <button

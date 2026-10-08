@@ -460,6 +460,7 @@ export default {
     "installed": "Nainstalováno {version}",
     "keyCounts": "{reads} čtení, {writes} zápis",
     "posts": "Zapisuje do",
+    "prices": "Cenu určuje",
     "kind": "Druh",
     "kindAddOn": "Doplněk",
     "kindEmail": "Posílá",

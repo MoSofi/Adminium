@@ -982,7 +982,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const all = await deps.listAddOns();
         if (all.length === 0) {
           return text(
-            'This server has no add-ons, and its list of adminium.dev is off, so what is on offer is not known here. If the app needs one (invoices, quotes, receipts: key "invoices"; stock: key "inventory"), call get_add_on with its key: the person is asked, and a yes switches the list on and gets it.',
+            'This server has no add-ons, and its list of adminium.dev is off, so what is on offer is not known here. If the app needs one (invoices, quotes, receipts: key "invoices"; stock: key "inventory"; discounts, codes, gift cards: key "offers"), call get_add_on with its key: the person is asked, and a yes switches the list on and gets it.',
             'No add-ons here',
           );
         }

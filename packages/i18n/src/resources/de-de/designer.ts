@@ -460,6 +460,7 @@ export default {
     "installed": "Installiert {version}",
     "keyCounts": "{reads} Lesen, {writes} Schreiben",
     "posts": "Bucht in",
+    "prices": "Preis von",
     "kind": "Art",
     "kindAddOn": "Add-on",
     "kindEmail": "Sendet",

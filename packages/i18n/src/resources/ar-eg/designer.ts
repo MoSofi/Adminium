@@ -460,6 +460,7 @@ export default {
     "installed": "مثبّت {version}",
     "keyCounts": "{reads} قراءة، {writes} كتابة",
     "posts": "يُرحِّل إلى",
+    "prices": "يُسعَّر بواسطة",
     "kind": "النوع",
     "kindAddOn": "إضافة",
     "kindEmail": "يرسل",

@@ -460,6 +460,7 @@ export default {
     "installed": "Installeret {version}",
     "keyCounts": "{reads} læs, {writes} skriv",
     "posts": "Bogfører i",
+    "prices": "Prissættes af",
     "kind": "Type",
     "kindAddOn": "Tilføjelse",
     "kindEmail": "Sender",

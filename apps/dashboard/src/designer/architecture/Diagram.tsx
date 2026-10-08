@@ -160,7 +160,9 @@ export function Diagram({ doc, selected, onSelect }: { doc: ArchitectureDoc; sel
             ? t('designer:arch.keyCounts', '{reads} read, {writes} write', { reads: edge.reads, writes: edge.writes ?? 0 })
             : edge.does === 'posts'
               ? t('designer:arch.posts', 'Posts into')
-              : undefined;
+              : edge.does === 'prices'
+                ? t('designer:arch.prices', 'Priced by')
+                : undefined;
         return {
           id: edge.id,
           source: edge.from,
