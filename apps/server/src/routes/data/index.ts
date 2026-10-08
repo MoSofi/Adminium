@@ -964,7 +964,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // Every existing row a form sends is "changed"; only what moved is judged.
         assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
         // …and a row that does move is one the caller's update reaches, by what it holds now.
-        if (changesRow(change.values, before)) assertMovedFrom(requested.updateLimit, child.child.id, before ?? null);
+        if (changesRow(change.values, before)) assertMovedFrom(requested.updateLimit, child.child.id, before ?? null, change.values);
         const [prepared] = await writes.beforeEach('update', target, context, [
           // The state a row sent back whole already holds is no move.
           { match: change.key, values: withoutRepeatedState(child.child, change.values, before) },
@@ -2047,7 +2047,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               const before = await fetchByPk(ctx.db, ctx.table, pk);
               if (before === undefined) throw new NotFoundError('Record not found.', { pk });
               assertWithinLimit(limit, ctx.table.id, values, before);
-              assertMovedFrom(limit, ctx.table.id, before);
+              assertMovedFrom(limit, ctx.table.id, before, values);
               const held = movedFromSeen(limit, before);
               const outcome = await writes.update({
                 target: ctx.target,
@@ -2160,7 +2160,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             }
             // A row the caller's update does not reach, by what it holds now: named, and nothing of the batch is kept.
             try {
-              if (action === 'update') assertMovedFrom(limit, ctx.table.id, before);
+              if (action === 'update') assertMovedFrom(limit, ctx.table.id, before, values ?? undefined);
             } catch (error) {
               throw new AppError((error as AppError).statusCode, (error as AppError).code, (error as AppError).message, { ...((error as AppError).details as object), id });
             }
@@ -2507,7 +2507,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (ctx.readTable.columns.get(column)?.unreadable === true && !ctx.hiddenWritable.has(column)) ctx.readView.column(ctx.readTable, column);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
-        assertMovedFrom(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, before);
+        assertMovedFrom(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, before, { [column]: '' });
         // A server action: the one writer whose value for a code column is taken.
         const context: WriteContext = { ...requestWriteContext(request, 'dashboard'), origin: 'action' };
         // (A code of a column that may not start with some words is made around them, as a new row's is.)
@@ -3171,7 +3171,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
         const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
         assertWithinLimit(limit, ctx.table.id, values, before);
-        assertMovedFrom(limit, ctx.table.id, before);
+        assertMovedFrom(limit, ctx.table.id, before, values);
         const context = requestWriteContext(request, 'dashboard');
         const children = await requestedChildren(request, ctx, context, request.body.children);
         if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
@@ -3262,7 +3262,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
       assertWithinLimit(limit, ctx.table.id, own?.judged ?? sent, before);
       // The rows their update reaches at all, by what this one holds now — whatever the change is: of a column, of a link, of a line under it.
-      assertMovedFrom(limit, ctx.table.id, before);
+      assertMovedFrom(limit, ctx.table.id, before, own?.judged ?? sent);
       const held = movedFromSeen(limit, before);
       // The plain columns the writer saw, as conditions of the change: refused now if the row already moved, and in the statement if it moves meanwhile.
       // What the row was judged by is such a condition too.

@@ -57,6 +57,36 @@ describe('the rows a limited update reaches', () => {
     expect(mergeLimits([LIMIT, { writable: ['note'] }]).writableFrom).toBeUndefined();
   });
 
+  it('two limits as one judge each changed column by the limits that reach this row', () => {
+    // One role moves a visit until it is seen; another writes a note on any visit. Together: neither more.
+    const moves: UpdateLimit = { writable: ['status'], writableValues: { status: ['roomed', 'ready', 'seen'] }, writableFrom: { status: ['booked', 'roomed'] } };
+    const notes: UpdateLimit = { writable: ['note'] };
+    const merged = mergeLimits([moves, notes]);
+    const seen = { status: 'seen', note: 'x' };
+    // The note on a seen visit: the notes role reaches it.
+    expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { note: 'y' }))).toBeNull();
+    // The status of a seen visit: only the moves role writes it, and it does not reach this row.
+    expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { status: 'ready' }))?.details).toMatchObject({ column: 'status', reason: 'update-from', writableFrom: ['booked', 'roomed'] });
+    expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { note: 'y', status: 'ready' }))?.details).toMatchObject({ column: 'status' });
+    // A column sent as the row holds it is no change, so nothing is asked of it.
+    expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { note: 'y', status: 'seen' }))).toBeNull();
+    // Where the moves role reaches the row, both columns go.
+    expect(refusal(() => assertMovedFrom(merged, 'visits', { status: 'roomed', note: 'x' }, { note: 'y', status: 'ready' }))).toBeNull();
+    // Two roles with a "from" each: a column is not lent to the other role's rows.
+    const late = mergeLimits([moves, { writable: ['note'], writableFrom: { status: ['ready'] } }]);
+    expect(refusal(() => assertMovedFrom(late, 'visits', { status: 'ready', note: 'x' }, { note: 'y' }))).toBeNull();
+    expect(refusal(() => assertMovedFrom(late, 'visits', { status: 'ready', note: 'x' }, { status: 'seen' }))?.details).toMatchObject({ column: 'status' });
+    // A row no limit reaches is refused whatever is sent, even nothing.
+    expect(refusal(() => assertMovedFrom(late, 'visits', { status: 'seen' }, {}))?.details).toMatchObject({ reason: 'update-from' });
+    // A value only the role that does not reach the row allows is not lent either.
+    const values = mergeLimits([moves, { writable: ['status'], writableValues: { status: ['cancelled'] } }]);
+    expect(refusal(() => assertMovedFrom(values, 'visits', seen, { status: 'cancelled' }))).toBeNull();
+    expect(refusal(() => assertMovedFrom(values, 'visits', seen, { status: 'ready' }))?.details).toMatchObject({ column: 'status' });
+    // What the change is held to: every column any of the limits judges by.
+    expect(movedFromSeen(late, { status: 'ready', note: 'x' })).toEqual({ status: 'ready' });
+    expect(movedFromSeen(merged, { status: 'seen', note: 'x' })).toEqual({ status: 'seen' });
+  });
+
   it('a row sent back as it stands is no change of it', () => {
     expect(changesRow({ status: 'roomed', floor: '2' }, { status: 'roomed', floor: 2 })).toBe(false);
     expect(changesRow({ status: 'ready' }, { status: 'roomed' })).toBe(true);

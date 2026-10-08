@@ -60,8 +60,15 @@ export function limitOfRow(row: RolePermission): UpdateLimit | null {
   return actions.update === true && actions.updateLimit !== undefined ? actions.updateLimit : null;
 }
 
+/**
+ * Several limits as one, as {@link mergeLimits} answers it. Where one of them
+ * says which rows it reaches, the limits it was made of ride along: a column
+ * is then judged by the limits that reach THIS row, never by one that does not.
+ */
+export type MergedLimit = UpdateLimit & { parts?: readonly UpdateLimit[] };
+
 /** Several limits as one: a column or a value any of them allows is allowed. */
-export function mergeLimits(limits: readonly UpdateLimit[]): UpdateLimit {
+export function mergeLimits(limits: readonly UpdateLimit[]): MergedLimit {
   const writable = new Set<string>();
   const values = new Map<string, Set<string | number | boolean> | 'any'>();
   for (const limit of limits) {
@@ -86,10 +93,18 @@ export function mergeLimits(limits: readonly UpdateLimit[]): UpdateLimit {
     if (limits.some((limit) => limit.writableFrom?.[column] === undefined)) continue;
     writableFrom[column] = [...new Set(limits.flatMap((limit) => limit.writableFrom![column]!))];
   }
+  /*
+   * The lists above say what SOME limit allows. With a "from" among them that
+   * is not enough to judge a row by: one role's columns on the rows another
+   * role reaches is more than either was given. So the limits themselves are
+   * kept, and `assertMovedFrom` asks each column of the ones that reach the row.
+   */
+  const judgedByRow = limits.length > 1 && limits.some((limit) => limit.writableFrom !== undefined);
   return {
     writable: [...writable],
     ...(Object.keys(writableValues).length === 0 ? {} : { writableValues }),
     ...(Object.keys(writableFrom).length === 0 ? {} : { writableFrom }),
+    ...(judgedByRow ? { parts: limits } : {}),
   };
 }
 
@@ -250,12 +265,34 @@ export function assertWithinLimit(
  * is judged by and the values it may be moved from. `stored` is the row read
  * for this write; a row that could not be read is not reached.
  */
-export function assertMovedFrom(limit: UpdateLimit | null, table: string, stored: Readonly<Record<string, unknown>> | null | undefined): void {
-  if (limit?.writableFrom === undefined) return;
-  for (const [column, from] of Object.entries(limit.writableFrom)) {
-    if (stored != null && column in stored && allows(from, stored[column])) continue;
-    throw new ForbiddenError(`Your role may not change a row whose ${column} is what this one's is now.`, 'COLUMN_FORBIDDEN', { table, column, reason: 'update-from', writableFrom: from });
+export function assertMovedFrom(
+  limit: MergedLimit | null,
+  table: string,
+  stored: Readonly<Record<string, unknown>> | null | undefined,
+  /** What the caller sent. With it, and a limit made of several, each changed column is asked of the limits that reach this row. */
+  values?: Readonly<Record<string, unknown>>,
+): void {
+  if (limit === null) return;
+  const reaches = (one: UpdateLimit): [string, readonly (string | number | boolean)[]] | null =>
+    Object.entries(one.writableFrom ?? {}).find(([column, from]) => !(stored != null && column in stored && allows(from, stored[column]))) ?? null;
+  if (limit.parts !== undefined) {
+    const reaching = limit.parts.filter((part) => reaches(part) === null);
+    const refuse = (missed: UpdateLimit | undefined): never => {
+      const [column, from] = (missed === undefined ? null : reaches(missed)) ?? Object.entries(limit.parts!.find((part) => part.writableFrom !== undefined)!.writableFrom!)[0]!;
+      throw new ForbiddenError(`Your role may not change a row whose ${column} is what this one's is now.`, 'COLUMN_FORBIDDEN', { table, column, reason: 'update-from', writableFrom: from });
+    };
+    if (reaching.length === 0) refuse(limit.parts[0]);
+    for (const [column, value] of Object.entries(values ?? {})) {
+      if (stored != null && column in stored && sameValue(value, stored[column])) continue;
+      const writes = (part: UpdateLimit) => part.writable.includes(column) && (part.writableValues?.[column] === undefined || allows(part.writableValues[column], value));
+      // Allowed by a limit, and by none that reaches this row: that limit's "from" is what stands in the way.
+      if (!reaching.some(writes)) refuse(limit.parts.find((part) => writes(part) && reaches(part) !== null) ?? limit.parts.find((part) => reaches(part) !== null));
+    }
+    return;
   }
+  const missed = reaches(limit);
+  if (missed === null) return;
+  throw new ForbiddenError(`Your role may not change a row whose ${missed[0]} is what this one's is now.`, 'COLUMN_FORBIDDEN', { table, column: missed[0], reason: 'update-from', writableFrom: missed[1] });
 }
 
 /** Whether what was sent would change the stored row at all: a row a form sends back as it stands is no update of it. */
@@ -265,7 +302,8 @@ export function changesRow(values: Readonly<Record<string, unknown>>, stored: Re
 }
 
 /** The columns a limit judges a row by, and what the row holds in them: conditions the change itself is held to. */
-export function movedFromSeen(limit: UpdateLimit | null, stored: Readonly<Record<string, unknown>>): Record<string, unknown> | null {
-  if (limit?.writableFrom === undefined) return null;
-  return Object.fromEntries(Object.keys(limit.writableFrom).map((column) => [column, stored[column] ?? null]));
+export function movedFromSeen(limit: MergedLimit | null, stored: Readonly<Record<string, unknown>>): Record<string, unknown> | null {
+  const judged = limit?.parts === undefined ? Object.keys(limit?.writableFrom ?? {}) : [...new Set(limit.parts.flatMap((part) => Object.keys(part.writableFrom ?? {})))];
+  if (judged.length === 0) return null;
+  return Object.fromEntries(judged.map((column) => [column, stored[column] ?? null]));
 }
