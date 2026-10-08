@@ -276,10 +276,13 @@ for (const [dialect, available] of legs) {
       expect(res.statusCode, res.body).toBe(403);
       expect((res.json() as { error: { code: string; details: { reason?: string } } }).error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: { reason: 'read-limit' } });
     };
-    // The request id is random hex and may spell the price, so it is left out of what is searched.
+    // The request id is random hex and may spell the price, and so may the name a test's schema is made under:
+    // both are left out of what is searched.
     const withoutRequestId = (res: { json: () => unknown }) => {
       const { error } = res.json() as { error: Record<string, unknown> };
       const { requestId: _requestId, ...rest } = error;
+      const details = rest['details'];
+      if (typeof details === 'object' && details !== null) rest['details'] = Object.fromEntries(Object.entries(details).filter(([key]) => key !== 'table'));
       return JSON.stringify(rest);
     };
 
