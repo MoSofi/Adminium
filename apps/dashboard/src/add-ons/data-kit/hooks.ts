@@ -374,6 +374,7 @@ export function useAccess(): UseAccessResult {
         return from === undefined ? Object.values(states.moves).some((targets) => targets.includes(actionId)) : (states.moves[from] ?? []).includes(actionId);
       },
       has: (feature) => kit.reply.has[feature] === true,
+      currency: kit.reply.currency ?? null,
     };
   }, [kit]);
 }

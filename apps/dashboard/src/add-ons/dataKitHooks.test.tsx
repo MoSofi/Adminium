@@ -42,6 +42,7 @@ const KIT: KitReply = {
   },
   hosts: [{ tableRef: 'shop:dishes', id: 'public.shop_dishes', label: 'Dishes', via: 'posting' }],
   has: { 'system:schema:remap': false, 'page:stock-receive:view': true },
+  currency: 'EUR',
 };
 
 interface Call {
@@ -430,6 +431,8 @@ describe('what the reader may do', () => {
     expect([access.canMove('orders', 'cancelled', 'draft'), access.canMove('orders', 'cancelled', 'sent'), access.canMove('orders', 'done')]).toEqual([true, false, false]);
     expect(access.canMove('items', 'send')).toBe(false);
     expect([access.has('page:stock-receive:view'), access.has('system:schema:remap'), access.has('anything')]).toEqual([true, false, false]);
+    // What its pages write money in: the database's own currency.
+    expect(access.currency).toBe('EUR');
   });
 });
 

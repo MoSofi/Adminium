@@ -86,7 +86,7 @@ read or a write the role does not grant is refused the same way.
 | `useWrite(table)` | `create`, `update`, `remove`, and `createEach` / `updateEach` for up to 500 rows, one save each. `updateEach` takes `{from}`, the state the rows were seen in, and answers what a ledger said of each row. |
 | `useTreeWrite(table)` | A row with the rows under it in one save, and a `dryRun` of it. |
 | `useStateMove(table)` | Makes one of the table's declared [actions](/reference/manifest/#buttons-on-a-record) on a row. |
-| `useAccess()` | `canRead`, `canCreate`, `canUpdate`, `canMove`, and `has(feature)`. |
+| `useAccess()` | `canRead`, `canCreate`, `canUpdate`, `canMove`, `has(feature)`, and `currency`: the currency of the database your tables are in, or `null` when the owner set none. |
 | `useLookUp()` | Finds a row by a typed or scanned code, through the add-on's [`lookUp`](/reference/manifest/#what-a-typed-code-may-find). |
 | `useWords(id)` | Asks the add-on's [stock words](/reference/manifest/#stock-words) about up to 60 rows. |
 | `useDocument()` | Draws a document for a row and opens it, or prints it. |

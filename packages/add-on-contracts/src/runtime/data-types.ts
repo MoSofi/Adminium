@@ -146,6 +146,8 @@ export interface UseAccessResult {
   canMove: (table: string, actionId: string, from?: string) => boolean;
   /** Whether the add-on is connected to something that offers this (`has` of the kit's one read). */
   has: (feature: string) => boolean;
+  /** The currency of the database the add-on's tables are in (ISO 4217); null when the owner set none. Absent on a host older than 0.3.18. */
+  currency?: string | null;
 }
 
 export interface LookUpAnswer {

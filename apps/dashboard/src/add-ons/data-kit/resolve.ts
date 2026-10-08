@@ -24,6 +24,8 @@ export interface KitReply {
   tables: Record<string, KitTable>;
   hosts: { tableRef: string; id: string; label: string; via: 'posting' | 'adjust' }[];
   has: Record<string, boolean>;
+  /** Absent from a server older than this dashboard. */
+  currency?: string | null;
 }
 
 export const addOnKitQuery = (addOnKey: string) =>

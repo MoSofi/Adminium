@@ -20,7 +20,7 @@ import { ledgerWorld, type LedgerWorld } from './ledger.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- a reply read freely
-type Kit = { connectionId: string; tables: Record<string, Doc>; hosts: Doc[]; has: Record<string, boolean> };
+type Kit = { connectionId: string; tables: Record<string, Doc>; hosts: Doc[]; has: Record<string, boolean>; currency: string | null };
 
 /** The desk kit, with a move kept for its manager and that role declared. */
 function deskKit(): Doc {
@@ -194,6 +194,11 @@ describe('the tables that hand an add-on rows', () => {
     expect(res.statusCode, res.body).toBe(200);
     const answer = res.json() as Kit;
     expect(answer.hosts).toEqual([{ tableRef: w.target('asks').table.id, id: w.target('asks').table.id, label: 'Requests', via: 'posting' }]);
+    // The currency of the database its tables are in: none set, then the owner's.
+    expect(answer.currency).toBeNull();
+    await w.h.meta.db.updateTable('adminium_connections').set({ currency: 'EUR' }).where('id', '=', answer.connectionId).execute();
+    const again = await served.composed.app.inject({ method: 'GET', url: '/api/v1/add-ons/ledger-kit/kit', headers: { cookie: cookies.get('boss')! } });
+    expect((again.json() as Kit).currency).toBe('EUR');
     // The add-on's own tables are its tables, not its hosts.
     expect(Object.keys(answer.tables)).toContain('accounts');
     expect(answer.hosts.map((host) => host['id'])).not.toContain(w.target('plain').table.id);

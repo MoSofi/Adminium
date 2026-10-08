@@ -11290,13 +11290,24 @@
                       "additionalProperties": {
                         "type": "boolean"
                       }
+                    },
+                    "currency": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "connectionId",
                     "tables",
                     "hosts",
-                    "has"
+                    "has",
+                    "currency"
                   ],
                   "additionalProperties": false
                 }

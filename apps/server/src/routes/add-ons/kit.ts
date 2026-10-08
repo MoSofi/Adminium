@@ -57,6 +57,8 @@ export const addOnKitReply = z.object({
   hosts: z.array(z.object({ tableRef: z.string(), id: z.string(), label: z.string(), via: z.enum(['posting', 'adjust']) })),
   /** What the reader holds of the permissions a page asks about by name. */
   has: z.record(z.string(), z.boolean()),
+  /** The currency of the database its tables are in (ISO 4217), or null when the owner set none: what a page writes money in. */
+  currency: z.string().nullable(),
 });
 
 export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
@@ -124,7 +126,8 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
 
         const has: Record<string, boolean> = { [SCHEMA_REMAP]: await can(SCHEMA_REMAP) };
         for (const page of manifest.addOn.pages ?? []) has[addOnPagePermission(page.ref)] = await can(addOnPagePermission(page.ref));
-        return { connectionId, tables, hosts, has };
+        const connection = await deps.meta.db.selectFrom('adminium_connections').select('currency').where('id', '=', connectionId).executeTakeFirst();
+        return { connectionId, tables, hosts, has, currency: connection?.currency ?? null };
       },
     );
   };
