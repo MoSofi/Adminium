@@ -822,8 +822,13 @@ describe('the build page', () => {
     // Every version, newest first; the one in use says so and has no way back to itself.
     expect(within(menu).getAllByText(/^v\d$/).filter((entry) => entry.className.includes('w-[30px]')).map((entry) => entry.textContent)).toEqual(['v3', 'v2', 'v1']);
     expect(within(menu).getByText('current')).toBeTruthy();
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.getAttribute('aria-label'))).toEqual(['Go back to v2: v2', 'Go back to v1: v1']);
-    expect(within(menu).getAllByRole('menuitem')[0]!.textContent).toBe('Go back to this');
+    // The row in use is an item that is off (a menu of one version must still hold an item); the others each hold the way back.
+    expect(within(menu).getAllByRole('menuitem').map((item) => [item.getAttribute('aria-label'), item.getAttribute('aria-disabled')])).toEqual([
+      [null, 'true'],
+      ['Go back to v2: v2', null],
+      ['Go back to v1: v1', null],
+    ]);
+    expect(within(menu).getAllByRole('menuitem')[1]!.textContent).toBe('Go back to this');
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Go back to v1: v1' }));
     // The version is its own piece of the title (drawn in the fixed-width face), which this DOM reads as a word apart.
     const dialog = await screen.findByRole('dialog', { name: /^Go back to ?v1 ?\?$/ });

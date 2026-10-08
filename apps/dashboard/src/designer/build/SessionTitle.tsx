@@ -139,7 +139,8 @@ export function SessionTitle({
           <DropdownMenuContent align="center" className="nb-scroll max-h-[70vh] w-[420px] max-w-[calc(100vw-24px)] overflow-y-auto rounded-[14px] p-1.5 leading-[normal]">
             <DropdownMenuLabel>{t('designer:versions.title', 'Versions')}</DropdownMenuLabel>
             {newestFirst.map((version) => (
-              <div key={version.n} className={`flex items-center gap-3 rounded-[9px] px-2.5 py-2.5 ${version.current ? 'bg-surface-2' : ''}`}>
+              // The version in use is a row with nothing to press: said as an item that is off, so a list of one is still a menu with an item in it.
+              <div key={version.n} {...(version.current ? { role: 'menuitem', 'aria-disabled': true } : {})} className={`flex items-center gap-3 rounded-[9px] px-2.5 py-2.5 ${version.current ? 'bg-surface-2' : ''}`}>
                 <span className="w-[30px] shrink-0 font-mono text-[12.5px] font-bold">{`v${String(version.n)}`}</span>
                 <span className="flex min-w-0 flex-1 flex-col gap-px">
                   <span className="truncate text-[13px] font-bold text-fg">{version.name}</span>
