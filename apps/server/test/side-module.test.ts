@@ -3,9 +3,52 @@
  * The module an app's screens share: where a side is mounted, the config
  * Adminium serves beside it, and a staff side's reads and writes.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { DEV, connectCustomer, connectStaff, demoStaff, mountBase, onAppChanged, pageFaults, reportErrorsToFrame, reportRefusalsToFrame, reportSightToFrame, sampleRows, wantsDemo, SideError } from '../src/side/index.js';
+import {
+  DEV,
+  connectCustomer,
+  connectStaff,
+  demoStaff,
+  mountBase,
+  onAppChanged,
+  pageFaults,
+  pageHref,
+  pagePath,
+  pathParams,
+  reportErrorsToFrame,
+  reportRefusalsToFrame,
+  reportSightToFrame,
+  sampleRows,
+  wantsDemo,
+  SideError,
+} from '../src/side/index.js';
+
+/**
+ * React's two hooks the module uses, stood in for where a test asks: there is
+ * no DOM here to render into. `useState` keeps one value and `useEffect` runs
+ * at once; outside such a test React's own are used.
+ */
+const hooks = vi.hoisted(() => ({ on: false, state: undefined as unknown, set: false, cleanups: [] as (() => void)[] }));
+vi.mock('react', async (original) => {
+  const real = await original<typeof import('react')>();
+  return {
+    ...real,
+    useState: (first: unknown) => {
+      if (!hooks.on) return real.useState(first);
+      if (!hooks.set) {
+        hooks.state = typeof first === 'function' ? (first as () => unknown)() : first;
+        hooks.set = true;
+      }
+      return [hooks.state, (next: unknown) => void (hooks.state = next)];
+    },
+    useEffect: (run: () => void | (() => void), deps?: unknown[]) => {
+      if (!hooks.on) return real.useEffect(run, deps);
+      const cleanup = run();
+      if (typeof cleanup === 'function') hooks.cleanups.push(cleanup);
+    },
+  };
+});
 
 interface Call {
   url: string;
@@ -461,5 +504,326 @@ describe('what is measurably broken on a page as it shows', () => {
     expect(listened).toEqual([]);
     reportSightToFrame(target, true);
     expect(listened).toEqual(['load']);
+  });
+});
+
+describe('a page of a side has an address', () => {
+  it.each([
+    // The app's own address, a second instance of it, and a domain mapped to it.
+    ['/apps/repairs/staff/', 'staff', '/'],
+    ['/apps/repairs/staff', 'staff', '/'],
+    ['/apps/repairs/staff/done', 'staff', '/done'],
+    ['/apps/repairs/staff/done/42/', 'staff', '/done/42'],
+    ['/apps/repairs/north/staff/done', 'staff', '/done'],
+    ['/apps/repairs/customer/menu/spicy-wings', 'customer', '/menu/spicy-wings'],
+    ['/', 'customer', '/'],
+    ['/track/42', 'customer', '/track/42'],
+  ] as const)('%s (%s) is the page %s', (pathname, side, path) => {
+    expect(pagePath(pathname, mountBase(pathname, 'repairs', side))).toBe(path);
+  });
+
+  it('is the first page for an address that is not under the side', () => {
+    expect(pagePath('/apps/repairs/customer/menu', '/apps/repairs/staff/')).toBe('/');
+    expect(pagePath('/apps/repairs/staffroom', '/apps/repairs/staff/')).toBe('/');
+  });
+
+  it('holds every path to one rule: decoded, then encoded part by part, with nothing that climbs', () => {
+    const base = '/apps/repairs/customer/';
+    // One slash in front, none behind; a query and a hash are not part of a page's path.
+    expect(pageHref('menu/', base)).toBe('/apps/repairs/customer/menu');
+    expect(pageHref('/menu?size=2#top', base)).toBe('/apps/repairs/customer/menu');
+    expect(pageHref('/', base)).toBe(base);
+    expect(pageHref('', base)).toBe(base);
+    // Already encoded, or not: the same address, never encoded twice.
+    expect(pageHref('/menu/crème brûlée', base)).toBe('/apps/repairs/customer/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e');
+    expect(pageHref('/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e', base)).toBe('/apps/repairs/customer/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e');
+    expect(pagePath('/apps/repairs/customer/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e', base)).toBe('/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e');
+    // A part that would climb out of the side is dropped, however it is written.
+    expect(pageHref('/../../staff/./x', base)).toBe('/apps/repairs/customer/staff/x');
+    expect(pageHref('/%2e%2e/%2E/x', base)).toBe('/apps/repairs/customer/x');
+    // A slash inside a part stays inside it; a stray percent sign is a character.
+    expect(pageHref('/a%2Fb/100%', base)).toBe('/apps/repairs/customer/a%2Fb/100%25');
+    // At most 160 characters, counted as a person reads them: a longer one is no page's path.
+    expect(pageHref(`/${'a'.repeat(159)}`, base)).toBe(`${base}${'a'.repeat(159)}`);
+    expect(pageHref(`/${'a'.repeat(160)}`, base)).toBe(base);
+    expect(pageHref(`/${'é'.repeat(159)}`, base)).toBe(`${base}${'%C3%A9'.repeat(159)}`);
+    expect(pagePath(`${base}${'a'.repeat(400)}`, base)).toBe('/');
+  });
+
+  it('reads the parts of a path a pattern names, and says null for another page', () => {
+    expect(pathParams('/menu/:slug', '/menu/spicy-wings')).toEqual({ slug: 'spicy-wings' });
+    expect(pathParams('/orders/:id/lines/:line', '/orders/42/lines/3')).toEqual({ id: '42', line: '3' });
+    expect(pathParams('/', '/')).toEqual({});
+    expect(pathParams('/menu', '/menu/')).toEqual({});
+    // Values are decoded.
+    expect(pathParams('/menu/:slug', '/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e')).toEqual({ slug: 'crème brûlée' });
+    // Another page: more parts, fewer, or other words.
+    expect(pathParams('/menu/:slug', '/menu')).toBeNull();
+    expect(pathParams('/menu/:slug', '/menu/')).toBeNull();
+    expect(pathParams('/menu/:slug', '/menu/a/b')).toBeNull();
+    expect(pathParams('/menu/:slug', '/drinks/a')).toBeNull();
+    expect(pathParams('/', '/menu')).toBeNull();
+    // An escape that is none.
+    expect(pathParams('/menu/:slug', '/menu/%E0%A4%A')).toBeNull();
+  });
+});
+
+/**
+ * The module as one bundle has it: the side build writes the app's key and
+ * the side into each bundle, and the module reads them once, when it loads.
+ */
+async function bundled(key: string, side: 'staff' | 'customer'): Promise<typeof import('../src/side/index.js')> {
+  const defined = globalThis as Record<string, unknown>;
+  defined['__ADMINIUM_APP_KEY__'] = key;
+  defined['__ADMINIUM_SIDE__'] = side;
+  vi.resetModules();
+  try {
+    return await import('../src/side/index.js');
+  } finally {
+    delete defined['__ADMINIUM_APP_KEY__'];
+    delete defined['__ADMINIUM_SIDE__'];
+  }
+}
+
+/** A window of a side, as much of one as the module asks for: an address, a history, a parent and listeners. */
+function sideWindow(pathname: string, opts: { framed?: boolean; title?: string } = {}) {
+  const listeners = new Map<string, (event: unknown) => void>();
+  const posted: unknown[] = [];
+  const moves: string[] = [];
+  const parent = { postMessage: (message: unknown, origin: string) => void posted.push(origin === '*' ? message : { message, origin }) };
+  const target = {
+    location: { pathname },
+    history: {
+      pushState: (_data: unknown, _unused: string, url: string) => {
+        target.location.pathname = url;
+        moves.push(`push ${url}`);
+      },
+      replaceState: (_data: unknown, _unused: string, url: string) => {
+        target.location.pathname = url;
+        moves.push(`replace ${url}`);
+      },
+    },
+    document: { title: opts.title ?? '' },
+    addEventListener: (type: string, listener: (event: unknown) => void) => void listeners.set(type, listener),
+    scrollTo: () => undefined,
+    parent: parent as unknown,
+  };
+  if (opts.framed !== true) target.parent = target;
+  /** Back or Forward: the browser changes the address, then says so. */
+  const browserWent = (to: string): void => {
+    target.location.pathname = to;
+    listeners.get('popstate')?.({});
+  };
+  /** A message as a browser hands it over; from the framing page unless another window is given. */
+  const told = (data: unknown, source: unknown = parent): void => listeners.get('message')?.({ data, source });
+  return { target: target as never, listeners, posted, moves, browserWent, told, parent };
+}
+
+describe('going from page to page', () => {
+  /** Nothing waits in these tests: what is said later is said now. */
+  const now = (run: () => void): void => run();
+  let customer: Awaited<ReturnType<typeof bundled>>;
+  let staff: Awaited<ReturnType<typeof bundled>>;
+  beforeAll(async () => {
+    customer = await bundled('repairs', 'customer');
+    staff = await bundled('repairs', 'staff');
+  });
+
+  it('adds to the history as the top window, and is silent when already there', () => {
+    const page = sideWindow('/apps/repairs/customer/');
+    customer.go('/menu', {}, page.target);
+    customer.go('/menu/', {}, page.target);
+    customer.go('menu?x=1', {}, page.target);
+    customer.go('/menu/7', { replace: true }, page.target);
+    expect(page.moves).toEqual(['push /apps/repairs/customer/menu', 'replace /apps/repairs/customer/menu/7']);
+    // A path that is none is no move.
+    customer.go(`/${'a'.repeat(200)}`, {}, page.target);
+    expect(page.moves).toHaveLength(2);
+    // Nobody frames it: nothing is said to anyone.
+    expect(page.posted).toEqual([]);
+  });
+
+  it('replaces its address inside a frame: Back is the framing page’s', () => {
+    const page = sideWindow('/apps/repairs/customer/', { framed: true });
+    customer.go('/menu', {}, page.target);
+    customer.go('/menu/7', {}, page.target);
+    expect(page.moves).toEqual(['replace /apps/repairs/customer/menu', 'replace /apps/repairs/customer/menu/7']);
+  });
+
+  it('gives a screen its path, and gives it again after a move, Back, or a word from the frame', () => {
+    hooks.on = true;
+    hooks.set = false;
+    try {
+      const page = sideWindow('/apps/repairs/staff/done', { framed: true });
+      staff.watchAddress(page.target, false, now);
+      expect(staff.usePath(page.target)).toBe('/done');
+      staff.go('/', {}, page.target);
+      expect(staff.usePath(page.target)).toBe('/');
+      page.browserWent('/apps/repairs/staff/done/42');
+      expect(staff.usePath(page.target)).toBe('/done/42');
+      page.told({ type: 'adminium:host:set', path: 'done' });
+      expect(staff.usePath(page.target)).toBe('/done');
+      // A screen that is gone is told nothing more.
+      for (const cleanup of hooks.cleanups.splice(0)) cleanup();
+      staff.go('/', {}, page.target);
+      expect(hooks.state).toBe('/done');
+    } finally {
+      hooks.on = false;
+      for (const cleanup of hooks.cleanups.splice(0)) cleanup();
+    }
+  });
+
+  it('is a real link that is followed without a reload on a plain click', () => {
+    const page = sideWindow('/apps/repairs/customer/');
+    // A part React calls has no second argument of ours: it reads the page's own window.
+    vi.stubGlobal('window', page.target);
+    const link = customer.Link({ to: '/menu/7', className: 'nav', children: 'Seven' }) as unknown as { type: string; props: Record<string, unknown> & { onClick(event: unknown): void } };
+    expect(link.type).toBe('a');
+    expect(link.props).toMatchObject({ href: '/apps/repairs/customer/menu/7', className: 'nav', children: 'Seven' });
+    expect(link.props).not.toHaveProperty('to');
+    const click = (over: Record<string, unknown> = {}) => {
+      const event = { defaultPrevented: false, button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, prevented: false, preventDefault: () => void (event.prevented = true), ...over };
+      link.props.onClick(event);
+      return event.prevented;
+    };
+    // A new tab, a new window, the middle button: the browser's own.
+    expect(click({ metaKey: true })).toBe(false);
+    expect(click({ ctrlKey: true })).toBe(false);
+    expect(click({ button: 1 })).toBe(false);
+    expect(click({ defaultPrevented: true })).toBe(false);
+    expect(page.moves).toEqual([]);
+    expect(click()).toBe(true);
+    expect(page.moves).toEqual(['push /apps/repairs/customer/menu/7']);
+
+    // The screen's own handler runs first, and may keep the click.
+    const seen: unknown[] = [];
+    const own = customer.Link({ to: '/x', onClick: (event) => { seen.push(1); event.preventDefault(); } }) as unknown as { props: { onClick(event: unknown): void } };
+    const kept = { defaultPrevented: false, button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, preventDefault: () => void (kept.defaultPrevented = true) };
+    own.props.onClick(kept);
+    expect(seen).toEqual([1]);
+    expect(page.moves).toHaveLength(1);
+    // A link that opens elsewhere is left to the browser.
+    const blank = customer.Link({ to: '/y', target: '_blank' }) as unknown as { props: { onClick(event: unknown): void } };
+    blank.props.onClick({ defaultPrevented: false, button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, preventDefault: () => undefined });
+    expect(page.moves).toHaveLength(1);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('a side says where it is', () => {
+  const now = (run: () => void): void => run();
+  const location = (path: string, title = '') => ({ type: 'adminium:side-location', app: 'shop', side: 'customer', path, title });
+  let shop: Awaited<ReturnType<typeof bundled>>;
+  beforeAll(async () => {
+    shop = await bundled('shop', 'customer');
+  });
+
+  it('tells the framing page its path and title, on load and on every change: a dev bundle in a frame, and no other', () => {
+    const page = sideWindow('/apps/shop/customer/menu', { framed: true, title: 'Menu' });
+    shop.watchAddress(page.target, true, now);
+    expect(page.posted).toEqual([location('/menu', 'Menu')]);
+    (page.target as { document: { title: string } }).document.title = '  Spicy\n wings\u0007 ' + 'x'.repeat(200);
+    shop.go('/menu/spicy wings', {}, page.target);
+    page.browserWent('/apps/shop/customer/');
+    expect(page.posted.slice(1)).toEqual([location('/menu/spicy%20wings', `Spicy wings ${'x'.repeat(148)}`), location('/', `Spicy wings ${'x'.repeat(148)}`)]);
+
+    // What is said waits a moment, so the screen has drawn the new page and named it; two moves in that moment are said once.
+    const waiting: (() => void)[] = [];
+    const slow = sideWindow('/apps/shop/customer/', { framed: true });
+    shop.watchAddress(slow.target, true, (run) => void waiting.push(run));
+    shop.go('/a', {}, slow.target);
+    shop.go('/b', {}, slow.target);
+    expect(slow.posted).toEqual([]);
+    for (const run of waiting.splice(0)) run();
+    expect(slow.posted).toEqual([location('/b')]);
+
+    // A packed app says nothing; nor does a page nobody frames.
+    const packed = sideWindow('/apps/shop/customer/', { framed: true });
+    shop.watchAddress(packed.target, false, now);
+    shop.go('/menu', {}, packed.target);
+    expect(packed.posted).toEqual([]);
+    const top = sideWindow('/apps/shop/customer/');
+    shop.watchAddress(top.target, true, now);
+    shop.go('/menu', {}, top.target);
+    expect(top.posted).toEqual([]);
+    expect(() => shop.watchAddress(undefined, true, now)).not.toThrow();
+  });
+
+  it('follows a typed address from the framing page in a dev bundle, and a packed customer side never listens', () => {
+    const dev = sideWindow('/apps/shop/customer/', { framed: true });
+    shop.watchAddress(dev.target, true, now);
+    dev.told({ type: 'adminium:host:set', path: '/specials' });
+    expect(dev.moves).toEqual(['replace /apps/shop/customer/specials']);
+    // The dashboard's first word is for a staff side: a customer side does not act on it, and never speaks the dashboard's protocol.
+    dev.told({ type: 'adminium:host:init', v: 1, path: 'menu' });
+    expect(dev.moves).toHaveLength(1);
+    expect(dev.posted).toEqual([location('/'), location('/specials')]);
+
+    const packed = sideWindow('/apps/shop/customer/', { framed: true });
+    shop.watchAddress(packed.target, false, now);
+    expect([...packed.listeners.keys()]).toEqual(['popstate']);
+    expect(packed.posted).toEqual([]);
+  });
+});
+
+describe('a staff side inside the dashboard', () => {
+  const now = (run: () => void): void => run();
+  let staff: Awaited<ReturnType<typeof bundled>>;
+  beforeAll(async () => {
+    staff = await bundled('repairs', 'staff');
+  });
+
+  it('says hello once, says its own moves, and follows the dashboard without saying them back: in every build', () => {
+    const page = sideWindow('/apps/repairs/staff/done', { framed: true });
+    staff.watchAddress(page.target, false, now);
+    // Paths in this protocol have no slash in front, as nav.json's have none.
+    expect(page.posted).toEqual([{ type: 'adminium:surface:hello', v: 1, appKey: 'repairs', side: 'staff', path: 'done' }]);
+
+    // The dashboard answers with where its own address says to be, then moves with its nav.
+    page.told({ type: 'adminium:host:init', v: 1, path: '', theme: 'dark', locale: 'en-US' });
+    page.told({ type: 'adminium:host:set', path: 'done' });
+    // A change of theme alone, or a path that is no text, moves nothing.
+    page.told({ type: 'adminium:host:set', theme: 'light' });
+    page.told({ type: 'adminium:host:set', path: 7 });
+    expect(page.moves).toEqual(['replace /apps/repairs/staff/', 'replace /apps/repairs/staff/done']);
+    expect(page.posted).toHaveLength(1);
+
+    // Its own moves are said: a link in the screen, and Back.
+    staff.go('/', {}, page.target);
+    page.browserWent('/apps/repairs/staff/done/42');
+    expect(page.posted.slice(1)).toEqual([
+      { type: 'adminium:surface:navigate', v: 1, path: '' },
+      { type: 'adminium:surface:navigate', v: 1, path: 'done/42' },
+    ]);
+  });
+
+  it('listens to the page that frames it and to no other window', () => {
+    const page = sideWindow('/apps/repairs/staff/', { framed: true });
+    staff.watchAddress(page.target, false, now);
+    page.told({ type: 'adminium:host:set', path: 'done' }, { postMessage: () => undefined });
+    page.told({ type: 'adminium:host:set', path: 'done' }, page.target);
+    page.told(null);
+    page.told('adminium:host:set');
+    expect(page.moves).toEqual([]);
+  });
+
+  it('says both in a dev bundle: the dashboard’s protocol and where it is', () => {
+    const page = sideWindow('/apps/repairs/staff/', { framed: true, title: 'Items' });
+    staff.watchAddress(page.target, true, now);
+    page.told({ type: 'adminium:host:set', path: 'done' });
+    expect(page.posted).toEqual([
+      { type: 'adminium:surface:hello', v: 1, appKey: 'repairs', side: 'staff', path: '' },
+      { type: 'adminium:side-location', app: 'repairs', side: 'staff', path: '/', title: 'Items' },
+      // Followed, so not said back to the dashboard; the preview is still told where the side now is.
+      { type: 'adminium:side-location', app: 'repairs', side: 'staff', path: '/done', title: 'Items' },
+    ]);
+  });
+
+  it('opened in its own tab it speaks to nobody', () => {
+    const page = sideWindow('/apps/repairs/staff/');
+    staff.watchAddress(page.target, true, now);
+    staff.go('/done', {}, page.target);
+    expect(page.posted).toEqual([]);
+    expect(page.moves).toEqual(['push /apps/repairs/staff/done']);
   });
 });
