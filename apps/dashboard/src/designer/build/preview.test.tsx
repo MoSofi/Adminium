@@ -13,9 +13,13 @@ import { ThemeProvider } from '@adminium/ui';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerSession } from '../api.js';
-import { Preview, previewState, sideNamed } from './Preview.js';
-import { sightFrom } from './sight.js';
+import { previewState, sideNamed } from './Preview.js';
+import { WorkArea } from './WorkArea.js';
+import { looksNow, sightFrom } from './sight.js';
 import { foldTurns, type TurnView } from './turns.js';
+
+// The diagram is another test's; here the tab only has to open.
+vi.mock('../architecture/ArchitectureTab.js', () => ({ default: () => null }));
 
 class FakeSocket {
   static all: FakeSocket[] = [];
@@ -94,7 +98,7 @@ function mount(turns: TurnView[] = [], onFix = vi.fn()) {
     <QueryClientProvider client={client}>
       <ThemeProvider>
         <div className="flex h-[600px]">
-          <Preview session={SESSION} turns={turns} onFix={onFix} compact={false} />
+          <WorkArea session={SESSION} turns={turns} onFix={onFix} />
         </div>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -185,7 +189,7 @@ describe('the preview', () => {
       <QueryClientProvider client={client}>
         <ThemeProvider>
           <div className="flex h-[600px]">
-            <Preview session={SESSION} turns={turns} onFix={() => undefined} compact={false} />
+            <WorkArea session={SESSION} turns={turns} onFix={() => undefined} />
           </div>
         </ThemeProvider>
       </QueryClientProvider>
@@ -310,6 +314,41 @@ describe('the preview', () => {
     await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
     say('http://localhost:4731', sight);
     expect(sent()).toHaveLength(1);
+  });
+
+  it('keeps the frame while another tab shows: the same frame, no new ticket, out of sight and out of reach, and still looked at', async () => {
+    window.localStorage.removeItem('adminium.designer.sees');
+    const sent = (): unknown[] => vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith(`/sessions/${SESSION.id}/sight`));
+    mount([turn({ outcome: null })]);
+    await waitFor(() => expect(frame()).not.toBeNull());
+    const first = frame();
+    const panel = first.closest('[role="tabpanel"]') as HTMLElement;
+    expect(panel.hasAttribute('inert')).toBe(false);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Architecture' }));
+    expect(screen.getByRole('tab', { name: 'Architecture' }).getAttribute('aria-selected')).toBe('true');
+    expect(frame()).toBe(first);
+    // Hidden as a thing still laid out at its size, never taken out of the layout: a frame with no width is one the Designer cannot look at.
+    expect(panel.hasAttribute('inert')).toBe(true);
+    expect(panel.hasAttribute('hidden')).toBe(false);
+    expect(panel.className).toContain('invisible');
+    expect(panel.className).not.toMatch(/(^| )hidden( |$)/);
+    // Its own bar goes with it.
+    expect(screen.queryByRole('group', { name: 'Side' })).toBeNull();
+    // A turn sent from here is still shown the page, and what the page says of itself still goes on.
+    expect(looksNow()).toBe(true);
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { origin: 'http://localhost:4731', data: { type: 'adminium:side-sight', app: SESSION.appKey, side: 'staff', width: 1280, faults: [] }, source: first.contentWindow }),
+      );
+    });
+    expect(sent()).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    expect(frame()).toBe(first);
+    expect(panel.hasAttribute('inert')).toBe(false);
+    expect(panel.className).not.toContain('invisible');
+    expect(tickets).toHaveLength(1);
   });
 
   it('shows a screen that built and then stopped as it opened, heard from its own frame, and asks for the fix', async () => {
