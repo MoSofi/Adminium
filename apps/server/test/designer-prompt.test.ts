@@ -9,13 +9,13 @@
  * leave a provider a transcript it refuses.
  */
 import { withPictures } from '../src/designer/prompt.js';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createPrompt, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { appNow, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -98,6 +98,88 @@ describe('what the Designer’s model is told', () => {
     const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
     const { system } = await prompt(session(), [say('user', 'go')]);
     expect(estimateTokens(system)).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.ollama - 6000);
+  });
+});
+
+describe('an add-on that does the job', () => {
+  it('the add-ons skill loads for stock, supplies and invoices, and not for a booking page', () => {
+    for (const asked of [
+      'A small clinic app: patients, visits, and track the supplies each visit uses.',
+      'Keep stock of what we sell.',
+      'A kitchen app that knows the ingredients of each dish',
+      'Tell me which batches are expiring',
+      'We do a stocktake every month',
+      'Reordering should be automatic',
+      'Send an invoice when the job is done',
+      'Is there an add-on for it?',
+    ]) {
+      expect(MENTIONS_ADD_ON.test(asked), asked).toBe(true);
+    }
+    for (const asked of ['A booking page for a hair salon', 'Our supplier list, with phone numbers', 'Track repair jobs and who is assigned', 'A stockbroker\'s client list']) {
+      expect(MENTIONS_ADD_ON.test(asked), asked).toBe(false);
+    }
+  });
+
+  const posts = () => {
+    const dir = `${root}/apps/repairs/manifest`;
+    const table = {
+      ref: 'job_parts',
+      columns: [
+        { ref: 'id', type: 'id', role: 'pk' },
+        { ref: 'item_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'inventory', table: 'items' } } },
+        { ref: 'qty', type: 'decimal', scale: 3 },
+        { ref: 'done', type: 'bool' },
+      ],
+      postings: [{ id: 'stock', into: { addOn: 'inventory', ledger: 'stock', action: 'use-item' }, post: { on: { column: 'done', in: [true] } }, reverse: { on: { column: 'done', from: [true], in: [false] } }, map: { item: 'item_id', quantity: 'qty' } }],
+    };
+    writeFileSync(`${dir}/tables/job_parts.json`, JSON.stringify(table));
+    writeFileSync(
+      `${dir}/add-ons.json`,
+      JSON.stringify({
+        requires: [{ key: 'inventory', range: '>=1.0.8', reason: { 'en-US': 'Parts come out of stock.' } }],
+        suggests: [{ key: 'invoices', range: '>=1.0.8', reason: { 'en-US': 'A job can be invoiced.' } }],
+        features: [{ id: 'billing-papers', label: { 'en-US': 'Invoices for jobs' }, requires: ['invoices'] }],
+      }),
+    );
+    const app = JSON.parse(readFileSync(`${dir}/app.json`, 'utf8')) as { compatibility: { minAdminiumVersion: string } };
+    app.compatibility.minAdminiumVersion = '0.3.18';
+    writeFileSync(`${dir}/app.json`, JSON.stringify(app));
+    const roles = JSON.parse(readFileSync(`${dir}/roles.json`, 'utf8')) as { tables?: unknown }[];
+    roles[0]!.tables = [{ addOn: 'inventory', table: 'items', actions: ['read'] }];
+    writeFileSync(`${dir}/roles.json`, JSON.stringify(roles));
+  };
+
+  it('the app in short says what posts where, what it suggests and what a role reads of an add-on', () => {
+    posts();
+    const app = appNow(root, '0.3.18', 'repairs');
+    expect(app.text).toContain('The last check: no errors.');
+    expect(app.text).toContain('item_id int → inventory.items');
+    expect(app.text).toContain('  posts to inventory/stock (use-item): post when done becomes true; reverse when done becomes false (from true); maps item←item_id, quantity←qty');
+    expect(app.text).toContain('Requires the add-on inventory >=1.0.8');
+    expect(app.text).toContain('Suggests the add-on invoices >=1.0.8');
+    expect(app.text).toContain('Feature billing-papers: needs invoices');
+    expect(app.text).toMatch(/^Role \S+ on inventory\.items: read$/m);
+    expect(app.namesAddOn).toBe(true);
+  });
+
+  it('an app that already names an add-on carries the add-ons skill, whatever was said', async () => {
+    expect(appNow(root, '0.3.18', 'repairs').namesAddOn).toBe(false);
+    const prompt = createPrompt({ root, version: '0.3.18', skills: createSkills(), providerOf: async () => 'anthropic' });
+    const marker = '===== adminium-add-ons/SKILL.md =====';
+    expect((await prompt(session(), [say('user', 'Add a column for the colour.')])).system).not.toContain(marker);
+    posts();
+    expect((await prompt(session(), [say('user', 'Add a column for the colour.')])).system).toContain(marker);
+    expect(skillsFor(session(), { hasSides: false, mentionsAddOn: false, namesAddOn: true })).toContain('adminium-add-ons/SKILL.md');
+    // A manifest that does not pass the check still names its add-on: the skill is needed most then.
+    writeFileSync(`${root}/apps/repairs/manifest/tables/job_parts.json`, '{ "ref": ');
+    expect(appNow(root, '0.3.18', 'repairs').namesAddOn).toBe(true);
+  });
+
+  it('every prompt says how stock is built on, and names the tool', async () => {
+    const prompt = createPrompt({ root, version: '0.3.18', skills: createSkills(), providerOf: async () => 'anthropic' });
+    const { system } = await prompt(session(), [say('user', 'Add a column.')]);
+    expect(system).toContain('then call post_to_ledger with that table');
+    expect(system).toContain('Never build a stock table of the app\'s own.');
   });
 });
 

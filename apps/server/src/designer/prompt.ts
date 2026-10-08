@@ -19,6 +19,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, ProviderError, type ProviderId, type RunBlock, type RunMessage } from '@adminium/llm';
+import { namedAddOns, type Posting, type PostingMapping, type PostingPoint } from '@adminium/manifest';
 
 import { checkApp, accessInWords } from '../project/apps/check-app.js';
 import { builtInStylesDir, skillGuidance } from '../project/apps/design-skills.js';
@@ -56,7 +57,7 @@ How it works:
 - A page loads nothing from another site: no script, stylesheet or font from a CDN, and a picture only from this server or from a site the person allowed. A picture from anywhere else is an empty frame. So never put a stock photo's address in a screen or in sample rows on your own. For pictures call find_pictures (free pictures, the person ticks the ones to use, and they are copied into the app); a picture the person attached is theirs to use; without either, draw a tile in the theme's colours or an inline SVG.
 - A picture a table keeps (a dish's photo, staff upload it in the dashboard) is shown to visitors through "pictures" in access.json, with the table's "id" in that entry's "select", and its address is built with pictureUrl from @adminiumjs/public-client: never put the column's own value in an <img>. Read adminium-app/references/manifest/public-access--pictures.md first; check_app says exactly how when a screen gets it wrong.
 - Keep the app's key as it is. Never put a build command in app.json.
-- To build on an add-on (invoices, quotes, receipts), call list_add_ons, then build_on_shape (one that is not on this server yet is asked for on the way: the person gets a card, and a yes installs it; get_add_on does the same by itself): it writes the shape's tables, emails and requirement exactly. Never write a shape's tables or columns by hand. Write the app's own tables first (the people the emails go to), then the pages and grants.
+- Before you design a table for invoices, quotes or receipts, or for stock, call list_add_ons: an add-on does it, and the app builds on the add-on. For invoices, quotes and receipts call build_on_shape: it writes the shape's tables, emails and requirement exactly. For stock that goes down when a row is saved, write your own table first (its id, its link to the order or visit, a quantity), then call post_to_ledger with that table: it adds the link column and the rule, with the add-on's own names. An add-on that is not on this server yet is asked for on the way: the person gets a card, and a yes installs it (get_add_on does the same by itself). Never write a shape's columns, a "postings" rule or an "adjust" rule by hand. Never build a stock table of the app's own. Write the app's own tables first (the people the emails go to), then the pages and grants.
 - A person seeing their own row with no sign-in ("track my order", "my booking") is done with a claim, never by letting everyone read the table (the check refuses that, and it would publish every customer's details). Read adminium-app/references/guides/manifest-by-task--let-a-customer-find-their-own-row.md first and follow it exactly: a code column, a claim entry, client.claim(…), then the list of the "_claimed" endpoint.
 - A public list takes only limit, offset and cursor from a page: never pass where, order or q to client.list on a customer screen. Sort and narrow in the page.
 - Every table a person works with gets a dashboard page of its own, and the role gets each table's grants and each page's page:@<ref>:view grant.
@@ -93,6 +94,9 @@ const skill = (skills: Skills, name: string): string => {
 /** Words that say the person wants screens of the app's own, not dashboard pages alone. */
 export const MENTIONS_SCREENS = /\b(screens?|public (page|site|form)|customers? (can|need|see|should|page|side)|staff (screen|side|app)|portal|web ?site|web ?page|landing page|home ?page|a site for|storefront|booking page|order online|kiosk|tablet|phone)\b/i;
 
+/** Words that say an add-on may do the job: invoices, stock. English, and not the only way in (an app that names an add-on carries the skill too). */
+export const MENTIONS_ADD_ON = /\b(add-?ons?|invoices?|quotes?|receipts?|stock|inventory|supplies|ingredients|warehouse|batch(es)?|expir(y|es|ed|ing)|reorder(s|ing)?|stock ?take)\b/i;
+
 /** Words that say a person is to see their own row without signing in: an order tracked, a booking looked up. */
 export const MENTIONS_OWN_ROW =
   /\b(track(s|ing)?|look(s|ing)? up|find(s|ing)?|check(s|ing)?|see(s|ing)?|view(s|ing)?|status of|cancel(s|ling)?|manage)\b[^.?!\n]{0,60}\b(their|his|her|my|own|your)\b[^.?!\n]{0,30}\b(orders?|bookings?|reservations?|appointments?|tickets?|requests?|rows?|status)\b|\b(order|booking|reservation|ticket) (status|tracking|lookup)\b|\btrack(ing)? (an? |the )?(order|booking|parcel|request)/i;
@@ -100,10 +104,10 @@ export const MENTIONS_OWN_ROW =
 export const OWN_ROW_GUIDE = 'adminium-app/references/guides/manifest-by-task--let-a-customer-find-their-own-row.md';
 
 /** The skills a request needs: always the entry and the app skill; screens and add-ons when they are in play. */
-export function skillsFor(session: DesignerSession, opts: { hasSides: boolean; mentionsAddOn: boolean; mentionsScreens?: boolean }): string[] {
+export function skillsFor(session: DesignerSession, opts: { hasSides: boolean; mentionsAddOn: boolean; mentionsScreens?: boolean; namesAddOn?: boolean }): string[] {
   const names = ['adminium/SKILL.md', 'adminium-app/SKILL.md', 'adminium-app/references/INDEX.md'];
   if (session.target === 'web' || opts.hasSides || (opts.mentionsScreens === true && session.target !== 'dashboard')) names.push('adminium-surface/SKILL.md', 'adminium-surface/references/INDEX.md');
-  if (opts.mentionsAddOn) names.push('adminium-add-ons/SKILL.md', 'adminium-add-ons/references/INDEX.md');
+  if (opts.mentionsAddOn || opts.namesAddOn === true) names.push('adminium-add-ons/SKILL.md', 'adminium-add-ons/references/INDEX.md');
   return names;
 }
 
@@ -146,7 +150,32 @@ const COPIED = (appKey: string): string =>
 - It builds with its own build, which the person approved. build_sides and apply_app run it. You cannot change package.json, the lock file, a config file of the build (vite, postcss, tailwind, tsconfig), build.json or scripts/, and add_side is not for this app. A file the Vite config imports (vite.config.ts names them, and what they import in turn) runs on the person's machine at every build: changing one waits for the person's yes, so change one only when what was asked needs it.
 - A column you add to a table is not shown by its screens until you add it to the screen that lists or edits that table: find it in src/ by the table's name.`;
 
-export function appNow(root: string, version: string, appKey: string, stylesDir?: string | null, unnamed = false): { text: string; hasSides: boolean; empty: boolean } {
+/** A posting's point, in words: the moment its phase fires. */
+function pointInWords(point: PostingPoint): string {
+  const list = (values: readonly unknown[]): string => values.map((value) => String(value)).join(' or ');
+  if ('create' in point) return 'when the row is created';
+  if ('to' in point) return `when the state becomes ${list(point.to)}${point.from === undefined ? '' : ` (from ${list(point.from)})`}`;
+  if ('set' in point) return `when ${point.column} is filled`;
+  return `when ${point.column} becomes ${list(point.in)}${point.from === undefined ? '' : ` (from ${list(point.from)})`}`;
+}
+
+/** What an input is filled from, in words. */
+function mappingInWords(mapping: PostingMapping): string {
+  if (typeof mapping === 'string') return mapping;
+  if ('row' in mapping) return 'the row';
+  if ('parent' in mapping) return `parent.${mapping.parent}`;
+  if ('setting' in mapping) return `setting ${mapping.setting}`;
+  return JSON.stringify(mapping.value);
+}
+
+/** A posting, as one line under its table. */
+function postingInWords(posting: Posting): string {
+  const phases = (['reserve', 'post', 'reverse'] as const).flatMap((phase) => (posting[phase] === undefined ? [] : [`${phase} ${pointInWords(posting[phase].on)}`]));
+  const maps = Object.entries(posting.map).map(([input, from]) => `${input}←${mappingInWords(from)}`);
+  return `  posts to ${posting.into.addOn}/${posting.into.ledger} (${posting.into.action})${posting.via === undefined ? '' : `, as lines of ${posting.via}`}: ${phases.join('; ')}; maps ${maps.join(', ')}`;
+}
+
+export function appNow(root: string, version: string, appKey: string, stylesDir?: string | null, unnamed = false): { text: string; hasSides: boolean; empty: boolean; namesAddOn: boolean } {
   const check = checkApp(root, appKey, { version });
   const lines: string[] = unnamed
     ? ['The app is new and has no name yet: call name_app first, alone. Its folder is made from the name, and nothing can be written before it.']
@@ -155,12 +184,26 @@ export function appNow(root: string, version: string, appKey: string, stylesDir?
   if (manifest !== null && manifest.kind === 'app') {
     lines.push(`Name: ${typeof manifest.name === 'string' ? manifest.name : JSON.stringify(manifest.name)}. Version ${manifest.version}.`);
     for (const table of manifest.requiredSchema?.tables ?? []) {
-      lines.push(`Table ${table.ref}: ${table.columns.map((column) => `${column.ref} ${column.type}${'role' in column && column.role !== undefined ? ` (${String(column.role)})` : ''}`).join(', ')}`);
+      lines.push(
+        `Table ${table.ref}: ${table.columns
+          .map((column) => {
+            const link = 'rules' in column ? column.rules?.addOnLink : undefined;
+            return `${column.ref} ${column.type}${'role' in column && column.role !== undefined ? ` (${String(column.role)})` : ''}${link === undefined ? '' : ` → ${link.addOn}.${link.table}`}`;
+          })
+          .join(', ')}`,
+      );
+      for (const posting of table.postings ?? []) lines.push(postingInWords(posting));
+      if (table.adjust !== undefined) {
+        lines.push(`  priced by ${table.adjust.by.addOn}: lines ${table.adjust.lines.map((part) => ('self' in part ? 'the row itself' : part.table)).join(', ')}; discount column ${table.adjust.order.discount}`);
+      }
     }
     for (const page of manifest.pages ?? []) lines.push(`Page ${page.ref}: ${page.template} over ${Object.values(page.bindings ?? {}).join(', ')}`);
     for (const role of manifest.roles ?? []) lines.push(`Role ${role.key}`);
+    for (const role of manifest.roles ?? []) for (const grant of role.tables ?? []) lines.push(`Role ${role.key} on ${grant.addOn}.${grant.table}: ${grant.actions.join(', ')}`);
     for (const sentence of accessInWords(manifest)) lines.push(`Customers may: ${sentence}`);
     for (const addOn of manifest.addOns?.requires ?? []) lines.push(`Requires the add-on ${addOn.key} ${addOn.range ?? ''}`.trim());
+    for (const addOn of manifest.addOns?.suggests ?? []) lines.push(`Suggests the add-on ${addOn.key} ${addOn.range}`);
+    for (const feature of manifest.addOns?.features ?? []) lines.push(`Feature ${feature.id}: needs ${feature.requires.join(', ')}`);
   }
   const look = readLook(root, appKey);
   if (look !== null && sidesWithScreens(root, appKey).length > 0) {
@@ -213,6 +256,8 @@ export function appNow(root: string, version: string, appKey: string, stylesDir?
   return {
     text: `${copied ? `${COPIED(appKey)}\n\n` : ''}${summary}\n\nFiles:\n${files.join('\n') || '(none)'}\n\n${checked}`,
     hasSides: check.sides.length > 0,
+    // Also by the part file alone: a manifest that fails its check still names its add-on, and needs the skill most then.
+    namesAddOn: (manifest !== null && manifest.kind === 'app' && namedAddOns(manifest.addOns).length > 0) || existsSync(join(root, APPS_DIR, appKey, 'manifest', 'add-ons.json')),
     // By what the app declares, however its manifest is written (part files, or one manifest.json).
     empty: !(manifest !== null && manifest.kind === 'app' && (manifest.requiredSchema?.tables ?? []).length > 0) && !files.some((file) => file.startsWith(`${APPS_DIR}/${appKey}/manifest/tables/`) || file === `${APPS_DIR}/${appKey}/manifest.json`),
   };
@@ -399,7 +444,7 @@ export function createPrompt(deps: PromptDeps) {
     const stylesDir = deps.stylesDir === undefined ? builtInStylesDir() : deps.stylesDir;
     const app = appNow(deps.root, deps.version, session.appKey, stylesDir, deps.needsName?.(session) === true);
     const said = messages.flatMap((message) => (message.role === 'user' ? [firstText(message)] : [])).join(' ');
-    const names = skillsFor(session, { hasSides: app.hasSides, mentionsAddOn: /add-?on|invoice|receipt/i.test(said), mentionsScreens: MENTIONS_SCREENS.test(said) });
+    const names = skillsFor(session, { hasSides: app.hasSides, mentionsAddOn: MENTIONS_ADD_ON.test(said), mentionsScreens: MENTIONS_SCREENS.test(said), namesAddOn: app.namesAddOn });
     const target =
       session.target === 'dashboard'
         ? 'The person asked for a dashboard only: tables and pages, no screens of its own.'
