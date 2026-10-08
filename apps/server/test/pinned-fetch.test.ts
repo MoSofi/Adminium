@@ -131,21 +131,50 @@ describe('a checked address is the address that is called', () => {
     expect(await reply.json()).toEqual({ echoed: 'x' });
   });
 
-  it('pins nothing for an address written as numbers, for a resolver handed in, or for a name that was refused', async () => {
+  it('pins nothing for an address written as numbers or for a resolver handed in', async () => {
     await resolveAndCheck(`http://127.0.0.1:${String(port)}/`);
     expect(checkedFetch(`http://127.0.0.1:${String(port)}/`)).toBeNull();
     await resolveAndCheck('https://models.example.test/v1', { resolve: () => Promise.resolve(['203.0.113.7']) });
     expect(checkedFetch('https://models.example.test/v1')).toBeNull();
-    await expect(resolveAndCheck('http://localhost:9/', { blockPrivate: true })).rejects.toThrow('own network');
-    expect(checkedFetch('http://localhost:9/')).toBeNull();
     expect(checkedFetch('not an address')).toBeNull();
   });
 
-  it('a name that passed and is then refused is no longer called anywhere', async () => {
-    const url = 'http://localhost:9/v1';
+  // No pin is not "no check": with none, the platform's own fetch would look the name up again and call what it then gave.
+  it('a name that was refused is not called at all, whether or not it passed before', async () => {
+    await expect(resolveAndCheck('http://localhost:9/', { blockPrivate: true })).rejects.toThrow('own network');
+    await expect((checkedFetch('http://localhost:9/') as typeof fetch)('http://localhost:9/')).rejects.toThrow('not checked');
+    const url = `http://localhost:${String(port)}/v1`;
     await resolveAndCheck(url);
-    expect(checkedFetch(url)).not.toBeNull();
+    expect(await (await (checkedFetch(url) as typeof fetch)(url, { method: 'POST', body: 'x' })).json()).toEqual({ echoed: 'x' });
     await expect(resolveAndCheck(url, { blockPrivate: true })).rejects.toThrow();
-    expect(checkedFetch(url)).toBeNull();
+    seen = [];
+    await expect((checkedFetch(url) as typeof fetch)(url)).rejects.toThrow('not checked');
+    expect(seen).toEqual([]);
+    // The next check that passes opens it again.
+    await resolveAndCheck(url);
+    expect((await (checkedFetch(url) as typeof fetch)(url, { method: 'POST', body: 'y' })).status).toBe(200);
+  });
+
+  it('a name that gave no address is not left to a later lookup', async () => {
+    const url = 'http://no-such-name.invalid:8080/v1';
+    // Let through, as before: the request fails on its own. It fails here, and not at whatever the name answers next.
+    await resolveAndCheck(url);
+    await expect((checkedFetch(url) as typeof fetch)(url)).rejects.toThrow('fetch failed');
+  });
+
+  it('keeps the checked address while the name is checked again', async () => {
+    const url = `http://localhost:${String(port)}/v1`;
+    await resolveAndCheck(url);
+    const again = resolveAndCheck(url);
+    // A turn already on its way asks for its fetch now, before the second lookup has answered.
+    expect(await (await (checkedFetch(url) as typeof fetch)(url, { method: 'POST', body: 'z' })).json()).toEqual({ echoed: 'z' });
+    await again;
+  });
+
+  it('closes the oldest name when there are too many, and never hands it to the platform', async () => {
+    const first = `http://localhost:${String(port)}/v1`;
+    await resolveAndCheck(first);
+    for (let n = 1; n <= 200; n += 1) await resolveAndCheck(`http://localhost:${String(20000 + n)}/v1`);
+    await expect((checkedFetch(first) as typeof fetch)(first)).rejects.toThrow('not checked');
   });
 });

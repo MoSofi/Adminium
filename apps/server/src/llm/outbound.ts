@@ -62,8 +62,26 @@ const defaultResolve = async (host: string): Promise<string[]> => (await lookup(
  */
 const pins = new Map<string, PinnedAddress[]>();
 const PINS_MAX = 200;
+/**
+ * Names that were asked about here and have no address to be called at now: the last check refused them or
+ * found no address, or their pin gave way to a newer one. A request to one fails, where the platform's own
+ * `fetch` would look the name up again and call whatever it then gave. The next check that passes takes it out.
+ */
+const closed = new Set<string>();
+const CLOSED_MAX = 2000;
 
-/** A `fetch` for a URL whose name was checked here, connecting to what was checked; null for any other address. */
+function close(key: string): void {
+  pins.delete(key);
+  if (closed.size >= CLOSED_MAX) closed.delete(closed.values().next().value as string);
+  closed.add(key);
+}
+
+const refusedFetch: typeof fetch = () => Promise.reject(new TypeError('fetch failed: this address was not checked, so it is not called'));
+
+/**
+ * A `fetch` for a URL whose name was checked here, connecting to what was checked; one that fails for a name
+ * whose check did not pass; null for any other address (one written as numbers, or never asked about).
+ */
 export function checkedFetch(rawUrl: string): typeof fetch | null {
   let host: string;
   try {
@@ -72,12 +90,14 @@ export function checkedFetch(rawUrl: string): typeof fetch | null {
     return null;
   }
   const pin = pins.get(host);
-  return pin === undefined ? null : pinnedFetch(pin);
+  if (pin !== undefined) return pinnedFetch(pin);
+  return closed.has(host) ? refusedFetch : null;
 }
 
 /** Forget every pinned address (tests). */
 export function forgetCheckedAddresses(): void {
   pins.clear();
+  closed.clear();
 }
 
 /**
@@ -88,8 +108,8 @@ export function forgetCheckedAddresses(): void {
 export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions = {}): Promise<void> {
   const url = new URL(rawUrl);
   const host = url.hostname.replace(/^\[|\]$/g, '');
-  // Whatever was pinned for this name before is no longer vouched for until this check passes.
-  pins.delete(url.host.toLowerCase());
+  const key = url.host.toLowerCase();
+  // A request already on its way keeps the address it was checked at while this lookup runs: with no pin it would be the platform's to resolve.
   let addresses: string[];
   if (isIP(host) !== 0) {
     addresses = [host];
@@ -97,6 +117,7 @@ export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions 
     try {
       addresses = await (opts.resolve ?? defaultResolve)(host);
     } catch {
+      if (opts.resolve === undefined) close(key);
       // Where private addresses are refused, a name nobody can check is refused too: it may resolve the next time it is asked.
       if (opts.blockPrivate === true) throw new ValidationFailedError('That address does not resolve, so it cannot be checked.', { host });
       return;
@@ -105,18 +126,26 @@ export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions 
   for (const address of addresses) {
     const kind = addressKind(address);
     if (kind === 'metadata') {
+      if (isIP(host) === 0 && opts.resolve === undefined) close(key);
       throw new ValidationFailedError('That address resolves to a blocked range.', { host });
     }
     if (opts.blockPrivate === true && kind !== 'public') {
+      if (isIP(host) === 0 && opts.resolve === undefined) close(key);
       throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
     }
   }
   // A name the system's own resolver answered is called at the addresses it gave, all of which passed, and no other.
   // An address written as numbers needs no pin, and a resolver handed in by a test names no machine to call.
-  if (isIP(host) === 0 && opts.resolve === undefined && addresses.length > 0) {
-    if (pins.size >= PINS_MAX) pins.delete(pins.keys().next().value as string);
+  if (isIP(host) === 0 && opts.resolve === undefined) {
+    if (addresses.length === 0) {
+      close(key);
+      return;
+    }
+    // The oldest gives way, and is closed until it is checked again: never left to the platform's own lookup.
+    if (!pins.has(key) && pins.size >= PINS_MAX) close(pins.keys().next().value as string);
+    closed.delete(key);
     pins.set(
-      url.host.toLowerCase(),
+      key,
       addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 })),
     );
   }
