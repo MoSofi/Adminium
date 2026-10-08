@@ -26,7 +26,7 @@ const refusal = async (run: Promise<unknown>): Promise<{ code?: string; details?
 
 describe.skipIf(offers === null)('Offers, as it is built', () => {
   it('names one file that decides, for both questions, and it is built', () => {
-    expect(Object.keys(offers?.files ?? {})).toEqual(['dist/server.js']);
+    expect(Object.keys(offers?.files ?? {}).sort()).toEqual(['dist/pages/discounts.js', 'dist/pages/issue.js', 'dist/pages/look-up.js', 'dist/pages/rules.js', 'dist/server.js']);
     const provides = (offers?.manifest['addOn'] as { provides: { contract: string }[] }).provides;
     expect(provides.map((one) => one.contract)).toEqual(['posting-rows', 'price-adjust']);
   });
@@ -52,9 +52,10 @@ describe.each(LEGS)('Offers installed with no app — %s', (dialect, available) 
     expect((w.reply['rules'] as { skipped?: unknown[] } | undefined)?.skipped ?? []).toEqual([]);
   });
 
-  it.skipIf(!run)('installs eleven generated pages with no warning, in two groups of the rail', async () => {
+  it.skipIf(!run)('installs the overview and eleven generated lists with no warning, in two groups of the rail', async () => {
     const pages = w.reply['pages'] as { created: string[]; warnings: unknown[] };
     expect(pages.created).toEqual([
+      'offers-overview',
       'offers-codes',
       'offers-vouchers',
       'offers-voucher-batches',

@@ -226,6 +226,23 @@ describe.each(LEGS)('gift cards through a shop — %s', (dialect, available) => 
     expect((await w.all('offers_card_ledger')).length).toBe(rows);
   });
 
+  it.skipIf(!run)('a payment voided after part of it was refunded gives back the rest, not the whole of it again', async () => {
+    const card = await w.card('100.00');
+    const id = await order(1);
+    const paid = await w.create('shop_payments', { order_id: id, method: 'gift_card', card_id: card.id });
+    expect(await balance(card.id)).toBe('84.88');
+    await w.create('shop_refunds', { order_id: id, payment_id: paid['id'], amount: '5.00' });
+    expect(await balance(card.id)).toBe('89.88');
+    await w.update('shop_payments', paid['id'], { voided_at: '2026-10-01T12:00:00.000Z' });
+    // $15.12 was taken and $5.00 had gone back: the $10.12 still out comes back, and the card holds what it was sold with.
+    expect(await balance(card.id)).toBe('100.00');
+    const rows = await w.all('offers_card_ledger', `card_id = ${String(card.id)}`);
+    expect(rows.map((row) => `${String(row['kind'])} ${money2(row['taken'])}`).sort()).toEqual(['issue -100.00', 'refund -10.12', 'refund -5.00', 'spend 15.12']);
+    // Every row that gives money back names the payment it gives back for.
+    const spend = rows.find((row) => row['kind'] === 'spend')!;
+    for (const row of rows.filter((one) => one['kind'] === 'refund')) expect(String(row['against_id'])).toBe(String(spend['id']));
+  });
+
   it.skipIf(!run)('two cards pay one order and a refund names its own payment', async () => {
     const [first, second] = [await w.card('19.00'), await w.card('100.00')];
     const id = await order(4);
