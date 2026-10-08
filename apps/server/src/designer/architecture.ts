@@ -168,6 +168,7 @@ function cellOf(actions: TableActions | undefined): { cell: Cell; note: string |
   if (actions.readLimit !== undefined) notes.push('some columns hidden');
   if (writes && !actions.delete) notes.push('no delete');
   if (writes && actions.updateLimit !== undefined) notes.push(`changes ${actions.updateLimit.writable.join(', ')} only`);
+  if (writes && actions.updateLimit?.writableFrom !== undefined) notes.push(`only rows whose ${Object.entries(actions.updateLimit.writableFrom).map(([column, values]) => `${column} is ${values.join(' or ')}`).join(', and ')}`);
   return { cell: writes ? 'write' : 'read', note: notes.length === 0 ? null : notes.join(', ') };
 }
 

@@ -112,6 +112,8 @@ export type ResourceKind = z.infer<typeof resourceKindSchema>;
 export const updateLimitSchema = z.object({
   writable: z.array(z.string().min(1)).min(1),
   writableValues: z.record(z.string(), z.array(z.union([z.string(), z.number(), z.boolean()])).min(1)).optional(),
+  /** The rows the update reaches at all: only one whose column holds, now, one of these values. Never set on a create's limit. */
+  writableFrom: z.record(z.string(), z.array(z.union([z.string(), z.number(), z.boolean()])).min(1)).optional(),
 });
 export type UpdateLimit = z.infer<typeof updateLimitSchema>;
 

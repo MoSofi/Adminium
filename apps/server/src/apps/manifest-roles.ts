@@ -246,7 +246,14 @@ export async function writeManifestRoles(input: {
       if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined && actions.createLimit === undefined) continue;
       const { updateLimit: _previous, readLimit: _read, createLimit: _create, ...rest } = actions;
       const update: UpdateLimit | undefined =
-        limit?.writable === undefined ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }) };
+        limit?.writable === undefined
+          ? undefined
+          : {
+              writable: [...limit.writable],
+              ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }),
+              // Which rows the update reaches: dropped here, the role would reach every row.
+              ...(limit.writableFrom === undefined ? {} : { writableFrom: limit.writableFrom }),
+            };
       const read: ReadLimit | undefined = limit?.readable === undefined ? undefined : { readable: [...limit.readable] };
       const create: UpdateLimit | undefined =
         limit?.creatable === undefined ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };

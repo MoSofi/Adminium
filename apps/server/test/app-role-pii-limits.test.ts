@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { sql } from 'kysely';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseDatabaseModel } from '@adminium/engine';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import {
@@ -45,6 +45,9 @@ import { packageTarball } from './app-bundle-helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
+// The app below uses a word read from 0.3.19 on, and the upload door refuses an app newer than the server: this server says it is that release.
+vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: '0.3.19' }));
+
 type Dialect = 'sqlite' | 'postgres' | 'mysql';
 const POSTGRES_URL = process.env.TEST_POSTGRES_URL;
 const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
@@ -62,7 +65,8 @@ const MANIFEST = {
   license: 'AGPL-3.0-only',
   description: { key: 'd', fallback: 'A front desk.' },
   categories: ['operations'],
-  compatibility: { minAdminiumVersion: '0.1.0' },
+  // The release that reads a limit's `writableFrom`.
+  compatibility: { minAdminiumVersion: '0.3.19' },
   requiredSchema: {
     prefixed: true,
     tables: [
@@ -135,6 +139,22 @@ const MANIFEST = {
       name: 'Kiosk',
       permissions: ['table:@patients:read', 'table:@appointments:read', 'table:@appointments:create'],
       limits: { appointments: { creatable: ['patient_id', 'note'] } },
+    },
+    // Moves a visit along and notes it, until it is ready: a visit already ready is not theirs to change, or to take back.
+    {
+      key: 'triage',
+      name: 'Triage',
+      permissions: ['table:@patients:read', 'table:@patients:update', 'table:@appointments:read', 'table:@appointments:update'],
+      limits: { appointments: { writable: ['status', 'note'], writableFrom: { status: ['booked', 'roomed', 'with_clinician'] } } },
+    },
+    // Notes any visit, whatever its status.
+    { key: 'scribe', name: 'Scribe', permissions: ['table:@appointments:read', 'table:@appointments:update'], limits: { appointments: { writable: ['note'] } } },
+    // Reopens a visit that is ready, and no other.
+    {
+      key: 'reopener',
+      name: 'Reopener',
+      permissions: ['table:@appointments:read', 'table:@appointments:update'],
+      limits: { appointments: { writable: ['status'], writableFrom: { status: ['ready'] } } },
     },
     // Personal columns of the visits table only: a lookup into patients stays masked.
     {
@@ -539,6 +559,119 @@ for (const [dialect, available] of legs) {
       // An admin creates whole.
       const admin = await person(s, 'ada@example.com', ['admin']);
       expect((await s.app.inject({ method: 'POST', url: base, headers: { cookie: admin }, payload: { values: { patient_id: 1, copay: 20 } } })).statusCode).toBe(201);
+    });
+
+    it('hold a limited update to the rows it reaches, by what the STORED row holds, through every door', async () => {
+      const s = (open = await stack(dialect));
+      await seed(s);
+      const base = `/api/v1/data/${s.connectionId}/${s.table.appointments}`;
+      const patch = (cookie: string, payload: Record<string, unknown>) => s.app.inject({ method: 'PATCH', url: `${base}/1`, headers: { cookie }, payload });
+      const status = async () => (await s.rows(`SELECT status FROM desk_appointments WHERE id = 1`))[0]!['status'];
+      const note = async () => (await s.rows(`SELECT note FROM desk_appointments WHERE id = 1`))[0]!['note'];
+      const set = (value: string) => s.run(`UPDATE desk_appointments SET status = '${value}' WHERE id = 1`);
+      const triage = await person(s, 'tess@example.com', ['triage']);
+      const FROM = { table: s.table.appointments, column: 'status', reason: 'update-from', writableFrom: ['booked', 'roomed', 'with_clinician'] };
+
+      // From a value in the list: the status moves, a note is written, and a form's whole row saves.
+      expect((await patch(triage, { values: { status: 'roomed' } })).statusCode).toBe(200);
+      expect((await patch(triage, { values: { note: 'in room 2' } })).statusCode).toBe(200);
+      expect((await patch(triage, { values: { status: 'ready', note: 'in room 2', patient_id: 1 } })).statusCode).toBe(200);
+      expect(await status()).toBe('ready');
+
+      // From a value outside it: refused, naming the column the row is judged by — whatever the change is.
+      const back = await patch(triage, { values: { status: 'roomed' } });
+      expect(back.statusCode, back.body).toBe(403);
+      expect(back.json().error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: FROM });
+      expect((await patch(triage, { values: { note: 'changed my mind' } })).json().error?.details).toMatchObject(FROM);
+      // A change of nothing is still a change of that row; and what a request says the row holds is not what it holds.
+      expect((await patch(triage, { values: {} })).statusCode).toBe(403);
+      expect((await patch(triage, { values: { status: 'roomed' }, seen: { status: 'booked' } })).statusCode).not.toBe(200);
+      // The same through a quote, a batch, and a batch made row by row.
+      expect((await s.app.inject({ method: 'POST', url: `${base}/1/dry-run`, headers: { cookie: triage }, payload: { values: { status: 'roomed' } } })).statusCode).toBe(403);
+      const bulk = await s.app.inject({ method: 'POST', url: `${base}/bulk`, headers: { cookie: triage }, payload: { action: 'update', ids: [1], values: { status: 'roomed' } } });
+      expect(bulk.statusCode, bulk.body).toBe(403);
+      expect(bulk.json().error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: { ...FROM, id: 1 } });
+      const each = await s.app.inject({ method: 'POST', url: `${base}/one-by-one`, headers: { cookie: triage }, payload: { ids: [1], values: { status: 'roomed' } } });
+      expect(each.statusCode, each.body).toBe(200);
+      expect(each.json()).toMatchObject({ done: 0, results: [{ id: 1, ok: false, error: { code: 'COLUMN_FORBIDDEN' } }] });
+      // A visit changed as a line of its patient is held the same way; one sent back as it stands is no change of it.
+      const throughPatient = (values: Record<string, unknown>) =>
+        s.app.inject({ method: 'PATCH', url: `/api/v1/data/${s.connectionId}/${s.table.patients}/1`, headers: { cookie: triage }, payload: { values: { name: 'Nia Obi' }, children: { [s.visitsRelation]: [{ key: { id: 1 }, values }] } } });
+      const child = await throughPatient({ status: 'roomed' });
+      expect(child.statusCode, child.body).toBe(403);
+      expect(child.json().error.details).toMatchObject(FROM);
+      expect((await throughPatient({ status: 'ready', note: 'in room 2' })).statusCode).toBe(200);
+      expect([await status(), await note()]).toEqual(['ready', 'in room 2']);
+
+      // A batch holds every row to it: one row out of reach, and nothing of the batch is kept.
+      await s.run(`INSERT INTO desk_appointments (patient_id, status, note, copay) VALUES (1, 'booked', 'second visit', 0)`);
+      const two = await s.app.inject({ method: 'POST', url: `${base}/bulk`, headers: { cookie: triage }, payload: { action: 'update', ids: [2, 1], values: { note: 'both' } } });
+      expect(two.statusCode, two.body).toBe(403);
+      expect((await s.rows(`SELECT note FROM desk_appointments ORDER BY id`)).map((row) => row['note'])).toEqual(['in room 2', 'second visit']);
+      // Row by row, the one in reach is changed and the other named.
+      const mixed = await s.app.inject({ method: 'POST', url: `${base}/one-by-one`, headers: { cookie: triage }, payload: { ids: [2, 1], values: { note: 'both' } } });
+      expect(mixed.json()).toMatchObject({ done: 1, results: [{ id: 2, ok: true }, { id: 1, ok: false }] });
+
+      // ROLES ADD UP. A plain update lifts it; so does a limited role that reaches every row.
+      const withManager = await person(s, 'mona@example.com', ['triage', 'manager']);
+      const withScribe = await person(s, 'sam@example.com', ['triage', 'scribe']);
+      expect((await patch(withManager, { values: { status: 'roomed' } })).statusCode).toBe(200);
+      await set('ready');
+      expect((await patch(withScribe, { values: { note: 'by the scribe' } })).statusCode).toBe(200);
+      // Two roles that each reach some rows reach the rows either does, and no others.
+      const withReopener = await person(s, 'rae@example.com', ['triage', 'reopener']);
+      expect((await patch(withReopener, { values: { status: 'roomed' } })).statusCode).toBe(200);
+      await set('cancelled');
+      const cancelled = await patch(withReopener, { values: { status: 'booked' } });
+      expect(cancelled.statusCode).toBe(403);
+      expect((cancelled.json().error.details.writableFrom as string[]).sort()).toEqual(['booked', 'ready', 'roomed', 'with_clinician']);
+      // A copy of the role is held as the role is; an admin is not held.
+      expect((await patch(await person(s, 'ada@example.com', ['admin']), { values: { status: 'booked' } })).statusCode).toBe(200);
+    });
+
+    it('keep which rows an update reaches through a save of the role and an update of the app, until the role goes', async () => {
+      const s = (open = await stack(dialect));
+      await seed(s);
+      const owner = await signIn(s.app, 'owner@example.com');
+      const ref = `${s.connectionId}/${s.table.appointments}`;
+      const limitOf = async (slug: string) => {
+        const role = await rolesRepo(s.meta).findBySlug(slug);
+        return role === null ? null : (((await permissionsRepo(s.meta).find(role.id, 'table', ref))?.actions as TableActions | undefined)?.updateLimit ?? null);
+      };
+      const STORED = { writable: ['status', 'note'], writableFrom: { status: ['booked', 'roomed', 'with_clinician'] } };
+      expect(await limitOf('desk-triage')).toEqual(STORED);
+
+      // A save of the role in the matrix sends grants only: the limit stays on its row.
+      const role = (await rolesRepo(s.meta).findBySlug('desk-triage'))!;
+      const grants = (await s.app.inject({ method: 'GET', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie: owner } })).json().grants as string[];
+      const saved = await s.app.inject({ method: 'PUT', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie: owner }, payload: { grants: [...grants, `table:${s.connectionId}:${s.table.patients}:export`] } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect(await limitOf('desk-triage')).toEqual(STORED);
+
+      // The next release changes the list, drops it from one role and drops another role whole.
+      const next = structuredClone(MANIFEST);
+      next.version = '1.0.1';
+      next.roles = next.roles.filter((one) => one.key !== 'reopener');
+      (next.roles.find((one) => one.key === 'triage') as { limits: unknown }).limits = { appointments: { writable: ['status', 'note'], writableFrom: { status: ['booked'] } } };
+      const tarball = packageTarball({ 'manifest.json': JSON.stringify(next), 'staff/index.html': '<!doctype html><html><body data-app="desk"></body></html>' });
+      const staged = await s.app.inject({ method: 'POST', url: `/api/v1/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`, headers: { cookie: owner, 'content-type': 'application/octet-stream' }, payload: Buffer.from(tarball) });
+      expect(staged.statusCode, staged.body).toBe(200);
+      expect(await limitOf('desk-reopener')).toEqual({ writable: ['status'], writableFrom: { status: ['ready'] } });
+      const updated = await s.app.inject({ method: 'POST', url: '/api/v1/apps/desk/update', headers: { cookie: owner }, payload: {} });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(await limitOf('desk-triage')).toEqual({ writable: ['status', 'note'], writableFrom: { status: ['booked'] } });
+      // A role the release no longer ships is left as it was (it may be somebody's); deleted, its limit goes with its grants.
+      expect(await limitOf('desk-reopener')).toEqual({ writable: ['status'], writableFrom: { status: ['ready'] } });
+      const dropped = (await rolesRepo(s.meta).findBySlug('desk-reopener'))!;
+      const deleted = await s.app.inject({ method: 'DELETE', url: `/api/v1/roles/${dropped.id}`, headers: { cookie: owner } });
+      expect(deleted.statusCode, deleted.body).toBeLessThan(300);
+      expect(await permissionsRepo(s.meta).find(dropped.id, 'table', ref)).toBeNull();
+      // What the update wrote is what is judged: a roomed visit is out of reach now.
+      await s.run(`UPDATE desk_appointments SET status = 'roomed' WHERE id = 1`);
+      const triage = await person(s, 'tess@example.com', ['triage']);
+      const refused = await s.app.inject({ method: 'PATCH', url: `/api/v1/data/${s.connectionId}/${s.table.appointments}/1`, headers: { cookie: triage }, payload: { values: { note: 'x' } } });
+      expect(refused.statusCode, refused.body).toBe(403);
+      expect(refused.json().error.details).toMatchObject({ reason: 'update-from', writableFrom: ['booked'] });
     });
 
     it('keep the limit through a save of the role in the permissions matrix', async () => {
