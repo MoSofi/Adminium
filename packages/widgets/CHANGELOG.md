@@ -1,5 +1,21 @@
 # @adminium/widgets
 
+## 0.3.18
+
+### Patch Changes
+
+- ba7049f: The manifest learns the words an add-on with its own tables needs: an add-on may declare pages, roles, emails, documents and sample data like an app; ledgers and the rows that post into them; a price an add-on lowers; rules an app ships; buttons on a record; a role's grant on an add-on's table; what a typed code may find. This release reads and checks them. A manifest that uses one is refused at install until the release that runs it.
+- ebf296b: An add-on that keeps tables can now bring the rest of what it needs. Its own pages read and write those tables through a data kit of the dashboard's parts and hooks (`hostApi: 2`), with the reader's own grants. A manifest may ship automation rules (`automations`), listed on the rules page under "From your add-ons" and "From your apps": the owner switches them or edits a copy. An add-on may put a tab of its rows on another table's record (`addOn.recordTabs`), and answer "in stock, low or out" for the rows a page asks about, for customers and for staff (`addOn.words`). A generated record page takes the app's own buttons (`states.actions`), a list takes up to two actions on the ticked rows, and a dashboard's toolbar up to two links. An app's role may hold an add-on's tables (`roles[].tables`). One look-up finds a typed or scanned code across an add-on's tables (`addOn.lookUp`). An add-on's page asks for a document on the paper it wants, and a document that prints a gift card's code is drawn when asked and kept nowhere. An email block can depend on a value (`onlyWith`, `onlyWithout`), an add-on's email can link into the app it serves (`{{app_url.<name>}}`), and an email or a document can list an add-on's rows for an order.
+- Updated dependencies [e27492d]
+- Updated dependencies [49dc266]
+- Updated dependencies [b28af08]
+- Updated dependencies [2293c47]
+- Updated dependencies [ebf296b]
+  - @adminium/i18n@0.3.18
+  - @adminium/charts@0.3.18
+  - @adminium/tokens@0.3.18
+  - @adminium/ui@0.3.18
+
 ## 0.3.18-rc.0
 
 ### Patch Changes
