@@ -69,6 +69,7 @@ Two tables: the **order** (its `due`: what is still to pay) and its **payments**
 | link to the order | which order the payment is for |
 | `card_code` | what was typed or scanned |
 | `card_id` | the gift card found by that code (a `lookup` over Offers' cards). Adminium writes it |
+| `card_last4` | the card's last four characters, kept beside the payment for a receipt |
 | `amount` | what the card paid: never more than is due, never more than the card holds. Adminium writes it |
 | `card_balance_after` | what the card holds afterwards. Adminium writes it |
 | `voided_at` | set when the payment is taken back: the card gets what it paid, less anything already refunded |

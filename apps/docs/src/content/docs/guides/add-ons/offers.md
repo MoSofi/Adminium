@@ -66,7 +66,8 @@ A **batch** makes many vouchers at once, up to 5,000, for a leaflet or a mailing
 download the codes as a CSV file. The download is written to the audit log.
 
 Adminium makes every voucher's code: twelve characters, shown **once** to the person who made it.
-After that, staff see the last four. A manager can print it again.
+After that, the desk and a viewer see its last four characters. A manager reads the whole code
+and can print it again.
 
 ## Gift cards and credit
 
@@ -79,7 +80,7 @@ card at the same moment, the card pays what it holds and the rest are refused.
 - A card cannot pay for a gift card.
 - A refund of a card payment goes back to the same card, never more than that payment took.
 - **Expiry** is off unless you set a number of months in Settings. Each top-up starts the months
-  again, and the holder is reminded before the last day.
+  again. The holder is reminded once, some days before the last day; a card is reminded one time only.
 
 **Credit** is money you owe a customer, kept under their email address. It has no code. A manager
 gives credit from **Look up**; staff use it by naming the customer on the order.
@@ -102,7 +103,8 @@ What you typed stays on that screen. It is never put in an address or kept in th
   pick. The email has the code, a QR code of it, the balance, and — where an app has a balance page
   — a button to see the balance.
 - A voucher made for a named person is emailed to them. Credit gets an email with no code in it.
-- A card with no email address is not sent: the Messages list shows one skipped row for it.
+- A card with no email address is not sent: the Messages list keeps a row for it, marked
+  **Skipped** (choose that status in the list's filter to see it).
 - **Send again** sends another email each time it is pressed, to the address on the card.
 - **Print** draws a card or a voucher on A6 paper, or on a strip of receipt paper. The first print
   shows the amount; a later print shows the balance and the day it was printed. A printed card is
