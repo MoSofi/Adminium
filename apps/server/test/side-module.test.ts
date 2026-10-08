@@ -641,6 +641,10 @@ describe('going from page to page', () => {
     expect(page.moves).toHaveLength(2);
     // Nobody frames it: nothing is said to anyone.
     expect(page.posted).toEqual([]);
+    // The page it is on, however the address writes it: no move.
+    const slashed = sideWindow('/apps/repairs/customer/menu/');
+    customer.go('/menu', {}, slashed.target);
+    expect(slashed.moves).toEqual([]);
   });
 
   it('replaces its address inside a frame: Back is the framing page’s', () => {

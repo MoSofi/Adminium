@@ -979,8 +979,8 @@ export function go(path: string, opts: { replace?: boolean } = {}, target: PageW
 function moveTo(target: PageWindow, path: string, replace: boolean, own: boolean): void {
   const tidy = tidyPath(path);
   if (tidy === null) return;
+  if (tidy === pagePath(target.location.pathname)) return;
   const href = pageHref(tidy, mountBase(target.location.pathname));
-  if (href === target.location.pathname) return;
   if (replace || target.parent !== target) target.history.replaceState(null, '', href);
   else target.history.pushState(null, '', href);
   // A new page starts at its top; an address put right in place does not move the reader.
