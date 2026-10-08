@@ -47,7 +47,6 @@ import { findProject } from '../project/locate.js';
 import { runChild } from './child.js';
 import { csvLines, csvOf, isWoff2, type Attachments } from './attachments.js';
 import { FOLDED_MARK } from './fold.js';
-import type { ShapeLine } from './add-on-lines.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
@@ -64,6 +63,12 @@ export const MAX_READ_BYTES = 65_536;
 const MAX_LIST = 400;
 /** How long an app's tests may run. */
 const TESTS_TIMEOUT_MS = 60_000;
+
+/** How an app builds on a shape: by tables the tool writes whole, or by columns and a rule added to tables the app already has. */
+export interface ShapeLine {
+  name: string;
+  how: 'built-on' | 'spelled-out';
+}
 
 /** An add-on the server has or can get, in one line. */
 export interface AddOnLine {

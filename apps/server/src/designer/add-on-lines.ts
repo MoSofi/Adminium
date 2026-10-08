@@ -10,15 +10,9 @@ import { manifestsRepo, type MetaDb } from '@adminium/meta';
 import type { AddOnStore } from '../add-ons/store.js';
 import { catalogSchema, isCurrentCatalogFormat, pickLocalized } from '../add-ons/catalog.js';
 import { declaredLedgers, hostActions, keyColumnOf } from '../project/apps/ledger-parts.js';
-import type { AddOnLine } from './tools.js';
+import type { AddOnLine, ShapeLine } from './tools.js';
 
 export { declaredLedgers, hostActions, keyColumnOf };
-
-/** How an app builds on a shape: by tables the tool writes whole, or by columns and a rule added to tables the app already has. */
-export interface ShapeLine {
-  name: string;
-  how: 'built-on' | 'spelled-out';
-}
 
 /** The shapes a manifest document defines, as an app names them: `invoice@1`. A shape whose part carries a rule is spelled out on the app's own tables. */
 export function shapesOf(document: unknown): ShapeLine[] {
