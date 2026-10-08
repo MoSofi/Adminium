@@ -213,6 +213,7 @@ export default defineConfig({
                 { label: 'Building on an add-on', link: '/guides/building-on-an-add-on/' },
                 { label: 'Add-ons with tables', link: '/guides/add-ons-with-tables/' },
                 { label: 'The Inventory add-on', link: '/guides/add-ons/inventory/' },
+                { label: 'The Offers & gift cards add-on', link: '/guides/add-ons/offers/' },
               ],
             },
             {
@@ -297,6 +298,7 @@ export default defineConfig({
             { label: 'CLI', link: '/reference/cli/' },
             { label: 'REST API', link: '/reference/rest-api/' },
             { label: 'Manifest spec', link: '/reference/manifest/' },
+            { label: 'Offers shapes', link: '/reference/offers-shapes/' },
             { label: 'Error codes', link: '/reference/errors/' },
           ],
         },
