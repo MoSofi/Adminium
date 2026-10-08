@@ -140,7 +140,7 @@ export type DesignerCard =
   | { id: string; type: 'rows'; attachment: string; file: string; table: string; rows: number; left: number; reasons: string[]; mapping: { from: string; to: string }[] }
   | { id: string; type: 'package'; name: string; version: string; why: string; also?: { name: string; version: string }[] }
   /** An add-on the app needs and this server lacks. `listOff`: a yes switches the list of adminium.dev on first. `here`: it is in this server's store, so nothing is fetched. */
-  | { id: string; type: 'add-on'; key: string; name: string; version: string | null; line: string; listOff?: true; here?: true }
+  | { id: string; type: 'add-on'; key: string; name: string; version: string | null; line: string; listOff?: true; here?: true; tables?: number }
   | {
       id: string;
       type: 'removal';

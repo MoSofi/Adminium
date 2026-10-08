@@ -239,6 +239,7 @@ export default {
     "addOnOff": "Cette application a besoin de l’extension {key}, qui n’est pas sur ce serveur. Activer la liste d’adminium.dev pour la chercher ?",
     "addOnSends": "Elle est téléchargée depuis adminium.dev, qui apprend ainsi cette extension et sa version, puis installée sur ce serveur, comme Studio → Extensions l’installerait.",
     "addOnHereSends": "Rien n’est téléchargé. Elle est installée sur ce serveur, comme Studio → Extensions l’installerait.",
+    "addOnTables": "{count, plural, one {Il ajoute # table à votre base de données.} other {Il ajoute # tables à votre base de données.}}",
     "addOnOffSends": "La liste d’adminium.dev est désactivée sur ce serveur. L’activer demande la liste à adminium.dev, maintenant et une fois par jour, qui apprend ainsi l’adresse de ce serveur, l’heure et sa version d’Adminium. Rien n’est encore téléchargé : si l’extension est dans la liste, on vous le redemande, avec son nom et sa version. Studio → Extensions désactive de nouveau la liste.",
     "addOnGet": "L’obtenir",
     "addOnInstall": "L’installer",

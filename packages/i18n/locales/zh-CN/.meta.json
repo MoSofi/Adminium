@@ -8839,6 +8839,10 @@
     "status": "mt",
     "srcHash": "c87a4d73496a"
   },
+  "designer.card.addOnTables": {
+    "status": "mt",
+    "srcHash": "7fb47c95ad2e"
+  },
   "designer.card.addThem": {
     "status": "mt",
     "srcHash": "254c14a35735"

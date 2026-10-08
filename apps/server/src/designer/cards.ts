@@ -68,6 +68,8 @@ export type DesignerCard =
       listOff?: true;
       /** Already in this server's store: a yes installs it and nothing is fetched. */
       here?: true;
+      /** The tables it adds to the database, by its own manifest. Absent while only the list names it. */
+      tables?: number;
     }
   | {
       id: string;

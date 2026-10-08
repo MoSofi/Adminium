@@ -256,10 +256,11 @@ describe('an add-on this server does not have', () => {
   });
 
   it('one in the store is installed after a yes, and the card says nothing is fetched', async () => {
-    looks = { invoices: { state: 'here', name: 'Invoices & Receipts', version: '1.0.7', line: '' } };
+    looks = { invoices: { state: 'here', name: 'Invoices & Receipts', version: '1.0.7', line: '', tables: 30 } };
     answers = [{ type: 'add-on', accept: true }];
     await run('get_add_on', { key: 'invoices' });
-    expect(asked[0]).toMatchObject({ type: 'add-on', here: true });
+    // The count of tables is the server's, from the add-on's own manifest: the model gave a key and nothing else.
+    expect(asked[0]).toMatchObject({ type: 'add-on', here: true, tables: 30 });
   });
 
   it('says why when it could not be got, and does not ask twice', async () => {

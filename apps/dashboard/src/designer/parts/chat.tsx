@@ -763,6 +763,11 @@ export function AddOnCard({
           {card.line}
         </p>
       )}
+      {card.tables === undefined || off ? null : (
+        <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
+          {t('designer:card.addOnTables', '{count, plural, one {It adds # table to your database.} other {It adds # tables to your database.}}', { count: card.tables })}
+        </p>
+      )}
       <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
         {off
           ? t(

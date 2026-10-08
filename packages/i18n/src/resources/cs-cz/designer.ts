@@ -239,6 +239,7 @@ export default {
     "addOnOff": "Tato aplikace potřebuje doplněk {key}, který na tomto serveru není. Zapnout seznam z adminium.dev a podívat se po něm?",
     "addOnSends": "Stáhne se z adminium.dev, čímž se adminium.dev dozví tento doplněk a jeho verzi, a nainstaluje se na tento server, jak by ho nainstalovalo Studio → Doplňky.",
     "addOnHereSends": "Nic se nestahuje. Nainstaluje se na tento server, jak by ho nainstalovalo Studio → Doplňky.",
+    "addOnTables": "{count, plural, one {Přidá do vaší databáze # tabulku.} few {Přidá do vaší databáze # tabulky.} many {Přidá do vaší databáze # tabulky.} other {Přidá do vaší databáze # tabulek.}}",
     "addOnOffSends": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zapnutí požádá adminium.dev o seznam, nyní a jednou denně, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Zatím se nic nestahuje: je-li doplněk v seznamu, budete dotázáni znovu, s jeho názvem a verzí. Studio → Doplňky seznam zase vypne.",
     "addOnGet": "Získat",
     "addOnInstall": "Nainstalovat",

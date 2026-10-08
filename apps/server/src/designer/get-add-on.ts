@@ -13,6 +13,7 @@ import { auditRepo, jobsRepo, manifestsRepo, settingsRepo, type MetaDb } from '@
 
 import { CATALOG_ENABLED_SETTING, catalogSchema, isCurrentCatalogFormat, meetsMinimum, pickLocalized, type CatalogClient } from '../add-ons/catalog.js';
 import { installAddOn, type AddOnInstallerDeps } from '../add-ons/install.js';
+import { AppError } from '../errors.js';
 import { enqueueAddOnDownload, enqueueCatalogRefresh } from '../jobs/add-on-acquire.js';
 import type { Actor } from './tool-types.js';
 
@@ -21,7 +22,7 @@ export type AddOnLook =
   /** Installed: there is nothing to get. */
   | { state: 'installed'; name: string; version: string }
   /** In this server's own store (bundled, uploaded, or downloaded before) and not installed. */
-  | { state: 'here'; name: string; version: string; line: string }
+  | { state: 'here'; name: string; version: string; line: string; tables: number }
   /** In the list adminium.dev gave, and not on this server. */
   | { state: 'listed'; name: string; version: string; line: string }
   /** The list names it and this server is too old for it. */
@@ -63,20 +64,34 @@ export interface AddOnGetterDeps {
 
 const KEY = /^[a-z][a-z0-9-]{0,79}$/;
 
+/** Why an add-on that is here was not installed, said as what the person does next. */
+export function notInstalledInWords(name: string, error: unknown): string {
+  const code = error instanceof AppError ? error.code : null;
+  if (code === 'ADD_ON_SCHEMA_CONNECTION' || code === 'ADD_ON_OTHER_DATABASE') {
+    return `${name} keeps its tables in one database, and this server has more than one. Tell the person to install it from Workspace settings → Add-ons, where they choose the database; then call the tool again.`;
+  }
+  if (code === 'ADD_ON_UNTRUSTED') {
+    return `${name} was downloaded, and this server will not run its rules: the file is not one Adminium vouches for. Tell the person; build the rest of the app without it.`;
+  }
+  return `${name} was downloaded and could not be installed: ${error instanceof Error ? error.message : String(error)}`;
+}
+
 export function createAddOnGetter(deps: AddOnGetterDeps): AddOnGetter {
   const manifests = () => manifestsRepo(deps.meta, deps.installer.credentialCrypto);
   const { store } = deps.installer;
 
   /** The add-on in this server's store, newest version, read from its own manifest. */
-  async function inStore(key: string): Promise<{ name: string; version: string; line: string } | null> {
+  async function inStore(key: string): Promise<{ name: string; version: string; line: string; tables: number } | null> {
     try {
       const version = (await store.versions(key)).at(-1);
       if (version === undefined) return null;
-      const document = JSON.parse((await store.readFile(key, version, 'manifest.json')).toString('utf8')) as { name?: unknown; description?: { fallback?: unknown } };
+      const document = JSON.parse((await store.readFile(key, version, 'manifest.json')).toString('utf8')) as { name?: unknown; description?: { fallback?: unknown }; requiredSchema?: { tables?: unknown } };
       return {
         name: typeof document.name === 'string' ? document.name : key,
         version,
         line: typeof document.description?.fallback === 'string' ? document.description.fallback : '',
+        // The tables it keeps of its own, by its manifest: what the card says it adds.
+        tables: Array.isArray(document.requiredSchema?.tables) ? document.requiredSchema.tables.length : 0,
       };
     } catch {
       return null;
@@ -161,9 +176,10 @@ export function createAddOnGetter(deps: AddOnGetterDeps): AddOnGetter {
       }
       try {
         const connectionId = opts.appKey === undefined ? null : ((await deps.connectionFor?.(opts.appKey)) ?? null);
-        await installAddOn(deps.installer, { key, version: found.version, attachTo: [], ...(connectionId === null ? {} : { connectionId }), actor: { id: by.id, label: by.label } });
+        // No public entry of the add-on is opened by this card: the app's own apply decides that, with the person's say.
+        await installAddOn(deps.installer, { key, version: found.version, attachTo: [], ...(connectionId === null ? {} : { connectionId }), publicAccess: false, actor: { id: by.id, label: by.label } });
       } catch (error) {
-        return { ok: false, why: `${found.name} was downloaded and could not be installed: ${error instanceof Error ? error.message : String(error)}` };
+        return { ok: false, why: notInstalledInWords(found.name, error) };
       }
       return { ok: true, name: found.name, version: found.version };
     },

@@ -239,6 +239,7 @@ export default {
     "addOnOff": "Diese App braucht das Add-on {key}, das nicht auf diesem Server ist. Die Liste von adminium.dev einschalten, um danach zu suchen?",
     "addOnSends": "Es wird von adminium.dev heruntergeladen, wobei adminium.dev dieses Add-on und seine Version erfährt, und auf diesem Server installiert, wie Studio → Add-ons es installieren würde.",
     "addOnHereSends": "Es wird nichts heruntergeladen. Es wird auf diesem Server installiert, wie Studio → Add-ons es installieren würde.",
+    "addOnTables": "{count, plural, one {Es fügt Ihrer Datenbank # Tabelle hinzu.} other {Es fügt Ihrer Datenbank # Tabellen hinzu.}}",
     "addOnOffSends": "Die Liste von adminium.dev ist auf diesem Server aus. Sie einzuschalten fragt adminium.dev nach der Liste, jetzt und einmal täglich; dabei erfährt es die Adresse dieses Servers, die Uhrzeit und seine Adminium-Version. Es wird noch nichts heruntergeladen: Steht das Add-on in der Liste, wirst du erneut gefragt, mit seinem Namen und seiner Version. Studio → Add-ons schaltet die Liste wieder aus.",
     "addOnGet": "Holen",
     "addOnInstall": "Installieren",

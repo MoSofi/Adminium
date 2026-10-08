@@ -229,6 +229,7 @@
     "addOnOff": "Denne app har brug for tilføjelsen {key}, som ikke er på denne server. Slå listen fra adminium.dev til for at lede efter den?",
     "addOnSends": "Den hentes fra adminium.dev, hvilket fortæller adminium.dev denne tilføjelse og dens version, og installeres på denne server, som Studio → Tilføjelser ville installere den.",
     "addOnHereSends": "Intet hentes. Den installeres på denne server, som Studio → Tilføjelser ville installere den.",
+    "addOnTables": "{count, plural, one {Den føjer # tabel til din database.} other {Den føjer # tabeller til din database.}}",
     "addOnOffSends": "Listen fra adminium.dev er slået fra på denne server. At slå den til beder adminium.dev om listen, nu og én gang om dagen, hvilket fortæller den serverens adresse, tidspunktet og dens Adminium-version. Intet hentes endnu: hvis tilføjelsen er på listen, bliver du spurgt igen, med dens navn og version. Studio → Tilføjelser slår listen fra igen.",
     "addOnGet": "Hent den",
     "addOnInstall": "Installér den",

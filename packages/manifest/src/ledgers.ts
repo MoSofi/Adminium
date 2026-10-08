@@ -122,6 +122,19 @@ export const ledgerActionSchema = z
   .refine((a) => new Set(a.reads.map((read) => read.as)).size === a.reads.length, { message: 'two reads share a name', path: ['reads'] });
 export type LedgerAction = z.infer<typeof ledgerActionSchema>;
 
+/**
+ * The table a `link` input names a row of: the table of the action's read
+ * that is keyed by its own primary key and fed by that input. Null when no
+ * read says so (an input the add-on's code looks up by another column).
+ * `keyOf` answers a table's primary-key column.
+ */
+export function linkInputTable(action: Pick<LedgerAction, 'inputs' | 'reads'>, input: string, keyOf: (table: string) => string | undefined): string | null {
+  const type = action.inputs[input];
+  if (type !== 'link' && type !== 'link?') return null;
+  const fed = (from: string | readonly string[]): boolean => (typeof from === 'string' ? [from] : from).includes(`input.${input}`);
+  return action.reads.find((read) => read.by.some((by) => fed(by.from) && by.column === keyOf(read.table)))?.table ?? null;
+}
+
 const writeScopeSchema = z
   .object({
     insert: z.array(refSchema).min(1).max(40).optional(),

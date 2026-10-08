@@ -45,6 +45,7 @@ import { findProject } from '../project/locate.js';
 import { runChild } from './child.js';
 import { csvLines, csvOf, isWoff2, type Attachments } from './attachments.js';
 import { FOLDED_MARK } from './fold.js';
+import type { ShapeLine } from './add-on-lines.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
@@ -70,8 +71,10 @@ export interface AddOnLine {
   line: string;
   /** `available`: in this server's store. `listed`: only in the list adminium.dev gave; get_add_on brings it. */
   state: 'installed' | 'available' | 'listed';
-  /** The shapes an app can build tables on: `invoice@1`. */
-  shapes?: string[];
+  /** The shapes an app can build on: `invoice@1`, and how (whole tables, or columns and a rule on the app's own). */
+  shapes?: ShapeLine[];
+  /** The ledgers an app's rows post into, a line each. Absent for an add-on only the catalogue lists: its manifest is not here. */
+  ledgers?: string[];
 }
 
 export interface ToolsDeps {
@@ -109,6 +112,14 @@ export interface ToolsDeps {
     /** The app's sample rows are in already: once the app is next applied, they are added again with their pictures. */
     reseed?(appKey: string): void;
   };
+}
+
+/** What an app can build on an add-on, as the end of its line: its shapes by the way each is built, and its ledgers. */
+export function buildsOnInWords(addOn: Pick<AddOnLine, 'shapes' | 'ledgers'>): string {
+  const of = (how: ShapeLine['how']) => (addOn.shapes ?? []).filter((shape) => shape.how === how).map((shape) => shape.name);
+  const built = of('built-on');
+  const spelled = of('spelled-out');
+  return `${built.length === 0 ? '' : ` Shapes for build_on_shape: ${built.join(', ')}.`}${spelled.length === 0 ? '' : ` Shapes for build_on_shape, added to your own tables: ${spelled.join(', ')}.`}${(addOn.ledgers ?? []).length === 0 ? '' : ` Ledgers for post_to_ledger: ${(addOn.ledgers ?? []).join('; ')}.`}`;
 }
 
 const text = (content: string, label: string, extra: Partial<ToolOutcome> = {}): ToolOutcome => ({ content, label, ...extra });
@@ -560,7 +571,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     }
     if (offer.state !== 'here' && offer.state !== 'listed') return none(`The add-on "${key}" cannot be got here.`, 'refused');
     // Now the add-on itself, by its own name and version: a yes is to what the card shows.
-    const answer = await ctx.ask({ type: 'add-on', key, name: offer.name, version: offer.version, line: offer.line.slice(0, 300), ...(offer.state === 'here' ? { here: true as const } : {}) });
+    const answer = await ctx.ask({ type: 'add-on', key, name: offer.name, version: offer.version, line: offer.line.slice(0, 300), ...(offer.state === 'here' ? { here: true as const, ...(offer.tables > 0 ? { tables: offer.tables } : {}) } : {}) });
     const yes = answer.type === 'add-on' && answer.accept;
     addOnAnswers.set(turnKey + key, yes ? 'yes' : 'no');
     if (!yes) return none(`The person said no to the add-on "${key}". Build without it, and say what is left out.`, 'declined');
@@ -918,24 +929,20 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     },
     {
       name: 'list_add_ons',
-      description: 'The add-ons this server has, or can get: key, name, version and what each does. An app names the ones it needs in its manifest.',
+      description:
+        'The add-ons this server has, or can get: key, name, version, what each does, the shapes an app builds tables on, and the ledgers an app’s rows post into (stock). Call it before designing a table for invoices, quotes, receipts or stock.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       running: () => 'Looking at the add-ons',
       run: async () => {
         const all = await deps.listAddOns();
         if (all.length === 0) {
           return text(
-            'This server has no add-ons, and its list of adminium.dev is off, so what is on offer is not known here. If the app needs one (invoices, quotes, receipts: key "invoices"), call get_add_on with its key: the person is asked, and a yes switches the list on and gets it.',
+            'This server has no add-ons, and its list of adminium.dev is off, so what is on offer is not known here. If the app needs one (invoices, quotes, receipts: key "invoices"; stock: key "inventory"), call get_add_on with its key: the person is asked, and a yes switches the list on and gets it.',
             'No add-ons here',
           );
         }
         return text(
-          all
-            .map(
-              (addOn) =>
-                `${addOn.key} ${addOn.version} (${addOn.state === 'listed' ? 'not on this server: get_add_on brings it' : addOn.state}) — ${addOn.name}: ${addOn.line}${(addOn.shapes ?? []).length === 0 ? '' : ` Shapes to build tables on with build_on_shape: ${(addOn.shapes ?? []).join(', ')}.`}`,
-            )
-            .join('\n'),
+          all.map((addOn) => `${addOn.key} ${addOn.version} (${addOn.state === 'listed' ? 'not on this server: get_add_on brings it' : addOn.state}) — ${addOn.name}: ${addOn.line}${buildsOnInWords(addOn)}`).join('\n'),
           `Found ${String(all.length)} add-ons`,
         );
       },
@@ -943,20 +950,17 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     {
       name: 'get_add_on',
       description:
-        'Get an add-on this server does not have yet, by its key (as list_add_ons gives it). The person is asked first; a yes downloads and installs it, and then build_on_shape can build on it. Only for an add-on the app needs.',
+        'Get an add-on this server does not have yet, by its key (as list_add_ons gives it). The person is asked first; a yes downloads and installs it, and then build_on_shape or post_to_ledger can build on it. Only for an add-on the app needs.',
       inputSchema: { type: 'object', properties: { key: { type: 'string', description: 'The add-on’s key, e.g. invoices' } }, required: ['key'], additionalProperties: false },
       running: (input) => `Asking to get ${String(input['key'] ?? 'an add-on').slice(0, 80)}`,
       run: async (input, ctx) => {
         const key = str(input, 'key') ?? '';
         const got = await offerAddOn(key, ctx);
         if (!got.got) return got.outcome;
-        if (!got.fresh) return text(`${got.name} ${got.version} is already installed here. Build on it with build_on_shape.`, `${got.name} is already here`, { facts: { outcome: 'added' } });
-        const shapes = (await deps.listAddOns()).find((addOn) => addOn.key === key)?.shapes ?? [];
-        return text(
-          `${got.name} ${got.version} is installed.${shapes.length === 0 ? '' : ` Its shapes, for build_on_shape: ${shapes.join(', ')}.`}`,
-          `Got ${got.name}`,
-          { facts: { outcome: 'added' } },
-        );
+        const here = (await deps.listAddOns()).find((addOn) => addOn.key === key);
+        const builds = here === undefined ? '' : buildsOnInWords(here);
+        if (!got.fresh) return text(`${got.name} ${got.version} is already installed here.${builds}`, `${got.name} is already here`, { facts: { outcome: 'added' } });
+        return text(`${got.name} ${got.version} is installed.${builds}`, `Got ${got.name}`, { facts: { outcome: 'added' } });
       },
     },
     {

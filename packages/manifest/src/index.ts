@@ -367,6 +367,7 @@ export {
   ledgerReadSchema,
   ledgerSchema,
   ledgersSchema,
+  linkInputTable,
   optionalInput,
   postingFitIssues,
   postingIssues,

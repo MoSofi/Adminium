@@ -21,6 +21,7 @@ import type { AddOnInstallerDeps } from '../src/add-ons/install.js';
 import { createAddOnStore, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
 import { addOnLines } from '../src/designer/add-on-lines.js';
 import { createAddOnGetter } from '../src/designer/get-add-on.js';
+import { AddOnUntrustedError, AppError } from '../src/errors.js';
 import { registerAddOnAcquireHandlers } from '../src/jobs/add-on-acquire.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 
@@ -187,7 +188,23 @@ describe('getting one', () => {
     expect(fetched).toEqual(['tarball']);
     expect(await store.versions('design-studio')).toEqual(['1.0.0']);
     expect(installAddOn).toHaveBeenCalledTimes(1);
-    expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], actor: OWNER });
+    expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], publicAccess: false, actor: OWNER });
+  });
+
+  it('two databases, or a file nobody vouches for: the refusal says what the person does next', async () => {
+    await store.writeCatalogCache(CATALOG, Date.now());
+    installAddOn.mockRejectedValueOnce(new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', 'This instance has more than one database. Choose the one this add-on\'s tables go in.'));
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toEqual({
+      ok: false,
+      why: 'Design Studio keeps its tables in one database, and this server has more than one. Tell the person to install it from Workspace settings → Add-ons, where they choose the database; then call the tool again.',
+    });
+    installAddOn.mockRejectedValueOnce(new AddOnUntrustedError('design-studio', '1.0.0'));
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toEqual({
+      ok: false,
+      why: 'Design Studio was downloaded, and this server will not run its rules: the file is not one Adminium vouches for. Tell the person; build the rest of the app without it.',
+    });
+    installAddOn.mockRejectedValueOnce(new Error('disk full'));
+    expect(await getter().get('design-studio', OWNER, signal(), V)).toEqual({ ok: false, why: 'Design Studio was downloaded and could not be installed: disk full' });
   });
 
   it('an add-on got while an app is being built goes to that app\'s database, named to the installer', async () => {
@@ -196,7 +213,7 @@ describe('getting one', () => {
     const withApp = createAddOnGetter({ ...getterDeps(), connectionFor: async (appKey) => (asked.push(appKey), appKey === 'shop' ? 'conn_shop' : null) });
     expect((await withApp.get('design-studio', OWNER, signal(), { ...V, appKey: 'shop' })).ok).toBe(true);
     expect(asked).toEqual(['shop']);
-    expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], connectionId: 'conn_shop', actor: OWNER });
+    expect(installAddOn.mock.calls[0]?.[1]).toEqual({ key: 'design-studio', version: '1.0.0', attachTo: [], connectionId: 'conn_shop', publicAccess: false, actor: OWNER });
     // An app with no database yet, or no app at all: nothing is named, and the installer asks or works it out.
     installAddOn.mockClear();
     await withApp.get('design-studio', OWNER, signal(), { ...V, appKey: 'new-app' });

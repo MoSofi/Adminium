@@ -239,6 +239,7 @@ export default {
     "addOnOff": "This app needs the add-on {key}, which is not on this server. Switch the list of adminium.dev on to look for it?",
     "addOnSends": "It is downloaded from adminium.dev, which names this add-on and its version to adminium.dev, and installed on this server, as Studio → Add-ons would install it.",
     "addOnHereSends": "Nothing is downloaded. It is installed on this server, as Studio → Add-ons would install it.",
+    "addOnTables": "{count, plural, one {It adds # table to your database.} other {It adds # tables to your database.}}",
     "addOnOffSends": "The list of adminium.dev is off on this server. Switching it on asks adminium.dev for the list, now and once a day, which tells it this server’s address, the time and its Adminium version. Nothing is downloaded yet: if the add-on is in the list, you are asked again, by its name and version. Studio → Add-ons switches the list off again.",
     "addOnGet": "Get it",
     "addOnInstall": "Install it",

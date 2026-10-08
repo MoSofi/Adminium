@@ -239,6 +239,7 @@ export default {
     "addOnOff": "此應用程式需要附加元件 {key}，此伺服器上沒有。要開啟 adminium.dev 的清單來尋找它嗎？",
     "addOnSends": "它將從 adminium.dev 下載（adminium.dev 會得知此附加元件及其版本），並安裝到此伺服器，與「工作室 → 附加元件」的安裝方式相同。",
     "addOnHereSends": "不會下載任何內容。它將安裝到此伺服器，與「工作室 → 附加元件」的安裝方式相同。",
+    "addOnTables": "{count, plural, other {它會在你的資料庫中新增 # 張表。}}",
     "addOnOffSends": "此伺服器上已關閉 adminium.dev 的清單。開啟後會立即並每天一次向 adminium.dev 請求清單，對方會得知此伺服器的位址、時間及其 Adminium 版本。此時不會下載任何內容：如果清單中有該附加元件，會再次依其名稱和版本詢問你。可在「工作室 → 附加元件」中再次關閉清單。",
     "addOnGet": "取得",
     "addOnInstall": "安裝",
