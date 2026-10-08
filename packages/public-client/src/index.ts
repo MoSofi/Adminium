@@ -1083,6 +1083,13 @@ function isSignal(value: AbortSignal | DocumentListOptions): value is AbortSigna
 /** The Adminium file a column's value names: a bare id, or a content address from any origin. */
 const PICTURE_FILE = /^(?:file_[0-9ABCDEFGHJKMNPQRSTVWXYZ]{26}$|.*\/api\/v1\/files\/(file_[0-9ABCDEFGHJKMNPQRSTVWXYZ]{26})\/content\/?(?:\?.*)?$)/;
 
+
+/** An address with the slashes at its end taken off, read from the end: no pattern to back-track over a long run of them. */
+function withoutTrailingSlashes(address: string): string {
+  let end = address.length;
+  while (end > 0 && address.charCodeAt(end - 1) === 47) end -= 1;
+  return address.slice(0, end);
+}
 /**
  * The address of a picture anyone may see — for an `<img src>`, with no key
  * and no session — or null when the ref shows no picture in that column, or
@@ -1094,7 +1101,7 @@ export function pictureUrl(baseUrl: string, config: Pick<PublicConfig, 'pictures
   const match = PICTURE_FILE.exec(value.trim());
   if (match === null) return null;
   const fileId = match[1] ?? value.trim();
-  return `${baseUrl.replace(/\/+$/, '')}${config.pictures}/${encodeURIComponent(ref)}/${encodeURIComponent(String(rowId))}/${encodeURIComponent(column)}/${fileId}`;
+  return `${withoutTrailingSlashes(baseUrl)}${config.pictures}/${encodeURIComponent(ref)}/${encodeURIComponent(String(rowId))}/${encodeURIComponent(column)}/${fileId}`;
 }
 
 export function linkFromFragment(hash: string): LinkFragment | null {
@@ -1134,7 +1141,7 @@ function asListResult<T>(body: unknown, headers: Headers): ListResult<T> {
 export function createPublicClient(
   options: Partial<PublicClientOptions> | undefined,
 ): PublicClient | null {
-  const baseUrl = options?.baseUrl?.replace(/\/+$/, '');
+  const baseUrl = options?.baseUrl === undefined ? undefined : withoutTrailingSlashes(options.baseUrl);
   const key = options?.publishableKey;
   if (baseUrl === undefined || baseUrl === '' || key === undefined || key === '') return null;
 
