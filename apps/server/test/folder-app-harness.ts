@@ -53,7 +53,7 @@ export interface FolderHarness {
 
 export async function folderHarness(
   dialect: Dialect,
-  opts: { mode: 'dev' | 'server'; apps?: ProjectConfig['apps']; superAdmin?: boolean; /** The add-on installer too, for an app that needs an add-on. */ addOns?: boolean } = { mode: 'dev' },
+  opts: { mode: 'dev' | 'server'; apps?: ProjectConfig['apps']; superAdmin?: boolean; /** The add-on installer too, for an app that needs an add-on. */ addOns?: boolean; /** The Adminium the folder is built for, when not this checkout's own. */ version?: string } = { mode: 'dev' },
 ): Promise<FolderHarness> {
   const root = tempProject('adminium-folder-app-');
   let built: AppsBuild | null = null;
@@ -99,7 +99,7 @@ export async function folderHarness(
   let apps = make(opts.mode, opts.apps, ['main']);
 
   const build = async (): Promise<AppsBuild> => {
-    built = await buildProjectApps(root, { version: APP_VERSION, bundler: canBuildSides ? await loadProjectBundler(root) : null });
+    built = await buildProjectApps(root, { version: opts.version ?? APP_VERSION, bundler: canBuildSides ? await loadProjectBundler(root) : null });
     return built;
   };
 
