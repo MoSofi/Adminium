@@ -231,7 +231,9 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
           // What the rule itself reads (a price, a quantity, the typed code), a link to another row, and where a row stands, are not Adminium's to overwrite.
           if ((reads.get(tableId) ?? []).includes(column)) return { table: table.name, column, by: 'adjust' };
           if (table.states?.column === column) return { table: table.name, column, by: 'states' };
-          if (view.model.relations.some((r) => r.through === null && r.from.tableId === tableId && r.from.columns.includes(column))) return { table: table.name, column, by: 'link' };
+          // (A link Adminium only guessed from a column's name is no link yet: `code_id` beside an add-on's `…_codes` is
+          // exactly the column this rule is given to write.)
+          if (view.model.relations.some((r) => r.through === null && !r.kind.startsWith('inferred-') && r.from.tableId === tableId && r.from.columns.includes(column))) return { table: table.name, column, by: 'link' };
         }
         // What other rules decide there: this table's own price rule left out (it is the one being stored).
         const others = ruleDecidedColumns({ ...table, ...(table.id === at.id ? { adjust: undefined } : {}) } as never, { tables: view.model.tables.map((one) => (one.id === at.id ? ({ ...one, adjust: undefined } as never) : one)), relations: view.model.relations });
