@@ -687,7 +687,18 @@ export function createLedgerWriter(kit: LedgerKit) {
         link = { table: owner, via: point.lines!.via, parentKey: point.lines!.parentKey };
       } else if (point.role === 'line') {
         const parent = point.posting.via === undefined ? null : parentOf(target, point.posting.via);
-        if (parent === null) continue;
+        if (parent === null) {
+          /*
+           * The database keeps no link behind `via` (a column first made a
+           * plain number, a link taken off by hand): the row this line hangs
+           * under cannot be found, so its rule could never fire. A line saved
+           * now would be one nothing is ever posted for — refused, where the
+           * rule is there to be asked at all.
+           */
+          const stands = ledgers.resolve(target.view, target.table, point.posting).state;
+          if (stands === 'idle' || stands === 'off' || input.dry === true) continue;
+          throw refused('add-on-unavailable', null, { posting: point.posting.id, column: point.posting.via });
+        }
         link = { table: parent.table, via: point.posting.via!, parentKey: parent.parentKey };
       }
       const state = ledgers.resolve(target.view, owner, point.posting);
