@@ -328,19 +328,41 @@ version, changes included.
 
 ## Look at it
 
+The work area has one bar: the tabs **Preview**, **Architecture** and **Code**, then what the
+open tab needs.
+
 - **Preview** shows the app at desktop, tablet and phone width. **Dashboard** is your own
   dashboard, as the owner you are: the app's pages, and Studio, people and settings with them.
   **Staff** and **Customer**, when the app has them, show its own screens as its people see them.
-  The bar says whose eyes it is ("Seen as: you, the owner"; "Seen as: Baker — a preview"; "a
-  visitor, not signed in" for the customer side). **Open in a new tab** opens the staff side inside
-  the dashboard, as staff meet it, signed in as that preview person: the dashboard there has no
-  Studio, no people and no settings, and a bar across its top says so and links to **Open the
-  dashboard as yourself**.
+  A chip says whose eyes it is: "Seen as: owner", "Seen as: Baker" (a preview person with that
+  role), "Seen as: visitor" on the customer side. **Open in a new tab** opens the staff side
+  inside the dashboard, as staff meet it, signed in as that preview person: the dashboard there
+  has no Studio, no people and no settings, and a bar across its top says so and links to **Open
+  the dashboard as yourself**.
+- **The address bar** shows the page the side is on, and follows the app as you move through
+  it. Click it for the pages of that side (the dashboard's pages, the staff side's menu, and
+  for the customer side the pages you have opened so far), or type a path and press Enter to go
+  there. A reload, a build and a change of side come back to the page you were on. An app whose
+  screens have no addresses of their own yet shows `/` and cannot be sent anywhere: ask the
+  Designer to give each page its own address.
+- The preview is kept while another tab shows, so coming back to it does not load it again.
 - **Architecture** draws what the server applied: who uses the app, what they use, the tables and
   how they link, the emails and add-ons. Anything written to the folder and not applied yet is
   marked.
 - The version menu lists every version. Going back to one makes a new version on top, so nothing
   is lost.
+
+As the window narrows the bar folds: the camera switch moves into **More**, the side and the size
+become menu buttons, the chip becomes an eye. Nothing is taken away, only moved. When the chat
+and the work area no longer fit side by side (about 1,100 pixels of window for most apps), they
+become two views with a switch under the top bar: **Chat** and **Work area**. A dot on **Chat**
+says the Designer is waiting for your answer. The chat's width can be dragged between 340 and
+600 pixels.
+
+In the chat, your own messages can be selected like any text, and a small button at a message's
+corner copies the whole of it. Under the Designer's reply one row says what the turn was saved
+as and offers **Change the style**. When the Designer has looked at the page after a build, the
+steps say which one: "Looked at /menu after it built".
 
 ### The Designer looks too
 
@@ -369,7 +391,7 @@ A browser that cannot draw the picture sends the measured lines alone.
 ### You, the owner
 
 `adminium design` makes you the project's owner with no password: the link it prints signs you in,
-on this machine only. **Open the dashboard** and **Open in the dashboard** open it as you. There a
+on this machine only. **Open the dashboard** (on the Designer's first page) and **Open Dashboard** (on the build page) open it as you. There a
 banner offers **Set your password**: an address and a password, on the page (the same as
 `adminium owner set` in a terminal). Do it before the project runs anywhere else. From then on you
 sign in with them, here too: the Designer's one-time link is only for an owner with no password.

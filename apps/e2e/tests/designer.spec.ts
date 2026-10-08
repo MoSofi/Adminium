@@ -135,6 +135,11 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   await page.getByRole('button', { name: /steps ·/ }).click();
   await expect(page.getByText('Checked the app — no errors')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Version v1: v1' })).toBeVisible();
+  // The person's own message can be copied whole: the button is there for a pointer on the message, and says so once pressed.
+  await page.getByText('A repair desk: jobs and parts.').hover();
+  await page.getByRole('button', { name: 'Copy this message' }).click();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy this message' })).toBeVisible({ timeout: 5_000 });
   await bothThemes(page, 'Build', testInfo);
 
   // The preview's dashboard is the person's own, on the Designer's name: the owner, with the app's page and Studio both in reach.
