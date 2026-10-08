@@ -64,7 +64,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      testIgnore: [/onboarding\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer\.spec\.ts$/],
+      testIgnore: [/onboarding\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-cards)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
@@ -84,7 +84,7 @@ export default defineConfig({
       name: 'project',
       // Four files, one port: they run one after the other (`workers: 1`), each on a project of its own.
       // `designer.spec.ts` runs `adminium design` there and signs in by its link.
-      testMatch: [/project(-app)?\.spec\.ts/, /(^|\/)designer(-stock)?\.spec\.ts$/],
+      testMatch: [/project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], baseURL: PROJECT_URL, storageState: projectStatePath() },
     },
   ],
