@@ -52,6 +52,11 @@ export interface DesignerSession {
   style?: string;
   /** Tokens spent across the session, for its ceiling. */
   tokens: { in: number; out: number };
+  /**
+   * The files a person saved by hand since the Designer last finished a turn, project-relative: its next turn is told
+   * of them, and reads each again before it writes it. Absent in a session kept before hand saves.
+   */
+  handEdits?: string[];
 }
 
 /** A session id: `ds_` and 24 characters that sort by time. */

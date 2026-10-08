@@ -37,9 +37,10 @@ import { cleanThemePatch, isPublicFontName, mergePatches, OWN_FONTS_MAX, themeFr
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
 import type { AppSide } from '../project/apps/read-app.js';
-import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
+import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
+import { addsBuildCommand, createTurnReads, isBuildFile, needsCard } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { rebuildApps } from '../project/build.js';
@@ -168,20 +169,6 @@ The made parts of app.css:
 - Forms: "form" of "field"s (a label, then the input, then an optional "hint"); "btn btn-primary" for the one main action, "btn" and "btn btn-quiet" for the rest, "btn-small", "btn-block"; "stepper"; "summary" with a "total" line.
 - What the page says back: "notice ok" after sending, "notice error" for a problem, "empty" where a list has nothing, "badge" with "accent", "good", "warn" or "bad".
 - For staff: "toolbar", "list" of "list-row"s, or a "board" of "column"s holding cards; "row", "muted", "small", "icon".`;
-
-/** An app manifest's own build command is set by a person (D33): refused when the model writes one. */
-function addsBuildCommand(path: string, content: string, appKey: string): boolean {
-  const manifestFiles = [`apps/${appKey}/manifest/app.json`, `apps/${appKey}/manifest.json`];
-  // Folded: on a disk that ignores case, APP.JSON is app.json.
-  if (!manifestFiles.includes(path.normalize('NFC').toLowerCase())) return false;
-  try {
-    const parsed = JSON.parse(content) as Record<string, unknown>;
-    return parsed !== null && typeof parsed === 'object' && 'build' in parsed;
-  } catch {
-    // Not JSON: the check will say so.
-    return false;
-  }
-}
 
 /**
  * Why a `.json` file's text does not read, or null. Said at the write, a step
@@ -414,6 +401,18 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
   let sameErrors = 0;
   let testsAllowed = false;
   let serverCode: 'unasked' | 'allowed' | 'refused' = 'unasked';
+  /** What this turn's model read: a file the person changed by hand is written only once it was read again. */
+  const reads = createTurnReads();
+  const unreadHandEdit = (path: string, ctx: ToolContext): ToolOutcome | null => {
+    let normal: string;
+    try {
+      normal = jail.normalise(path);
+    } catch {
+      return null; // The jail says what is wrong with the path.
+    }
+    const why = reads.refusal(ctx.session.handEdits, ctx.turn, normal);
+    return why === null ? null : { ...refused(why, 'Read it first'), miss: true };
+  };
   const buildCode = new Map<string, 'allowed' | 'refused'>();
   const RUN_THEM = 'Run them';
   const ALLOW_IT = 'Allow it';
@@ -439,19 +438,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     // A build of its own is a person's to give an app: no app gets one from a model.
     if (inside === 'build.json') return refused('build.json names a command this machine runs, and only a person writes it. Build the screens in src/<side>/ as the skill says.', 'Not yours to change');
     if (!hasOwnBuild(deps.root, appKey)) return null;
-    const name = inside.slice(inside.lastIndexOf('/') + 1);
-    const guarded =
-      // At any depth: a folder's own package.json says which file an import of the folder runs.
-      name === 'package.json' ||
-      name === 'package-lock.json' ||
-      name === 'npm-shrinkwrap.json' ||
-      name === 'pnpm-lock.yaml' ||
-      name === 'yarn.lock' ||
-      // Every config the build's tools look for and run: Vite's own, and the ones its plugins find by name.
-      /^(vite|vitest|postcss|tailwind|babel|rollup|svgo|uno|windi)\.config\.[a-z]+$/.test(inside) ||
-      /^[jt]sconfig[a-z.]*\.json$/.test(name) ||
-      inside.startsWith('scripts/');
-    return guarded
+    return isBuildFile(inside)
       ? refused(`${inside} decides what this app's build runs, and the person approved that build as it is. It is theirs to change. Do what was asked in the app's manifest and its src/.`, 'Not yours to change')
       : null;
   }
@@ -472,7 +459,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     const lead = `apps/${appKey}/`;
     if (!normal.toLowerCase().startsWith(lead)) return null;
     const inside = normal.slice(lead.length);
-    if (!buildCodeStems(deps.root, appKey).has(codeStem(inside))) return null;
+    if (needsCard(deps.root, appKey, normal) !== 'build-code') return null;
     /*
      * A yes is for what the question named and nothing wider: one file at the app's top (its build's own
      * plugins live there), or the build's files in one folder (an app's words are a file a language).
@@ -508,7 +495,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     } catch {
       return null; // The jail says what is wrong with the path.
     }
-    if (!/^(hooks|actions)\//i.test(normal)) return null;
+    if (needsCard(deps.root, appKey, normal) !== 'server-code') return null;
     if (serverCode === 'unasked') {
       const answer = await ctx.ask({
         type: 'question',
@@ -631,11 +618,12 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         additionalProperties: false,
       },
       running: (input) => `Reading ${shown(String(input['path'] ?? ''))}`,
-      run: async (input) => {
+      run: async (input, ctx) => {
         const path = str(input, 'path');
         if (path === null) return refused('Give the "path" of the file to read.', 'Read nothing');
         return jailed(`Could not read ${shown(path)}`, () => {
           const all = readFileSync(jail.resolve(path, 'read'), 'utf8');
+          reads.read(ctx.turn, jail.normalise(path));
           const from = int(input, 'from');
           const count = int(input, 'lines');
           let body = all;
@@ -674,7 +662,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         emptyWrites = 0;
         // An earlier step of this conversation, shown cut short, copied back as if it were the file.
         if (FOLDED_MARK.test(content)) return refused('That is a shortened copy of an earlier step, not the file: it ends in "… (N more characters …)". read_file gives the whole file; then write all of it.', 'Wrote nothing');
-        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
@@ -719,7 +707,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
         if (FOLDED_MARK.test(after) || FOLDED_MARK.test(before)) return refused('That is a shortened copy of an earlier step, not the file\'s words: it ends in "… (N more characters …)". read_file gives the file as it is; edit from that.', 'Edited nothing');
-        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
