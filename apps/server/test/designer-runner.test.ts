@@ -722,6 +722,24 @@ describe('the project folder', () => {
     second.release();
   });
 
+  it('closes a hold that a stopped server left open, the first time the session’s log is opened again', async () => {
+    const session = newSession();
+    const first = harness([says('Done.')]);
+    await first.runner.start(session.id, { text: 'go', by });
+    await first.runner.settled();
+    // The server stops between "held" and "handed back": the file keeps a hold with no end.
+    first.runner.hold('save', session.id).announce();
+    expect(store.eventsSince(session.id, 0, 100).events.at(-1)).toMatchObject({ kind: 'hold', what: 'save' });
+    // The next server: reading the session's events is enough, and it is said once.
+    const next = harness([]);
+    next.runner.events(session.id).flush();
+    next.runner.events(session.id).flush();
+    expect(store.eventsSince(session.id, 0, 100).events.slice(-2).map((event) => [event.kind, event.by])).toEqual([['hold', 'person'], ['released', 'person']]);
+    expect(next.published).toEqual([expect.objectContaining({ kind: 'released', what: 'save', by: 'person', turn: 1, sessionId: session.id })]);
+    // And the folder is free there.
+    next.runner.hold('save', session.id).release();
+  });
+
   it('tells the session’s pages when it is held and handed back, as events of no turn that carry the last turn’s number', async () => {
     const session = newSession();
     const h = harness([says('Done.')]);

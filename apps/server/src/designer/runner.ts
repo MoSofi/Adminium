@@ -275,8 +275,27 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         now,
       });
       logs.set(sessionId, log);
+      mendHold(sessionId, log);
     }
     return log;
+  }
+
+  /**
+   * A hold whose end was never written: the server stopped between the two. Nothing of this process can be
+   * holding a session whose log it opens for the first time, so the end is written now, and the session's
+   * pages (which read a hold with no end as "being changed") can be used again.
+   */
+  function mendHold(sessionId: string, log: EventLog): void {
+    try {
+      let open: HoldKind | null = null;
+      for (const event of deps.store.eventsSince(sessionId, 0, Number.MAX_SAFE_INTEGER).events) {
+        if (event.kind === 'hold') open = event.what;
+        else if (event.kind === 'released' || event.kind === 'turn-started') open = null;
+      }
+      if (open !== null) log.emit(deps.store.read(sessionId).turns, { kind: 'released', what: open }, { by: 'person' });
+    } catch (error) {
+      deps.log?.('could not close a hold that a stopped server left open', error);
+    }
   }
 
   /** Refuse, in the words for what has the folder. `forTurn`: it is a turn that asks. */
