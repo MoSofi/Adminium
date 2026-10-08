@@ -14,10 +14,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { parseSurfaceManifest } from '../src/cli/surfaces-root.js';
 import { runCli } from '../src/cli/run.js';
-import { loadProjectBundler, type Bundler } from '../src/project/build.js';
+import { buildProject, loadProjectBundler, loadProjectConfig, readBuildManifest, type Bundler } from '../src/project/build.js';
 import { buildAppSides, buildSide, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
 import { addUiParts, UI_PARTS } from '../src/project/apps/scaffold-app.js';
 import { BASE_THEME, fontsCssOf } from '../src/project/apps/theme.js';
+import { APP_VERSION } from '../src/version.js';
 import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
@@ -249,6 +250,48 @@ describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
       expect(bundle, side).toContain('adminium:surface:hello');
       expect(bundle, side).toContain(side === 'staff' ? '/done' : '/request');
     }
+  });
+});
+
+describe.skipIf(!ready)('screens built for a developer, and screens built for a server', () => {
+  it('builds them again when a start needs the other kind, both ways, and leaves them when nobody says', async () => {
+    rmSync(join(root, 'apps'), { recursive: true });
+    const deps = fakeDeps({ cwd: root, env: {} });
+    deps.runProcess = () => ({ status: 0, stdout: '' });
+    expect(await runCli(['app', 'new', 'repairs', '--customer'], { io: fakeIo({ interactive: false }), deps })).toBe(0);
+    const project = { root, configFile: join(root, 'adminium.config.ts') };
+    const assets = (): string[] => readdirSync(join(sideBuildDir(root, 'repairs', 'customer'), 'assets'));
+    /** A developer's bundle has its source map beside it, and keeps the words of what it says to the page that frames it. */
+    const forDeveloper = (): boolean => assets().some((file) => file.endsWith('.js.map'));
+    const load = (opts: { dev?: boolean; loadBundler?: () => Promise<Bundler | null> } = {}) => loadProjectConfig(project, { version: APP_VERSION, ...opts });
+
+    // As `adminium build` leaves a folder: for a server.
+    await buildProject(project, { version: APP_VERSION });
+    expect(readBuildManifest(project)?.apps?.dev).toBeUndefined();
+    expect(forDeveloper()).toBe(false);
+
+    // `adminium design` or `adminium dev` on that folder: the build is current, and its screens are the wrong kind.
+    expect(await load({ dev: true })).toMatchObject({ from: 'build', appsRebuilt: true });
+    expect(readBuildManifest(project)?.apps?.dev).toBe(true);
+    expect(forDeveloper()).toBe(true);
+    // Again: nothing to do.
+    expect((await load({ dev: true })).appsRebuilt).toBeUndefined();
+    // A command that only reads the config takes the build as it is.
+    expect((await load()).appsRebuilt).toBeUndefined();
+    expect(forDeveloper()).toBe(true);
+
+    // A server with no esbuild serves what is there: the screens work.
+    expect((await load({ dev: false, loadBundler: async () => null })).appsRebuilt).toBeUndefined();
+    expect(forDeveloper()).toBe(true);
+    // `adminium start` after `adminium design`: built again, for a server.
+    expect(await load({ dev: false })).toMatchObject({ from: 'build', appsRebuilt: true });
+    expect(readBuildManifest(project)?.apps?.dev).toBeUndefined();
+    expect(forDeveloper()).toBe(false);
+    // And a build that is out of date is made the kind the start asks for.
+    writeFileSync(join(root, 'apps', 'repairs', 'customer', 'src', 'design.css'), '.x { color: red; }\n');
+    expect(await load({ dev: true })).toMatchObject({ from: 'new-build' });
+    expect(readBuildManifest(project)?.apps?.dev).toBe(true);
+    expect(forDeveloper()).toBe(true);
   });
 });
 

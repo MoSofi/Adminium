@@ -155,9 +155,11 @@ export async function runStart({ io, deps, argv }: CommandContext, design?: Desi
      * start` is a server, whatever its `.env` says.
      */
     const projectMode: 'dev' | 'server' = design !== undefined || deps.env.ADMINIUM_PROJECT_MODE === 'dev' ? 'dev' : 'server';
-    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION });
+    // The apps' screens are built one way for a developer and another for a server; a build of the other kind is redone.
+    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev' });
     if (project !== null) {
-      io.out(`Project: ${project.project.root}${project.from === 'new-build' ? ' (built it first)' : ''}`);
+      const built = project.from === 'new-build' ? ' (built it first)' : project.appsRebuilt === true ? ` (built its apps' screens again, for ${projectMode === 'dev' ? 'development' : 'a server'})` : '';
+      io.out(`Project: ${project.project.root}${built}`);
     }
 
     /*

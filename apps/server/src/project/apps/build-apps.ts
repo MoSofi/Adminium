@@ -57,6 +57,11 @@ export interface AppsBuild {
   sources: string;
   /** sha256 of every project file a side's build read outside the app's own folder. */
   inputs: Record<string, string>;
+  /**
+   * True when the screens were built for a developer (`adminium dev`, `adminium design`): readable, with a source
+   * map, and telling the page that frames them of errors and of where they are. Absent in a build made for a server.
+   */
+  dev?: boolean;
 }
 
 export const EMPTY_APPS_BUILD: AppsBuild = { digest: '', apps: [], sources: '', inputs: {} };
@@ -265,7 +270,17 @@ export async function buildProjectApps(root: string, opts: BuildAppsOptions): Pr
 
   const digest =
     apps.length === 0 ? '' : sha256(JSON.stringify(apps.map((app) => [app.key, app.hash, app.sidesHash, app.problems ?? null])));
-  return { digest, apps, sources, inputs };
+  return { digest, apps, sources, inputs, ...(opts.dev === true ? { dev: true } : {}) };
+}
+
+/**
+ * Whether the apps' screens were built as the other kind than is wanted now: for a server when a developer runs
+ * the project, or for a developer when a server does. Only screens the engine builds have two kinds: an app with
+ * a build of its own, or with no screens, is the same either way.
+ */
+export function appsBuiltAsOther(root: string, built: AppsBuild | undefined, dev: boolean): boolean {
+  if (built === undefined || (built.dev === true) === dev) return false;
+  return built.apps.some((app) => app.problems === undefined && app.sides.length > 0 && !hasOwnBuild(root, app.key));
 }
 
 /** Why the built apps are out of date, or null when they are not. */
