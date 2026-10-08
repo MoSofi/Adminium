@@ -442,7 +442,11 @@ export default {
     "seesNot": "Designer 在建置後不會檢視頁面",
     "addressDashboard": "儀表板端的位址",
     "addressStaff": "員工端的位址",
-    "addressCustomer": "客戶端的位址"
+    "addressCustomer": "客戶端的位址",
+    "pages": "此端的頁面",
+    "pagesOpened": "您開啟過的頁面",
+    "addressEnter": "按 {key} 前往您輸入的位址。",
+    "addressQuiet": "此應用程式的頁面還沒有位址。請讓 Designer 為每個頁面設定自己的位址。"
   },
   "arch": {
     "access": "客戶存取",

@@ -432,7 +432,11 @@
     "seesNot": "Designer ser ikke på siden, når den er bygget",
     "addressDashboard": "Adresse på dashboardsiden",
     "addressStaff": "Adresse på medarbejdersiden",
-    "addressCustomer": "Adresse på kundesiden"
+    "addressCustomer": "Adresse på kundesiden",
+    "pages": "Sider på denne side af appen",
+    "pagesOpened": "Sider, du har åbnet",
+    "addressEnter": "Tryk på {key} for at gå til det, du har skrevet.",
+    "addressQuiet": "Appens sider har endnu ingen adresser. Bed Designer om at give hver side sin egen adresse."
   },
   "arch": {
     "access": "Kundeadgang",

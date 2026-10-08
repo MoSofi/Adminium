@@ -442,7 +442,11 @@ export default {
     "seesNot": "Designer si po sestavení stránku neprohlédne",
     "addressDashboard": "Adresa na straně nástěnky",
     "addressStaff": "Adresa na straně personálu",
-    "addressCustomer": "Adresa na straně zákazníků"
+    "addressCustomer": "Adresa na straně zákazníků",
+    "pages": "Stránky na této straně",
+    "pagesOpened": "Stránky, které jste otevřeli",
+    "addressEnter": "Stisknutím {key} přejdete na to, co jste napsali.",
+    "addressQuiet": "Stránky této aplikace zatím nemají adresy. Požádejte Designer, aby každé stránce dal vlastní adresu."
   },
   "arch": {
     "access": "Přístup zákazníků",

@@ -442,7 +442,11 @@ export default {
     "seesNot": "Der Designer sieht sich die Seite nach dem Erstellen nicht an",
     "addressDashboard": "Adresse auf der Dashboard-Seite",
     "addressStaff": "Adresse auf der Mitarbeiterseite",
-    "addressCustomer": "Adresse auf der Kundenseite"
+    "addressCustomer": "Adresse auf der Kundenseite",
+    "pages": "Seiten auf dieser Seite der App",
+    "pagesOpened": "Seiten, die Sie geöffnet haben",
+    "addressEnter": "Mit {key} gelangen Sie zu dem, was Sie eingegeben haben.",
+    "addressQuiet": "Die Seiten dieser App haben noch keine Adressen. Bitten Sie den Designer, jeder Seite eine eigene Adresse zu geben."
   },
   "arch": {
     "access": "Kundenzugriff",

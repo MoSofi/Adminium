@@ -9507,6 +9507,14 @@
     "status": "mt",
     "srcHash": "868c92076572"
   },
+  "designer.preview.addressEnter": {
+    "status": "mt",
+    "srcHash": "ad961245860c"
+  },
+  "designer.preview.addressQuiet": {
+    "status": "mt",
+    "srcHash": "4fb4a54fc24e"
+  },
   "designer.preview.addressStaff": {
     "status": "mt",
     "srcHash": "bf56e1ffa17c"
@@ -9598,6 +9606,14 @@
   "designer.preview.offLive": {
     "status": "mt",
     "srcHash": "220daa88d17c"
+  },
+  "designer.preview.pages": {
+    "status": "mt",
+    "srcHash": "07fc18a0332d"
+  },
+  "designer.preview.pagesOpened": {
+    "status": "mt",
+    "srcHash": "69e13fd130a0"
   },
   "designer.preview.phone": {
     "status": "mt",

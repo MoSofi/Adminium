@@ -432,7 +432,11 @@
     "seesNot": "The Designer will not look at the page after it builds",
     "addressDashboard": "Address on the dashboard side",
     "addressStaff": "Address on the staff side",
-    "addressCustomer": "Address on the customer side"
+    "addressCustomer": "Address on the customer side",
+    "pages": "Pages on this side",
+    "pagesOpened": "Pages you have opened",
+    "addressEnter": "Press {key} to go to what you typed.",
+    "addressQuiet": "This app’s pages have no addresses yet. Ask the Designer to give each page its own address."
   },
   "arch": {
     "access": "Customer access",

@@ -17,6 +17,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import type { DesignerSession } from '../api.js';
 import { AddressBar } from './AddressBar.js';
 import { firstLevel, nextLevel, type BarLevel } from './barLevel.js';
+import { useKnownPages } from './knownPages.js';
 import { Preview } from './Preview.js';
 import type { TurnView } from './turns.js';
 import { usePreview } from './usePreview.js';
@@ -77,6 +78,7 @@ export function WorkArea({
   ];
 
   const hasTools = !preview.noPreview && preview.app !== null;
+  const pages = useKnownPages(session.id, session.appKey, preview.side, preview.visited, hasTools);
   const language = getI18nInstance()?.language ?? '';
   // Everything that changes a width in the bar. Anything measured under another key is forgotten.
   const words = `${language}|${preview.sides.join(',')}|${hasTools ? seenAs(preview.side, preview.ticket?.seenAs ?? null).label : ''}`;
@@ -131,7 +133,17 @@ export function WorkArea({
         tab={tab}
         level={level}
         preview={preview}
-        address={<AddressBar side={preview.side} path={preview.path} />}
+        address={
+          <AddressBar
+            side={preview.side}
+            path={preview.path}
+            prefix={preview.prefix}
+            spoken={preview.spoken}
+            pages={pages}
+            listLabel={preview.side === 'customer' ? t('designer:preview.pagesOpened', 'Pages you have opened') : t('designer:preview.pages', 'Pages on this side')}
+            onGo={preview.go}
+          />
+        }
         onNotice={onNotice}
         end={
           <span className="flex items-center gap-[7px] whitespace-nowrap text-[12px] font-semibold text-fg-muted">

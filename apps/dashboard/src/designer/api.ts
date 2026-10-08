@@ -363,6 +363,8 @@ export const designerApi = {
   restore: (id: string, n: number, record: boolean) =>
     api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/versions/${String(n)}/restore`, { record }),
   architecture: (id: string) => api.get<ArchitectureDoc>(`${BASE}/sessions/${id}/architecture`),
+  /** One of the app's files a person may open, whole, with the hash it has now. */
+  fileContent: (id: string, path: string) => api.get<{ path: string; content: string; hash: string }>(`${BASE}/sessions/${id}/files/content?path=${encodeURIComponent(path)}`),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
   createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; text?: string; /** With `text`: this page will show the preview and say what it sees. */ sees?: boolean }) =>

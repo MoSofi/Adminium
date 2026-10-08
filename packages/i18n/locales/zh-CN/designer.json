@@ -432,7 +432,11 @@
     "seesNot": "Designer 在构建后不会查看页面",
     "addressDashboard": "仪表板端的地址",
     "addressStaff": "员工端的地址",
-    "addressCustomer": "客户端的地址"
+    "addressCustomer": "客户端的地址",
+    "pages": "此端的页面",
+    "pagesOpened": "您打开过的页面",
+    "addressEnter": "按 {key} 前往您输入的地址。",
+    "addressQuiet": "此应用的页面还没有地址。请让 Designer 为每个页面设置自己的地址。"
   },
   "arch": {
     "access": "客户访问",

@@ -432,7 +432,11 @@
     "seesNot": "Le Designer ne regardera pas la page après l’avoir construite",
     "addressDashboard": "Adresse côté tableau de bord",
     "addressStaff": "Adresse côté équipe",
-    "addressCustomer": "Adresse côté client"
+    "addressCustomer": "Adresse côté client",
+    "pages": "Pages de ce côté",
+    "pagesOpened": "Pages que vous avez ouvertes",
+    "addressEnter": "Appuyez sur {key} pour aller à ce que vous avez saisi.",
+    "addressQuiet": "Les pages de cette application n’ont pas encore d’adresse. Demandez au Designer de donner à chaque page sa propre adresse."
   },
   "arch": {
     "access": "Accès client",
