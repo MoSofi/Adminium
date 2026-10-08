@@ -1212,23 +1212,35 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const labelsOf = (bundle: SampleBundle) => new Set(bundle.tables.flatMap((table) => table.rows.flatMap((row) => (typeof row['@label'] === 'string' ? [row['@label']] : []))));
     const own = labelsOf(section);
     const named = new Set(section.tables.flatMap((table) => table.rows.flatMap((row) => Object.entries(row).flatMap(([column, value]) => (ROW_DIRECTIVES.has(column) ? [] : refsIn(value))))));
-    const appBundleLabels = labelsOf(await loadBundle(app));
+    const appBundle = await loadBundle(app);
+    const appBundleLabels = labelsOf(appBundle);
     // A starting row of the add-on is there whether its sample is or not: naming one holds nothing back.
     const seeded = seedLabelsOf(addOn.manifest);
-    return { section, own, named, namesTheirSample: [...named].some((label) => !own.has(label) && !appBundleLabels.has(label) && !seeded.has(label)) };
+    // The app's own tables only this file fills: their rows in the app's list are this section's, and no other's.
+    const elsewhere = new Set(appBundle.tables.map((table) => table.ref));
+    const ownTables = new Set(section.tables.filter((table) => table.own === true && !elsewhere.has(table.ref)).map((table) => table.ref));
+    return { section, own, named, ownTables, namesTheirSample: [...named].some((label) => !own.has(label) && !appBundleLabels.has(label) && !seeded.has(label)) };
   }
 
+  /** Whether a row of an app's list of sample rows is of its section for this add-on: a row of the add-on's table, or of an own table only that file fills. */
+  const ofSection = (addOnKey: string, ownTables: ReadonlySet<string>) => (row: LedgerRow): boolean =>
+    isSampleRow(row) && (row.table_ref.startsWith(`${addOnKey}:`) || ownTables.has(row.table_ref));
+
   /** The apps whose loaded section for this add-on points at a row of the add-on's own sample: those rows leave before that sample does. */
-  async function sectionsNaming(addOn: SampleApp, connectionId: string): Promise<SampleApp[]> {
-    const out: SampleApp[] = [];
+  async function sectionsNaming(addOn: SampleApp, connectionId: string): Promise<{ app: SampleApp; ownTables: ReadonlySet<string> }[]> {
+    const out: { app: SampleApp; ownTables: ReadonlySet<string> }[] = [];
     const handle = await deps.manager.data(connectionId);
     const keys = (await deps.meta.db.selectFrom('adminium_manifests').select('manifestKey').where('kind', '=', 'app').where('connectionId', '=', connectionId).orderBy('manifestKey', 'asc').execute()).map((row) => row.manifestKey);
     for (const key of keys) {
       const app = await findSampleApp(deps.meta, key);
       const ledger = app === null ? undefined : await ledgerRecord(app, connectionId);
       if (app === null || ledger === undefined || !sectionKeysOf(app).includes(addOn.key)) continue;
-      if (!(await ledgerRows(handle, ledger.tableName)).some((row) => isSampleRow(row) && row.table_ref.startsWith(`${addOn.key}:`))) continue;
-      if ((await readSection(app, addOn.key, addOn)).namesTheirSample) out.push(app);
+      const rows = await ledgerRows(handle, ledger.tableName);
+      if (!rows.some(isSampleRow)) continue;
+      // A file that no longer reads is no section to take out: the app's own removal still takes its rows.
+      const read = await readSection(app, addOn.key, addOn).catch(() => null);
+      if (read === null || !read.namesTheirSample || !rows.some(ofSection(addOn.key, read.ownTables))) continue;
+      out.push({ app, ownTables: read.ownTables });
     }
     return out;
   }
@@ -1251,10 +1263,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const handle = await deps.manager.data(connectionId);
     const ledger = await ledgerRecord(app, connectionId);
     const mine = ledger === undefined ? [] : await ledgerRows(handle, ledger.tableName);
-    // Loaded already: the app's ledger lists rows of it.
+    // Loaded already: the app's ledger lists rows of it — of the add-on's tables…
     if (mine.some((row) => isSampleRow(row) && row.table_ref.startsWith(`${addOnKey}:`))) return null;
 
-    const { section, own, named, namesTheirSample } = await readSection(app, addOnKey, addOn);
+    const { section, own, named, ownTables, namesTheirSample } = await readSection(app, addOnKey, addOn);
+    // …or of an own table only this file fills (a file may hold nothing else).
+    if (mine.some(ofSection(addOnKey, ownTables))) return null;
     const labels = await labelsIn(app, connectionId, handle);
     const theirs = await labelsIn(addOn, connectionId, handle);
     // A row that points at the ADD-ON's own sample: the whole file waits until that sample is in.
@@ -2042,7 +2056,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       opts: { keepChanged: boolean; userId: string | null; userLabel: string },
     ): Promise<{ removed: number; kept: number; byTable: Record<string, number> }> {
       if (app.manifest.kind === 'add-on' && app.connectionId !== null) {
-        for (const held of await sectionsNaming(app, app.connectionId)) await removeRows(held, opts, (row) => row.table_ref.startsWith(`${app.key}:`));
+        // The whole section goes: the add-on's rows it added, and the app's own rows that link to them.
+        for (const held of await sectionsNaming(app, app.connectionId)) await removeRows(held.app, opts, ofSection(app.key, held.ownTables));
       }
       return removeRows(app, opts);
     },

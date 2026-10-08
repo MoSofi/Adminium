@@ -395,6 +395,49 @@ function ledgerOrderIssues(bundle: SampleBundle, manifest: Manifest, declared: R
 type DeclaredTable = NonNullable<Manifest['requiredSchema']>['tables'][number];
 
 /**
+ * The tables a ledger writes that are CATALOGUE, not history: what the
+ * ledger keeps beside its books — "this dish uses these items", "this visit
+ * type offers that kit" — which a posting may write and a person, or an app's
+ * sample, may write just as well.
+ *
+ * Read from the manifest as it stands. A table is history when it holds a
+ * total, when a total or a limit anywhere adds its rows up, or when an action
+ * that writes it also writes rows something adds up (a batch is made by the
+ * action that moves stock into it: it is part of that movement). What is left
+ * is written only by actions that count nothing. The receipt table never is.
+ */
+export function ledgerCatalogueTables(addOn: AddOnManifest): ReadonlySet<string> {
+  const tables = addOn.requiredSchema?.tables ?? [];
+  /** Tables whose rows a total, or a limit, adds up. */
+  const counted = new Set<string>();
+  /** Tables that hold a total. */
+  const totals = new Set<string>();
+  for (const table of tables) {
+    if ((table as { capacity?: unknown }).capacity !== undefined) counted.add(table.ref);
+    for (const column of table.columns) {
+      const rollup = column.rules?.rollup;
+      if (rollup === undefined) continue;
+      totals.add(table.ref);
+      counted.add(rollup.from);
+    }
+  }
+  const verdicts = new Map<string, boolean>();
+  for (const ledger of ledgersOf(addOn)) {
+    const all = Object.keys(ledger.writes);
+    const writtenBy = Object.values(ledger.actions).map((action) => action.writes ?? all);
+    for (const ref of all) {
+      const writers = writtenBy.filter((written) => written.includes(ref));
+      const catalogue =
+        ref !== ledger.receipts && !totals.has(ref) && !counted.has(ref) && writers.length > 0 && writers.every((written) => written.every((other) => !counted.has(other)));
+      // Two ledgers that write one table both have to leave it out of their books.
+      verdicts.set(ref, (verdicts.get(ref) ?? true) && catalogue);
+    }
+  }
+  for (const ledger of ledgersOf(addOn)) verdicts.set(ledger.receipts, false);
+  return new Set([...verdicts].filter(([, catalogue]) => catalogue).map(([ref]) => ref));
+}
+
+/**
  * An app's rows for an add-on it names (`sampleData.addOns.<key>.file`):
  * the file is for this app and that add-on, the app names the add-on, a
  * table marked `own` is the app's and links into the add-on, and — when the
@@ -417,6 +460,8 @@ export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addO
   const own = new Map<string, DeclaredTable>(app.requiredSchema.tables.map((table) => [table.ref, table]));
   const theirs = addOn === undefined ? null : new Map<string, DeclaredTable>((addOn.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
   const declared = new Map<string, DeclaredTable>();
+  const catalogue = addOn === undefined ? new Set<string>() : ledgerCatalogueTables(addOn);
+  const receipts = new Set(addOn === undefined ? [] : ledgersOf(addOn).map((ledger) => ledger.receipts));
   bundle.tables.forEach((table, t) => {
     const at = `tables.${String(t)}`;
     if (table.own === true) {
@@ -433,10 +478,20 @@ export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addO
     if (theirs === null) return; // checked when the add-on's manifest is at hand
     const shape = theirs.get(table.ref);
     // An add-on's history is its own to write: an app brings what a ledger counts, never what it counted.
-    const ledger = addOn === undefined ? undefined : ledgersOf(addOn).find((candidate) => candidate.receipts === table.ref || candidate.writes[table.ref] !== undefined);
+    // What a ledger writes beside its books (which item a dish uses) is no history, and an app may bring it.
+    const ledger = addOn === undefined || catalogue.has(table.ref) ? undefined : ledgersOf(addOn).find((candidate) => candidate.receipts === table.ref || candidate.writes[table.ref] !== undefined);
     if (shape === undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is not a table of "${key}". A table of the app itself is marked "own": true.` });
     else if (ledger !== undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is ${ledger.receipts === table.ref ? 'the receipt table' : 'a table'} of "${key}"'s ledger "${ledger.id}", which only postings write: an app's rows for an add-on hold none of its history.` });
-    else declared.set(table.ref, shape);
+    else {
+      declared.set(table.ref, shape);
+      // Such a row is nobody's posting: it names no receipt, so nothing ever takes it for one to give back.
+      for (const column of shape.columns) {
+        if (column.type !== 'fk' || column.references === undefined || !receipts.has(column.references)) continue;
+        table.rows.forEach((row, r) => {
+          if (row[column.ref] !== undefined && row[column.ref] !== null) issues.push({ path: `${at}.rows.${String(r)}.${column.ref}`, message: `"${table.ref}.${column.ref}" names the receipt of a posting: an app's rows for an add-on are made by no posting, so leave it out.` });
+        });
+      }
+    }
   });
   const twice = bundle.tables.map((table) => table.ref).filter((ref, i, all) => all.indexOf(ref) !== i);
   for (const ref of new Set(twice)) issues.push({ path: 'tables', message: `"${ref}" is listed twice.` });

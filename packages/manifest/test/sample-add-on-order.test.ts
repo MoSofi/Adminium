@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { sampleBundleIssues, sampleBundleSchema, sampleSectionIssues, validateManifest, type AddOnManifest, type AppManifest } from '../src/index.js';
+import { ledgerCatalogueTables, sampleBundleIssues, sampleBundleSchema, sampleSectionIssues, validateManifest, type AddOnManifest, type AppManifest } from '../src/index.js';
 import { LEDGER_HOST, LEDGER_KIT } from './ledger-kit-fixture.js';
 
 type Doc = Record<string, unknown>;
@@ -101,5 +101,86 @@ describe('an app\'s rows for an add-on', () => {
   it('a ledger table in the section is refused, and so is the receipt table', () => {
     expect(section([ACCOUNTS, ENTRIES])).toContain('tables.1.ref: "entries" is a table of "ledger-kit"\'s ledger "units", which only postings write');
     expect(section([RECEIPTS])).toContain('"postings" is the receipt table of "ledger-kit"\'s ledger "units"');
+  });
+
+  describe('a table the ledger writes beside its books', () => {
+    /**
+     * The kit as a stock add-on is: `use` moves units (entries, holds), and
+     * `adopt` makes a link from somebody's row to an account — and, on the
+     * way, touches the account itself. Each action says what it writes.
+     */
+    const stock = (change?: (kit: Doc & { addOn: { ledgers: (Doc & { writes: Doc; actions: Record<string, Doc> })[] }; requiredSchema: { tables: (Doc & { ref: string; columns: Doc[] })[] } }) => void): AddOnManifest => {
+      const kit = structuredClone(LEDGER_KIT) as unknown as Parameters<NonNullable<typeof change>>[0];
+      const ledger = kit.addOn.ledgers[0]!;
+      ledger.writes = { ...ledger.writes, links: { insert: ['source_table', 'source_row', 'account_id', 'qty'] }, accounts: { update: { by: ['id'], set: ['reorder_at'] } } };
+      for (const action of Object.values(ledger.actions)) action['writes'] = ['entries', 'holds'];
+      ledger.actions['adopt'] = {
+        inputs: { what: 'rowRef', account: 'link', quantity: 'decimal' },
+        phases: ['post'],
+        reads: [{ as: 'known', table: 'links', by: [{ column: 'account_id', from: 'input.account' }] }],
+        locks: [{ read: 'known', column: 'id', table: 'links' }],
+        writes: ['accounts', 'links'],
+      };
+      kit.requiredSchema.tables.push({
+        ref: 'links',
+        columns: [
+          { ref: 'id', type: 'int', role: 'pk' },
+          { ref: 'source_table', type: 'text', maxLength: 128, rules: { tableRef: true } },
+          { ref: 'source_row', type: 'text', maxLength: 64 },
+          { ref: 'account_id', type: 'fk', references: 'accounts' },
+          { ref: 'qty', type: 'decimal', scale: 3, default: 1 },
+          { ref: 'receipt_id', type: 'fk', references: 'postings', nullable: true },
+        ],
+      });
+      // The kit as written is a manifest Adminium takes; a changed one is read as it stands (what is asked of it here is asked before any install).
+      const result = validateManifest(kit);
+      if (!result.ok) throw new Error(JSON.stringify(result.issues));
+      if (change === undefined) return result.manifest as AddOnManifest;
+      change(kit);
+      return kit as unknown as AddOnManifest;
+    };
+    const LINKS = { ref: 'links', rows: [{ source_table: { '@table': 'orders' }, source_row: '1', account_id: { '@ref': 'flour' }, qty: 2 }] };
+    const told = (kit: AddOnManifest, tables: Doc[]) =>
+      sampleSectionIssues(sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'ledger-host', addOn: 'ledger-kit', tables }), HOST, kit)
+        .map((issue) => `${issue.path}: ${issue.message}`)
+        .join('\n');
+
+    it('is catalogue, and an app may bring rows of it: which of its rows uses which of the add-on\'s', () => {
+      expect([...ledgerCatalogueTables(stock())]).toEqual(['links']);
+      expect(told(stock(), [LINKS])).toBe('');
+      expect(told(stock(), [LINKS, { ref: 'order_lines', own: true, rows: [{ order_id: { '@ref': 'host:order-1' }, account_id: { '@ref': 'flour' }, qty: 1 }] }])).toBe('');
+    });
+
+    it('the history stays the ledger\'s: what is added up, what holds a total, and the receipts', () => {
+      const kit = stock();
+      expect(told(kit, [ENTRIES])).toContain('"entries" is a table of "ledger-kit"\'s ledger "units", which only postings write');
+      expect(told(kit, [{ ref: 'holds', rows: [{ account_id: { '@ref': 'flour' }, amount: 1 }] }])).toContain('"holds" is a table of "ledger-kit"\'s ledger "units", which only postings write');
+      // The accounts hold the total: written by the same action as the links, and still not an app's to bring.
+      expect(told(kit, [ACCOUNTS])).toContain('"accounts" is a table of "ledger-kit"\'s ledger "units", which only postings write');
+      expect(told(kit, [RECEIPTS])).toContain('"postings" is the receipt table of "ledger-kit"\'s ledger "units"');
+    });
+
+    it('a row of it names no receipt', () => {
+      expect(told(stock(), [{ ref: 'links', rows: [{ ...LINKS.rows[0], receipt_id: { '@ref': 'r1' } }] }])).toContain('tables.0.rows.0.receipt_id: "links.receipt_id" names the receipt of a posting');
+      expect(told(stock(), [{ ref: 'links', rows: [{ ...LINKS.rows[0], receipt_id: null }] }])).toBe('');
+    });
+
+    it('is history after all when an action that writes it also writes what is added up, or says nothing of what it writes', () => {
+      // The action that links also moves units: a link is then part of a movement.
+      expect([...ledgerCatalogueTables(stock((kit) => void (kit.addOn.ledgers[0]!.actions['adopt']!['writes'] = ['links', 'entries'])))]).toEqual([]);
+      // An action with no list writes every table of the ledger.
+      const silent = stock((kit) => void delete kit.addOn.ledgers[0]!.actions['use']!['writes']);
+      expect([...ledgerCatalogueTables(silent)]).toEqual([]);
+      expect(told(silent, [LINKS])).toContain('"links" is a table of "ledger-kit"\'s ledger "units", which only postings write');
+      // Something adds its rows up: a total of the accounts over their links.
+      const summed = stock((kit) => void kit.requiredSchema.tables.find((table) => table.ref === 'accounts')!.columns.push({ ref: 'linked', type: 'decimal', scale: 3, default: 0, rules: { rollup: { from: 'links', via: 'account_id', sum: 'qty' } } }));
+      expect([...ledgerCatalogueTables(summed)]).toEqual([]);
+      // No action writes it at all: nothing says what it is.
+      expect([...ledgerCatalogueTables(stock((kit) => void (kit.addOn.ledgers[0]!.actions['adopt']!['writes'] = ['accounts'])))]).toEqual([]);
+    });
+
+    it('a kit with no such table has none', () => {
+      expect([...ledgerCatalogueTables(KIT)]).toEqual([]);
+    });
   });
 });
