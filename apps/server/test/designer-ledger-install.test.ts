@@ -94,6 +94,8 @@ for (const [dialect, available] of ENGINES) {
       h = await folderHarness(dialect, { mode: 'dev', addOns: true, version: '0.3.18' });
       await h.harness.stageAddOn!(kit, ledgerKitFiles(kit));
       await h.newApp('repairs');
+      // (The starter is written for this checkout's own version; the folder here is built for 0.3.18.)
+      h.edit('apps/repairs/manifest/app.json', (app) => ({ ...app, compatibility: { ...(app['compatibility'] as object), minAdminiumVersion: '0.3.18' } }));
       // First as a model writes it before it knows the word for a link, with no rule and no add-on.
       const table = made.table as { columns: Record<string, unknown>[]; postings: unknown[] };
       h.put('apps/repairs/manifest/tables/item_parts.json', {

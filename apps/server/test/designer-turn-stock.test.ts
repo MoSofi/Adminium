@@ -27,11 +27,13 @@ import { createSessionStore, type SessionStore } from '../src/designer/session-s
 import { createSkills } from '../src/designer/skills.js';
 import { createDesignerTools, type AddOnLine } from '../src/designer/tools.js';
 import { checkApp } from '../src/project/apps/check-app.js';
+import { APP_VERSION } from '../src/version.js';
 import { tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 import { ledgerKitManifest } from './fixtures/ledger-kit/index.js';
 
-const VERSION = '0.3.18';
+/** This server: the version the starter app is written for, whatever release this is. */
+const VERSION = APP_VERSION.replace(/[-+].*$/, '');
 const BY = { id: 'u1', label: 'Owner' };
 let root: string;
 let sessions: string;
