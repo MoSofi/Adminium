@@ -162,7 +162,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       const written = ledgers.some((ledger) => Object.prototype.hasOwnProperty.call(ledger.writes ?? {}, entry.table));
       const actions = [...new Set(entry.actions)].filter((action) => !written || action === 'read');
       const limit = entry.limit;
-      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.creatableValues ?? {})];
+      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.writableFrom ?? {}), ...Object.keys(limit?.creatableValues ?? {})];
       const columns = new Set(shape.columns.map((column) => column.ref));
       // A grant is never written without its limit: a limit that names a column the table has not skips the whole entry.
       if (named.some((column) => !columns.has(column))) {
@@ -196,7 +196,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
        * again finds it limited as the app wrote it, never whole.
        */
       const asks = (action: Action): boolean => actions.includes(action);
-      const update: UpdateLimit | undefined = limit?.writable === undefined || !asks('update') ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }) };
+      const update: UpdateLimit | undefined = limit?.writable === undefined || !asks('update') ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }), ...(limit.writableFrom === undefined ? {} : { writableFrom: limit.writableFrom }) };
       const read: ReadLimit | undefined = limit?.readable === undefined || !asks('read') ? undefined : { readable: [...limit.readable] };
       const create: UpdateLimit | undefined = limit?.creatable === undefined || !asks('create') ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
       const anyLeft = Object.values(next).some((value) => value === true);

@@ -56,7 +56,7 @@ import {
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf, type Row } from '../../crud/mask.js';
 import { staffInstants } from '../../crud/instants.js';
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
-import { assertWithinCreateLimit, assertWithinLimit, createLimitOf, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
+import { assertMovedFrom, assertWithinCreateLimit, assertWithinLimit, changesRow, createLimitOf, movedFromSeen, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
 import { readableImage, readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
 import {
@@ -958,6 +958,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         );
         // Every existing row a form sends is "changed"; only what moved is judged.
         assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
+        // …and a row that does move is one the caller's update reaches, by what it holds now.
+        if (changesRow(change.values, before)) assertMovedFrom(requested.updateLimit, child.child.id, before ?? null);
         const [prepared] = await writes.beforeEach('update', target, context, [
           // The state a row sent back whole already holds is no move.
           { match: change.key, values: withoutRepeatedState(child.child, change.values, before) },
@@ -2001,10 +2003,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               const before = await fetchByPk(ctx.db, ctx.table, pk);
               if (before === undefined) throw new NotFoundError('Record not found.', { pk });
               assertWithinLimit(limit, ctx.table.id, values, before);
+              assertMovedFrom(limit, ctx.table.id, before);
+              const held = movedFromSeen(limit, before);
               const outcome = await writes.update({
                 target: ctx.target,
                 pk,
-                values,
+                // What the row was judged by is a condition of the change: it may not move on in between.
+                values: held === null ? values : attachSeen(values, held),
                 before,
                 context,
                 recheck: (final) => assertFileColumns(ctx, final),
@@ -2047,7 +2052,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const values = action === 'update' ? withSeenState(ctx.table, allowlistValues(ctx, request.body.values ?? {}), request.body.from) : null;
         if (action === 'delete' && request.body.from !== undefined) throw new ValidationFailedError('A state seen goes with a change, not a delete.', { fields: { from: { code: 'not-allowed' } } });
         // One `values` for every row, so every column sent counts as a change.
-        if (values !== null) assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values);
+        const limit = values === null ? null : await updateLimitFor(request, ctx.connectionId, ctx.table.id);
+        if (values !== null) assertWithinLimit(limit, ctx.table.id, values);
         const context = requestWriteContext(request, 'bulk');
         const pks = request.body.ids.map((id) => pkFromLoose(ctx.table, id));
         /*
@@ -2107,6 +2113,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             if (before === undefined) {
               results.push({ id, ok: false, error: 'NOT_FOUND' });
               continue;
+            }
+            // A row the caller's update does not reach, by what it holds now: named, and nothing of the batch is kept.
+            try {
+              if (action === 'update') assertMovedFrom(limit, ctx.table.id, before);
+            } catch (error) {
+              throw new AppError((error as AppError).statusCode, (error as AppError).code, (error as AppError).message, { ...((error as AppError).details as object), id });
             }
             try {
               if (action === 'delete') {
@@ -2451,6 +2463,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (ctx.readTable.columns.get(column)?.unreadable === true && !ctx.hiddenWritable.has(column)) ctx.readView.column(ctx.readTable, column);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+        assertMovedFrom(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, before);
         // A server action: the one writer whose value for a code column is taken.
         const context: WriteContext = { ...requestWriteContext(request, 'dashboard'), origin: 'action' };
         for (let attempt = 0; ; attempt += 1) {
@@ -3105,7 +3118,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await assertFileColumns(ctx, values);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
-        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values, before);
+        const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
+        assertWithinLimit(limit, ctx.table.id, values, before);
+        assertMovedFrom(limit, ctx.table.id, before);
         const context = requestWriteContext(request, 'dashboard');
         const children = await requestedChildren(request, ctx, context, request.body.children);
         if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
@@ -3193,9 +3208,15 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       await assertFileColumns(ctx, sent);
       const before = await fetchByPk(ctx.db, ctx.table, pk);
       if (before === undefined) throw new NotFoundError('Record not found.', { pk });
-      assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, own?.judged ?? sent, before);
+      const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
+      assertWithinLimit(limit, ctx.table.id, own?.judged ?? sent, before);
+      // The rows their update reaches at all, by what this one holds now — whatever the change is: of a column, of a link, of a line under it.
+      assertMovedFrom(limit, ctx.table.id, before);
+      const held = movedFromSeen(limit, before);
       // The plain columns the writer saw, as conditions of the change: refused now if the row already moved, and in the statement if it moves meanwhile.
-      const values = withSeenValues(ctx, sent, before, body.seen);
+      // What the row was judged by is such a condition too.
+      const seenValues = withSeenValues(ctx, sent, before, body.seen);
+      const values = held === null ? seenValues : attachSeen(seenValues, held);
       const context = withOccurredAt(requestWriteContext(request, 'dashboard'), body.occurredAt);
       const links = await requestedLinks(request, ctx, context, body.links);
       const children = await requestedChildren(request, ctx, context, body.children);

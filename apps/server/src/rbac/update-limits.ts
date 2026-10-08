@@ -20,6 +20,13 @@
  * is not a change, so a form that posts the whole row still saves when only
  * an allowed column moved.
  *
+ * WHICH ROWS (`writableFrom`). A limit may also say the update reaches a row
+ * only while a column of it holds one of some values: a clinician moves a
+ * visit along until it is seen, and a seen visit is not theirs to take back.
+ * That is judged on the row as it is STORED, never on what the request says
+ * of it, and whatever the update changes — an update that changes nothing is
+ * still an update of that row.
+ *
  * A create is not limited. The limit narrows `update`; a role that may create
  * rows was given that separately and creates them whole. An undo is not judged
  * either: it puts back, within the undo window, only what the same person's
@@ -73,9 +80,16 @@ export function mergeLimits(limits: readonly UpdateLimit[]): UpdateLimit {
   }
   const writableValues: Record<string, (string | number | boolean)[]> = {};
   for (const [column, allowed] of values) if (allowed !== 'any') writableValues[column] = [...allowed];
+  // Which rows: a column holds every one of them to a "from", or none does — a role that reaches any row lifts it.
+  const writableFrom: Record<string, (string | number | boolean)[]> = {};
+  for (const column of new Set(limits.flatMap((limit) => Object.keys(limit.writableFrom ?? {})))) {
+    if (limits.some((limit) => limit.writableFrom?.[column] === undefined)) continue;
+    writableFrom[column] = [...new Set(limits.flatMap((limit) => limit.writableFrom![column]!))];
+  }
   return {
     writable: [...writable],
     ...(Object.keys(writableValues).length === 0 ? {} : { writableValues }),
+    ...(Object.keys(writableFrom).length === 0 ? {} : { writableFrom }),
   };
 }
 
@@ -228,4 +242,30 @@ export function assertWithinLimit(
       );
     }
   }
+}
+
+/**
+ * Refuse an update of a row the limit does not reach (`writableFrom`): 403
+ * `COLUMN_FORBIDDEN` with `reason: 'update-from'`, naming the column the row
+ * is judged by and the values it may be moved from. `stored` is the row read
+ * for this write; a row that could not be read is not reached.
+ */
+export function assertMovedFrom(limit: UpdateLimit | null, table: string, stored: Readonly<Record<string, unknown>> | null | undefined): void {
+  if (limit?.writableFrom === undefined) return;
+  for (const [column, from] of Object.entries(limit.writableFrom)) {
+    if (stored != null && column in stored && allows(from, stored[column])) continue;
+    throw new ForbiddenError(`Your role may not change a row whose ${column} is what this one's is now.`, 'COLUMN_FORBIDDEN', { table, column, reason: 'update-from', writableFrom: from });
+  }
+}
+
+/** Whether what was sent would change the stored row at all: a row a form sends back as it stands is no update of it. */
+export function changesRow(values: Readonly<Record<string, unknown>>, stored: Readonly<Record<string, unknown>> | null | undefined): boolean {
+  if (stored == null) return true;
+  return Object.entries(values).some(([column, value]) => !(column in stored && sameValue(value, stored[column])));
+}
+
+/** The columns a limit judges a row by, and what the row holds in them: conditions the change itself is held to. */
+export function movedFromSeen(limit: UpdateLimit | null, stored: Readonly<Record<string, unknown>>): Record<string, unknown> | null {
+  if (limit?.writableFrom === undefined) return null;
+  return Object.fromEntries(Object.keys(limit.writableFrom).map((column) => [column, stored[column] ?? null]));
 }

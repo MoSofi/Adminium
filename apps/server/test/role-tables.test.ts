@@ -23,8 +23,8 @@ type Doc = Record<string, unknown>;
 const KIT = 'ledger-kit';
 
 const FLOOR = [
-  // Changes an account's name and reorder level; reads four of its columns.
-  { addOn: KIT, table: 'accounts', actions: ['read', 'update'], limit: { readable: ['id', 'name', 'balance', 'reorder_at'], writable: ['name', 'reorder_at'] } },
+  // Changes an account's name and reorder level, of the one account it is given; reads four of its columns.
+  { addOn: KIT, table: 'accounts', actions: ['read', 'update'], limit: { readable: ['id', 'name', 'balance', 'reorder_at'], writable: ['name', 'reorder_at'], writableFrom: { name: ['Till float'] } } },
   // A table the kit's ledger writes: asked for more than it may hold.
   { addOn: KIT, table: 'entries', actions: ['read', 'create', 'update'] },
   // The ledger's receipts: nobody's.
@@ -36,6 +36,8 @@ const FLOOR = [
 const shop = (over: Doc = {}): Doc =>
   shopManifest({
     addOns: { suggests: [{ key: KIT, range: '*', reason: { 'en-US': 'Keeps units.' } }] },
+    // The release that reads which rows a limited update reaches.
+    compatibility: { minAdminiumVersion: '0.3.19' },
     roles: [
       { key: 'floor', name: 'Floor', permissions: ['table:@products:read'], tables: FLOOR },
       // A copy of a limited role is limited alike.
@@ -76,7 +78,7 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
   };
   const pairs = async () => (await settingsRepo(h.meta).get('system.seededAppRoleGrants')).filter((pair) => pair.includes(`table:@${KIT}/`));
   const WRITTEN = {
-    ledger_kit_accounts: { read: true, update: true, readLimit: { readable: ['id', 'name', 'balance', 'reorder_at'] }, updateLimit: { writable: ['name', 'reorder_at'] } },
+    ledger_kit_accounts: { read: true, update: true, readLimit: { readable: ['id', 'name', 'balance', 'reorder_at'] }, updateLimit: { writable: ['name', 'reorder_at'], writableFrom: { name: ['Till float'] } } },
     // Read only: the ledger's code writes this table, nobody else does.
     ledger_kit_entries: { read: true },
     ledger_kit_settings: { read: true, create: true, createLimit: { writable: ['note', 'show_left_below'] } },
@@ -182,7 +184,7 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     expect(updated.statusCode, updated.body).toBe(200);
     // Not given again; what the role still holds is held under the app's limit again — and the limit of the action
     // the owner took away waits on the row: ticked again, it is limited as the app wrote it, never whole.
-    expect((await held('floor'))['ledger_kit_accounts']).toEqual({ read: true, readLimit: { readable: ['id', 'name', 'balance', 'reorder_at'] }, updateLimit: { writable: ['name', 'reorder_at'] } });
+    expect((await held('floor'))['ledger_kit_accounts']).toEqual({ read: true, readLimit: { readable: ['id', 'name', 'balance', 'reorder_at'] }, updateLimit: { writable: ['name', 'reorder_at'], writableFrom: { name: ['Till float'] } } });
     expect((await held('floor'))['ledger_kit_settings']).toEqual(WRITTEN.ledger_kit_settings);
 
     // A role the owner deleted is made again by the next update — and given its hold on the kit afresh, whatever the ledger remembered.
