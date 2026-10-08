@@ -31,6 +31,8 @@ let root: string;
 let asked: CardRequest[];
 let answers: CardAnswer[];
 let onServer: boolean;
+/** The package is in this server's store, readable, and not installed. */
+let inStore: boolean;
 let gets: string[];
 let looks: AddOnLook;
 let turn: number;
@@ -53,7 +55,7 @@ const tools = (version = VERSION): DesignerTool[] =>
           return { ok: true, name: 'Ledger kit', version: '1.0.0' };
         },
       } satisfies AddOnGetter,
-      readAddOn: async (key) => (onServer && key === 'ledger-kit' ? ledgerKitManifest() : null),
+      readAddOn: async (key) => ((onServer || inStore) && key === 'ledger-kit' ? ledgerKitManifest() : null),
     },
     'repairs',
   );
@@ -87,6 +89,7 @@ beforeEach(async () => {
   answers = [];
   gets = [];
   onServer = true;
+  inStore = false;
   turn = 1;
   looks = { state: 'here', name: 'Ledger kit', version: '1.0.0', line: 'Units by account.', tables: 7 };
 });
@@ -169,6 +172,26 @@ describe('post_to_ledger', () => {
     expect(asked[0]).toMatchObject({ type: 'add-on', key: 'ledger-kit', here: true, tables: 7 });
     expect(gets).toEqual(['ledger-kit']);
     expect(done.isError, done.content).toBeUndefined();
+  });
+
+  it('an add-on that reads from the store and is not installed is asked for too: its tables are named before they are added', async () => {
+    parts();
+    onServer = false;
+    inStore = true;
+    answers = [{ type: 'add-on', accept: false }];
+    const no = await post();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toMatchObject({ type: 'add-on', key: 'ledger-kit', here: true, tables: 7 });
+    expect(no).toMatchObject({ isError: true, facts: { outcome: 'declined' } });
+    expect(gets).toEqual([]);
+    expect(json('tables/item_parts.json')['postings']).toBeUndefined();
+    // The next turn, a yes: it is installed, then the rule is written.
+    turn = 2;
+    answers = [{ type: 'add-on', accept: true }];
+    const done = await post();
+    expect(done.isError, done.content).toBeUndefined();
+    expect(gets).toEqual(['ledger-kit']);
+    expect(json('tables/item_parts.json')['postings']).toHaveLength(1);
   });
 
   it('a no is kept for the turn: nothing is written, and the card is not shown twice', async () => {

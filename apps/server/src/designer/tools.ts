@@ -1266,8 +1266,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const nameless = unnamed(ctx);
         if (nameless !== null) return nameless;
         let document = (await deps.readAddOn?.(addOn)) ?? null;
-        if (document === null) {
-          // Not on this server: the person is asked for it here, so the model need not know to ask first.
+        // In this server's store and not installed: it reads, and applying the app would add its tables. That is asked first, with the same card.
+        const waiting = document !== null && (await deps.addOnGetter?.look(addOn))?.state === 'here';
+        if (document === null || waiting) {
+          // Not installed here: the person is asked for it here, so the model need not know to ask first.
           const got = await offerAddOn(addOn, ctx);
           if (!got.got) return { ...got.outcome, label: `Could not build on ${shape}` };
           document = (await deps.readAddOn?.(addOn)) ?? null;
@@ -1391,8 +1393,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         );
         if (missing.isError === true) return missing;
         let document = (await deps.readAddOn?.(addOn)) ?? null;
-        if (document === null) {
-          // Not on this server: the person is asked for it here, so the model need not know to ask first.
+        // In this server's store and not installed: it reads, and applying the app would add its tables. That is asked first, with the same card.
+        const waiting = document !== null && (await deps.addOnGetter?.look(addOn))?.state === 'here';
+        if (document === null || waiting) {
+          // Not installed here: the person is asked for it here, so the model need not know to ask first.
           const got = await offerAddOn(addOn, ctx);
           if (!got.got) return { ...got.outcome, label: failed };
           document = (await deps.readAddOn?.(addOn)) ?? null;
