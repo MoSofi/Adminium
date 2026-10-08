@@ -172,6 +172,16 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
       await w.h.introspect();
       return parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema).tables.find((one) => one.name === table)?.columns.map((column) => column.name) ?? null;
     };
+    // A rule the store would not keep — here one that says nothing of what a line sells — is refused before anything is
+    // made, in the dry run and in the save alike: no column and no table is left behind by a rule that was never stored.
+    const mute = { ...bare, lines: [{ ...bare.lines[0]!, what: [] }] };
+    for (const body of [{ adjust: mute, make, dryRun: true }, { adjust: mute, make, checksum: 'any' }]) {
+      const refused = await api('PUT', rule('bare_sales'), body);
+      expect(refused.statusCode, refused.body).toBe(422);
+      expect((refused.json() as { error: { message: string; details: Doc } }).error).toMatchObject({ message: 'This is not a price rule.', details: { path: 'lines.0.what' } });
+    }
+    expect(await columnsOf('bare_sales')).toEqual(['id', 'note']);
+    expect(await columnsOf('bare_sale_codes')).toBeNull();
     // A dry run and a checksum go with `make`; a rule that names what is not there is refused without it.
     const alone = await api('PUT', rule('bare_sales'), { adjust: bare, dryRun: true });
     expect(alone.statusCode, alone.body).toBe(422);

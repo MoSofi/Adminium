@@ -270,6 +270,15 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
           // The names a plan is made from, held to being names before anything is built from them.
           const named = makeNames.safeParse(body);
           if (!named.success) throw new ValidationFailedError('This is not a price rule.', { table: at.id, path: named.error.issues[0]?.path.join('.') ?? '', issue: named.error.issues[0]?.message ?? '' });
+          // …and the rule itself held to its shape, as the store will hold it: a rule that cannot be stored makes nothing first
+          // (it used to add the columns and the table, then be refused — and a dry run of it said nothing was wrong).
+          try {
+            validateOverrideInput({ connectionId, op: 'table.adjust', tableName: at.id, columnName: null, value: body });
+          } catch (error) {
+            if (!(error instanceof MetaValidationError)) throw error;
+            const first = (error as { issues?: { path?: (string | number)[]; message?: string }[] }).issues?.[0];
+            throw new ValidationFailedError('This is not a price rule.', { table: at.id, issue: error.message, ...(first === undefined ? {} : { path: (first.path ?? []).slice(first.path?.[0] === 'value' ? 1 : 0).join('.'), said: first.message ?? '' }) });
+          }
           const wanted = body as unknown as TableAdjust;
           // A plan is made against the database as it is, not as it was last read.
           await runIntrospection({ manager, meta, connectionId });
