@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { requestJson, scrubCause, scrubSecret } from './http.js';
+import { outboundFetch, requestJson, scrubCause, scrubSecret, setOutboundFetch } from './http.js';
 import { ProviderError } from './types.js';
 
 afterEach(() => {
@@ -125,3 +125,33 @@ describe('scrubCause', () => {
     expect(json).toEqual({ hi: 1 });
   });
 });
+
+describe('the host’s choice of fetch for an address', () => {
+  afterEach(() => {
+    setOutboundFetch(null);
+    vi.unstubAllGlobals();
+  });
+
+  it('is asked with the address of every request, plain and streamed, and the platform’s fetch is used where it has none', async () => {
+    const platform = vi.fn(async () => new Response('{"from":"platform"}', { status: 200 }));
+    vi.stubGlobal('fetch', platform);
+    const own = vi.fn(async () => new Response('{"from":"host"}', { status: 200 }));
+    const asked: string[] = [];
+    setOutboundFetch((url) => {
+      asked.push(url);
+      return url.startsWith('https://checked.example') ? (own as unknown as typeof fetch) : null;
+    });
+
+    expect(await requestJson<{ from: string }>({ provider: 'openai-compatible', url: 'https://checked.example/v1/models' })).toEqual({ from: 'host' });
+    expect(await requestJson<{ from: string }>({ provider: 'openai', url: 'https://api.openai.com/v1/models' })).toEqual({ from: 'platform' });
+    expect(asked).toEqual(['https://checked.example/v1/models', 'https://api.openai.com/v1/models']);
+    expect(own).toHaveBeenCalledTimes(1);
+    // The host's fetch is given the request as the platform's would be: never following a redirect.
+    expect((own.mock.calls[0] as unknown as [string, RequestInit])[1].redirect).toBe('manual');
+    expect(outboundFetch('https://checked.example/x')).toBe(own);
+
+    setOutboundFetch(null);
+    expect(await requestJson<{ from: string }>({ provider: 'openai-compatible', url: 'https://checked.example/v1/models' })).toEqual({ from: 'platform' });
+  });
+});
+

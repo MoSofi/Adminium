@@ -23,6 +23,7 @@ import {
   createProviderRunner,
   DEFAULT_MAX_OUTPUT_TOKENS,
   ProviderError,
+  setOutboundFetch,
   type CanBuild,
   type LlmKeyCrypto,
   type ModelInfo,
@@ -36,7 +37,7 @@ import type { SettingsRepo } from '@adminium/meta';
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { ValidationFailedError } from '../errors.js';
 import type { AiEnv, AiEnvName, AiEnvValues } from './ai-env.js';
-import { resolveAndCheck, type ResolveCheckOptions } from './outbound.js';
+import { checkedFetch, resolveAndCheck, type ResolveCheckOptions } from './outbound.js';
 
 /** The providers the environment can name. */
 export const ENV_PROVIDERS = ['anthropic', 'openai', 'openai-compatible', 'ollama'] as const;
@@ -168,6 +169,8 @@ function decrypt(stored: string | null, keyCrypto: LlmKeyCrypto): string | null 
 }
 
 export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
+  // Every request a provider makes to a name that was checked here goes to the address that was checked.
+  setOutboundFetch(checkedFetch);
   const { settings, aiEnv } = deps;
   const makeClient = deps.createClient ?? createProviderClient;
   const makeRunner = deps.createRunner ?? createProviderRunner;

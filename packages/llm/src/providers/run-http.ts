@@ -14,7 +14,7 @@
  * broken stream's message, an error the provider wrote into the stream) goes
  * through `scrubSecret` before it is thrown.
  */
-import { codeForStatus, scrubCause, scrubSecret } from './http.js';
+import { codeForStatus, outboundFetch, scrubCause, scrubSecret } from './http.js';
 import { ProviderError, type ProviderId } from './types.js';
 
 export interface StreamRequestOptions {
@@ -94,7 +94,7 @@ export async function* streamRequest(opts: StreamRequestOptions): AsyncGenerator
   try {
     let res: Response;
     try {
-      res = await fetch(opts.url, {
+      res = await outboundFetch(opts.url)(opts.url, {
         method: 'POST',
         headers: opts.headers,
         body: JSON.stringify(opts.body),

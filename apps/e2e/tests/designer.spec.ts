@@ -66,7 +66,8 @@ test.beforeAll(async ({}, testInfo) => {
   };
   model = createDesignerModelServer({ appKey: APP_KEY, appName: 'Repair desk', files: Object.fromEntries(Object.entries(files).map(([file, value]) => [file, JSON.stringify(value, null, 2)])) });
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
-  const modelUrl = `http://127.0.0.1:${String((model.address() as AddressInfo).port)}`;
+  // By name, not by number: the server checks where a model's name points and then calls the address it checked, and this is that path, streamed.
+  const modelUrl = `http://localhost:${String((model.address() as AddressInfo).port)}`;
   designEnv = { ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' };
   link = await project.design(designEnv);
 });

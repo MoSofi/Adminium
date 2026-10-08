@@ -9,14 +9,16 @@
  * ranges only where the caller says so (a server on the internet running a
  * model for people who are not its operator).
  *
- * The address is checked, not pinned: the request that follows resolves the
- * name again. Redirects are refused by the streamed request itself, so the
- * one window left is a name whose answer changes between the two lookups.
+ * A name that was resolved and passed is then PINNED: `checkedFetch` hands
+ * the model's requests a `fetch` that connects to the address that was
+ * checked, so a name whose answer changes between the check and the call
+ * gains nothing. Redirects are refused by the request itself.
  */
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 import { ValidationFailedError } from '../errors.js';
+import { pinnedFetch, type PinnedAddress } from '../net/pinned-fetch.js';
 
 export interface ResolveCheckOptions {
   /** Refuse loopback and private ranges too. */
@@ -55,12 +57,39 @@ export function addressKind(raw: string): 'metadata' | 'loopback' | 'private' | 
 const defaultResolve = async (host: string): Promise<string[]> => (await lookup(host, { all: true })).map((entry) => entry.address);
 
 /**
+ * The address each checked name is called at, by `host:port` as the URL writes it. Kept until the name is checked
+ * again (every use of a connection checks it) and bounded: an entry is only ever an address that passed.
+ */
+const pins = new Map<string, PinnedAddress[]>();
+const PINS_MAX = 200;
+
+/** A `fetch` for a URL whose name was checked here, connecting to what was checked; null for any other address. */
+export function checkedFetch(rawUrl: string): typeof fetch | null {
+  let host: string;
+  try {
+    host = new URL(rawUrl).host.toLowerCase();
+  } catch {
+    return null;
+  }
+  const pin = pins.get(host);
+  return pin === undefined ? null : pinnedFetch(pin);
+}
+
+/** Forget every pinned address (tests). */
+export function forgetCheckedAddresses(): void {
+  pins.clear();
+}
+
+/**
  * Resolve a URL's host and refuse it when any address it gives is one this
  * server must not call. A name that does not resolve is let through: the
  * request will fail on its own, with the provider's name in the message.
  */
 export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions = {}): Promise<void> {
-  const host = new URL(rawUrl).hostname.replace(/^\[|\]$/g, '');
+  const url = new URL(rawUrl);
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  // Whatever was pinned for this name before is no longer vouched for until this check passes.
+  pins.delete(url.host.toLowerCase());
   let addresses: string[];
   if (isIP(host) !== 0) {
     addresses = [host];
@@ -81,5 +110,14 @@ export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions 
     if (opts.blockPrivate === true && kind !== 'public') {
       throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
     }
+  }
+  // A name the system's own resolver answered is called at the addresses it gave, all of which passed, and no other.
+  // An address written as numbers needs no pin, and a resolver handed in by a test names no machine to call.
+  if (isIP(host) === 0 && opts.resolve === undefined && addresses.length > 0) {
+    if (pins.size >= PINS_MAX) pins.delete(pins.keys().next().value as string);
+    pins.set(
+      url.host.toLowerCase(),
+      addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 })),
+    );
   }
 }
