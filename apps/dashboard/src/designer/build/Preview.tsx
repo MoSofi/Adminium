@@ -22,7 +22,7 @@ import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerSession } from '../api.js';
 import { seesPage, sightFrom } from './sight.js';
 import type { TurnView } from './turns.js';
-import { OWN_DASHBOARD, type PreviewModel, type PreviewSide } from './usePreview.js';
+import type { PreviewModel, PreviewSide } from './usePreview.js';
 
 export type { PreviewSide, PreviewWidth } from './usePreview.js';
 
@@ -155,14 +155,17 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
   const crash = crashed !== null && crashed.round === round && crashed.side === side ? crashed : null;
   const state = { building: built.building, failed: built.failed ?? (crash === null ? null : crash.message) };
 
+  // The app frame's paths have no slash in front, as a staff side's own list of screens writes them.
+  const staffPath = preview.path.slice(1);
   // What the plain frame shows, and the mark of its having loaded (a Reload opens the same dashboard again).
-  const frameUrl = side === 'dashboard' ? OWN_DASHBOARD : preview.ticket?.url;
+  const frameUrl = side === 'dashboard' ? preview.dashboardSrc : preview.ticket?.url;
   const frameMark = frameUrl === undefined ? null : `${String(round)} ${frameUrl}`;
   const frame =
     frameUrl === undefined ? null : side === 'staff' && preview.ticket !== null ? (
-      <AppFrame key={`${side}.${String(round)}`} appKey={session.appKey} path="" title={sideName(side)} onNavigate={() => undefined} src={preview.ticket.url} origin={preview.ticket.origin} />
+      <AppFrame key={`${side}.${String(round)}`} appKey={session.appKey} path={staffPath} title={sideName(side)} onNavigate={preview.onStaffNavigate} src={preview.ticket.url} origin={preview.ticket.origin} />
     ) : (
       <iframe
+        ref={preview.frame}
         key={`${side}.${String(round)}`}
         src={frameUrl}
         title={sideName(side)}
