@@ -365,13 +365,22 @@ export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
   const mayBeNew = (name: string): boolean => parentOf(name) !== null && partOf(name).adjust === undefined && partOf(name).postings === undefined && !priced.has(name);
 
   // Each part's table.
-  const named = input.tables ?? {};
+  // A part is named as the shape names it; "line" for "lines" and "payment" for "payments" are read as meant (a real
+  // model wrote both), where only one part answers to it.
+  const partFor = (key: string): string | null => {
+    const bare = key.startsWith(`${input.shape}/`) ? key.slice(input.shape.length + 1) : key;
+    if (partNames.includes(bare)) return bare;
+    const near = partNames.filter((name) => name === `${bare}s` || `${name}s` === bare);
+    return near.length === 1 ? (near[0] as string) : null;
+  };
+  const named: Record<string, string> = {};
+  for (const [key, ref] of Object.entries(input.tables ?? {})) named[partFor(key) ?? key] = ref;
   const example = `Give "tables": { ${partNames.map((name) => `"${input.shape}/${name}": "${mayBeNew(name) ? '<a new table’s name>' : `<your ${parentOf(name) === null ? `${name}s` : name} table>`}"`).join(', ')} }.`;
-  const stray = Object.keys(named).find((key) => !partNames.some((name) => key === name || key === `${input.shape}/${name}`));
+  const stray = Object.keys(named).find((key) => !partNames.includes(key));
   if (stray !== undefined) return no(`"${stray}" is not a part of ${input.shape}. Its parts: ${partNames.join(', ')}. ${example}`);
   const tableOf = new Map<string, string>();
   for (const name of partNames) {
-    const ref = named[`${input.shape}/${name}`] ?? named[name];
+    const ref = named[name];
     if (ref === undefined) return no(`${input.shape} is added to tables the app already has. ${example}`);
     if (!/^[a-z][a-z0-9_]{0,62}$/.test(ref)) return no(`"${ref.slice(0, 80)}" is not a table name: use snake_case.`);
     if ([...tableOf.values()].includes(ref)) return no(`Two parts would both be the table "${ref}": each part of ${input.shape} is a table of its own. ${example}`);

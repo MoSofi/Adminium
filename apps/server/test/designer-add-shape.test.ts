@@ -261,7 +261,9 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     expect((json('tables/payments.json')['columns'] as { ref: string; type: string }[])[1]).toMatchObject({ ref: 'ticket_id', type: 'fk', references: 'tickets' });
     expect(paid.content).toContain('ticket_id is now "type": "fk" (it named "tickets" as a whole number)');
     expect(paid.content).toContain('Not on this app yet: discountable@1, card-sale@1, voucher-sale@1. Each is a call of its own, with your tables; add the ones the person asked for before you apply.');
-    const sold = await build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, when: PAID });
+    // A part named in the singular, as the same model wrote it, is read as the part it means.
+    const sold = await build({ shape: 'card-sale@1', tables: { 'card-sale@1/order': 'tickets', 'card-sale@1/line': 'ticket_lines' }, when: PAID });
+    expect(sold.isError, sold.content).toBeUndefined();
     expect(sold.content).toContain('Not on this app yet: discountable@1, voucher-sale@1.');
     expect(errors()).toEqual([]);
   });
