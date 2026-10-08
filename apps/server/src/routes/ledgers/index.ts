@@ -232,6 +232,8 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
     }
 
     const managedRefusal = (posting: string) => new ConflictError("This rule is the app's own: it can be switched off, not changed.", 'CONFLICT', { reason: 'managed', posting });
+    /** The rule a table's price rule records its uses by stays, and stays that rule, while the price rule names it. */
+    const usesRefusal = (posting: string) => new ConflictError("This table's price rule records what an order used through this rule: remove the price rule first.", 'CONFLICT', { reason: 'adjust-uses', posting });
     const holdingRefusal = (posting: string, rows: number) => new PostingRefusedError('Rows still hold something under this rule: put them back first.', { reason: 'receipt-open', posting, rows });
     /** What was read is what is stored still: of two people changing a table's rules at once, the second is asked to look again. */
     const unmoved = (own: readonly Posting[]) => (stored: { postings?: Posting[] } | null) => {
@@ -256,6 +258,7 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
         // A rule whose rows are lines of another row is drawn in a file, where its link can be said: this sheet would lose it.
         if (before?.via !== undefined) throw new ValidationFailedError('This rule reads its rows as lines of another row, which is not changed here: change it where it was drawn.', { table: at.id, posting: id });
         const posting = { id, ...request.body } as Posting;
+        if (before !== undefined && table.adjust?.uses === id && !isDeepStrictEqual(before.into, posting.into)) throw usesRefusal(id);
         if (ownTable(view, posting.into.addOn, at.id)) throw new ValidationFailedError(`${at.name} is one of the add-on's own tables: its own rules post from it.`, { table: at.id, posting: id });
         const beside = own.filter((candidate) => candidate.id !== id);
         if (before === undefined && (table.postings ?? []).length >= POSTINGS_MAX) throw new ValidationFailedError(`A table carries ${String(POSTINGS_MAX)} postings at most.`, { table: at.id });
@@ -295,6 +298,7 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
           if (managed.has(id)) throw managedRefusal(id);
           throw new NotFoundError('There is no such rule on this table.', { table: at.id, posting: id });
         }
+        if (!managed.has(id) && table.adjust?.uses === id) throw usesRefusal(id);
         const rows = managed.has(id) ? 0 : await holding(view, table, before);
         if (rows > 0) throw holdingRefusal(id, rows);
         const next = own.filter((candidate) => candidate.id !== id);

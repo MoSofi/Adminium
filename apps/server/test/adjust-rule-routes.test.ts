@@ -330,4 +330,39 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     expect((await adjusts()).adjusts.find((one) => one.table === ids.get('own_sales'))).toMatchObject({ enabled: true, state: 'live' });
     await api('DELETE', rule('own_sales'));
   });
+
+  it.skipIf(!available)('the rule a price rule records its uses by is not taken away, nor pointed elsewhere, while the price rule names it', async () => {
+    const posting = `/connections/${w.h.connectionId}/tables/${encodeURIComponent(ids.get('own_sales')!)}/postings/used`;
+    const used = { into: { addOn: PRICE_KIT, ledger: 'uses', action: 'redeem' }, post: { on: { create: true } }, reverse: { on: { column: 'note', in: ['void'] } }, map: { label: 'note' } };
+    const drawn = await api('PUT', posting, used);
+    expect(drawn.statusCode, drawn.body).toBe(200);
+    const priced = await api('PUT', rule('own_sales'), {
+      adjust: {
+        by: { addOn: PRICE_KIT },
+        lines: [{ table: ids.get('own_sale_lines'), via: 'sale_id', price: 'price', quantity: 'qty', discount: 'discount', what: [{ column: 'label', as: 'tag' }] }],
+        order: { discount: 'discount' },
+        expect: 'total',
+        uses: 'used',
+      },
+    });
+    expect(priced.statusCode, priced.body).toBe(200);
+
+    // Taken away, the price rule would name a rule that is not there: every use would go unrecorded.
+    const gone = await api('DELETE', posting);
+    expect(gone.statusCode, gone.body).toBe(409);
+    expect((gone.json() as { error: { details: Doc } }).error.details).toMatchObject({ reason: 'adjust-uses', posting: 'used' });
+    // Pointed at another action, it would record something else under the same name.
+    const elsewhere = await api('PUT', posting, { ...used, into: { ...used.into, action: 'other' } });
+    expect(elsewhere.statusCode, elsewhere.body).toBe(409);
+    expect((elsewhere.json() as { error: { details: Doc } }).error.details).toMatchObject({ reason: 'adjust-uses' });
+    // What it maps is still the owner's to change.
+    const remapped = await api('PUT', posting, { ...used, map: {} });
+    expect(remapped.statusCode, remapped.body).toBe(200);
+    // Somebody who may not change a table's rules is refused as before, whatever the price rule says.
+    expect((await api('DELETE', posting, undefined, clerk)).statusCode).toBe(403);
+
+    // The price rule gone, the rule is the owner's to take away again.
+    expect((await api('DELETE', rule('own_sales'))).statusCode).toBeLessThan(300);
+    expect((await api('DELETE', posting)).statusCode).toBe(204);
+  });
 });
