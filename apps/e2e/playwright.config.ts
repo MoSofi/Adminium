@@ -82,9 +82,9 @@ export default defineConfig({
     // session is the project owner's, saved by the spec's own setup.
     {
       name: 'project',
-      // Three files, one port: they run one after the other (`workers: 1`), each on a project of its own.
+      // Four files, one port: they run one after the other (`workers: 1`), each on a project of its own.
       // `designer.spec.ts` runs `adminium design` there and signs in by its link.
-      testMatch: [/project(-app)?\.spec\.ts/, /(^|\/)designer\.spec\.ts$/],
+      testMatch: [/project(-app)?\.spec\.ts/, /(^|\/)designer(-stock)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], baseURL: PROJECT_URL, storageState: projectStatePath() },
     },
   ],

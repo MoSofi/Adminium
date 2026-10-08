@@ -490,8 +490,10 @@ export function createFakeLlmServer() {
  *
  * `files` is what it writes, by path inside the app's folder: a new app is
  * bare, so the spec gives a table, its page and the role's grants.
+ * `then` is what it calls after that and before the check, one call a reply;
+ * `reply` is what it says at the end.
  */
-export function createDesignerModelServer({ appKey, appName, files }) {
+export function createDesignerModelServer({ appKey, appName, files, then = [], reply = 'The app has a jobs table now. It is applied and saved.' }) {
   const line = (res, value) => res.write(`${JSON.stringify(value)}\n`);
   const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 900, eval_count: 40, message: { role: 'assistant', content: '' } };
   const say = (res, content) => line(res, { model: 'fake', done: false, message: { role: 'assistant', content } });
@@ -544,9 +546,11 @@ export function createDesignerModelServer({ appKey, appName, files }) {
       const written = Object.keys(files).length;
       if (step === 0 && unnamed) call(res, 'name_app', { name: appName ?? appKey.split('-').join(' ') });
       else if (step === first) calls(res, Object.entries(files).map(([file, content]) => ['write_file', { path: `apps/${appKey}/${file}`, content }]));
-      else if (step === first + written) call(res, 'check_app', {});
-      else if (step === first + written + 1) call(res, 'apply_app', {});
-      else say(res, 'The app has a jobs table now. It is applied and saved.');
+      // What it calls once its own files are there, one call a reply (a tool that builds on an add-on).
+      else if (step >= first + written && step < first + written + then.length) call(res, then[step - first - written][0], then[step - first - written][1]);
+      else if (step === first + written + then.length) call(res, 'check_app', {});
+      else if (step === first + written + then.length + 1) call(res, 'apply_app', {});
+      else say(res, reply);
       line(res, done);
       res.end();
     });
