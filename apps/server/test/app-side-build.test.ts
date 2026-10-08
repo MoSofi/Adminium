@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseSurfaceManifest } from '../src/cli/surfaces-root.js';
 import { runCli } from '../src/cli/run.js';
 import { buildProject, loadProjectBundler, loadProjectConfig, readBuildManifest, type Bundler } from '../src/project/build.js';
+import { designIssues } from '../src/project/apps/design-check.js';
 import { buildAppSides, buildSide, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
 import { addUiParts, UI_PARTS } from '../src/project/apps/scaffold-app.js';
 import { BASE_THEME, fontsCssOf } from '../src/project/apps/theme.js';
@@ -250,6 +251,8 @@ describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
       expect(bundle, side).toContain('adminium:surface:hello');
       expect(bundle, side).toContain(side === 'staff' ? '/done' : '/request');
     }
+    // The staff starter lists two screens in nav.json and reads its address: the design check has nothing to say of either side's pages.
+    expect((await designIssues(root, 'repairs')).filter((issue) => issue.kind === 'address')).toEqual([]);
   });
 });
 

@@ -344,3 +344,127 @@ describe('a helper a screen calls and never brings', () => {
     for (const source of fine) expect(unbroughtCalls(source), source).toEqual([]);
   });
 });
+
+describe('a side with more than one page and one address', () => {
+  const HELPER = "import { Link, usePath, pathParams, go } from '@adminiumjs/adminium/side'";
+  const address = async (): Promise<string[]> => (await designIssues(root, 'cakes')).filter((issue) => issue.kind === 'address').map((issue) => issue.line);
+  /** A staff side beside the customer one, as add_side leaves it. */
+  const staff = (app: string, nav: unknown[]): void => {
+    write('staff/src/main.tsx', "import { App } from './App';");
+    write('staff/src/app.css', '.page { margin: 0 }');
+    write('staff/src/App.tsx', app);
+    write('staff/nav.json', JSON.stringify(nav));
+    applyLook(root, 'cakes', { skill: 'warm' });
+  };
+  const PLAIN = 'export function App() { return <div className="page" />; }\n';
+
+  it('is named when its screens are files of pages and nothing reads the address', async () => {
+    write('customer/src/App.tsx', screen('<div className="page"><img className="logo" src={logo} alt="" /></div>'));
+    write('customer/src/pages/Menu.tsx', 'export function Menu() { return <div className="page" />; }\n');
+    expect(await address()).toEqual([]);
+    write('customer/src/pages/Cart.tsx', 'export function Cart() { return <div className="page" />; }\n');
+    const [line, ...more] = await address();
+    expect(more).toEqual([]);
+    expect(line).toContain('apps/cakes/customer/src/');
+    expect(line).toContain('2 files under src/pages/');
+    // The fix is said exactly: the import, the names, where each goes.
+    expect(line).toContain(HELPER);
+    expect(line).toContain('const path = usePath()');
+    expect(line).toContain('<Link to="/menu">');
+    // screens/ and views/ are read the same way.
+    for (const folder of ['screens', 'views']) {
+      rmSync(join(src(), 'pages'), { recursive: true, force: true });
+      rmSync(join(src(), 'screens'), { recursive: true, force: true });
+      write(`customer/src/${folder}/A.tsx`, 'export function A() { return <div className="page" />; }\n');
+      write(`customer/src/${folder}/B.tsx`, 'export function B() { return <div className="page" />; }\n');
+      expect((await address())[0], folder).toContain(`2 files under src/${folder}/`);
+    }
+  });
+
+  it('is named for a staff side whose nav.json lists more than one screen: each would open the same one', async () => {
+    write('customer/src/App.tsx', screen('<div className="page"><img className="logo" src={logo} alt="" /></div>'));
+    staff(PLAIN, [{ id: 'jobs', path: '', label: 'Jobs' }]);
+    expect(await address()).toEqual([]);
+    staff(PLAIN, [{ id: 'jobs', path: '', label: 'Jobs' }, { id: 'done', path: 'done', label: 'Done' }]);
+    const lines = await address();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('apps/cakes/staff/nav.json lists 2 screens');
+    expect(lines[0]).toContain(HELPER);
+    // A nav file that cannot be read says nothing here: the build says it.
+    write('staff/nav.json', '[{ "id": ');
+    expect(await address()).toEqual([]);
+  });
+
+  it('names the state a screen keeps its page in, when another sign says the side has pages', async () => {
+    const stateful = "import { useState } from 'react';\nexport function App() { const [screen, setScreen] = useState<'jobs' | 'done'>('jobs'); return <div className=\"page\" onClick={() => setScreen('done')}>{screen}</div>; }\n";
+    write('customer/src/App.tsx', screen('<div className="page"><img className="logo" src={logo} alt="" /></div>'));
+    staff(stateful, [{ id: 'jobs', path: '', label: 'Jobs' }, { id: 'done', path: 'done', label: 'Done' }]);
+    expect((await address())[0]).toContain('(if const [screen, …] = useState is what chooses the page, the path takes its place)');
+    staff(stateful.replace("useState<'jobs' | 'done'>('jobs')", "useState('jobs')"), [{ id: 'jobs', path: '', label: 'Jobs' }, { id: 'done', path: 'done', label: 'Done' }]);
+    expect((await address())[0]).toContain('(if const [screen, …] = useState is what chooses the page, the path takes its place)');
+    // The state alone is no sign: a word like "view" or "page" is used for much that is no page.
+    staff(stateful, [{ id: 'jobs', path: '', label: 'Jobs' }]);
+    expect(await address()).toEqual([]);
+  });
+
+  it('is not said of one page that turns its rows a page at a time', async () => {
+    write(
+      'customer/src/App.tsx',
+      "import { useState } from 'react';\nimport logo from '../../assets/logo.svg';\nexport function App() { const [page, setPage] = useState(1); const [view, setView] = useState('grid'); return <div className=\"page\" onClick={() => { setPage(page + 1); setView('list'); }}><img className=\"logo\" src={logo} alt=\"\" />{view}</div>; }\n",
+    );
+    write('customer/src/Pager.tsx', 'export function Pager() { return <div className="page" />; }\n');
+    expect(await address()).toEqual([]);
+    // And where the side does have pages, a number in a state named "page" is not called the page.
+    write('customer/src/pages/A.tsx', 'export function A() { return <div className="page" />; }\n');
+    write('customer/src/pages/B.tsx', 'export function B() { return <div className="page" />; }\n');
+    const line = (await address())[0];
+    expect(line).not.toContain('const [page, …]');
+    // A state named "view" with text in it may be the page or a grid: it is put as a question, never as a fact.
+    expect(line).toContain('(if const [view, …] = useState is what chooses the page, the path takes its place)');
+  });
+
+  it('is not said of a side that reads its address, however it brings the helper', async () => {
+    write('customer/src/pages/Menu.tsx', 'export function Menu() { return <div className="page" />; }\n');
+    write('customer/src/pages/Cart.tsx', 'export function Cart() { return <div className="page" />; }\n');
+    for (const brought of ["import { Link } from '@adminiumjs/adminium/side';", "import { en, usePath, type CustomerConfig } from '@adminiumjs/adminium/side';", "import {\n  en,\n  go,\n} from \"@adminiumjs/adminium/side\";"]) {
+      write('customer/src/App.tsx', `${brought}\n${screen('<div className="page"><img className="logo" src={logo} alt="" /></div>')}`);
+      expect(await address(), brought).toEqual([]);
+    }
+    // Named in a comment, or brought from somewhere else, it is not the helper.
+    write('customer/src/App.tsx', `// import { Link } from '@adminiumjs/adminium/side';\nimport { Link } from './ui/link';\nimport { en } from '@adminiumjs/adminium/side';\n${screen('<div className="page"><img className="logo" src={logo} alt="" /></div>')}`);
+    expect(await address()).toHaveLength(1);
+  });
+
+  it('names a link written from the server’s root, and a page kept in the hash, whatever the side imports', async () => {
+    const withHelper = (body: string): string => `import { Link, usePath } from '@adminiumjs/adminium/side';\n${screen(body)}`;
+    write('customer/src/App.tsx', withHelper('<div className="page"><img className="logo" src={logo} alt="" /><a href="/menu">Menu</a></div>'));
+    const [rooted] = await address();
+    expect(rooted).toContain('apps/cakes/customer/src/App.tsx');
+    expect(rooted).toContain('href="/menu"');
+    expect(rooted).toContain('<Link to="/menu">');
+    for (const written of ["<a href={'/cart'}>x</a>", '<a href={`/menu/${id}`}>x</a>', '<a href="/">x</a>']) {
+      write('customer/src/App.tsx', withHelper(`<div className="page"><img className="logo" src={logo} alt="" />${written}</div>`));
+      expect(await address(), written).toHaveLength(1);
+    }
+    // Another site, a file of the public API, a place on this page, an address the helper made: none of these.
+    write(
+      'customer/src/App.tsx',
+      withHelper('<div className="page"><img className="logo" src={logo} alt="" /><a href="//example.com">a</a><a href="https://example.com/x">b</a><a href="/api/v1/public/files/1">c</a><a href="#top">d</a><a href={pageHref(\'/menu\')}>e</a><a href="mailto:a@b.c">f</a>{/* <a href="/old">g</a> */}</div>'),
+    );
+    expect(await address()).toEqual([]);
+
+    write('customer/src/App.tsx', withHelper('<div className="page" onClick={() => { window.location.hash = \'#/menu\'; }}><img className="logo" src={logo} alt="" /></div>'));
+    const [hashed] = await address();
+    expect(hashed).toContain('window.location.hash');
+    expect(hashed).toContain("go('/menu')");
+  });
+
+  it('says the same words each time it stands, one line a side', async () => {
+    write('customer/src/App.tsx', screen('<div className="page"><img className="logo" src={logo} alt="" /><a href="/menu">Menu</a></div>'));
+    write('customer/src/pages/Menu.tsx', 'export function Menu() { location.hash = "x"; return <div className="page" />; }\n');
+    write('customer/src/pages/Cart.tsx', 'export function Cart() { return <div className="page" />; }\n');
+    const first = await address();
+    expect(first).toHaveLength(1);
+    expect(await address()).toEqual(first);
+  });
+});
