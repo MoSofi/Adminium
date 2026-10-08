@@ -36,6 +36,8 @@ export async function servePublic(h: InvoicingHarness, keyId: string | null, env
     publicLimiter: opts.limiter,
   });
   await composed.app.ready();
+  // The add-ons' code is loaded in the background: a test that asks one at once would be told it cannot be asked.
+  await composed.addOnsLoaded;
   // The test drives the jobs itself: no poll or tick may race it.
   await composed.jobs.worker.stop();
   composed.jobs.scheduler.stop();

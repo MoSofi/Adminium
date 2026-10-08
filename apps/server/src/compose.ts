@@ -469,6 +469,12 @@ export interface ComposedServer {
    * for it, so "is this add-on here" has its final answer.
    */
   packagesSeeded: Promise<void>;
+  /**
+   * Settles once the installed add-ons' code has been loaded for the first
+   * time (or could not be: it never rejects). Until then an add-on that
+   * decides something answers "cannot be asked right now".
+   */
+  addOnsLoaded: Promise<void>;
   /** The jobs/realtime handle — hub, worker, scheduler (see `jobs/register.ts`). */
   jobs: JobsAndRealtime;
   /** True when the `/llm` resource was registered (i.e. `allowed` was present). */
@@ -2720,7 +2726,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       app.log.warn({ err }, 'could not restore installed packages from their copies');
     });
 
-  void packagesReady
+  // In the background: the server answers before its add-ons' code is loaded. Settles either way (a caller that
+  // must not ask an add-on too early, as a test does, waits on it).
+  const addOnsLoaded = packagesReady
     .then(() => rebuildAddOnRuntime())
     .catch((err: unknown) => {
       app.log.error({ err }, 'the add-on runtime could not be built');
@@ -3022,5 +3030,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     desktopCapabilitiesEnabled: desktopCapabilities,
     bridgePairingCode: bridge?.pairingCode ?? null,
     packagesSeeded: Promise.all([appSeed, addOnSeed]).then(() => undefined),
+    addOnsLoaded,
   };
 }
