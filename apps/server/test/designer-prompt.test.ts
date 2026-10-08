@@ -210,6 +210,8 @@ describe('an app that is new', () => {
     const guides = taskGuides(skills);
     const names = [...guides.matchAll(/^- (\S+): /gm)].map((found) => found[1] as string);
     expect(names).toContain('adminium-app/references/guides/manifest-by-task--add-a-dashboard-page.md');
+    // Stock is an add-on's job: the task is one line of every prompt, whatever words the person used.
+    expect(guides).toContain('- adminium-app/references/guides/manifest-by-task--stock-from-the-inventory-add-on.md: Stock from the Inventory add-on');
     expect(names.length).toBeGreaterThan(8);
     for (const name of names) expect(skills.read(name), name).not.toBeNull();
   });

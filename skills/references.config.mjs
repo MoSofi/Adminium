@@ -53,6 +53,8 @@ export default {
   'adminium-add-ons': [
     { area: 'guides', page: 'guides/building-on-an-add-on.md' },
     { area: 'guides', page: 'guides/apps/emails.md' },
+    { area: 'guides', page: 'guides/apps/postings.md' },
+    { area: 'guides', page: 'guides/add-ons/inventory.md' },
     { area: 'install', page: 'self-hosting/installing-add-ons.md', flat: true },
     { area: 'catalogue', generator: 'add-on-catalogue' },
     { area: 'cli', page: 'reference/cli.md', flat: true },

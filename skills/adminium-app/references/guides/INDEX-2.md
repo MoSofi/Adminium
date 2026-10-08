@@ -4,6 +4,8 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/postings--overview.md` | Rows that post into an add-on's ledger | 874 |
+| `references/guides/postings--a-posting.md` | A posting | 1971 |
 | `references/guides/postings--the-moment-a-phase-fires.md` | The moment a phase fires | 1040 |
 | `references/guides/postings--the-lines-of-an-order.md` | The lines of an order | 1707 |
 | `references/guides/postings--put-it-back-first.md` | Put it back first | 1194 |

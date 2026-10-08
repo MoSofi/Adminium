@@ -35,6 +35,10 @@ A reminder is written `held`: the studio reads it, may reword it, and approves i
 later reminder that comes due overtakes an earlier one not yet sent, and paying or voiding the
 invoice drops the ones still waiting. See [Held messages](https://docs.adminium.dev/reference/manifest/#held-messages).
 
+Write the templates in the app's own words, with the variables listed under
+[Variables](https://docs.adminium.dev/guides/apps/emails/#variables) in An app's emails. The add-on's own templates use other
+variable names: do not copy them.
+
 The outbox table's `kind` enum lists every kind, its `status` enum includes `held`, and its links
 are nullable foreign keys. A template may carry the invoice as an attachment with
 `"attach": { "kind": "invoice", "link": "invoice" }`.

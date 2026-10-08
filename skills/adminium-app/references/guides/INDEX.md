@@ -17,6 +17,7 @@
 | `references/guides/manifest-by-task--settings-the-operator-fills-in.md` | Settings the operator fills in | 1069 |
 | `references/guides/manifest-by-task--emails.md` | Emails | 721 |
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
+| `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2450 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
@@ -87,7 +88,5 @@
 | `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
 | `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
 | `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |
-| `references/guides/postings--overview.md` | Rows that post into an add-on's ledger | 874 |
-| `references/guides/postings--a-posting.md` | A posting | 1971 |
 
 More: `references/guides/INDEX-2.md`

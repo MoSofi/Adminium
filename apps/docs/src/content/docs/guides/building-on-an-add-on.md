@@ -202,6 +202,10 @@ A reminder is written `held`: the studio reads it, may reword it, and approves i
 later reminder that comes due overtakes an earlier one not yet sent, and paying or voiding the
 invoice drops the ones still waiting. See [Held messages](/reference/manifest/#held-messages).
 
+Write the templates in the app's own words, with the variables listed under
+[Variables](/guides/apps/emails/#variables) in An app's emails. The add-on's own templates use other
+variable names: do not copy them.
+
 The outbox table's `kind` enum lists every kind, its `status` enum includes `held`, and its links
 are nullable foreign keys. A template may carry the invoice as an attachment with
 `"attach": { "kind": "invoice", "link": "invoice" }`.
@@ -304,6 +308,113 @@ alone, and refuses one whose names do not add up: a rule's column the table lack
 reading a column that holds no number, a state that is not a value of the state column, a
 `builtOn` whose add-on the app does not require. It also returns `warnings`, advice that never
 refuses a manifest; see [Validation](/reference/manifest/#validation).
+
+## Get the add-on's manifest
+
+Every name an app builds on (a shape's parts and columns, a ledger's actions and inputs) is in
+the add-on's own manifest: `manifest.json` inside the add-on's package. With the package file at
+hand:
+
+```bash
+tar -xzOf <folder>/invoices-<version>.tgz package/manifest.json > invoices.manifest.json
+```
+
+A package is downloaded from the add-on's page on adminium.dev, or from
+`https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz`, with its `sha512-` fingerprint
+saved beside it as `<key>-<version>.tgz.integrity`. Keep the two files in one folder: that folder
+is what `adminium app try --add-ons <folder>` reads.
+
+## An add-on that keeps its own tables
+
+Invoices & Receipts gives your app a shape to build its own tables on. Inventory (`inventory`)
+does not: it keeps its own tables (items, places, stock levels, movements) and a ledger, `stock`.
+An app that uses it builds **no** stock table. It writes three things:
+
+1. **A link.** A column of your table that holds the key of one of the add-on's rows:
+   `"rules": { "addOnLink": { "addOn": "inventory", "table": "items" } }` on an `int` column. No
+   foreign key is made, so the app installs with or without the add-on.
+2. **A rule.** [`postings`](/guides/apps/postings/) on your table: when a row is saved, or moves
+   to a state, it is handed to one of the ledger's actions, which takes the stock.
+3. **A grant.** `tables` on your role, so the person who fills the link can read the add-on's
+   rows to pick one. See "Your app's roles on an add-on's tables" below.
+
+Every name in the rule is the add-on's: the ledger, the action, and each input the action takes
+are under `addOn.ledgers[].actions` in its manifest. Copy them from there. The install checks
+each one against the add-on it runs on and refuses a rule that names an input the action has not,
+or leaves out one it needs.
+
+**Require it, or suggest it.** Under `requires`, the add-on is installed with the app, and the
+rule always runs. Under `suggests`, the app runs without it: give the rule `"needs": "<feature>"`
+and declare that feature under `addOns.features`. The rule is then live only while the add-on is
+installed, connected to the app and switched on. A row saved while it is not live posts nothing,
+and is not caught up later.
+
+**Sample rows.** The app's sample data may add rows to the add-on's tables (items for the
+clinic's shelf) in a second file, and name the add-on's own sample rows by their labels:
+[Rows for an add-on the app names](/guides/apps/sample-data/#rows-for-an-add-on-the-app-names).
+
+**What try shows.** `adminium app try --add-ons <folder>` installs the add-on, then the app, and
+loads the sample data. A sample row never posts, so **try** proves the rule is accepted, not that
+stock moves. To see stock move, run the app, receive some stock in Inventory, and save one row.
+
+## Take stock when a row is saved
+
+A clinic records what each visit used. A line names an item of Inventory and a quantity; the
+stock is taken when the visit is marked `seen` and put back if it goes back to `booked` or is
+cancelled.
+
+```json title="manifest/tables/visit_supplies.json"
+{
+  "ref": "visit_supplies",
+  "label": { "en-US": "Supply used" }, "labelPlural": { "en-US": "Supplies used" },
+  "columns": [
+    { "ref": "id", "type": "int", "role": "pk" },
+    { "ref": "visit_id", "type": "fk", "references": "visits" },
+    { "ref": "item_id", "type": "int", "nullable": true,
+      "rules": { "addOnLink": { "addOn": "inventory", "table": "items" } } },
+    { "ref": "qty", "type": "decimal", "scale": 3 }
+  ],
+  "postings": [
+    {
+      "id": "stock",
+      "into": { "addOn": "inventory", "ledger": "stock", "action": "use-item" },
+      "via": "visit_id",
+      "post": { "on": { "column": "status", "in": ["seen"] } },
+      "reverse": { "on": { "column": "status", "from": ["seen"], "in": ["booked", "cancelled"] } },
+      "map": { "item": "item_id", "quantity": "qty" }
+    }
+  ]
+}
+```
+
+```json title="manifest/add-ons.json"
+{ "requires": [{ "key": "inventory", "range": ">=1.0.8", "reason": { "en-US": "Inventory keeps the stock a visit uses." } }] }
+```
+
+```json title="manifest/roles.json (the role's part)"
+"tables": [{ "addOn": "inventory", "table": "items", "actions": ["read"], "limit": { "readable": ["name", "sku"] } }]
+```
+
+- `via` makes the lines follow the visit: `status` is the visit's column, and when the visit
+  becomes `seen` every line is handed over in one call.
+- `use-item` takes `item` and `quantity`. It also takes `place`, `batch` and a few more, all
+  optional: with no `place`, stock comes from the default place in Inventory's settings.
+- The app's `minAdminiumVersion` is `0.3.18` or later.
+
+**The other way: a row that has a Stock tab.** A treatment always uses the same supplies. Staff
+list them once, on the treatment's **Stock** tab in the dashboard, and the action `use` takes all
+of them:
+
+```json
+"map": { "what": "treatment_id", "quantity": "times" }
+```
+
+`what` is a row: the row the rule is on (`{ "row": true }`), or the row an `fk` column of it
+points at, as here. No link column and no grant are needed: nobody picks an item when saving.
+`hold` is the same with a `reserve` step and a `heldUntil` column; `return` gives stock back.
+
+The rule's fields, the three phases and what a writer is told when stock is short are in
+[Rows that post into a ledger](/guides/apps/postings/).
 
 ## An add-on with tables of its own
 

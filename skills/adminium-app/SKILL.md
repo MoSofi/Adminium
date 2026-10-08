@@ -34,8 +34,8 @@ apps/<key>/
   tests/app.test.mjs  README.md     node --test apps/<key>/tests/app.test.mjs
 ```
 
-Then shape it into what was asked: rewrite the tables, pages, role and sample rows, and delete what
-the request does not need. Keep `publisher` as it is.
+Then shape it into what was asked: rewrite the tables, pages, role and sample rows, and delete
+what is not needed. Keep `publisher` as it is.
 
 ## 2. Which file holds what
 
@@ -49,8 +49,8 @@ is an error, and a table or page file is named after its `ref`.
 
 Open `references/INDEX.md`, find the task, read that one file.
 
-- `references/guides/manifest-by-task--*.md`: add a table, link two tables, a choice column, a
-  page, a role, customer access, sample data, settings, emails. Start here.
+- `references/guides/manifest-by-task--*.md`: a table, a link, a choice column, a page, a role,
+  customer access, sample data, settings, emails, stock or discounts from an add-on. Start here.
 - `references/manifest/*.md`: the full reference, by section, when the task guide is not enough.
 
 Rules that catch people:
@@ -101,8 +101,8 @@ contents. Raise `version` in `app.json` before packing a change to an installed 
 
 ## 7. Say what you built
 
-End with: the rung, the tables and pages, the roles, what customers may reach (from **check**), the
-result of **try**, how to **run** it, and anything asked for that Adminium cannot do.
+End with: the rung, the tables and pages, the roles, what customers may reach (from **check**),
+the result of **try**, how to **run** it, and what was asked that Adminium cannot do.
 
 ## What an app cannot do
 
