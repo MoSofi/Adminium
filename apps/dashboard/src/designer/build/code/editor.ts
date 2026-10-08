@@ -54,7 +54,8 @@ export function createCodeEditor(parent: HTMLElement, events: CodeEditorEvents):
   let label = '';
 
   const holdValue = () => [EditorState.readOnly.of(held), EditorView.editorAttributes.of(held ? { class: HELD_CLASS } : {})];
-  const nameValue = () => EditorView.contentAttributes.of({ 'aria-label': label, 'aria-multiline': 'true' });
+  // `tabindex`: the text is editable and so already a tab stop, but a checker that looks for a way to scroll a long file by keyboard only believes one it can read.
+  const nameValue = () => EditorView.contentAttributes.of({ 'aria-label': label, 'aria-multiline': 'true', tabindex: '0' });
 
   const stateFor = (path: string, text: string): EditorState =>
     EditorState.create({
