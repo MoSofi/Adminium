@@ -40,7 +40,7 @@ import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
-import { addsBuildCommand, createTurnReads, isBuildFile, needsCard } from './write-guard.js';
+import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, renamesTables } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { rebuildApps } from '../project/build.js';
@@ -669,6 +669,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           if (addsBuildCommand(normal, content, appKey)) {
             return refused('An app’s own build command is set by a person, never written here. Leave "build" out of app.json.', `Refused ${shown(path)}`);
           }
+          // Only the manifest's own file is read for this: any other path is the jail's to judge at the write.
+          const manifest = join(deps.root, normal);
+          const was = /(^|\/)(app|manifest)\.json$/i.test(normal) && existsSync(manifest) ? readFileSync(manifest, 'utf8') : null;
+          if (renamesTables(normal, was, content, appKey)) return refused('Keep "key" and "prefixed" in app.json exactly as they are: the names of the app’s tables in the database come from them, and the tables it already has would be left behind. Write it again with both unchanged.', `Refused ${shown(path)}`);
           const unread = jsonProblem(normal, content);
           if (unread !== null) {
             const again = refusedJson.get(normal) === content;
@@ -734,6 +738,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           if (addsBuildCommand(normal, next, appKey)) {
             return refused('An app’s own build command is set by a person, never written here. Leave "build" out of app.json.', `Refused ${shown(path)}`);
           }
+          if (renamesTables(normal, current, next, appKey)) return refused('Keep "key" and "prefixed" in app.json exactly as they are: the names of the app’s tables in the database come from them, and the tables it already has would be left behind. Write it again with both unchanged.', `Refused ${shown(path)}`);
           const unread = jsonProblem(normal, next);
           if (unread !== null) {
             return refused(`With that change the file is not valid JSON, so it was left as it was: ${unread}. Mind the commas around what you add.`, `Could not edit ${shown(path)}`);

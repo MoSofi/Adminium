@@ -32,6 +32,26 @@ export function addsBuildCommand(path: string, content: string, appKey: string):
 }
 
 /**
+ * Whether a write of an app's manifest file changes where its tables are in the database: `key` and `prefixed`
+ * name them. An app that was applied has its tables under the old names, and the new ones may be somebody
+ * else's (a model that wrote app.json again without "prefixed" met a table "orders" the project already had).
+ * `before` is the file as it is, null when there is none.
+ */
+export function renamesTables(path: string, before: string | null, after: string, appKey: string): boolean {
+  const manifestFiles = [`apps/${appKey}/manifest/app.json`, `apps/${appKey}/manifest.json`];
+  if (before === null || !manifestFiles.includes(path.normalize('NFC').toLowerCase())) return false;
+  try {
+    const was = JSON.parse(before) as Record<string, unknown> | null;
+    const now = JSON.parse(after) as Record<string, unknown> | null;
+    if (was === null || now === null || typeof was !== 'object' || typeof now !== 'object') return false;
+    return was['key'] !== now['key'] || was['prefixed'] !== now['prefixed'];
+  } catch {
+    // Not JSON on either side: the write's own check says so.
+    return false;
+  }
+}
+
+/**
  * A file that decides what a copied app's approved build RUNS, by its path
  * inside the app (folded): its package files, the configs its tools look for
  * and run, its scripts.

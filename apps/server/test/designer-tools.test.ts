@@ -366,6 +366,22 @@ describe('the Designer’s tools', () => {
     expect(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')).toBe(text);
   });
 
+  // Seen on a real model: app.json written again without "prefixed", and the app's table "orders" was then somebody else's.
+  it('refuse a write of the manifest that would name the app’s tables anew, and take any other change of it', async () => {
+    const file = 'apps/repairs/manifest/app.json';
+    const text = readFileSync(join(root, file), 'utf8');
+    const app = JSON.parse(text) as Record<string, unknown>;
+    expect(app['prefixed']).toBe(true);
+    const { prefixed: _dropped, ...bare } = app;
+    const writing = await run('write_file', { path: file, content: JSON.stringify(bare) });
+    expect(writing).toMatchObject({ isError: true });
+    expect(writing.content).toContain('"prefixed"');
+    expect(await run('write_file', { path: file, content: JSON.stringify({ ...app, key: 'other' }) })).toMatchObject({ isError: true });
+    expect(await run('edit_file', { path: file, old: '"prefixed": true', new: '"prefixed": false' })).toMatchObject({ isError: true });
+    expect(readFileSync(join(root, file), 'utf8')).toBe(text);
+    expect(await run('write_file', { path: file, content: JSON.stringify({ ...app, description: 'Repairs, tracked.' }) })).not.toMatchObject({ isError: true });
+  });
+
   it('check the app with the add-ons it names in sight, when this server has them', async () => {
     writeFileSync(join(root, 'apps/repairs/manifest/add-ons.json'), JSON.stringify({ suggests: [{ key: 'invoices', range: '*', reason: { 'en-US': 'Invoices.' } }] }));
     writeFileSync(
