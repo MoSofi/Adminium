@@ -308,6 +308,7 @@ export {
   byClockSchema,
   byStaySchema,
   isoDurationMs,
+  ledgerCatalogueTables,
   sampleBundleIssues,
   seedLabelsOf,
   seedRowIdentity,
