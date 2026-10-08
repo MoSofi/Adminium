@@ -428,7 +428,8 @@ export function ledgerCatalogueTables(addOn: AddOnManifest): ReadonlySet<string>
     for (const ref of all) {
       const writers = writtenBy.filter((written) => written.includes(ref));
       const catalogue =
-        ref !== ledger.receipts && !totals.has(ref) && !counted.has(ref) && writers.length > 0 && writers.every((written) => written.every((other) => !counted.has(other)));
+        // (A table something adds up fails the last test itself: whatever writes it, writes it.)
+        ref !== ledger.receipts && !totals.has(ref) && writers.length > 0 && writers.every((written) => written.every((other) => !counted.has(other)));
       // Two ledgers that write one table both have to leave it out of their books.
       verdicts.set(ref, (verdicts.get(ref) ?? true) && catalogue);
     }
