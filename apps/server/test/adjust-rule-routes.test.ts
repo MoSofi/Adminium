@@ -55,6 +55,11 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     await w.rows(`CREATE TABLE own_sale_lines (id ${id}, sale_id INT NOT NULL, label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, amount NUMERIC(12,2), discount NUMERIC(12,2) DEFAULT 0, FOREIGN KEY (sale_id) REFERENCES own_sales(id))`);
     // …and two more with nothing but what was sold: no amount, no total, nowhere to write a reduction.
     await w.rows(`CREATE TABLE bare_sales (id ${id}, note VARCHAR(80))`);
+    // A pair whose lines carry a column Adminium only GUESSES is a link, by its name, to a table of the owner's own.
+    await w.rows(`CREATE TABLE gs_shops (id ${id}, name VARCHAR(80))`);
+    await w.rows(`CREATE TABLE gs_sales (id ${id}, note VARCHAR(80), subtotal NUMERIC(12,2) DEFAULT 0, discount NUMERIC(12,2) DEFAULT 0, total NUMERIC(12,2))`);
+    await w.rows(`CREATE TABLE gs_codes (id ${id}, gs_sale_id INT NOT NULL, typed VARCHAR(64), gs_shop_id INT, voucher_id INT, removed_at TIMESTAMP NULL, FOREIGN KEY (gs_sale_id) REFERENCES gs_sales(id))`);
+    await w.rows(`CREATE TABLE gs_lines (id ${id}, gs_sale_id INT NOT NULL, label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, discount NUMERIC(12,2) DEFAULT 0, FOREIGN KEY (gs_sale_id) REFERENCES gs_sales(id))`);
     await w.rows(`CREATE TABLE bare_lines (id ${id}, sale_id INT NOT NULL, label VARCHAR(80), price NUMERIC(12,2) DEFAULT 0, qty INT DEFAULT 1, FOREIGN KEY (sale_id) REFERENCES bare_sales(id))`);
     await w.h.introspect();
     for (const table of parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema).tables) ids.set(table.name, table.id);
@@ -341,6 +346,22 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     expect((await api('PUT', rule('own_sales'), { adjust: own() })).statusCode).toBe(200);
     expect((await adjusts()).adjusts.find((one) => one.table === ids.get('own_sales'))).toMatchObject({ enabled: true, state: 'live' });
     await api('DELETE', rule('own_sales'));
+  });
+
+  it.skipIf(!available)('a link Adminium only guessed, into a table that is not the pricing add-on\'s, is never the link a typed code fills', async () => {
+    const guessed = (code: string): Doc => ({
+      by: { addOn: PRICE_KIT },
+      lines: [{ table: ids.get('gs_lines'), via: 'gs_sale_id', price: 'price', quantity: 'qty', discount: 'discount', what: [{ column: 'label', as: 'tag' }] }],
+      order: { discount: 'discount' },
+      codes: { table: ids.get('gs_codes'), via: 'gs_sale_id', typed: 'typed', code, voucher: 'voucher_id', removed: 'removed_at' },
+      expect: 'total',
+    });
+    // `gs_shop_id` beside a table `gs_shops`: a link by its name alone, and not one into the add-on's tables.
+    const refused = await api('PUT', rule('gs_sales'), { adjust: guessed('gs_shop_id') });
+    expect(refused.statusCode, refused.body).toBe(422);
+    // It never reaches the question "is this a link?": a typed code's link is held to the add-on's own table first.
+    expect(refused.body).toContain('\\"gs_shop_id\\" of gs_codes is the link a typed code fills: it must link into');
+    expect(await w.rows('SELECT id FROM gs_codes')).toEqual([]);
   });
 
   it.skipIf(!available)('the rule a price rule records its uses by is not taken away, nor pointed elsewhere, while the price rule names it', async () => {

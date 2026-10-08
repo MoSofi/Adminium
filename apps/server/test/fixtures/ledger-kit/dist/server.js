@@ -109,7 +109,12 @@ function adopt(input) {
     var line = input.lines[i];
     var there = false;
     for (var k = 0; k < known.length; k += 1) if (String(known[k].name) === String(line.inputs.name)) there = true;
-    if (!there) out.rows.push({ op: 'insert', table: 'things', line: line.line, values: { name: line.inputs.name } });
+    if (there) continue;
+    var values = { name: line.inputs.name };
+    // The coded kit: a thing may come in under a code its row brings, and at the state its row names.
+    if (line.inputs.code !== undefined && line.inputs.code !== null) values.code = line.inputs.code;
+    if (line.inputs.start !== undefined && line.inputs.start !== null) values.status = line.inputs.start;
+    out.rows.push({ op: 'insert', table: 'things', line: line.line, values: values });
   }
   return out;
 }

@@ -124,6 +124,35 @@ export function ledgerKitManifest(): Doc {
 }
 
 /**
+ * The same add-on whose things keep a code and a state. A thing `adopt` makes
+ * may come in under a code its row brings (`givenByLedger`), and may start
+ * `live`: a move kept for the ledger that asks nothing first. `kept` is a
+ * planned move too, but one that asks for a name of at least a letter that is
+ * not there on every row — a start a plan may not step over.
+ */
+export function ledgerKitCodedManifest(): Doc {
+  const kit = ledgerKitManifest() as Doc & { addOn: Doc & { ledgers: [Doc & { writes: Doc; actions: Record<string, Doc> }] }; requiredSchema: { tables: Doc[] } };
+  const units = kit.addOn.ledgers[0];
+  units.writes = { ...units.writes, things: { insert: ['name', 'code', 'status'] } };
+  units.actions = { ...units.actions, adopt: { ...units.actions['adopt'], inputs: { what: 'rowRef', name: 'text', code: 'text?', start: 'text?' } } };
+  kit.requiredSchema.tables = kit.requiredSchema.tables.map((table) =>
+    table['ref'] !== 'things'
+      ? table
+      : {
+          ...table,
+          columns: [
+            ...(table['columns'] as Doc[]),
+            { ref: 'code', type: 'text', maxLength: 12, unique: true, rules: { code: { length: 8, prefix: 'TK-', givenByLedger: true } } },
+            { ref: 'status', type: 'enum', enum: ['new', 'live', 'kept'], default: 'new' },
+            { ref: 'checked', type: 'bool', nullable: true },
+          ],
+          states: { column: 'status', initial: 'new', moves: { new: [{ to: 'live', planned: true }, { to: 'kept', planned: true, requires: { where: [{ column: 'checked', eq: true }] } }] } },
+        },
+  );
+  return kit;
+}
+
+/**
  * The same add-on with one more action, `pay`: Adminium decides how much of
  * what is due an account pays — never more than is due, never more than the
  * account holds.
