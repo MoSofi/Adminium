@@ -43,8 +43,22 @@ export type TokenMap = Record<string, string>;
 
 const TOKEN_RE = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
-function asText(value: unknown): string {
+/**
+ * A column's value as a person would write it, the same on every database:
+ * a quantity without the zeros an engine pads it with ("4", not "4.000" —
+ * SQLite hands a number, Postgres and MySQL a padded text), and a date as its
+ * day ("2026-10-20", not the instant of its midnight).
+ */
+function asText(value: unknown, logicalType?: string): string {
   if (value === null || value === undefined) return '';
+  if (logicalType === 'date') {
+    if (value instanceof Date) return `${String(value.getFullYear()).padStart(4, '0')}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  }
+  // A column kept to two places is an amount of money, and reads as one: "12.50" stays.
+  if ((logicalType === 'decimal' || logicalType === 'float') && typeof value === 'string' && /^-?\d+\.\d+$/.test(value) && value.length - value.indexOf('.') - 1 !== 2) {
+    return value.replace(/0+$/, '').replace(/\.$/, '');
+  }
   if (value instanceof Date) return value.toISOString();
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
@@ -78,7 +92,7 @@ export function tokensFor(ctx: TokenContext): TokenMap {
   if (ctx.row === null || ctx.table === null) return tokens;
   for (const [name, column] of ctx.table.columns) {
     if (!(ctx.includeMasked ?? false) && (column.masked || column.secret)) continue;
-    const value = asText(ctx.row[name]);
+    const value = asText(ctx.row[name], column.logicalType);
     tokens[`record.${name}`] = value;
     tokens[name] = value;
   }
