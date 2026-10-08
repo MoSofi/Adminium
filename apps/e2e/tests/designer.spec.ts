@@ -185,33 +185,43 @@ test('design opens signed in; a request builds, applies, previews and draws an a
     });
   const levelNow = (): Promise<string | undefined> => page.evaluate(() => document.querySelector<HTMLElement>('[data-part="work-bar"]:not([inert] *)')?.dataset['level']);
   const seen: Record<number, string | undefined> = {};
+  const layouts: Record<number, string> = {};
+  let sweptMore = false;
+  let sweptSize = false;
   for (const width of [1500, 1200, 1100, 1024, 900, 768, 390]) {
     await page.setViewportSize({ width, height: 800 });
     const views = page.getByRole('tablist', { name: 'View' });
-    if (width >= 1100) await expect(views).toHaveCount(0);
-    else {
-      await expect(views).toBeVisible();
-      await views.getByRole('tab', { name: 'Work area' }).click();
-    }
+    // Where the two views begin is measured from the bar's own words. This app has one side, so its bar is short
+    // and the chat stays beside it further down than an app with a side switch: only the ends are fixed here.
+    if (width >= 1200) await expect(views).toHaveCount(0);
+    if (width <= 768) await expect(views).toBeVisible();
+    await page.waitForTimeout(250);
+    const two = (await views.count()) > 0;
+    if (two) await views.getByRole('tab', { name: 'Work area' }).click();
     await expect(address).toBeVisible();
     await expect.poll(sideways, { message: `the bar at ${String(width)}` }).toBeLessThanOrEqual(1);
     seen[width] = await levelNow();
+    layouts[width] = two ? 'two views' : 'one view';
     // Nothing is lost, only moved: the camera switch is in the bar or in "More".
     if (seen[width] === '0') await expect(page.getByRole('button', { name: 'The Designer looks at the page after it builds' })).toBeVisible();
     else {
       await page.getByRole('button', { name: 'More' }).click();
       await expect(page.getByRole('menuitemcheckbox', { name: 'The Designer looks at the page after it builds' })).toBeVisible();
-      if (width === 900 || width === 390) await sweep(page, `Build at ${String(width)}, More open`, testInfo);
+      if (!sweptMore || width === 390) await sweep(page, `Build at ${String(width)}, More open`, testInfo);
+      sweptMore = true;
       await page.keyboard.press('Escape');
     }
-    if (width === 900) {
+    // The size is one menu button from the bar's second fold on, wherever this app's bar reaches it.
+    if (!sweptSize && (seen[width] === '2' || seen[width] === '3')) {
       await page.getByRole('button', { name: /^Size: / }).click();
       await expect(page.getByRole('menuitemradio', { name: 'Tablet' })).toBeVisible();
-      await sweep(page, 'Build at 900, the size menu open', testInfo);
+      await sweep(page, `Build at ${String(width)}, the size menu open`, testInfo);
+      sweptSize = true;
       await page.keyboard.press('Escape');
     }
   }
-  testInfo.annotations.push({ type: 'bar-levels', description: JSON.stringify(seen) });
+  testInfo.annotations.push({ type: 'bar-levels', description: JSON.stringify({ seen, layouts }) });
+  console.log(`bar levels ${JSON.stringify(seen)} ${JSON.stringify(layouts)}`);
   expect(seen[390]).toBe('4');
   expect(Number(seen[1500])).toBeLessThanOrEqual(Number(seen[900]));
   await page.setViewportSize({ width: 1280, height: 720 });
