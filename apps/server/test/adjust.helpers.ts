@@ -13,6 +13,7 @@ import { sql } from 'kysely';
 import { expect } from 'vitest';
 
 import { loadDecider, type InstalledDecider } from '../src/add-ons/decide.js';
+import { addOnTablesFor } from '../src/apps/add-on-tables.js';
 import { keepAddOnInstalls } from '../src/apps/table-ref.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import type { SourceDatabase } from '../src/connections/manager.js';
@@ -68,6 +69,12 @@ export interface PriceWorldOptions {
   attachTo?: string[];
   /** Leave the add-on out: the shop alone, its rule naming an add-on that is not here. */
   noKit?: boolean;
+  /** Another add-on in the price kit's place, as it is built: its key, its package's files, and the file that decides. `kit` is then its manifest. */
+  addOn?: { key: string; files: Record<string, string>; server: string };
+  /** The app's own key, when `market` is another app than the shop. */
+  app?: string;
+  /** Leave the shop's things out: an app that keeps none of the shop's tables. */
+  noThings?: boolean;
 }
 
 /** The shop and the price kit, installed; the shop's things in. */
@@ -76,30 +83,34 @@ export async function priceWorld(dialect: Dialect, options: PriceWorldOptions = 
   const h = await addOnHarness(dialect, { unbuiltWords: {}, ...(TEST_POOL_MAX === undefined ? {} : { sourcePoolMax: TEST_POOL_MAX }) });
   const market = options.market ?? marketManifest();
   await h.stageApp(market);
-  const installed = await h.install(MARKET, String(market['version']));
+  const app = options.app ?? MARKET;
+  const kitKey = options.addOn?.key ?? PRICE_KIT;
+  const installed = await h.install(app, String(market['version']));
   expect(installed.statusCode, installed.body).toBe(200);
   const kit = options.kit ?? priceKitManifest();
   if (options.noKit !== true) {
-    await h.stageAddOn(kit, { files: priceKitFiles(kit) });
-    const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: PRICE_KIT, version: String(kit['version']), attachTo: options.attachTo ?? [MARKET] } });
+    await h.stageAddOn(kit, { files: options.addOn?.files ?? priceKitFiles(kit) });
+    const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: kitKey, version: String(kit['version']), attachTo: options.attachTo ?? [app] } });
     expect(added.statusCode, added.body).toBe(200);
   }
   await h.introspect();
   const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
-  const read = async () => new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
+  // As the server reads a connection: with the links into an add-on's tables resolved where that add-on is installed.
+  const read = async () =>
+    new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' }), { addOnTables: await addOnTablesFor(h.meta, h.connectionId, model) }), new Map());
   let view = await read();
   const { db, dialect: engine } = await h.manager.data(h.connectionId);
   const table = (name: string): ResolvedTable => view.table(model.tables.find((candidate) => candidate.name === name)!.id);
   const target = (name: string): WriteTarget => ({ connectionId: h.connectionId, view, table: table(name), db, dialect: engine, timezone: 'UTC' });
   const installs = keepAddOnInstalls(h.meta, async () => model);
   await installs.fresh();
-  const decider = loadDecider({ key: PRICE_KIT, version: String(kit['version']), path: 'dist/server.js', bytes: PRICE_KIT_SERVER });
+  const decider = loadDecider({ key: kitKey, version: String(kit['version']), path: 'dist/server.js', bytes: options.addOn === undefined ? PRICE_KIT_SERVER : Buffer.from(options.addOn.server, 'utf8') });
   const deps: LedgerRuntimeDeps = {
     installs: () => installs.current(),
     refresh: () => installs.fresh(),
     // One file answers both: which reductions an order has, and which rows record what it used.
-    decider: (key) => (key === PRICE_KIT ? decider : null),
-    adjustDecider: (key) => (key === PRICE_KIT ? decider : null),
+    decider: (key) => (key === kitKey ? decider : null),
+    adjustDecider: (key) => (key === kitKey ? decider : null),
     versionNow: async (key) => {
       const row = await h.meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', key).executeTakeFirst();
       return row === undefined ? null : { version: row.version, status: row.status };
@@ -124,9 +135,11 @@ export async function priceWorld(dialect: Dialect, options: PriceWorldOptions = 
 
   // The shop's things: a category each, by name.
   const categories: Record<string, number> = {};
-  for (const name of [...new Set(Object.values(CATEGORY))]) categories[name] = await insert('market_categories', { name });
   const items = {} as Record<Item, number>;
-  for (const name of Object.keys(PRICES) as Item[]) items[name] = await insert('market_items', { name, category_id: categories[CATEGORY[name]], price: PRICES[name] });
+  if (options.noThings !== true) {
+    for (const name of [...new Set(Object.values(CATEGORY))]) categories[name] = await insert('market_categories', { name });
+    for (const name of Object.keys(PRICES) as Item[]) items[name] = await insert('market_items', { name, category_id: categories[CATEGORY[name]], price: PRICES[name] });
+  }
 
   return {
     h,
