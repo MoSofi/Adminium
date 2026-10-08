@@ -184,6 +184,12 @@ describe('an add-on that does the job', () => {
 });
 
 describe('an app that is new', () => {
+  it('made on a release candidate, asks for the release, not the candidate', () => {
+    scaffoldApp({ root, key: 'early', name: 'Early', sides: [], version: '0.3.18-rc.0', bare: true });
+    const app = JSON.parse(readFileSync(join(root, 'apps/early/manifest/app.json'), 'utf8')) as { compatibility: { minAdminiumVersion: string } };
+    expect(app.compatibility.minAdminiumVersion).toBe('0.3.18');
+  });
+
   it('starts bare, and its model is shown what a table, a page and a role look like', async () => {
     scaffoldApp({ root, key: 'bikes', name: 'Bike shop', sides: [], version: APP_VERSION, bare: true });
     expect(existsSync(join(root, 'apps/bikes/manifest/app.json'))).toBe(true);

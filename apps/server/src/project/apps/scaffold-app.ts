@@ -74,7 +74,8 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
       license: 'UNLICENSED',
       description: { key: `${key}.description`, fallback: `${name}, made with Adminium.` },
       categories: ['operations'],
-      compatibility: { minAdminiumVersion: opts.version },
+      // The release's own number: an app made on a release candidate runs on the release.
+      compatibility: { minAdminiumVersion: opts.version.replace(/[-+].*$/, '') },
       // One entry per side with code in this folder. With none, the app is its tables and pages alone.
       frontends: sides.length === 0 ? [{ side: 'staff', kind: 'none' }] : sides.map((side) => ({ side, kind: 'spa' })),
       navGroups: [{ key: 'main', label: { 'en-US': name }, order: 1 }],

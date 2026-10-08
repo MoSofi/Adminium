@@ -316,7 +316,7 @@ describe('adminium app new', () => {
     expect(out).toContain('✓ Repairs 0.1.0 (repairs): 2 table(s), 2 page(s), no screens of its own');
     expect(out).toContain('the customer side reaches nothing');
     const app = JSON.parse(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')) as Record<string, unknown>;
-    expect(app).toMatchObject({ key: 'repairs', publisher: { id: 'local' }, frontends: [{ side: 'staff', kind: 'none' }], compatibility: { minAdminiumVersion: APP_VERSION } });
+    expect(app).toMatchObject({ key: 'repairs', publisher: { id: 'local' }, frontends: [{ side: 'staff', kind: 'none' }], compatibility: { minAdminiumVersion: APP_VERSION.replace(/[-+].*$/, '') } });
     expect(existsSync(join(root, 'apps/repairs/staff'))).toBe(false);
     expect(existsSync(join(root, 'apps/repairs/manifest/access.json'))).toBe(false);
     // No screens: nothing to install, and package.json is left alone.
