@@ -327,6 +327,21 @@ describe('the column rules that came with ledgers', () => {
     };
     const withCards = (table: Doc) => ({ ...(structuredClone(LEDGER_HOST) as unknown as Doc), requiredSchema: { prefixed: true, tables: [...LEDGER_HOST.requiredSchema.tables, table] } });
     expect(issuesOf(withCards(cards))).toEqual([]);
-    expect(issuesOf(withCards({ ...cards, columns: [cards.columns[0], cards.columns[1], { ...cards.columns[2], rules: { codeLast4: { of: 'id' } } }] })).join('\n')).toContain('"cards.id" is not a code Adminium makes');
+    expect(issuesOf(withCards({ ...cards, columns: [cards.columns[0], cards.columns[1], { ...cards.columns[2], rules: { codeLast4: { of: 'id' } } }] })).join('\n')).toContain('"cards.id" is neither a code Adminium makes');
+    // A code a person types and a look-up of the same row reads: its last four are kept too (a gift card's, on the payment it made).
+    const typed = {
+      ref: 'card_payments',
+      columns: [
+        { ref: 'id', type: 'int', role: 'pk' },
+        { ref: 'card_code', type: 'text', maxLength: 64, nullable: true },
+        { ref: 'card_id', type: 'fk', references: 'cards', nullable: true, rules: { lookup: { from: 'card_code', table: 'cards', column: 'code' } } },
+        { ref: 'card_last4', type: 'text', maxLength: 4, nullable: true, rules: { codeLast4: { of: 'card_code' } } },
+        { ref: 'note', type: 'text', maxLength: 40, nullable: true },
+      ],
+    };
+    const both = (payments: Doc) => ({ ...(structuredClone(LEDGER_HOST) as unknown as Doc), requiredSchema: { prefixed: true, tables: [...LEDGER_HOST.requiredSchema.tables, cards, payments] } });
+    expect(issuesOf(both(typed))).toEqual([]);
+    // …and of no other text: a note is no code.
+    expect(issuesOf(both({ ...typed, columns: [...typed.columns.slice(0, 3), { ...typed.columns[3], rules: { codeLast4: { of: 'note' } } }, typed.columns[4]] })).join('\n')).toContain('"card_payments.note" is neither a code Adminium makes');
   });
 });

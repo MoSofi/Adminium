@@ -2339,7 +2339,11 @@ export function appReferenceIssues(
         const of = index.column(table.ref, rules.codeLast4.of) as { ref: string; rules?: ColumnRules } | undefined;
         if (column.type !== 'text' || column.nullable !== true) out.push({ path: here('codeLast4'), message: 'the last four of a code are kept in a nullable text column' });
         if (of === undefined) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}" has no column "${rules.codeLast4.of}"` });
-        else if (of.rules?.code === undefined || of.ref === column.ref) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}.${of.ref}" is not a code Adminium makes (rules.code)` });
+        else {
+          // A code Adminium makes, or one a person types that a look-up on this table reads (a gift card's code on a payment).
+          const typed = table.columns.some((other) => (other.rules as ColumnRules | undefined)?.lookup?.from === of.ref);
+          if ((of.rules?.code === undefined && !typed) || of.ref === column.ref) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}.${of.ref}" is neither a code Adminium makes (rules.code) nor a code a look-up reads (rules.lookup.from)` });
+        }
         const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('codeLast4'), message: `the last four of a code are copied from it, not also decided by ${others.join(', ')}` });
         decide(table.ref, column.ref);

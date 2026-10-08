@@ -510,8 +510,9 @@ export function columnRuleIssue(
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       const of = String(value['of']);
       if (of === column.name || table?.columns.some((c) => c.name === of) !== true) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(of)} to take the last four of.`;
-      const coded = (related?.rules ?? []).some((rule) => rule.op === 'column.code' && rule.columnName === of);
-      if (related !== undefined && !coded) return `${JSON.stringify(of)} is not a code Adminium makes, so there is nothing to take the last four of.`;
+      // A code Adminium makes, or one a person types that a look-up of the same table reads.
+      const coded = (related?.rules ?? []).some((rule) => (rule.op === 'column.code' && rule.columnName === of) || (rule.op === 'column.lookup' && (rule.value as { from?: unknown } | null)?.from === of));
+      if (related !== undefined && !coded) return `${JSON.stringify(of)} is neither a code Adminium makes nor a code a look-up reads, so there is nothing to take the last four of.`;
       return null;
     }
 

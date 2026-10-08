@@ -161,6 +161,8 @@ export function shopManifest(): Doc {
             { ref: 'method', type: 'enum', enum: ['cash', 'gift_card'], default: 'cash' },
             text('note', 80, { nullable: true }),
             text('card_code', 64, { nullable: true }),
+            // What a list shows of the card that paid: Adminium cuts it from the code as typed.
+            text('card_last4', 4, { nullable: true, rules: { codeLast4: { of: 'card_code' } } }),
             link('card_id', 'gift_cards', { lookup: { from: 'card_code', table: { addOn: OFFERS, table: 'gift_cards' }, column: 'code', where: [{ column: 'status', eq: 'active' }] } }),
             // A payment of exactly so much, where the customer says how much the card is to pay.
             money('asked', { nullable: true }),

@@ -57,6 +57,8 @@ describe.each(LEGS)('gift cards through a shop — %s', (dialect, available) => 
     const id = await order(4);
     expect(money2((await w.row('shop_orders', id))['due'])).toBe('60.48');
     const paid = await w.create('shop_payments', { order_id: id, method: 'gift_card', card_code: card.code });
+    // The payment keeps the last four of the code as it was typed, whatever a writer sends for them.
+    expect(paid['card_last4']).toBe(card.code.replace(/[^0-9A-Za-z]/g, '').slice(-4).toUpperCase());
     // The amount is the card's to give: all nineteen, and what is left on it is said beside.
     const payment = await w.row('shop_payments', paid['id']);
     expect(money2(payment['amount'])).toBe('19.00');
