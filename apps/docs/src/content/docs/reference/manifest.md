@@ -381,7 +381,7 @@ change or delete is theirs from then on.
 | `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](#formulas). |
 | `normalize` | `"trim"`, `"email"` or `"code"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case, `code` compared as a code (upper case, spaces and dashes left out) when a person types one; see [Typed codes](#typed-codes). |
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
-| `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. |
+| `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
@@ -1998,7 +1998,8 @@ values. The names are the ones [public access](#public-access) uses:
   "limits": {
     "appointments": {
       "writable": ["status"],
-      "writableValues": { "status": ["roomed", "with_clinician", "ready"] }
+      "writableValues": { "status": ["roomed", "with_clinician", "ready"] },
+      "writableFrom": { "status": ["checked_in", "roomed", "with_clinician"] }
     }
   }
 }
@@ -2008,6 +2009,7 @@ values. The names are the ones [public access](#public-access) uses:
 |---|---|---|
 | `writable` | no | The columns the update may change, at least one. |
 | `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
+| `writableFrom` | no | `{ "<column>": [1–32 values] }`: the update reaches a row only while that column of the row holds one of these values. Any column of the table, in `writable` or not. Needs `writable`, and `minAdminiumVersion` 0.3.19 or later. |
 | `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key and the table's links to other rows are always read. Needs the role's `table:@<ref>:read`. |
 | `creatable` | no | The only columns a new row the role creates may be given; the rest take their defaults or what Adminium decides. Needs the role's `table:@<ref>:create`. |
 | `creatableValues` | no | For a column in `creatable`, the only values a new row may be given (1–32). Needs `creatable`. |
@@ -2020,7 +2022,18 @@ limited. Creating rows is not limited by `writable`; `creatable` limits it the s
 create itself, a row added from a parent's form, and an import (which may not bring in a column
 outside `creatable`, nor one whose values are limited). A value left empty, and the state column at
 its first state, are no choice and always pass. Every install and update writes the
-manifest's current limits. See [Edits limited to some columns](/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
+manifest's current limits.
+
+`writableValues` says what a column may be moved **to**; `writableFrom` says what a row may be
+moved **from**. It is judged on the row as it is stored, never on what the request says of it, and
+whatever the update changes: a clinician who may move a visit along from `checked_in`, `roomed` or
+`with_clinician` cannot change a visit that is already `seen` at all — not its status, not another
+column, not a line under it sent through the visit's form. The refusal is `403 COLUMN_FORBIDDEN`
+with `reason: "update-from"`, the column and the values. It holds on a single change, a bulk
+change (one row out of reach refuses the whole batch), a row-by-row change (that row only) and a
+record's own action. Roles add up here too: a role with an unlimited update lifts it; of two
+limited roles, a column only one of them judges by is not judged, and where both do, a value either
+lists is enough. A create is not held by it: a new row under a parent is the child table's create. See [Edits limited to some columns](/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
 
 `readable` limits what the role **reads** the same way: housekeeping reads a stay's room and dates,
 and none of its guest or its money.

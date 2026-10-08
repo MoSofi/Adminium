@@ -2,6 +2,29 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A total may also add up another table's totals: an option's price into its line, the line into
+its order, the order into the customer's lifetime total. Such totals **climb**, at most three
+tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
+other). A write that moves a total at the bottom settles every total above it in the same
+transaction: each level adds up what the level below has just written, then works out its
+formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
+create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
+writers take the rows in one order (the highest parent first), so they never wait on each other
+crosswise; a line moved to another order while a write was reading it is refused `409`
+`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
+
+Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
+never through a floating-point number.
+
+A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
+against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
+cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
+writable while the capped rows can exist: lock those columns with the table's
+[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
+written in or reached from.
+
+#### Formulas
+
 A `formula` works a number out from the other columns of the same row: a line's amount, a
 document's tax and total.
 
@@ -80,38 +103,3 @@ may not read itself, formulas may not read each other in a circle, and an expres
 once to the column's scale, like any formula, and they can be counted with further:
 `{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
 update that moves only the stop works the hours out again from the start as stored.
-
-- **The time that passed.** Hours are real elapsed time. A column that keeps a zone (Postgres
-  `timestamptz`, MySQL `TIMESTAMP`) holds the moment itself. One that keeps none (MySQL `DATETIME`,
-  which is what an app's `timestamptz` column becomes on MySQL, Postgres `timestamp`, and SQLite
-  text) is read on the Adminium server's clock, the clock Adminium writes such times on. So on a
-  server in Europe/London, 00:30 → 03:30 on the night the clocks go forward is `2.00`, and
-  00:30 → 02:30 on the night they go back is `3.00`, on every engine. Run the server in the zone the
-  times are kept in.
-- **A time written without a zone.** Sent for a column that keeps a zone, `2026-09-25 11:45` is
-  11:45 on the Adminium server's clock — the moment the hours are counted to and the moment that is
-  stored, whatever zone the database's session is in. A stop stamped `now` is that moment too.
-- **What SQLite keeps.** A start SQLite fills with `unixepoch()` (seconds since 1970) is read as
-  that moment, and so is a text with its zone after a space (`2026-09-25 09:15:00 +02:00`).
-- **Empty for a missing, impossible or backwards span.** An empty start or stop leaves the hours
-  empty, and so does a day or an hour the calendar does not have (30 February stays no time, not 2
-  March). So does a stop before its start: a negative number of hours would quietly take pay off a
-  total, so the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
-- **Too many to keep.** Hours the column cannot hold (centuries in a `numeric(6, 2)`) are refused,
-  `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
-  every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
-  result its column cannot hold is refused the same way.
-
-`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
-stay from its arrival to its departure. A night the clocks change is still one night. An empty
-date, or a `to` before its `from`, leaves the result empty.
-
-#### Joined text
-
-A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
-line's description.
-
-```json
-{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
-  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
-```
