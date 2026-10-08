@@ -90,6 +90,22 @@ describe.each(LEGS)('the three roles — %s', (dialect, available) => {
     expect((res.json() as { error: { code: string; details: Doc } }).error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: { column: 'cost_avg' } });
   });
 
+  it.skipIf(!run)('a card that adds up a cost answers the manager and is refused the clerk: no total leaks through a widget', async () => {
+    const at = await kit('max');
+    const card = (aggregations: unknown[]) => ({ descriptor: { kind: 'table-query', connectionId: at.connectionId, source: { name: 'inventory_stock_points', type: 'table' }, shape: 'metric+delta', aggregations } });
+    const value = card([{ fn: 'sum', column: 'value', alias: 'value' }]);
+    const boss = await as('max', 'POST', '/api/v1/widget-data/query', value);
+    expect(boss.statusCode, boss.body.slice(0, 300)).toBe(200);
+    expect(Number((boss.json() as { result: { value: unknown } }).result.value)).toBeCloseTo(12.4, 2);
+    const clerk = await as('cal', 'POST', '/api/v1/widget-data/query', value);
+    expect(clerk.statusCode, clerk.body.slice(0, 300)).toBeGreaterThanOrEqual(400);
+    expect(clerk.body).not.toContain('12.4');
+    // A count of the same rows is the clerk's to read: it is no cost.
+    const counted = await as('cal', 'POST', '/api/v1/widget-data/query', card([{ fn: 'count', alias: 'points' }]));
+    expect(counted.statusCode, counted.body.slice(0, 300)).toBe(200);
+    expect(Number((counted.json() as { result: { value: unknown } }).result.value)).toBe(1);
+  });
+
   it.skipIf(!run)('a clerk may receive and count, and may not set things up; a viewer changes nothing', async () => {
     const clerk = await kit('cal');
     expect(clerk.tables['receipts']!.can).toMatchObject({ read: true, create: true });
