@@ -2083,7 +2083,8 @@ export default {
         "normalizeEmail": "Ukládá se bez okrajových mezer a malými písmeny",
         "normalizeTrim": "Ukládá se bez mezer na začátku a na konci",
         "states": "Mění se jen kroky, které jeho pravidla dovolují",
-        "statesLock": "řádek je zamčený, dokud je {states}"
+        "statesLock": "řádek je zamčený, dokud je {states}",
+        "priced": "Zapisuje cenové pravidlo tabulky {table}: počítá se při každém uložení a nikdo jiný ho nenastavuje."
       },
       "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny.",
       "fillFromCurrency": "Měna připojení",

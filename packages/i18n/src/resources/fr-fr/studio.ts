@@ -2083,7 +2083,8 @@ export default {
         "normalizeEmail": "Enregistré sans espaces aux extrémités et en minuscules",
         "normalizeTrim": "Enregistré sans espaces au début ni à la fin",
         "states": "Ne change que par les étapes que ses règles permettent",
-        "statesLock": "la ligne est verrouillée tant qu’elle est {states}"
+        "statesLock": "la ligne est verrouillée tant qu’elle est {states}",
+        "priced": "Écrit par la règle de prix de {table} : calculé à chaque enregistrement, et défini par personne d’autre."
       },
       "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement.",
       "fillFromCurrency": "La devise de la connexion",

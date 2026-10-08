@@ -70,6 +70,31 @@ function guaranteeText(rule: ShapeRule): string {
   }
 }
 
+/**
+ * The columns a stored price rule makes Adminium's own, each with its table:
+ * every reduction, who gave one by hand, whether the customer was proved, the
+ * links a typed code fills, a refund's amount and tax.
+ */
+export function priceRuleWrites(orderTable: string, rule: Record<string, unknown>): { table: string; column: string }[] {
+  const out: { table: string; column: string }[] = [];
+  const add = (table: unknown, column: unknown) => {
+    if (typeof table === 'string' && typeof column === 'string') out.push({ table, column });
+  };
+  const part = (value: unknown): Record<string, unknown> => (typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {});
+  const order = part(rule['order']);
+  add(orderTable, order['discount']);
+  add(orderTable, part(order['staff'])['by']);
+  add(orderTable, part(order['customer'])['proved']);
+  for (const line of Array.isArray(rule['lines']) ? rule['lines'] : []) add('self' in part(line) ? orderTable : part(line)['table'], part(line)['discount']);
+  const codes = part(rule['codes']);
+  add(codes['table'], codes['code']);
+  add(codes['table'], codes['voucher']);
+  const refunds = part(rule['refunds']);
+  add(refunds['table'], refunds['amount']);
+  add(refunds['table'], refunds['tax']);
+  return out;
+}
+
 export function ColumnInspector({ model, table, column, buffer, fieldError, shapeRules = [] }: ColumnInspectorProps) {
   /*
    * A RULE A SHAPE SET is the operator's to change (it is stored like any app
@@ -225,6 +250,12 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
     statesEntry !== null && statesEntry.item.op === 'table.states' && statesEntry.item.value['column'] === column.name
       ? (statesEntry.item.value as { lock?: { when?: string[] } })
       : undefined;
+  // A price rule (an add-on lowering what an order costs) writes columns of its order table and of the tables under it: shown on
+  // each such column, with the table whose rule it is. The rule is the table's, so it is not removed from here.
+  const pricedBy = model.tables.find((order) => {
+    const entry = buffer.get(overrideKey({ op: 'table.adjust', tableName: order.id, value: {} }));
+    return entry !== null && entry.item.op === 'table.adjust' && priceRuleWrites(order.id, entry.item.value).some((one) => one.table === table.id && one.column === column.name);
+  });
   /** What a stamp writes, in words. */
   const stampWhat = (set: StampRule['set']): string => {
     if (typeof set === 'object') {
@@ -745,6 +776,17 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
             </Button>
           </div>
         ) : null}
+
+        {pricedBy === undefined ? null : (
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface-2 p-3 text-[12.5px] text-fg" data-testid="rules-priced">
+            <span className="text-body-sm font-semibold text-fg">{t('studio:remap.rules.decided.title', 'Decided by Adminium')}</span>
+            <span>
+              {t('studio:remap.rules.decided.priced', 'Written by the price rule of {table}: worked out inside every save, and set by nobody else.', {
+                table: tableDisplayLabel(pricedBy),
+              })}
+            </span>
+          </div>
+        )}
 
         {copy !== undefined ||
         sequence !== undefined ||

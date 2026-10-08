@@ -2073,7 +2073,8 @@
         "normalizeEmail": "Ohne Leerzeichen am Rand und in Kleinbuchstaben gespeichert",
         "normalizeTrim": "Ohne Leerzeichen am Anfang und Ende gespeichert",
         "states": "Ändert sich nur durch die Schritte, die seine Regeln erlauben",
-        "statesLock": "die Zeile ist gesperrt, solange sie {states} ist"
+        "statesLock": "die Zeile ist gesperrt, solange sie {states} ist",
+        "priced": "Von der Preisregel von {table} geschrieben: bei jedem Speichern berechnet und von niemandem sonst gesetzt."
       },
       "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals.",
       "fillFromCurrency": "Die Währung der Verbindung",

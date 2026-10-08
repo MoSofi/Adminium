@@ -2083,7 +2083,8 @@ export default {
         "normalizeEmail": "Gemmes uden mellemrum i enderne og med små bogstaver",
         "normalizeTrim": "Gemmes uden mellemrum i begge ender",
         "states": "Ændres kun ved de skridt, dens regler tillader",
-        "statesLock": "rækken er låst, mens den er {states}"
+        "statesLock": "rækken er låst, mens den er {states}",
+        "priced": "Skrevet af prisreglen for {table}: beregnet ved hver lagring og sat af ingen andre."
       },
       "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid.",
       "fillFromCurrency": "Forbindelsens valuta",

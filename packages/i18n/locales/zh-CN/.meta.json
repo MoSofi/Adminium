@@ -23515,6 +23515,10 @@
     "status": "mt",
     "srcHash": "e77ca7285362"
   },
+  "studio.remap.rules.decided.priced": {
+    "status": "mt",
+    "srcHash": "ec9eaca3f3f6"
+  },
   "studio.remap.rules.decided.remove": {
     "status": "mt",
     "srcHash": "558f30c29f6d"

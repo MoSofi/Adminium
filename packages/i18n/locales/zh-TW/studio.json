@@ -2073,7 +2073,8 @@
         "normalizeEmail": "去除首尾空格並以小寫儲存",
         "normalizeTrim": "去除首尾空格後儲存",
         "states": "只能按其規則允許的步驟變更",
-        "statesLock": "當其為 {states} 時該列被鎖定"
+        "statesLock": "當其為 {states} 時該列被鎖定",
+        "priced": "由 {table} 的價格規則寫入：每次儲存時計算，其他任何人都不能設定。"
       },
       "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。",
       "fillFromCurrency": "連線的貨幣",

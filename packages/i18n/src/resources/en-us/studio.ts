@@ -2083,7 +2083,8 @@ export default {
         "normalizeEmail": "Stored trimmed and in lower case",
         "normalizeTrim": "Stored without spaces at either end",
         "states": "Changes only by the moves its rules allow",
-        "statesLock": "the row is locked while it is {states}"
+        "statesLock": "the row is locked while it is {states}",
+        "priced": "Written by the price rule of {table}: worked out inside every save, and set by nobody else."
       },
       "venueLocal": "A time written here without a zone is the venue’s own time.",
       "fillFromCurrency": "The connection’s currency",
