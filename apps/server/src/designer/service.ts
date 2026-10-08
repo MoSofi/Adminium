@@ -888,7 +888,7 @@ export function createDesigner(host: DesignerHost): Designer {
           const fonts = missingFonts(host.root, look, places).map((font) => font.family);
           handle.events.emit(session.turns, { kind: 'style', skill: look.skill, title: resolved.title, ...(fonts.length === 0 ? {} : { fonts }) });
         }
-        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: saveLabel(paths) });
+        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: saveLabel(paths.map((path) => listed.get(path)?.label ?? path)) });
         const after = new Map((await editable(key)).map((file) => [file.path, file.hash]));
         const result: SaveResult = {
           applied: verdict.ok,

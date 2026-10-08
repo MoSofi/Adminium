@@ -21,7 +21,7 @@ const look = EditorView.theme({
   '.cm-content': { padding: '12px 28px 12px 10px', caretColor: 'var(--fg)' },
   '.cm-line': { padding: '0' },
   // The numbers stay where they are when a long line is scrolled sideways, so they need a ground of their own.
-  '.cm-gutters': { minWidth: '50px', backgroundColor: 'var(--surface)', border: 'none', color: 'var(--fg-subtle)', paddingBlock: '0', userSelect: 'none', transition: 'opacity .2s ease' },
+  '.cm-gutters': { minWidth: '50px', backgroundColor: 'var(--surface)', border: 'none', color: 'var(--fg-subtle)', paddingBlock: '0', userSelect: 'none' },
   '.cm-lineNumbers': { flex: '1 1 auto' },
   '.cm-lineNumbers .cm-gutterElement': { textAlign: 'end', padding: '0 8px 0 16px', minWidth: '50px', boxSizing: 'border-box' },
   '.cm-gutter': { paddingBlockStart: '0' },
@@ -29,8 +29,8 @@ const look = EditorView.theme({
   '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg)' },
   '.cm-cursor, .cm-dropCursor': { borderInlineStartColor: 'var(--fg)' },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: 'var(--accent-selection, var(--accent-soft))' },
-  // Held: the text keeps its full strength (it must still be read), the furniture steps back.
-  [`&.${HELD_CLASS} .cm-gutters`]: { opacity: '0.6' },
+  // Held: only the caret line's tint steps back. The text and the line numbers keep their full strength:
+  // both are read while held, and neither grey survives being dimmed (the numbers at 60 % measure 2.7:1).
   [`&.${HELD_CLASS} .cm-activeLine`]: { backgroundColor: 'color-mix(in srgb, var(--cur-line) 60%, transparent)' },
 });
 

@@ -69,7 +69,8 @@ export function CodeBarEnd({ code }: { code: CodeFiles }): ReactNode {
         <button type="button" onClick={() => void code.save()} disabled={!code.canSave} aria-keyshortcuts="Control+S Meta+S" className={`${SMALL} bg-accent text-accent-fg shadow-glow hover:brightness-105 disabled:shadow-none`}>
           {code.saving ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
           {saveLabel}
-          <kbd aria-hidden="true" className="rounded-[5px] bg-white/20 px-[5px] py-px font-mono text-[10.5px] font-semibold">
+          {/* A darker patch of the button, not a lighter one: the cap's letters are small, and on a lightened accent they fall under 4.5:1. */}
+          <kbd aria-hidden="true" className="rounded-[5px] bg-black/15 px-[5px] py-px font-mono text-[10.5px] font-semibold">
             {saveKeyCap()}
           </kbd>
         </button>

@@ -424,6 +424,15 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     expect(again.body).toMatchObject({ applied: true });
   });
 
+  it('names a version by the file as the page calls it, not as it is on disk', async () => {
+    const { client, id } = await withApp({ side: true });
+    // On disk the page is `repair-desk-items.json`; the list, and so the Code tab, call it `items.json`.
+    expect((await listed(client, id)).all.get(PAGE)?.label).toBe('dashboard/pages/items.json');
+    const saved = await save(client, id, { [PAGE]: `${disk(PAGE)}\n` });
+    expect(saved.body, JSON.stringify(saved.body)).toMatchObject({ applied: true });
+    expect((saved.body['version'] as { name: string }).name).toMatch(/^v\d+ · Your edit to items\.json$/);
+  });
+
   it('applies a save, keeps it as a version named for the files, says so as a person’s events, and tells the Designer’s next turn', async () => {
     const { client, id } = await withApp({ side: true });
     const one = await save(client, id, { [DESIGN_CSS]: '.mine { color: teal; }\n' });
