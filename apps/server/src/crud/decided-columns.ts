@@ -283,6 +283,41 @@ async function largestNumber(target: ResolveTarget, sequence: ColumnSequence): P
 }
 
 /**
+ * A row that brings its own number (an import, a sample, a number somebody
+ * typed) moves the series past it. The counter is made from the table's
+ * largest number only once; a number written beside it afterwards was handed
+ * out again later, and that create failed on the number's own uniqueness.
+ * Only a counter that exists is raised: one not made yet reads the table when
+ * it is.
+ */
+async function keepAhead(rules: TableRules | null, target: ResolveTarget & { connectionId: string }, values: Row, store: SequenceStore): Promise<void> {
+  for (const sequence of rules?.sequences ?? []) {
+    if (!has(values, sequence.column)) continue;
+    const given = Number(values[sequence.column]);
+    if (!Number.isFinite(given)) continue;
+    const key = sequenceKey(target.connectionId, target.table, sequence.column);
+    const counter = await store.read(key);
+    if (counter !== null && counter.next <= given) await store.raiseTo(key, Math.floor(given) + 1);
+  }
+}
+
+/**
+ * Every counter of a table moved past the largest number the table holds:
+ * for rows written beside the write path (sample data goes in as history,
+ * with the numbers it was written with). A counter not made yet is left to
+ * be made from the table.
+ */
+export async function countersPastTheTable(rules: TableRules | null, target: ResolveTarget & { connectionId: string }, store: SequenceStore): Promise<void> {
+  for (const sequence of rules?.sequences ?? []) {
+    const key = sequenceKey(target.connectionId, target.table, sequence.column);
+    const counter = await store.read(key);
+    if (counter === null) continue;
+    const top = await largestNumber(target, sequence);
+    if (counter.next <= top) await store.raiseTo(key, top + 1);
+  }
+}
+
+/**
  * The values with every absent numbered column given its next number. Run
  * after CHECK, immediately before the statement. Creates only.
  */
@@ -293,6 +328,7 @@ export async function claimSequences(
   values: Row,
   store: SequenceStore | undefined,
 ): Promise<Row> {
+  if (action === 'create' && store !== undefined) await keepAhead(rules, target, values, store);
   const sequences = action === 'create' ? (rules?.sequences ?? []).filter((s) => !has(values, s.column)) : [];
   if (sequences.length === 0) return values;
   if (store === undefined) {

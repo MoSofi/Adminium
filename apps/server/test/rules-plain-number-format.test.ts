@@ -57,5 +57,22 @@ for (const [dialect, available] of LEGS) {
       await w.update('slips', second['id'], { note: 'c' });
       expect(await stored(second['id'])).toMatchObject({ number: 'SL-0002', code: 'PO-1002' });
     });
+
+    it('a row that brings its own number moves the series past it: the next number is never one a row already holds', async () => {
+      const h = await installInvoicing(dialect, manifest());
+      open = h;
+      const w = await writerFor(h);
+      const seqOf = async (key: unknown) => Number((await h.rows(`select seq from ${h.real('slips')} where id = ${String(key)}`))[0]!['seq']);
+      // The series is counting: 1.
+      expect(await seqOf((await w.create('slips', { note: 'first' }))['id'])).toBe(1);
+      // An import, a sample, somebody's own number: written as it is given, and the series goes on after it.
+      expect(await seqOf((await w.create('slips', { note: 'brought', seq: 5, number: 'SL-0005' }))['id'])).toBe(5);
+      const next = await w.create('slips', { note: 'next' });
+      expect(next).toMatchObject({ number: 'SL-0006' });
+      expect(await seqOf(next['id'])).toBe(6);
+      // A number brought from BEHIND the series moves nothing.
+      await w.create('slips', { note: 'old', seq: 3, number: 'SL-0003' });
+      expect(await seqOf((await w.create('slips', { note: 'after' }))['id'])).toBe(7);
+    });
   });
 }

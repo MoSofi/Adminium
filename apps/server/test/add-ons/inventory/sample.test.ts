@@ -317,3 +317,39 @@ describe.each(LEGS)('Inventory\'s sample data, taken out and put in again — %s
     expect(yes((await w.h.rows(`select unassigned from ${w.real('batches')} where code = '-' limit 1`))[0]!['unassigned'])).toBe(true);
   }, 600_000);
 });
+
+describe.each(LEGS)('Inventory\'s sample data beside an owner\'s own documents — %s', (dialect, available) => {
+  const run = available && inventory !== null && sampleFile !== undefined;
+  let w: Writing;
+  beforeAll(async () => {
+    if (run) w = await writing(await installBuilt(dialect, inventory));
+  }, 240_000);
+  afterAll(async () => {
+    if (run) await w.h.close();
+  });
+
+  it.skipIf(!run)('an order made before the sample keeps its number, the sample\'s orders take the next ones, and the next new order is numbered after them all', async () => {
+    const numberOf = async (id: unknown) => (await w.h.rows(`select number from ${w.real('purchase_orders')} where id = ${String(id)}`))[0]!['number'];
+    const place = (await w.create('places', { name: 'Our own shelf' })).row['id'];
+    const supplier = (await w.create('suppliers', { name: 'Our own supplier' })).row['id'];
+    // The owner's first order starts the series: PO-1001, the number the sample's first order was written with.
+    const mine = (await w.create('purchase_orders', { supplier_id: supplier, place_id: place })).row['id'];
+    expect(await numberOf(mine)).toBe('PO-1001');
+
+    const owner = (await findSampleOwner(w.h.meta, 'inventory', 'add-on'))!;
+    await createSampleDataService(w.h.sampleData).add(owner, { locale: 'en-US', userId: w.h.owner.id, userLabel: 'owner@test' });
+    const numbers = (await w.h.rows(`select number from ${w.real('purchase_orders')} order by id`)).map((row) => row['number']);
+    // Four orders, four numbers, none twice: the owner's kept its own.
+    expect(numbers[0]).toBe('PO-1001');
+    expect(new Set(numbers).size).toBe(4);
+
+    // The next order of the owner's: after every number in the table, whoever wrote it.
+    const next = (await w.create('purchase_orders', { supplier_id: supplier, place_id: place })).row['id'];
+    const top = Math.max(...numbers.map((number) => Number(String(number).replace('PO-', ''))));
+    expect(await numberOf(next)).toBe(`PO-${String(top + 1)}`);
+    // And a receipt, a transfer and a count likewise: the sample wrote RC-0001 … 0005, TR-0001 / 0002 and CNT-0001.
+    const receipt = (await w.create('receipts', { place_id: place, kind: 'opening' })).row['id'];
+    expect((await w.h.rows(`select number from ${w.real('receipts')} where id = ${String(receipt)}`))[0]!['number']).toBe('RC-0006');
+  }, 600_000);
+});
+

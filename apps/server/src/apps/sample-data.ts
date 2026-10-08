@@ -68,6 +68,7 @@ import {
   appTablesRepo,
   auditRepo,
   connectionTenantConfig,
+  documentSequencesRepo,
   filesRepo,
   isId,
   jobsRepo,
@@ -86,7 +87,7 @@ import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager, DataHandle, SourceDatabase } from '../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../crud/identifiers.js';
 import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
-import { isUniqueViolation } from '../crud/decided-columns.js';
+import { countersPastTheTable, isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
 import { createWriteService, deleteRows, insertRow, type WriteContext, type WriteTarget } from '../crud/write-service.js';
@@ -1700,7 +1701,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 .select(sql`1`.as('taken'))
                 .where(sql.ref(decided.column), '=', value as never)
                 .executeTakeFirst();
-              if (taken !== undefined) delete values[decided.column];
+              if (taken !== undefined) {
+                delete values[decided.column];
+                // The number as people read it ("PO-1001") is written from its running number: decided again with it.
+                const written = (decided as { format?: { column: string } }).format?.column;
+                if (written !== undefined) delete values[written];
+              }
             }
             /*
              * Any other one-of-a-kind value the table already holds is one of
@@ -1855,6 +1861,14 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .execute();
         }
       });
+
+      // A sample row is written with the number it was given (PO-1001): a series already counting is moved past it,
+      // or the owner's next order would be handed a number the sample holds.
+      for (const table of bundle.tables) {
+        if (skipped.has(table.ref)) continue;
+        const resolved = view.table(names[table.ref] ?? table.ref);
+        await countersPastTheTable(tableRulesFor({ view, table: resolved }), { db: asDb(handle.db), table: resolved, connectionId } as never, documentSequencesRepo(deps.meta));
+      }
 
       // A row that named its own key leaves an identity sequence behind it.
       if (handle.dialect === 'postgres') {
