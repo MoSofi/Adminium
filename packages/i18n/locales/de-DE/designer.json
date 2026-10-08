@@ -197,7 +197,8 @@
     "views": "Ansicht",
     "openDash": "Dashboard öffnen",
     "renameTip": "Umbenennen",
-    "renamed": "Umbenannt in {name}"
+    "renamed": "Umbenannt in {name}",
+    "chatWaiting": "Der Designer wartet auf Ihre Antwort"
   },
   "card": {
     "addIt": "Hinzufügen",
@@ -380,7 +381,8 @@
   "work": {
     "architecture": "Aufbau",
     "preview": "Vorschau",
-    "label": "Arbeitsbereich"
+    "label": "Arbeitsbereich",
+    "code": "Code"
   },
   "preview": {
     "buildingCustomer": "Die Kundenseite wird gebaut…",
@@ -667,5 +669,58 @@
     "added": "Hinzugefügte Bilder: {count}. Ihre Bildnachweise werden mit ihnen aufbewahrt.",
     "noneChosen": "Du hast keines gewählt. Der Designer zeichnet stattdessen Kacheln.",
     "sendNone": "Senden — keines verwenden"
+  },
+  "code": {
+    "saved": "Als {version} gespeichert. Der Designer sieht Ihre Änderung.",
+    "busy": "Die App wird gerade geändert. Versuchen Sie es gleich noch einmal.",
+    "saveFailed": "Ihre Änderungen wurden nicht gespeichert",
+    "discardFile": "Änderungen an {file} verwerfen",
+    "saveCount": "{count} Dateien speichern",
+    "save": "Speichern",
+    "openFile": "Geöffnete Datei",
+    "unsaved": "Nicht gespeicherte Änderungen",
+    "discard": "Änderungen verwerfen",
+    "groupCustomer": "Kundenseite",
+    "groupStaff": "Mitarbeiterseite",
+    "groupDashboard": "Dashboard-Seite",
+    "groupSettings": "Design und Einstellungen",
+    "lockTurn": "Der Designer arbeitet. Sie können wieder bearbeiten, sobald er fertig ist.",
+    "lockWaiting": "Der Designer wartet im Chat auf Ihre Antwort.",
+    "lockSave": "Wird gespeichert…",
+    "lockStyle": "Der Stil wird geändert. Sie können gleich wieder bearbeiten.",
+    "lockRestore": "Die Dateien werden zurückgesetzt. Sie können gleich wieder bearbeiten.",
+    "lockStart": "Die App wird geändert. Sie können gleich wieder bearbeiten.",
+    "readOnlyDesigner": "{file}, schreibgeschützt, solange der Designer arbeitet",
+    "readOnly": "{file}, vorerst schreibgeschützt",
+    "editing": "{file} wird bearbeitet. Drücken Sie Escape, um den Editor zu verlassen.",
+    "brief": "Die Designvorgabe",
+    "unsavedMark": "nicht gespeichert",
+    "gone": "Diese Datei gehört nicht mehr zur App. Kopieren Sie Ihren Text, falls Sie ihn brauchen.",
+    "changedUnder": "Diese Datei wurde geändert, während Sie sie bearbeitet haben.",
+    "keepMine": "Meine Änderungen behalten",
+    "useChanged": "Die geänderte Datei verwenden",
+    "refused": "Es wurde nichts gespeichert. {reason}",
+    "ok": "OK",
+    "unfinished": "Es wurde nichts gespeichert: Die letzte Änderung des Designers wurde nicht abgeschlossen. Bitten Sie ihn, sie abzuschließen, oder setzen Sie die Dateien zurück.",
+    "putBack": "Dateien zurücksetzen",
+    "notApplied": "Ihre Änderungen wurden gespeichert, aber die App wurde nicht angewendet. Die Vorschau zeigt den letzten funktionierenden Build.",
+    "fixMessage": "Ich habe einige Dateien von Hand geändert, und die App lässt sich nicht mehr anwenden: {error} Bitte behebe das.",
+    "listLoading": "Dateien werden geöffnet…",
+    "listFailed": "Die Dateien konnten nicht gelesen werden.",
+    "tryAgain": "Erneut versuchen",
+    "listEmpty": "Hier gibt es noch keine Dateien zum Ändern.",
+    "files": "Dateien",
+    "foot": "Hier werden nur die Dateien angezeigt, die Sie gefahrlos ändern können.",
+    "fileLoading": "{file} wird geöffnet…",
+    "fileFailed": "Diese Datei konnte nicht gelesen werden.",
+    "editorFailed": "Der Editor konnte nicht geladen werden.",
+    "editorLoading": "Editor wird geöffnet…",
+    "leaveTitle": "Ohne Speichern verlassen?",
+    "leaveBody": "Sie haben nicht gespeicherte Änderungen in {count, plural, one {# Datei} other {# Dateien}}. Sie gehen verloren, wenn Sie die Seite verlassen.",
+    "leaveStay": "Bleiben",
+    "leaveGo": "Verlassen",
+    "composerUnsaved": "Sie haben nicht gespeicherte Änderungen in {count, plural, one {# Datei} other {# Dateien}}. Der Designer sieht sie nicht.",
+    "saveFirst": "Zuerst speichern",
+    "sendAnyway": "Trotzdem senden"
   }
 }

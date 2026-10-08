@@ -145,6 +145,7 @@ export function WorkBar({
   preview,
   address,
   end,
+  endFills = false,
   onNotice,
   measuring = false,
   barRef,
@@ -157,6 +158,8 @@ export function WorkBar({
   address: ReactNode;
   /** What a tab other than the preview puts after the tabs. */
   end?: ReactNode;
+  /** That part takes the room the bar has left (the Code tab's), instead of sitting at its end. */
+  endFills?: boolean;
   /** A word for the person, said as the page says such things. */
   onNotice: (text: string) => void;
   measuring?: boolean;
@@ -321,7 +324,7 @@ export function WorkBar({
         </div>
       ) : null}
 
-      {end === undefined || tab === 'preview' ? null : <div className={`ms-auto flex min-w-0 items-center ${rows ? 'basis-full py-2' : ''}`}>{end}</div>}
+      {end === undefined || tab === 'preview' ? null : <div className={`flex min-w-0 items-center ${endFills ? 'flex-1' : 'ms-auto'} ${rows ? 'basis-full py-2' : ''}`}>{end}</div>}
     </div>
   );
 }

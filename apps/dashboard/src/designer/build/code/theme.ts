@@ -20,7 +20,8 @@ const look = EditorView.theme({
   '.cm-scroller': { fontFamily: 'var(--font-mono)', lineHeight: '20px', fontVariantLigatures: 'none', overflow: 'auto' },
   '.cm-content': { padding: '12px 28px 12px 10px', caretColor: 'var(--fg)' },
   '.cm-line': { padding: '0' },
-  '.cm-gutters': { minWidth: '50px', backgroundColor: 'transparent', border: 'none', color: 'var(--fg-subtle)', paddingBlock: '0', userSelect: 'none', transition: 'opacity .2s ease' },
+  // The numbers stay where they are when a long line is scrolled sideways, so they need a ground of their own.
+  '.cm-gutters': { minWidth: '50px', backgroundColor: 'var(--surface)', border: 'none', color: 'var(--fg-subtle)', paddingBlock: '0', userSelect: 'none', transition: 'opacity .2s ease' },
   '.cm-lineNumbers': { flex: '1 1 auto' },
   '.cm-lineNumbers .cm-gutterElement': { textAlign: 'end', padding: '0 8px 0 16px', minWidth: '50px', boxSizing: 'border-box' },
   '.cm-gutter': { paddingBlockStart: '0' },

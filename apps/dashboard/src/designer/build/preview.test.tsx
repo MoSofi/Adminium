@@ -13,6 +13,7 @@ import { ThemeProvider } from '@adminium/ui';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerSession } from '../api.js';
+import { idleCode } from './codeFiles.fixture.js';
 import { previewState, sideNamed } from './Preview.js';
 import { WorkArea } from './WorkArea.js';
 import { looksNow, sightFrom } from './sight.js';
@@ -100,7 +101,7 @@ function mount(turns: TurnView[] = [], onFix = vi.fn()) {
     <QueryClientProvider client={client}>
       <ThemeProvider>
         <div className="flex h-[600px]">
-          <WorkArea session={SESSION} turns={turns} onFix={onFix} onNotice={notices} />
+          <WorkArea code={idleCode()} session={SESSION} turns={turns} onFix={onFix} onNotice={notices} />
         </div>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -192,7 +193,7 @@ describe('the preview', () => {
       <QueryClientProvider client={client}>
         <ThemeProvider>
           <div className="flex h-[600px]">
-            <WorkArea session={SESSION} turns={turns} onFix={() => undefined} onNotice={notices} />
+            <WorkArea code={idleCode()} session={SESSION} turns={turns} onFix={() => undefined} onNotice={notices} />
           </div>
         </ThemeProvider>
       </QueryClientProvider>
@@ -232,7 +233,7 @@ describe('the preview', () => {
     expect(screen.queryByRole('radiogroup', { name: 'Side' })).toBeNull();
     // Tabs only: nothing of a preview there is none of.
     expect(screen.queryByRole('button', { name: 'Reload the preview' })).toBeNull();
-    expect(screen.getAllByRole('tab').map((entry) => entry.textContent)).toEqual(['Preview', 'Architecture']);
+    expect(screen.getAllByRole('tab').map((entry) => entry.textContent)).toEqual(['Preview', 'Architecture', 'Code']);
     expect(tickets).toEqual([]);
   });
 

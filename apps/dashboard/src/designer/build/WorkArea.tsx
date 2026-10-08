@@ -9,22 +9,45 @@
  * its words change: that one number says whether the chat and the work area
  * fit side by side at all, whatever tab is open.
  */
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Eye } from 'lucide-react';
+import { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Eye, LoaderCircle } from 'lucide-react';
 import { Tabs, TabsContent } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import type { DesignerSession } from '../api.js';
 import { AddressBar } from './AddressBar.js';
+import { CodeBarEnd } from './CodeBar.js';
 import { firstLevel, nextLevel, type BarLevel } from './barLevel.js';
 import { useKnownPages } from './knownPages.js';
 import { Preview } from './Preview.js';
 import type { TurnView } from './turns.js';
+import type { CodeFiles } from './useCodeFiles.js';
 import { usePreview } from './usePreview.js';
 import { seenAs, WorkBar, type WorkTab } from './WorkBar.js';
 
 /** The diagram library is loaded only when the tab opens. */
 const ArchitectureTab = lazy(() => import('../architecture/ArchitectureTab.js'));
+
+/** The editor's own part of the page did not arrive (the network, or a server restarted under the tab): said, with a way to ask again. */
+class EditorBoundary extends Component<{ onRetry: () => void; children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  override render(): ReactNode {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[13px] leading-[normal] text-fg-muted">
+        <p className="m-0 font-semibold">{t('designer:code.editorFailed', 'The editor could not be loaded.')}</p>
+        <button type="button" onClick={this.props.onRetry} className="rounded-[9px] border border-border-strong bg-surface px-3 py-1.5 text-[12.5px] font-bold text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent">
+          {t('designer:code.tryAgain', 'Try again')}
+        </button>
+      </div>
+    );
+  }
+}
 
 /** A phone-wide window: the preview has no width switch there. */
 function useNarrow(): boolean {
@@ -55,12 +78,15 @@ function withMark(sentence: (mark: string) => string, part: ReactNode): ReactNod
 export function WorkArea({
   session,
   turns,
+  code,
   onFix,
   onNotice,
   onFoldedNeed,
 }: {
   session: DesignerSession;
   turns: readonly TurnView[];
+  /** The files a person may change by hand, and what they have typed. */
+  code: CodeFiles;
   onFix: (message: string) => void;
   /** A word for the person, said as the page says such things. */
   onNotice: (text: string) => void;
@@ -71,11 +97,19 @@ export function WorkArea({
   const narrow = useNarrow();
   const preview = usePreview(session, turns);
   const onPreview = tab === 'preview';
-  // The third tab is added where its panel is: the bar takes whatever list it is given.
   const tabs: WorkTab[] = [
     { value: 'preview', label: t('designer:work.preview', 'Preview') },
     { value: 'architecture', label: t('designer:work.architecture', 'Architecture') },
+    { value: 'code', label: t('designer:work.code', 'Code') },
   ];
+  // The editor is loaded when the tab is first opened, and its panel is kept from then on: what was typed lives in it.
+  const [attempt, setAttempt] = useState(0);
+  // A new attempt asks for the chunk again: a failed one is remembered by the component it made.
+  const CodeTab = useMemo(() => lazy(() => import('./CodeTab.js')), [attempt]);
+  const { activate } = code;
+  useEffect(() => {
+    if (tab === 'code') activate();
+  }, [tab, activate]);
 
   const hasTools = !preview.noPreview && preview.app !== null;
   const pages = useKnownPages(session.id, session.appKey, preview.side, preview.visited, hasTools);
@@ -145,7 +179,11 @@ export function WorkArea({
           />
         }
         onNotice={onNotice}
+        endFills={tab === 'code'}
         end={
+          tab === 'code' ? (
+            <CodeBarEnd code={code} />
+          ) : (
           <span className="flex items-center gap-[7px] whitespace-nowrap text-[12px] font-semibold text-fg-muted">
             <Eye aria-hidden="true" className="size-3.5" />
             {session.version === null ? (
@@ -159,6 +197,7 @@ export function WorkArea({
               </span>
             )}
           </span>
+          )
         }
       />
       {hasTools ? (
@@ -185,6 +224,22 @@ export function WorkArea({
             </Suspense>
           ) : null}
         </TabsContent>
+        {code.active ? (
+          <TabsContent value="code" forceMount hidden={tab !== 'code'} className={`min-h-0 flex-1 flex-col pt-0 ${tab === 'code' ? 'flex' : 'hidden'}`}>
+            <EditorBoundary key={attempt} onRetry={() => setAttempt((count) => count + 1)}>
+              <Suspense
+                fallback={
+                  <p role="status" className="m-0 flex items-center gap-2 border-b border-border bg-surface-2 px-3.5 py-2 text-[12.5px] font-semibold leading-[normal] text-fg-muted">
+                    <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin text-accent" />
+                    {t('designer:code.editorLoading', 'Opening the editor…')}
+                  </p>
+                }
+              >
+                <CodeTab code={code} compact={narrow} onFix={onFix} />
+              </Suspense>
+            </EditorBoundary>
+          </TabsContent>
+        ) : null}
       </div>
     </Tabs>
   );

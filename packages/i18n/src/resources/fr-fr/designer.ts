@@ -207,7 +207,8 @@ export default {
     "views": "Vue",
     "openDash": "Ouvrir le tableau de bord",
     "renameTip": "Renommer",
-    "renamed": "Renommé en {name}"
+    "renamed": "Renommé en {name}",
+    "chatWaiting": "Le Designer attend votre réponse"
   },
   "card": {
     "addIt": "L’ajouter",
@@ -390,7 +391,8 @@ export default {
   "work": {
     "architecture": "Architecture",
     "preview": "Aperçu",
-    "label": "Espace de travail"
+    "label": "Espace de travail",
+    "code": "Code"
   },
   "preview": {
     "buildingCustomer": "Construction du côté client…",
@@ -677,5 +679,58 @@ export default {
     "added": "Images ajoutées : {count}. Leurs crédits sont conservés avec elles.",
     "noneChosen": "Vous n’en avez choisi aucune. Le Designer dessinera des tuiles à la place.",
     "sendNone": "Envoyer — n’en utiliser aucune"
+  },
+  "code": {
+    "saved": "Enregistré comme {version}. Le Designer verra votre modification.",
+    "busy": "L’application est en cours de modification. Réessayez dans un instant.",
+    "saveFailed": "Vos modifications n’ont pas été enregistrées",
+    "discardFile": "Annuler les modifications de {file}",
+    "saveCount": "Enregistrer {count} fichiers",
+    "save": "Enregistrer",
+    "openFile": "Fichier ouvert",
+    "unsaved": "Modifications non enregistrées",
+    "discard": "Annuler les modifications",
+    "groupCustomer": "Côté client",
+    "groupStaff": "Côté équipe",
+    "groupDashboard": "Côté tableau de bord",
+    "groupSettings": "Design et réglages",
+    "lockTurn": "Le Designer travaille. Vous pourrez modifier à nouveau quand il aura terminé.",
+    "lockWaiting": "Le Designer attend votre réponse dans la discussion.",
+    "lockSave": "Enregistrement…",
+    "lockStyle": "Le style est en cours de modification. Vous pourrez modifier à nouveau dans un instant.",
+    "lockRestore": "Les fichiers sont en cours de restauration. Vous pourrez modifier à nouveau dans un instant.",
+    "lockStart": "L’application est en cours de modification. Vous pourrez modifier à nouveau dans un instant.",
+    "readOnlyDesigner": "{file}, en lecture seule pendant que le Designer travaille",
+    "readOnly": "{file}, en lecture seule pour l’instant",
+    "editing": "Modification de {file}. Appuyez sur Échap pour quitter l’éditeur.",
+    "brief": "Le brief de design",
+    "unsavedMark": "non enregistré",
+    "gone": "Ce fichier ne fait plus partie de l’application. Copiez votre texte si vous en avez besoin.",
+    "changedUnder": "Ce fichier a changé pendant que vous le modifiiez.",
+    "keepMine": "Garder mes modifications",
+    "useChanged": "Utiliser le fichier modifié",
+    "refused": "Rien n’a été enregistré. {reason}",
+    "ok": "OK",
+    "unfinished": "Rien n’a été enregistré : la dernière modification du Designer n’a pas été terminée. Demandez-lui de la terminer, ou restaurez les fichiers.",
+    "putBack": "Restaurer les fichiers",
+    "notApplied": "Vos modifications ont été enregistrées, mais l’application n’a pas été appliquée. L’aperçu montre la dernière version qui fonctionnait.",
+    "fixMessage": "J’ai modifié des fichiers à la main et l’application ne s’applique plus : {error} Corrige cela, s’il te plaît.",
+    "listLoading": "Ouverture des fichiers…",
+    "listFailed": "Les fichiers n’ont pas pu être lus.",
+    "tryAgain": "Réessayer",
+    "listEmpty": "Il n’y a pas encore de fichiers à modifier ici.",
+    "files": "Fichiers",
+    "foot": "Seuls les fichiers que vous pouvez modifier sans risque sont affichés ici.",
+    "fileLoading": "Ouverture de {file}…",
+    "fileFailed": "Ce fichier n’a pas pu être lu.",
+    "editorFailed": "L’éditeur n’a pas pu être chargé.",
+    "editorLoading": "Ouverture de l’éditeur…",
+    "leaveTitle": "Quitter sans enregistrer ?",
+    "leaveBody": "Vous avez des modifications non enregistrées dans {count, plural, one {# fichier} other {# fichiers}}. Elles seront perdues si vous quittez la page.",
+    "leaveStay": "Rester",
+    "leaveGo": "Quitter",
+    "composerUnsaved": "Vous avez des modifications non enregistrées dans {count, plural, one {# fichier} other {# fichiers}}. Le Designer ne les verra pas.",
+    "saveFirst": "Enregistrer d’abord",
+    "sendAnyway": "Envoyer quand même"
   }
 } as const;

@@ -197,7 +197,8 @@
     "views": "Visning",
     "openDash": "Åbn dashboard",
     "renameTip": "Omdøb",
-    "renamed": "Omdøbt til {name}"
+    "renamed": "Omdøbt til {name}",
+    "chatWaiting": "Designeren venter på dit svar"
   },
   "card": {
     "addIt": "Tilføj den",
@@ -380,7 +381,8 @@
   "work": {
     "architecture": "Arkitektur",
     "preview": "Forhåndsvisning",
-    "label": "Arbejdsområde"
+    "label": "Arbejdsområde",
+    "code": "Kode"
   },
   "preview": {
     "buildingCustomer": "Bygger kundesiden…",
@@ -667,5 +669,58 @@
     "added": "Tilføjede billeder: {count}. Deres kreditering gemmes sammen med dem.",
     "noneChosen": "Du valgte ingen. Designer tegner fliser i stedet.",
     "sendNone": "Send — brug ingen"
+  },
+  "code": {
+    "saved": "Gemt som {version}. Designeren kan se din ændring.",
+    "busy": "Appen bliver ændret. Prøv igen om et øjeblik.",
+    "saveFailed": "Dine ændringer blev ikke gemt",
+    "discardFile": "Kassér ændringer i {file}",
+    "saveCount": "Gem {count} filer",
+    "save": "Gem",
+    "openFile": "Åben fil",
+    "unsaved": "Ændringer, der ikke er gemt",
+    "discard": "Kassér ændringer",
+    "groupCustomer": "Kundesiden",
+    "groupStaff": "Medarbejdersiden",
+    "groupDashboard": "Dashboardsiden",
+    "groupSettings": "Design og indstillinger",
+    "lockTurn": "Designeren arbejder. Du kan redigere igen, når den er færdig.",
+    "lockWaiting": "Designeren venter på dit svar i chatten.",
+    "lockSave": "Gemmer…",
+    "lockStyle": "Stilen bliver ændret. Du kan redigere igen om et øjeblik.",
+    "lockRestore": "Filerne bliver lagt tilbage. Du kan redigere igen om et øjeblik.",
+    "lockStart": "Appen bliver ændret. Du kan redigere igen om et øjeblik.",
+    "readOnlyDesigner": "{file}, skrivebeskyttet, mens Designeren arbejder",
+    "readOnly": "{file}, skrivebeskyttet indtil videre",
+    "editing": "Redigerer {file}. Tryk på Escape for at forlade editoren.",
+    "brief": "Designoplægget",
+    "unsavedMark": "ikke gemt",
+    "gone": "Denne fil er ikke længere i appen. Kopiér din tekst, hvis du skal bruge den.",
+    "changedUnder": "Denne fil blev ændret, mens du redigerede den.",
+    "keepMine": "Behold mine ændringer",
+    "useChanged": "Brug den ændrede fil",
+    "refused": "Intet blev gemt. {reason}",
+    "ok": "OK",
+    "unfinished": "Intet blev gemt: Designerens seneste ændring blev ikke gjort færdig. Bed den om at gøre den færdig, eller læg filerne tilbage.",
+    "putBack": "Læg filerne tilbage",
+    "notApplied": "Dine ændringer blev gemt, men appen blev ikke anvendt. Forhåndsvisningen viser det seneste build, der virkede.",
+    "fixMessage": "Jeg har ændret nogle filer i hånden, og appen kan ikke længere anvendes: {error} Ret det venligst.",
+    "listLoading": "Åbner filerne…",
+    "listFailed": "Filerne kunne ikke læses.",
+    "tryAgain": "Prøv igen",
+    "listEmpty": "Der er endnu ingen filer at ændre her.",
+    "files": "Filer",
+    "foot": "Her vises kun de filer, du trygt kan ændre.",
+    "fileLoading": "Åbner {file}…",
+    "fileFailed": "Denne fil kunne ikke læses.",
+    "editorFailed": "Editoren kunne ikke indlæses.",
+    "editorLoading": "Åbner editoren…",
+    "leaveTitle": "Forlad uden at gemme?",
+    "leaveBody": "Du har ændringer, der ikke er gemt, i {count, plural, one {# fil} other {# filer}}. De går tabt, hvis du forlader siden.",
+    "leaveStay": "Bliv",
+    "leaveGo": "Forlad",
+    "composerUnsaved": "Du har ændringer, der ikke er gemt, i {count, plural, one {# fil} other {# filer}}. Designeren kan ikke se dem.",
+    "saveFirst": "Gem først",
+    "sendAnyway": "Send alligevel"
   }
 }

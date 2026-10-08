@@ -8711,6 +8711,10 @@
     "status": "mt",
     "srcHash": "2ced57f12591"
   },
+  "designer.build.chatWaiting": {
+    "status": "mt",
+    "srcHash": "2a535700e6ef"
+  },
   "designer.build.empty": {
     "status": "mt",
     "srcHash": "c1d32c1e2b09"
@@ -8978,6 +8982,210 @@
   "designer.card.youAnswered": {
     "status": "mt",
     "srcHash": "f698fbd8ec00"
+  },
+  "designer.code.brief": {
+    "status": "mt",
+    "srcHash": "5d0b8cd7aaf0"
+  },
+  "designer.code.busy": {
+    "status": "mt",
+    "srcHash": "579028e2f657"
+  },
+  "designer.code.changedUnder": {
+    "status": "mt",
+    "srcHash": "c3e7b93f368f"
+  },
+  "designer.code.composerUnsaved": {
+    "status": "mt",
+    "srcHash": "0aa49bf5937c"
+  },
+  "designer.code.discard": {
+    "status": "mt",
+    "srcHash": "fa8fc0432141"
+  },
+  "designer.code.discardFile": {
+    "status": "mt",
+    "srcHash": "4ae1502edd2c"
+  },
+  "designer.code.editing": {
+    "status": "mt",
+    "srcHash": "dbba80b85a90"
+  },
+  "designer.code.editorFailed": {
+    "status": "mt",
+    "srcHash": "b2fb2a2bbcf1"
+  },
+  "designer.code.editorLoading": {
+    "status": "mt",
+    "srcHash": "2864cc8ed71e"
+  },
+  "designer.code.fileFailed": {
+    "status": "mt",
+    "srcHash": "1e30303829c5"
+  },
+  "designer.code.fileLoading": {
+    "status": "mt",
+    "srcHash": "1738c8252f98"
+  },
+  "designer.code.files": {
+    "status": "mt",
+    "srcHash": "6ce6c512ea43"
+  },
+  "designer.code.fixMessage": {
+    "status": "mt",
+    "srcHash": "8f3579372811"
+  },
+  "designer.code.foot": {
+    "status": "mt",
+    "srcHash": "b127a3e8139c"
+  },
+  "designer.code.gone": {
+    "status": "mt",
+    "srcHash": "f147cea5785d"
+  },
+  "designer.code.groupCustomer": {
+    "status": "mt",
+    "srcHash": "bddd0ade3d15"
+  },
+  "designer.code.groupDashboard": {
+    "status": "mt",
+    "srcHash": "87f5d334c7df"
+  },
+  "designer.code.groupSettings": {
+    "status": "mt",
+    "srcHash": "b47678a28045"
+  },
+  "designer.code.groupStaff": {
+    "status": "mt",
+    "srcHash": "a22df641b6e5"
+  },
+  "designer.code.keepMine": {
+    "status": "mt",
+    "srcHash": "118b13488235"
+  },
+  "designer.code.leaveBody": {
+    "status": "mt",
+    "srcHash": "7ae4a8ba5f09"
+  },
+  "designer.code.leaveGo": {
+    "status": "mt",
+    "srcHash": "7e3520a97331"
+  },
+  "designer.code.leaveStay": {
+    "status": "mt",
+    "srcHash": "ae768f766f75"
+  },
+  "designer.code.leaveTitle": {
+    "status": "mt",
+    "srcHash": "4c76471788a9"
+  },
+  "designer.code.listEmpty": {
+    "status": "mt",
+    "srcHash": "61659ac9999c"
+  },
+  "designer.code.listFailed": {
+    "status": "mt",
+    "srcHash": "5aa404883829"
+  },
+  "designer.code.listLoading": {
+    "status": "mt",
+    "srcHash": "934c1e6451bf"
+  },
+  "designer.code.lockRestore": {
+    "status": "mt",
+    "srcHash": "9a80fb78571a"
+  },
+  "designer.code.lockSave": {
+    "status": "mt",
+    "srcHash": "56a2285c5b11"
+  },
+  "designer.code.lockStart": {
+    "status": "mt",
+    "srcHash": "84cfbb5a6bc8"
+  },
+  "designer.code.lockStyle": {
+    "status": "mt",
+    "srcHash": "2b9ed327cd9a"
+  },
+  "designer.code.lockTurn": {
+    "status": "mt",
+    "srcHash": "943e796207ff"
+  },
+  "designer.code.lockWaiting": {
+    "status": "mt",
+    "srcHash": "12fe6a280f4d"
+  },
+  "designer.code.notApplied": {
+    "status": "mt",
+    "srcHash": "960627cbdfba"
+  },
+  "designer.code.ok": {
+    "status": "mt",
+    "srcHash": "9ce3bd4224c8"
+  },
+  "designer.code.openFile": {
+    "status": "mt",
+    "srcHash": "f11b8781300b"
+  },
+  "designer.code.putBack": {
+    "status": "mt",
+    "srcHash": "f119a8267976"
+  },
+  "designer.code.readOnly": {
+    "status": "mt",
+    "srcHash": "29923c95da77"
+  },
+  "designer.code.readOnlyDesigner": {
+    "status": "mt",
+    "srcHash": "a7ac824a2976"
+  },
+  "designer.code.refused": {
+    "status": "mt",
+    "srcHash": "ecdf36d8a2aa"
+  },
+  "designer.code.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "designer.code.saveCount": {
+    "status": "mt",
+    "srcHash": "0494cf674bd2"
+  },
+  "designer.code.saveFailed": {
+    "status": "mt",
+    "srcHash": "4357f49274f4"
+  },
+  "designer.code.saveFirst": {
+    "status": "mt",
+    "srcHash": "9f16a3bffd48"
+  },
+  "designer.code.saved": {
+    "status": "mt",
+    "srcHash": "fe48ff8a683b"
+  },
+  "designer.code.sendAnyway": {
+    "status": "mt",
+    "srcHash": "911263feabf7"
+  },
+  "designer.code.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.code.unfinished": {
+    "status": "mt",
+    "srcHash": "2ba502986f81"
+  },
+  "designer.code.unsaved": {
+    "status": "mt",
+    "srcHash": "29267269c048"
+  },
+  "designer.code.unsavedMark": {
+    "status": "mt",
+    "srcHash": "cc44d0a64a84"
+  },
+  "designer.code.useChanged": {
+    "status": "mt",
+    "srcHash": "b6c80bf94221"
   },
   "designer.examples.bikes.label": {
     "status": "mt",
@@ -10634,6 +10842,10 @@
   "designer.work.architecture": {
     "status": "mt",
     "srcHash": "b040b4179b8b"
+  },
+  "designer.work.code": {
+    "status": "mt",
+    "srcHash": "adac69379a62"
   },
   "designer.work.label": {
     "status": "mt",

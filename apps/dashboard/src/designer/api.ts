@@ -241,6 +241,29 @@ export type FolderHold = 'save' | 'style' | 'restore' | 'start';
 /** `by: 'person'`: caused from a page, outside any turn. It carries the last turn's number and belongs to none. */
 export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
 
+export type DesignerFileGroup = 'customer' | 'staff' | 'dashboard' | 'settings';
+/** A file a person may open: where it is in the project, what it is called on the page, and what it holds now (by hash). */
+export interface DesignerFile {
+  path: string;
+  label: string;
+  hash: string;
+  size: number;
+  note?: 'brief';
+}
+export interface DesignerFiles {
+  groups: { key: DesignerFileGroup; files: DesignerFile[] }[];
+  /** What has the app's folder right now. */
+  busy: FolderHold | 'turn' | null;
+  version: number | null;
+}
+export interface DesignerFilesSaved {
+  applied: boolean;
+  version: { n: number; name: string } | null;
+  files: { path: string; hash: string }[];
+  /** Written and not applied: what the check, the build or the apply said. */
+  problems?: { stage: 'check' | 'build' | 'apply'; lines: string[] };
+}
+
 export interface DesignerVersion {
   n: number;
   name: string;
@@ -281,6 +304,7 @@ export const designerKeys = {
   session: (id: string) => ['designer', 'session', id] as const,
   versions: (id: string) => ['designer', 'versions', id] as const,
   architecture: (id: string) => ['designer', 'architecture', id] as const,
+  files: (id: string) => ['designer', 'files', id] as const,
 };
 
 /** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
@@ -372,6 +396,10 @@ export const designerApi = {
   restore: (id: string, n: number, record: boolean) =>
     api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/versions/${String(n)}/restore`, { record }),
   architecture: (id: string) => api.get<ArchitectureDoc>(`${BASE}/sessions/${id}/architecture`),
+  /** The app's files a person may open and save by hand, in the groups the Code tab draws. */
+  files: (id: string) => api.get<DesignerFiles>(`${BASE}/sessions/${id}/files`),
+  /** A hand save: each file whole, with the hash it had when it was opened. All of them are written, or none. */
+  saveFiles: (id: string, files: readonly { path: string; content: string; base: string }[]) => api.put<DesignerFilesSaved>(`${BASE}/sessions/${id}/files`, { files }),
   /** One of the app's files a person may open, whole, with the hash it has now. */
   fileContent: (id: string, path: string) => api.get<{ path: string; content: string; hash: string }>(`${BASE}/sessions/${id}/files/content?path=${encodeURIComponent(path)}`),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),

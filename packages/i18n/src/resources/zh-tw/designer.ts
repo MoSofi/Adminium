@@ -207,7 +207,8 @@ export default {
     "views": "檢視",
     "openDash": "開啟儀表板",
     "renameTip": "重新命名",
-    "renamed": "已重新命名為 {name}"
+    "renamed": "已重新命名為 {name}",
+    "chatWaiting": "Designer 正在等待你的回答"
   },
   "card": {
     "addIt": "新增",
@@ -390,7 +391,8 @@ export default {
   "work": {
     "architecture": "架構",
     "preview": "預覽",
-    "label": "工作區"
+    "label": "工作區",
+    "code": "程式碼"
   },
   "preview": {
     "buildingCustomer": "正在建置客戶端…",
@@ -677,5 +679,58 @@ export default {
     "added": "已加入圖片：{count} 張。署名資訊與圖片一併保存。",
     "noneChosen": "你一張也沒選。Designer 會改為繪製色塊。",
     "sendNone": "傳送 — 一張都不用"
+  },
+  "code": {
+    "saved": "已儲存為 {version}。Designer 會看到你的變更。",
+    "busy": "應用程式正在變更。請稍後再試。",
+    "saveFailed": "你的變更未儲存",
+    "discardFile": "捨棄對 {file} 的變更",
+    "saveCount": "儲存 {count} 個檔案",
+    "save": "儲存",
+    "openFile": "已開啟的檔案",
+    "unsaved": "未儲存的變更",
+    "discard": "捨棄變更",
+    "groupCustomer": "客戶端",
+    "groupStaff": "員工端",
+    "groupDashboard": "儀表板端",
+    "groupSettings": "設計與設定",
+    "lockTurn": "Designer 正在工作。它完成後你可以繼續編輯。",
+    "lockWaiting": "Designer 正在聊天中等待你的回答。",
+    "lockSave": "正在儲存…",
+    "lockStyle": "正在變更樣式。稍後你可以繼續編輯。",
+    "lockRestore": "正在還原檔案。稍後你可以繼續編輯。",
+    "lockStart": "應用程式正在變更。稍後你可以繼續編輯。",
+    "readOnlyDesigner": "{file}，Designer 工作期間為唯讀",
+    "readOnly": "{file}，暫時唯讀",
+    "editing": "正在編輯 {file}。按 Escape 鍵離開編輯器。",
+    "brief": "設計說明",
+    "unsavedMark": "未儲存",
+    "gone": "此檔案已不在應用程式中。如有需要，請複製你的文字。",
+    "changedUnder": "在你編輯時，此檔案已被變更。",
+    "keepMine": "保留我的變更",
+    "useChanged": "使用已變更的檔案",
+    "refused": "未儲存任何內容。{reason}",
+    "ok": "確定",
+    "unfinished": "未儲存任何內容：Designer 的上一次變更尚未完成。請讓它完成，或還原檔案。",
+    "putBack": "還原檔案",
+    "notApplied": "你的變更已儲存，但應用程式未套用。預覽顯示的是上一次可用的建置。",
+    "fixMessage": "我手動變更了一些檔案，應用程式無法再套用：{error} 請修正。",
+    "listLoading": "正在開啟檔案…",
+    "listFailed": "無法讀取檔案。",
+    "tryAgain": "重試",
+    "listEmpty": "這裡還沒有可變更的檔案。",
+    "files": "檔案",
+    "foot": "這裡只顯示你可以放心變更的檔案。",
+    "fileLoading": "正在開啟 {file}…",
+    "fileFailed": "無法讀取此檔案。",
+    "editorFailed": "無法載入編輯器。",
+    "editorLoading": "正在開啟編輯器…",
+    "leaveTitle": "不儲存就離開？",
+    "leaveBody": "你在 {count, plural, other {# 個檔案}}中有未儲存的變更。離開後它們將遺失。",
+    "leaveStay": "留下",
+    "leaveGo": "離開",
+    "composerUnsaved": "你在 {count, plural, other {# 個檔案}}中有未儲存的變更。Designer 不會看到它們。",
+    "saveFirst": "先儲存",
+    "sendAnyway": "仍然傳送"
   }
 } as const;

@@ -197,7 +197,8 @@
     "views": "Zobrazení",
     "openDash": "Otevřít nástěnku",
     "renameTip": "Přejmenovat",
-    "renamed": "Přejmenováno na {name}"
+    "renamed": "Přejmenováno na {name}",
+    "chatWaiting": "Designer čeká na vaši odpověď"
   },
   "card": {
     "addIt": "Přidat",
@@ -380,7 +381,8 @@
   "work": {
     "architecture": "Architektura",
     "preview": "Náhled",
-    "label": "Pracovní plocha"
+    "label": "Pracovní plocha",
+    "code": "Kód"
   },
   "preview": {
     "buildingCustomer": "Sestavuje se strana zákazníků…",
@@ -667,5 +669,58 @@
     "added": "Přidané obrázky: {count}. Údaje o autorech se uchovávají s nimi.",
     "noneChosen": "Nevybrali jste žádný. Designer místo nich nakreslí dlaždice.",
     "sendNone": "Odeslat — nepoužít žádný"
+  },
+  "code": {
+    "saved": "Uloženo jako {version}. Designer vaši změnu uvidí.",
+    "busy": "Aplikace se právě mění. Zkuste to za chvíli znovu.",
+    "saveFailed": "Vaše změny nebyly uloženy",
+    "discardFile": "Zahodit změny v souboru {file}",
+    "saveCount": "Uložit {count} souborů",
+    "save": "Uložit",
+    "openFile": "Otevřený soubor",
+    "unsaved": "Neuložené změny",
+    "discard": "Zahodit změny",
+    "groupCustomer": "Zákaznická strana",
+    "groupStaff": "Strana personálu",
+    "groupDashboard": "Strana dashboardu",
+    "groupSettings": "Design a nastavení",
+    "lockTurn": "Designer pracuje. Upravovat můžete znovu, až skončí.",
+    "lockWaiting": "Designer čeká na vaši odpověď v chatu.",
+    "lockSave": "Ukládání…",
+    "lockStyle": "Styl se právě mění. Za chvíli můžete znovu upravovat.",
+    "lockRestore": "Soubory se vracejí zpět. Za chvíli můžete znovu upravovat.",
+    "lockStart": "Aplikace se právě mění. Za chvíli můžete znovu upravovat.",
+    "readOnlyDesigner": "{file}, jen pro čtení, dokud Designer pracuje",
+    "readOnly": "{file}, prozatím jen pro čtení",
+    "editing": "Úprava souboru {file}. Editor opustíte klávesou Escape.",
+    "brief": "Zadání designu",
+    "unsavedMark": "neuloženo",
+    "gone": "Tento soubor už v aplikaci není. Pokud svůj text potřebujete, zkopírujte si ho.",
+    "changedUnder": "Tento soubor se změnil, zatímco jste ho upravovali.",
+    "keepMine": "Ponechat moje změny",
+    "useChanged": "Použít změněný soubor",
+    "refused": "Nic nebylo uloženo. {reason}",
+    "ok": "OK",
+    "unfinished": "Nic nebylo uloženo: poslední změna Designeru nebyla dokončena. Požádejte ho, aby ji dokončil, nebo vraťte soubory zpět.",
+    "putBack": "Vrátit soubory zpět",
+    "notApplied": "Vaše změny byly uloženy, ale aplikace nebyla použita. Náhled ukazuje poslední sestavení, které fungovalo.",
+    "fixMessage": "Ručně jsem změnil několik souborů a aplikaci už nelze použít: {error} Oprav to prosím.",
+    "listLoading": "Otevírání souborů…",
+    "listFailed": "Soubory se nepodařilo načíst.",
+    "tryAgain": "Zkusit znovu",
+    "listEmpty": "Zatím tu nejsou žádné soubory ke změně.",
+    "files": "Soubory",
+    "foot": "Zobrazují se jen soubory, které můžete bezpečně změnit.",
+    "fileLoading": "Otevírání souboru {file}…",
+    "fileFailed": "Tento soubor se nepodařilo načíst.",
+    "editorFailed": "Editor se nepodařilo načíst.",
+    "editorLoading": "Otevírání editoru…",
+    "leaveTitle": "Odejít bez uložení?",
+    "leaveBody": "Máte neuložené změny v {count, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}. Pokud odejdete, ztratí se.",
+    "leaveStay": "Zůstat",
+    "leaveGo": "Odejít",
+    "composerUnsaved": "Máte neuložené změny v {count, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}. Designer je neuvidí.",
+    "saveFirst": "Nejdřív uložit",
+    "sendAnyway": "Přesto odeslat"
   }
 }

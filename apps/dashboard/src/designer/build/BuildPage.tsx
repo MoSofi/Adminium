@@ -56,6 +56,7 @@ import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
 import { foldTurns, heldBy, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
 import { useFollowEnd } from './useFollowEnd.js';
+import { useCodeFiles, type CodeLock } from './useCodeFiles.js';
 import { useSessionEvents } from './useSessionEvents.js';
 import { VIEW_IDS, ViewSwitch, type BuildView } from './ViewSwitch.js';
 import { WorkArea } from './WorkArea.js';
@@ -119,6 +120,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: designerKeys.versions(sessionId) });
     void queryClient.invalidateQueries({ queryKey: designerKeys.apps });
     void queryClient.invalidateQueries({ queryKey: designerKeys.architecture(sessionId) });
+    void queryClient.invalidateQueries({ queryKey: designerKeys.files(sessionId) });
     // The preview's list of installed apps: a live `app-changed` can be missed, a turn's end cannot.
     void queryClient.invalidateQueries({ queryKey: ['designer', 'installed'] });
   };
@@ -228,6 +230,15 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       });
     },
     onError: fail(t('designer:versions.failed', 'The files could not be put back')),
+  });
+
+  // What keeps the app's files from being changed by hand right now, for the Code tab to say.
+  const codeLock: CodeLock = working ? (waiting.length > 0 ? 'waiting' : 'turn') : (held ?? (restore.isPending ? 'restore' : look.isPending ? 'style' : null));
+  const versionNow = session.data?.session.version ?? 0;
+  const code = useCodeFiles(sessionId, {
+    lock: codeLock,
+    onNotice: (notice) => toasts.push(notice),
+    onPutBack: () => restore.mutateAsync({ n: versionNow, record: false }),
   });
 
   const model = useDesignerModel(
@@ -552,6 +563,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             <WorkArea
               session={data.session}
               turns={turns}
+              code={code}
               onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))}
               onNotice={(title) => toasts.push({ variant: 'info', title })}
               onFoldedNeed={setFoldedNeed}

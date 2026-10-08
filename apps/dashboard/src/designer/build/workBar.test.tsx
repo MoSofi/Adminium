@@ -13,6 +13,7 @@ import { Tabs, ThemeProvider } from '@adminium/ui';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { DesignerSession } from '../api.js';
+import { idleCode } from './codeFiles.fixture.js';
 import { AddressBar } from './AddressBar.js';
 import type { BarLevel } from './barLevel.js';
 import type { PreviewModel, PreviewSide } from './usePreview.js';
@@ -280,7 +281,7 @@ describe('the work area’s bar, measured', () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <ThemeProvider>
-          <WorkArea session={SESSION} turns={[]} onFix={() => undefined} onNotice={() => undefined} onFoldedNeed={onFoldedNeed} />
+          <WorkArea code={idleCode()} session={SESSION} turns={[]} onFix={() => undefined} onNotice={() => undefined} onFoldedNeed={onFoldedNeed} />
         </ThemeProvider>
       </QueryClientProvider>,
     );

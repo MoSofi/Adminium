@@ -197,7 +197,8 @@
     "views": "视图",
     "openDash": "打开仪表板",
     "renameTip": "重命名",
-    "renamed": "已重命名为 {name}"
+    "renamed": "已重命名为 {name}",
+    "chatWaiting": "Designer 正在等待你的回答"
   },
   "card": {
     "addIt": "添加",
@@ -380,7 +381,8 @@
   "work": {
     "architecture": "架构",
     "preview": "预览",
-    "label": "工作区"
+    "label": "工作区",
+    "code": "代码"
   },
   "preview": {
     "buildingCustomer": "正在构建客户端…",
@@ -667,5 +669,58 @@
     "added": "已添加图片：{count} 张。署名信息与图片一并保存。",
     "noneChosen": "你一张也没选。Designer 会改为绘制色块。",
     "sendNone": "发送 — 一张都不用"
+  },
+  "code": {
+    "saved": "已保存为 {version}。Designer 会看到你的更改。",
+    "busy": "应用正在更改。请稍后再试。",
+    "saveFailed": "你的更改未保存",
+    "discardFile": "放弃对 {file} 的更改",
+    "saveCount": "保存 {count} 个文件",
+    "save": "保存",
+    "openFile": "已打开的文件",
+    "unsaved": "未保存的更改",
+    "discard": "放弃更改",
+    "groupCustomer": "客户端",
+    "groupStaff": "员工端",
+    "groupDashboard": "仪表板端",
+    "groupSettings": "设计与设置",
+    "lockTurn": "Designer 正在工作。它完成后你可以继续编辑。",
+    "lockWaiting": "Designer 正在聊天中等待你的回答。",
+    "lockSave": "正在保存…",
+    "lockStyle": "正在更改样式。稍后你可以继续编辑。",
+    "lockRestore": "正在恢复文件。稍后你可以继续编辑。",
+    "lockStart": "应用正在更改。稍后你可以继续编辑。",
+    "readOnlyDesigner": "{file}，Designer 工作期间为只读",
+    "readOnly": "{file}，暂时只读",
+    "editing": "正在编辑 {file}。按 Escape 键离开编辑器。",
+    "brief": "设计说明",
+    "unsavedMark": "未保存",
+    "gone": "此文件已不在应用中。如有需要，请复制你的文本。",
+    "changedUnder": "在你编辑时，此文件已被更改。",
+    "keepMine": "保留我的更改",
+    "useChanged": "使用已更改的文件",
+    "refused": "未保存任何内容。{reason}",
+    "ok": "确定",
+    "unfinished": "未保存任何内容：Designer 的上一次更改尚未完成。请让它完成，或恢复文件。",
+    "putBack": "恢复文件",
+    "notApplied": "你的更改已保存，但应用未生效。预览显示的是上一次可用的构建。",
+    "fixMessage": "我手动更改了一些文件，应用无法再生效：{error} 请修复。",
+    "listLoading": "正在打开文件…",
+    "listFailed": "无法读取文件。",
+    "tryAgain": "重试",
+    "listEmpty": "这里还没有可更改的文件。",
+    "files": "文件",
+    "foot": "这里只显示你可以放心更改的文件。",
+    "fileLoading": "正在打开 {file}…",
+    "fileFailed": "无法读取此文件。",
+    "editorFailed": "无法加载编辑器。",
+    "editorLoading": "正在打开编辑器…",
+    "leaveTitle": "不保存就离开？",
+    "leaveBody": "你在 {count, plural, other {# 个文件}}中有未保存的更改。离开后它们将丢失。",
+    "leaveStay": "留下",
+    "leaveGo": "离开",
+    "composerUnsaved": "你在 {count, plural, other {# 个文件}}中有未保存的更改。Designer 不会看到它们。",
+    "saveFirst": "先保存",
+    "sendAnyway": "仍然发送"
   }
 }

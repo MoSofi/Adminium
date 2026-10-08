@@ -207,7 +207,8 @@ export default {
     "views": "View",
     "openDash": "Open Dashboard",
     "renameTip": "Rename",
-    "renamed": "Renamed to {name}"
+    "renamed": "Renamed to {name}",
+    "chatWaiting": "The Designer is waiting for your answer"
   },
   "card": {
     "addIt": "Add it",
@@ -390,7 +391,8 @@ export default {
   "work": {
     "architecture": "Architecture",
     "preview": "Preview",
-    "label": "Work area"
+    "label": "Work area",
+    "code": "Code"
   },
   "preview": {
     "buildingCustomer": "Building the customer side…",
@@ -677,5 +679,58 @@ export default {
     "added": "Pictures added: {count}. Their credits are kept with them.",
     "noneChosen": "You chose none. The Designer will draw tiles instead.",
     "sendNone": "Send — use none"
+  },
+  "code": {
+    "saved": "Saved as {version}. The Designer will see your change.",
+    "busy": "The app is being changed. Try again in a moment.",
+    "saveFailed": "Your changes were not saved",
+    "discardFile": "Discard changes to {file}",
+    "saveCount": "Save {count} files",
+    "save": "Save",
+    "openFile": "Open file",
+    "unsaved": "Unsaved changes",
+    "discard": "Discard changes",
+    "groupCustomer": "Customer side",
+    "groupStaff": "Staff side",
+    "groupDashboard": "Dashboard side",
+    "groupSettings": "Design and settings",
+    "lockTurn": "The Designer is working. You can edit again when it finishes.",
+    "lockWaiting": "The Designer is waiting for your answer in the chat.",
+    "lockSave": "Saving…",
+    "lockStyle": "The style is being changed. You can edit again in a moment.",
+    "lockRestore": "The files are being put back. You can edit again in a moment.",
+    "lockStart": "The app is being changed. You can edit again in a moment.",
+    "readOnlyDesigner": "{file}, read only while the Designer works",
+    "readOnly": "{file}, read only for now",
+    "editing": "Editing {file}. Press Escape to leave the editor.",
+    "brief": "The design brief",
+    "unsavedMark": "unsaved",
+    "gone": "This file is no longer in the app. Copy your text if you need it.",
+    "changedUnder": "This file changed while you were editing it.",
+    "keepMine": "Keep my changes",
+    "useChanged": "Use the changed file",
+    "refused": "Nothing was saved. {reason}",
+    "ok": "OK",
+    "unfinished": "Nothing was saved: the Designer’s last change was not finished. Ask it to finish, or put the files back.",
+    "putBack": "Put the files back",
+    "notApplied": "Your changes were saved, and the app was not applied. The preview shows the last build that worked.",
+    "fixMessage": "I changed some files by hand and the app does not apply any more: {error} Please fix it.",
+    "listLoading": "Opening the files…",
+    "listFailed": "The files could not be read.",
+    "tryAgain": "Try again",
+    "listEmpty": "There are no files to change here yet.",
+    "files": "Files",
+    "foot": "Only the files you can safely change are shown here.",
+    "fileLoading": "Opening {file}…",
+    "fileFailed": "This file could not be read.",
+    "editorFailed": "The editor could not be loaded.",
+    "editorLoading": "Opening the editor…",
+    "leaveTitle": "Leave without saving?",
+    "leaveBody": "You have unsaved changes in {count, plural, one {# file} other {# files}}. They are lost if you leave.",
+    "leaveStay": "Stay",
+    "leaveGo": "Leave",
+    "composerUnsaved": "You have unsaved changes in {count, plural, one {# file} other {# files}}. The Designer will not see them.",
+    "saveFirst": "Save first",
+    "sendAnyway": "Send anyway"
   }
 } as const;
