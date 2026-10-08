@@ -60,7 +60,13 @@ export interface StarterHost {
   /** The keys of every app installed on this server. */
   installedKeys(): Promise<string[]>;
   /** Build the project's apps and apply them: the problems of `key`, or none. */
-  buildAndApply(key: string): Promise<string[]>;
+  buildAndApply(key: string, signal?: AbortSignal): Promise<string[]>;
+  /**
+   * Take the project folder for the copy, or throw: a turn, a hand save, a
+   * style change and going back write the same folder, and none of them runs
+   * beside a copy. Absent in a harness with nothing else that writes.
+   */
+  hold?(): { signal: AbortSignal; release(): void };
   /** Open a session on an app that is in the folder. */
   openSession(appKey: string, input: StartInput): Promise<string>;
   audit(action: string, by: { id: string | null; label: string }, detail: Record<string, unknown>): Promise<void>;
@@ -127,11 +133,23 @@ export function createStarter(host: StarterHost): Starter {
       job.state = 'failed';
     };
     const resumed = unfinished.get(job.newKey) === app.key && existsSync(folder(job.newKey));
+    let hold: { signal: AbortSignal; release(): void } | undefined;
+    /** The folder is taken once the download is over and before the first write: a refusal is this job's own failure. */
+    const takeFolder = (id: StartStepId): boolean => {
+      try {
+        hold = host.hold?.();
+        return true;
+      } catch (error) {
+        fail(id, error instanceof Error ? error.message : String(error));
+        return false;
+      }
+    };
     try {
       if (resumed) {
         // The copy is written: only the last step is left.
         step('get').state = 'done';
         step('make').state = 'done';
+        if (!takeFolder('build')) return;
       } else {
         step('get').state = 'running';
         const url = sourceArchiveUrl(app.repo, app.version);
@@ -145,6 +163,7 @@ export function createStarter(host: StarterHost): Starter {
         step('get').state = 'done';
 
         step('make').state = 'running';
+        if (!takeFolder('make')) return;
         const plan = planCopy(source, { to: job.newKey, name: job.name });
         if (plan.problems.length > 0) return fail('make', plan.problems.slice(0, 4).join('\n'));
         const dir = folder(job.newKey);
@@ -188,7 +207,7 @@ export function createStarter(host: StarterHost): Starter {
       }
 
       step('build').state = 'running';
-      const problems = await host.buildAndApply(job.newKey);
+      const problems = await host.buildAndApply(job.newKey, hold?.signal);
       if (problems.length > 0) return fail('build', problems.slice(0, 4).join('\n'));
       // The copy is whole once its session is open: until then "Try again" finishes it.
       job.sessionId = await host.openSession(job.newKey, input);
@@ -203,6 +222,7 @@ export function createStarter(host: StarterHost): Starter {
       const running = job.steps.find((candidate) => candidate.state === 'running');
       fail(running?.id ?? 'build', error instanceof Error ? error.message : String(error));
     } finally {
+      hold?.release();
       busy = false;
     }
   }

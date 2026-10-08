@@ -138,6 +138,34 @@ describe.skipIf(!hasGit)('the Designer’s versions', () => {
     expect(read('apps/repairs/manifest/app.json')).toBe('{"v":0}');
   });
 
+  it('say which files are not as the newest version has them: changed, added and gone, and never what a build left', async () => {
+    // Nothing recorded for this session yet: what changed cannot be known.
+    expect(await versions.changed(session)).toBeNull();
+    // Before the first version the folder is held against what it was before the session.
+    await versions.snapshot(session);
+    expect(await versions.changed(session)).toEqual([]);
+    put('apps/repairs/manifest/app.json', '{"v":1}');
+    expect(await versions.changed(session)).toEqual(['apps/repairs/manifest/app.json']);
+
+    put('apps/repairs/customer/src/App.tsx', 'one');
+    put('hooks/on-save.ts', 'export {};');
+    await versions.commit(session);
+    expect(await versions.changed(session)).toEqual([]);
+    put('apps/repairs/customer/src/App.tsx', 'two');
+    put('apps/repairs/manifest/tables/half made.json', '{}');
+    rmSync(join(root, 'hooks/on-save.ts'));
+    // The app's own build output, another app and the person's own files are nobody's unfinished change.
+    put('apps/repairs/dist-customer/index.js', 'built');
+    put('apps/repairs/dist/index.js', 'built');
+    put('apps/other/manifest/app.json', '{}');
+    put('README.md', 'mine again\n');
+    expect((await versions.changed(session))?.sort()).toEqual(['apps/repairs/customer/src/App.tsx', 'apps/repairs/manifest/tables/half made.json', 'hooks/on-save.ts']);
+    // Looking changes nothing: no version was made, and the person's repository is as it was.
+    expect(await versions.list(session.id)).toHaveLength(1);
+    await versions.restore(session, 1, { record: false });
+    expect((await versions.changed(session))?.filter((path) => !path.includes('/dist'))).toEqual([]);
+  });
+
   it('refuse a version that is not there', async () => {
     await versions.commit(session);
     await expect(versions.restore(session, 9, { record: true })).rejects.toThrow('no version 9');
@@ -151,5 +179,6 @@ describe('versions with no git on the machine', () => {
     expect(await off.commit(session)).toBeNull();
     expect(await off.list(session.id)).toEqual([]);
     await expect(off.restore(session, 1, { record: true })).rejects.toThrow('Versions are off');
+    expect(await off.changed(session)).toBeNull();
   });
 });

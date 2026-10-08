@@ -87,7 +87,13 @@ import {
   designerStartCheckReply,
   designerStartJob,
   designerStartParams,
+  designerFileQuery,
+  designerFileReply,
+  designerFilesReply,
+  designerFilesSaveBody,
+  designerFilesSaveReply,
 } from './schema.js';
+import { FILES_SAVE_BODY_BYTES } from '../../designer/files.js';
 
 export interface DesignerRoutesDeps {
   designer: Designer;
@@ -257,9 +263,15 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       async (request, reply) => {
         const by = actorOf(request);
         const { text, sees, ...input } = request.body;
-        const session = await designer.createSession(input, by);
-        const turn = text === undefined ? null : (await runner.start(session.id, { text, by, ...(sees === true ? { sees: true } : {}) })).turn;
-        return reply.code(201).send({ session: store.read(session.id), turn });
+        // With a first message the folder is kept for its turn before the session is made: a session whose turn is then refused is not left behind.
+        const claim = text === undefined ? null : runner.claim();
+        try {
+          const session = await designer.createSession(input, by);
+          const turn = text === undefined || claim === null ? null : (await runner.start(session.id, { text, by, claim, ...(sees === true ? { sees: true } : {}) })).turn;
+          return await reply.code(201).send({ session: store.read(session.id), turn });
+        } finally {
+          claim?.release();
+        }
       },
     );
 
@@ -528,6 +540,32 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         schema: { params: designerVersionParams, body: designerRestoreBody, response: { 200: designerRestoreReply } },
       },
       async (request) => designer.restore(request.params.id, request.params.n, { record: request.body.record, by: actorOf(request) }),
+    );
+
+    /*
+     * The Code tab: the files of the app a person may open and change by hand. The list is the server's and is made
+     * afresh for every call; a path is opened or saved only when it is on it. A save is all or none, runs the engine's
+     * check, build and apply, and is kept as a version named for the files. None of the three calls a model.
+     */
+    app.get(
+      '/designer/sessions/:id/files',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerFilesReply } } },
+      async (request, reply) => reply.header('cache-control', 'no-store').send(await designer.listFiles(request.params.id)),
+    );
+    app.get(
+      '/designer/sessions/:id/files/content',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, querystring: designerFileQuery, response: { 200: designerFileReply } } },
+      async (request, reply) => reply.header('cache-control', 'no-store').send(await designer.readFile(request.params.id, request.query.path)),
+    );
+    app.put(
+      '/designer/sessions/:id/files',
+      {
+        preHandler: guard,
+        bodyLimit: FILES_SAVE_BODY_BYTES,
+        config: { ...RATE, audit: auditExempt('the Designer audits a hand save itself, with the files and the version it made') },
+        schema: { params: designerSessionParams, body: designerFilesSaveBody, response: { 200: designerFilesSaveReply } },
+      },
+      async (request) => designer.saveFiles(request.params.id, request.body.files, actorOf(request)),
     );
 
     // The preview's way in: a one-use ticket, spent on the preview's own name for a session that holds only the app's roles.

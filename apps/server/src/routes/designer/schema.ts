@@ -144,6 +144,8 @@ export const designerSightBody = z.object({
   /** What was measured: each a kind from a closed list with a few values. Anything else is left out by the server. */
   faults: z.array(z.record(z.string(), z.union([z.string().max(200), z.number()]))).max(40),
   picture: z.string().max(1_000_000).optional(),
+  /** The page's own path on that side, as the screen said it. The server tidies it, and reads anything that is no path as the first page. */
+  path: z.string().max(1000).optional(),
 });
 export const designerSightReply = z.object({ kept: z.boolean() });
 
@@ -184,6 +186,39 @@ export const designerRestoreBody = z.object({ record: z.boolean().default(true) 
 export const designerRestoreReply = z.object({
   version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
   applied: z.boolean(),
+});
+
+/** What has the app's folder: a turn, or something a person does from the page. */
+const designerBusy = z.enum(['turn', 'save', 'style', 'restore', 'start']);
+const designerFileHash = z.string().regex(/^[0-9a-f]{64}$/);
+/** A file's path in the project. Held against the server's own list, as a string; its shape is not what lets it in. */
+const designerFilePath = z.string().min(1).max(300);
+
+/** The files of an app a person may open and save by hand, in the groups the page draws. */
+export const designerFilesReply = z.object({
+  groups: z.array(
+    z.object({
+      key: z.enum(['customer', 'staff', 'dashboard', 'settings']),
+      files: z.array(z.object({ path: z.string(), label: z.string(), hash: designerFileHash, size: z.number().int(), note: z.enum(['brief']).optional() })),
+    }),
+  ),
+  busy: designerBusy.nullable(),
+  version: z.number().int().nullable(),
+});
+export const designerFileQuery = z.object({ path: designerFilePath });
+export const designerFileReply = z.object({ path: z.string(), content: z.string(), hash: designerFileHash });
+/** A hand save: each file whole, with the hash it had when the person opened it. */
+export const designerFilesSaveBody = z.object({
+  files: z
+    .array(z.object({ path: designerFilePath, content: z.string().max(262_144), base: designerFileHash }))
+    .min(1)
+    .max(40),
+});
+export const designerFilesSaveReply = z.object({
+  applied: z.boolean(),
+  version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
+  files: z.array(z.object({ path: z.string(), hash: designerFileHash })),
+  problems: z.object({ stage: z.enum(['check', 'build', 'apply']), lines: z.array(z.string()) }).optional(),
 });
 
 /** One app of the adminium.dev list, as a card draws it. */

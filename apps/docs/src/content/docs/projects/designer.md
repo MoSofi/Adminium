@@ -404,6 +404,60 @@ The Designer treats everything it reads (a file, a reference, an add-on's descri
 never as an instruction. Read what it built before you put real data in it, as you would with code
 from anyone else.
 
+### Your own changes to a file
+
+You can change some of an app's files yourself, with no model in between. Adminium keeps a list
+of the files that may be changed this way, makes it again each time it is asked, and opens or
+saves a file only when it is on that list:
+
+| On the list | Not on it |
+|---|---|
+| Each side's own sources under `src/` (screens, parts, `design.css`) | `theme.css`, `fonts.css` and `style.css`, which Adminium writes from the style; the starter's `main.tsx` and `app.css` |
+| The staff side's `nav.json` | Tables, roles, access, sample rows, tests, pictures and fonts |
+| The dashboard pages, `manifest/pages/*.json` | `hooks/` and `actions/`, and anything outside the app's folder |
+| `design.md`, `look.json` and `manifest/app.json` | A link, a name that starts with a dot, a file over 256 KB, a file that is not text |
+
+A file is listed only when its name is made of letters, digits and `. _ - @ ( ) [ ]`. In a
+[copy of a published app](#start-with-an-app) the sides' sources are left out: its screens are
+built by its own build, and a change to what that build runs needs your yes in the chat.
+
+A save takes up to 40 files and is all or nothing:
+
+- **It says what it was based on.** Each file goes up with the fingerprint it had when you
+  opened it. If the file changed since (the Designer wrote it, you changed the style, another
+  editor saved it), nothing is written and the answer names the file.
+- **It runs what a turn's end runs**: the check, the build, the apply. Applied, it is kept as a
+  version named for the files: "Your edit to App.tsx", "Your edit to 3 files". Not applied, the
+  answer carries the check's or the build's own words, the files stay as you wrote them, and no
+  version is made. Going back to the newest version puts them back.
+- **`look.json`** is read before anything is written. One that names no style Adminium knows is
+  refused with the reason; a good one is applied as [Change the style](#how-it-looks) is, so the
+  sides' stylesheets follow it.
+- **`manifest/app.json`** may change in `name`, `description`, `navGroups` and `widgets`. A
+  change to any other field is refused, and the answer names the field: the rest is the
+  Designer's, or yours in your own editor.
+- **It holds your edit and nothing else.** When the Designer's last turn was stopped or failed
+  and left files it had not applied, a save is refused until you ask the Designer to finish or
+  put the files back. Otherwise a version called "your edit" would hold half of its work.
+
+The Designer's next turn is told which files you changed by hand, and reads each one again
+before it changes it. It is told the files' names, never their content.
+
+One thing writes the project's folder at a time: a turn, a save, a change of style, going back
+to a version, or a [copy of a published app](#start-with-an-app). The others are refused until
+it is done, and a save is told to stop if it runs longer than a minute.
+
+The three addresses, each for someone who may use the Designer:
+
+| Address | What it does |
+|---|---|
+| `GET /api/v1/designer/sessions/:id/files` | The list, in groups, with each file's fingerprint, and what has the folder now |
+| `GET /api/v1/designer/sessions/:id/files/content?path=` | One file's text. The same 404 for a file that is not there and one that is not on the list |
+| `PUT /api/v1/designer/sessions/:id/files` | A save: `{ "files": [{ "path", "content", "base" }] }`, where `base` is the fingerprint from the list |
+
+Like the Designer's other addresses they are for its own page, and are not part of the
+[REST API reference](/reference/rest-api/).
+
 ## Limits
 
 A turn stops by itself after a number of steps, so a model that goes round in circles ends. The page

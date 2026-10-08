@@ -166,6 +166,57 @@ describe('the copy', () => {
     expect(build !== null && !('problem' in build) && isBuildApproved(root, 'my-desk', build)).toBe(true);
   });
 
+  it('takes the project folder after the download and before its first write, and hands it back however the copy ends', async () => {
+    const order: string[] = [];
+    let signal: AbortSignal | undefined;
+    let copy = 'my-desk';
+    const hold = () => {
+      order.push(`hold (fetched ${String(fetched.length)}, folder ${String(existsSync(join(root, 'apps', copy)))})`);
+      const controller = new AbortController();
+      return { signal: controller.signal, release: () => void order.push('release') };
+    };
+    const made = starter({
+      hold,
+      buildAndApply: async (key, given) => {
+        signal = given;
+        order.push(`build ${key}`);
+        return problems;
+      },
+    });
+    expect(await settled(made, (await made.start(input({ approve: made.buildFor('my-desk').fingerprint }))).id)).toMatchObject({ state: 'done' });
+    // Held once the source is here and nothing is written; the build is given the hold's own stop.
+    expect(order).toEqual(['hold (fetched 1, folder false)', 'build my-desk', 'release']);
+    expect(signal).toBeInstanceOf(AbortSignal);
+
+    // A copy that fails hands the folder back too, and "Try again" takes it again before the build.
+    order.length = 0;
+    copy = 'other-desk';
+    problems = ['src/main.tsx: the build failed'];
+    const failing = starter({ hold });
+    expect(await settled(failing, (await failing.start(input({ newKey: 'other-desk', approve: failing.buildFor('other-desk').fingerprint }))).id)).toMatchObject({ state: 'failed' });
+    expect(order).toEqual(['hold (fetched 2, folder false)', 'release']);
+    order.length = 0;
+    problems = [];
+    expect(await settled(failing, (await failing.start(input({ newKey: 'other-desk', approve: failing.buildFor('other-desk').fingerprint }))).id)).toMatchObject({ state: 'done' });
+    // Nothing is fetched again: the copy is there, and only its build is left.
+    expect(order).toEqual(['hold (fetched 2, folder true)', 'release']);
+  });
+
+  it('fails as its own step, in the folder’s own words, when something else is writing the project, and writes nothing', async () => {
+    const made = starter({
+      hold: () => {
+        throw new Error('The app is being changed. Try again in a moment.');
+      },
+    });
+    const job = await settled(made, (await made.start(input({ approve: made.buildFor('my-desk').fingerprint }))).id);
+    expect(job).toMatchObject({ state: 'failed', steps: [{ id: 'get', state: 'done' }, { id: 'make', state: 'failed', detail: 'The app is being changed. Try again in a moment.' }, { id: 'build', state: 'waiting' }] });
+    expect(existsSync(join(root, 'apps/my-desk'))).toBe(false);
+    expect(applied).toEqual([]);
+    // The next copy can start: the refusal did not leave this one running.
+    const again = starter();
+    expect(await settled(again, (await again.start(input({ approve: again.buildFor('my-desk').fingerprint }))).id)).toMatchObject({ state: 'done' });
+  });
+
   it('keeps a copy whose build failed, says why, and finishes it on "Try again" without fetching again', async () => {
     const made = starter();
     const approve = made.buildFor('my-desk').fingerprint;

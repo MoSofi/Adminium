@@ -10,6 +10,7 @@
  */
 import type { Attachment, Attachments } from './attachments.js';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { MetaDb } from '@adminium/meta';
@@ -22,7 +23,7 @@ import { checkApp } from '../project/apps/check-app.js';
 import { dashboardPageLine, designIssues } from '../project/apps/design-check.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, type DesignSkill } from '../project/apps/design-skills.js';
 import { ICONS_PACKAGE, listedPackages } from './needs.js';
-import { applyLook, cleanLook, DESIGN_CSS_START, lookInUse, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
+import { applyLook, cleanLook, DESIGN_CSS_START, isDirection, lookInUse, missingFonts, ownFontPatch, readLook, resolveLook, sideLookFiles, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import type { ProjectApps } from '../project/apps/project-apps.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
@@ -30,9 +31,12 @@ import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictu
 import { appKeyProblem, DEFAULT_LOOK, nameFromKey, scaffoldApp } from '../project/apps/scaffold-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { findProject } from '../project/locate.js';
-import type { DesignerEvent } from './events.js';
+import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
+import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, withLineEnds, FILES_SAVED_MAX, type FileGroup } from './files.js';
+import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
+import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
-import { createDesignerRunner, type Actor, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
+import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
 import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type DesignerTarget, type SessionStore } from './session-store.js';
 import type { DesignerTool } from './tool-types.js';
 import type { Versions } from './versions.js';
@@ -68,6 +72,10 @@ export interface DesignerHost {
   stylesDir?: string | null;
   /** Asking the person for what a design needs, on one card. Absent in a harness that asks for nothing. */
   needs?: import('./ask-needs.js').NeedsAsker;
+  /** How long a hand save, a style change or going back may hold the folder; the runner's own cap when left out. */
+  holdCapMs?: number;
+  /** For tests: called with a name as a hand save, a style change or going back reaches a step, so one can be held open or made to fail there. */
+  seam?: (step: 'held' | 'write', detail?: string) => void | Promise<void>;
   /** Whether this Designer can look for pictures now (a source it may call). */
   findsPictures?: () => boolean;
   /** Take an app's sample rows out and add them again, as its files now have them (with pictures they did not have). */
@@ -93,7 +101,17 @@ export interface Designer {
   runner: DesignerRunner;
   createSession(input: CreateSessionInput, by: Actor): Promise<DesignerSession>;
   /** The engine's last word on a turn. Exposed for the tools that apply mid-turn. */
-  pipeline(session: DesignerSession, handle: TurnHandle, opts?: { version?: boolean; askRemovals?: boolean }): Promise<PipelineResult>;
+  pipeline(session: DesignerSession, handle: TurnHandle, opts?: { version?: boolean; askRemovals?: boolean; /** What the version is called after its number. */ label?: string }): Promise<PipelineResult>;
+  /** The files of the session's app a person may read and save by hand, in groups; what has the folder now; the newest version. */
+  listFiles(sessionId: string): Promise<{ groups: FileGroup[]; busy: BusyKind | null; version: number | null }>;
+  /** One file of that list, as text, with the hash of its bytes. 404 for a path that is not on the list, whatever the reason. */
+  readFile(sessionId: string, path: string): Promise<{ path: string; content: string; hash: string }>;
+  /**
+   * Save files by hand, all or none: each must be on the list and still be
+   * what the person opened (`base`). Then the engine's check, build and apply,
+   * and a version named for the files. No model is called.
+   */
+  saveFiles(sessionId: string, files: readonly SavedFile[], by: Actor): Promise<SaveResult>;
   /**
    * Put the folder back as version `n` was (0: before the session), and apply
    * it. With `record` that is a new version on top (O1); without, it is "put
@@ -132,8 +150,25 @@ export interface Designer {
    * Build the folder's apps and apply them, with no turn behind it: what the
    * check, the build or the apply says is wrong with `key`, or nothing.
    */
-  buildAndApply(key: string): Promise<string[]>;
+  buildAndApply(key: string, signal?: AbortSignal): Promise<string[]>;
   shutdown(): Promise<void>;
+}
+
+/** A file as a hand save sends it: its path, its whole text, and the hash it had when the person opened it. */
+export interface SavedFile {
+  path: string;
+  content: string;
+  base: string;
+}
+
+export interface SaveResult {
+  /** Whether the engine applied the app as it now is. When not, the files stay written and no version is made. */
+  applied: boolean;
+  version: { n: number; name: string } | null;
+  /** Each saved file as it is on disk now. */
+  files: { path: string; hash: string }[];
+  /** Why it was not applied: the stage that said no, and its words. */
+  problems?: { stage: 'check' | 'build' | 'apply'; lines: string[] };
 }
 
 /** Words that ask, beyond doubt, for a screen of the app's own: a turn that ends with none is sent back. (A phone number is no screen.) */
@@ -348,7 +383,7 @@ export function createDesigner(host: DesignerHost): Designer {
   /** Public access the last apply left as it was: the screens are refused what the manifest grants until it is settled. */
   const accessWarnings = new Map<string, string[]>();
 
-  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean } = {}): Promise<PipelineResult> {
+  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
     const key = session.appKey;
 
@@ -359,12 +394,17 @@ export function createDesigner(host: DesignerHost): Designer {
     events.emit(turn, { kind: 'check', ok: errors.length === 0, findings });
     if (errors.length > 0) return { ok: false, version: null };
 
+    // Told to stop (Stop, a cap, a shutdown): nothing more is built or applied.
+    if (handle.signal.aborted) return { ok: false, version: null };
+
     // 2. Built as `adminium build` builds it: the manifest put together, the screens bundled.
     const built = await rebuildApps(project(), { version: host.version, dev: true, signal: handle.signal });
     const app = built.apps.find((candidate) => candidate.key === key);
     const problems = app?.problems ?? (app === undefined ? [`apps/${key} was not built.`] : []);
     events.emit(turn, { kind: 'build', ok: problems.length === 0, problems: problems.slice(0, 20) });
     if (problems.length > 0) return { ok: false, version: null };
+
+    if (handle.signal.aborted) return { ok: false, version: null };
 
     // 3. Applied by the server, as `adminium dev` applies a saved file.
     const apps = host.projectApps();
@@ -409,7 +449,7 @@ export function createDesigner(host: DesignerHost): Designer {
     const warnings = kept.length === 0 ? {} : { warnings: kept };
     followName(session);
     if (opts.version === false || host.versions == null) return { ok: true, version: null, ...warnings };
-    const version = await host.versions.commit(session);
+    const version = await host.versions.commit(session, opts.label);
     if (version !== null) {
       store.update(session.id, { version: version.n });
       events.emit(turn, { kind: 'version', n: version.n, name: version.name });
@@ -457,7 +497,7 @@ export function createDesigner(host: DesignerHost): Designer {
       if (hasOwnBuild(host.root, session.appKey) || sidesWithScreens(host.root, session.appKey).length === 0) return null;
       const sight = await sights.wait(session.id, opts.since, { signal: opts.signal });
       if (sight === null) return null;
-      if (opts.again) return sight.stopped ? { text: sightText(sight, session.appKey, false, true) as string } : null;
+      if (opts.again) return sight.stopped ? { text: sightText(sight, session.appKey, false, true) as string, side: sight.side, path: sight.path ?? '/' } : null;
       // The picture goes only to a model that reads pictures, as a file of this session: one at a time, the last one replaced.
       const reads = sight.picture !== null && host.attachments !== undefined && (await host.connections.readsImages(session.connectionId as ConnectionId, session.model).catch(() => null)) === true;
       let image: { ref: string; mediaType: string; name: string } | undefined;
@@ -472,7 +512,7 @@ export function createDesigner(host: DesignerHost): Designer {
         }
       }
       const text = sightText(sight, session.appKey, image !== undefined);
-      return text === null ? null : { text, ...(image === undefined ? {} : { image }) };
+      return text === null ? null : { text, ...(image === undefined ? {} : { image }), side: sight.side, path: sight.path ?? '/' };
     },
     runnerFor: async (session) => {
       const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model);
@@ -577,7 +617,19 @@ export function createDesigner(host: DesignerHost): Designer {
     audit: (action, session, detail) => host.audit(action, null, { sessionId: session.id, appKey: session.appKey, ...detail }),
     auditCard: (sessionId, by, detail) => host.audit('designer.card.answered', by, { sessionId, ...detail }),
     log: host.log,
+    ...(host.holdCapMs === undefined ? {} : { holdCapMs: host.holdCapMs }),
   });
+
+  /** The turn a person's own action stands in for: no turn at all, its events marked so, and nobody to ask. */
+  const outsideATurn = (session: DesignerSession, by: Actor, signal: AbortSignal, events: EventLog = personLog(runner.events(session.id))): TurnHandle => ({
+    turn: session.turns,
+    by,
+    events,
+    signal,
+    ask: () => Promise.reject(new Error('nothing is asked outside a turn')),
+  });
+  const jailOf = (appKey: string) => createJail(host.root, appKey);
+  const editable = (appKey: string) => listEditable(host.root, appKey, { look: lookOf(appKey) !== null });
 
   /** A new app, as bare as `createSession` made it: its two starting files and nothing the Designer wrote. */
   const stillBare = (appKey: string): boolean => {
@@ -670,30 +722,193 @@ export function createDesigner(host: DesignerHost): Designer {
     },
     async restore(sessionId, n, opts) {
       const session = store.read(sessionId);
-      if (runner.active() !== null) {
-        throw new ConflictError('The Designer is working. Stop it, or wait for it to finish, before going back.', 'CONFLICT', { reason: 'TURN_RUNNING' });
+      // The folder is taken before anything is awaited: a turn, a save or a style change cannot begin under this.
+      const hold = runner.hold('restore', session.id);
+      try {
+        if (host.versions == null || !(await host.versions.available())) {
+          throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
+        }
+        await host.seam?.('held', 'restore');
+        const version = await host.versions.restore(session, n, { record: opts.record });
+        // The files are a version's again: none of them is the person's own edit any more.
+        store.update(session.id, { ...(version === null ? {} : { version: version.n }), ...((session.handEdits ?? []).length === 0 ? {} : { handEdits: [] }) });
+        const handle = outsideATurn(store.read(session.id), opts.by, hold.signal);
+        if (version !== null) handle.events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
+        // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
+        const applied = await pipeline(store.read(session.id), handle, { version: false, askRemovals: false });
+        await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
+        return { version, applied: applied.ok };
+      } finally {
+        hold.release();
       }
-      if (host.versions == null || !(await host.versions.available())) {
-        throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
+    },
+    async listFiles(sessionId) {
+      const session = store.read(sessionId);
+      return { groups: groupFiles(await editable(session.appKey)), busy: runner.busy()?.kind ?? null, version: session.version };
+    },
+    async readFile(sessionId, path) {
+      const session = store.read(sessionId);
+      const listed = (await editable(session.appKey)).find((file) => file.path === path);
+      // Not there and not allowed are one answer: the list is the only thing a path is held against.
+      if (listed === undefined) throw new NotFoundError('That is not a file of this app that can be opened here.', { path: path.slice(0, 300) });
+      if (!listed.text) throw new ValidationFailedError('This file is not text, so it cannot be opened here.', { reason: 'NOT_TEXT', path });
+      const bytes = await readFile(jailOf(session.appKey).resolve(path, 'read'));
+      if (!isText(bytes)) throw new ValidationFailedError('This file is not text, so it cannot be opened here.', { reason: 'NOT_TEXT', path });
+      return { path, content: bytes.toString('utf8'), hash: await hashOf(bytes) };
+    },
+    async saveFiles(sessionId, files, by) {
+      const session = store.read(sessionId);
+      const key = session.appKey;
+      if (files.length === 0 || files.length > FILES_SAVED_MAX) throw new ValidationFailedError(`A save holds 1 to ${String(FILES_SAVED_MAX)} files.`, { reason: 'FILES' });
+      if (new Set(files.map((file) => file.path)).size !== files.length) throw new ValidationFailedError('A save names each file once.', { reason: 'FILES' });
+      // The folder is taken before anything is awaited: nothing else writes it until this is over, however it ends.
+      const hold = runner.hold('save', session.id);
+      try {
+        // An app that still waits for its name is moved to another folder when it gets one: nothing is saved into it before.
+        if (needsName(session)) throw new ConflictError('The app has no name yet. Send the Designer a message first.', 'CONFLICT', { reason: 'APP_UNNAMED' });
+
+        // 1. The list, made now: a path that is not on it is not saved, and neither is anything else of this save.
+        const listed = new Map((await editable(key)).map((file) => [file.path, file]));
+        const missing = files.find((file) => !listed.has(file.path));
+        if (missing !== undefined) throw new NotFoundError('That is not a file of this app that can be saved here.', { path: missing.path.slice(0, 300) });
+        const notText = files.find((file) => listed.get(file.path)?.text !== true);
+        if (notText !== undefined) throw new ValidationFailedError('This file is not text, so it cannot be saved here.', { reason: 'NOT_TEXT', path: notText.path });
+
+        // 2. Each file is still what the person opened.
+        const changed = files.filter((file) => listed.get(file.path)?.hash !== file.base).map((file) => ({ path: file.path, hash: listed.get(file.path)?.hash ?? '' }));
+        if (changed.length > 0) {
+          throw new ConflictError('A file changed since you opened it.', 'CONFLICT', { reason: 'FILES_CHANGED', changed });
+        }
+
+        // 3. Each content is text a file may hold, and may be written with nobody asked.
+        const jail = jailOf(key);
+        const before = new Map<string, Buffer>();
+        const next = new Map<string, string>();
+        for (const file of files) {
+          if (file.content.includes('\0')) throw new ValidationFailedError('A file is text, and this has a NUL in it.', { reason: 'NOT_TEXT', path: file.path });
+          const old = await readFile(jail.resolve(file.path, 'read'));
+          // Read again, so what is kept to write back is what is there now: a file that changed in between is refused as changed.
+          if ((await hashOf(old)) !== file.base) throw new ConflictError('A file changed since you opened it.', 'CONFLICT', { reason: 'FILES_CHANGED', changed: [{ path: file.path, hash: await hashOf(old) }] });
+          const content = withLineEnds(old.toString('utf8'), file.content);
+          if (Buffer.byteLength(content, 'utf8') > MAX_WRITE_BYTES) throw new ValidationFailedError(`A file is at most ${String(MAX_WRITE_BYTES / 1024)} KB.`, { reason: 'TOO_LARGE', path: file.path });
+          const refusal = noCardRefusal(host.root, key, file.path, content);
+          if (refusal !== null) {
+            throw new ValidationFailedError(
+              refusal === 'build-command' ? 'An app’s own build command is not set here. Leave "build" out of app.json.' : 'This file is not changed by hand here.',
+              { reason: 'NOT_ALLOWED', path: file.path, why: refusal },
+            );
+          }
+          if (isAppJson(key, file.path)) {
+            const problem = appJsonProblem(old.toString('utf8'), content);
+            if (problem !== null) throw new ValidationFailedError(problem.message, { reason: 'APP_JSON', path: file.path, ...(problem.field === null ? {} : { field: problem.field }) });
+          }
+          before.set(file.path, old);
+          next.set(file.path, content);
+        }
+
+        // 4. A look is read, and its files worked out, before anything is written: one that cannot be applied refuses the whole save.
+        const lookPath = files.find((file) => isLookFile(key, file.path))?.path;
+        let look: Look | null = null;
+        if (lookPath !== undefined) {
+          const refuse = (message: string): never => {
+            throw new ValidationFailedError(message, { reason: 'LOOK', path: lookPath, message });
+          };
+          let raw: unknown;
+          try {
+            raw = JSON.parse(next.get(lookPath) as string);
+          } catch (error) {
+            refuse(`This is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) refuse('look.json holds one object.');
+          const given = raw as Record<string, unknown>;
+          if (typeof given['skill'] === 'string') {
+            const skill = findDesignSkill(host.root, stylesDir, given['skill']);
+            if (skill === null || skill.problem !== undefined) refuse(skill?.problem ?? `There is no style called "${given['skill'].slice(0, 40)}".`);
+            else if (!skill.hasTheme) refuse('This style is words alone: ask for it in the chat, and the Designer applies it.');
+          } else if (!isDirection(given['direction'])) {
+            // A look kept before styles has a direction and no style: it is read as it always was.
+            refuse('look.json names a style: "skill", with the key of one of the styles.');
+          }
+          look = cleanLook({ skill: given['skill'], direction: given['direction'], accent: given['accent'], words: given['words'], theme: given['theme'], without: given['without'], ownFonts: given['ownFonts'] });
+          try {
+            sideLookFiles(host.root, look, places);
+          } catch (error) {
+            refuse(`This look cannot be applied: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+
+        // 5. The engine applies the whole folder, so the folder must hold this save and nothing half-done beside it.
+        const paths = files.map((file) => file.path);
+        const loose = ((await host.versions?.changed(session).catch(() => null)) ?? []).filter((path) => !paths.includes(path));
+        if (loose.length > 0) {
+          throw new ConflictError('The Designer’s last change was not finished. Ask it to finish, or put the files back.', 'CONFLICT', { reason: 'UNFINISHED_CHANGE' });
+        }
+        await host.seam?.('held', 'save');
+
+        // 6. Written, all or none: a write that fails puts back, byte for byte, what the earlier ones replaced.
+        const styleBefore = lookPath === undefined ? null : (readLook(host.root, key)?.skill ?? null);
+        const written: string[] = [];
+        try {
+          for (const path of paths) {
+            await host.seam?.('write', path);
+            jail.write(path, next.get(path) as string);
+            written.push(path);
+          }
+          // 7. What the Designer is told next turn is kept before the look is applied: whatever comes after, it is on record.
+          store.update(session.id, { handEdits: [...new Set([...(session.handEdits ?? []), ...paths])].slice(-HAND_EDITS_MAX) });
+          if (look !== null) applyLook(host.root, key, look, places);
+        } catch (error) {
+          for (const path of written) {
+            try {
+              writeFileSync(jail.resolve(path, 'write'), before.get(path) as Buffer);
+            } catch (failed) {
+              host.log('a file could not be put back after a hand save failed', failed);
+            }
+          }
+          store.update(session.id, { handEdits: session.handEdits ?? [] });
+          if (error instanceof JailError) throw new ValidationFailedError(error.message, { reason: 'NOT_ALLOWED' });
+          throw error;
+        }
+
+        // 8. Check, build, apply, and a version named for the files. What each stage says is kept for the reply.
+        const said: DesignerEventBody[] = [];
+        const log = personLog(runner.events(session.id));
+        const handle = outsideATurn(store.read(session.id), by, hold.signal, {
+          ...log,
+          emit: (turn, body) => {
+            said.push(body);
+            return log.emit(turn, body);
+          },
+        });
+        if (look !== null && look.skill !== styleBefore) {
+          const resolved = resolveLook(host.root, look, places);
+          const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+          handle.events.emit(session.turns, { kind: 'style', skill: look.skill, title: resolved.title, ...(fonts.length === 0 ? {} : { fonts }) });
+        }
+        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: saveLabel(paths) });
+        const after = new Map((await editable(key)).map((file) => [file.path, file.hash]));
+        const result: SaveResult = {
+          applied: verdict.ok,
+          version: verdict.version,
+          files: paths.flatMap((path) => (after.has(path) ? [{ path, hash: after.get(path) as string }] : [])),
+        };
+        if (!verdict.ok) {
+          const check = said.find((body): body is Extract<DesignerEventBody, { kind: 'check' }> => body.kind === 'check' && !body.ok);
+          const build = said.find((body): body is Extract<DesignerEventBody, { kind: 'build' }> => body.kind === 'build' && !body.ok);
+          const apply = said.find((body): body is Extract<DesignerEventBody, { kind: 'apply' }> => body.kind === 'apply' && !body.ok);
+          result.problems = hold.signal.aborted
+            ? { stage: 'build', lines: ['The save was stopped before it was applied: it took too long, or the server is stopping.'] }
+            : check !== undefined
+              ? { stage: 'check', lines: check.findings.filter((finding) => finding.level === 'error').slice(0, 12).map((finding) => `${finding.file} · ${finding.message}`) }
+              : build !== undefined
+                ? { stage: 'build', lines: build.problems.slice(0, 12) }
+                : { stage: 'apply', lines: [apply?.message ?? apply?.stage ?? apply?.state ?? 'The server did not say why.'] };
+        }
+        await host.audit('designer.files.saved', by, { sessionId, appKey: key, files: paths, version: verdict.version?.n ?? null, applied: verdict.ok });
+        return result;
+      } finally {
+        hold.release();
       }
-      const version = await host.versions.restore(session, n, { record: opts.record });
-      if (version !== null) store.update(session.id, { version: version.n });
-      const events = runner.events(session.id);
-      if (version !== null) events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
-      // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
-      const applied = await pipeline(
-        store.read(session.id),
-        {
-          turn: session.turns,
-          by: opts.by,
-          events,
-          signal: new AbortController().signal,
-          ask: () => Promise.reject(new Error('nothing is asked outside a turn')),
-        },
-        { version: false, askRemovals: false },
-      );
-      await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
-      return { version, applied: applied.ok };
     },
     lookOf,
     publicLook,
@@ -707,35 +922,35 @@ export function createDesigner(host: DesignerHost): Designer {
     styles: () => listDesignSkills(host.root, stylesDir),
     async setLook(sessionId, input, by) {
       const session = store.read(sessionId);
-      if (runner.active() !== null) {
-        throw new ConflictError('The Designer is working. Stop it, or wait for it to finish, before changing the look.', 'CONFLICT', { reason: 'TURN_RUNNING' });
+      // The folder is taken before anything is awaited: a turn, a save or going back cannot begin under this.
+      const hold = runner.hold('style', session.id);
+      try {
+        if (lookOf(session.appKey) === null) {
+          throw new ConflictError('This app has no screens whose look can be changed here.', 'CONFLICT', { reason: 'NO_LOOK' });
+        }
+        const skill = findDesignSkill(host.root, stylesDir, input.skill);
+        if (skill === null || skill.problem !== undefined) {
+          throw new NotFoundError(skill?.problem ?? 'There is no such style.', { skill: input.skill });
+        }
+        // A style of words alone has no values to write: it is the Designer's to apply, in a turn.
+        if (!skill.hasTheme) throw new ConflictError('This style is words alone: ask for it in the chat, and the Designer applies it.', 'CONFLICT', { reason: 'STYLE_NEEDS_A_TURN' });
+        await host.seam?.('held', 'style');
+        const before = readLook(host.root, session.appKey);
+        // A font file of the person's own stays in use across a change of style.
+        const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before) });
+        applyLook(host.root, session.appKey, look, places);
+        const handle = outsideATurn(store.read(session.id), by, hold.signal);
+        const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+        handle.events.emit(session.turns, { kind: 'style', skill: skill.key, title: skill.title, ...(fonts.length === 0 ? {} : { fonts }) });
+        const applied = await pipeline(store.read(session.id), handle, { askRemovals: false });
+        await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, style: look.skill });
+        return { look: publicLook(session.appKey) as PublicLook, version: applied.version, applied: applied.ok };
+      } finally {
+        hold.release();
       }
-      if (lookOf(session.appKey) === null) {
-        throw new ConflictError('This app has no screens whose look can be changed here.', 'CONFLICT', { reason: 'NO_LOOK' });
-      }
-      const skill = findDesignSkill(host.root, stylesDir, input.skill);
-      if (skill === null || skill.problem !== undefined) {
-        throw new NotFoundError(skill?.problem ?? 'There is no such style.', { skill: input.skill });
-      }
-      // A style of words alone has no values to write: it is the Designer's to apply, in a turn.
-      if (!skill.hasTheme) throw new ConflictError('This style is words alone: ask for it in the chat, and the Designer applies it.', 'CONFLICT', { reason: 'STYLE_NEEDS_A_TURN' });
-      const before = readLook(host.root, session.appKey);
-      // A font file of the person's own stays in use across a change of style.
-      const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before) });
-      applyLook(host.root, session.appKey, look, places);
-      const events = runner.events(session.id);
-      const fonts = missingFonts(host.root, look, places).map((font) => font.family);
-      events.emit(session.turns, { kind: 'style', skill: skill.key, title: skill.title, ...(fonts.length === 0 ? {} : { fonts }) });
-      const applied = await pipeline(
-        store.read(session.id),
-        { turn: session.turns, by, events, signal: new AbortController().signal, ask: () => Promise.reject(new Error('nothing is asked outside a turn')) },
-        { askRemovals: false },
-      );
-      await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, style: look.skill });
-      return { look: publicLook(session.appKey) as PublicLook, version: applied.version, applied: applied.ok };
     },
-    async buildAndApply(key) {
-      const built = await rebuildApps(project(), { version: host.version, dev: true });
+    async buildAndApply(key, signal) {
+      const built = await rebuildApps(project(), { version: host.version, dev: true, ...(signal === undefined ? {} : { signal }) });
       const app = built.apps.find((candidate) => candidate.key === key);
       if (app === undefined) return [`apps/${key} was not built.`];
       if ((app.problems ?? []).length > 0) return app.problems ?? [];

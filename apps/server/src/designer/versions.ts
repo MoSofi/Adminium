@@ -42,6 +42,14 @@ export interface Versions {
    * With `record`, that is saved as a new version on top.
    */
   restore(session: DesignerSession, n: number, opts: { record: boolean }): Promise<{ n: number; name: string } | null>;
+  /**
+   * The files that are not as the session's newest version has them (before
+   * the first version: as the folder was before the session), project-relative:
+   * changed, added or gone. What a build of the app's own left in the folder
+   * is not counted. Null when that cannot be known (versions off, or a session
+   * with nothing recorded).
+   */
+  changed(session: DesignerSession): Promise<string[] | null>;
 }
 
 const GIT_TIMEOUT_MS = 30_000;
@@ -221,6 +229,16 @@ export function createVersions(root: string, opts: { git?: string } = {}): Versi
       }
       if (!opts.record) return null;
       return record(session, (next) => `v${String(next)} · Back to v${String(n)}`);
+    },
+    async changed(session) {
+      if (!(await this.available()) || !existsSync(join(gitDir, 'HEAD'))) return null;
+      const last = (await revision(branch(session.id))) ?? (await revision(base(session.id)));
+      if (last === null) return null;
+      const tree = await treeOfFolder(session);
+      const names = (await git(['diff-tree', '-r', '--name-only', '--no-renames', '-z', `${last}^{tree}`, tree])).split('\0').filter((name) => name !== '');
+      // What an app's own build wrote beside its source is no change of anyone's.
+      const built = new RegExp(`^apps/${session.appKey}/dist(-|/|$)`, 'i');
+      return names.filter((name) => !built.test(name));
     },
   };
 }
