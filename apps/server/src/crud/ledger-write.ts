@@ -49,6 +49,7 @@ import { instantOf, RecordLocked, StateMoveRefused } from './states.js';
 import { sameValue } from './write-values.js';
 import type { WriteClock } from './write-clock.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
+import { venueClock } from './venue-time.js';
 
 type Db = Kysely<SourceDatabase>;
 
@@ -411,6 +412,17 @@ export interface Peek {
 }
 
 /** What the writer takes from the write service it is built in. */
+/**
+ * The clock an add-on's code is handed: the instant, the venue's zone, and
+ * TODAY AS THE VENUE'S CALENDAR READS IT. The instant's own date is UTC's —
+ * at six in the evening in Portland it is already tomorrow there, and a
+ * batch good until today would be judged expired.
+ */
+export function plannerClock(at: Date, timezone: string | undefined): { now: string; today: string; zone: string } {
+  const zone = timezone ?? 'UTC';
+  return { now: at.toISOString(), today: venueClock(at, zone).day, zone };
+}
+
 export interface LedgerKit {
   ledgers: LedgerRuntime | undefined;
   rulesOf(target: WriteTarget): TableRules | null;
@@ -898,9 +910,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       phase: call.phase,
       mode,
       origin: postingOrigin(input.context),
-      now: input.at.toISOString(),
-      today: input.at.toISOString().slice(0, 10),
-      zone: input.target.timezone ?? 'UTC',
+      ...plannerClock(input.at, input.target.timezone),
       currency: null,
       source: input.source,
       lines: input.lines,
@@ -1902,7 +1912,7 @@ export async function planWords(
       plan = callDecider(
         'rows',
         decider,
-        { contract: 'posting-rows@1', ledger: ledger.id, action: words.action, posting: words.id, phase: 'post', mode: 'words', origin: input.origin, now: input.now.toISOString(), today: input.now.toISOString().slice(0, 10), zone: input.timezone ?? 'UTC', currency: null, source, lines, reads, settings, written: {}, version: ledger.version },
+        { contract: 'posting-rows@1', ledger: ledger.id, action: words.action, posting: words.id, phase: 'post', mode: 'words', origin: input.origin, ...plannerClock(input.now, input.timezone), currency: null, source, lines, reads, settings, written: {}, version: ledger.version },
         { shape: postingOutputSchema },
       ) as PostingOutput;
     } catch (error) {

@@ -1966,7 +1966,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const readsDay = (rules?.stamps ?? []).some((stamp) => saysToday(stamp.set)) || (rules?.bounds ?? []).some((bound) => bound.notAfter === 'today');
     // A move waiting for a time, a late or timed move, a stamp worked out from a moment: all read the venue's clock.
     const readsClock = statesReadClock(rules?.states, rules?.stamps) || (rules?.codeLookups?.length ?? 0) > 0;
-    if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay && !readsClock) return undefined;
+    // A row that posts into a ledger: the add-on's code is told what day it is where the venue is (a batch's last day).
+    const posts = (rules?.postings?.length ?? 0) > 0 || (rules?.asLine?.length ?? 0) > 0 || (rules?.linePostings?.length ?? 0) > 0;
+    if (!posts && rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay && !readsClock) return undefined;
     return target.timezone ?? (await opts.timezoneOf?.(target.connectionId)) ?? 'UTC';
   }
 
