@@ -1453,7 +1453,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             ['add-ons.json', `${JSON.stringify(nextNeeds, null, 2)}\n`],
           ]);
           const lines = [
-            `- ${base}/tables/${table}.json: ${made.added.length === 0 ? 'no column added' : `added ${made.added.map((column) => `${column.column} (${column.type}${column.links === undefined ? '' : `, a link to ${column.links}`})`).join(', ')}`}; the rule "${made.posting.id}" posts into ${addOn}/${ledger} (${action})`,
+            `- ${base}/tables/${table}.json: ${made.added.filter((column) => column.given !== true).length === 0 ? 'no column added' : `added ${made.added.filter((column) => column.given !== true).map((column) => `${column.column} (${column.type}${column.links === undefined ? '' : `, a link to ${column.links}`})`).join(', ')}`}${made.added.filter((column) => column.given === true).map((column) => `; ${column.column} is now a link to ${column.links ?? ''}, and may be empty`).join('')}; the rule "${made.posting.id}" posts into ${addOn}/${ledger} (${action})`,
             `- ${base}/add-ons.json: ${need} ${made.addOn.key} ${made.addOn.range}`,
           ];
           if (granted !== undefined && made.grants.length > 0) {

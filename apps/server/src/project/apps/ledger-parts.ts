@@ -76,7 +76,7 @@ export type LedgerPartsResult =
       /** The table's file with the columns and the rule in place. */
       table: Json;
       /** The columns added, or given their link. */
-      added: { column: string; type: string; links?: string }[];
+      added: { column: string; type: string; links?: string; /** A column the table had, given its link (and made one that may be empty). */ given?: true }[];
       posting: Posting;
       addOn: { key: string; name: string; range: string };
       /** With `suggests`: the feature the rule is live under. */
@@ -183,7 +183,7 @@ export function ledgerParts(input: LedgerPartsInput): LedgerPartsResult {
   const stray = Object.keys(given).find((name) => action.inputs[name] === undefined);
   if (stray !== undefined) return no(`"${stray}" is not an input of ${into}. Its inputs are ${inputsInWords(action)}.`);
 
-  const added: { column: string; type: string; links?: string }[] = [];
+  const added: { column: string; type: string; links?: string; given?: true }[] = [];
   const map: Record<string, string | { row: true }> = {};
   const grants = new Map<string, string[]>();
   const keyOf = keyColumnOf(input.document);
@@ -237,8 +237,14 @@ export function ledgerParts(input: LedgerPartsInput): LedgerPartsResult {
         const link = rules['addOnLink'] as { addOn?: unknown; table?: unknown } | undefined;
         if (linked !== null && (link === undefined || link.addOn !== input.addOn || link.table !== linked)) {
           if (link !== undefined) return no(`"${columnRef}" in ${file} links to ${String(link.addOn)}.${String(link.table)}, and "${name}" is a row of ${input.addOn}.${linked}. Name another column in "columns": { "${name}": "<column>" }.`);
+          // A link into an add-on is a column that may be empty and points nowhere else: the add-on may not be there.
+          if (column['references'] !== undefined) {
+            return no(`"${columnRef}" in ${file} has "references": it links to a table of this app, and "${name}" is a row of ${input.addOn}.${linked}. Take "references" off it, or name another column in "columns": { "${name}": "<column>" }.`);
+          }
           column['rules'] = { ...rules, addOnLink: { addOn: input.addOn, table: linked } };
-          added.push({ column: columnRef, type: has_, links: `${input.addOn}.${linked}` });
+          column['nullable'] = true;
+          delete column['default'];
+          added.push({ column: columnRef, type: has_, links: `${input.addOn}.${linked}`, given: true });
         }
       } else if (kind === 'number' || kind === 'decimal') {
         if (!NUMERIC.has(has_)) {

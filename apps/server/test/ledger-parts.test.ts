@@ -63,7 +63,16 @@ describe('the parts of a table that posts into a ledger', () => {
     expect(made.ok, made.ok ? '' : made.problem).toBe(true);
     if (!made.ok) return;
     expect(made.posting.map).toEqual({ account: 'account', quantity: 'units_used' });
-    expect(made.added).toEqual([{ column: 'account', type: 'int', links: 'ledger-kit.accounts' }]);
+    expect(made.added).toEqual([{ column: 'account', type: 'int', links: 'ledger-kit.accounts', given: true }]);
+    // As a model writes it: required, with a default. A link into an add-on may be empty, so it is made so.
+    const strict = lines();
+    strict.columns.push({ ref: 'account_id', type: 'int', default: 0 } as never);
+    const fixed = ask({ table: strict });
+    expect(fixed.ok && (fixed.table['columns'] as unknown[])[2]).toEqual({ ref: 'account_id', type: 'int', rules: { addOnLink: { addOn: 'ledger-kit', table: 'accounts' } }, nullable: true });
+    // One that links to a table of the app is not turned into a link elsewhere.
+    const own = lines();
+    own.columns.push({ ref: 'account_id', type: 'int', references: 'visits' } as never);
+    expect(problem({ table: own })).toContain('"account_id" in tables/visit_supplies.json has "references"');
     expect((made.table['columns'] as unknown[]).length).toBe(4);
   });
 

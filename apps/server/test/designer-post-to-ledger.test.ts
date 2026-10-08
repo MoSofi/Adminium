@@ -257,6 +257,15 @@ describe('post_to_ledger', () => {
     );
   });
 
+  it('a column the model wrote itself is given its link and made one that may be empty, and the app checks', async () => {
+    writeFileSync(file('tables/item_parts.json'), JSON.stringify({ ref: 'item_parts', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'item_id', type: 'fk', references: 'items' }, { ref: 'account_id', type: 'int' }, { ref: 'qty', type: 'decimal', scale: 2, default: 1 }] }));
+    const done = await post();
+    expect(done.isError, done.content).toBeUndefined();
+    expect(done.content).toContain('no column added; account_id is now a link to ledger-kit.accounts, and may be empty; the rule "units"');
+    expect((json('tables/item_parts.json') as { columns: unknown[] }).columns[2]).toEqual({ ref: 'account_id', type: 'int', rules: { addOnLink: { addOn: 'ledger-kit', table: 'accounts' } }, nullable: true });
+    expect(errors()).toEqual([]);
+  });
+
   it('a role that is not the app\'s, and a server too old for the rule, are refused before anything is written', async () => {
     parts();
     expect((await post({ role: 'cashier' })).content).toContain('There is no role "cashier" in apps/repairs/manifest/roles.json. Its roles: staff.');
