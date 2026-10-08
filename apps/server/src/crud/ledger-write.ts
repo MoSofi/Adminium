@@ -420,7 +420,12 @@ export interface Peek {
  */
 export function plannerClock(at: Date, timezone: string | undefined): { now: string; today: string; zone: string } {
   const zone = timezone ?? 'UTC';
-  return { now: at.toISOString(), today: venueClock(at, zone).day, zone };
+  try {
+    return { now: at.toISOString(), today: venueClock(at, zone).day, zone };
+  } catch {
+    // A stored zone no calendar knows (typed by hand long ago): the save is not stopped for it; UTC's day stands.
+    return { now: at.toISOString(), today: at.toISOString().slice(0, 10), zone };
+  }
 }
 
 export interface LedgerKit {

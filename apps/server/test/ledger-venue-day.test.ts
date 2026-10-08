@@ -26,6 +26,10 @@ describe('the clock handed to an add-on\'s code', () => {
     expect(plannerClock(new Date('2026-10-20T23:30:00.000Z'), 'Europe/Berlin').today).toBe('2026-10-21');
   });
 
+  it('does not stop a save over a zone no calendar knows: the instant\'s own day stands', () => {
+    expect(plannerClock(new Date('2026-10-20T23:30:00.000Z'), 'Mars/Olympus')).toEqual({ now: '2026-10-20T23:30:00.000Z', today: '2026-10-20', zone: 'Mars/Olympus' });
+  });
+
   it('is UTC\'s where no zone is known', () => {
     expect(plannerClock(new Date('2026-10-20T23:30:00.000Z'), undefined)).toEqual({ now: '2026-10-20T23:30:00.000Z', today: '2026-10-20', zone: 'UTC' });
   });
