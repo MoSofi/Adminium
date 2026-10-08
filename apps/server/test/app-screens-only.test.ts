@@ -23,6 +23,7 @@ import {
 } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
+import { STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
 import { discoverSurfaces } from '../src/cli/surfaces-root.js';
 import { composeServer } from '../src/compose.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -110,6 +111,27 @@ describe('someone who opens only an app’s own screens', () => {
     expect((await get('/api/v1/documents/doc_1/print', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/documents/doc_1/content', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/documents', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+    // An add-on's stock words are for the screens of an app that uses it: no add-on is connected to theirs.
+    for (const url of ['/api/v1/words/stock/item?table=stock:items&ids=1', '/%61pi/v1/words/stock/item?table=stock:items&ids=1']) {
+      expect((await get(url, cookie)).json().error?.code, url).toBe('APP_SCREENS_ONLY');
+    }
+  });
+
+  it('may ask the stock words of an add-on their app uses: that route, read only, and that add-on', () => {
+    const WORDS = '/api/v1/words/:addOn/:wordsId';
+    const theirs = new Set(['stock']);
+    const allowed = (method: string, route: string, params: unknown, addOns: ReadonlySet<string> = theirs) => allowedForScreensOnly(method, route, params, new Set(['conn_1']), ['clients'], addOns);
+    expect(allowed('GET', WORDS, { addOn: 'stock', wordsId: 'item' })).toBe(true);
+    expect(STAFF_WORDS_ROUTE).toBe(WORDS);
+    // Another add-on, none at all, another method, another route under the same name, a parameter that is no name.
+    expect(allowed('GET', WORDS, { addOn: 'offers', wordsId: 'item' })).toBe(false);
+    expect(allowed('GET', WORDS, { addOn: 'stock', wordsId: 'item' }, new Set())).toBe(false);
+    expect(allowedForScreensOnly('GET', WORDS, { addOn: 'stock', wordsId: 'item' }, new Set(['conn_1']), ['clients'])).toBe(false);
+    expect(allowed('POST', WORDS, { addOn: 'stock', wordsId: 'item' })).toBe(false);
+    expect(allowed('GET', '/api/v1/words/:addOn', { addOn: 'stock' })).toBe(false);
+    expect(allowed('GET', '/api/v1/add-ons/:addOn/words', { addOn: 'stock' })).toBe(false);
+    expect(allowed('GET', WORDS, { addOn: ['stock'], wordsId: 'item' })).toBe(false);
+    expect(allowed('GET', WORDS, null)).toBe(false);
   });
 
   it('finds who they are, and their token, in the staff config', async () => {

@@ -153,6 +153,85 @@ describe.each(LEGS)('stock words for staff — %s', (dialect, available) => {
     }
   });
 
+  it.skipIf(!available)('someone who opens only their app\'s screens asks the words of an add-on their app uses, and of no other', async () => {
+    const app = (key: string): Doc => ({
+      kind: 'app',
+      manifestVersion: 1,
+      key,
+      name: key,
+      version: '0.3.0',
+      publisher: { id: 'adminium', name: 'Adminium' },
+      license: 'MIT',
+      description: { key: 'd', fallback: 'd' },
+      categories: ['operations'],
+      compatibility: { minAdminiumVersion: '0.3.18' },
+      pages: [{ ref: `${key}-visits`, template: 'page-crud', title: { key: 't', fallback: 'Visits' }, nav: { group: 'manage', icon: 'list', order: 1 }, bindings: { main: 'visits' } }],
+      frontends: [{ side: 'staff', kind: 'none' }],
+      addOns: { suggests: [{ key: 'ledger-kit', range: '>=1.0.0', reason: { 'en-US': 'Keeps units.' } }] },
+      requiredSchema: { prefixed: true, tables: [{ ref: 'visits', columns: [{ ref: 'id', type: 'int', role: 'pk' }] }] },
+    });
+    for (const key of ['clinic', 'kiosk']) {
+      await w.h.stageApp(app(key));
+      const installed = await w.h.install(key, '0.3.0');
+      expect(installed.statusCode, installed.body).toBe(200);
+    }
+    // The kit is there for the clinic only.
+    const attached = await w.h.inject({ method: 'POST', url: '/add-ons/ledger-kit/attachments', payload: { app: 'clinic' } });
+    expect(attached.statusCode, attached.body).toBeLessThan(300);
+
+    /** Someone whose one role opens only that app's screens, and reads the accounts — every column, or the two named. */
+    const screens = async (name: string, appKey: string, readable?: string[]) => {
+      const user = await usersRepo(w.h.meta).create({ email: `${name}@words.dev`, name, passwordHash: await adminPasswordHash() });
+      const role = await rolesRepo(w.h.meta).create({ slug: `${name}-role`, name, appKey, screensOnly: true } as never);
+      const read = { read: true, create: false, update: false, delete: false, export: false, import: false, ...(readable === undefined ? {} : { readLimit: { readable } }) };
+      await permissionsRepo(w.h.meta).grant(role.id, 'table', `${w.h.connectionId}/${w.target('ledger_kit_accounts').table.id}`, read as never);
+      await rolesRepo(w.h.meta).assignToUser(user.id, role.id);
+      const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: `10.2.1.${String(cookies.size + 1)}`, payload: { email: `${name}@words.dev`, password: ADMIN_PASSWORD } });
+      cookies.set(name, sessionCookie(login.headers['set-cookie']));
+    };
+    await screens('clinician', 'clinic');
+    await screens('nurse', 'clinic', ['id', 'name']);
+    await screens('greeter', 'kiosk');
+    const query = `?table=${encodeURIComponent(STORED)}&ids=3,5`;
+
+    // They are screens-only: the rest of the API is not theirs.
+    const roles = await served.composed.app.inject({ method: 'GET', url: '/api/v1/roles', headers: { cookie: cookies.get('clinician')! } });
+    expect((roles.json() as { error: { code: string } }).error.code).toBe('APP_SCREENS_ONLY');
+
+    await note({ words: { '3': { batch: 'LOT-7', expires: '2031-02-01', soon: true } } });
+    try {
+      // The clinic's add-on answers its clinician, with the figure behind the word: they read the table it is a column of.
+      const full = [{ id: '3', state: 'in', exact: '40.000', batch: 'LOT-7', expires: '2031-02-01', cause: 'stock', soon: true }, { id: '5', state: 'low', left: 4, exact: '4.000', cause: 'stock' }];
+      expect(await lines('clinician', '3,5')).toEqual(full);
+      // A read limited to some columns is still a read of that table: the same line, the batch and its expiry with it.
+      expect(await lines('nurse', '3,5')).toEqual(full);
+      // The route's own checks stand: words over two tables, of which they read one, are what a customer is told.
+      const weighed = await ask('clinician', query, 'units-weighed');
+      expect((weighed.json() as { data: unknown }).data).toEqual([{ id: '3', state: 'in' }, { id: '5', state: 'low', left: 4 }]);
+      // The kiosk's app does not use the kit: its screens are told nothing of it, however the route is spelled.
+      const other = await ask('greeter', query);
+      expect(other.statusCode, other.body).toBe(403);
+      expect((other.json() as { error: { code: string } }).error.code).toBe('APP_SCREENS_ONLY');
+      expect(other.body).not.toMatch(/LOT-7|40\.000|"state"/);
+      for (const url of [`/%61pi/v1/words/ledger-kit/units-left${query}`, `/api/v1/%77ords/ledger-kit/units-left${query}`, `/api/v1/words/ledger%2Dkit/units-left${query}`]) {
+        const spelled = await served.composed.app.inject({ method: 'GET', url, headers: { cookie: cookies.get('greeter')! } });
+        expect((spelled.json() as { error?: { code?: string } }).error?.code, url).toBe('APP_SCREENS_ONLY');
+        expect((await served.composed.app.inject({ method: 'GET', url, headers: { cookie: cookies.get('clinician')! } })).statusCode, url).toBe(200);
+      }
+      // An add-on nobody has is nobody's to ask.
+      const nobody = await served.composed.app.inject({ method: 'GET', url: `/api/v1/words/other-kit/units-left${query}`, headers: { cookie: cookies.get('clinician')! } });
+      expect((nobody.json() as { error: { code: string } }).error.code).toBe('APP_SCREENS_ONLY');
+      // Switched off for the clinic it is still the clinic's add-on: the route answers for itself, not the gate.
+      const off = await w.h.inject({ method: 'PATCH', url: '/add-ons/ledger-kit', payload: { attachedTo: 'clinic', enabled: false } });
+      expect(off.statusCode, off.body).toBeLessThan(300);
+      expect(((await ask('clinician', query)).json() as { error?: { code?: string } }).error?.code).not.toBe('APP_SCREENS_ONLY');
+      const on = await w.h.inject({ method: 'PATCH', url: '/add-ons/ledger-kit', payload: { attachedTo: 'clinic', enabled: true } });
+      expect(on.statusCode, on.body).toBeLessThan(300);
+    } finally {
+      await note(null);
+    }
+  });
+
   it.skipIf(!available)('no read on the table is 403; no session is 401', async () => {
     const res = await ask('clerk', `?table=${encodeURIComponent(STORED)}&ids=3`);
     expect(res.statusCode, res.body).toBe(403);
