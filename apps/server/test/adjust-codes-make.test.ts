@@ -64,6 +64,8 @@ describe.each(LEGS)('a discount code, before it is saved — %s', (dialect, avai
     await person('clerk', { price_kit_codes: { read: true, create: true } });
     await person('reader', { price_kit_codes: { read: true }, price_kit_offers: { read: true } });
     await person('eager', { price_kit_codes: { read: true, create: true } });
+    // Makes codes and reads none.
+    await person('maker', { price_kit_codes: { create: true } });
   }, 240_000);
   afterAll(async () => {
     await served?.close();
@@ -134,6 +136,9 @@ describe.each(LEGS)('a discount code, before it is saved — %s', (dialect, avai
     expect(reader.body).not.toContain('AUTUMN5');
     // Makes codes, and does not read offers: the look-alike is told, and not the offer it is a code of.
     expect(await made({ word: 'AUTUMNS' }, 'clerk')).toEqual({ code: 'AUTUMNS', taken: false, lookAlikes: [{ code: 'AUTUMN5', name: '' }] });
+    // Makes codes and reads none: told whether the word is free, never which stored codes read like it.
+    expect(await made({ word: 'AUTUMNS' }, 'maker')).toEqual({ code: 'AUTUMNS', taken: false, lookAlikes: [] });
+    expect(await made({ word: 'AUTUMN5' }, 'maker')).toEqual({ code: 'AUTUMN5', taken: true, lookAlikes: [] });
     expect((await make({}, 'boss', 'no-such')).statusCode).toBe(404);
     await w.h.meta.db.updateTable('adminium_manifests').set({ status: 'disabled' } as never).where('manifestKey', '=', PRICE_KIT).execute();
     const off = await make({});

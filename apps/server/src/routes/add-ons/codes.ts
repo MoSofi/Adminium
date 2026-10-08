@@ -135,10 +135,12 @@ export function addOnCodesRoutes(deps: CodesMakeDeps): FastifyPluginAsyncZod {
             for (const one of owners) if (one.label !== null && one.label !== undefined) names.set(String(one.key), String(one.label));
           }
         }
+        // Whether the word is free is the maker's to know. Which codes read like it is for somebody who reads the codes.
+        const readsCodes = (await request.can(`table:${connectionId}:${codes.id}:read`)) && readView.table(codes.id).columns.get(column)?.unreadable !== true;
         return {
           code: canonical,
           taken,
-          lookAlikes: others.map((one) => ({ code: kept(one), name: (link === undefined ? undefined : names.get(String(one[link.from.columns[0]!]))) ?? '' })),
+          lookAlikes: readsCodes ? others.map((one) => ({ code: kept(one), name: (link === undefined ? undefined : names.get(String(one[link.from.columns[0]!]))) ?? '' })) : [],
         };
       },
     );
