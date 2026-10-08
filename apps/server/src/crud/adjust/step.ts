@@ -1507,6 +1507,8 @@ export function createAdjuster(kit: AdjustKit) {
           if (had.offer !== null || had.code !== null || had.voucher !== null) out.push({ ...had, amount: '0' });
         }
       }
+      // What staff take off by hand is a use too, of no offer, no code and no voucher: where the rule lets them, a row for it may be written.
+      if (adjust.rule.order.staff !== undefined) out.push({ offer: null, code: null, voucher: null, amount: '0' });
       return out;
     } catch (error) {
       if (error instanceof AdjustTooLarge) throw tooLarge();
