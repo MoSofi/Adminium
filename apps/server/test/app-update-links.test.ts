@@ -142,6 +142,28 @@ describe.each(LEGS)('an update links a column that was made a plain number — %
     expect((await linksOf()).sort()).toEqual([`batch_id -> ${h.real('batches')}`, `proposal_id -> ${h.real('proposals')}`]);
   }, 120_000);
 
+  it.skipIf(!available)('a link to a table the update makes afresh, moving the one there aside, counts no row of the old one', async () => {
+    const plain = { ref: 'batch_id', type: 'int', nullable: true };
+    const linked = { ref: 'batch_id', type: 'fk', references: 'batches', nullable: true };
+    const tables = [{ ref: 'batches', columns: [id, { ref: 'name', type: 'text', maxLength: 40 }] }];
+    h = await installInvoicing(dialect, version('0.2.0', LINK, { columns: [plain] }));
+    // Another system's table under the name the app will want, holding a row 7.
+    await h.rows(`CREATE TABLE ${h.real('batches')} (id integer PRIMARY KEY, location_id integer NOT NULL)`);
+    await h.rows(`INSERT INTO ${h.real('batches')} (id, location_id) VALUES (7, 1)`);
+    await h.rows(`INSERT INTO ${h.real('versions')} (body, batch_id) VALUES ('a', 7)`);
+    await stage(version('0.2.1', LINK, { columns: [linked], tables }));
+    const res = await h.app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'studio', version: '0.2.1', connectionId: h.connectionId, choices: { batches: { action: 'rename-existing', to: `${h.real('batches')}_old` } } },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const checked = (res.json() as { plan: { problems: { code: string; column?: string }[]; tables: { ref: string; action: string }[] } }).plan;
+    expect(checked.tables.find((t) => t.ref === 'batches')!.action).toBe('rename-existing');
+    // The 7 names a row of the table being moved aside: the new one has none.
+    expect(checked.problems).toEqual([expect.objectContaining({ code: 'LINK_ORPHANS', column: 'batch_id' })]);
+  }, 120_000);
+
   it.skipIf(!available)('a link to a table that was there before the app is checked by that table\'s own key, whatever its name', async () => {
     const serial = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
     const plain = { ref: 'person_no', type: 'int', nullable: true };
