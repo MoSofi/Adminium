@@ -53,6 +53,37 @@ describe.each(LEGS)('Inventory installed with no app — %s', (dialect, availabl
     expect(Number(settings[0]?.['count_stale_days'])).toBe(90);
   });
 
+  it.skipIf(!run)('installs fourteen generated pages with no warning, and ships five screens of its own code', async () => {
+    const pages = world.reply['pages'] as { created: string[]; warnings: unknown[] };
+    expect(pages.created).toEqual(['inventory-overview', 'inventory-items', 'inventory-stock-by-place', 'inventory-movements', 'inventory-receipts', 'inventory-transfers', 'inventory-purchase-orders', 'inventory-batches', 'inventory-suppliers', 'inventory-places', 'inventory-categories', 'inventory-reasons', 'inventory-kits', 'inventory-settings']);
+    // A page bound to no table, or a form naming a column that is not there, would be told here.
+    expect(pages.warnings).toEqual([]);
+    const code = ((inventory?.manifest['addOn'] as { pages: { ref: string; titles?: Record<string, string> }[] }).pages);
+    expect(code.map((page) => page.ref)).toEqual(['inventory-receive', 'inventory-transfer', 'inventory-counts', 'inventory-opening-stock', 'inventory-stock-rules']);
+    // Each says its title in eight languages: the sidebar is drawn before the screen's own words are loaded.
+    for (const page of code) expect(Object.keys(page.titles ?? {}), page.ref).toHaveLength(8);
+  });
+
+  it.skipIf(!run)('installs four automations, two on and two off', async () => {
+    const rows = (await world.h.meta.db.selectFrom('adminium_automations' as never).selectAll().execute()) as { name: string; enabled: unknown }[];
+    expect(rows.map((row) => [row.name, row.enabled === true || Number(row.enabled) === 1]).sort()).toEqual([
+      ['Expiring within 30 days: tell the stock manager', true],
+      ['Low stock: draft an order and tell the stock manager', true],
+      ['Send an order 15 minutes after its last line', false],
+      ['Send draft orders at 17:00', false],
+    ]);
+  });
+
+  it.skipIf(!run)('writes the supplier\'s email in eight languages, and makes no document while Invoices is not installed', async () => {
+    const outbox = world.reply['outbox'] as { templates: { written: string[]; skipped: unknown[] } };
+    const tags = ['en_US', 'de_DE', 'fr_FR', 'da_DK', 'cs_CZ', 'ar_EG', 'zh_CN', 'zh_TW'];
+    expect(outbox.templates.written).toEqual([...tags.map((tag) => `inventory-po/${tag}`), ...tags.map((tag) => `inventory-po-priced/${tag}`)]);
+    expect(outbox.templates.skipped).toEqual([]);
+    const documents = world.reply['documents'] as { made: unknown[]; refused: unknown[]; skipped: { kind: string }[] };
+    expect([documents.made, documents.refused]).toEqual([[], []]);
+    expect(documents.skipped.map((one) => one.kind)).toEqual(['purchase-order', 'purchase-order-unpriced']);
+  });
+
   it.skipIf(!run)('gives the person who installed it the manager\'s role, and nobody the other two', async () => {
     const held = await world.h.meta.db
       .selectFrom('adminium_user_roles')
