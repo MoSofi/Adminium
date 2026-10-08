@@ -20,7 +20,7 @@ import { join } from 'node:path';
 
 import { expect, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
-import { seededConnectionId } from './helpers.js';
+import { gridRows, recordPage, seededConnectionId } from './helpers.js';
 
 const KEY = 'inventory';
 const REPO = process.env['ADMINIUM_ADD_ONS_REPO'];
@@ -112,6 +112,54 @@ test.describe('Inventory with no app', () => {
     await page.goto('/p/inventory-overview');
     await expect(page.getByRole('heading', { name: 'Running low', exact: true }).first()).toBeVisible({ timeout: 30_000 });
     await expect(card('Running low')).toContainText('4');
+
+    // ── a count of the Back room: started, every line typed, posted ───────
+    await page.goto('/add-ons/inventory/inventory-counts?start=1');
+    const start = page.getByRole('dialog');
+    await start.getByLabel('Place').selectOption({ label: 'Back room' });
+    await start.getByRole('button', { name: 'Start', exact: true }).click();
+    await page.waitForURL(/inventory-counts\/\d+/, { timeout: 60_000 });
+    const fields = page.locator('[data-part="inventory-line"] input');
+    await expect(fields.first()).toBeVisible({ timeout: 30_000 });
+    // Six items are kept there. Each is counted as 7: a typed count saves that line, and the sheet says what differs.
+    const lines = await fields.count();
+    expect(lines).toBe(6);
+    for (let i = 0; i < lines; i += 1) {
+      await fields.nth(i).fill('7');
+      await fields.nth(i).press('Enter');
+      await expect(page.locator('[data-part="inventory-line"]').nth(i)).toContainText('Saved');
+    }
+    await page.getByRole('button', { name: 'Post count', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Post count' }).click();
+    await expect(page.getByText('Posted').first()).toBeVisible({ timeout: 60_000 });
+    const counted = await ok<{ data: { item_name: string; place_name: string; on_hand: unknown }[] }>(
+      await staff.get(`/api/v1/data/${connectionId}/${encodeURIComponent(tableOf('stock_points'))}?pageSize=100`),
+    );
+    // The books follow the count: seven of each in the Back room, whatever they held.
+    expect(counted.data.filter((point) => point.place_name === 'Back room').map((point) => Number(point.on_hand))).toEqual([7, 7, 7, 7, 7, 7]);
+
+    // ── the drafted order, marked as sent from its own page ───────────────
+    // (The email itself is the server suite's and the mail catcher's: this build sends none.)
+    await page.goto('/p/inventory-purchase-orders');
+    await gridRows(page).filter({ hasText: 'Northgate Wholesale' }).first().click();
+    const record = recordPage(page);
+    await expect(record).toBeVisible({ timeout: 30_000 });
+    await record.getByRole('button', { name: 'Mark as sent, no email' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Mark as sent, no email' }).click();
+    await expect(record.getByRole('button', { name: 'Receive', exact: true })).toBeVisible({ timeout: 30_000 });
+    const sent = await ok<{ data: { number: string; status: string; sent_how: string }[] }>(await staff.get(`/api/v1/data/${connectionId}/${encodeURIComponent(tableOf('purchase_orders'))}?pageSize=20`));
+    expect(sent.data.find((order) => order.number === 'PO-1003')).toMatchObject({ status: 'sent', sent_how: 'none' });
+    // Its two items are on order now and ask for nothing more. What the Overview still lists to reorder is the
+    // Back room after its count: five of its six items were counted under their level (parcel tape's level is 4).
+    const now = await ok<{ data: { item_name: string; place_name: string; to_reorder: unknown; on_order: unknown }[] }>(
+      await staff.get(`/api/v1/data/${connectionId}/${encodeURIComponent(tableOf('stock_points'))}?pageSize=100`),
+    );
+    const point = (item: string) => now.data.find((one) => one.item_name === item && one.place_name === 'Shop floor')!;
+    expect([Number(point('T-shirt, blue, M').to_reorder), Number(point('T-shirt, blue, M').on_order)]).toEqual([0, 12]);
+    expect([Number(point('Canvas tote, natural').to_reorder), Number(point('Canvas tote, natural').on_order)]).toEqual([0, 20]);
+    await page.goto('/p/inventory-overview');
+    await expect(page.getByRole('heading', { name: 'To reorder', exact: true }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(card('To reorder')).toContainText('5');
 
     // ── the sample out again, and the add-on with it ──────────────────────
     // What the delivery changed is the owner's now and stays (the order, its line, the stock it moved); the rest goes.
