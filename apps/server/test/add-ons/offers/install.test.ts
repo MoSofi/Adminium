@@ -26,9 +26,10 @@ const refusal = async (run: Promise<unknown>): Promise<{ code?: string; details?
 
 describe.skipIf(offers === null)('Offers, as it is built', () => {
   it('names one file that decides, for both questions, and it is built', () => {
-    expect(Object.keys(offers?.files ?? {}).sort()).toEqual(['dist/pages/discounts.js', 'dist/pages/issue.js', 'dist/pages/look-up.js', 'dist/pages/rules.js', 'dist/server.js']);
+    expect(Object.keys(offers?.files ?? {}).sort()).toEqual(['dist/documents.js', 'dist/pages/discounts.js', 'dist/pages/issue.js', 'dist/pages/look-up.js', 'dist/pages/rules.js', 'dist/server.js', 'seeds/offers.sample.json']);
     const provides = (offers?.manifest['addOn'] as { provides: { contract: string }[] }).provides;
-    expect(provides.map((one) => one.contract)).toEqual(['posting-rows', 'price-adjust']);
+    // The file that decides answers both questions; what Offers prints is a module of its own.
+    expect(provides.map((one) => one.contract)).toEqual(['posting-rows', 'price-adjust', 'document-render']);
   });
 });
 
