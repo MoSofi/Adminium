@@ -314,7 +314,7 @@ describe('the Code tab', () => {
     await openFile('App.tsx', '// mine');
     expect(line).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
-    expect(screen.queryByText('This file changed while you were editing it.')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('This file changed while you were editing it.')).toBeNull());
     await userEvent.click(save());
     await waitFor(() => expect(saves()).toHaveLength(1));
     // Held against the file as it is now: the save goes over the Designer's version, as chosen.
@@ -336,6 +336,82 @@ describe('the Code tab', () => {
     // Nothing of the dropped text comes back by undo.
     act(() => void undo(view()));
     expect(editorText()).toBe('export function App() {\n  return <Other />;\n}\n');
+  });
+
+  it('a save refused for a file that is not the open one opens that file, so the question is there to see', async () => {
+    await open();
+    type('// mine\n');
+    await openFile('design.css', '.page');
+    type('/* also mine */\n');
+    await openFile('App.tsx', '// mine');
+    disk[CSS] = '.page { color: blue; }\n';
+    saveAnswer = () => refused(409, 'FILES_CHANGED', 'A file changed.', { changed: [{ path: CSS, hash: hashOf(disk[CSS] ?? '') }] });
+    await userEvent.click(save());
+    await screen.findByText('This file changed while you were editing it.');
+    expect(rows()).toContain('design.css *');
+    expect(editorText()).toBe('/* also mine */\n.page { color: red; }\n');
+    // Both are still theirs, and still marked.
+    expect(marked()).toEqual(['App.tsx', 'design.css']);
+    // The open file is one of the changed ones: it stays open.
+    await userEvent.click(save());
+    await waitFor(() => expect(saves()).toHaveLength(2));
+    await act(() => Promise.resolve());
+    expect(rows()).toContain('design.css *');
+    // Answered, the save goes: both files, the changed one held against what it is now.
+    await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    await waitFor(() => expect(screen.queryByText('This file changed while you were editing it.')).toBeNull());
+    saveAnswer = null;
+    await userEvent.click(save());
+    await waitFor(() => expect(saves()).toHaveLength(3));
+    expect(saves()[2]?.body?.files.find((file) => file.path === CSS)).toEqual({ path: CSS, content: '/* also mine */\n.page { color: red; }\n', base: hashOf('.page { color: blue; }\n') });
+    await waitFor(() => expect(marked()).toEqual([]));
+  });
+
+  it('discarding a file that changed underneath takes the file as it is now, and the next save is held against it', async () => {
+    const theirs = 'export function App() {\n  return <Other />;\n}\n';
+    await open();
+    type('// mine\n');
+    disk[APP] = theirs;
+    saveAnswer = () => refused(409, 'FILES_CHANGED', 'A file changed.', { changed: [{ path: APP, hash: hashOf(theirs) }] });
+    await userEvent.click(save());
+    await screen.findByText('This file changed while you were editing it.');
+    await userEvent.click(discard());
+    await waitFor(() => expect(editorText()).toBe(theirs));
+    expect(screen.queryByText('This file changed while you were editing it.')).toBeNull();
+    expect(marked()).toEqual([]);
+    saveAnswer = null;
+    type('x');
+    await userEvent.click(save());
+    await waitFor(() => expect(saves()).toHaveLength(2));
+    expect(saves()[1]?.body?.files).toEqual([{ path: APP, content: `x${theirs}`, base: hashOf(theirs) }]);
+  });
+
+  it('"Keep my changes" keeps only changes: a discard after it ends at the file as it is now, and with nothing typed it is not offered', async () => {
+    const theirs = 'export function App() {\n  return <Other />;\n}\n';
+    await open();
+    type('// mine\n');
+    disk[APP] = theirs;
+    saveAnswer = () => refused(409, 'FILES_CHANGED', 'A file changed.', { changed: [{ path: APP, hash: hashOf(theirs) }] });
+    await userEvent.click(save());
+    await screen.findByText('This file changed while you were editing it.');
+    await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    await waitFor(() => expect(screen.queryByText('This file changed while you were editing it.')).toBeNull());
+    expect(editorText()).toContain('// mine');
+    expect(marked()).toEqual(['App.tsx']);
+    // The old text is not what the new hash names: discarding does not end there, clean.
+    await userEvent.click(discard());
+    expect(editorText()).toBe(theirs);
+    expect(marked()).toEqual([]);
+    expect(saves()).toHaveLength(1);
+
+    // Typed, changed underneath, and typed back: there is nothing of theirs to keep.
+    type('// again\n');
+    disk[APP] = `// newer\n${theirs}`;
+    saveAnswer = () => refused(409, 'FILES_CHANGED', 'A file changed.', { changed: [{ path: APP, hash: hashOf(disk[APP] ?? '') }] });
+    await userEvent.click(save());
+    await screen.findByText('This file changed while you were editing it.');
+    act(() => view().dispatch({ changes: { from: 0, to: '// again\n'.length }, userEvent: 'delete.backward' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Keep my changes' })).toBeNull());
   });
 
   it('a save that was written and not applied says so with the words, keeps its marks, and is sent again with the next save', async () => {

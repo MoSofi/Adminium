@@ -4,7 +4,7 @@
  * real path back, when it only shows, and the pages it offers on each side.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@adminium/ui';
@@ -146,6 +146,47 @@ describe('the address bar', () => {
     await userEvent.tab();
     expect(field.value).toBe('/menu/spicy-wings');
     expect(screen.queryByRole('listbox')).toBeNull();
+    expect(onGo).not.toHaveBeenCalled();
+  });
+
+  it('leaves Enter to the input method while a word is being composed', async () => {
+    const { field, onGo } = mount();
+    await userEvent.click(field);
+    await userEvent.clear(field);
+    await userEvent.type(field, '/men');
+    // The Enter that takes the composed word: by the event's own flag, and by the key code older browsers give it.
+    fireEvent.keyDown(field, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(field, { key: 'Enter', keyCode: 229 });
+    fireEvent.keyDown(field, { key: 'Escape', isComposing: true });
+    expect(onGo).not.toHaveBeenCalled();
+    expect(field.value).toBe('/men');
+    expect(document.activeElement).toBe(field);
+    // The word taken, Enter is the field's again.
+    await userEvent.keyboard('u{Enter}');
+    expect(onGo).toHaveBeenCalledExactlyOnceWith('/menu');
+  });
+
+  it('puts the real path back when the side stops saying where it is while the field is typed in', async () => {
+    const onGo = vi.fn<(path: string) => void>();
+    const bar = (spoken: boolean) => (
+      <ThemeProvider>
+        <AddressBar side="customer" path="/menu" prefix="/apps/shop/customer" spoken={spoken} pages={PAGES} onGo={onGo} />
+      </ThemeProvider>
+    );
+    const { rerender } = render(bar(true));
+    const field = screen.getByRole('combobox') as HTMLInputElement;
+    await userEvent.click(field);
+    await userEvent.clear(field);
+    await userEvent.type(field, '/somewhere');
+    rerender(bar(false));
+    // Drawn anew under its tooltip, so no key reaches it: it shows the real path by itself.
+    const shown = screen.getByRole('combobox') as HTMLInputElement;
+    expect(shown.readOnly).toBe(true);
+    expect(shown.value).toBe('/menu');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    // Nothing of the draft comes back with the side's voice.
+    rerender(bar(true));
+    expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe('/menu');
     expect(onGo).not.toHaveBeenCalled();
   });
 

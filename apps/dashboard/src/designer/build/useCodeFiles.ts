@@ -158,9 +158,9 @@ export function useCodeFiles(
     [st],
   );
 
-  /** Read a file from the server. `fresh`: what was typed is dropped and the editor starts the file again. */
+  /** Read a file from the server. `fresh`: what was typed is dropped and the editor starts the file again. Resolves true when it was read. */
   const read = useCallback(
-    async (path: string, fresh: boolean): Promise<void> => {
+    async (path: string, fresh: boolean): Promise<boolean> => {
       if (!isLoaded(st.contents[path])) st.contents[path] = 'loading';
       touch();
       try {
@@ -174,12 +174,15 @@ export function useCodeFiles(
           st.changed.delete(path);
           st.editor?.reset(path, plain(reply.content));
         }
+        return true;
       } catch (error) {
         // Not there any more: the list is asked again, and says so.
         if (error instanceof ApiError && error.status === 404) void queryClient.invalidateQueries({ queryKey: designerKeys.files(sessionId) });
         if (!isLoaded(st.contents[path])) st.contents[path] = 'error';
+        return false;
+      } finally {
+        touch();
       }
-      touch();
     },
     [queryClient, sessionId, st],
   );
@@ -273,6 +276,9 @@ export function useCodeFiles(
       const message = error instanceof Error ? error.message : String(error);
       if (reason === 'FILES_CHANGED' && Array.isArray(details['changed'])) {
         for (const entry of details['changed'] as { path?: unknown; hash?: unknown }[]) if (typeof entry.path === 'string' && typeof entry.hash === 'string') st.changed.set(entry.path, entry.hash);
+        // The line that asks which to keep is the open file's. When the open file is not one of them, the first that is gets opened.
+        const first = paths.find((path) => st.changed.has(path));
+        if (first !== undefined && (st.open === null || !st.changed.has(st.open))) st.open = first;
       } else if (reason === 'UNFINISHED_CHANGE') st.problem = { kind: 'unfinished' };
       else if (reason === 'TURN_RUNNING' || reason === 'DESIGNER_BUSY') now.current.onNotice({ variant: 'info', title: t('designer:code.busy', 'The app is being changed. Try again in a moment.') });
       else if (error instanceof ApiError && error.status === 422) st.problem = { kind: 'refused', message };
@@ -294,24 +300,39 @@ export function useCodeFiles(
       touch();
       return;
     }
+    // Changed underneath: what it was read as is no longer the file. It is taken as it is on disk now.
+    if (st.changed.has(path)) {
+      void read(path, true);
+      return;
+    }
     if (st.editor !== null) st.editor.replace(path, plain(content.raw));
     else {
       st.texts.delete(path);
       st.edited.delete(path);
     }
     touch();
-  }, [drop, st]);
+  }, [drop, read, st]);
 
   const keepMine = useCallback(
     (path: string): void => {
-      const content = st.contents[path];
-      const hash = st.changed.get(path);
+      // Nothing of theirs to keep: the file is taken as it is now.
+      if (!st.edited.has(path)) {
+        void read(path, true);
+        return;
+      }
       // Their text stays; the next save is held against the file as it is now, and so goes over it.
-      if (isLoaded(content) && hash !== undefined) st.contents[path] = { raw: content.raw, hash };
-      st.changed.delete(path);
-      touch();
+      // The file is read, not only its hash taken: a hash over the old text would call that text clean once it was typed back or discarded to.
+      void read(path, false).then((ok) => {
+        const content = st.contents[path];
+        if (!ok || !isLoaded(content)) return;
+        st.changed.delete(path);
+        const text = st.editor?.text(path) ?? st.texts.get(path) ?? plain(content.raw);
+        if (text === plain(content.raw)) st.edited.delete(path);
+        else st.edited.add(path);
+        touch();
+      });
     },
-    [st],
+    [read, st],
   );
 
   const putBack = useCallback((): void => {

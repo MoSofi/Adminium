@@ -195,7 +195,7 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
         <div role="status" className={LINE}>
           <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0 text-warn" />
           <span className="min-w-0 flex-1">{t('designer:code.changedUnder', 'This file changed while you were editing it.')}</span>
-          {small(t('designer:code.keepMine', 'Keep my changes'), () => code.keepMine(open))}
+          {code.edited.has(open) ? small(t('designer:code.keepMine', 'Keep my changes'), () => code.keepMine(open)) : null}
           {small(t('designer:code.useChanged', 'Use the changed file'), () => code.useChanged(open), true)}
         </div>
       );

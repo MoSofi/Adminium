@@ -115,6 +115,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   wasTwo.current = layout.two;
   const chatWidth = layout.chat;
   const [view, setView] = useState<BuildView>('chat');
+  /** Counts the times the page itself opened the Code tab: a save made from the chat that did not go through. */
+  const [codeAsked, setCodeAsked] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
   const follow = useFollowEnd([events.length]);
 
@@ -248,6 +250,11 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onNotice: (notice) => toasts.push(notice),
     onPutBack: () => restore.mutateAsync({ n: versionNow, record: false }),
   });
+  // The edits the question was about are gone (saved or discarded in the Code tab): the next ones are asked about again.
+  const unsaved = code.edited.size;
+  useEffect(() => {
+    if (unsaved === 0) setAskUnsaved(false);
+  }, [unsaved]);
 
   const model = useDesignerModel(
     session.data === undefined
@@ -305,7 +312,13 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     const message = text.trim();
     setAskUnsaved(false);
     void code.save().then((applied) => {
-      if (applied && message !== '') start.mutate(message);
+      if (applied) {
+        if (message !== '') start.mutate(message);
+        return;
+      }
+      // Not saved, or saved and not applied: the message stays in the box, and the Code tab says why.
+      setView('work');
+      setCodeAsked((count) => count + 1);
     });
   };
 
@@ -604,6 +617,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               session={data.session}
               turns={turns}
               code={code}
+              codeAsked={codeAsked}
               onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))}
               onNotice={(title) => toasts.push({ variant: 'info', title })}
               onFoldedNeed={setFoldedNeed}

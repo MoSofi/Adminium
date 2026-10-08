@@ -87,6 +87,8 @@ let turnRefusals: number;
 let readsImages: boolean | null;
 /** Why the next turn is refused, as the server words a folder that is taken; null starts it. */
 let turnBusy: boolean;
+/** The next save of files is refused: the file changed on disk. */
+let saveRefused: boolean;
 const FILE = 'apps/repairs/customer/src/App.tsx';
 const FILE_HASH = 'a'.repeat(64);
 
@@ -127,6 +129,7 @@ beforeEach(() => {
   uploads = 0;
   turnRefusals = 0;
   turnBusy = false;
+  saveRefused = false;
   readsImages = true;
   stored = [];
   versions = [
@@ -170,6 +173,9 @@ beforeEach(() => {
         return Promise.resolve(jsonResponse(200, { groups: [{ key: 'customer', files: [{ path: FILE, label: 'customer/App.tsx', hash: FILE_HASH, size: 10 }] }], busy: null, version: 3 }));
       }
       if (url.startsWith(`/api/v1/designer/sessions/${ID}/files/content`)) return Promise.resolve(jsonResponse(200, { path: FILE, content: 'on disk\n', hash: FILE_HASH }));
+      if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'PUT' && saveRefused) {
+        return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'A file changed.', requestId: 'r', details: { reason: 'FILES_CHANGED', changed: [{ path: FILE, hash: 'c'.repeat(64) }] } } }));
+      }
       if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'PUT') {
         return Promise.resolve(jsonResponse(200, { applied: true, version: { n: 4, name: 'v4 · Your edit to App.tsx' }, files: [{ path: FILE, hash: 'b'.repeat(64) }] }));
       }
@@ -1011,6 +1017,49 @@ describe('the build page', () => {
     await userEvent.click(within(ask).getByRole('button', { name: 'Send anyway' }));
     await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'First.' }, { text: 'Second.' }]));
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('asks again about new unsaved text when the text it first asked about was dealt with in the Code tab', async () => {
+    stored = finishedTurn();
+    await open();
+    await typeInCode();
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Make the header blue.{Enter}');
+    await screen.findByRole('group', { name: 'Unsaved changes' });
+    // Discarded in the Code tab, not answered here: the question goes with the text it was about.
+    await userEvent.click(screen.getAllByRole('button', { name: 'Discard changes to App.tsx' })[0] as HTMLElement);
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Unsaved changes' })).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'type in the open file' }));
+    await userEvent.type(box, '{Enter}');
+    expect(await screen.findByRole('group', { name: 'Unsaved changes' })).toBeTruthy();
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Make the header blue.');
+  });
+
+  it('keeps the message and shows the Code tab when "Save first" did not save', async () => {
+    stored = finishedTurn();
+    await open();
+    windowAt(1024);
+    const [chatView, workView] = within(screen.getByRole('tablist', { name: 'View' })).getAllByRole('tab') as [HTMLElement, HTMLElement];
+    await userEvent.click(workView);
+    await typeInCode();
+    // Away from the Code tab and from the work area: neither is where the person is when they send.
+    await userEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    await userEvent.click(chatView);
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Make the header blue.{Enter}');
+    saveRefused = true;
+    await userEvent.click(within(await screen.findByRole('group', { name: 'Unsaved changes' })).getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(workView.getAttribute('aria-selected')).toBe('true'));
+    expect(screen.getByRole('tab', { name: 'Code' }).getAttribute('aria-selected')).toBe('true');
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Make the header blue.');
+    // Still unsaved: the next send asks again.
+    await userEvent.click(chatView);
+    await userEvent.type(box, '{Enter}');
+    expect(await screen.findByRole('group', { name: 'Unsaved changes' })).toBeTruthy();
+    expect(posted('/turns')).toEqual([]);
   });
 
   it('asks before the page is left with unsaved text, and leaves only on a yes', async () => {

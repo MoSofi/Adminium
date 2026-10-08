@@ -11,7 +11,7 @@
  * the real path back. Until the side has said where it is (an app whose
  * pages have no addresses yet never does) the field only shows.
  */
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { File } from 'lucide-react';
 import { Popover, PopoverAnchor, PopoverContent, Tooltip } from '@adminium/ui';
 
@@ -98,6 +98,11 @@ export function AddressBar({
     setDraft(null);
     setPicked(false);
   };
+  // The side stopped saying where it is while the field was typed in: the field only shows again, and what it shows is the real path.
+  // No key can do this then: the field is drawn anew under its tooltip, and the new one does not have the keyboard.
+  useEffect(() => {
+    if (!spoken) leave();
+  }, [spoken]);
   const go = (to: string | null): void => {
     leave();
     input.current?.blur();
@@ -106,6 +111,8 @@ export function AddressBar({
     onGo?.(to);
   };
   const onKey = (event: KeyboardEvent<HTMLInputElement>): void => {
+    // A key pressed while a word is being composed is the input method's: its Enter takes the word, it does not go anywhere.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (!spoken) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
@@ -179,6 +186,10 @@ export function AddressBar({
         // The field keeps the keyboard: the list is read through it, never entered.
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
+        // An input method's own Escape drops the word being composed, not the list and what was typed.
+        onEscapeKeyDown={(event) => {
+          if (event.isComposing || event.keyCode === 229) event.preventDefault();
+        }}
         onInteractOutside={(event) => {
           if (event.target === input.current) event.preventDefault();
         }}

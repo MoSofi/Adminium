@@ -79,6 +79,7 @@ export function WorkArea({
   session,
   turns,
   code,
+  codeAsked = 0,
   onFix,
   onNotice,
   onFoldedNeed,
@@ -87,6 +88,8 @@ export function WorkArea({
   turns: readonly TurnView[];
   /** The files a person may change by hand, and what they have typed. */
   code: CodeFiles;
+  /** Each time this grows the Code tab is opened: the page has something there for the person to see. */
+  codeAsked?: number;
   onFix: (message: string) => void;
   /** A word for the person, said as the page says such things. */
   onNotice: (text: string) => void;
@@ -110,6 +113,9 @@ export function WorkArea({
   useEffect(() => {
     if (tab === 'code') activate();
   }, [tab, activate]);
+  useEffect(() => {
+    if (codeAsked > 0) setTab('code');
+  }, [codeAsked]);
 
   const hasTools = !preview.noPreview && preview.app !== null;
   const pages = useKnownPages(session.id, session.appKey, preview.side, preview.visited, hasTools);
