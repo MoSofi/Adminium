@@ -278,7 +278,9 @@ export function assertMovedFrom(
   if (limit.parts !== undefined) {
     const reaching = limit.parts.filter((part) => reaches(part) === null);
     const refuse = (missed: UpdateLimit | undefined): never => {
-      const [column, from] = (missed === undefined ? null : reaches(missed)) ?? Object.entries(limit.parts!.find((part) => part.writableFrom !== undefined)!.writableFrom!)[0]!;
+      const [column] = (missed === undefined ? null : reaches(missed)) ?? Object.entries(limit.parts!.find((part) => part.writableFrom !== undefined)!.writableFrom!)[0]!;
+      // Named with every value any of the person's roles reaches a row from: where such a row could be changed at all.
+      const from = [...new Set(limit.parts!.flatMap((part) => part.writableFrom?.[column] ?? []))];
       throw new ForbiddenError(`Your role may not change a row whose ${column} is what this one's is now.`, 'COLUMN_FORBIDDEN', { table, column, reason: 'update-from', writableFrom: from });
     };
     if (reaching.length === 0) refuse(limit.parts[0]);

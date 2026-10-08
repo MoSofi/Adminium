@@ -67,6 +67,8 @@ describe('the rows a limited update reaches', () => {
     expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { note: 'y' }))).toBeNull();
     // The status of a seen visit: only the moves role writes it, and it does not reach this row.
     expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { status: 'ready' }))?.details).toMatchObject({ column: 'status', reason: 'update-from', writableFrom: ['booked', 'roomed'] });
+    // …named with every value any of the roles reaches a row from.
+    expect(refusal(() => assertMovedFrom(mergeLimits([moves, { writable: ['note'], writableFrom: { status: ['ready'] } }]), 'visits', seen, { status: 'ready' }))?.details).toMatchObject({ writableFrom: ['booked', 'roomed', 'ready'] });
     expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { note: 'y', status: 'ready' }))?.details).toMatchObject({ column: 'status' });
     // A column sent as the row holds it is no change, so nothing is asked of it.
     expect(refusal(() => assertMovedFrom(merged, 'visits', seen, { note: 'y', status: 'seen' }))).toBeNull();
