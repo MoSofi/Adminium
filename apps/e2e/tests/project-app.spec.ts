@@ -24,9 +24,9 @@ test.use({ baseURL: PROJECT_URL, storageState: projectStatePath() });
 
 test.beforeAll(async ({ playwright }, testInfo) => {
   testInfo.setTimeout(240_000);
-  project = await ProjectHarness.create({}, ['react', 'react-dom']);
-  // The starter, with a staff screen of its own. Its packages are linked in above.
-  const made = project.cli(['app', 'new', 'repairs', '--staff', '--no-install']);
+  project = await ProjectHarness.create({}, ['react', 'react-dom', '@adminiumjs/public-client']);
+  // The starter, with a staff screen and a customer screen of its own. Their packages are linked in above.
+  const made = project.cli(['app', 'new', 'repairs', '--staff', '--customer', '--no-install']);
   expect(made.status, `${made.stdout}${made.stderr}`).toBe(0);
   await project.dev();
 
@@ -65,6 +65,80 @@ test('dev installs the app from its folder: its page is in the dashboard and its
   await page.goto('/studio/apps');
   await expect(page.getByText('From the folder')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Uninstall' })).toHaveCount(0);
+});
+
+type Marked = { leftByTheTest?: boolean };
+
+test('a customer page has an address of its own: opened deep, refreshed, left and gone back to', async ({ page }) => {
+  const at = (path: string): string => `${PROJECT_URL}/apps/repairs/customer/${path}`;
+  // Straight to the second page, as from a link somebody was sent.
+  await page.goto('/apps/repairs/customer/request');
+  await expect(page.getByLabel('What do you need?')).toBeVisible();
+  await expect(page).toHaveTitle(/^Send a request · /);
+  await page.reload();
+  await expect(page.getByLabel('What do you need?')).toBeVisible();
+  await expect(page).toHaveURL(at('request'));
+
+  // A link goes to the first page with nothing loaded again (the mark would be gone)…
+  await page.evaluate(() => {
+    (window as unknown as Marked).leftByTheTest = true;
+  });
+  await page.getByRole('navigation', { name: 'Pages' }).getByRole('link', { name: 'On offer' }).click();
+  await expect(page).toHaveURL(at(''));
+  await expect(page.getByRole('heading', { name: 'What can we do for you?' })).toBeVisible();
+  await expect(page.getByLabel('What do you need?')).toHaveCount(0);
+  // …and the browser's Back returns: the side is the top window here, so its moves are in the history.
+  await page.goBack();
+  await expect(page).toHaveURL(at('request'));
+  await expect(page.getByLabel('What do you need?')).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole('heading', { name: 'What can we do for you?' })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as Marked).leftByTheTest)).toBe(true);
+
+  // An address that is no page of the side: the server answers the side, and the side says so.
+  await page.goto('/apps/repairs/customer/nowhere/at-all');
+  await expect(page.getByText('This page does not exist')).toBeVisible();
+  await page.getByRole('link', { name: 'Back to the first page' }).click();
+  await expect(page).toHaveURL(at(''));
+  await expect(page.getByRole('heading', { name: 'What can we do for you?' })).toBeVisible();
+});
+
+test('a staff screen follows the dashboard’s sidebar, and the sidebar follows the screen', async ({ page }) => {
+  const side = page.frameLocator('iframe');
+  const frame = () => {
+    const found = page.frames().find((candidate) => candidate.url().includes('/apps/repairs/staff'));
+    if (found === undefined) throw new Error('the staff side is not in a frame');
+    return found;
+  };
+  await page.goto('/a/repairs');
+  await expect(side.getByLabel('New item')).toBeVisible();
+  await frame().evaluate(() => {
+    (window as unknown as Marked).leftByTheTest = true;
+  });
+  // The tab's history, which a frame's own moves would add to.
+  const entries = await page.evaluate(() => window.history.length);
+
+  // The second entry of nav.json, in the dashboard's own sidebar: the side goes to its second page, and is not loaded again.
+  await page.locator('a[href="/a/repairs/done"]').first().click();
+  await expect(page).toHaveURL(`${PROJECT_URL}/a/repairs/done`);
+  await expect(side.getByRole('link', { name: /^Done/ })).toHaveAttribute('aria-current', 'page');
+  await expect(side.getByLabel('New item')).toHaveCount(0);
+  await expect.poll(() => new URL(frame().url()).pathname).toBe('/apps/repairs/staff/done');
+
+  // A link inside the side: the dashboard's address follows it.
+  await side.getByRole('link', { name: /^Items/ }).click();
+  await expect(page).toHaveURL(/\/a\/repairs\/?$/);
+  await expect(side.getByLabel('New item')).toBeVisible();
+  expect(await frame().evaluate(() => (window as unknown as Marked).leftByTheTest)).toBe(true);
+  // Inside the dashboard the side puts its address in place. The one entry added is the dashboard's own, for the
+  // click in its sidebar: nobody presses Back through an app's screens to leave it.
+  expect(await page.evaluate(() => window.history.length)).toBe(entries + 1);
+
+  // Opened at the second entry's address, and refreshed there: the side shows that page.
+  await page.goto('/a/repairs/done');
+  await expect(side.getByRole('link', { name: /^Done/ })).toHaveAttribute('aria-current', 'page');
+  await page.reload();
+  await expect(side.getByRole('link', { name: /^Done/ })).toHaveAttribute('aria-current', 'page');
 });
 
 test('a table part edited in the folder changes the open page, with no restart', async ({ page }) => {
