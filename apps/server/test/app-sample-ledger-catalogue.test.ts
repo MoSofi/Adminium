@@ -176,6 +176,19 @@ describe.each(LEGS)('an app\'s sample rows of a table a ledger writes beside its
     expect(await count(h, 'orders')).toBe(1);
   });
 
+  it.runIf(available)('a file of the app\'s own rows that waited for nothing is in once: the add-on\'s sample arriving later does not read it in again', async () => {
+    // The pick names nothing of the kit's sample, so it goes in with the shop's own.
+    const w = await world({ tables: [{ ref: 'picks', own: true, rows: [{ note: 'Nothing named yet' }] }] });
+    h = w.harness;
+    await service(h).add(w.app, OPTS);
+    expect(await there(h)).toMatchObject({ picks: 1 });
+    // Somebody edits it: it no longer reads as the row the file would write.
+    await h.rows(`UPDATE picks SET note = 'Edited by hand'`);
+    await service(h).add(w.addOn, OPTS);
+    expect(await there(h)).toMatchObject({ picks: 1 });
+    expect((await h.rows('SELECT note FROM picks'))[0]!['note']).toBe('Edited by hand');
+  });
+
   it.runIf(available)('a file that holds what the ledger counts is refused whole: nothing of it is written', async () => {
     const w = await world({ tables: [...BOTH.tables, { ref: 'entries', rows: [{ account_id: { '@ref': 'flour' }, amount: '2.000', kind: 'use' }] }] });
     h = w.harness;
