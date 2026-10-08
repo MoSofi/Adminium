@@ -553,11 +553,14 @@ export function planWithContext(
          * foreign key: linked, as a fresh install links it. Left out, the
          * database knows no parent for the row, and everything that follows
          * the link (a rule that posts through it, a list under its parent)
-         * finds nothing. Only on a table the app uses as its own, where the
-         * column's type is the target key's, and the server first checks
-         * every row points at a row that is there.
+         * finds nothing. Only on a table the app made, where the column's
+         * type is the target key's, and the server first checks every row
+         * points at a row that is there. A table the app took over from
+         * somebody else (adopted) is left as its owner keeps it: a server
+         * that may not edit such a table would refuse the whole update, and
+         * one stray row in it would stop an update that asked for nothing.
          */
-        if (plan.action === 'reuse' && column.type === 'fk' && column.references !== undefined && have.linksTo === null) {
+        if (plan.action === 'reuse' && plan.adopted !== true && column.type === 'fk' && column.references !== undefined && have.linksTo === null) {
           if (carriesLinkTo(have, column.references, required, names, live, context.dialect)) plan.edits.push({ kind: 'add-link', column: column.ref, to: column.references });
         }
         /*

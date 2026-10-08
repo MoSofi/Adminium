@@ -183,6 +183,14 @@ describe('a table this app made on an earlier install', () => {
     expect(edits({ logicalType: 'integer', linksTo: null })).toEqual([{ kind: 'add-link', column: 'ticket_id', to: 'tickets' }]);
     // Linked already, or not known: nothing is offered on a guess.
     expect(edits({ logicalType: 'integer', linksTo: 'pos_tickets' })).toEqual([]);
+    // A table the app took over from somebody else is left as its owner keeps it: no link is added to it.
+    expect(
+      planInstall(
+        linked,
+        view([{ ref: 'pos_tickets', columns: [id()] }, { ref: 'pos_payments', columns: [id(), col('ticket_id', { logicalType: 'integer', linksTo: null })] }]),
+        ctx({ records: { ...records, tickets: { table: 'pos_tickets', state: 'created', owned: true }, payments: { table: 'pos_payments', state: 'adopted', owned: false } } }),
+      ).tables?.find((t) => t.ref === 'payments'),
+    ).toMatchObject({ adopted: true, edits: [] });
     expect(edits({ logicalType: 'integer' })).toEqual([]);
     // A type that is not the key's cannot carry the link on every engine.
     expect(edits({ logicalType: 'bigint', linksTo: null })).toEqual([]);
