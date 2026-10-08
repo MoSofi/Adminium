@@ -30,7 +30,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
-import { checkApp } from '../project/apps/check-app.js';
+import { checkApp, type AppFinding } from '../project/apps/check-app.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
 import { applyLook, cleanLook, directionFromWords, lookInUse, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { cleanThemePatch, isPublicFontName, mergePatches, OWN_FONTS_MAX, themeFromPalette } from '../project/apps/theme.js';
@@ -785,8 +785,28 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           }
         }
         const check = named.length === 0 || readAddOn === undefined ? first : checkApp(deps.root, appKey, { version: deps.version, addOns: inSight });
+        // A rule that names an add-on: checked against it when it is here, and said to be unchecked when it is not.
+        const ruled = new Map<string, string>();
+        for (const table of check.manifest?.requiredSchema.tables ?? []) {
+          for (const key of [...(table.postings ?? []).map((posting) => posting.into.addOn), ...(table.adjust === undefined ? [] : [table.adjust.by.addOn])]) {
+            if (key !== appKey && !ruled.has(key)) ruled.set(key, table.ref);
+          }
+        }
+        const unchecked: AppFinding[] = [...ruled]
+          .filter(([key]) => !inSight.has(key))
+          .map(([key, table]) => ({
+            level: 'warn' as const,
+            file: `apps/${appKey}/manifest/add-ons.json`,
+            path: '',
+            message: `The add-on "${key}" is not on this server, so the rule in tables/${table}.json was not checked against it. Call get_add_on with "${key}".`,
+          }));
+        // A rule written by hand, with no requirement beside it: the tool writes both.
+        const sent = (finding: AppFinding): AppFinding =>
+          finding.level === 'error' && /postings\.\d+\.into\.addOn$/.test(finding.path) && finding.message.includes('is not an add-on this manifest names')
+            ? { ...finding, message: `${finding.message.split(':')[0] ?? finding.message}. Call post_to_ledger for this table: it writes the rule and the requirement together.` }
+            : finding;
         const order = { error: 0, warn: 1, note: 2 } as Record<string, number>;
-        const findings = [...check.findings].sort((a, b) => (order[a.level] ?? 3) - (order[b.level] ?? 3));
+        const findings = [...check.findings.map(sent), ...unchecked].sort((a, b) => (order[a.level] ?? 3) - (order[b.level] ?? 3));
         const errors = findings.filter((finding) => finding.level === 'error').length;
         const lines = findings.slice(0, 40).map((finding) => `${finding.level} · ${finding.file}${finding.path === '' ? '' : ` · ${finding.path}`} · ${finding.message}`);
         if (findings.length > 40) lines.push(`… and ${String(findings.length - 40)} more.`);

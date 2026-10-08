@@ -111,6 +111,34 @@ function pickColumns(document: unknown, table: string): string[] {
   return [...out];
 }
 
+/** The inputs of an action a rule must map: every one that is not optional. */
+const neededInputs = (action: Pick<LedgerAction, 'inputs'>): string[] => Object.entries(action.inputs).flatMap(([name, type]) => (optionalInput(type) ? [] : [name]));
+
+/**
+ * Why a rule an app wrote does not fit the add-on it posts into, or null:
+ * the ledger and the action are the add-on's, every input it maps is one of
+ * the action's, every needed one is mapped, a step it fires is one the action
+ * has, and a hold has an end. Said as what to do next, for a model that
+ * wrote the rule by hand.
+ */
+export function hostPostingIssue(posting: Posting, document: unknown): string | null {
+  const again = 'Call post_to_ledger for this table again; do not edit the rule by hand.';
+  const ledgers = declaredLedgers(document);
+  const ledger = ledgers.find((candidate) => candidate.id === posting.into.ledger);
+  if (ledger === undefined) return `${posting.into.addOn} has no ledger "${posting.into.ledger}". Its ledgers: ${ledgers.map((candidate) => candidate.id).join(', ') || 'none'}. ${again}`;
+  const action = ledger.actions[posting.into.action];
+  const into = `${posting.into.addOn}/${ledger.id}/${posting.into.action}`;
+  if (action === undefined) return `${posting.into.addOn}/${ledger.id} has no action "${posting.into.action}". Its actions for an app's rows: ${hostActions(document, ledger).join(', ')}. ${again}`;
+  const stray = Object.keys(posting.map).find((name) => action.inputs[name] === undefined);
+  if (stray !== undefined) return `"${stray}" is not an input of ${into}. Its inputs are ${inputsInWords(action)}. ${again}`;
+  const missing = neededInputs(action).find((name) => posting.map[name] === undefined);
+  if (missing !== undefined) return `"${missing}" is not mapped. ${into} needs: ${neededInputs(action).join(', ')}. ${again}`;
+  const phase = PHASES.find((candidate) => posting[candidate] !== undefined && !action.phases.includes(candidate));
+  if (phase !== undefined) return `${into} has no "${phase}". It takes: ${action.phases.join(', ')}. ${again}`;
+  if (action.holds === true && posting.reserve !== undefined && posting.heldUntil === undefined) return `${into} holds until a time, and the rule gives none. ${again.replace('again;', 'again with "heldUntil" in "columns";')}`;
+  return null;
+}
+
 export function ledgerParts(input: LedgerPartsInput): LedgerPartsResult {
   const no = (problem: string): LedgerPartsResult => ({ ok: false, problem });
   const raw = (input.document ?? {}) as { name?: unknown; version?: unknown };

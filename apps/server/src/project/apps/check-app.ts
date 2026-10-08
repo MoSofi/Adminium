@@ -28,6 +28,7 @@ import { addAndReadRefusal, anonymousAddAndRead, openToAnyone } from '../../apps
 import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
 import { unbuiltInManifest } from '../../crud/unbuilt-rules.js';
+import { hostPostingIssue } from './ledger-parts.js';
 import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
 import { hasOwnBuild } from './own-build.js';
@@ -254,6 +255,18 @@ export function checkApp(root: string, key: string, opts: { version: string; add
       if (!holds) {
         findings.push(error(where.file, where.path, `"${table.ref}.${column.ref}" is ${column.type}, and the key of "${link.addOn}.${link.table}" is ${keyType}: it cannot hold it (ADD_ON_LINK_MISMATCH).`));
       }
+    });
+  });
+
+  // A rule that posts into an add-on's ledger: with the add-on in sight, every name in it is one of the add-on's.
+  manifest.requiredSchema.tables.forEach((table, t) => {
+    (table.postings ?? []).forEach((posting, p) => {
+      const addOn = addOns?.get(posting.into.addOn);
+      if (addOn === undefined) return;
+      const issue = hostPostingIssue(posting, addOn);
+      if (issue === null) return;
+      const where = at(`requiredSchema.tables.${String(t)}.postings.${String(p)}`);
+      findings.push(error(where.file, where.path, issue));
     });
   });
 

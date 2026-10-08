@@ -200,6 +200,39 @@ describe('post_to_ledger', () => {
     expect(() => readFileSync(file('add-ons.json'), 'utf8')).toThrow();
   });
 
+  const check = async () => (await tools().find((tool) => tool.name === 'check_app')!.run({}, context())).content;
+
+  it('check_app checks a rule against the add-on when it is here, and says so when it is not', async () => {
+    parts();
+    expect((await post()).isError).toBeUndefined();
+    expect(await check()).toMatch(/^No errors\./);
+    // The rule edited by hand: an input the action has not, and one it needs left out.
+    const table = json('tables/item_parts.json') as { postings: { map: Record<string, unknown> }[] };
+    table.postings[0]!.map = { account: 'account_id', amount: 'qty' };
+    writeFileSync(file('tables/item_parts.json'), JSON.stringify(table));
+    expect(await check()).toContain(
+      'error · apps/repairs/manifest/tables/item_parts.json · postings.0 · "amount" is not an input of ledger-kit/units/use. Its inputs are account, quantity, note (optional). Call post_to_ledger for this table again; do not edit the rule by hand.',
+    );
+    table.postings[0]!.map = { account: 'account_id' };
+    writeFileSync(file('tables/item_parts.json'), JSON.stringify(table));
+    expect(await check()).toContain('"quantity" is not mapped. ledger-kit/units/use needs: account, quantity. Call post_to_ledger for this table again; do not edit the rule by hand.');
+    // The add-on gone from this server: nothing is checked against it, and the check says so.
+    onServer = false;
+    const unchecked = await check();
+    expect(unchecked).not.toContain('is not mapped');
+    expect(unchecked).toContain(
+      'warn · apps/repairs/manifest/add-ons.json · The add-on "ledger-kit" is not on this server, so the rule in tables/item_parts.json was not checked against it. Call get_add_on with "ledger-kit".',
+    );
+  });
+
+  it('check_app sends a rule written by hand, with no requirement beside it, to the tool', async () => {
+    parts();
+    expect((await post()).isError).toBeUndefined();
+    rmSync(file('add-ons.json'));
+    const said = await check();
+    expect(said).toContain('postings.0.into.addOn · "ledger-kit" is not an add-on this manifest names. Call post_to_ledger for this table: it writes the rule and the requirement together.');
+  });
+
   it('a role that is not the app\'s, and a server too old for the rule, are refused before anything is written', async () => {
     parts();
     expect((await post({ role: 'cashier' })).content).toContain('There is no role "cashier" in apps/repairs/manifest/roles.json. Its roles: staff.');
