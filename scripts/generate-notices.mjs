@@ -58,6 +58,12 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** apps/desktop is the app that is PACKAGED; its production graph is what ships. */
 const DESKTOP_PKG = resolve(repoRoot, 'apps/desktop/package.json');
+/**
+ * The dashboard is not a dependency of the desktop app: its BUILT files are copied into the
+ * package. So what it bundles (the editor, the diagram library, …) is in no `dependencies` the
+ * desktop's graph reaches, and is walked from here as a second root.
+ */
+const DASHBOARD_PKG = resolve(repoRoot, 'apps/dashboard/package.json');
 const DEFAULT_OUT = resolve(repoRoot, 'apps/desktop/resources/THIRD-PARTY-NOTICES.txt');
 const DEFAULT_LICENSE_OUT = resolve(repoRoot, 'apps/desktop/resources/LICENSE');
 const DEFAULT_LICENSE_SRC = resolve(repoRoot, 'LICENSE');
@@ -209,8 +215,8 @@ function resolvePackageDir(name, anchorPkgJson) {
 }
 
 /**
- * Walk the production graph from `apps/desktop` + the Electron runtime, breadth
- * first, deduped by `name@version`. Optional dependencies that are not installed
+ * Walk the production graph from `apps/desktop` + the Electron runtime, and from
+ * `apps/dashboard` (whose bundle ships inside the app), breadth first, deduped by `name@version`. Optional dependencies that are not installed
  * are skipped (pg/mysql2 are optional — a build without them is a valid build);
  * a package with no licence is NOT skipped, it is collected as `missing` so the
  * caller can fail.
@@ -222,12 +228,17 @@ export function collectDesktopGraph() {
     ...Object.keys(desktopPkg.optionalDependencies ?? {}),
     ...RUNTIME_PACKAGES,
   ];
+  const dashboardPkg = JSON.parse(readFileSync(DASHBOARD_PKG, 'utf8'));
 
   const notices = [];
   const missing = [];
   const seen = new Set();
   // queue items: { name, anchor } — anchor is the package.json to resolve FROM.
-  const queue = entries.map((name) => ({ name, anchor: DESKTOP_PKG }));
+  const queue = [
+    ...entries.map((name) => ({ name, anchor: DESKTOP_PKG })),
+    // What the dashboard's bundle is made of, resolved from the dashboard itself.
+    ...Object.keys(dashboardPkg.dependencies ?? {}).map((name) => ({ name, anchor: DASHBOARD_PKG })),
+  ];
 
   while (queue.length > 0) {
     const { name, anchor } = queue.shift();

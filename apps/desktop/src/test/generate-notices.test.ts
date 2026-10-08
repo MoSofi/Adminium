@@ -148,4 +148,18 @@ describe('generate-notices — the real production graph', () => {
     expect(result.status).toBe(0);
     expect(result.output).toContain('no unlicensed dependency');
   });
+
+  it('lists what the dashboard bundles, which is in no dependency list of the desktop app', () => {
+    // The dashboard's built files are copied into the package, so its packages are reached
+    // only from its own package.json. Before that root was walked the editor and the
+    // diagram library shipped with no notice at all.
+    const ws = workspace();
+    const out = join(ws, 'NOTICES.txt');
+    const result = run(['--out', out, '--license-out', join(ws, 'LICENSE')]);
+    expect(result.status).toBe(0);
+    const body = readFileSync(out, 'utf8');
+    for (const name of ['@codemirror/view', '@codemirror/state', '@lezer/common', '@xyflow/react', '@dagrejs/dagre']) {
+      expect(body, name).toMatch(new RegExp(`^${name.replace('/', '\\/')} \\d`, 'm'));
+    }
+  });
 });

@@ -1,7 +1,9 @@
 {
   "entryJsGzBytes": 282002,
   "targetGzBytes": 358400,
-  "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md. `history` is newest-first: it replaced a chain of loweredOn/previousLoweredOn/previouslyLoweredOn/priorLoweredOn keys that had run out of adjectives, and no key beyond the two numbers above is read by anything.",
+  "codeTabJsGzBytes": 157922,
+  "codeTabNote": "The Designer's code editor, one chunk loaded when its Code tab is first opened: 155,874 bytes gz measured on 2026-10-08 (CodeMirror 6 with the language objects alone and the Lezer Markdown parser; the tab's own code is about 5 KiB of it), plus 2,048 bytes of minifier headroom. A ratchet like entryJsGzBytes: it may only go down.",
+  "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md. `history` is newest-first: it replaced a chain of loweredOn/previousLoweredOn/previouslyLoweredOn/priorLoweredOn keys that had run out of adjectives, and no key beyond the two numbers above and codeTabJsGzBytes is read by anything.",
   "loweredOn": {
     "when": "2026-09-09",
     "by": "deferring the ⌘K palette, and moving three lazy-surface key groups out of the eagerly bundled `common` catalogue",
