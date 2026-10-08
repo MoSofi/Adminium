@@ -69,7 +69,8 @@ export function StickyBar({ start, end, children, 'aria-label': label }: StickyB
       role="group"
       {...(label === undefined ? {} : { 'aria-label': label })}
       data-part="kit-sticky-bar"
-      className="sticky bottom-0 z-20 -mx-6 mt-auto flex flex-col gap-2 border-t border-border bg-surface px-6 py-3.5"
+      // Out to the page's own edges and down to its foot, by the page's own padding: a fixed figure left a strip beside it and under it.
+      className="sticky bottom-0 z-20 -mx-[var(--main-pad-x)] -mb-[var(--main-pad-y)] mt-auto flex flex-col gap-2 border-t border-border bg-surface px-[var(--main-pad-x)] py-3.5"
     >
       {children}
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
