@@ -9499,6 +9499,18 @@
     "status": "mt",
     "srcHash": "2f0d4b25b947"
   },
+  "designer.preview.addressCustomer": {
+    "status": "mt",
+    "srcHash": "5264b9a15ab1"
+  },
+  "designer.preview.addressDashboard": {
+    "status": "mt",
+    "srcHash": "868c92076572"
+  },
+  "designer.preview.addressStaff": {
+    "status": "mt",
+    "srcHash": "bf56e1ffa17c"
+  },
   "designer.preview.buildingCustomer": {
     "status": "mt",
     "srcHash": "38dcdb566032"
@@ -9571,6 +9583,10 @@
     "status": "mt",
     "srcHash": "db093d7a6f00"
   },
+  "designer.preview.more": {
+    "status": "mt",
+    "srcHash": "4bab2d8fe13f"
+  },
   "designer.preview.newTab": {
     "status": "mt",
     "srcHash": "b22f39c9558f"
@@ -9599,45 +9615,73 @@
     "status": "mt",
     "srcHash": "cce7155371fc"
   },
-  "designer.preview.seenAs": {
+  "designer.preview.reloadPreview": {
     "status": "mt",
-    "srcHash": "7df4a1d9e2cb"
+    "srcHash": "aca0cb564602"
   },
-  "designer.preview.seenAsHint": {
+  "designer.preview.seenNoRole": {
     "status": "mt",
-    "srcHash": "2c09ab8172aa"
+    "srcHash": "4d15a8400581"
   },
-  "designer.preview.seenAsNoRole": {
+  "designer.preview.seenNoRoleTip": {
     "status": "mt",
-    "srcHash": "e62606117829"
+    "srcHash": "4c5bf3ca8179"
   },
-  "designer.preview.seenAsOwner": {
+  "designer.preview.seenOwner": {
     "status": "mt",
-    "srcHash": "8d55a7d95d28"
+    "srcHash": "7f3bfe09c0d1"
   },
-  "designer.preview.seenAsStaff": {
+  "designer.preview.seenOwnerTip": {
     "status": "mt",
-    "srcHash": "29da8f70ac4a"
+    "srcHash": "b45299dfdd3d"
   },
-  "designer.preview.seenAsVisitor": {
+  "designer.preview.seenRoles": {
     "status": "mt",
-    "srcHash": "59c9f1bc798b"
+    "srcHash": "023e677e51e4"
+  },
+  "designer.preview.seenRolesTip": {
+    "status": "mt",
+    "srcHash": "78d2f95db184"
+  },
+  "designer.preview.seenStaff": {
+    "status": "mt",
+    "srcHash": "158730a8792f"
+  },
+  "designer.preview.seenStaffTip": {
+    "status": "mt",
+    "srcHash": "85a28bb9851e"
+  },
+  "designer.preview.seenVisitor": {
+    "status": "mt",
+    "srcHash": "5eb2be832ff0"
+  },
+  "designer.preview.seenVisitorTip": {
+    "status": "mt",
+    "srcHash": "8f3bf2f55879"
   },
   "designer.preview.sees": {
     "status": "mt",
     "srcHash": "9e5cb4e0c77d"
   },
-  "designer.preview.seesOff": {
+  "designer.preview.seesNot": {
     "status": "mt",
-    "srcHash": "9cbc78db648d"
-  },
-  "designer.preview.seesOn": {
-    "status": "mt",
-    "srcHash": "ffa4023527b5"
+    "srcHash": "4afe0723c87d"
   },
   "designer.preview.side": {
     "status": "mt",
     "srcHash": "26528381ea05"
+  },
+  "designer.preview.sideIs": {
+    "status": "mt",
+    "srcHash": "9a9440157727"
+  },
+  "designer.preview.size": {
+    "status": "mt",
+    "srcHash": "b7152342a267"
+  },
+  "designer.preview.sizeIs": {
+    "status": "mt",
+    "srcHash": "5f2f6eabfb02"
   },
   "designer.preview.staff": {
     "status": "mt",
@@ -9658,10 +9702,6 @@
   "designer.preview.wentOnStaff": {
     "status": "mt",
     "srcHash": "2541052f3150"
-  },
-  "designer.preview.width": {
-    "status": "mt",
-    "srcHash": "a58ddf50c5ea"
   },
   "designer.provider.anthropic": {
     "status": "src",
@@ -10574,6 +10614,10 @@
   "designer.work.architecture": {
     "status": "src",
     "srcHash": "b040b4179b8b"
+  },
+  "designer.work.label": {
+    "status": "mt",
+    "srcHash": "0e67beb64c53"
   },
   "designer.work.preview": {
     "status": "mt",

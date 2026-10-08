@@ -10,12 +10,13 @@
  *
  * Sides: the Dashboard (the person's own dashboard, as the owner they are,
  * on the Designer's name: no ticket, no preview user),
- * Staff and Customer — a side the app does not have is absent. Widths:
- * desktop fills, tablet is 768 wide, phone 360 in a bezel. The frame reloads
- * when the app is applied again (`app-changed`), and on Reload.
+ * Staff and Customer — a side the app does not have is absent. Sizes:
+ * desktop fills its box, tablet is 768 wide, phone 360 in a bezel. The frame
+ * reloads when the app is applied again (`app-changed`), and on Reload. Its
+ * controls are in the work area's bar.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Camera, ExternalLink, Eye, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
+import { Hammer, LoaderCircle, WandSparkles } from 'lucide-react';
 
 import { AppFrame } from '../../apps/AppFrame.js';
 import { t } from '../../i18n/t.js';
@@ -23,19 +24,9 @@ import { designerApi, type DesignerSession } from '../api.js';
 import { seesPage, sightFrom } from './sight.js';
 import type { TurnView } from './turns.js';
 import type { PreviewModel, PreviewSide } from './usePreview.js';
+import { sideName } from './WorkBar.js';
 
 export type { PreviewSide, PreviewWidth } from './usePreview.js';
-
-function sideName(side: PreviewSide): string {
-  switch (side) {
-    case 'dashboard':
-      return t('designer:preview.dashboard', 'Dashboard');
-    case 'staff':
-      return t('designer:preview.staff', 'Staff');
-    case 'customer':
-      return t('designer:preview.customer', 'Customer');
-  }
-}
 
 function building(side: PreviewSide): string {
   switch (side) {
@@ -63,15 +54,6 @@ function crashedTitle(side: PreviewSide): string {
   return side === 'staff'
     ? t('designer:preview.crashedStaff', 'The staff screen stopped with an error.')
     : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
-}
-
-/** Whose eyes the preview is: the owner's own for the dashboard, the app's roles for the staff side, nobody for the customer side. */
-export function seenAs(side: PreviewSide, roles: readonly string[] | null): string {
-  if (side === 'dashboard') return t('designer:preview.seenAsOwner', 'Seen as: you, the owner');
-  if (side === 'customer') return t('designer:preview.seenAsVisitor', 'Seen as: a visitor, not signed in');
-  if (roles === null) return t('designer:preview.seenAsStaff', 'Seen as: staff — a preview');
-  if (roles.length === 0) return t('designer:preview.seenAsNoRole', 'Seen as: a person with no role yet — a preview');
-  return t('designer:preview.seenAs', 'Seen as: {who} — a preview', { who: roles.join(', ') });
 }
 
 /** The screen went on, and something in it threw: a part of it is empty or wrong, and says nothing. */
@@ -175,18 +157,19 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
       />
     );
 
-  // One element tree for every width, so a width change restyles the frame and never reloads it
+  // One element tree for every size, so a size change restyles the frame and never reloads it
   // (a reload would spend a new ticket, and the old one is already used).
+  // The page sits in a box; the tablet and the phone stand on a dotted ground.
   const wide = width === 'desktop' || compact;
-  const ground = wide
-    ? 'flex min-h-0 flex-1 bg-surface'
-    : 'flex min-h-0 flex-1 justify-center overflow-auto bg-surface-2 bg-[radial-gradient(var(--border-strong)_1px,transparent_1px)] bg-[size:16px_16px] p-5';
+  const ground = `flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[14px] ${compact ? 'm-2.5' : 'm-3'} ${
+    wide ? '' : 'bg-surface-3 bg-[radial-gradient(var(--border-strong)_1px,transparent_1px)] bg-[size:16px_16px] p-[22px]'
+  }`;
   const device = wide
-    ? 'flex min-h-0 flex-1'
+    ? 'flex h-full w-full overflow-hidden rounded-[12px] border border-border bg-surface shadow-card'
     : width === 'tablet'
-      ? 'flex h-full w-[768px] max-w-full shrink-0 overflow-hidden rounded-xl border border-border bg-surface shadow-md'
-      : 'adm-always-dark flex h-[min(760px,100%)] w-[380px] shrink-0 rounded-[36px] bg-bg p-2.5 shadow-lg';
-  const screenBox = wide || width === 'tablet' ? 'flex min-h-0 flex-1' : 'flex w-[360px] overflow-hidden rounded-[28px] bg-surface';
+      ? 'flex h-full w-[min(768px,100%)] overflow-hidden rounded-[16px] border border-border-strong bg-surface shadow-md'
+      : 'adm-always-dark flex h-[min(720px,100%)] w-[360px] max-w-full rounded-[30px] bg-bg p-2 shadow-lg';
+  const screenBox = wide || width === 'tablet' ? 'flex min-h-0 min-w-0 flex-1' : 'flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[22px] bg-surface';
   const sized = (
     <div className={ground}>
       <div className={device}>
@@ -280,85 +263,3 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
   );
 }
 
-/** The preview's own controls, in a bar over its frame. */
-export function PreviewTools({ preview, compact }: { preview: PreviewModel; compact: boolean }): ReactNode {
-  const { app, side, sides, width, sees } = preview;
-  const segmented = 'inline-flex items-center rounded-[10px] border border-border bg-surface-2 p-[3px]';
-  const segment = 'inline-flex h-[30px] items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] font-bold text-fg-muted hover:text-fg aria-pressed:bg-surface aria-pressed:text-fg aria-pressed:shadow-sm';
-  const iconFor = (entry: PreviewSide): ReactNode =>
-    entry === 'dashboard' ? <LayoutDashboard aria-hidden="true" className="size-3.5" /> : entry === 'staff' ? <IdCard aria-hidden="true" className="size-3.5" /> : <UserRound aria-hidden="true" className="size-3.5" />;
-
-  if (preview.noPreview) return null;
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2">
-      <div role="group" aria-label={t('designer:preview.side', 'Side')} className={segmented}>
-        {sides.map((entry) => (
-          <button key={entry} type="button" aria-pressed={side === entry} onClick={() => preview.setSide(entry)} className={segment}>
-            {iconFor(entry)}
-            {sideName(entry)}
-          </button>
-        ))}
-      </div>
-      {compact ? null : (
-        <div role="group" aria-label={t('designer:preview.width', 'Width')} className={segmented}>
-          {(
-            [
-              ['desktop', Monitor, t('designer:preview.desktop', 'Desktop')],
-              ['tablet', Tablet, t('designer:preview.tablet', 'Tablet')],
-              ['phone', Smartphone, t('designer:preview.phone', 'Phone')],
-            ] as const
-          ).map(([id, Icon, label]) => (
-            <button key={id} type="button" aria-pressed={width === id} aria-label={label} title={label} onClick={() => preview.setWidth(id)} className={segment}>
-              <Icon aria-hidden="true" className="size-3.5" />
-            </button>
-          ))}
-        </div>
-      )}
-      {app === null ? null : (
-        <span
-          className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold text-fg-muted"
-          title={side === 'dashboard' ? undefined : t('designer:preview.seenAsHint', 'The preview is not your own sign-in. It shows the app as its people will see it.')}
-        >
-          <Eye aria-hidden="true" className="size-3 shrink-0" />
-          <span className="truncate">{seenAs(side, preview.ticket?.seenAs ?? null)}</span>
-        </span>
-      )}
-      <div className="ms-auto flex items-center gap-1.5">
-        <button
-          type="button"
-          aria-pressed={sees}
-          onClick={() => {
-            preview.setSees(!sees);
-          }}
-          aria-label={t('designer:preview.sees', 'The Designer looks at the page after it builds')}
-          title={
-            sees
-              ? t('designer:preview.seesOn', 'After a build, the Designer is shown this page and what is broken on it, and fixes what it sees. Press to switch that off.')
-              : t('designer:preview.seesOff', 'The Designer does not look at the page it builds. Press to let it.')
-          }
-          className="flex size-8 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-subtle hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
-        >
-          <Camera aria-hidden="true" className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={preview.reload}
-          aria-label={t('designer:preview.reload', 'Reload')}
-          title={t('designer:preview.reload', 'Reload')}
-          className="flex size-8 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-muted hover:text-fg"
-        >
-          <RotateCw aria-hidden="true" className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={preview.openTab}
-          disabled={app === null}
-          className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-border bg-surface px-2.5 text-[12.5px] font-bold text-fg-muted hover:text-fg disabled:opacity-50"
-        >
-          <ExternalLink aria-hidden="true" className="size-3.5" />
-          <span className="max-lg:sr-only">{t('designer:preview.newTab', 'Open in a new tab')}</span>
-        </button>
-      </div>
-    </div>
-  );
-}

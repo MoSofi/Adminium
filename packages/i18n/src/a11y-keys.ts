@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2740 entries. */
+/** `namespace:key` — 2747 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -833,14 +833,18 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:needs.title',
   'designer:pictures.title',
   'designer:pictures.use',
+  'designer:preview.addressCustomer',
+  'designer:preview.addressDashboard',
+  'designer:preview.addressStaff',
   'designer:preview.loading',
-  'designer:preview.reload',
-  'designer:preview.seenAsHint',
+  'designer:preview.more',
+  'designer:preview.newTab',
+  'designer:preview.reloadPreview',
+  'designer:preview.seenRoles',
   'designer:preview.sees',
-  'designer:preview.seesOff',
-  'designer:preview.seesOn',
   'designer:preview.side',
-  'designer:preview.width',
+  'designer:preview.sideIs',
+  'designer:preview.size',
   'designer:provider.anthropic',
   'designer:provider.compatible',
   'designer:provider.ollama',
@@ -877,6 +881,9 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:versions.confirmTitle',
   'designer:versions.goBackTo',
   'designer:versions.wentBack',
+  'designer:work.architecture',
+  'designer:work.label',
+  'designer:work.preview',
   'email:actions.menu',
   'email:archivedChip.leave',
   'email:blocks.box.label',

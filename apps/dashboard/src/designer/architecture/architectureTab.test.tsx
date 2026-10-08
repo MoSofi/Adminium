@@ -103,7 +103,6 @@ describe('the Architecture tab', () => {
     doc = DOC;
     mount();
     expect(await screen.findByRole('heading', { name: 'How Repair Desk fits together' })).toBeTruthy();
-    expect(screen.getByText('Read only · drawn from v4')).toBeTruthy();
     expect(screen.getByText('2 changes are waiting to be applied')).toBeTruthy();
     expect(within(screen.getByRole('list', { name: 'Legend' })).getByText('Not applied yet')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Show' }));

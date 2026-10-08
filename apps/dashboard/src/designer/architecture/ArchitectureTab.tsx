@@ -13,7 +13,7 @@
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, CircleDot, Eye, Lock, Minus, SquareArrowOutUpRight, X } from 'lucide-react';
+import { Check, CircleDot, Lock, Minus, SquareArrowOutUpRight, X } from 'lucide-react';
 import { Switch, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
@@ -371,11 +371,6 @@ export default function ArchitectureTab({ session }: { session: DesignerSession 
 
   return (
     <div className="nb-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 max-sm:p-3">
-      <p className="m-0 flex items-center gap-1.5 text-[12px] text-fg-subtle">
-        <Eye aria-hidden="true" className="size-3.5" />
-        {session.version === null ? t('designer:arch.readOnly', 'Read only') : t('designer:arch.readOnlyFrom', 'Read only · drawn from {version}', { version: `v${String(session.version)}` })}
-      </p>
-
       {doc.pending.length === 0 ? null : (
         <div className="rounded-xl border border-warn/40 bg-warn-soft">
           <div className="flex items-center gap-2.5 px-3.5 py-2">
