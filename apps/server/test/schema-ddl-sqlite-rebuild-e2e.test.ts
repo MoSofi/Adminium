@@ -249,6 +249,51 @@ describe('the rebuild actually rebuilds', () => {
     expect(info.find((c) => c.name === 'body')?.notnull).toBe(0);
   });
 
+  describe('a row that was already an orphan before the rebuild', () => {
+    const setup = `
+      PRAGMA foreign_keys = off;
+      create table people (id integer primary key);
+      create table badges (id integer primary key, person_id integer references people (id));
+      insert into badges (person_id) values (404);
+      create table notes (id integer primary key, person_id integer, body text);
+      insert into people (id) values (1);
+      PRAGMA foreign_keys = on;
+    `;
+    const notes = tbl({
+      name: 'notes',
+      columns: [
+        col({ name: 'id', logicalType: 'integer', dbType: 'integer', isPrimaryKey: true, nullable: false, default: { kind: 'autoincrement' } }),
+        col({ name: 'person_id', logicalType: 'integer', dbType: 'integer' }),
+        col({ name: 'body', logicalType: 'text', dbType: 'text' }),
+      ],
+      primaryKey: ['id'],
+    });
+    const link = {
+      kind: 'declared-fk', constraintName: null, onDelete: null, onUpdate: null,
+      from: { tableId: 'main.notes', columns: ['person_id'] },
+      to: { tableId: 'main.people', columns: ['id'] },
+    } as never;
+
+    it('does not stop the rebuild of another table', async () => {
+      const { db, raw } = open(`${setup} insert into notes (person_id, body) values (1, 'x');`);
+      await runSqliteRebuild({ db, actual: notes, desired: notes, columnMapping: rebuildColumnMapping(notes, notes), foreignKeys: [link] });
+
+      expect(raw.prepare('PRAGMA foreign_key_list(notes)').all()).toHaveLength(1);
+      // It is still there, and still the only one: nothing was mended or hidden.
+      expect(raw.prepare('PRAGMA foreign_key_check').all()).toMatchObject([{ table: 'badges', parent: 'people' }]);
+    });
+
+    it('still refuses a rebuild that adds one of its own', async () => {
+      const { db, raw } = open(`${setup} insert into notes (person_id, body) values (405, 'x');`);
+      await expect(
+        runSqliteRebuild({ db, actual: notes, desired: notes, columnMapping: rebuildColumnMapping(notes, notes), foreignKeys: [link] }),
+      ).rejects.toThrow(/1 row violating/);
+
+      expect(raw.prepare('PRAGMA foreign_key_list(notes)').all()).toHaveLength(0);
+      expect(raw.prepare('select count(*) c from notes').get()).toEqual({ c: 1 });
+    });
+  });
+
   it('runs step 12 when a re-introspection is supplied, and refuses a mismatch', async () => {
     const { db } = open('create table notes (id integer primary key, body text);');
     const actual = tbl({

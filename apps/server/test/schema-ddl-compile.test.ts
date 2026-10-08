@@ -642,6 +642,12 @@ describe('the rebuilt table must match what was promised', () => {
   it('turns foreign_key_check rows into a refusal', () => {
     expect(() => assertNoForeignKeyViolations([])).not.toThrow();
     expect(() => assertNoForeignKeyViolations([{}, {}])).toThrow(/2 rows violating/);
+    // What was there before the rebuild is not the rebuild's: matched on the
+    // row and its parent, counted, and blind to the key's position.
+    const old = { table: 'badges', rowid: 1, parent: 'people', fkid: 0 };
+    expect(() => assertNoForeignKeyViolations([{ ...old, fkid: 1 }], [old])).not.toThrow();
+    expect(() => assertNoForeignKeyViolations([old, { ...old, fkid: 1 }], [old])).toThrow(/1 row violating/);
+    expect(() => assertNoForeignKeyViolations([{ ...old, rowid: 2 }], [old])).toThrow(/1 row violating/);
   });
 });
 

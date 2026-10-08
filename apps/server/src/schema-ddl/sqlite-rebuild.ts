@@ -631,15 +631,39 @@ export function assertRebuildMatches(rebuilt: TableModel, desired: TableModel): 
  * Turn `PRAGMA foreign_key_check`'s rows into a refusal.
  *
  * The pragma returns one row per violating row: `(table, rowid, parent,
- * fkid)`. An empty result is the only acceptable outcome.
+ * fkid)`, over the WHOLE database. A row that was already violating before
+ * the rebuild began is not the rebuild's doing — a database connected with
+ * an orphan in some other table would otherwise refuse every rebuild, for a
+ * reason no check before it could have named. So `before` (the same pragma,
+ * read first) is taken away, and only what the rebuild ADDED refuses it.
+ *
+ * Rows are matched on `(table, rowid, parent)` and counted: `fkid` is the
+ * key's position in the table's own list, which a rebuild that adds a key
+ * moves, and a second key to the same parent on the same row must still count.
  */
-export function assertNoForeignKeyViolations(rows: readonly unknown[]): void {
+export function assertNoForeignKeyViolations(
+  rows: readonly unknown[],
+  before: readonly unknown[] = [],
+): void {
   if (rows.length === 0) return;
+  const keyOf = (row: unknown): string => {
+    const r = (row ?? {}) as { table?: unknown; rowid?: unknown; parent?: unknown };
+    return JSON.stringify([r.table ?? null, r.rowid ?? null, r.parent ?? null]);
+  };
+  const known = new Map<string, number>();
+  for (const row of before) known.set(keyOf(row), (known.get(keyOf(row)) ?? 0) + 1);
+  const added = rows.filter((row) => {
+    const left = known.get(keyOf(row)) ?? 0;
+    if (left === 0) return true;
+    known.set(keyOf(row), left - 1);
+    return false;
+  });
+  if (added.length === 0) return;
   throw new SqliteRebuildError(
-    `the rebuild would leave ${rows.length} row${rows.length === 1 ? '' : 's'} violating a ` +
+    `the rebuild would leave ${added.length} row${added.length === 1 ? '' : 's'} violating a ` +
       'foreign key, so it was rolled back',
     'FK_VIOLATION',
-    { violations: rows.length },
+    { violations: added.length },
   );
 }
 
@@ -714,12 +738,15 @@ export async function runSqliteRebuild(input: RunRebuildInput): Promise<void> {
   try {
     await run('BEGIN');
     try {
+      // What was already broken before this rebuild touched anything: step 9
+      // answers for the rebuild, not for the whole database's history.
+      const before = await run('PRAGMA foreign_key_check');
       for (const query of statements) {
         const rows = await run(query.sql);
         // Step 9's result is the point of step 9. `PRAGMA foreign_key_check`
-        // returns one row per violating row and an empty result is the only
-        // acceptable outcome; ignoring it leaves a database that looks fine.
-        if (query.sql === 'PRAGMA foreign_key_check') assertNoForeignKeyViolations(rows);
+        // returns one row per violating row; a row the rebuild added is never
+        // acceptable, and ignoring it leaves a database that looks fine.
+        if (query.sql === 'PRAGMA foreign_key_check') assertNoForeignKeyViolations(rows, before);
       }
       await run('COMMIT');
     } catch (error) {
