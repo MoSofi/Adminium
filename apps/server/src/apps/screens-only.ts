@@ -6,8 +6,9 @@
  * The dashboard answers them with 403 `APP_SCREENS_ONLY` and where their
  * screens are, and every other API call is refused except what those screens
  * need: signing in and out, their own account, the records their roles grant,
- * the live-update stream, the translations, and the schema of their app's own
- * database. Forty-odd routes check only that someone is signed in, so this
+ * the live-update stream, the translations, the schema of their app's own
+ * database, and what an add-on their app uses says of the rows a screen shows
+ * (its stock words). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -44,6 +45,29 @@ export async function appConnections(meta: MetaDb, settings: SurfaceSettings, ap
   return out;
 }
 
+/** The route a screen asks an add-on's stock words through. */
+export const STAFF_WORDS_ROUTE = `${API}/words/:addOn/:wordsId`;
+
+/**
+ * The add-ons a screens-only person's apps use: connected to one of their
+ * apps, and keeping its tables in one of their apps' databases. Switched off
+ * for the app or not, the route says what it can of it; an add-on of nobody
+ * of theirs is not theirs to ask.
+ */
+export async function appAddOns(meta: MetaDb, appKeys: readonly string[], connections: ReadonlySet<string>): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (appKeys.length === 0 || connections.size === 0) return out;
+  const rows = await meta.db
+    .selectFrom('adminium_manifest_attachments as attachment')
+    .innerJoin('adminium_manifests as addOn', 'addOn.id', 'attachment.manifestId')
+    .select(['addOn.manifestKey as key', 'addOn.connectionId as connectionId'])
+    .where('addOn.kind', '=', 'add-on')
+    .where('attachment.attachedTo', 'in', [...appKeys])
+    .execute();
+  for (const row of rows) if (row.connectionId !== null && connections.has(row.connectionId)) out.add(row.key);
+  return out;
+}
+
 /**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
@@ -51,7 +75,14 @@ export async function appConnections(meta: MetaDb, settings: SurfaceSettings, ap
  * (`/%61pi/v1/roles`, or the absolute form `GET http://host/api/v1/roles`)
  * and would then match no pattern here while still reaching the route.
  */
-export function allowedForScreensOnly(method: string, route: string, params: unknown, connections: ReadonlySet<string>, appKeys: readonly string[] = []): boolean {
+export function allowedForScreensOnly(
+  method: string,
+  route: string,
+  params: unknown,
+  connections: ReadonlySet<string>,
+  appKeys: readonly string[] = [],
+  addOns: ReadonlySet<string> = new Set(),
+): boolean {
   if (!route.startsWith(`${API}/`)) return true;
   const rest = route.slice(API.length);
   if (/^\/(auth|data|i18n)(\/|$)/.test(rest)) return true;
@@ -60,6 +91,9 @@ export function allowedForScreensOnly(method: string, route: string, params: unk
   const key = (params as { key?: unknown } | null)?.key;
   if (method === 'POST' && rest === '/apps/:key/documents/render' && typeof key === 'string' && appKeys.includes(key)) return true;
   if (method === 'GET' && (rest === '/documents/:id/content' || rest === '/documents/:id/print')) return true;
+  // What an add-on of their app says of the rows their screen shows. The route still asks that they read the table asked about.
+  const addOn = (params as { addOn?: unknown } | null)?.addOn;
+  if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;
