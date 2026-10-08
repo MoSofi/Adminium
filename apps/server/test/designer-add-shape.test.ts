@@ -250,6 +250,22 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     expect(errors()).toEqual([]);
   });
 
+  it('a link a model wrote as a whole number that names its table is the link; and the answer says which shapes are still not on the app', async () => {
+    till();
+    // As a real model wrote it: "type": "int" with "references", which installs as a link all the same.
+    put('tables/payments.json', { ...PAYMENTS, columns: [pk, { ref: 'ticket_id', type: 'int', references: 'tickets' }, money('amount')] });
+    expect(errors()).toEqual([]);
+    const paid = await build({ shape: 'card-payment@1', tables: { order: 'tickets', payments: 'payments' }, columns: { amount: 'amount' }, when: { post: { create: true }, reverse: { column: 'voided_at', set: true } } });
+    expect(paid.isError, paid.content).toBeUndefined();
+    expect((json('tables/payments.json')['postings'] as { via: string }[])[0]!.via).toBe('ticket_id');
+    expect((json('tables/payments.json')['columns'] as { ref: string; type: string }[])[1]).toMatchObject({ ref: 'ticket_id', type: 'fk', references: 'tickets' });
+    expect(paid.content).toContain('ticket_id is now "type": "fk" (it named "tickets" as a whole number)');
+    expect(paid.content).toContain('Not on this app yet: discountable@1, card-sale@1, voucher-sale@1. Each is a call of its own, with your tables; add the ones the person asked for before you apply.');
+    const sold = await build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, when: PAID });
+    expect(sold.content).toContain('Not on this app yet: discountable@1, voucher-sale@1.');
+    expect(errors()).toEqual([]);
+  });
+
   it('with "suggests" the app runs without the add-on: a feature, and the rule live only under it', async () => {
     till();
     const done = await build({ shape: 'voucher-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, columns: { amount: 'line_total' }, when: PAID, need: 'suggests' });
@@ -267,7 +283,7 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     const none = await build({ shape: 'discountable@1' });
     expect(none.isError).toBe(true);
     expect(none.content).toBe(
-      'discountable@1 is added to tables the app already has. Give "tables": { "discountable@1/order": "<your orders table>", "discountable@1/lines": "<your lines table>", "discountable@1/codes": "<a new table’s name>" }.',
+      'discountable@1 is added to tables the app already has. Give "tables": { "discountable@1/order": "<your orders table>", "discountable@1/lines": "<your lines table>", "discountable@1/codes": "<a new table’s name>" }. Nothing of discountable@1 is on the app until this call succeeds.',
     );
     expect((await build({ shape: 'card-payment@1', tables: { 'card-payment@1/order': 'tickets' } })).content).toContain('"card-payment@1/payments": "<your payments table>"');
   });
@@ -276,11 +292,11 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     till();
     const before = { tickets: json('tables/tickets.json'), lines: json('tables/ticket_lines.json') };
     const missing = await build({ shape: 'card-sale@1', tables: { order: 'orders', lines: 'ticket_lines' }, when: PAID });
-    expect(missing.content).toBe('There is no table "orders" yet. Write apps/till/manifest/tables/orders.json first (the app\'s own orders, nothing about offers), then call this again.');
+    expect(missing.content).toBe('There is no table "orders" yet. Write apps/till/manifest/tables/orders.json first (the app\'s own orders, nothing about offers), then call this again. Nothing of card-sale@1 is on the app until this call succeeds.');
 
     put('tables/loose.json', { ref: 'loose', label: { 'en-US': 'Loose' }, labelPlural: { 'en-US': 'Loose' }, keyField: 'id', columns: [pk, { ref: 'gift_card_id', type: 'text', maxLength: 20, nullable: true }] });
     const unlinked = await build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'loose' }, when: PAID });
-    expect(unlinked.content).toBe('apps/till/manifest/tables/loose.json has no link to "tickets". Add { "ref": "ticket_id", "type": "fk", "references": "tickets" } to its columns, then call this again.');
+    expect(unlinked.content).toBe('apps/till/manifest/tables/loose.json has no link to "tickets". Add { "ref": "ticket_id", "type": "fk", "references": "tickets" } to its columns, then call this again. Nothing of card-sale@1 is on the app until this call succeeds.');
 
     put('tables/loose.json', { ref: 'loose', label: { 'en-US': 'Loose' }, labelPlural: { 'en-US': 'Loose' }, keyField: 'id', columns: [pk, { ref: 'ticket_id', type: 'fk', references: 'tickets' }, { ref: 'gift_card_id', type: 'text', maxLength: 20, nullable: true }] });
     const typed = await build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'loose' }, when: PAID });
@@ -291,7 +307,7 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
 
     const unsold = await build({ shape: 'discountable@1', tables: { order: 'tickets', lines: 'ticket_lines', codes: 'ticket_codes' }, columns: { 'lines.amount': 'line_total' } });
     expect(unsold.content).toBe(
-      '"item" of discountable@1 says what a line sells: a link from your own table to the thing sold. Name the link column apps/till/manifest/tables/ticket_lines.json has (its "type" is "fk") in "columns": { "lines.item": "<column>" }.',
+      '"item" of discountable@1 says what a line sells: a link from your own table to the thing sold. Name the link column apps/till/manifest/tables/ticket_lines.json has (its "type" is "fk") in "columns": { "lines.item": "<column>" }. Nothing of discountable@1 is on the app until this call succeeds.',
     );
     expect(unsold.isError).toBe(true);
 
@@ -355,7 +371,7 @@ describe('the parts themselves', () => {
     if (!given.ok) throw new Error(given.problem);
     expect(given.tables.find((table) => table.part === 'lines')?.added).toEqual([{ column: 'gift_card_id', type: 'int', links: 'offers.gift_cards', given: true }, { column: 'load_amount', type: 'money' }]);
     expect((given.files['tables/ticket_lines.json']!['columns'] as { ref: string }[]).find((column) => column.ref === 'gift_card_id')).toEqual({ ref: 'gift_card_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'offers', table: 'gift_cards' } } });
-    const own = { ...LINES, columns: [...LINES.columns, { ref: 'gift_card_id', type: 'int', references: 'tickets' }] };
+    const own = { ...LINES, columns: [...LINES.columns, { ref: 'gift_card_id', type: 'int', references: 'items' }] };
     expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'card-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, have: { tickets: TICKETS, ticket_lines: own }, when: PAID })).toMatchObject({ ok: false, problem: expect.stringContaining('has "references"') });
   });
 });

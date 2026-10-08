@@ -321,6 +321,8 @@ export type AdoptPartsResult =
       feature: string | null;
       /** The add-on's tables the added columns link into. */
       links: string[];
+      /** The add-on's other shapes of this kind that no table of the app carries yet. */
+      others: string[];
       /** What a price rule's line was told of this shape's rows, on a table that is no part of it: the table, and the words. */
       told: { ref: string; rule: string }[];
     };
@@ -516,13 +518,20 @@ export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
           colOf.set(key, link);
           continue;
         }
-        const links = columns.filter((candidate) => candidate['type'] === 'fk' && candidate['references'] === target).map(refOf);
+        // A link is whatever names the table in "references": a model writes it as "fk" or as a whole number, and both install.
+        const links = columns.filter((candidate) => candidate['references'] === target).map(refOf);
         if (wanted !== undefined && !links.includes(wanted)) return no(`"${wanted}" is not a link from ${fileOf(name)} to "${target}". ${links.length === 0 ? 'It has none' : `Its links to it: ${links.join(', ')}`}.`);
         if (wanted === undefined && links.length === 0) {
           return no(`${fileOf(name)} has no link to "${target}". Add { "ref": "${singular(target)}_id", "type": "fk", "references": "${target}" } to its columns, then call this again.`);
         }
         if (wanted === undefined && links.length > 1) return no(`${fileOf(name)} links to "${target}" by ${links.join(', ')}: say which in "columns": { "${key}": "<column>" }.`);
-        colOf.set(key, wanted ?? (links[0] as string));
+        const link = columns.find((candidate) => refOf(candidate) === (wanted ?? links[0])) as Json;
+        // A rule reads its lines through a foreign key: a whole number that names its table is made one, as it was meant.
+        if (link['type'] !== 'fk') {
+          report.added.push({ column: refOf(link), type: 'fk', links: target, given: true });
+          link['type'] = 'fk';
+        }
+        colOf.set(key, refOf(link));
         continue;
       }
       // A column only the shape's own moment reads, where the caller gave another moment: not this app's.
@@ -597,7 +606,7 @@ export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
       const link = column.rules?.addOnLink as { addOn: string; table: string } | undefined;
       report.added.push({ column: column.ref, type: column.type, ...(link === undefined ? {} : { links: `${link.addOn}.${link.table}` }) });
     }
-    for (const added of report.added) if (added.links !== undefined) links.add(added.links);
+    for (const added of report.added) if (added.links !== undefined && added.links.includes('.')) links.add(added.links);
 
     const file: Json = table(name) === undefined ? { ref, label: { 'en-US': words(singular(ref), false) }, labelPlural: { 'en-US': words(ref, true) }, keyField: 'id', columns } : { ...(table(name) as Json), columns };
     const postings = (part.postings ?? []).map((posting) => {
@@ -711,10 +720,22 @@ export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
     }
   }
 
+  // What else the add-on has for an app's own tables, found missing by the rules each shape writes.
+  const after = { ...input.have, ...Object.fromEntries(Object.values(files).map((value) => [String(value['ref']), value])) };
+  const carried = (id: string): boolean => Object.values(after).some((one) => Array.isArray(one['postings']) && (one['postings'] as Json[]).some((posting) => posting['id'] === id && (posting['into'] as { addOn?: string } | undefined)?.addOn === input.addOn));
+  const pricedNow = Object.values(after).some((one) => (one['adjust'] as { by?: { addOn?: string } } | undefined)?.by?.addOn === input.addOn);
+  const others = [...all].flatMap(([id, other]) => {
+    const ruled = (Object.values(other.parts) as Part[]).filter((part) => part.postings !== undefined || part.adjust !== undefined);
+    if (id === input.shape || ruled.length === 0) return [];
+    const here = ruled.every((part) => (part.adjust === undefined || pricedNow) && (part.postings ?? []).every((posting) => carried(String(posting['id']))));
+    return here ? [] : [id];
+  });
+
   const version = typeof raw.version === 'string' ? raw.version : '0.0.0';
   const floor = raw.compatibility?.minAdminiumVersion;
   return {
     ok: true,
+    others,
     told,
     files,
     tables: [...out.values()],

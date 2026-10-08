@@ -1336,7 +1336,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
               have[ref] = file.value;
             }
             const made = adoptParts({ addOn, document, shape, tables: tablesGiven, have, when: isObject(moments) ? (moments as Record<string, unknown>) : undefined, columns, need });
-            if (!made.ok) return refused(made.problem.split('tables/').join(`${base}/tables/`), failed);
+            // (A refusal ends with what the app lacks until the call succeeds: a model that mends the file must call again.)
+            if (!made.ok) return refused(`${made.problem.split('tables/').join(`${base}/tables/`)} Nothing of ${shape} is on the app until this call succeeds.`, failed);
             const floor = made.addOn.floor !== null && compareSemver(made.addOn.floor, ADD_ON_INSTALL_FLOOR) > 0 ? made.addOn.floor : ADD_ON_INSTALL_FLOOR;
             if (compareSemver(deps.version, floor) < 0) {
               return refused(`This server is Adminium ${deps.version}, and ${made.addOn.name} needs ${floor} or later. Tell the person; build the app without it.`, failed);
@@ -1362,7 +1363,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
               const added = table.added.filter((column) => column.given !== true);
               return `- ${base}/tables/${table.ref}.json${table.made ? ' (new)' : ''}: ${added.length === 0 ? 'no column added' : `added ${added.map((column) => `${column.column} (${column.type}${column.links === undefined ? '' : `, a link to ${column.links}`})`).join(', ')}`}${table.added
                 .filter((column) => column.given === true)
-                .map((column) => `; ${column.column} is now a link to ${column.links ?? ''}, and may be empty`)
+                .map((column) => (column.type === 'fk' ? `; ${column.column} is now "type": "fk" (it named "${column.links ?? ''}" as a whole number)` : `; ${column.column} is now a link to ${column.links ?? ''}, and may be empty`))
                 .join('')}${table.used.filter((column) => column.column !== column.as).length === 0 ? '' : `; uses ${table.used.filter((column) => column.column !== column.as).map((column) => `${column.as} as ${column.column}`).join(', ')}`}${table.rules.map((rule) => `; ${rule}`).join('')}`;
             });
             for (const other of made.told) lines.push(`- ${base}/tables/${other.ref}.json: ${other.rule}`);
@@ -1391,6 +1392,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             const notes = [
               ...(made.links.length === 0 ? [] : [`A role that picks a row of ${made.links.join(', ')} needs to read it: that grant is "tables" on the role in roles.json ({ "addOn": "${addOn}", "table": "<table>", "actions": ["read"] }), never a line of "permissions".`]),
               `${made.addOn.name} is installed with the app when it is applied: do not tell the person to install it.`,
+              ...(made.others.length === 0 ? [] : [`Not on this app yet: ${made.others.join(', ')}. Each is a call of its own, with your tables; add the ones the person asked for before you apply.`]),
             ];
             return text(
               `Written:\n${lines.join('\n')}\n${notes.join('\n')}\nLeft to you: the pages that show the new columns, and the role’s grants on them. Never change the rule or the columns it names by hand; call this again instead.`,
