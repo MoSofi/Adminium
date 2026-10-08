@@ -227,14 +227,28 @@ describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
         expect(existsSync(join(dir, (address ?? '').replace(`/apps/repairs/${side}/`, ''))), address).toBe(true);
       }
     }
-    // The staff side lists its screen for the sidebar; the customer side has none to list.
-    expect(parseSurfaceManifest(readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'surface.json'), 'utf8'))?.nav).toHaveLength(1);
+    // The staff side lists its two pages for the sidebar, each at its own path; the customer side has none to list.
+    expect(parseSurfaceManifest(readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'surface.json'), 'utf8'))?.nav.map((entry) => entry.path)).toEqual(['', 'done']);
     expect(existsSync(join(sideBuildDir(root, 'repairs', 'customer'), 'surface.json'))).toBe(false);
     // The key and side were baked in, and the plumbing came from the engine.
     const staff = readdirSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets')).find((file) => file.endsWith('.js')) ?? '';
     const script = readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets', staff), 'utf8');
     expect(script).toContain('surface-config.json');
     expect(script).toContain('x-adminium-csrf');
+    // Each starter is two pages with addresses, and draws its own page for an address that is none of them.
+    for (const side of ['staff', 'customer'] as const) {
+      const source = readFileSync(join(root, 'apps', 'repairs', side, 'src', 'App.tsx'), 'utf8');
+      expect(source, side).toMatch(/import \{[^}]*\bLink\b[^}]*\busePath\b[^}]*\} from '@adminiumjs\/adminium\/side'/);
+      expect(source, side).toContain("en('This page does not exist')");
+      expect(source, side).toContain("const ITEMS = 'items'");
+      // A page is chosen by its path: no state of the screen's own says which page shows.
+      expect(source, side).not.toMatch(/const \[(?:page|screen|view|route|tab)\b/);
+      const js = readdirSync(join(sideBuildDir(root, 'repairs', side), 'assets')).find((file) => file.endsWith('.js')) ?? '';
+      const bundle = readFileSync(join(sideBuildDir(root, 'repairs', side), 'assets', js), 'utf8');
+      // The helper came from the engine, and the screen's own pages are in the bundle.
+      expect(bundle, side).toContain('adminium:surface:hello');
+      expect(bundle, side).toContain(side === 'staff' ? '/done' : '/request');
+    }
   });
 });
 

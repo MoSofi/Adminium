@@ -1,3 +1,4 @@
 [
-  { "id": "items", "path": "", "label": "Items", "icon": "list-checks" }
+  { "id": "items", "path": "", "label": "Items", "icon": "list-checks" },
+  { "id": "done", "path": "done", "label": "Done", "icon": "check-check" }
 ]
