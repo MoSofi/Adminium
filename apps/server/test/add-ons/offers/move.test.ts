@@ -25,17 +25,15 @@ const offers = builtAddOn('offers');
 const n = (value: unknown): number => Number(value);
 const money = (value: unknown): string => n(value).toFixed(2);
 const TILL = 'till_card_rows';
+/** The till's cards, by its own key for each: the code each has always had, as the till's row carries it. */
+const CODES: Record<string, string> = { '7': 'GC-48219930', '8': 'gc-1111 2222' };
 
 describe.each(LEGS)('cards brought in from a till — %s', (dialect, available) => {
   const run = available && offers !== null;
   let w: Writing;
-  const old = async (card: string, kind: string, amount: string, at: string) => n((await w.h.rows(`INSERT INTO ${TILL} (card_id, kind, amount, at) VALUES ('${card}', '${kind}', ${amount}, '${at}')`).then(async () => (await w.h.rows(`SELECT max(id) AS id FROM ${TILL}`))[0]!))['id']);
-  /** An old card as it must stand before its rows come in: its old code, where it came from, and marked as being moved. */
-  const oldCard = async (id: number, code: string, from: string): Promise<number> => {
-    const yes = dialect === 'postgres' ? 'true' : '1';
-    await w.h.rows(`INSERT INTO ${w.real('gift_cards')} (id, kind, code, label, status, opening, moved_from, moved_table, moving) VALUES (${String(id)}, 'card', '${code}', '${code.slice(-4)}', 'inactive', 0, '${from}', 'till:cards', ${yes})`);
-    return id;
-  };
+  const old = async (card: string, kind: string, amount: string, at: string, code: string | null = CODES[card] ?? null) => n((await w.h.rows(`INSERT INTO ${TILL} (card_id, card_code, kind, amount, at) VALUES ('${card}', ${code === null ? 'NULL' : `'${code}'`}, '${kind}', ${amount}, '${at}')`).then(async () => (await w.h.rows(`SELECT max(id) AS id FROM ${TILL}`))[0]!))['id']);
+  /** The card Offers keeps for one of the till's, once a row of it has come in. */
+  const cardOf = async (oldKey: string) => (await w.rowsOf('gift_cards', `moved_from = '${oldKey}'`))[0]!;
   const ledgerOf = async (card: unknown) => (await w.rowsOf('card_ledger', `card_id = ${String(card)}`)).sort((a, b) => n(a['id']) - n(b['id']));
 
   beforeAll(async () => {
@@ -44,8 +42,8 @@ describe.each(LEGS)('cards brought in from a till — %s', (dialect, available) 
     w = await writing(
       await installBuilt(dialect, offers, {}, {
         [TILL]: {
-          columns: 'card_id VARCHAR(64), kind VARCHAR(16), amount DECIMAL(12,2), at VARCHAR(40), moved_at VARCHAR(40)',
-          postings: [{ id: 'bring-in', into: { addOn: 'offers', ledger: 'value', action: 'move' }, post: { on: { column: 'moved_at', set: true } }, map: { old_card: 'card_id', kind: 'kind', amount: 'amount', at: 'at' } }],
+          columns: 'card_id VARCHAR(64), card_code VARCHAR(32), kind VARCHAR(16), amount DECIMAL(12,2), at VARCHAR(40), moved_at VARCHAR(40)',
+          postings: [{ id: 'bring-in', into: { addOn: 'offers', ledger: 'value', action: 'move' }, post: { on: { column: 'moved_at', set: true } }, map: { old_card: 'card_id', old_code: 'card_code', old_table: { value: 'till:cards' }, kind: 'kind', amount: 'amount', at: 'at' } }],
         },
       }),
     );
@@ -55,14 +53,20 @@ describe.each(LEGS)('cards brought in from a till — %s', (dialect, available) 
   });
 
   it.skipIf(!run)('an old card comes in under its old code with its history, at the figure the till had, and sends nothing', async () => {
-    const made = { id: await oldCard(9001, 'GC-48219930', '7') };
     // A card made at a desk is given a code of Adminium's own making, whatever is typed: the old code cannot come in that way.
     const typed = await w.one('gift_cards', (await w.create('gift_cards', { kind: 'card', code: 'GC-99998888' })).row['id']);
     expect(typed['code']).not.toBe('GC-99998888');
     expect(String(typed['code'])).toMatch(/^GC-[0-9A-Z]{12}$/);
     const rows = [await old('7', 'issue', '50.00', '2026-03-02T10:00:00.000Z'), await old('7', 'redeem', '-21.50', '2026-04-11T15:30:00.000Z'), await old('7', 'reload', '10.00', '2026-05-01T09:00:00.000Z')];
+    // Nobody made the card: its first old row does, under the code the till's own row carries.
+    expect(await w.rowsOf('gift_cards', `moved_from = '7'`)).toEqual([]);
     for (const id of rows) await w.update(TILL, id, { moved_at: '2026-10-01T10:00:00.000Z' });
+    const made = await cardOf('7');
     const after = await w.one('gift_cards', made['id']);
+    expect(await w.rowsOf('gift_cards', `moved_from = '7'`)).toHaveLength(1);
+    expect(after).toMatchObject({ kind: 'card', code: 'GC-48219930', label: '9930', moved_table: 'till:cards' });
+    expect([true, 1]).toContain(after['moving']);
+    expect(new Date(after['issued_at'] as string).toISOString().slice(0, 10)).toBe('2026-03-02');
     expect(after['status']).toBe('active');
     expect(money(after['balance'])).toBe('38.50');
     // No mail, no last day, no reminder: the holder has had this card for months.
@@ -85,8 +89,10 @@ describe.each(LEGS)('cards brought in from a till — %s', (dialect, available) 
   });
 
   it.skipIf(!run)('a card the till let go below nothing comes in at its true figure while it is being moved', async () => {
-    const made = { id: await oldCard(9500, 'GC-11112222', '8') };
     for (const id of [await old('8', 'issue', '20.00', '2026-02-01T10:00:00.000Z'), await old('8', 'redeem', '-30.00', '2026-02-03T10:00:00.000Z')]) await w.update(TILL, id, { moved_at: '2026-10-01T10:00:00.000Z' });
+    const made = await cardOf('8');
+    // (The till kept this one's code in small letters with a space: it is kept as a code is.)
+    expect(made['code']).toBe('GC-11112222');
     expect(money((await w.one('gift_cards', made['id']))['balance'])).toBe('-10.00');
     // Once the move is over it can only go up: a payment is refused, a top-up is taken.
     await w.update('gift_cards', made['id'], { moving: false });
@@ -94,11 +100,22 @@ describe.each(LEGS)('cards brought in from a till — %s', (dialect, available) 
     expect(money((await w.one('gift_cards', made['id']))['balance'])).toBe('15.00');
   });
 
-  it.skipIf(!run)('an old row for a card that was not made here stops the move and writes nothing', async () => {
-    const stray = await old('99', 'issue', '5.00', '2026-01-01T10:00:00.000Z');
+  it.skipIf(!run)('an old row that names no code, or one that is no code, stops the move and writes nothing', async () => {
+    const bad = await old('98', 'issue', '5.00', '2026-01-01T10:00:00.000Z', 'GC-12');
+    await expect(w.update(TILL, bad, { moved_at: '2026-10-01T10:00:00.000Z' })).rejects.toThrow();
+    expect(await w.rowsOf('gift_cards', `moved_from = '98'`)).toEqual([]);
+    const stray = await old('99', 'issue', '5.00', '2026-01-01T10:00:00.000Z', null);
     const count = (await w.rowsOf('card_ledger')).length;
     await expect(w.update(TILL, stray, { moved_at: '2026-10-01T10:00:00.000Z' })).rejects.toThrow();
     expect(await w.rowsOf('card_ledger')).toHaveLength(count);
     expect((await w.h.rows(`SELECT moved_at FROM ${TILL} WHERE id = ${String(stray)}`))[0]!['moved_at'] ?? null).toBeNull();
+    expect(await w.rowsOf('gift_cards', `moved_from = '99'`)).toEqual([]);
+  });
+
+  it.skipIf(!run)('two cards of the till cannot come in under one code', async () => {
+    const twin = await old('70', 'issue', '5.00', '2026-01-01T10:00:00.000Z', 'GC-48219930');
+    await expect(w.update(TILL, twin, { moved_at: '2026-10-01T10:00:00.000Z' })).rejects.toThrow();
+    expect(await w.rowsOf('gift_cards', `moved_from = '70'`)).toEqual([]);
+    expect(await w.rowsOf('gift_cards', `code = 'GC-48219930'`)).toHaveLength(1);
   });
 });
