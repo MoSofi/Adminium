@@ -299,6 +299,11 @@ A copy is fetched from the app's own repository at its release, and renamed wher
 written: its pages, permissions, emails and tables, its screens' address. Its manifest becomes part
 files under `apps/<key>/manifest/`, and its screens stay one Vite app in `apps/<key>/src/`.
 
+A release is a tag in that repository, and a tag is a name that can be moved. The audit log's
+row for a copy says which commit it was taken from, and the project remembers it
+(`.adminium/designer/sources.json`): if the same version later arrives from another commit, the
+copy is refused and nothing is written.
+
 **The build command.** A copied app builds its screens with the build it was written with, not with
 Adminium's. That is a command, run on your machine each time the app is built. The sheet shows its
 exact words and nothing is fetched until you tick that they may run. The approval is kept in

@@ -6,7 +6,7 @@
  * manifest.json, a Vite build named in package.json, the key in the places
  * the six keep it), served as the archive GitHub would serve.
  */
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
@@ -18,17 +18,18 @@ import { starterParts } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
 import { tempProject } from './app-project-helpers.js';
 
-function member(name: string, body: string): Buffer {
+function member(name: string, body: string, type = '0'): Buffer {
   const data = Buffer.from(body, 'utf8');
   const header = Buffer.alloc(512);
   header.write(name, 0, 'utf8');
   header.write(`${data.byteLength.toString(8).padStart(11, '0')}\0`, 124);
-  header.write('0', 156);
+  header.write(type, 156);
   return Buffer.concat([header, data, Buffer.alloc((512 - (data.byteLength % 512)) % 512)]);
 }
 
 /** A published app in small: the starter's manifest under the key `desk`, published by Adminium. */
-function sourceArchive(): Buffer {
+/** `commit`: the commit GitHub says the archive is of, in the archive's own first record. */
+function sourceArchive(commit: string | null = null): Buffer {
   const parts = starterParts({ key: 'desk', name: 'Desk', sides: ['staff', 'customer'], version: APP_VERSION });
   const app = parts['manifest/app.json'] as Record<string, unknown>;
   const manifest = {
@@ -61,7 +62,8 @@ function sourceArchive(): Buffer {
     '.github/workflows/release.yml': 'on: push',
     'RELEASES.json': '{}',
   };
-  return gzipSync(Buffer.concat([...Object.entries(files).map(([name, body]) => member(`desk-1.0.0/${name}`, body)), Buffer.alloc(1024)]));
+  const said = commit === null ? [] : [member('pax_global_header', `52 comment=${commit}\n`, 'g')];
+  return gzipSync(Buffer.concat([...said, ...Object.entries(files).map(([name, body]) => member(`desk-1.0.0/${name}`, body)), Buffer.alloc(1024)]));
 }
 
 let root: string;
@@ -72,6 +74,7 @@ const input = (over: Partial<StartInput> = {}): StartInput => ({ key: 'desk', ne
 
 function starter(over: Partial<StarterHost> = {}) {
   const audits: string[] = [];
+  const details: Record<string, unknown>[] = [];
   const host: StarterHost = {
     root,
     listed: async (key) => (key === 'desk' ? { key: 'desk', version: '1.0.0', name: 'Desk', repo: 'https://github.com/Adminiumjs/desk' } : null),
@@ -81,8 +84,9 @@ function starter(over: Partial<StarterHost> = {}) {
       return problems;
     },
     openSession: async () => 'ds_000000000000000000000001',
-    audit: async (action) => {
+    audit: async (action, _by, detail) => {
       audits.push(action);
+      details.push(detail);
     },
     fetch: (async (url: unknown) => {
       fetched.push(String(url));
@@ -91,7 +95,7 @@ function starter(over: Partial<StarterHost> = {}) {
     log: () => undefined,
     ...over,
   };
-  return { ...createStarter(host), audits };
+  return { ...createStarter(host), audits, details };
 }
 const settled = async (made: ReturnType<typeof starter>, id: string) => {
   await vi.waitFor(() => expect(made.job(id).state).not.toBe('running'), { timeout: 10_000, interval: 10 });
@@ -282,5 +286,50 @@ describe('the copy', () => {
     expect(job).toMatchObject({ state: 'failed', steps: [{ state: 'failed', detail: expect.stringContaining('no such tag') }, { state: 'waiting' }, { state: 'waiting' }] });
     expect(existsSync(join(root, 'apps/my-desk'))).toBe(false);
     expect(await made.keyProblem('my-desk')).toBeNull();
+  });
+
+  const C1 = '1111111111111111111111111111111111111111';
+  const C2 = '2222222222222222222222222222222222222222';
+  const serving = (commit: string | null) => ({ fetch: (async () => new Response(new Uint8Array(sourceArchive(commit)), { status: 200 })) as never });
+  const copy = async (made: ReturnType<typeof starter>, newKey: string) => settled(made, (await made.start(input({ newKey, name: newKey, approve: made.buildFor(newKey).fingerprint }))).id);
+
+  it('says which commit a copy was taken from, and keeps it for the next copy of that version', async () => {
+    const made = starter(serving(C1));
+    expect(await copy(made, 'my-desk')).toMatchObject({ state: 'done' });
+    expect(made.details).toEqual([{ from: 'desk', version: '1.0.0', key: 'my-desk', repo: 'https://github.com/Adminiumjs/desk', commit: C1 }]);
+    expect(JSON.parse(readFileSync(join(root, '.adminium/designer/sources.json'), 'utf8'))).toEqual({ 'adminiumjs/desk@1.0.0': C1 });
+    // The same version again, from the same commit: nothing to say.
+    expect(await copy(made, 'second-desk')).toMatchObject({ state: 'done' });
+  });
+
+  it('refuses a version whose tag now points at another commit than the one this project copied before, and writes nothing', async () => {
+    expect(await copy(starter(serving(C1)), 'my-desk')).toMatchObject({ state: 'done' });
+    const moved = starter(serving(C2));
+    const job = await copy(moved, 'second-desk');
+    expect(job).toMatchObject({ state: 'failed', steps: [{ state: 'failed' }, { state: 'waiting' }, { state: 'waiting' }] });
+    expect(job.steps[0]?.detail).toContain('1.0.0');
+    expect(job.steps[0]?.detail).toContain(C1.slice(0, 12));
+    expect(job.steps[0]?.detail).toContain(C2.slice(0, 12));
+    expect(existsSync(join(root, 'apps/second-desk'))).toBe(false);
+    expect(moved.audits).toEqual([]);
+    // What was kept is what was first seen: the moved tag did not replace it.
+    expect(JSON.parse(readFileSync(join(root, '.adminium/designer/sources.json'), 'utf8'))).toEqual({ 'adminiumjs/desk@1.0.0': C1 });
+  });
+
+  it('copies an archive that names no commit as before, and keeps nothing of it', async () => {
+    const made = starter(serving(null));
+    expect(await copy(made, 'my-desk')).toMatchObject({ state: 'done' });
+    expect(made.details[0]).toEqual({ from: 'desk', version: '1.0.0', key: 'my-desk', repo: 'https://github.com/Adminiumjs/desk', commit: null });
+    expect(existsSync(join(root, '.adminium/designer/sources.json'))).toBe(false);
+    // A commit seen later is the first one known: taken, and kept from then on.
+    expect(await copy(starter(serving(C1)), 'second-desk')).toMatchObject({ state: 'done' });
+    expect(JSON.parse(readFileSync(join(root, '.adminium/designer/sources.json'), 'utf8'))).toEqual({ 'adminiumjs/desk@1.0.0': C1 });
+  });
+
+  it('a kept list that cannot be read stops no copy: it is started again', async () => {
+    mkdirSync(join(root, '.adminium/designer'), { recursive: true });
+    writeFileSync(join(root, '.adminium/designer/sources.json'), '{ not json');
+    expect(await copy(starter(serving(C1)), 'my-desk')).toMatchObject({ state: 'done' });
+    expect(JSON.parse(readFileSync(join(root, '.adminium/designer/sources.json'), 'utf8'))).toEqual({ 'adminiumjs/desk@1.0.0': C1 });
   });
 });

@@ -12,6 +12,12 @@
  * relative paths, under the one top folder GitHub wraps a repository in.
  * A link is left out (none of the apps has one), anything else is refused.
  * File modes are never honoured.
+ *
+ * A tag is a name, and a name can be moved to another commit. The list pins
+ * no hash for an app's source, so this cannot know the archive is the one
+ * its publisher released. What it can do is say which commit the archive is
+ * of (GitHub writes it into the archive), so a copy is of a known commit
+ * and a tag that moved is seen the next time that version is copied.
  */
 import { AddOnArchiveError, gunzipCapped, type ArchiveLimits } from '../../add-ons/archive.js';
 
@@ -74,8 +80,14 @@ function cleanPath(raw: string): string | null {
 
 /** The files of a source archive, by path inside the repository. */
 export function readSourceArchive(compressed: Uint8Array): Map<string, Buffer> {
+  return readSource(compressed).files;
+}
+
+/** The archive's files, and the commit GitHub says it is of (null when the archive does not say). */
+export function readSource(compressed: Uint8Array): { files: Map<string, Buffer>; commit: string | null } {
   const bytes = gunzipForSource(compressed);
   const files = new Map<string, Buffer>();
+  let commit: string | null = null;
   let longName: string | null = null;
   let total = 0;
   for (let at = 0; at + BLOCK <= bytes.byteLength; ) {
@@ -89,7 +101,12 @@ export function readSourceArchive(compressed: Uint8Array): Map<string, Buffer> {
     at += BLOCK + Math.ceil(size / BLOCK) * BLOCK;
 
     // A long path arrives ahead of its member: a PAX record (`x`) or a GNU long name (`L`). `g` is GitHub's own comment.
-    if (type === 'g') continue;
+    if (type === 'g') {
+      // `52 comment=<the commit>`: what `git archive` writes for the commit it was made from.
+      const said = /(?:^|\n)\d+ comment=([0-9a-fA-F]{40})\n/.exec(Buffer.from(body.subarray(0, 4096)).toString('latin1'));
+      if (said !== null && commit === null) commit = (said[1] as string).toLowerCase();
+      continue;
+    }
     if (type === 'x') {
       const record = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(Buffer.from(body).toString('utf8'));
       if (record !== null) longName = record[1] as string;
@@ -117,7 +134,7 @@ export function readSourceArchive(compressed: Uint8Array): Map<string, Buffer> {
     files.set(path, Buffer.from(body));
   }
   if (files.size === 0) throw new SourceArchiveError('The archive has no files.');
-  return files;
+  return { files, commit };
 }
 
 /** Fetch the archive, bounded as it arrives. Redirects are not followed: the address is the one built here. */
