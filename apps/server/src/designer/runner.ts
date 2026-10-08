@@ -13,6 +13,12 @@
  * One turn runs per project folder, whichever session it belongs to: two
  * turns writing the same files would each undo the other's work.
  *
+ * A turn is not the only thing that writes the folder. A person saves a file
+ * by hand, changes the style, goes back to a version, starts from a published
+ * app: each of those takes the folder with `hold`, and a turn and a hold
+ * never run together, nor two holds. A hold owns a stop of its own, which a
+ * shutdown, the live Designer's switch and a cap on its length all reach.
+ *
  * ─── How a turn ends ────────────────────────────────────────────────────────
  *
  *   done          the model finished; the engine checked, applied and saved a version
@@ -40,12 +46,13 @@ import {
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
-import type { DesignerEvent, EventLog, LimitKind, SpendMark, TurnOutcome } from './events.js';
+import type { DesignerEvent, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
 import type { Actor, DesignerTool, ToolContext, TurnHandle } from './tool-types.js';
 import { TurnStoppedError } from './tool-types.js';
 import { closeDangling, joinUserMessages } from './transcript.js';
+import { HAND_EDITS_MAX, plainPath } from './write-guard.js';
 
 export interface DesignerLimits {
   maxSteps: number;
@@ -97,7 +104,10 @@ export interface RunnerDeps {
    * turn, and only in a turn whose page said it is watching (`sees`). `since`
    * is when this turn last built or applied. Null when there is nothing to say.
    */
-  sight?(session: DesignerSession, opts: { since: number; signal: AbortSignal; /** Looked at once already this turn: said again only when the page has stopped (blank, or an error). */ again: boolean }): Promise<{ text: string; image?: { ref: string; mediaType: string; name: string } } | null>;
+  sight?(
+    session: DesignerSession,
+    opts: { since: number; signal: AbortSignal; /** Looked at once already this turn: said again only when the page has stopped (blank, or an error). */ again: boolean },
+  ): Promise<{ text: string; image?: { ref: string; mediaType: string; name: string }; /** Which side was looked at, and the page's own path there: for the event the person reads, never for the model. */ side?: 'staff' | 'customer'; path?: string } | null>;
   /** Before the model is first asked in a turn: what the server itself settles with the person (a card), and files it makes sure are there. */
   opening?(session: DesignerSession, turn: TurnHandle): Promise<void>;
   /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
@@ -117,13 +127,45 @@ export interface RunnerDeps {
   auditCard?(sessionId: string, by: Actor, detail: Record<string, unknown>): Promise<void>;
   log?: (message: string, error?: unknown) => void;
   now?: () => number;
+  /** How long a hold may last before its work is told to stop; `HOLD_CAP_MS` when left out. */
+  holdCapMs?: number;
+}
+
+/** What has the folder: a turn, or one of the things a person does from the page. */
+export type BusyKind = 'turn' | HoldKind;
+
+/** The folder, held for one piece of work. `signal` says when that work must stop; `release` hands the folder back, once. */
+export interface FolderHold {
+  signal: AbortSignal;
+  release(): void;
+}
+
+/** The folder, kept for a turn that is about to start: nothing else takes it meanwhile. */
+export interface TurnClaim {
+  release(): void;
 }
 
 export type { Actor, TurnHandle } from './tool-types.js';
 
 export interface DesignerRunner {
-  /** Start a turn. 409 (reason `TURN_RUNNING`) while another turn runs in this folder. */
-  start(sessionId: string, input: { text: string; by: Actor; attachments?: readonly string[]; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean }): Promise<{ turn: number }>;
+  /** Start a turn. 409 while another turn runs in this folder (reason `TURN_RUNNING`) or something else has it (`DESIGNER_BUSY`). */
+  start(
+    sessionId: string,
+    input: { text: string; by: Actor; attachments?: readonly string[]; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean; /** The folder, kept for this turn beforehand. */ claim?: TurnClaim },
+  ): Promise<{ turn: number }>;
+  /**
+   * Take the folder for something a person does from the page, at once or not
+   * at all: 409 while a turn runs (reason `TURN_RUNNING`) or another hold has
+   * it (`DESIGNER_BUSY`). With a session, its pages are told (`hold`, then
+   * `released`).
+   */
+  hold(kind: HoldKind, sessionId?: string): FolderHold;
+  /** Keep the folder for a turn that starts in a moment (a new session with its first message). 409 as `hold`. */
+  claim(): TurnClaim;
+  /** What has the folder now: a turn, or a hold. */
+  busy(): { kind: BusyKind; sessionId: string | null } | null;
+  /** Tell whatever holds the folder outside a turn to stop. */
+  stopHolds(): void;
   /** Stop the session's turn. False when none runs. */
   stop(sessionId: string): boolean;
   /** Answer a waiting card. */
@@ -148,6 +190,8 @@ export const MAX_NUDGES = 2;
 export const MAX_DESIGN_ROUNDS = 2;
 /** How often a turn looks at the page it built: once, and then only for a page that stopped (blank, or an error) after what was built since. */
 export const MAX_LOOKS = 3;
+/** The longest a hand save, a style change or going back may hold the folder before its work is told to stop. */
+export const HOLD_CAP_MS = 60_000;
 /** A tool an older session called by another name: a transcript that names it still runs. */
 export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_style' };
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
@@ -202,6 +246,10 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
   const now = deps.now ?? Date.now;
   const logs = new Map<string, EventLog>();
   let running: Running | null = null;
+  /** What has the folder outside a turn; `kind: 'turn'` is a turn about to start. */
+  let held: { kind: BusyKind; sessionId: string | null; controller: AbortController; done: Promise<void>; token: object } | null = null;
+  /** Each claim's own hold, so only the turn it was made for takes it over. */
+  const claims = new WeakMap<TurnClaim, object>();
   /** Sessions whose model refused a request that carried pictures: none is sent to them again while this server runs. */
   const blind = new Set<string>();
   let cardSeq = 0;
@@ -222,6 +270,56 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       logs.set(sessionId, log);
     }
     return log;
+  }
+
+  /** Refuse, in the words for what has the folder. `forTurn`: it is a turn that asks. */
+  function refuseIfTaken(forTurn: boolean, mine?: object): void {
+    if (running !== null) {
+      throw new ConflictError(
+        forTurn ? 'The Designer is already working on something in this project. Stop it, or wait for it to finish.' : 'The Designer is working. Stop it, or wait for it to finish.',
+        'CONFLICT',
+        { reason: 'TURN_RUNNING', busy: 'turn', sessionId: running.sessionId },
+      );
+    }
+    if (held !== null && held.token !== mine) {
+      throw new ConflictError('The app is being changed. Try again in a moment.', 'CONFLICT', { reason: 'DESIGNER_BUSY', busy: held.kind, ...(held.sessionId === null ? {} : { sessionId: held.sessionId }) });
+    }
+  }
+
+  function take(kind: BusyKind, sessionId: string | null, capMs: number | null): FolderHold {
+    refuseIfTaken(kind === 'turn');
+    const controller = new AbortController();
+    const token = {};
+    let finish: () => void = () => undefined;
+    const done = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    // Taken before anything else is done, so two takers cannot both pass the check above.
+    held = { kind, sessionId, controller, done, token };
+    const timer = capMs === null ? undefined : setTimeout(() => controller.abort(), capMs);
+    timer?.unref();
+    // The pages of the session are told, as an event of no turn: a second tab locks, and reads its files again after.
+    const say = (what: 'hold' | 'released'): void => {
+      if (sessionId === null || kind === 'turn') return;
+      try {
+        events(sessionId).emit(deps.store.read(sessionId).turns, { kind: what, what: kind }, { by: 'person' });
+      } catch (error) {
+        deps.log?.('could not tell a session that its folder is held', error);
+      }
+    };
+    say('hold');
+    let released = false;
+    return {
+      signal: controller.signal,
+      release: () => {
+        if (released) return;
+        released = true;
+        if (timer !== undefined) clearTimeout(timer);
+        if (held?.token === token) held = null;
+        say('released');
+        finish();
+      },
+    };
   }
 
   async function loop(session: DesignerSession, turn: number, run: Running, by: Actor): Promise<void> {
@@ -428,6 +526,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             const seen = await deps.sight(session, { since: builtAt, signal, again: looks > 1 }).catch(() => null);
             if (signal.aborted) throw new TurnStoppedError();
             if (seen !== null) {
+              // Said to the person only now that a look is really going to the model.
+              if (seen.side !== undefined) log.emit(turn, { kind: 'sight', side: seen.side, path: seen.path ?? '/' });
               deps.store.appendMessage(session.id, turn, {
                 role: 'user',
                 content: [{ type: 'text', text: seen.text }, ...(seen.image === undefined ? [] : [{ type: 'image' as const, mediaType: seen.image.mediaType, data: '', ref: seen.image.ref, name: seen.image.name }])],
@@ -547,7 +647,11 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       run.cards.clear();
       log.emit(turn, { kind: 'turn-finished', outcome });
       const latest = deps.store.read(session.id);
-      deps.store.update(session.id, { tokens: { in: latest.tokens.in + tokensIn, out: latest.tokens.out + tokensOut } });
+      deps.store.update(session.id, {
+        tokens: { in: latest.tokens.in + tokensIn, out: latest.tokens.out + tokensOut },
+        // The model finished its work on the files a person changed by hand: they are the app's now. A turn that stopped or failed is told of them again.
+        ...((outcome === 'done' || outcome === 'not-applied') && (latest.handEdits ?? []).length > 0 ? { handEdits: [] } : {}),
+      });
       await deps.audit?.('designer.turn.finished', session, { turn, outcome, steps, tokens: tokensIn + tokensOut }).catch((error: unknown) => {
         deps.log?.('could not record the end of a Designer turn', error);
       });
@@ -560,12 +664,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       if (text.length === 0 || text.length > 20_000) {
         throw new ValidationFailedError('Say what to build, in at most 20,000 characters.', { reason: 'TURN_TEXT' });
       }
-      if (running !== null) {
-        throw new ConflictError('The Designer is already working on something in this project. Stop it, or wait for it to finish.', 'CONFLICT', {
-          reason: 'TURN_RUNNING',
-          sessionId: running.sessionId,
-        });
-      }
+      const kept = held !== null && held.kind === 'turn' && input.claim !== undefined && claims.get(input.claim) === held.token ? held.token : undefined;
+      refuseIfTaken(true, kept);
       const session = deps.store.read(sessionId);
       // What goes with the message: files this session already holds, and nothing else.
       const ids = [...new Set(input.attachments ?? [])];
@@ -577,8 +677,12 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       // Claimed before anything is awaited, so two starts cannot both pass the check above.
       const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve(), sees: input.sees === true };
       running = claim;
+      // The folder was kept for this turn: it has it now.
+      input.claim?.release();
       try {
         const updated = deps.store.update(sessionId, { turns: turn });
+        // What the person saved by hand since the Designer last finished: named, so it reads each again before it writes it.
+        const edited = (session.handEdits ?? []).filter(plainPath).slice(0, HAND_EDITS_MAX);
         // The person's words first and alone; what the server says about a file is a block of its own; a picture is a reference, never its bytes.
         const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids);
         deps.store.appendMessage(sessionId, turn, {
@@ -586,6 +690,14 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           content: [
             { type: 'text', text },
             ...(note === '' ? [] : [{ type: 'text' as const, text: `\n\n${note}` }]),
+            ...(edited.length === 0
+              ? []
+              : [
+                  {
+                    type: 'text' as const,
+                    text: `\n\n(Since your last turn the person changed these files by hand: ${JSON.stringify(edited)}. Read each one again before you change it, and keep what they changed unless this message asks otherwise.)`,
+                  },
+                ]),
             ...files.filter((file) => file.kind === 'image').map((file) => ({ type: 'image' as const, mediaType: file.mediaType, data: '', ref: file.id, name: file.label })),
           ],
         });
@@ -638,12 +750,26 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       return [...running.cards.values()].map((entry) => entry.card);
     },
     active: () => (running === null ? null : { sessionId: running.sessionId, turn: running.turn }),
+    hold: (kind, sessionId) => take(kind, sessionId ?? null, kind === 'start' ? null : (deps.holdCapMs ?? HOLD_CAP_MS)),
+    claim() {
+      const taken = take('turn', null, null);
+      const claim: TurnClaim = { release: taken.release };
+      if (held !== null) claims.set(claim, held.token);
+      return claim;
+    },
+    busy: () => (running !== null ? { kind: 'turn', sessionId: running.sessionId } : held === null ? null : { kind: held.kind, sessionId: held.sessionId }),
+    stopHolds() {
+      held?.controller.abort();
+    },
     events,
     async shutdown() {
       const current = running;
-      if (current === null) return;
-      current.controller.abort();
-      await current.done;
+      const holding = held;
+      current?.controller.abort();
+      holding?.controller.abort();
+      await current?.done;
+      // A turn that is only about to start has nothing to wait for.
+      if (holding !== null && holding.kind !== 'turn') await holding.done;
     },
     settled: async () => {
       await running?.done;
