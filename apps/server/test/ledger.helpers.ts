@@ -72,9 +72,11 @@ export async function ledgerWorld(
   manifest: Record<string, unknown> = ledgerKitManifest(),
   /** Rules the owner stores beside the postings, once the tables are read: `(table name) => its id`. */
   more?: (h: Harness, idOf: (name: string) => string) => Promise<void>,
+  /** The package's files, when a test needs the add-on's code to answer something else. */
+  files: Record<string, string> = ledgerKitFiles(manifest),
 ): Promise<LedgerWorld> {
   const h = await addOnHarness(dialect, { unbuiltWords: {} });
-  await h.stageAddOn(manifest, { files: ledgerKitFiles(manifest) });
+  await h.stageAddOn(manifest, { files });
   const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'ledger-kit', version: '1.0.0', attachTo: [] } });
   expect(added.statusCode, added.body).toBe(200);
   const serial = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
