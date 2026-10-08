@@ -706,6 +706,12 @@ async function installLikeAnApp(
       },
     );
     reused = applied.reused;
+    // The list of its sample rows, kept with its tables when it was removed, is taken back with them: the
+    // sample is then still the sample — it can be removed, and is not offered a second time over itself.
+    const keptList = (await records.forInstall(connectionId, key)).find((record) => record.role === 'sample-ledger' && record.state === 'released');
+    if (keptList !== undefined && ((await deps.schemaTarget?.holders?.([keptList.tableName], [connectionId])) ?? []).some((holder) => holder.id === connectionId)) {
+      await records.record({ appKey: key, manifestId: row.row.id, connectionId, ref: keptList.ref, tableName: keptList.tableName, owned: keptList.owned, state: 'created', role: 'sample-ledger', prefix: keptList.prefix });
+    }
     /*
      * What it declares beside its tables, in the order an app's are written:
      * option lists and rules, pages, roles, emails. Strict: one that cannot be
