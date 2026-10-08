@@ -25,6 +25,18 @@
  * its money. The key and the table's links to other rows are always read (a
  * screen moves through them). A column the role may not read is not written
  * through it either, unless `writable` names it.
+ *
+ * `writableFrom` says which rows the update reaches at all, by the value a
+ * column of the row holds NOW: a clinician moves a visit along while it is
+ * checked in, roomed or with them, and a visit already seen is not theirs to
+ * take back —
+ *
+ * ```json
+ * "writableFrom": { "status": ["checked_in", "roomed", "with_clinician"] }
+ * ```
+ *
+ * `writableValues` holds what a column is moved TO; this, what it is moved
+ * FROM. It is judged on the stored row, whatever columns the update changes.
  */
 import { z } from 'zod';
 
@@ -37,6 +49,8 @@ export const roleLimitSchema = z
     writable: z.array(refSchema).min(1).optional(),
     /** For some of those columns, the only values it may set. */
     writableValues: z.record(refSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+    /** For some columns of the table, the only values a row may hold for the update to reach it. */
+    writableFrom: z.record(refSchema, z.array(scalarSchema).min(1).max(32)).optional(),
     /** The only columns the read shows (with the key and the links to other rows). */
     readable: z.array(refSchema).min(1).max(200).optional(),
     /** The only columns a new row it creates may be given (the rest take their defaults). */
@@ -83,6 +97,22 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
       }
       if (limit.writable === undefined && limit.writableValues !== undefined) {
         out.push({ path: at('writableValues'), message: 'values are limited for the columns the role may write: name them (writable)' });
+      }
+      if (limit.writable === undefined && limit.writableFrom !== undefined) {
+        out.push({ path: at('writableFrom'), message: 'rows are limited for an update that is limited itself: name the columns it may write (writable)' });
+      }
+      if (limit.writableFrom !== undefined && Object.keys(limit.writableFrom).length === 0) {
+        out.push({ path: at('writableFrom'), message: 'name at least one column the row is judged by' });
+      }
+      for (const [column, values] of Object.entries(limit.writableFrom ?? {})) {
+        const found = index.column(ref, column);
+        if (found === undefined) {
+          out.push({ path: at('writableFrom', column), message: `"${ref}" has no column "${column}"` });
+          continue;
+        }
+        for (const value of values) {
+          if (!valueFits(found, value)) out.push({ path: at('writableFrom', column), message: `${JSON.stringify(value)} is not a value of "${ref}.${column}"` });
+        }
       }
       const writable = new Set(limit.writable ?? []);
       for (const column of limit.writable ?? []) {
@@ -162,13 +192,16 @@ export function roleAddOnTableIssues(roles: readonly { key: string; tables?: rea
       // A limit narrows what the grant gives: there must be something to narrow.
       const limit = grant.limit;
       if (limit === undefined) return;
-      for (const [key, action] of [['writable', 'update'], ['writableValues', 'update'], ['readable', 'read'], ['creatable', 'create'], ['creatableValues', 'create']] as const) {
+      for (const [key, action] of [['writable', 'update'], ['writableValues', 'update'], ['writableFrom', 'update'], ['readable', 'read'], ['creatable', 'create'], ['creatableValues', 'create']] as const) {
         if (limit[key] !== undefined && !grant.actions.includes(action)) out.push({ path: at('limit', key), message: `the grant has no "${action}", so there is nothing for "${key}" to limit` });
       }
       for (const [values, columns] of [['writableValues', 'writable'], ['creatableValues', 'creatable']] as const) {
         for (const column of Object.keys(limit[values] ?? {})) {
           if (!(limit[columns] ?? []).includes(column)) out.push({ path: at('limit', values, column), message: `"${column}" takes only some values where it may be written at all: list it in "${columns}" too` });
         }
+      }
+      if (limit.writableFrom !== undefined && limit.writable === undefined) {
+        out.push({ path: at('limit', 'writableFrom'), message: 'rows are limited for an update that is limited itself: name the columns it may write (writable)' });
       }
     });
   });

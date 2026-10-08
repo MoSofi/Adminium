@@ -48,7 +48,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
-import { installFloorWords } from './words.js';
+import { WORD_FLOORS, installFloorWords } from './words.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
@@ -2252,8 +2252,28 @@ export function appReferenceIssues(
         if (!['int', 'bigint', 'text'].includes(column.type) || column.nullable !== true || column.references !== undefined) {
           out.push({ path: here('addOnLink'), message: `a link into an add-on is a nullable int, bigint or text column with no "references": the add-on may not be there` });
         }
-        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'perNight'] as const).filter((name) => rules[name] !== undefined);
-        if (others.length > 0) out.push({ path: here('addOnLink'), message: `a link into an add-on is filled by a person or a lookup, not by ${others.join(', ')}` });
+        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        if (others.length > 0) out.push({ path: here('addOnLink'), message: `a link into an add-on is filled by a person, a lookup or the settings row, not by ${others.join(', ')}` });
+        if (rules.default !== undefined) {
+          /*
+           * The one default a link takes: the same link, kept once on the
+           * settings row (the shelf a practice's supplies leave). Anything
+           * else would put a value there that names no row of the add-on.
+           */
+          const from = rules.default.from;
+          const allowed = 'a link into an add-on takes its default only from a column of the settings row that links into the same table of the same add-on';
+          const source = typeof from === 'string' || 'addOn' in from ? undefined : (index.column(from.table, from.column) as { type?: string; rules?: ColumnRules } | undefined);
+          const theirs = source?.rules?.addOnLink;
+          if (typeof from === 'string' || 'addOn' in from) {
+            out.push({ path: here('default', 'from'), message: allowed });
+          } else if (source !== undefined) {
+            // A column that is not there is the default's own issue, said above.
+            if (theirs === undefined) out.push({ path: here('default', 'from'), message: `${allowed}: "${from.table}.${from.column}" links into none` });
+            else if (theirs.addOn !== link.addOn) out.push({ path: here('default', 'from'), message: `${allowed}: "${from.table}.${from.column}" links into "${theirs.addOn}", not "${link.addOn}"` });
+            else if (theirs.table !== link.table) out.push({ path: here('default', 'from'), message: `${allowed}: "${from.table}.${from.column}" links into "${theirs.table}", not "${link.table}"` });
+            else if (source.type !== column.type) out.push({ path: here('default', 'from'), message: `${allowed}, kept as the same type: "${from.table}.${from.column}" is ${String(source.type)}, not ${column.type}` });
+          }
+        }
         if (shapeOf !== undefined) {
           if (link.addOn !== shapeOf.addOn) out.push({ path: here('addOnLink', 'addOn'), message: `a shape links only into its own add-on's tables, not "${link.addOn}"` });
         } else if (link.addOn === m.key) {
@@ -3039,11 +3059,19 @@ export type { AddOnBlock };
  */
 function installFloorIssues(m: { compatibility: { minAdminiumVersion: string } }): { path: (string | number)[]; message: string }[] {
   const floor = m.compatibility.minAdminiumVersion;
-  if (compareSemver(floor, ADD_ON_INSTALL_FLOOR) >= 0) return [];
-  return installFloorWords(m).map((found) => ({
-    path: found.path.split('.').map((part) => (/^\d+$/.test(part) ? Number(part) : part)),
-    message: `"${found.word}" is read by Adminium ${ADD_ON_INSTALL_FLOOR} and later, and compatibility.minAdminiumVersion is ${floor}: set it to ${ADD_ON_INSTALL_FLOOR} or later`,
-  }));
+  // The newest floor any word asks: at or above it nothing is walked.
+  const newest = Object.values(WORD_FLOORS).reduce((a, b) => (compareSemver(b, a) > 0 ? b : a), ADD_ON_INSTALL_FLOOR);
+  if (compareSemver(floor, newest) >= 0) return [];
+  return installFloorWords(m).flatMap((found) => {
+    const needs = WORD_FLOORS[found.word] ?? ADD_ON_INSTALL_FLOOR;
+    if (compareSemver(floor, needs) >= 0) return [];
+    return [
+      {
+        path: found.path.split('.').map((part) => (/^\d+$/.test(part) ? Number(part) : part)),
+        message: `"${found.word}" is read by Adminium ${needs} and later, and compatibility.minAdminiumVersion is ${floor}: set it to ${needs} or later`,
+      },
+    ];
+  });
 }
 
 /** The top-level blocks an add-on declares in an app's words. */

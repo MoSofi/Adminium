@@ -66,6 +66,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'states.actions',
   'states.planned',
   'column.addOnLink',
+  'column.addOnLink.default',
   'column.tableRef',
   'column.announce',
   'column.plainText',
@@ -73,6 +74,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.codeLast4',
   'rollup.capUnless',
   'roles.tables',
+  'roles.writableFrom',
   'toolbar.links',
   'config.tabs',
   'config.bulk',
@@ -85,6 +87,17 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'availability.words',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
+
+/**
+ * The words that came after the install floor, each with the first Adminium
+ * that reads it. Every other word is read from the install floor on. The
+ * release before one of these refuses it as an unknown key, or as a rule it
+ * forbids, so a manifest that uses one declares this floor instead.
+ */
+export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  'column.addOnLink.default': '0.3.19',
+  'roles.writableFrom': '0.3.19',
+};
 
 /** Every word of `document` that needs the install floor, in document order. */
 export function installFloorWords(document: unknown): ManifestWord[] {
@@ -138,6 +151,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules === null) return;
       const here = `${at}.columns.${String(c)}.rules`;
       if (rules['addOnLink'] !== undefined) out.push({ word: 'column.addOnLink', path: `${here}.addOnLink` });
+      // A link filled from the settings row when nobody chooses one.
+      if (rules['addOnLink'] !== undefined && rules['default'] !== undefined) out.push({ word: 'column.addOnLink.default', path: `${here}.default` });
       if (rules['tableRef'] !== undefined) out.push({ word: 'column.tableRef', path: `${here}.tableRef` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
@@ -148,7 +163,17 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   });
 
   list(document['roles']).forEach((role, r) => {
-    if (isDoc(role) && role['tables'] !== undefined) out.push({ word: 'roles.tables', path: `roles.${String(r)}.tables` });
+    if (!isDoc(role)) return;
+    if (role['tables'] !== undefined) out.push({ word: 'roles.tables', path: `roles.${String(r)}.tables` });
+    // An update that reaches a row only while one of its columns holds some value.
+    for (const [ref, limit] of Object.entries(isDoc(role['limits']) ? role['limits'] : {})) {
+      if (isDoc(limit) && limit['writableFrom'] !== undefined) out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.limits.${ref}.writableFrom` });
+    }
+    list(role['tables']).forEach((grant, g) => {
+      if (isDoc(grant) && isDoc(grant['limit']) && grant['limit']['writableFrom'] !== undefined) {
+        out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.tables.${String(g)}.limit.writableFrom` });
+      }
+    });
   });
   // A dashboard's second toolbar link, a ranking's named pair, a record page's tab words, a list's bulk action.
   list(document['pages']).forEach((page, p) => {

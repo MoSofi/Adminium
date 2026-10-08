@@ -6,11 +6,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { validateManifest } from '../src/index.js';
+import { installFloorWords, validateManifest } from '../src/index.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
-function manifest(roles: unknown[]) {
+function manifest(roles: unknown[], floor = '0.1.0') {
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -21,7 +21,7 @@ function manifest(roles: unknown[]) {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A front desk.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.1.0' },
+    compatibility: { minAdminiumVersion: floor },
     requiredSchema: {
       tables: [
         { ref: 'patients', columns: [id, { ref: 'mobile', type: 'text', maxLength: 20 }] },
@@ -48,8 +48,8 @@ const clinician = {
   limits: { appointments: { writable: ['status'], writableValues: { status: ['roomed', 'ready'] } } },
 };
 
-const messages = (roles: unknown[]) => {
-  const result = validateManifest(manifest(roles));
+const messages = (roles: unknown[], floor?: string) => {
+  const result = validateManifest(manifest(roles, floor));
   return result.ok ? [] : result.issues.map((issue) => `${issue.path}: ${issue.message}`);
 };
 
@@ -120,5 +120,47 @@ describe('a role’s create on a table limited to some columns', () => {
     expect(messages([{ ...kiosk, limits: { appointments: { creatable: ['nope'] } } }]).join('\n')).toContain('"appointments" has no column "nope"');
     expect(messages([{ ...kiosk, limits: { appointments: { creatable: ['note'], creatableValues: { status: ['ready'] } } } }]).join('\n')).toContain('"status" is not creatable');
     expect(messages([{ ...kiosk, limits: { appointments: { creatableValues: { note: ['x'] } } } }]).join('\n')).toContain('name them (creatable)');
+  });
+});
+
+describe('the rows a role’s update reaches, by what a column holds now', () => {
+  const from = (writableFrom: unknown, more: Record<string, unknown> = { writable: ['status'] }) => [{ ...clinician, limits: { appointments: { ...more, writableFrom } } }];
+
+  it('takes values of a column of the table, written or not, from the release that reads it', () => {
+    expect(messages(from({ status: ['booked', 'roomed'] }), '0.3.19')).toEqual([]);
+    // The column the row is judged by need not be one the role writes.
+    expect(messages(from({ status: ['booked'] }, { writable: ['note'] }), '0.3.19')).toEqual([]);
+    expect(messages(from({ status: ['booked'] }, { writable: ['status'], writableValues: { status: ['roomed', 'ready'] } }), '0.3.19')).toEqual([]);
+  });
+
+  it('names a column the table lacks and a value the column cannot hold', () => {
+    expect(messages(from({ stage: ['booked'] }), '0.3.19').join('\n')).toContain('"appointments" has no column "stage"');
+    expect(messages(from({ status: ['seen'] }), '0.3.19').join('\n')).toContain('"seen" is not a value of "appointments.status"');
+  });
+
+  it('is refused with nothing to narrow, with no column, with no value and past 32 values', () => {
+    expect(messages(from({ status: ['booked'] }, { readable: ['status'] }), '0.3.19').join('\n')).toContain('name the columns it may write (writable)');
+    expect(messages(from({}), '0.3.19').join('\n')).toContain('name at least one column the row is judged by');
+    expect(messages(from({ status: [] }), '0.3.19').length).toBeGreaterThan(0);
+    expect(messages(from({ note: Array.from({ length: 33 }, (_, i) => `n${String(i)}`) }), '0.3.19').length).toBeGreaterThan(0);
+  });
+
+  it('needs the release that reads it: the one before refuses the key as unknown', () => {
+    const doc = manifest(from({ status: ['booked'] }), '0.3.18');
+    expect(installFloorWords(doc)).toContainEqual({ word: 'roles.writableFrom', path: 'roles.0.limits.appointments.writableFrom' });
+    expect(messages(from({ status: ['booked'] }), '0.3.18').join('\n')).toContain('"roles.writableFrom" is read by Adminium 0.3.19 and later, and compatibility.minAdminiumVersion is 0.3.18: set it to 0.3.19 or later');
+    expect(messages([clinician], '0.3.18')).toEqual([]);
+  });
+
+  it('is named on a grant of an add-on’s table too, where the grant updates and says what it writes', () => {
+    const grant = (limit: unknown, actions = ['read', 'update']) => ({ ...manifest([{ key: 'desk', name: 'Desk', permissions: ['table:@appointments:read'], tables: [{ addOn: 'kit', table: 'items', actions, limit }] }], '0.3.19'), addOns: { suggests: [{ key: 'kit', range: '>=1.0.0', reason: { 'en-US': 'Stock.' } }] } });
+    const said = (doc: unknown) => {
+      const result = validateManifest(doc);
+      return result.ok ? [] : result.issues.map((issue) => `${issue.path}: ${issue.message}`);
+    };
+    expect(said(grant({ writable: ['note'], writableFrom: { state: ['open'] } }))).toEqual([]);
+    expect(installFloorWords(grant({ writable: ['note'], writableFrom: { state: ['open'] } }))).toContainEqual({ word: 'roles.writableFrom', path: 'roles.0.tables.0.limit.writableFrom' });
+    expect(said(grant({ readable: ['note'], writableFrom: { state: ['open'] } }, ['read'])).join('\n')).toContain('the grant has no "update", so there is nothing for "writableFrom" to limit');
+    expect(said(grant({ readable: ['note'], writableFrom: { state: ['open'] } })).join('\n')).toContain('name the columns it may write (writable)');
   });
 });

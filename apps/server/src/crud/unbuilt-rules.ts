@@ -123,6 +123,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'toolbar.links',
   // What an app's role holds of a table of an add-on it names: written while the add-on is there for the app, taken back when it is not.
   'roles.tables',
+  // An update a role's limit lets reach a row only while a column of it holds some value: judged on the stored row.
+  'roles.writableFrom',
   // An add-on that may use another (`addOns.suggests`): a document the other draws waits for it, and is mailed without it meanwhile.
   'addOns',
   // A mail block sent only with a value, or only without it; and an add-on's mail that links into a page of the app it serves.
@@ -148,6 +150,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.announce',
   // A link from a table into an add-on's, judged as it is written; text held to a name or a note; a customer's key made from an address.
   'column.addOnLink',
+  // Such a link filled from the settings row's own link when nobody chooses one: left empty while the add-on is away.
+  'column.addOnLink.default',
   'column.plainText',
   'column.customerKey',
 ];
