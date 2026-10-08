@@ -111,8 +111,9 @@ function pickColumns(document: unknown, table: string): string[] {
   return [...out];
 }
 
-/** The inputs of an action a rule must map: every one that is not optional. */
-const neededInputs = (action: Pick<LedgerAction, 'inputs'>): string[] => Object.entries(action.inputs).flatMap(([name, type]) => (optionalInput(type) ? [] : [name]));
+/** The inputs of an action a rule must map: every one that is not optional and that the ledger does not decide itself, as the install reads it. */
+const neededInputs = (action: Pick<LedgerAction, 'inputs' | 'decides'>): string[] =>
+  Object.entries(action.inputs).flatMap(([name, type]) => (optionalInput(type) || (action.decides ?? []).some((rule) => rule.input === name) ? [] : [name]));
 
 /**
  * Why a rule an app wrote does not fit the add-on it posts into, or null:
@@ -136,6 +137,46 @@ export function hostPostingIssue(posting: Posting, document: unknown): string | 
   const phase = PHASES.find((candidate) => posting[candidate] !== undefined && !action.phases.includes(candidate));
   if (phase !== undefined) return `${into} has no "${phase}". It takes: ${action.phases.join(', ')}. ${again}`;
   if (action.holds === true && posting.reserve !== undefined && posting.heldUntil === undefined) return `${into} holds until a time, and the rule gives none. ${again.replace('again;', 'again with "heldUntil" in "columns";')}`;
+  return null;
+}
+
+/** A table of an app as the check reads it: enough to judge its price rule. */
+interface RuledTable {
+  ref: string;
+  columns: readonly { ref: string; rules?: { addOnLink?: { addOn: string; table: string } | undefined } | undefined }[];
+  postings?: readonly Pick<Posting, 'id' | 'into' | 'via'>[] | undefined;
+  adjust?: { by: { addOn: string }; codes?: { table: string; code: string; voucher: string } | undefined; uses?: string | undefined } | undefined;
+}
+
+/**
+ * Why a price rule an app wrote does not fit the add-on it asks, or null: the
+ * add-on answers a price at all, the links a typed code fills go into the
+ * add-on's own code tables, and what was used is recorded by a posting of the
+ * order's own table into that add-on. The same three an install holds the
+ * stored rule to, said as what to do next.
+ */
+export function hostAdjustIssue(table: RuledTable, tables: readonly RuledTable[], document: unknown): string | null {
+  const adjust = table.adjust;
+  if (adjust === undefined) return null;
+  const again = 'Call build_on_shape for this table again; do not edit the rule by hand.';
+  const adjuster = (document as { addOn?: { adjuster?: { codes?: { table?: unknown }; vouchers?: { table?: unknown } } } } | null)?.addOn?.adjuster;
+  if (adjuster === undefined || adjuster === null) return `"${adjust.by.addOn}" answers no price question: it is not an add-on an "adjust" rule can name. Take "adjust" out of this file; list_add_ons says what each add-on offers.`;
+  const codes = adjust.codes;
+  if (codes !== undefined) {
+    const kept = tables.find((candidate) => candidate.ref === codes.table);
+    for (const [column, into] of [[codes.code, adjuster.codes?.table], [codes.voucher, adjuster.vouchers?.table]] as const) {
+      const link = kept?.columns.find((candidate) => candidate.ref === column)?.rules?.addOnLink;
+      if (typeof into === 'string' && (link === undefined || link.addOn !== adjust.by.addOn || link.table !== into)) {
+        return `"${column}" of ${codes.table} is the link a typed code fills: it must link into ${adjust.by.addOn}.${into}. ${again}`;
+      }
+    }
+  }
+  if (adjust.uses !== undefined) {
+    const posting = (table.postings ?? []).find((candidate) => candidate.id === adjust.uses);
+    if (posting === undefined) return `"${adjust.uses}" is not a posting of ${table.ref}: what was used is recorded by a posting of the order's own table. ${again}`;
+    if (posting.into.addOn !== adjust.by.addOn) return `The posting "${adjust.uses}" goes into "${posting.into.addOn}", not into "${adjust.by.addOn}", which answers the price. ${again}`;
+    if (posting.via !== undefined) return `The posting "${adjust.uses}" is a line's: what an order used is recorded for the order itself. ${again}`;
+  }
   return null;
 }
 

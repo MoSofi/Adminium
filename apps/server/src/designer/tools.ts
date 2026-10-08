@@ -39,7 +39,7 @@ import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, 
 import type { AppSide } from '../project/apps/read-app.js';
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
-import { shapeParts } from '../project/apps/shape-parts.js';
+import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { rebuildApps } from '../project/build.js';
@@ -1239,7 +1239,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     {
       name: 'build_on_shape',
       description:
-        'Write the tables an app builds on an add-on’s shape (e.g. add_on "invoices", shape "invoice@1"): every part’s table with its exact columns, rules and states, the tables of other shapes it points at, the outbox table and emails.json when the shape sends email, and add-ons.json. Never write these by hand: the install refuses any difference. When the shape sends email, first write the app’s own table of people (with an email column) and give it as "recipient". Afterwards add your own columns, the pages and the role’s grants.',
+        'Write the tables an app builds on an add-on’s shape (e.g. add_on "invoices", shape "invoice@1"): every part’s table with its exact columns, rules and states, the tables of other shapes it points at, the outbox table and emails.json when the shape sends email, and add-ons.json. Never write these by hand: the install refuses any difference. When the shape sends email, first write the app’s own table of people (with an email column) and give it as "recipient". Afterwards add your own columns, the pages and the role’s grants. For a shape that is added to your own tables (list_add_ons says which), write those tables first and give each part its table in "tables".',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1252,8 +1252,27 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             required: ['table', 'email'],
             additionalProperties: false,
           },
-          tables: { type: 'object', description: 'Optional table names by part, e.g. {"invoice@1/payments": "payments"}. The rest are named for you.', additionalProperties: { type: 'string' } },
+          tables: {
+            type: 'object',
+            description:
+              'Table names by part, e.g. {"invoice@1/payments": "payments"}; the rest are named for you. For a shape added to your own tables: every part and the table of this app that stands for it, e.g. {"card-sale@1/order": "tickets", "card-sale@1/lines": "ticket_lines"}.',
+            additionalProperties: { type: 'string' },
+          },
           outbox_table: { type: 'string', description: 'The name of the table the emails are kept in, when "messages" is taken.' },
+          when: {
+            type: 'object',
+            description:
+              'Only for a shape added to your own tables: the moment each step of its rule happens, when the app has its own ("post" when the order is paid, "reverse" when it is cancelled). Each is one of {"create": true}, {"to": ["<state>"], "from": ["<state>"]}, {"column": "<column>", "in": [<value>]}, {"column": "<column>", "set": true}. Left out, the shape’s own date columns are added.',
+            properties: { reserve: { type: 'object' }, post: { type: 'object' }, reverse: { type: 'object' } },
+            additionalProperties: false,
+          },
+          columns: {
+            type: 'object',
+            description:
+              'Only for a shape added to your own tables: a column of the shape → the column of your table that already holds it, e.g. {"lines.amount": "line_total", "lines.item": "item_id"}. A column left out is added under the shape’s name.',
+            additionalProperties: { type: 'string' },
+          },
+          need: { type: 'string', enum: ['requires', 'suggests'], description: 'Only for a shape added to your own tables. requires (the default): the app is not whole without the add-on. suggests: the app runs without it, and the rule is live only while it is there.' },
         },
         required: ['add_on', 'shape'],
         additionalProperties: false,
@@ -1275,13 +1294,109 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           document = (await deps.readAddOn?.(addOn)) ?? null;
           if (document === null) return refused(`The add-on "${addOn}" was installed and its shapes do not read. Tell the person, and build the rest meanwhile.`, `Could not build on ${shape}`);
         }
+        const names = input['tables'];
+        const tablesGiven = names !== null && typeof names === 'object' && !Array.isArray(names) ? Object.fromEntries(Object.entries(names).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) : undefined;
+        if (spelledOut(document, shape)) {
+          // Added to the app's own tables: its columns and its rule, under the app's names, and no "builtOn".
+          const failed = `Could not add ${shape}`;
+          const base = `apps/${appKey}/manifest`;
+          const pairs = input['columns'];
+          const columns = pairs !== null && typeof pairs === 'object' && !Array.isArray(pairs) ? Object.fromEntries(Object.entries(pairs).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) : undefined;
+          const moments = input['when'];
+          const need = str(input, 'need') === 'suggests' ? 'suggests' : 'requires';
+          return jailed(failed, () => {
+            const read = (file: string): string | null => {
+              const absolute = jail.resolve(`${base}/${file}`, 'write');
+              return existsSync(absolute) ? readFileSync(absolute, 'utf8') : null;
+            };
+            const isObject = (value: unknown): boolean => value !== null && typeof value === 'object' && !Array.isArray(value);
+            const parsed = <T>(file: string, fallback: T): { value: T } | { problem: ToolOutcome } => {
+              const now = read(file);
+              if (now === null) return { value: fallback };
+              try {
+                const value = JSON.parse(now) as unknown;
+                if (!isObject(value)) throw new Error('it is not an object');
+                return { value: value as T };
+              } catch (error) {
+                return { problem: refused(`${base}/${file} does not read (${error instanceof Error ? error.message : String(error)}). Write it again, then call this again.`, failed) };
+              }
+            };
+            // The app's tables the parts are given, as their files read now.
+            const have: Record<string, Record<string, unknown>> = {};
+            for (const ref of new Set(Object.values(tablesGiven ?? {}))) {
+              if (!/^[a-z][a-z0-9_]{0,62}$/.test(ref) || read(`tables/${ref}.json`) === null) continue;
+              const file = parsed<Record<string, unknown>>(`tables/${ref}.json`, {});
+              if ('problem' in file) return file.problem;
+              have[ref] = file.value;
+            }
+            const made = adoptParts({ addOn, document, shape, tables: tablesGiven, have, when: isObject(moments) ? (moments as Record<string, unknown>) : undefined, columns, need });
+            if (!made.ok) return refused(made.problem.split('tables/').join(`${base}/tables/`), failed);
+            const floor = made.addOn.floor !== null && compareSemver(made.addOn.floor, ADD_ON_INSTALL_FLOOR) > 0 ? made.addOn.floor : ADD_ON_INSTALL_FLOOR;
+            if (compareSemver(deps.version, floor) < 0) {
+              return refused(`This server is Adminium ${deps.version}, and ${made.addOn.name} needs ${floor} or later. Tell the person; build the app without it.`, failed);
+            }
+            const needs = parsed<{ requires?: { key?: string }[]; suggests?: { key?: string }[]; features?: { id?: string }[] }>('add-ons.json', {});
+            if ('problem' in needs) return needs.problem;
+            const app = parsed<{ compatibility?: { minAdminiumVersion?: string } }>('app.json', {});
+            if ('problem' in app) return app.problem;
+            const entry = { key: made.addOn.key, range: made.addOn.range, reason: { 'en-US': `${made.addOn.name} keeps what this app's ${made.tables.map((table) => table.ref.split('_').join(' ')).join(' and ')} use of it.` } };
+            const others = <T extends { key?: string }>(list: T[] | undefined): T[] => (list ?? []).filter((other) => other.key !== made.addOn.key);
+            const nextNeeds: Record<string, unknown> = { ...needs.value };
+            if (need === 'requires') {
+              nextNeeds['requires'] = [...others(needs.value.requires), entry];
+              const suggests = others(needs.value.suggests);
+              if (suggests.length > 0) nextNeeds['suggests'] = suggests;
+              else delete nextNeeds['suggests'];
+            } else if (!(needs.value.requires ?? []).some((other) => other.key === made.addOn.key)) {
+              nextNeeds['suggests'] = [...others(needs.value.suggests), { ...entry, checked: true }];
+              nextNeeds['features'] = [...(needs.value.features ?? []).filter((feature) => feature.id !== made.feature), { id: made.feature, label: { 'en-US': made.addOn.name }, requires: [made.addOn.key] }];
+            }
+            const writes = new Map<string, string>([...Object.entries(made.files).map(([file, value]): [string, string] => [file, `${JSON.stringify(value, null, 2)}\n`]), ['add-ons.json', `${JSON.stringify(nextNeeds, null, 2)}\n`]]);
+            const lines = made.tables.map((table) => {
+              const added = table.added.filter((column) => column.given !== true);
+              return `- ${base}/tables/${table.ref}.json${table.made ? ' (new)' : ''}: ${added.length === 0 ? 'no column added' : `added ${added.map((column) => `${column.column} (${column.type}${column.links === undefined ? '' : `, a link to ${column.links}`})`).join(', ')}`}${table.added
+                .filter((column) => column.given === true)
+                .map((column) => `; ${column.column} is now a link to ${column.links ?? ''}, and may be empty`)
+                .join('')}${table.used.filter((column) => column.column !== column.as).length === 0 ? '' : `; uses ${table.used.filter((column) => column.column !== column.as).map((column) => `${column.as} as ${column.column}`).join(', ')}`}${table.rules.map((rule) => `; ${rule}`).join('')}`;
+            });
+            lines.push(`- ${base}/add-ons.json: ${need} ${made.addOn.key} ${made.addOn.range}`);
+            const now = app.value.compatibility?.minAdminiumVersion;
+            if (typeof now !== 'string' || compareSemver(now, floor) < 0) {
+              writes.set('app.json', `${JSON.stringify({ ...app.value, compatibility: { ...(app.value.compatibility ?? {}), minAdminiumVersion: floor } }, null, 2)}\n`);
+              lines.push(`- ${base}/app.json: "minAdminiumVersion" is now ${floor}, the first Adminium ${made.addOn.name} runs on`);
+            }
+            // A rule the app's own check refuses is taken back whole. The add-on is in sight: its names are checked too.
+            const seen = validateManifest(document);
+            const inSight = seen.ok && isAddOnManifest(seen.manifest) ? new Map<string, AddOnManifest>([[addOn, seen.manifest]]) : undefined;
+            const errorsOf = (): Set<string> =>
+              new Set(checkApp(deps.root, appKey, { version: deps.version, ...(inSight === undefined ? {} : { addOns: inSight }) }).findings.filter((finding) => finding.level === 'error').map((finding) => `${finding.file} · ${finding.path} · ${finding.message}`));
+            const before = errorsOf();
+            const was = new Map([...writes.keys()].map((file) => [file, read(file)]));
+            for (const [file, content] of writes) jail.write(`${base}/${file}`, content);
+            const fresh = [...errorsOf()].filter((line) => !before.has(line));
+            if (fresh.length > 0) {
+              for (const [file, content] of was) {
+                if (content === null) rmSync(jail.resolve(`${base}/${file}`, 'write'), { force: true });
+                else jail.write(`${base}/${file}`, content);
+              }
+              return refused(`Nothing was written: with ${shape} in place the app's check says\n${fresh.slice(0, 8).map((line) => `- ${line}`).join('\n')}\nFix what it names in your own files, then call this again.`, failed);
+            }
+            const notes = [
+              ...(made.links.length === 0 ? [] : [`A role that picks a row of ${made.links.join(', ')} needs to read it: that grant is "tables" on the role in roles.json ({ "addOn": "${addOn}", "table": "<table>", "actions": ["read"] }), never a line of "permissions".`]),
+              `${made.addOn.name} is installed with the app when it is applied: do not tell the person to install it.`,
+            ];
+            return text(
+              `Written:\n${lines.join('\n')}\n${notes.join('\n')}\nLeft to you: the pages that show the new columns, and the role’s grants on them. Never change the rule or the columns it names by hand; call this again instead.`,
+              `Added ${shape}`,
+              { facts: { count: made.tables.reduce((sum, table) => sum + table.added.length, 0) } },
+            );
+          });
+        }
         const given = input['recipient'] as Record<string, unknown> | undefined;
         const recipient =
           given !== undefined && typeof given === 'object' && typeof given['table'] === 'string' && typeof given['email'] === 'string'
             ? { table: given['table'], email: given['email'], ...(typeof given['name'] === 'string' ? { name: given['name'] } : {}) }
             : undefined;
-        const names = input['tables'];
-        const tablesGiven = names !== null && typeof names === 'object' && !Array.isArray(names) ? Object.fromEntries(Object.entries(names).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) : undefined;
         const made = shapeParts({ appKey, addOn, document, shape, recipient, tables: tablesGiven, outboxTable: str(input, 'outbox_table') ?? undefined });
         if (!made.ok) return refused(made.problem, `Could not build on ${shape}`);
         return jailed(`Could not build on ${shape}`, () => {

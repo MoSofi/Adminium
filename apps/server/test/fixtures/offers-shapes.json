@@ -1,0 +1,1312 @@
+{
+  "kind": "add-on",
+  "key": "offers",
+  "name": "Offers & gift cards",
+  "version": "1.0.9",
+  "compatibility": {
+    "minAdminiumVersion": "0.3.19",
+    "requires": []
+  },
+  "addOn": {
+    "ledgers": [
+      {
+        "id": "value",
+        "receipts": "postings",
+        "refusal": "value",
+        "writes": {
+          "card_ledger": {
+            "insert": [
+              "card_id",
+              "kind",
+              "taken",
+              "value",
+              "balance_after",
+              "against_id",
+              "source_table",
+              "source_row",
+              "source_label",
+              "note",
+              "at"
+            ]
+          },
+          "redemptions": {
+            "insert": [
+              "kind",
+              "offer_id",
+              "code_id",
+              "voucher_id",
+              "reason_id",
+              "source_table",
+              "source_row",
+              "source_label",
+              "customer",
+              "amount",
+              "uses",
+              "prepaid",
+              "state",
+              "at"
+            ],
+            "update": {
+              "by": [
+                "id"
+              ],
+              "set": [
+                "state",
+                "at",
+                "given_back_at"
+              ]
+            }
+          },
+          "gift_cards": {
+            "insert": [
+              "kind",
+              "code",
+              "status",
+              "issued_at",
+              "moved_from",
+              "moved_table",
+              "moving"
+            ],
+            "update": {
+              "by": [
+                "id"
+              ],
+              "set": [
+                "status",
+                "issued_at",
+                "expires_on",
+                "remind_on",
+                "notify"
+              ]
+            }
+          },
+          "vouchers": {
+            "insert": [
+              "batch_id",
+              "worth",
+              "value",
+              "what",
+              "source_table",
+              "source_row",
+              "units",
+              "public_name",
+              "uses_total",
+              "expires_on",
+              "note"
+            ],
+            "update": {
+              "by": [
+                "id"
+              ],
+              "set": [
+                "status",
+                "sold",
+                "awaiting_sale",
+                "sale_price",
+                "tax_later",
+                "expires_on"
+              ]
+            }
+          },
+          "offers": {
+            "update": {
+              "by": [
+                "id"
+              ],
+              "set": [
+                "used_up"
+              ]
+            }
+          }
+        },
+        "actions": {
+          "redeem": {
+            "inputs": {
+              "reason": "link?",
+              "label": "text?"
+            },
+            "phases": [
+              "reserve",
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "mine",
+                "table": "redemptions",
+                "by": [
+                  {
+                    "column": "receipt_id",
+                    "from": "receipt.id"
+                  }
+                ]
+              },
+              {
+                "as": "offers",
+                "table": "offers",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": [
+                      "uses.offer",
+                      "mine.offer_id"
+                    ]
+                  }
+                ]
+              },
+              {
+                "as": "codes",
+                "table": "codes",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": [
+                      "uses.code",
+                      "mine.code_id"
+                    ]
+                  }
+                ]
+              },
+              {
+                "as": "vouchers",
+                "table": "vouchers",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": [
+                      "uses.voucher",
+                      "mine.voucher_id"
+                    ]
+                  }
+                ]
+              },
+              {
+                "as": "reasons",
+                "table": "reasons",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.reason"
+                  }
+                ]
+              },
+              {
+                "as": "spent",
+                "table": "redemptions",
+                "by": [
+                  {
+                    "column": "voucher_id",
+                    "from": [
+                      "uses.voucher",
+                      "mine.voucher_id"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "offers",
+                "column": "id",
+                "table": "offers"
+              },
+              {
+                "read": "codes",
+                "column": "id",
+                "table": "codes"
+              },
+              {
+                "read": "vouchers",
+                "column": "id",
+                "table": "vouchers"
+              }
+            ],
+            "holds": true,
+            "writes": [
+              "redemptions",
+              "vouchers",
+              "offers"
+            ]
+          },
+          "spend": {
+            "inputs": {
+              "card": "link?",
+              "due": "decimal?",
+              "ask": "decimal?",
+              "amount": "decimal",
+              "balance_after": "decimal",
+              "label": "text?"
+            },
+            "phases": [
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.card"
+                  }
+                ]
+              },
+              {
+                "as": "mine",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "receipt_id",
+                    "from": "receipt.id"
+                  }
+                ]
+              },
+              {
+                "as": "given",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "against_id",
+                    "from": "mine.id"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "decides": [
+              {
+                "input": "amount",
+                "min": "0",
+                "max": {
+                  "input": "due"
+                }
+              },
+              {
+                "input": "amount",
+                "min": "0",
+                "max": {
+                  "read": "card",
+                  "column": "balance"
+                }
+              },
+              {
+                "input": "balance_after",
+                "min": "0",
+                "max": {
+                  "read": "card",
+                  "column": "balance"
+                }
+              }
+            ],
+            "writes": [
+              "card_ledger"
+            ]
+          },
+          "refund": {
+            "inputs": {
+              "against_table": "text",
+              "against_row": "text",
+              "amount": "decimal?",
+              "label": "text?"
+            },
+            "phases": [
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "spend",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "source_table",
+                    "from": "input.against_table"
+                  },
+                  {
+                    "column": "source_row",
+                    "from": "input.against_row"
+                  }
+                ],
+                "where": [
+                  {
+                    "column": "kind",
+                    "eq": "spend"
+                  }
+                ]
+              },
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "spend.card_id"
+                  }
+                ]
+              },
+              {
+                "as": "given",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "against_id",
+                    "from": "spend.id"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger"
+            ]
+          },
+          "issue": {
+            "inputs": {
+              "card": "link?",
+              "amount": "decimal?",
+              "label": "text?"
+            },
+            "phases": [
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.card"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger",
+              "gift_cards"
+            ]
+          },
+          "card-action": {
+            "inputs": {
+              "card": "link",
+              "action": "text",
+              "amount": "decimal",
+              "reason": "text"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.card"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger",
+              "gift_cards"
+            ]
+          },
+          "voucher-action": {
+            "inputs": {
+              "voucher": "link",
+              "action": "text"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "voucher",
+                "table": "vouchers",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.voucher"
+                  }
+                ]
+              },
+              {
+                "as": "last",
+                "table": "redemptions",
+                "by": [
+                  {
+                    "column": "voucher_id",
+                    "from": "input.voucher"
+                  }
+                ],
+                "where": [
+                  {
+                    "column": "state",
+                    "eq": "counted"
+                  }
+                ]
+              },
+              {
+                "as": "none",
+                "table": "offers",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "last.offer_id"
+                  }
+                ]
+              },
+              {
+                "as": "spent",
+                "table": "redemptions",
+                "by": [
+                  {
+                    "column": "voucher_id",
+                    "from": "input.voucher"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "voucher",
+                "column": "id",
+                "table": "vouchers"
+              },
+              {
+                "read": "none",
+                "column": "id",
+                "table": "offers"
+              }
+            ],
+            "writes": [
+              "redemptions",
+              "vouchers"
+            ]
+          },
+          "sell": {
+            "inputs": {
+              "voucher": "link?",
+              "amount": "decimal?",
+              "tax_later": "bool?"
+            },
+            "phases": [
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "voucher",
+                "table": "vouchers",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.voucher"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "voucher",
+                "column": "id",
+                "table": "vouchers"
+              }
+            ],
+            "writes": [
+              "vouchers"
+            ]
+          },
+          "expire": {
+            "inputs": {
+              "card": "rowRef"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.card.row"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger"
+            ]
+          },
+          "void": {
+            "inputs": {
+              "card": "rowRef"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.card.row"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger"
+            ]
+          },
+          "make": {
+            "inputs": {
+              "batch": "link",
+              "size": "number"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "batch",
+                "table": "voucher_batches",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "input.batch"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "batch",
+                "column": "id",
+                "table": "voucher_batches"
+              }
+            ],
+            "writes": [
+              "vouchers"
+            ]
+          },
+          "move": {
+            "inputs": {
+              "old_card": "text",
+              "kind": "text",
+              "amount": "decimal",
+              "at": "text",
+              "note": "text?",
+              "old_code": "text?",
+              "old_table": "text?"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "moved_from",
+                    "from": "input.old_card"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger",
+              "gift_cards"
+            ]
+          }
+        }
+      }
+    ],
+    "adjuster": {
+      "offers": [
+        {
+          "as": "offers",
+          "table": "offers",
+          "by": [],
+          "limit": 500
+        },
+        {
+          "as": "breaks",
+          "table": "offer_breaks",
+          "by": [
+            {
+              "column": "offer_id",
+              "from": "offers.id"
+            }
+          ]
+        },
+        {
+          "as": "targets",
+          "table": "offer_targets",
+          "by": [
+            {
+              "column": "offer_id",
+              "from": "offers.id"
+            }
+          ]
+        },
+        {
+          "as": "reasons",
+          "table": "reasons",
+          "by": [],
+          "limit": 200
+        }
+      ],
+      "codes": {
+        "table": "codes",
+        "column": "code",
+        "where": [
+          {
+            "column": "active",
+            "eq": true
+          }
+        ],
+        "reserved": [
+          "GC",
+          "VC",
+          "PK"
+        ]
+      },
+      "vouchers": {
+        "table": "vouchers",
+        "column": "code",
+        "prefixes": [
+          "VC-",
+          "PK-"
+        ]
+      },
+      "applied": {
+        "table": "applied",
+        "source": {
+          "table": "source_table",
+          "row": "source_row",
+          "line": "source_line"
+        },
+        "columns": {
+          "offer": "offer_id",
+          "code": "code_id",
+          "voucher": "voucher_id",
+          "name": "name",
+          "kind": "kind",
+          "amount": "amount",
+          "reason": "reason_id",
+          "typed": "typed",
+          "at": "at"
+        }
+      },
+      "person": {
+        "groups": {
+          "table": "group_members",
+          "member": "member_key",
+          "group": "group_id"
+        },
+        "uses": {
+          "table": "redemptions",
+          "customer": "customer",
+          "offer": "offer_id",
+          "state": "state",
+          "counted": [
+            "held",
+            "counted"
+          ]
+        },
+        "orders": true
+      },
+      "ceilings": {
+        "table": "ceilings",
+        "role": "role",
+        "maxPercent": "max_percent",
+        "maxAmount": "max_amount",
+        "comp": "may_comp"
+      },
+      "customerKey": "hash"
+    },
+    "shapes": [
+      {
+        "name": "discountable",
+        "version": 1,
+        "parts": {
+          "order": {
+            "adjust": {
+              "by": {
+                "addOn": "offers"
+              },
+              "lines": [
+                {
+                  "table": "lines",
+                  "via": "order_id",
+                  "price": "amount",
+                  "discount": "discount",
+                  "what": [
+                    {
+                      "column": "item",
+                      "as": "item"
+                    }
+                  ]
+                }
+              ],
+              "order": {
+                "discount": "discount",
+                "staff": {
+                  "kind": "discount_kind",
+                  "value": "discount_value",
+                  "reason": "discount_reason",
+                  "by": "discount_by"
+                }
+              },
+              "codes": {
+                "table": "codes",
+                "via": "order_id",
+                "typed": "typed",
+                "code": "code_id",
+                "voucher": "voucher_id",
+                "removed": "removed_at"
+              },
+              "uses": "uses"
+            },
+            "postings": [
+              {
+                "id": "uses",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "redeem"
+                },
+                "post": {
+                  "on": {
+                    "column": "paid_at",
+                    "set": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "reason": "discount_reason"
+                }
+              }
+            ],
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "subtotal",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true,
+                "rules": {
+                  "rollup": {
+                    "from": "lines",
+                    "via": "order_id",
+                    "sum": "amount"
+                  }
+                }
+              },
+              {
+                "ref": "discount",
+                "type": "money",
+                "scale": "currency",
+                "default": 0
+              },
+              {
+                "ref": "net",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true,
+                "rules": {
+                  "formula": {
+                    "sub": [
+                      "subtotal",
+                      "discount"
+                    ]
+                  }
+                }
+              },
+              {
+                "ref": "discount_kind",
+                "type": "enum",
+                "enum": [
+                  "percent",
+                  "amount"
+                ],
+                "nullable": true
+              },
+              {
+                "ref": "discount_value",
+                "type": "decimal",
+                "scale": 3,
+                "nullable": true
+              },
+              {
+                "ref": "discount_reason",
+                "type": "int",
+                "nullable": true,
+                "rules": {
+                  "addOnLink": {
+                    "addOn": "offers",
+                    "table": "reasons"
+                  }
+                }
+              },
+              {
+                "ref": "discount_by",
+                "type": "text",
+                "maxLength": 120,
+                "nullable": true
+              },
+              {
+                "ref": "paid_at",
+                "type": "timestamptz",
+                "nullable": true
+              },
+              {
+                "ref": "cancelled_at",
+                "type": "timestamptz",
+                "nullable": true
+              }
+            ]
+          },
+          "lines": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "item",
+                "type": "text",
+                "maxLength": 64,
+                "nullable": true
+              },
+              {
+                "ref": "amount",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true
+              },
+              {
+                "ref": "discount",
+                "type": "money",
+                "scale": "currency",
+                "default": 0
+              }
+            ]
+          },
+          "codes": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "typed",
+                "type": "text",
+                "maxLength": 64,
+                "nullable": true
+              },
+              {
+                "ref": "code_id",
+                "type": "int",
+                "nullable": true,
+                "rules": {
+                  "addOnLink": {
+                    "addOn": "offers",
+                    "table": "codes"
+                  }
+                }
+              },
+              {
+                "ref": "voucher_id",
+                "type": "int",
+                "nullable": true,
+                "rules": {
+                  "addOnLink": {
+                    "addOn": "offers",
+                    "table": "vouchers"
+                  }
+                }
+              },
+              {
+                "ref": "removed_at",
+                "type": "timestamptz",
+                "nullable": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "card-payment",
+        "version": 1,
+        "parts": {
+          "order": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "due",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true
+              }
+            ]
+          },
+          "payments": {
+            "postings": [
+              {
+                "id": "card",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "spend"
+                },
+                "via": "order_id",
+                "post": {
+                  "on": {
+                    "create": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "voided_at",
+                    "set": true,
+                    "own": true
+                  }
+                },
+                "map": {
+                  "card": "card_id",
+                  "due": {
+                    "parent": "due"
+                  },
+                  "amount": "amount",
+                  "balance_after": "card_balance_after"
+                }
+              }
+            ],
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "card_code",
+                "type": "text",
+                "maxLength": 64,
+                "nullable": true
+              },
+              {
+                "ref": "card_id",
+                "type": "int",
+                "nullable": true,
+                "rules": {
+                  "addOnLink": {
+                    "addOn": "offers",
+                    "table": "gift_cards"
+                  },
+                  "lookup": {
+                    "from": "card_code",
+                    "table": {
+                      "addOn": "offers",
+                      "table": "gift_cards"
+                    },
+                    "column": "code",
+                    "where": [
+                      {
+                        "column": "status",
+                        "eq": "active"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "ref": "card_last4",
+                "type": "text",
+                "maxLength": 4,
+                "nullable": true
+              },
+              {
+                "ref": "amount",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true
+              },
+              {
+                "ref": "card_balance_after",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true
+              },
+              {
+                "ref": "voided_at",
+                "type": "timestamptz",
+                "nullable": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "card-sale",
+        "version": 1,
+        "parts": {
+          "order": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "paid_at",
+                "type": "timestamptz",
+                "nullable": true
+              },
+              {
+                "ref": "cancelled_at",
+                "type": "timestamptz",
+                "nullable": true
+              }
+            ]
+          },
+          "lines": {
+            "postings": [
+              {
+                "id": "card-load",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "issue"
+                },
+                "via": "order_id",
+                "post": {
+                  "on": {
+                    "column": "paid_at",
+                    "set": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "card": "gift_card_id",
+                  "amount": "load_amount"
+                }
+              }
+            ],
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "gift_card_id",
+                "type": "int",
+                "nullable": true,
+                "rules": {
+                  "addOnLink": {
+                    "addOn": "offers",
+                    "table": "gift_cards"
+                  }
+                }
+              },
+              {
+                "ref": "load_amount",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "voucher-sale",
+        "version": 1,
+        "parts": {
+          "order": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "paid_at",
+                "type": "timestamptz",
+                "nullable": true
+              },
+              {
+                "ref": "cancelled_at",
+                "type": "timestamptz",
+                "nullable": true
+              }
+            ]
+          },
+          "lines": {
+            "postings": [
+              {
+                "id": "voucher-sold",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "sell"
+                },
+                "via": "order_id",
+                "post": {
+                  "on": {
+                    "column": "paid_at",
+                    "set": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "voucher": "voucher_id",
+                  "amount": "amount",
+                  "tax_later": "tax_later"
+                }
+              }
+            ],
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "voucher_id",
+                "type": "int",
+                "nullable": true,
+                "rules": {
+                  "addOnLink": {
+                    "addOn": "offers",
+                    "table": "vouchers"
+                  }
+                }
+              },
+              {
+                "ref": "amount",
+                "type": "money",
+                "scale": "currency",
+                "nullable": true
+              },
+              {
+                "ref": "tax_later",
+                "type": "bool",
+                "default": false,
+                "nullable": true
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

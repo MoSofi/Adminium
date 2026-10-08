@@ -18,7 +18,9 @@
  *
  * Pure: no I/O. The caller reads the add-on's manifest and writes the files.
  */
-import { mapShapeRules, mapShapeStates, shapeDefinitionSchema, shapeKey, type ShapeDefinition } from '@adminium/manifest';
+import { mapShapeRules, mapShapeStates, postingPointSchema, shapeDefinitionSchema, shapeKey, type PostingPoint, type ShapeDefinition } from '@adminium/manifest';
+
+import { declaredLedgers } from './ledger-parts.js';
 
 /** The app's table the messages are addressed through: its people, and the columns that hold an address and a name. */
 export interface ShapeRecipient {
@@ -265,4 +267,406 @@ export function shapeParts(input: ShapePartsInput): ShapePartsResult {
   const name = typeof raw.name === 'string' ? raw.name : input.addOn;
   files['add-ons.json'] = { requires: [{ key: input.addOn, range: `>=${version}`, reason: { 'en-US': `${words(first.name.split('-').join('_'), true)} are made by ${name}.` } }] };
   return { ok: true, files, tables, outbox, addOn: { key: input.addOn, range: `>=${version}` } };
+}
+
+/**
+ * A shape whose parts carry a rule (`adjust`, `postings`) is not built as new
+ * tables: it is ADDED to tables the app already has. An order that takes
+ * discounts is the app's own orders table with a few more columns and the
+ * rule; nothing says `builtOn`, and the install checks the rule against the
+ * add-on by its names alone. This writes those columns and rules, with the
+ * part names and the shape's column names swapped for the app's.
+ */
+export interface AdoptPartsInput {
+  /** The add-on's key and its manifest document. */
+  addOn: string;
+  document: unknown;
+  /** The shape to add: `card-sale@1`. */
+  shape: string;
+  /** The app's table for each part, by `<shape>@<version>/<part>` (or the part's name alone). */
+  tables?: Readonly<Record<string, string>> | undefined;
+  /** The app's table files as they read now, by ref. */
+  have: Readonly<Record<string, Json>>;
+  /** The moment each step of the shape's postings happens; the shape's own where none is given. */
+  when?: { reserve?: unknown; post?: unknown; reverse?: unknown } | undefined;
+  /** A shape column → a column the app already has: `amount`, or `lines.amount` where two parts have one of that name. */
+  columns?: Readonly<Record<string, string>> | undefined;
+  /** `suggests`: the app runs without the add-on, and the rules are live only while it is there. */
+  need?: 'requires' | 'suggests' | undefined;
+}
+
+export interface AdoptedTable {
+  ref: string;
+  part: string;
+  /** A table written new (a part that only keeps rows, as the codes typed on an order). */
+  made: boolean;
+  /** The columns added, and the columns the table had that were given a link into the add-on. */
+  added: { column: string; type: string; links?: string; given?: true }[];
+  /** The shape's columns the table already had: the shape's name, and the app's. */
+  used: { column: string; as: string }[];
+  /** The rules written, in words. */
+  rules: string[];
+}
+
+export type AdoptPartsResult =
+  | { ok: false; problem: string }
+  | {
+      ok: true;
+      /** The table files, by their path inside the app's `manifest/` folder. */
+      files: Record<string, Json>;
+      tables: AdoptedTable[];
+      /** The add-on, the range the app names, and the first Adminium the add-on itself runs on. */
+      addOn: { key: string; name: string; range: string; floor: string | null };
+      /** With `suggests`: the feature the rules are live under. */
+      feature: string | null;
+      /** The add-on's tables the added columns link into. */
+      links: string[];
+    };
+
+const PHASES = ['reserve', 'post', 'reverse'] as const;
+type Phase = (typeof PHASES)[number];
+const KINDS: Readonly<Record<string, string>> = { int: 'number', bigint: 'number', decimal: 'number', float: 'number', money: 'number', text: 'text', enum: 'text', timestamptz: 'time', date: 'time', bool: 'yes/no' };
+const WHOLE = new Set(['int', 'bigint']);
+const isJson = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
+const refOf = (column: Json): string => (typeof column['ref'] === 'string' ? column['ref'] : '');
+
+/** Whether a shape is added to the app's own tables: any part of it carries a rule. */
+export function spelledOut(document: unknown, shape: string): boolean {
+  const shapes = (document as { addOn?: { shapes?: { name?: unknown; version?: unknown; parts?: Record<string, unknown> }[] } } | null)?.addOn?.shapes ?? [];
+  const found = shapes.find((candidate) => `${String(candidate.name)}@${String(candidate.version)}` === shape);
+  return Object.values(found?.parts ?? {}).some((part) => typeof part === 'object' && part !== null && ('postings' in part || 'adjust' in part));
+}
+
+export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
+  const no = (problem: string): AdoptPartsResult => ({ ok: false, problem });
+  const raw = (input.document as { addOn?: { shapes?: unknown[] }; version?: unknown; name?: unknown; compatibility?: { minAdminiumVersion?: unknown } } | null) ?? {};
+  const all = new Map<string, ShapeDefinition>();
+  for (const candidate of raw.addOn?.shapes ?? []) {
+    const parsed = shapeDefinitionSchema.safeParse(candidate);
+    if (parsed.success) all.set(`${parsed.data.name}@${String(parsed.data.version)}`, parsed.data);
+  }
+  const shape = all.get(input.shape);
+  if (shape === undefined) return no(`"${input.addOn}" has no shape "${input.shape}". Its shapes: ${[...all.keys()].join(', ') || 'none'}.`);
+  type Part = ShapeDefinition['parts'][string] & { adjust?: Json; postings?: Json[] };
+  const parts = Object.entries(shape.parts) as [string, Part][];
+  const partNames = parts.map(([name]) => name);
+  const partOf = (name: string): Part => shape.parts[name] as Part;
+  /** The part a part's rows belong to: the one its foreign key names. */
+  const parentOf = (name: string): { part: string; column: string } | null => {
+    const link = partOf(name).columns.find((column) => column.references !== undefined && partNames.includes(column.references));
+    return link === undefined ? null : { part: link.references as string, column: link.ref };
+  };
+  const priced = new Set(parts.flatMap(([, part]) => ((part.adjust?.['lines'] as { table?: string }[] | undefined) ?? []).flatMap((line) => (typeof line.table === 'string' ? [line.table] : []))));
+  /** A part that only keeps rows may be a table written here; every other is the app's own, and is there first. */
+  const mayBeNew = (name: string): boolean => parentOf(name) !== null && partOf(name).adjust === undefined && partOf(name).postings === undefined && !priced.has(name);
+
+  // Each part's table.
+  const named = input.tables ?? {};
+  const example = `Give "tables": { ${partNames.map((name) => `"${input.shape}/${name}": "${mayBeNew(name) ? '<a new table’s name>' : `<your ${parentOf(name) === null ? `${name}s` : name} table>`}"`).join(', ')} }.`;
+  const stray = Object.keys(named).find((key) => !partNames.some((name) => key === name || key === `${input.shape}/${name}`));
+  if (stray !== undefined) return no(`"${stray}" is not a part of ${input.shape}. Its parts: ${partNames.join(', ')}. ${example}`);
+  const tableOf = new Map<string, string>();
+  for (const name of partNames) {
+    const ref = named[`${input.shape}/${name}`] ?? named[name];
+    if (ref === undefined) return no(`${input.shape} is added to tables the app already has. ${example}`);
+    if (!/^[a-z][a-z0-9_]{0,62}$/.test(ref)) return no(`"${ref.slice(0, 80)}" is not a table name: use snake_case.`);
+    if ([...tableOf.values()].includes(ref)) return no(`Two parts would both be the table "${ref}": each part of ${input.shape} is a table of its own. ${example}`);
+    tableOf.set(name, ref);
+  }
+  for (const name of partNames) {
+    const ref = tableOf.get(name) as string;
+    if (input.have[ref] === undefined && !mayBeNew(name)) {
+      return no(`There is no table "${ref}" yet. Write tables/${ref}.json first (the app's own ${name === 'order' ? 'orders' : name}, nothing about ${input.addOn}), then call this again.`);
+    }
+  }
+
+  // Which of the app's columns stands for each of the shape's.
+  const pairs = { ...(input.columns ?? {}) };
+  const taken = new Set<string>();
+  const paired = (part: string, column: string): string | undefined => {
+    for (const key of [`${part}.${column}`, column]) {
+      if (pairs[key] !== undefined) {
+        taken.add(key);
+        return pairs[key];
+      }
+    }
+    return undefined;
+  };
+  const table = (part: string): Json | undefined => input.have[tableOf.get(part) as string];
+  const columnsOf = (part: string): Json[] => {
+    const file = table(part);
+    return file !== undefined && Array.isArray(file['columns']) ? (file['columns'] as Json[]) : [];
+  };
+  const fileOf = (part: string): string => `tables/${tableOf.get(part) as string}.json`;
+
+  // When each step happens: the caller's moment, else the shape's own.
+  const given: Partial<Record<Phase, PostingPoint>> = {};
+  for (const phase of PHASES) {
+    const moment = input.when?.[phase];
+    if (moment === undefined || moment === null) continue;
+    const point = postingPointSchema.safeParse(moment);
+    if (!point.success) {
+      return no(`"when.${phase}" is not a moment a rule fires at. Give one of {"create": true}, {"to": ["<state>"]}, {"column": "<column>", "in": [<value>]}, or {"column": "<column>", "set": true}.`);
+    }
+    given[phase] = point.data;
+  }
+  const ledgers = declaredLedgers(input.document);
+  /** The columns the shape's own moments read, by part: left out when the caller's moment replaces every one that reads them. */
+  const momentOnly = new Map<string, Set<string>>(partNames.map((name) => [name, new Set<string>()]));
+  const momentKept = new Map<string, Set<string>>(partNames.map((name) => [name, new Set<string>()]));
+  const pointsOf = new Map<string, Partial<Record<Phase, { on: PostingPoint; shapes: boolean }>>>();
+  for (const [name, part] of parts) {
+    for (const posting of part.postings ?? []) {
+      const id = String(posting['id']);
+      const into = posting['into'] as { ledger: string; action: string };
+      const phases = (ledgers.find((ledger) => ledger.id === into.ledger)?.actions[into.action]?.phases ?? PHASES) as readonly string[];
+      const up = posting['via'] === undefined ? null : parentOf(name);
+      const out: Partial<Record<Phase, { on: PostingPoint; shapes: boolean }>> = {};
+      for (const phase of PHASES) {
+        const own = (posting[phase] as { on: PostingPoint } | undefined)?.on;
+        if (own !== undefined && 'column' in own) (own.own === true || up === null ? momentOnly.get(name) : momentOnly.get(up.part))?.add(own.column);
+        const moment = given[phase];
+        if (moment === undefined) {
+          if (own !== undefined) {
+            out[phase] = { on: own, shapes: true };
+            if ('column' in own) (own.own === true || up === null ? momentKept.get(name) : momentKept.get(up.part))?.add(own.column);
+          }
+          continue;
+        }
+        if (!phases.includes(phase)) return no(`${input.addOn}/${into.ledger}/${into.action} has no "${phase}". It takes: ${phases.join(', ')}. Give "when" for those.`);
+        if (!('column' in moment)) {
+          out[phase] = { on: moment, shapes: false };
+          continue;
+        }
+        // The caller's column: of this table (a line's own change), else of the row its lines belong to.
+        const inPart = (candidate: string): boolean => columnsOf(candidate).some((column) => refOf(column) === moment.column) || partOf(candidate).columns.some((column) => column.ref === moment.column);
+        const home = moment.own === true || up === null ? (inPart(name) ? name : null) : inPart(name) && !columnsOf(up.part).some((column) => refOf(column) === moment.column) ? name : inPart(up.part) ? up.part : null;
+        if (home === null) {
+          return no(`"${moment.column}" in "when.${phase}" is not a column of ${[fileOf(name), ...(up === null || moment.own === true ? [] : [fileOf(up.part)])].join(' or ')}. Add it to the table whose change it is, then call this again.`);
+        }
+        const { own: _own, ...plain } = moment;
+        out[phase] = { on: (home === name && up !== null ? { ...plain, own: true } : plain) as PostingPoint, shapes: false };
+        if (partOf(home).columns.some((column) => column.ref === moment.column)) momentKept.get(home)?.add(moment.column);
+      }
+      pointsOf.set(`${name}/${id}`, out);
+    }
+  }
+  /** Every name a rule of the shape reads, by part: a column a moment reads and nothing else does is the moment's alone. */
+  const ruled = new Map<string, Set<string>>(partNames.map((name) => [name, new Set<string>()]));
+  const reads = (part: string, value: unknown): void => {
+    if (typeof value === 'string') ruled.get(part)?.add(value);
+  };
+  for (const [name, part] of parts) {
+    for (const posting of part.postings ?? []) {
+      for (const mapped of Object.values((posting['map'] as Json | undefined) ?? {})) {
+        if (typeof mapped === 'string') reads(name, mapped);
+        else if (isJson(mapped) && typeof mapped['parent'] === 'string') reads(parentOf(name)?.part ?? name, mapped['parent']);
+      }
+    }
+    const adjust = part.adjust;
+    if (adjust === undefined) continue;
+    for (const line of (adjust['lines'] as Json[] | undefined) ?? []) {
+      const of = String(line['table']);
+      for (const key of ['via', 'price', 'quantity', 'discount']) reads(of, line[key]);
+      for (const what of (line['what'] as Json[] | undefined) ?? []) reads(of, what['column']);
+      for (const key of ['excludes', 'paidBy']) reads(of, (line[key] as Json | undefined)?.['column']);
+    }
+    const walk = (value: unknown): void => {
+      if (typeof value === 'string') reads(name, value);
+      else if (isJson(value)) Object.values(value).forEach(walk);
+    };
+    walk(adjust['order']);
+    for (const key of ['codes', 'refunds']) {
+      const child = adjust[key] as Json | undefined;
+      if (child === undefined) continue;
+      for (const [field, value] of Object.entries(child)) if (field !== 'table') reads(String(child['table']), value);
+    }
+  }
+  const what = new Set(parts.flatMap(([, part]) => ((part.adjust?.['lines'] as Json[] | undefined) ?? []).flatMap((line) => ((line['what'] as Json[] | undefined) ?? []).map((entry) => `${String(line['table'])}.${String(entry['column'])}`))));
+
+  // The shape's columns on the app's tables: one the table has is used, the rest are added.
+  const colOf = new Map<string, string>();
+  const adding = new Map<string, ShapeDefinition['parts'][string]['columns'][number][]>(partNames.map((name) => [name, []]));
+  const out = new Map<string, AdoptedTable>();
+  const next = new Map<string, Json[]>();
+  for (const [name, part] of parts) {
+    const ref = tableOf.get(name) as string;
+    const made = table(name) === undefined;
+    const columns = columnsOf(name).map((column) => ({ ...column }));
+    const report: AdoptedTable = { ref, part: name, made, added: [], used: [], rules: [] };
+    out.set(name, report);
+    next.set(name, columns);
+    const up = parentOf(name);
+    for (const column of part.columns) {
+      const key = `${name}.${column.ref}`;
+      if (column.role === 'pk') {
+        const pk = columns.find((candidate) => candidate['role'] === 'pk');
+        if (made) columns.push({ ref: 'id', type: 'int', role: 'pk' });
+        colOf.set(key, pk === undefined ? 'id' : refOf(pk));
+        continue;
+      }
+      if (up !== null && column.ref === up.column) {
+        const target = tableOf.get(up.part) as string;
+        const wanted = paired(name, column.ref);
+        if (made) {
+          const link = wanted ?? `${singular(target)}_id`;
+          columns.push({ ref: link, type: 'fk', references: target });
+          colOf.set(key, link);
+          continue;
+        }
+        const links = columns.filter((candidate) => candidate['type'] === 'fk' && candidate['references'] === target).map(refOf);
+        if (wanted !== undefined && !links.includes(wanted)) return no(`"${wanted}" is not a link from ${fileOf(name)} to "${target}". ${links.length === 0 ? 'It has none' : `Its links to it: ${links.join(', ')}`}.`);
+        if (wanted === undefined && links.length === 0) {
+          return no(`${fileOf(name)} has no link to "${target}". Add { "ref": "${singular(target)}_id", "type": "fk", "references": "${target}" } to its columns, then call this again.`);
+        }
+        if (wanted === undefined && links.length > 1) return no(`${fileOf(name)} links to "${target}" by ${links.join(', ')}: say which in "columns": { "${key}": "<column>" }.`);
+        colOf.set(key, wanted ?? (links[0] as string));
+        continue;
+      }
+      // A column only the shape's own moment reads, where the caller gave another moment: not this app's.
+      if (momentOnly.get(name)?.has(column.ref) === true && momentKept.get(name)?.has(column.ref) !== true && ruled.get(name)?.has(column.ref) !== true) continue;
+      const wanted = paired(name, column.ref);
+      const has = columns.find((candidate) => refOf(candidate) === (wanted ?? column.ref));
+      if (has === undefined) {
+        // What a line sells is the app's own link to the thing sold: never a column this could add.
+        if (what.has(key)) {
+          return no(
+            `"${column.ref}" of ${input.shape} says what a line sells: ${wanted === undefined ? 'a link from your own table to the thing sold' : `"${wanted}" is not a column of ${fileOf(name)}`}. Name the link column ${fileOf(name)} has (its "type" is "fk") in "columns": { "${key}": "<column>" }.`,
+          );
+        }
+        if (wanted !== undefined) return no(`"${wanted}" is not a column of ${fileOf(name)}. Name a column it has in "columns", or leave "${column.ref}" out and it is added.`);
+        colOf.set(key, column.ref);
+        adding.get(name)?.push(column);
+        continue;
+      }
+      const link = column.rules?.addOnLink as { addOn: string; table: string } | undefined;
+      const type = String(has['type']);
+      const again = `name another column in "columns": { "${key}": "<column>" }`;
+      if (link !== undefined) {
+        if (!WHOLE.has(type)) return no(`"${refOf(has)}" is ${type} in ${fileOf(name)}, and "${column.ref}" of ${input.shape} is a link to a row of ${link.addOn}.${link.table}: a whole number. Change its type to "int", or ${again}.`);
+        const rules = { ...((has['rules'] as Json | undefined) ?? {}) };
+        const now = rules['addOnLink'] as { addOn?: unknown; table?: unknown } | undefined;
+        if (now !== undefined && (now.addOn !== link.addOn || now.table !== link.table)) return no(`"${refOf(has)}" in ${fileOf(name)} links to ${String(now.addOn)}.${String(now.table)}, and "${column.ref}" of ${input.shape} is a row of ${link.addOn}.${link.table}. Take that link off it, or ${again}.`);
+        if (now === undefined) {
+          if (has['references'] !== undefined) return no(`"${refOf(has)}" in ${fileOf(name)} has "references": it links to a table of this app, and "${column.ref}" of ${input.shape} is a row of ${link.addOn}.${link.table}. Take "references" off it, or ${again}.`);
+          has['rules'] = { ...rules, addOnLink: link };
+          has['nullable'] = true;
+          delete has['default'];
+          report.added.push({ column: refOf(has), type, links: `${link.addOn}.${link.table}`, given: true });
+        }
+      } else if (!what.has(key) && KINDS[type] !== KINDS[column.type] && !(type === 'fk' && column.type === 'text')) {
+        return no(`"${refOf(has)}" is ${type} in ${fileOf(name)}, and "${column.ref}" of ${input.shape} is ${column.type}. Change its type to "${column.type}", or ${again}.`);
+      }
+      colOf.set(key, refOf(has));
+      report.used.push({ column: column.ref, as: refOf(has) });
+    }
+  }
+  const unused = Object.keys(pairs).find((key) => !taken.has(key));
+  if (unused !== undefined) {
+    return no(`"${unused}" in "columns" is not a column of ${input.shape}. Its columns: ${parts.map(([name, part]) => `${name}: ${part.columns.filter((column) => column.role !== 'pk').map((column) => column.ref).join(', ')}`).join('; ')}. Write one as "<part>.<column>" where two parts have a column of that name.`);
+  }
+
+  const at = (part: string, column: unknown): unknown => (typeof column === 'string' ? (colOf.get(`${part}.${column}`) ?? column) : column);
+  const mapTable = (ref: string): string => tableOf.get(ref) ?? ref;
+  const deep = (part: string, value: unknown): unknown => (Array.isArray(value) ? value.map((entry) => deep(part, entry)) : isJson(value) ? Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, deep(part, entry)])) : at(part, value));
+  const feature = input.need === 'suggests' ? input.addOn : null;
+  const links = new Set<string>();
+  const files: Record<string, Json> = {};
+
+  for (const [name, part] of parts) {
+    const ref = tableOf.get(name) as string;
+    const report = out.get(name) as AdoptedTable;
+    const columns = next.get(name) as Json[];
+    for (const column of adding.get(name) ?? []) {
+      const copy: Json = { ...(column as unknown as Json) };
+      if (column.rules !== undefined) {
+        const rules: Json = { ...(mapShapeRules(column.rules, mapTable) as Json) };
+        const rollup = (column.rules as Json)['rollup'] as Json | undefined;
+        if (rollup !== undefined) {
+          const from = String(rollup['from']);
+          rules['rollup'] = { ...rollup, from: mapTable(from), via: at(from, rollup['via']), ...(rollup['sum'] === undefined ? {} : { sum: at(from, rollup['sum']) }) };
+        }
+        if ((column.rules as Json)['formula'] !== undefined) rules['formula'] = deep(name, (column.rules as Json)['formula']);
+        const lookup = (column.rules as Json)['lookup'] as Json | undefined;
+        if (lookup !== undefined) rules['lookup'] = { ...lookup, from: at(name, lookup['from']) };
+        copy['rules'] = rules;
+      }
+      columns.push(copy);
+      const link = column.rules?.addOnLink as { addOn: string; table: string } | undefined;
+      report.added.push({ column: column.ref, type: column.type, ...(link === undefined ? {} : { links: `${link.addOn}.${link.table}` }) });
+    }
+    for (const added of report.added) if (added.links !== undefined) links.add(added.links);
+
+    const file: Json = table(name) === undefined ? { ref, label: { 'en-US': words(singular(ref), false) }, labelPlural: { 'en-US': words(ref, true) }, keyField: 'id', columns } : { ...(table(name) as Json), columns };
+    const postings = (part.postings ?? []).map((posting) => {
+      const points = pointsOf.get(`${name}/${String(posting['id'])}`) ?? {};
+      const up = parentOf(name);
+      const { reserve: _reserve, post: _post, reverse: _reverse, ...rest } = posting;
+      const mapped: Json = {
+        ...rest,
+        ...(feature === null ? {} : { needs: feature }),
+        ...(posting['via'] === undefined ? {} : { via: at(name, posting['via']) }),
+        map: Object.fromEntries(
+          Object.entries((posting['map'] as Json | undefined) ?? {}).map(([inputName, from]) => [inputName, typeof from === 'string' ? at(name, from) : isJson(from) && typeof from['parent'] === 'string' ? { parent: at(up?.part ?? name, from['parent']) } : from]),
+        ),
+      };
+      for (const phase of PHASES) {
+        const point = points[phase];
+        if (point === undefined) continue;
+        const on = point.on;
+        // The shape's own moment names the shape's column: the app's stands in for it.
+        mapped[phase] = { on: point.shapes && 'column' in on ? { ...on, column: at(on.own === true || up === null || posting['via'] === undefined ? name : up.part, on.column) } : on };
+      }
+      const into = posting['into'] as { ledger: string; action: string };
+      report.rules.push(`the rule "${String(posting['id'])}" posts into ${input.addOn}/${into.ledger} (${into.action})`);
+      return mapped;
+    });
+    if (postings.length > 0) {
+      const before = Array.isArray(file['postings']) ? (file['postings'] as Json[]) : [];
+      file['postings'] = [...before.filter((other) => !postings.some((posting) => posting['id'] === other['id'])), ...postings];
+    }
+    if (part.adjust !== undefined) {
+      const adjust = part.adjust;
+      const child = (block: Json | undefined): Json | undefined => {
+        if (block === undefined) return undefined;
+        const of = String(block['table']);
+        return Object.fromEntries(Object.entries(block).map(([key, value]) => [key, key === 'table' ? mapTable(of) : at(of, value)]));
+      };
+      file['adjust'] = {
+        ...adjust,
+        ...(feature === null ? {} : { needs: feature }),
+        lines: ((adjust['lines'] as Json[] | undefined) ?? []).map((line) => {
+          const of = String(line['table']);
+          const one = (key: string): Json => (line[key] === undefined ? {} : { [key]: { ...(line[key] as Json), column: at(of, (line[key] as Json)['column']) } });
+          return {
+            ...line,
+            table: mapTable(of),
+            via: at(of, line['via']),
+            price: at(of, line['price']),
+            ...(line['quantity'] === undefined ? {} : { quantity: at(of, line['quantity']) }),
+            discount: at(of, line['discount']),
+            ...(line['what'] === undefined ? {} : { what: (line['what'] as Json[]).map((entry) => ({ ...entry, column: at(of, entry['column']) })) }),
+            ...one('excludes'),
+            ...one('paidBy'),
+          };
+        }),
+        order: deep(name, adjust['order']),
+        ...(adjust['codes'] === undefined ? {} : { codes: child(adjust['codes'] as Json) }),
+        ...(adjust['refunds'] === undefined ? {} : { refunds: child(adjust['refunds'] as Json) }),
+      };
+      report.rules.push(`the "adjust" rule: ${input.addOn} answers the price of a row of "${ref}"`);
+    }
+    files[`tables/${ref}.json`] = file;
+  }
+
+  const version = typeof raw.version === 'string' ? raw.version : '0.0.0';
+  const floor = raw.compatibility?.minAdminiumVersion;
+  return {
+    ok: true,
+    files,
+    tables: [...out.values()],
+    addOn: { key: input.addOn, name: typeof raw.name === 'string' ? raw.name : input.addOn, range: `>=${version}`, floor: typeof floor === 'string' ? floor : null },
+    feature,
+    links: [...links],
+  };
 }

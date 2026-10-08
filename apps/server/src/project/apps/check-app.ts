@@ -28,7 +28,7 @@ import { addAndReadRefusal, anonymousAddAndRead, openToAnyone } from '../../apps
 import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
 import { unbuiltInManifest } from '../../crud/unbuilt-rules.js';
-import { declaredLedgers, hostPostingIssue } from './ledger-parts.js';
+import { declaredLedgers, hostAdjustIssue, hostPostingIssue } from './ledger-parts.js';
 import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
 import { hasOwnBuild } from './own-build.js';
@@ -256,6 +256,15 @@ export function checkApp(root: string, key: string, opts: { version: string; add
         findings.push(error(where.file, where.path, `"${table.ref}.${column.ref}" is ${column.type}, and the key of "${link.addOn}.${link.table}" is ${keyType}: it cannot hold it (ADD_ON_LINK_MISMATCH).`));
       }
     });
+  });
+
+  // A rule that asks an add-on the price: with the add-on in sight, it is one that answers, and the rule's links and posting are its.
+  manifest.requiredSchema.tables.forEach((table, t) => {
+    const addOn = table.adjust === undefined ? undefined : addOns?.get(table.adjust.by.addOn);
+    if (addOn === undefined) return;
+    const issue = hostAdjustIssue(table, manifest.requiredSchema.tables, addOn);
+    const where = at(`requiredSchema.tables.${String(t)}.adjust`);
+    if (issue !== null) findings.push(error(where.file, where.path, issue));
   });
 
   // A rule that posts into an add-on's ledger: with the add-on in sight, every name in it is one of the add-on's.
