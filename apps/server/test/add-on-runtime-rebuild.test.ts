@@ -223,7 +223,8 @@ describe('the add-on routes call the hooks at all', () => {
      * Asserted here, in source, because the defect is an ORDERING and a green
      * runtime suite is what it looks like when the order is wrong.
      */
-    expect(compose).toMatch(/void packagesReady\s*\.then\(\(\) => rebuildAddOnRuntime\(\)\)/);
+    // (Kept in `addOnsLoaded`, which a caller that must not ask an add-on too early waits on: the order is the same.)
+    expect(compose).toMatch(/const addOnsLoaded = packagesReady\s*\.then\(\(\) => rebuildAddOnRuntime\(\)\)/);
     // …and `packagesReady` is itself gated on BOTH seeds, so nothing here can
     // quietly become "restore only".
     expect(compose).toMatch(/const packagesReady = Promise\.all\(\[appSeed, addOnSeed\]\)/);
