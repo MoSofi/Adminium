@@ -437,10 +437,11 @@ jobs:
   suite:
     name: suite (${{ matrix.package }})
     runs-on: ubuntu-latest
-    # Under verify's 40: the longest leg here is server, at ~25 minutes on
-    # 2026-09-30 (its three-engine tests grow with every rule), plus install
-    # and the dependency builds.
-    timeout-minutes: 35
+    # The longest leg here is server: ~25 minutes on 2026-09-30, 33m26s on
+    # 2026-10-08 (its three-engine tests grow with every rule), plus install
+    # and the dependency builds. At 35 it was cancelled once at the limit
+    # with no test red, so the limit is above verify's 40 now.
+    timeout-minutes: 45
     strategy:
       # One red suite must not hide the state of the other two.
       fail-fast: false
