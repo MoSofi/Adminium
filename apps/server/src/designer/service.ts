@@ -728,6 +728,7 @@ export function createDesigner(host: DesignerHost): Designer {
         if (host.versions == null || !(await host.versions.available())) {
           throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
         }
+        hold.announce();
         await host.seam?.('held', 'restore');
         const version = await host.versions.restore(session, n, { record: opts.record });
         // The files are a version's again: none of them is the person's own edit any more.
@@ -843,6 +844,8 @@ export function createDesigner(host: DesignerHost): Designer {
         if (loose.length > 0) {
           throw new ConflictError('The Designer’s last change was not finished. Ask it to finish, or put the files back.', 'CONFLICT', { reason: 'UNFINISHED_CHANGE' });
         }
+        // Everything that could refuse this save has been asked: from here it writes, and the session's pages are told.
+        hold.announce();
         await host.seam?.('held', 'save');
 
         // 6. Written, all or none: a write that fails puts back, byte for byte, what the earlier ones replaced.
@@ -934,6 +937,7 @@ export function createDesigner(host: DesignerHost): Designer {
         }
         // A style of words alone has no values to write: it is the Designer's to apply, in a turn.
         if (!skill.hasTheme) throw new ConflictError('This style is words alone: ask for it in the chat, and the Designer applies it.', 'CONFLICT', { reason: 'STYLE_NEEDS_A_TURN' });
+        hold.announce();
         await host.seam?.('held', 'style');
         const before = readLook(host.root, session.appKey);
         // A font file of the person's own stays in use across a change of style.

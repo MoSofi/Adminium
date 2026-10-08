@@ -728,7 +728,14 @@ describe('the project folder', () => {
     await h.runner.start(session.id, { text: 'go', by });
     await h.runner.settled();
     h.published.length = 0;
+    // Taken and handed back with nothing written (a request refused on its way): nothing is said.
     h.runner.hold('save', session.id).release();
+    expect(h.published).toEqual([]);
+    const writing_ = h.runner.hold('save', session.id);
+    writing_.announce();
+    writing_.announce();
+    writing_.release();
+    writing_.announce();
     expect(h.published).toEqual([
       expect.objectContaining({ kind: 'hold', what: 'save', by: 'person', turn: 1, sessionId: session.id }),
       expect.objectContaining({ kind: 'released', what: 'save', by: 'person', turn: 1 }),
@@ -737,7 +744,9 @@ describe('the project folder', () => {
     expect(store.eventsSince(session.id, 0, 100).events.slice(-2).map((event) => [event.kind, event.by])).toEqual([['hold', 'person'], ['released', 'person']]);
     // A copy has no session: nothing is said, and nothing is needed to say it.
     h.published.length = 0;
-    h.runner.hold('start').release();
+    const copy = h.runner.hold('start');
+    copy.announce();
+    copy.release();
     expect(h.published).toEqual([]);
   });
 

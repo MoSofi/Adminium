@@ -134,9 +134,16 @@ export interface RunnerDeps {
 /** What has the folder: a turn, or one of the things a person does from the page. */
 export type BusyKind = 'turn' | HoldKind;
 
-/** The folder, held for one piece of work. `signal` says when that work must stop; `release` hands the folder back, once. */
+/**
+ * The folder, held for one piece of work. `signal` says when that work must
+ * stop; `release` hands the folder back, once. `announce` tells the session's
+ * pages that the folder is being written (`hold`, and `released` when it is
+ * handed back): called when the work is about to write, so a request that is
+ * refused before it writes anything says nothing to anyone.
+ */
 export interface FolderHold {
   signal: AbortSignal;
+  announce(): void;
   release(): void;
 }
 
@@ -156,8 +163,8 @@ export interface DesignerRunner {
   /**
    * Take the folder for something a person does from the page, at once or not
    * at all: 409 while a turn runs (reason `TURN_RUNNING`) or another hold has
-   * it (`DESIGNER_BUSY`). With a session, its pages are told (`hold`, then
-   * `released`).
+   * it (`DESIGNER_BUSY`). With a session, its pages are told once the hold is
+   * announced (`hold`, then `released`).
    */
   hold(kind: HoldKind, sessionId?: string): FolderHold;
   /** Keep the folder for a turn that starts in a moment (a new session with its first message). 409 as `hold`. */
@@ -307,16 +314,21 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         deps.log?.('could not tell a session that its folder is held', error);
       }
     };
-    say('hold');
+    let announced = false;
     let released = false;
     return {
       signal: controller.signal,
+      announce: () => {
+        if (announced || released) return;
+        announced = true;
+        say('hold');
+      },
       release: () => {
         if (released) return;
         released = true;
         if (timer !== undefined) clearTimeout(timer);
         if (held?.token === token) held = null;
-        say('released');
+        if (announced) say('released');
         finish();
       },
     };

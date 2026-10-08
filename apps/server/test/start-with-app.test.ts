@@ -173,7 +173,7 @@ describe('the copy', () => {
     const hold = () => {
       order.push(`hold (fetched ${String(fetched.length)}, folder ${String(existsSync(join(root, 'apps', copy)))})`);
       const controller = new AbortController();
-      return { signal: controller.signal, release: () => void order.push('release') };
+      return { signal: controller.signal, announce: () => undefined, release: () => void order.push('release') };
     };
     const made = starter({
       hold,

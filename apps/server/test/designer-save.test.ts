@@ -334,6 +334,7 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     writeFileSync(join(root, 'hooks/x.ts'), 'export {};');
     const before = disk(BRIEF);
     const good = (await listed(client, id)).all.get(BRIEF)?.hash as string;
+    const said = (await eventsOf(client, id)).length;
     for (const path of BREAKING) {
       const res = await client.call('PUT', filesUrl(id), {
         files: [
@@ -370,7 +371,8 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     // 40 files and a body of some megabytes are within what a save takes: refused for its paths, not for its size.
     const many = await client.call('PUT', filesUrl(id), { files: Array.from({ length: 40 }, (_unused, n) => ({ path: `${APP}/customer/src/f${String(n)}.ts`, content: 'y'.repeat(60 * 1024), base: good })) });
     expect(many.status, JSON.stringify(many.body).slice(0, 300)).toBe(404);
-    // Nothing was kept as a version, and nothing is recorded as the person's edit.
+    // Nothing was kept as a version, nothing is recorded as the person's edit, and no page was told anything happened.
+    expect(await eventsOf(client, id)).toHaveLength(said);
     expect((await listed(client, id)).version).toBe(2);
     expect(handEdits(id)).toBeUndefined();
   });
