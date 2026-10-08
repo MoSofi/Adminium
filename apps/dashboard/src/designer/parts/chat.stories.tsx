@@ -20,6 +20,7 @@ import {
   RemovalCard,
   RowsCard,
   SavedChip,
+  SpendNotice,
   StepsBlock,
   StoppedNote,
   StyleChip,
@@ -142,6 +143,24 @@ export const Endings = {
       <LimitNote which="session-tokens" value={4_000_000} version={null} busy={false} />
       <FailedNote error={{ code: 'server', message: 'overloaded', provider: 'Anthropic', status: 529 }} busy={false} onRetry={noop} />
       <NotAppliedNote message="The check found errors." />
+    </div>
+  ),
+};
+
+/** The marks passed: this turn's while it still works, the session's from then on, and both at once. */
+export const Spend = {
+  tags: ['vrt'],
+  render: () => (
+    <div className="flex w-[420px] flex-col gap-3 bg-surface pb-4 pt-2">
+      <SpendNotice warnings={[{ which: 'turn-tokens', mark: 150_000 }]} />
+      <SpendNotice warnings={[{ which: 'session-tokens', mark: 1_000_000 }]} onNewSession={noop} />
+      <SpendNotice
+        warnings={[
+          { which: 'turn-tokens', mark: 150_000 },
+          { which: 'session-tokens', mark: 1_000_000 },
+        ]}
+        onNewSession={noop}
+      />
     </div>
   ),
 };

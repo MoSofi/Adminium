@@ -2,12 +2,12 @@
 /**
  * The live Designer's switch.
  */
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { LIVE_ID_FILE, createLive, type LiveDeps } from '../src/designer/live.js';
+import { LIVE_APPS_ID_FILE, LIVE_ID_FILE, createLive, type LiveDeps } from '../src/designer/live.js';
 import { tempProject } from './app-project-helpers.js';
 
 let root: string;
@@ -68,5 +68,42 @@ describe('the live Designer’s switch', () => {
     expect(logged[0]).toContain('did not come back as it was left');
     expect(await rebooted.set(true)).toBeNull();
     expect(await rebooted.state()).toMatchObject({ on: true, reason: null });
+  });
+
+  it('writes its id where the apps are too, and goes off when that folder alone did not come back', async () => {
+    const first = live();
+    await first.set(true);
+    const id = stored.id;
+    const read = (file: string): unknown => JSON.parse(readFileSync(join(root, file), 'utf8'));
+    expect(read(LIVE_APPS_ID_FILE)).toEqual({ id });
+    expect(read(LIVE_ID_FILE)).toEqual({ id, places: ['apps'] });
+    expect(await live().checkAtBoot()).toBe(false);
+
+    // A host that keeps `.adminium/` and not `apps/`: what the Designer built is gone, though its own notes are there.
+    rmSync(join(root, 'apps'), { recursive: true, force: true });
+    const rebooted = live();
+    expect(await rebooted.checkAtBoot()).toBe(true);
+    expect(stored).toEqual({ on: false, id: null });
+    expect(await rebooted.state()).toMatchObject({ on: false, reason: 'disk-not-kept' });
+
+    // An id in `apps/` that is another switch's (a folder copied in from elsewhere) is no proof either.
+    await rebooted.set(true);
+    writeFileSync(join(root, LIVE_APPS_ID_FILE), JSON.stringify({ id: 'f'.repeat(32) }));
+    expect(await live().checkAtBoot()).toBe(true);
+  });
+
+  it('a switch left on by a version that wrote one id stays on, and gets the second', async () => {
+    await live().set(true);
+    const id = stored.id as string;
+    // As 0.3.17 left it: the one file, with the id alone.
+    writeFileSync(join(root, LIVE_ID_FILE), `${JSON.stringify({ id }, null, 2)}\n`);
+    rmSync(join(root, LIVE_APPS_ID_FILE), { force: true });
+    expect(await live().checkAtBoot()).toBe(false);
+    expect(stored).toEqual({ on: true, id });
+    expect(JSON.parse(readFileSync(join(root, LIVE_APPS_ID_FILE), 'utf8'))).toEqual({ id });
+    expect(JSON.parse(readFileSync(join(root, LIVE_ID_FILE), 'utf8'))).toEqual({ id, places: ['apps'] });
+    // From then on both are asked for.
+    rmSync(join(root, LIVE_APPS_ID_FILE), { force: true });
+    expect(await live().checkAtBoot()).toBe(true);
   });
 });

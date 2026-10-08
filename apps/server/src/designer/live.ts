@@ -18,6 +18,10 @@
  *                 did not survive a restart: what the Designer built there
  *                 is gone, and would be again. The switch goes off and says
  *                 why.
+ *
+ * The id is written in two places: beside the Designer's own notes
+ * (`.adminium/`), and where the apps it builds are (`apps/`). A host can keep
+ * one folder and not the other, and the apps are what must come back.
  */
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -53,6 +57,8 @@ export interface LiveDeps {
 }
 
 export const LIVE_ID_FILE = join('.adminium', 'designer', 'live.json');
+/** The same id, where the apps are. A name that starts with a dot is no app: nothing that lists `apps/` reads it as one. */
+export const LIVE_APPS_ID_FILE = join('apps', '.designer-live.json');
 
 export interface Live {
   state(): Promise<LiveState>;
@@ -66,13 +72,25 @@ export function createLive(deps: LiveDeps): Live {
   /** Set when a boot found the folder had not been kept: said until the switch is used again. */
   let lost = false;
 
-  const idInFolder = (): string | null => {
-    if (deps.root === null) return null;
+  const readId = (file: string): { id: string | null; places: boolean } => {
+    if (deps.root === null) return { id: null, places: false };
     try {
-      const parsed = JSON.parse(readFileSync(join(deps.root, LIVE_ID_FILE), 'utf8')) as { id?: unknown };
-      return typeof parsed.id === 'string' ? parsed.id : null;
+      const parsed = JSON.parse(readFileSync(join(deps.root, file), 'utf8')) as { id?: unknown; places?: unknown };
+      return { id: typeof parsed.id === 'string' ? parsed.id : null, places: Array.isArray(parsed.places) && parsed.places.includes('apps') };
     } catch {
-      return null;
+      return { id: null, places: false };
+    }
+  };
+  /** Both files, the first saying the second was written. Throws when either cannot be. */
+  const writeIds = (root: string, id: string): void => {
+    for (const [file, body] of [
+      [LIVE_APPS_ID_FILE, { id }],
+      [LIVE_ID_FILE, { id, places: ['apps'] }],
+    ] as const) {
+      const path = join(root, file);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, `${JSON.stringify(body, null, 2)}\n`, { mode: 0o600 });
+      if (!existsSync(path)) throw new Error('not written');
     }
   };
 
@@ -88,7 +106,19 @@ export function createLive(deps: LiveDeps): Live {
       if (!deps.allowed) return false;
       const stored = await deps.settings.get();
       if (!stored.on || deps.root === null) return false;
-      if (stored.id !== null && idInFolder() === stored.id) return false;
+      const own = readId(LIVE_ID_FILE);
+      if (stored.id !== null && own.id === stored.id) {
+        if (!own.places) {
+          // Switched on by a version that wrote the one id: the folder it could vouch for is back, so the second is written now.
+          try {
+            writeIds(deps.root, stored.id);
+          } catch {
+            // A folder that cannot be written today is found out the next time the switch is used.
+          }
+          return false;
+        }
+        if (readId(LIVE_APPS_ID_FILE).id === stored.id) return false;
+      }
       lost = true;
       await deps.settings.set({ on: false, id: null });
       deps.log('Adminium Designer was switched off: the project folder did not come back as it was left (it is not on a disk that is kept across restarts).');
@@ -103,11 +133,8 @@ export function createLive(deps: LiveDeps): Live {
       if (deps.root === null) return 'no-project';
       if (!deps.hasBundler()) return 'no-bundler';
       const id = randomBytes(16).toString('hex');
-      const file = join(deps.root, LIVE_ID_FILE);
       try {
-        mkdirSync(dirname(file), { recursive: true });
-        writeFileSync(file, `${JSON.stringify({ id }, null, 2)}\n`, { mode: 0o600 });
-        if (!existsSync(file)) return 'not-writable';
+        writeIds(deps.root, id);
       } catch {
         return 'not-writable';
       }

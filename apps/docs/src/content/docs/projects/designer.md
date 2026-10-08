@@ -543,7 +543,7 @@ on a live server: its build is a command the server runs.
 |---|---|
 | The preview | Off. A preview keeps model-written screens on a second address of the machine, and a server has one. Open the app from the dashboard once it is applied |
 | What it builds | Is served to your staff like any app of the project: screens a model wrote run in their browsers, with what their roles may do |
-| The project folder | Has to be on a disk that is kept. If the folder does not come back after a restart, the switch goes off and says why |
+| The project folder | Has to be on a disk that is kept, all of it: `apps/`, where the Designer builds, as well as `.adminium/`, where it keeps its notes. If either does not come back after a restart, the switch goes off and says why |
 | Screens | Need `esbuild` in the project's own `node_modules`. A new project has it as a dev dependency; the published image does not carry it, and the project's `Dockerfile` removes `node_modules` after the build. In a container, keep the project folder on a volume and run `npm install` in it. Without it the switch is refused and says so |
 | Models | The ones the server has: Settings → AI, or the operator's environment. The Designer does not add or try a model connection on a live server |
 
