@@ -87,6 +87,7 @@ export function stepLine(row: StepRow): string {
       if (running) return t('designer:step.look', 'Changing the look');
       return row.state === 'failed' ? t('designer:step.lookFailed', 'The look was not changed') : t('designer:step.lookDone', 'Changed the look');
     case 'build_on_shape':
+    case 'post_to_ledger':
       if (running) return t('designer:step.shape', 'Building on an add-on');
       return row.state === 'failed' ? t('designer:step.shapeFailed', 'Could not build on the add-on') : t('designer:step.shapeDone', 'Built on an add-on');
     case 'ask_person':

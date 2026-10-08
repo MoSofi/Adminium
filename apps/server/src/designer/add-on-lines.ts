@@ -4,12 +4,15 @@
  * ones its cached catalogue lists while that list is on. Read from disk;
  * nothing is fetched.
  */
-import { linkInputTable, optionalInput, type Ledger, type LedgerAction } from '@adminium/manifest';
+import { linkInputTable, optionalInput, type LedgerAction } from '@adminium/manifest';
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
 
 import type { AddOnStore } from '../add-ons/store.js';
 import { catalogSchema, isCurrentCatalogFormat, pickLocalized } from '../add-ons/catalog.js';
+import { declaredLedgers, hostActions, keyColumnOf } from '../project/apps/ledger-parts.js';
 import type { AddOnLine } from './tools.js';
+
+export { declaredLedgers, hostActions, keyColumnOf };
 
 /** How an app builds on a shape: by tables the tool writes whole, or by columns and a rule added to tables the app already has. */
 export interface ShapeLine {
@@ -25,36 +28,6 @@ export function shapesOf(document: unknown): ShapeLine[] {
     const ruled = Object.values(shape.parts ?? {}).some((part) => typeof part === 'object' && part !== null && ('postings' in part || 'adjust' in part));
     return [{ name: `${shape.name}@${String(shape.version)}`, how: ruled ? ('spelled-out' as const) : ('built-on' as const) }];
   });
-}
-
-/** An add-on's ledgers as its manifest declares them; none when the document is not an add-on's or keeps no ledger. */
-export function declaredLedgers(document: unknown): Ledger[] {
-  const ledgers = (document as { addOn?: { ledgers?: unknown } } | null)?.addOn?.ledgers;
-  return Array.isArray(ledgers) ? (ledgers as Ledger[]) : [];
-}
-
-/** A table's primary-key column, by the add-on's own manifest. */
-export const keyColumnOf =
-  (document: unknown) =>
-  (table: string): string | undefined => {
-    const tables = (document as { requiredSchema?: { tables?: { ref?: unknown; columns?: { ref?: unknown; role?: unknown }[] }[] } } | null)?.requiredSchema?.tables ?? [];
-    const found = tables.find((candidate) => candidate.ref === table)?.columns?.find((column) => column.role === 'pk')?.ref;
-    return typeof found === 'string' ? found : undefined;
-  };
-
-/**
- * The actions of a ledger an app's rows post into: the ones that take the
- * row itself (`rowRef`), and the ones the add-on answers "is there enough?"
- * for. The rest are the add-on's own documents (a receipt, a count). A ledger
- * that marks none so is given whole.
- */
-export function hostActions(document: unknown, ledger: Ledger): string[] {
-  const asked = new Set(
-    ((document as { addOn?: { words?: { ledger?: unknown; action?: unknown }[] } } | null)?.addOn?.words ?? []).flatMap((words) => (words.ledger === ledger.id && typeof words.action === 'string' ? [words.action] : [])),
-  );
-  const all = Object.keys(ledger.actions);
-  const host = all.filter((name) => asked.has(name) || Object.values(ledger.actions[name]!.inputs).includes('rowRef'));
-  return host.length === 0 ? all : host;
 }
 
 /** An input as a model reads it: `item: link to items`, `what: your row`. */
