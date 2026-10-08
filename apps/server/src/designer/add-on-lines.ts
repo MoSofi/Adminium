@@ -33,7 +33,7 @@ export function shapesOf(document: unknown): ShapeLine[] {
 /** An input as a model reads it: `item: link to items`, `what: your row`. */
 function inputInWords(document: unknown, action: LedgerAction, name: string): string {
   const type = action.inputs[name]!;
-  if (type === 'rowRef') return `${name}: your row`;
+  if (type === 'rowRef') return `${name}: your row, or a link column to one`;
   if (type === 'link' || type === 'link?') {
     const table = linkInputTable(action, name, keyColumnOf(document));
     return `${name}: link${table === null ? '' : ` to ${table}`}`;

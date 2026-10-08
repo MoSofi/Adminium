@@ -75,8 +75,8 @@ describe('what an add-on offers, as a model reads it', () => {
 
   it('an action is said with what it needs, what it takes besides, and that it holds', () => {
     expect(actionInWords(stockKit, 'use-item', ledger.actions['use-item'] as LedgerAction)).toBe('use-item (item: link to items, quantity: number; optional place, batch, note)');
-    expect(actionInWords(stockKit, 'hold', ledger.actions['hold'] as LedgerAction)).toBe('hold (what: your row, quantity: number; optional place; holds until a time you give)');
-    expect(ledgersOf(stockKit)).toEqual(['stock — use-item (item: link to items, quantity: number; optional place, batch, note), hold (what: your row, quantity: number; optional place; holds until a time you give)']);
+    expect(actionInWords(stockKit, 'hold', ledger.actions['hold'] as LedgerAction)).toBe('hold (what: your row, or a link column to one, quantity: number; optional place; holds until a time you give)');
+    expect(ledgersOf(stockKit)).toEqual(['stock — use-item (item: link to items, quantity: number; optional place, batch, note), hold (what: your row, or a link column to one, quantity: number; optional place; holds until a time you give)']);
     expect(ledgersOf({ kind: 'add-on', addOn: {} })).toEqual([]);
     expect(ledgersOf(null)).toEqual([]);
   });

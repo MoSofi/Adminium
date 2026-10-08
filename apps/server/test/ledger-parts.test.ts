@@ -80,6 +80,12 @@ describe('the parts of a table that posts into a ledger', () => {
     expect(made.ok && made.added).toEqual([{ column: 'name', type: 'text' }]);
   });
 
+  it('an input that takes a row may be the row a link of this table points at', () => {
+    const linked = ask({ action: 'adopt', when: { post: { create: true } }, columns: { what: 'visit_id' } });
+    expect(linked.ok && linked.posting.map).toEqual({ what: 'visit_id', name: 'name' });
+    expect(problem({ action: 'adopt', when: { post: { create: true } }, columns: { what: 'id' } })).toContain('"id" is int, not a link ("type": "fk").');
+  });
+
   it('a second call replaces its own rule and nothing else', () => {
     const first = ask();
     if (!first.ok) throw new Error(first.problem);

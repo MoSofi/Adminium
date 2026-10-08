@@ -194,8 +194,16 @@ export function ledgerParts(input: LedgerPartsInput): LedgerPartsResult {
     // An input the app did not name: needed ones are given a column; optional ones are left to the add-on.
     if (named === undefined && optionalInput(type) && !decided.has(name)) continue;
     if (type === 'rowRef') {
-      if (named !== undefined) return no(`"${name}" is the row itself: leave it out of "columns".`);
-      map[name] = { row: true };
+      // The row itself, or the row a link of it points at (an order line's dish).
+      if (named === undefined) {
+        map[name] = { row: true };
+        continue;
+      }
+      const link = has(named);
+      if (link === undefined || link['type'] !== 'fk') {
+        return no(`"${name}" is a row: this table's own (leave it out of "columns"), or the row a link column of it points at. "${named}" is ${link === undefined ? `not a column of ${file}` : `${String(link['type'])}, not a link ("type": "fk")`}.`);
+      }
+      map[name] = named;
       continue;
     }
     const kind = type.replace('?', '');
