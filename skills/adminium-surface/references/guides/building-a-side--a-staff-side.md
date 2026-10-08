@@ -65,6 +65,7 @@ See [App roles and staff access](https://docs.adminium.dev/guides/apps/roles-and
 ]
 ```
 
-`path` is added to wherever the side is opened, so it never starts with `/`. `icon` is a
-[Lucide](https://lucide.dev) icon name. To find where the side is mounted — it differs between the
-app's own address, a second instance, and a domain mapped to the app — call `mountBase()`.
+`path` is the address of that screen inside the side, without its first slash: `""` is the first
+page, `"done"` is the page at `/done`. It is added to wherever the side is opened, so it never
+starts with `/`. `icon` is a [Lucide](https://lucide.dev) icon name. Each entry needs a page at
+its address: see [Pages and their addresses](https://docs.adminium.dev/guides/apps/building-a-side/#pages-and-their-addresses).

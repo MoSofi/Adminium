@@ -83,7 +83,11 @@ Rules of the public side:
   host, run an inline script, or call another host's API. Install the package and import it.
 - **`can()` before a button.** Leave out a button whose write the person's role would refuse.
 - **English, marked.** Wrap text people read in `en('…')` from `@adminiumjs/adminium/side`.
-- **Paths are relative.** `nav.json` paths never start with `/`; use `mountBase()` for links.
+- **One address per page.** `import { Link, usePath, pathParams, go } from
+  '@adminiumjs/adminium/side'`: read the page with `usePath()` and `pathParams`, move with
+  `<Link to="/menu">` or `go('/menu')`. Never a state for the page, never an `href` that starts
+  with `/`. A `nav.json` path is the page's, without its first slash. Read
+  `references/guides/building-a-side--pages-and-their-addresses.md`.
 
 ## The sidebar
 

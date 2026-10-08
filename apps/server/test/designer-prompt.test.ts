@@ -83,6 +83,9 @@ describe('what the Designer’s model is told', () => {
     const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'openai-compatible' });
     const { system, messages } = await prompt(session({ target: 'web' }), [say('user', 'Make a repair desk, and use the Invoices add-on.')]);
     expect(system).toContain('You are Adminium Designer');
+    // How a side's pages get addresses is said exactly: the import by name, and what to write with it.
+    expect(system).toContain("import { Link, usePath, pathParams, go } from '@adminiumjs/adminium/side'");
+    expect(system).toContain('const path = usePath()');
     expect(system).toContain('===== adminium-app/SKILL.md =====');
     expect(system).toContain('===== adminium-surface/SKILL.md =====');
     expect(system).toContain('===== adminium-add-ons/SKILL.md =====');
