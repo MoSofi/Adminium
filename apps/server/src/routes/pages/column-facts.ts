@@ -473,6 +473,40 @@ export function withReaderLabels(config: unknown, facts: ColumnFactsBlock | null
 }
 
 /**
+ * The other way round, for a save: the page's editor was handed the headings
+ * in ITS reader's language (`withReaderLabels`) and sends the whole list
+ * back, touched or not. A heading that comes back as one of the column's own
+ * names was not typed by anybody — the stored one is kept, so the page does
+ * not quietly become German because a German admin changed a filter. A
+ * heading that is none of the column's names was typed, and is saved.
+ *
+ * `incoming` is the template's own config (the body of the save); `stored`
+ * the page as it is kept.
+ */
+export function withStoredLabels(incoming: unknown, stored: unknown, said: ReadonlyMap<string, ReadonlySet<string>>): unknown {
+  if (said.size === 0 || typeof incoming !== 'object' || incoming === null || !Array.isArray((incoming as { columns?: unknown }).columns)) return incoming;
+  const envelope = typeof stored === 'object' && stored !== null ? (stored as Record<string, unknown>) : {};
+  const inner = typeof envelope['config'] === 'object' && envelope['config'] !== null ? (envelope['config'] as Record<string, unknown>) : envelope;
+  const kept = new Map<string, unknown>();
+  for (const column of Array.isArray(inner['columns']) ? (inner['columns'] as unknown[]) : []) {
+    if (typeof column === 'object' && column !== null) kept.set(String((column as Record<string, unknown>)['name']), (column as Record<string, unknown>)['label']);
+  }
+  let changed = false;
+  const columns = ((incoming as { columns: unknown[] }).columns).map((column) => {
+    if (typeof column !== 'object' || column === null) return column;
+    const sent = column as Record<string, unknown>;
+    const name = String(sent['name']);
+    const before = kept.get(name);
+    const words = said.get(name);
+    if (words === undefined || typeof sent['label'] !== 'string' || typeof before !== 'string' || sent['label'] === before) return column;
+    if (!words.has(sent['label']) || !words.has(before)) return column;
+    changed = true;
+    return { ...sent, label: before };
+  });
+  return changed ? { ...(incoming as Record<string, unknown>), columns } : incoming;
+}
+
+/**
  * A page's own title in the reader's language, while it is still the title
  * its manifest gave it (`title.from`): the sidebar already reads the
  * manifest's `titles` so, and the heading inside the page read the English.

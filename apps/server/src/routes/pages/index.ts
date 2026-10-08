@@ -73,7 +73,7 @@ import {
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
-import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withYesNoColumns } from './column-facts.js';
+import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withStoredLabels, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
 import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
@@ -1203,7 +1203,13 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           typeof page.config === 'object' && page.config !== null
             ? (page.config as Record<string, unknown>)
             : {};
-        const candidate = { ...envelope, config: request.body.config };
+        // The editor was shown the headings in its reader's language: one that comes back untouched is kept as stored.
+        const from = envelope['source'] as { connectionId?: unknown; table?: unknown } | undefined;
+        const config =
+          typeof from?.connectionId === 'string' && typeof from.table === 'string'
+            ? (withStoredLabels(request.body.config, envelope, labelWordsOf(await overridesRepo(deps.meta).listForConnection(from.connectionId, { status: 'active' }), from.table)) as typeof request.body.config)
+            : request.body.config;
+        const candidate = { ...envelope, config };
         const parsed = pageEnvelopeSchema.safeParse(candidate);
         if (!parsed.success) {
           throw new ValidationFailedError(
@@ -1212,7 +1218,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           );
         }
 
-        const result = await pages.setTemplateConfig(pageId, request.body.config, {
+        const result = await pages.setTemplateConfig(pageId, config, {
           ...(request.body.expectedRevision === undefined
             ? {}
             : { expectedRevision: request.body.expectedRevision }),

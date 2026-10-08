@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { labelWordsOf, withReaderLabels, withReaderTitle, type ColumnFactsBlock } from '../src/routes/pages/column-facts.js';
+import { labelWordsOf, withReaderLabels, withReaderTitle, withStoredLabels, type ColumnFactsBlock } from '../src/routes/pages/column-facts.js';
 
 const ROWS = [
   { op: 'column.label', tableName: 'main.items', columnName: 'cost_avg', value: { label: { en_US: 'Average cost', de_DE: 'Durchschnittskosten', ar_EG: 'متوسط التكلفة' } } },
@@ -78,5 +78,32 @@ describe('a page\'s own title', () => {
   it('stays as renamed once somebody renamed the page', () => {
     const renamed = { ...stored, title: { ...stored.title, fallback: 'Lager heute' } };
     expect(withReaderTitle(renamed, 'de_DE')).toBe(renamed);
+  });
+});
+
+describe('a save from the page\'s editor', () => {
+  const said = labelWordsOf(ROWS, 'main.items');
+  const stored = { v: 1, config: { columns: [{ name: 'cost_avg', label: 'Average cost' }, { name: 'sku', label: 'Stock code' }], pageSize: 25 } };
+  const labels = (config: unknown) => (config as { columns: { label: string }[] }).columns.map((column) => column.label);
+
+  it('keeps the stored heading where the one sent back is only the reader\'s translation of it', () => {
+    // A German admin changed the page size: the headings went out in German and come back so.
+    const sent = { columns: [{ name: 'cost_avg', label: 'Durchschnittskosten' }, { name: 'sku', label: 'Stock code' }], pageSize: 50 };
+    const saved = withStoredLabels(sent, stored, said) as typeof sent;
+    expect(labels(saved)).toEqual(['Average cost', 'Stock code']);
+    expect(saved.pageSize).toBe(50);
+  });
+
+  it('saves a heading somebody typed, and one typed over a heading typed before', () => {
+    const typed = { columns: [{ name: 'cost_avg', label: 'Einstandspreis' }, { name: 'sku', label: 'SKU' }] };
+    // "Einstandspreis" is none of the column's names; "Stock code" was typed earlier, so "SKU" over it is a change.
+    expect(withStoredLabels(typed, stored, said)).toBe(typed);
+  });
+
+  it('leaves a body with no columns, and a page of no named columns, as they are', () => {
+    const body = { pageSize: 10 };
+    expect(withStoredLabels(body, stored, said)).toBe(body);
+    const sent = { columns: [{ name: 'cost_avg', label: 'Durchschnittskosten' }] };
+    expect(withStoredLabels(sent, stored, new Map())).toBe(sent);
   });
 });
