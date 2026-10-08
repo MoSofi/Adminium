@@ -1864,10 +1864,16 @@ export function createSampleDataService(deps: SampleDataDeps) {
 
       // A sample row is written with the number it was given (PO-1001): a series already counting is moved past it,
       // or the owner's next order would be handed a number the sample holds.
+      // The rows are in by now: a counter that could not be moved here is moved when its series is next used, so this
+      // never undoes the add.
       for (const table of bundle.tables) {
         if (skipped.has(table.ref)) continue;
-        const resolved = view.table(names[table.ref] ?? table.ref);
-        await countersPastTheTable(tableRulesFor({ view, table: resolved }), { db: asDb(handle.db), table: resolved, connectionId } as never, documentSequencesRepo(deps.meta));
+        try {
+          const resolved = view.table(names[table.ref] ?? table.ref);
+          await countersPastTheTable(tableRulesFor({ view, table: resolved }), { db: asDb(handle.db), table: resolved, connectionId } as never, documentSequencesRepo(deps.meta));
+        } catch {
+          /* healed on the series' next use (`claimSequences`) */
+        }
       }
 
       // A row that named its own key leaves an identity sequence behind it.

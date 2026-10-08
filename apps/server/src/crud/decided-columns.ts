@@ -283,6 +283,15 @@ async function largestNumber(target: ResolveTarget, sequence: ColumnSequence): P
 }
 
 /**
+ * The largest number a series is moved past. A counter is a 32-bit whole
+ * number in the meta store; a row somebody wrote with a number near its end
+ * (a typo, or on purpose) would leave the next claim nowhere to go and stop
+ * every numbered create on the table. Such a row keeps its number and moves
+ * nothing.
+ */
+const SERIES_FOLLOWS_UP_TO = 2_000_000_000;
+
+/**
  * The series whose counter was held against its table since this server
  * started: the table is read for its largest number once for each, on the
  * first number it hands out, and not on every create after.
@@ -308,7 +317,7 @@ async function keepAhead(rules: TableRules | null, target: ResolveTarget & { con
     if (!Number.isFinite(given)) continue;
     const key = sequenceKey(target.connectionId, target.table, sequence.column);
     const counter = await store.read(key);
-    if (counter !== null && counter.next <= given) await store.raiseTo(key, Math.floor(given) + 1);
+    if (counter !== null && counter.next <= given && given <= SERIES_FOLLOWS_UP_TO) await store.raiseTo(key, Math.floor(given) + 1);
   }
 }
 
@@ -324,7 +333,7 @@ export async function countersPastTheTable(rules: TableRules | null, target: Res
     const counter = await store.read(key);
     if (counter === null) continue;
     const top = await largestNumber(target, sequence);
-    if (counter.next <= top) await store.raiseTo(key, top + 1);
+    if (counter.next <= top && top <= SERIES_FOLLOWS_UP_TO) await store.raiseTo(key, top + 1);
   }
 }
 
@@ -350,12 +359,13 @@ export async function claimSequences(
     const key = sequenceKey(target.connectionId, target.table, sequence.column);
     const counter = await store.read(key);
     if (counter === null) {
-      await store.raiseTo(key, Math.max(sequence.start, (await largestNumber(target, sequence)) + 1));
+      const top = await largestNumber(target, sequence);
+      await store.raiseTo(key, Math.max(sequence.start, top <= SERIES_FOLLOWS_UP_TO ? top + 1 : 0));
     } else if (!seriesReadThisRun.has(key)) {
       // A counter kept from before may be behind its table: rows restored from a backup, written by hand, or
       // left by an uninstall that dropped the table and an install that made it again. Read once, then trusted.
       const top = await largestNumber(target, sequence);
-      if (counter.next <= top) await store.raiseTo(key, top + 1);
+      if (counter.next <= top && top <= SERIES_FOLLOWS_UP_TO) await store.raiseTo(key, top + 1);
     }
     seriesReadThisRun.add(key);
     const next = await store.claim(key);

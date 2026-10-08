@@ -76,6 +76,20 @@ for (const [dialect, available] of LEGS) {
       expect(await seqOf((await w.create('slips', { note: 'after' }))['id'])).toBe(7);
     });
 
+    it('a number near the end of what a series can count moves nothing: the series is not left with nowhere to go', async () => {
+      const h = await installInvoicing(dialect, manifest());
+      open = h;
+      const w = await writerFor(h);
+      const seqOf = async (key: unknown) => Number((await h.rows(`select seq from ${h.real('slips')} where id = ${String(key)}`))[0]!['seq']);
+      expect(await seqOf((await w.create('slips', { note: 'first' }))['id'])).toBe(1);
+      // A typo, or somebody trying it: the row keeps its number, and the next one is still 2.
+      await w.create('slips', { note: 'far', seq: 2_147_483_646, number: 'SL-FAR' });
+      expect(await seqOf((await w.create('slips', { note: 'next' }))['id'])).toBe(2);
+      // The same after a restart, when the series reads its table again.
+      forgetSeriesRead();
+      expect(await seqOf((await w.create('slips', { note: 'after the restart' }))['id'])).toBe(3);
+    });
+
     it('a counter that is behind its table when the server starts is moved past it on the first number handed out', async () => {
       const h = await installInvoicing(dialect, manifest());
       open = h;
