@@ -167,6 +167,23 @@ Nothing else of Offers is public. A code typed at checkout is part of the order'
 batch of 200 vouchers, two packs, ten gift cards and two credits. Nothing in it is sent to anybody.
 You can remove it again; rows you changed can be kept.
 
+:::caution
+The sample's gift cards and vouchers are real: they work at a counter and at a checkout, and their
+codes are the same on every server and printed in this guide. Anybody who knows a code can spend
+it until you remove the sample. Add the sample to try Offers out, never on a server you sell from.
+:::
+
+## Cards from an older system
+
+An app that kept gift cards of its own before can bring them in with their history, each under
+the code its holder already has. The app posts its old card rows, oldest first, into Offers'
+`move` action, mapping the old card's key (`old_card`), its code (`old_code`), the table it came
+from (`old_table`), and each row's kind, amount and moment. A card's first row makes the card —
+nobody types its code, and no email goes out for a card somebody has held for months — and every
+later row is added to it at the figure the old system had. An old code keeps its length: eight
+characters stay eight. Such a card works at a staffed counter; the public balance door answers
+only for cards with twelve characters.
+
 ## For app developers
 
 An app says in its manifest which of its tables is an order whose price may be lowered

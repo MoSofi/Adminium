@@ -62,7 +62,8 @@ Three rules of the add-on's own tables are for ledgers:
   (an item that turns low), the change is told to automations, emails and open screens as a
   change of that row — though no one saved the row.
 - `"planned": true` on a [state move](https://docs.adminium.dev/reference/manifest/#states): only a row the add-on's own code writes makes it.
-  It is not offered to any person, effect or timed move.
+  It is not offered to any person, effect or timed move. A row that code **adds** may start in the
+  state such a move reaches from the first state: adding it there is the add and the move in one.
 
 #### The receipt table
 
