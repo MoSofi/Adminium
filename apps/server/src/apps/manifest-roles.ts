@@ -128,7 +128,14 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         const own = (manifest as Manifest).kind === 'add-on' && addOn === manifest.key;
         if (!named && !own) refuse(`"${grant}" names an add-on the app neither requires nor suggests`);
       } else if (!APP.test(grant)) {
-        refuse(`"${grant}" is not a grant an app can give (table:@…, page:@… or app:@:staff)`);
+        // A grant that names an add-on the app builds on: the right place for it is said, with what to write.
+        const named = [...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].find((need) => new RegExp(`(^|[:@.])${need.key}[.:/]`).test(grant));
+        const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
+        refuse(
+          named === undefined
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@… or app:@:staff)`
+            : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
+        );
       }
     }
   }

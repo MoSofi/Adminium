@@ -233,6 +233,30 @@ describe('post_to_ledger', () => {
     expect(said).toContain('postings.0.into.addOn · "ledger-kit" is not an add-on this manifest names. Call post_to_ledger for this table: it writes the rule and the requirement together.');
   });
 
+  it('says what a model got wrong on a real walk: no way back, nobody to pick a row, and who installs the add-on', async () => {
+    parts();
+    const bare = await post({ when: { post: { create: true } } });
+    expect(bare.content).toContain('No "reverse" was given: what is taken is never given back, even when the row is undone or cancelled.');
+    expect(bare.content).toContain('No role reads ledger-kit.accounts yet, so nobody could pick a row: call this again with "role".');
+    expect(bare.content).toContain('Ledger kit is installed with the app when it is applied: do not tell the person to install it.');
+    // The check says the same of a link nobody may pick from, with what to write.
+    expect(await check()).toContain(
+      'warn · apps/repairs/manifest/roles.json · No role reads ledger-kit.accounts, which item_parts.account_id links to, so nobody could pick a row there. On the role that fills it write "tables": [{ "addOn": "ledger-kit", "table": "accounts", "actions": ["read"] }] beside "permissions".',
+    );
+    const whole = await post({ role: 'staff' });
+    expect(whole.content).not.toContain('No "reverse" was given');
+    expect(whole.content).not.toContain('No role reads');
+    expect(await check()).not.toContain('No role reads');
+    // The grant written as a permission, as the model tried three ways: the refusal says where it goes.
+    const roles = json('roles.json') as unknown as { permissions: string[]; tables?: unknown }[];
+    delete roles[0]!.tables;
+    roles[0]!.permissions.push('table:@ledger-kit.accounts:read');
+    writeFileSync(file('roles.json'), JSON.stringify(roles));
+    expect(await check()).toContain(
+      '"table:@ledger-kit.accounts:read" is not a grant an app can give. A table of the add-on "ledger-kit" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "ledger-kit", "table": "accounts", "actions": ["read"] }]',
+    );
+  });
+
   it('a role that is not the app\'s, and a server too old for the rule, are refused before anything is written', async () => {
     parts();
     expect((await post({ role: 'cashier' })).content).toContain('There is no role "cashier" in apps/repairs/manifest/roles.json. Its roles: staff.');

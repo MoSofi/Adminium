@@ -38,7 +38,7 @@ import { APPS_DIR } from '../project/apps/read-app.js';
 import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
 import type { AppSide } from '../project/apps/read-app.js';
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
-import { ledgerParts } from '../project/apps/ledger-parts.js';
+import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { shapeParts } from '../project/apps/shape-parts.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
@@ -805,6 +805,24 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             path: '',
             message: `The add-on "${key}" is not on this server, so the rule in tables/${table}.json was not checked against it. Call get_add_on with "${key}".`,
           }));
+        // A link into an add-on's table that no role of the app may read: the field would have nothing to pick from.
+        const linked = new Map<string, string>();
+        for (const table of check.manifest?.requiredSchema.tables ?? []) {
+          for (const column of table.columns) {
+            const link = column.rules?.addOnLink;
+            if (link !== undefined) linked.set(`${link.addOn}.${link.table}`, `${table.ref}.${column.ref}`);
+          }
+        }
+        for (const role of check.manifest?.roles ?? []) for (const grant of role.tables ?? []) linked.delete(`${grant.addOn}.${grant.table}`);
+        for (const [theirs, mine] of linked) {
+          const [addOn, table] = theirs.split('.') as [string, string];
+          unchecked.push({
+            level: 'warn',
+            file: `apps/${appKey}/manifest/roles.json`,
+            path: '',
+            message: `No role reads ${theirs}, which ${mine} links to, so nobody could pick a row there. On the role that fills it write "tables": [{ "addOn": "${addOn}", "table": "${table}", "actions": ["read"] }] beside "permissions".`,
+          });
+        }
         // A rule written by hand, with no requirement beside it: the tool writes both.
         const sent = (finding: AppFinding): AppFinding =>
           finding.level === 'error' && /postings\.\d+\.into\.addOn$/.test(finding.path) && finding.message.includes('is not an add-on this manifest names')
@@ -1462,8 +1480,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             }
             return refused(`Nothing was written: with the rule in place the app's check says\n${fresh.slice(0, 8).map((line) => `- ${line}`).join('\n')}\nFix what it names in your own files, then call this again.`, failed);
           }
+          // What a model got wrong once it had the rule: said here, where it reads it.
+          const givesBack = made.posting.reverse !== undefined || !((declaredLedgers(document).find((one) => one.id === ledger)?.actions[action]?.phases ?? []) as string[]).includes('reverse');
+          const notes = [
+            ...(givesBack ? [] : ['No "reverse" was given: what is taken is never given back, even when the row is undone or cancelled. Call this again with "reverse" if it should be.']),
+            ...(granted === undefined && made.grants.length > 0 ? [`No role reads ${made.grants.map((grant) => `${addOn}.${grant.table}`).join(', ')} yet, so nobody could pick a row: call this again with "role". Such a grant is "tables" on the role, never a line of "permissions".`] : []),
+            `${made.addOn.name} is installed with the app when it is applied: do not tell the person to install it.`,
+          ];
           return text(
-            `Written:\n${lines.join('\n')}\nLeft to you: a page for the table, the role’s grants on it, sample rows (none for this table: a sample row never posts). Never change the rule or the columns it names by hand; call this again instead.`,
+            `Written:\n${lines.join('\n')}\n${notes.join('\n')}\nLeft to you: a page for the table, the role’s grants on it, sample rows (none for this table: a sample row never posts). Never change the rule or the columns it names by hand; call this again instead. When you write roles.json again, keep the role's "tables".`,
             `Posts ${table} into ${addOn}`,
             { facts: { count: made.added.length } },
           );
