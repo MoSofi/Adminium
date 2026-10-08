@@ -9,6 +9,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { forgetSeriesRead } from '../src/crud/decided-columns.js';
 import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -73,6 +74,20 @@ for (const [dialect, available] of LEGS) {
       // A number brought from BEHIND the series moves nothing.
       await w.create('slips', { note: 'old', seq: 3, number: 'SL-0003' });
       expect(await seqOf((await w.create('slips', { note: 'after' }))['id'])).toBe(7);
+    });
+
+    it('a counter that is behind its table when the server starts is moved past it on the first number handed out', async () => {
+      const h = await installInvoicing(dialect, manifest());
+      open = h;
+      const w = await writerFor(h);
+      const seqOf = async (key: unknown) => Number((await h.rows(`select seq from ${h.real('slips')} where id = ${String(key)}`))[0]!['seq']);
+      expect(await seqOf((await w.create('slips', { note: 'first' }))['id'])).toBe(1);
+      // Rows the write path never saw: restored from a backup, or written by hand while the server was down.
+      await h.rows(`insert into ${h.real('slips')} (note, seq, number) values ('restored', 2, 'SL-0002'), ('restored', 9, 'SL-0009')`);
+      forgetSeriesRead();
+      const next = await w.create('slips', { note: 'after the restart' });
+      expect(next).toMatchObject({ number: 'SL-0010' });
+      expect(await seqOf(next['id'])).toBe(10);
     });
   });
 }

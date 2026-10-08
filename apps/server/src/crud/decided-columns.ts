@@ -283,6 +283,17 @@ async function largestNumber(target: ResolveTarget, sequence: ColumnSequence): P
 }
 
 /**
+ * The series whose counter was held against its table since this server
+ * started: the table is read for its largest number once for each, on the
+ * first number it hands out, and not on every create after.
+ */
+const seriesReadThisRun = new Set<string>();
+/** For a test that stands in for a server starting again. */
+export function forgetSeriesRead(): void {
+  seriesReadThisRun.clear();
+}
+
+/**
  * A row that brings its own number (an import, a sample, a number somebody
  * typed) moves the series past it. The counter is made from the table's
  * largest number only once; a number written beside it afterwards was handed
@@ -337,9 +348,16 @@ export async function claimSequences(
   const out = { ...values };
   for (const sequence of sequences) {
     const key = sequenceKey(target.connectionId, target.table, sequence.column);
-    if ((await store.read(key)) === null) {
+    const counter = await store.read(key);
+    if (counter === null) {
       await store.raiseTo(key, Math.max(sequence.start, (await largestNumber(target, sequence)) + 1));
+    } else if (!seriesReadThisRun.has(key)) {
+      // A counter kept from before may be behind its table: rows restored from a backup, written by hand, or
+      // left by an uninstall that dropped the table and an install that made it again. Read once, then trusted.
+      const top = await largestNumber(target, sequence);
+      if (counter.next <= top) await store.raiseTo(key, top + 1);
     }
+    seriesReadThisRun.add(key);
     const next = await store.claim(key);
     out[sequence.column] = sequence.logicalType === 'text' || sequence.logicalType === 'varchar' ? String(next) : next;
     // The number as people read it, written with it: its prefix (the setting's, when a settings row names one) and its digits.
