@@ -73,7 +73,7 @@ import {
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
-import { columnFactsFor, factsViewFor, hiddenColumnsOf, withoutColumns, withYesNoColumns } from './column-facts.js';
+import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
 import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
@@ -689,7 +689,12 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.
-        const typed = withYesNoColumns(page.config, columnFacts);
+        const yesNo = withYesNoColumns(withReaderTitle(page.config, reader), columnFacts);
+        // A heading that is still the column's own name is read in the person's language, as the form's field is.
+        const typed =
+          source === null || columnFacts === null
+            ? yesNo
+            : withReaderLabels(yesNo, columnFacts, labelWordsOf(await overridesRepo(deps.meta).listForConnection(source.connectionId, { status: 'active' }), source.table));
         const config = hiddenColumns.length === 0 ? typed : withoutColumns(typed, hiddenColumns);
 
         // Layout resolution: a per-user override wins over the shared

@@ -25,6 +25,7 @@
  *   naming one here would only ever produce a field that cannot be saved.
  */
 
+import { readerWords } from '../../i18n/bcp47.js';
 import type { MetaDb } from '@adminium/meta';
 import type { TablePrivilegeMap } from '@adminium/engine/adapter';
 import { columnSpecsForTable, humanize, type DatabaseModel } from '@adminium/engine';
@@ -428,6 +429,76 @@ export function withoutColumns(config: unknown, hidden: readonly string[]): unkn
 const WHOLE_NUMBERS = new Set(['integer', 'bigint']);
 /** What a spec says of a column because of its TYPE: taken whole from the live one. */
 const TYPE_KEYS = ['logicalType', 'semantic', 'format', 'align'] as const;
+
+/**
+ * A stored column's heading, in the reader's language — while it is still the
+ * word its app (or add-on) gave the column.
+ *
+ * A page stores each column's label the day it is made, in one language. The
+ * manifest that made the table names the column in every language it speaks,
+ * and a form already reads those names for the reader; a list read the stored
+ * one, so a German reader had German fields over English headings. Followed
+ * here: a stored label that IS one of the column's own names (in any
+ * language) is shown as the reader's. A label somebody typed on the page is
+ * none of them, and stays — it is the page's own.
+ *
+ * `said` is every name the table's columns were given: column → the words in
+ * each language (`labelWordsOf`).
+ */
+export function withReaderLabels(config: unknown, facts: ColumnFactsBlock | null, said: ReadonlyMap<string, ReadonlySet<string>>): unknown {
+  if (facts === null || said.size === 0 || typeof config !== 'object' || config === null) return config;
+  const now = new Map<string, string>();
+  for (const fact of facts.columns) {
+    const label = fact.spec['label'];
+    if (typeof label === 'string') now.set(String(fact.spec['name']), label);
+  }
+  let changed = false;
+  const refresh = (block: Record<string, unknown>): Record<string, unknown> => {
+    if (!Array.isArray(block['columns'])) return block;
+    const columns = (block['columns'] as unknown[]).map((column) => {
+      if (typeof column !== 'object' || column === null) return column;
+      const stored = column as Record<string, unknown>;
+      const name = String(stored['name']);
+      const reader = now.get(name);
+      if (reader === undefined || stored['label'] === reader || typeof stored['label'] !== 'string' || said.get(name)?.has(stored['label']) !== true) return column;
+      changed = true;
+      return { ...stored, label: reader };
+    });
+    return { ...block, columns };
+  };
+  const envelope = refresh(config as Record<string, unknown>);
+  const inner = envelope['config'];
+  const out = typeof inner === 'object' && inner !== null ? { ...envelope, config: refresh(inner as Record<string, unknown>) } : envelope;
+  return changed ? out : config;
+}
+
+/**
+ * A page's own title in the reader's language, while it is still the title
+ * its manifest gave it (`title.from`): the sidebar already reads the
+ * manifest's `titles` so, and the heading inside the page read the English.
+ * A title somebody renamed stays.
+ */
+export function withReaderTitle(config: unknown, locale: string | undefined): unknown {
+  if (locale === undefined || typeof config !== 'object' || config === null) return config;
+  const title = (config as { title?: unknown }).title;
+  if (typeof title !== 'object' || title === null) return config;
+  const { fallback, from, titles } = title as { fallback?: unknown; from?: unknown; titles?: unknown };
+  if (typeof fallback !== 'string' || fallback !== from || typeof titles !== 'object' || titles === null) return config;
+  const reader = readerWords(titles as Record<string, string>, locale);
+  return reader === undefined || reader === fallback ? config : { ...(config as Record<string, unknown>), title: { ...(title as Record<string, unknown>), fallback: reader } };
+}
+
+/** Every name a table's columns were given by the manifest that made them: column → its words in each language. */
+export function labelWordsOf(rows: readonly { op: string; tableName: string; columnName: string | null; value: unknown }[], tableId: string): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (row.op !== 'column.label' || row.tableName !== tableId || row.columnName === null) continue;
+    const label = (row.value as { label?: unknown } | null)?.label;
+    const words = typeof label === 'string' ? [label] : typeof label === 'object' && label !== null ? Object.values(label as Record<string, unknown>).filter((word): word is string => typeof word === 'string') : [];
+    if (words.length > 0) out.set(row.columnName, new Set([...(out.get(row.columnName) ?? []), ...words]));
+  }
+  return out;
+}
 
 /**
  * A page's stored envelope with the columns that have since become a yes/no
