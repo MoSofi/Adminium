@@ -16,13 +16,14 @@
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2506 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7718 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
-| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7825 |
-| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7603 |
-| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7760 |
-| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7658 |
-| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7849 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7193 |
-| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7660 |
+| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7629 |
+| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7383 |
+| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6969 |
+| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 6987 |
+| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7396 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 6620 |
+| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 5692 |
+| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 5541 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
@@ -40,7 +41,8 @@
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/frontends.md` | Frontends | 2101 |
-| `references/manifest/roles.md` | Roles | 6640 |
+| `references/manifest/roles.md` | Roles | 6710 |
+| `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
 | `references/manifest/settings.md` | Settings | 1211 |
 | `references/manifest/add-ons.md` | Add-ons | 3247 |
 | `references/manifest/documents.md` | Documents | 7183 |

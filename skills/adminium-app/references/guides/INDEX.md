@@ -23,7 +23,7 @@
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
-| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 1192 |
+| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 2223 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1954 |
 | `references/guides/sample-data--on-uninstall.md` | On uninstall | 453 |
@@ -31,9 +31,9 @@
 | `references/guides/roles-and-staff-access--who-may-open-an-app-s-staff-screens.md` | Who may open an app's staff screens | 848 |
 | `references/guides/roles-and-staff-access--the-roles-an-app-brings.md` | The roles an app brings | 1326 |
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
-| `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 1986 |
+| `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1106 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1310 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/settings--overview.md` | An app's settings page | 769 |

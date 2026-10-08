@@ -61,9 +61,9 @@
 | `references/guides/roles-and-staff-access--who-may-open-an-app-s-staff-screens.md` | Who may open an app's staff screens | 848 |
 | `references/guides/roles-and-staff-access--the-roles-an-app-brings.md` | The roles an app brings | 1326 |
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
-| `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 1986 |
+| `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1106 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1310 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |

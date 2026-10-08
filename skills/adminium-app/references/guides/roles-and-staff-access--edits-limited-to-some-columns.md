@@ -13,6 +13,12 @@ value. The limit covers:
 - editing many records at once;
 - rows edited from another record's form, such as a patient's visits from the patient.
 
+An app can also limit **which records** the edit reaches, by what a column of the record holds now
+(`writableFrom`): the clinician moves a visit along while it is checked in, roomed or with them,
+and a visit that is already seen is not theirs to change or to take back. Adminium judges this on
+the stored record, whatever the change is, and refuses with the same code and
+`reason: "update-from"`.
+
 Roles add up. Someone who also holds a role that may edit the table without a limit, such as a
 manager, an Admin or Super Admin, is not limited. A role an app copies from a limited role
 (`cloneFrom`) is limited the same way.

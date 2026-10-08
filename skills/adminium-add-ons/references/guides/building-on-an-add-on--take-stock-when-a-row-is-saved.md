@@ -44,6 +44,19 @@ cancelled.
   optional: with no `place`, stock comes from the default place in Inventory's settings.
 - The app's `minAdminiumVersion` is `0.3.18` or later.
 
+To take every line from one shelf the practice chooses once, keep the shelf on the settings row
+and let each line default to it. Both columns carry the same `addOnLink`, and the line maps it as
+`place`:
+
+```json
+{ "ref": "place_id", "type": "int", "nullable": true,
+  "rules": { "addOnLink": { "addOn": "inventory", "table": "places" },
+             "default": { "from": { "table": "settings", "column": "supplies_place_id" } } } }
+```
+
+A line somebody gives a place keeps it. While Inventory is not connected, the default fills
+nothing and no save is refused for it.
+
 **The other way: a row that has a Stock tab.** A treatment always uses the same supplies. Staff
 list them once, on the treatment's **Stock** tab in the dashboard, and the action `use` takes all
 of them:

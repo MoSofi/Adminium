@@ -2,6 +2,24 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
+was refused for itself, in a column the entry lets the caller write, `params` names the column and
+why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
+`invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
+names no column: a value already taken or pointing at a row that is not there, a value outside
+`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
+empty can turn on what the stored row holds.
+
+#### Required for some values
+
+`requiredWhen` asks for a column only while another column of the same row holds one of some
+values:
+
+```json
+{ "ref": "person_id", "type": "fk", "references": "people", "nullable": true,
+  "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
+```
+
 The row is judged as the write leaves it, whenever the write changes either column: a create or an
 update that leaves `person_id` empty while `kind` is `away` or `sick` is refused, and so is moving
 an event whose `person_id` is empty to `away`. A write that changes neither column is not judged —
@@ -87,26 +105,3 @@ how many lines a kitchen ticket has.
 A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
 column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
 for a sum.
-
-A total may also add up another table's totals: an option's price into its line, the line into
-its order, the order into the customer's lifetime total. Such totals **climb**, at most three
-tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
-other). A write that moves a total at the bottom settles every total above it in the same
-transaction: each level adds up what the level below has just written, then works out its
-formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
-create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
-writers take the rows in one order (the highest parent first), so they never wait on each other
-crosswise; a line moved to another order while a write was reading it is refused `409`
-`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
-
-Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
-never through a floating-point number.
-
-A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
-against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
-cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
-writable while the capped rows can exist: lock those columns with the table's
-[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
-written in or reached from.
-
-#### Formulas

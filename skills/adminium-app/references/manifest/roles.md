@@ -51,7 +51,8 @@ values. The names are the ones [public access](https://docs.adminium.dev/referen
   "limits": {
     "appointments": {
       "writable": ["status"],
-      "writableValues": { "status": ["roomed", "with_clinician", "ready"] }
+      "writableValues": { "status": ["roomed", "with_clinician", "ready"] },
+      "writableFrom": { "status": ["checked_in", "roomed", "with_clinician"] }
     }
   }
 }
@@ -61,6 +62,7 @@ values. The names are the ones [public access](https://docs.adminium.dev/referen
 |---|---|---|
 | `writable` | no | The columns the update may change, at least one. |
 | `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
+| `writableFrom` | no | `{ "<column>": [1–32 values] }`: the update reaches a row only while that column of the row holds one of these values. Any column of the table, in `writable` or not. Needs `writable`, and `minAdminiumVersion` 0.3.19 or later. |
 | `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key and the table's links to other rows are always read. Needs the role's `table:@<ref>:read`. |
 | `creatable` | no | The only columns a new row the role creates may be given; the rest take their defaults or what Adminium decides. Needs the role's `table:@<ref>:create`. |
 | `creatableValues` | no | For a column in `creatable`, the only values a new row may be given (1–32). Needs `creatable`. |
@@ -73,7 +75,18 @@ limited. Creating rows is not limited by `writable`; `creatable` limits it the s
 create itself, a row added from a parent's form, and an import (which may not bring in a column
 outside `creatable`, nor one whose values are limited). A value left empty, and the state column at
 its first state, are no choice and always pass. Every install and update writes the
-manifest's current limits. See [Edits limited to some columns](https://docs.adminium.dev/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
+manifest's current limits.
+
+`writableValues` says what a column may be moved **to**; `writableFrom` says what a row may be
+moved **from**. It is judged on the row as it is stored, never on what the request says of it, and
+whatever the update changes: a clinician who may move a visit along from `checked_in`, `roomed` or
+`with_clinician` cannot change a visit that is already `seen` at all — not its status, not another
+column, not a line under it sent through the visit's form. The refusal is `403 COLUMN_FORBIDDEN`
+with `reason: "update-from"`, the column and the values. It holds on a single change, a bulk
+change (one row out of reach refuses the whole batch), a row-by-row change (that row only) and a
+record's own action. Roles add up here too: a role with an unlimited update lifts it; of two
+limited roles, a column only one of them judges by is not judged, and where both do, a value either
+lists is enough. A create is not held by it: a new row under a parent is the child table's create. See [Edits limited to some columns](https://docs.adminium.dev/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
 
 `readable` limits what the role **reads** the same way: housekeeping reads a stay's room and dates,
 and none of its guest or its money.
@@ -93,24 +106,3 @@ their columns, one unlimited read of the table reads it all, and a Super Admin i
 
 A role that signs in a staff-bound browser key (a check-in tablet; see [publicKeys](https://docs.adminium.dev/reference/manifest/#publickeys))
 must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`.
-
-### A role on an add-on's tables
-
-An app's role may reach tables of an add-on the app names in [`addOns`](https://docs.adminium.dev/reference/manifest/#add-ons), with `tables`.
-A manifest that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
-
-```json
-"tables": [
-  { "addOn": "inventory", "table": "transfers", "actions": ["read", "create", "update"],
-    "limit": { "creatable": ["from_place_id", "to_place_id", "note"], "writable": ["status"] } },
-  { "addOn": "inventory", "table": "stock_points", "actions": ["read"],
-    "limit": { "readable": ["id", "item_id", "place_id", "on_hand"] } }
-]
-```
-
-Up to 12 entries, one per table. `addOn` is the add-on's key and `table` its own name for the
-table. `actions` are `read`, `create` and `update`, never a delete, an export or an import.
-`limit` is the object a role's [`limits`](https://docs.adminium.dev/reference/manifest/#roles) hold for one table, and narrows only an action
-the entry gives: `readable` needs `read`, `writable` needs `update`, `creatable` needs `create`.
-The grant is live while the add-on is connected to the app; the add-on's table and column names
-are checked then. An add-on's own roles grant its tables through `permissions`, not `tables`.

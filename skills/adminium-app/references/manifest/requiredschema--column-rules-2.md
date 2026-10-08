@@ -4,6 +4,8 @@
 
 | Rule | Shape | What it does |
 |---|---|---|
+| `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
+| `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](https://docs.adminium.dev/reference/manifest/#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
@@ -53,21 +55,3 @@ A bound is judged when the date is written, and when its `via` link or a column 
 holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
 code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
 refuses.
-
-The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
-was refused for itself, in a column the entry lets the caller write, `params` names the column and
-why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
-`invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
-names no column: a value already taken or pointing at a row that is not there, a value outside
-`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
-empty can turn on what the stored row holds.
-
-#### Required for some values
-
-`requiredWhen` asks for a column only while another column of the same row holds one of some
-values:
-
-```json
-{ "ref": "person_id", "type": "fk", "references": "people", "nullable": true,
-  "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
-```
