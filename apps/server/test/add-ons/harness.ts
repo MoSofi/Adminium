@@ -137,6 +137,8 @@ export interface Writing extends Installed {
   storedName(ref: string): string;
   /** Every answer of the add-on's code that Adminium refused, with the check that refused it: what an audit row would say. */
   refused: LedgerRefusal[];
+  /** The write service itself, for what writes on its own (an automation's step). */
+  writes: ReturnType<typeof createWriteService>;
 }
 
 /**
@@ -186,6 +188,7 @@ export async function writing(installed: Installed): Promise<Writing> {
     ...installed,
     one,
     refused,
+    writes,
     storedName: (ref) => runtime.refOf(h.connectionId, idOf(ref)),
     async create(ref, values, context = DESK) {
       const at = target(ref);
