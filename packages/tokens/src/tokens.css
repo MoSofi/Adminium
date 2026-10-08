@@ -91,6 +91,19 @@
   --method-batch: #0f766e;
   --method-batch-soft: #e2f4f2;
   --method-batch-soft-solid: var(--method-batch-soft);
+  /* SOURCE CODE AS TEXT TO EDIT (the Designer's Code tab), on --surface with the caret's line
+     tinted by --cur-line. Eight are the design's own; the comment is not: its #8a8a96 measured
+     3.01:1, and #6d6d79 is the lightest grey of that hue that clears 4.5:1 on --surface and on
+     the line's tint under every accent (4.51:1 at the worst). Punctuation and headings are
+     --fg-muted and --fg. */
+  --syn-kw: #7c3aed;
+  --syn-str: #0f766e;
+  --syn-tag: #be123c;
+  --syn-attr: #a35a00;
+  --syn-fn: #2563eb;
+  --syn-com: #6d6d79;
+  --syn-num: #c2410c;
+  --cur-line: color-mix(in srgb, var(--accent) 6%, transparent);
   --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
   --shadow-md: 0 4px 14px rgba(20,20,35,.09);
   --shadow-lg: 0 12px 34px rgba(20,20,35,.13);
@@ -150,6 +163,16 @@
   --method-batch: #5ed6c8;
   --method-batch-soft: rgba(94,214,200,.13);
   --method-batch-soft-solid: color-mix(in srgb, var(--method-batch) 13%, var(--surface));
+  /* The comment: the design's #6e6e7a measured 3.28:1; #858591 is the darkest grey of that hue
+     that clears 4.5:1 on --surface and on the line's tint (4.53:1). */
+  --syn-kw: #c4a5ff;
+  --syn-str: #5fd4b8;
+  --syn-tag: #ff8fa3;
+  --syn-attr: #f5b971;
+  --syn-fn: #8ab4ff;
+  --syn-com: #858591;
+  --syn-num: #ffa070;
+  --cur-line: rgba(255,255,255,.045);
   --shadow: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 6px 20px rgba(0,0,0,.5);
   --shadow-lg: 0 16px 40px rgba(0,0,0,.6);

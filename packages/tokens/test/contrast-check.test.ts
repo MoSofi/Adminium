@@ -149,6 +149,7 @@ describe('the gate itself', () => {
         // composition problem as `chip-solid`, and the one axe can never witness.
         'selection',
         'state-fill',
+        'syn-ink',
         'text',
         'text-on-soft',
         'text-on-tint',
@@ -346,3 +347,31 @@ describe('gate hardening', () => {
     expect(scoped.resolved.get('--accent-selection')).toBe('color-mix(in srgb, #4f46e5 12%, transparent)');
   });
 });
+
+describe('the syntax colours of code a person edits', () => {
+  const real = ['tokens.css', 'accents.css', 'exceptions.css'].map((file) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')).join('\n');
+
+  it('are measured on the surface and on the caret line, in both themes, under every accent', () => {
+    const rows = runAudit({ strict: true, css: real }).rows.filter((row) => row.group === 'syn-ink');
+    expect(rows.every((row) => row.pass && row.scope === '(root)')).toBe(true);
+    expect(new Set(rows.map((row) => row.theme))).toEqual(new Set(['light', 'dark']));
+    expect(new Set(rows.filter((row) => row.fg === '--syn-com').map((row) => row.bg))).toEqual(new Set(['--surface', '--cur-line on --surface']));
+    // The tint follows the accent in the light theme: one row for each of the eight.
+    expect(rows.filter((row) => row.theme === 'light' && row.fg === '--syn-com' && row.bg !== '--surface')).toHaveLength(8);
+  });
+
+  it('refuse the design’s own comment grey, which is why it was changed', () => {
+    const drawn = real.replace('--syn-com: #6d6d79;', '--syn-com: #8a8a96;').replace('--syn-com: #858591;', '--syn-com: #6e6e7a;');
+    expect(drawn).not.toBe(real);
+    const failed = (runAudit({ strict: true, css: drawn }).failures as { fg: string; theme: string }[]).filter((row) => row.fg === '--syn-com');
+    expect(new Set(failed.map((row) => row.theme))).toEqual(new Set(['light', 'dark']));
+  });
+
+  it('are the lightest (and in the dark theme the darkest) comment grey that passes: one step on fails', () => {
+    for (const [now, step] of [['--syn-com: #6d6d79;', '--syn-com: #6e6e7a;'], ['--syn-com: #858591;', '--syn-com: #848490;']] as const) {
+      const moved = real.replace(now, step);
+      expect((runAudit({ strict: true, css: moved }).failures as { fg: string }[]).some((row) => row.fg === '--syn-com')).toBe(true);
+    }
+  });
+});
+
