@@ -194,7 +194,7 @@ export function normaliseValue(value: unknown, logicalType: string): string | nu
       if (!/^-?\d+(\.\d+)?$/.test(text)) return text;
       const [whole, fraction = ''] = text.split('.');
       const trimmed = fraction.replace(/0+$/, '');
-      return trimmed === '' ? String(BigInt(whole!)) : `${String(BigInt(whole!))}.${trimmed}`.replace(/^0\./, '0.');
+      return trimmed === '' ? String(BigInt(whole!)) : `${String(BigInt(whole!))}.${trimmed}`;
     }
     case 'boolean':
       return value === true || value === 1 || value === '1' || value === 't' || value === 'true' ? 'true' : 'false';
