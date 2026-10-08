@@ -6,13 +6,17 @@
  * at the foot; while a turn runs the send button is a stop. A question card
  * can be answered by its buttons or in the person's own words.
  *
- * The chat is 420 wide and can be dragged (or moved with the arrow keys)
- * between 340 and 600. On a phone the two halves are tabs.
+ * The chat starts 380 wide and can be dragged (or moved with the arrow keys)
+ * between 340 and 600. As the window narrows it gives that width up by
+ * itself, and gets it back when there is room. When the work area's bar at
+ * its most folded no longer fits beside the narrowest chat, the two halves
+ * become views with a switch between them; the one out of sight is kept at
+ * its size, so the preview's frame lives on and can still be looked at.
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Eye, MessageSquare } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
@@ -44,6 +48,7 @@ import {
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
+import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
 import { StyleMenu } from './LookMenu.js';
 import { SessionMenu } from './SessionMenu.js';
 import { looksNow } from './sight.js';
@@ -52,9 +57,21 @@ import { playSpendSound } from './spendSound.js';
 import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
 import { useFollowEnd } from './useFollowEnd.js';
 import { useSessionEvents } from './useSessionEvents.js';
+import { VIEW_IDS, ViewSwitch, type BuildView } from './ViewSwitch.js';
 import { WorkArea } from './WorkArea.js';
 
-export const CHAT_WIDTH = { min: 340, max: 600, start: 420, step: 20 } as const;
+export { CHAT_WIDTH } from './barLevel.js';
+
+/** The window's width, kept current. */
+function useWindowWidth(): number {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const on = (): void => setWidth(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return width;
+}
 
 function errorText(error: unknown): string {
   return error instanceof ApiError || error instanceof Error ? error.message : String(error);
@@ -82,8 +99,16 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const [text, setText] = useState('');
   const [answering, setAnswering] = useState(false);
   const [open, setOpen] = useState<Record<number, boolean>>({});
-  const [chatWidth, setChatWidth] = useState<number>(CHAT_WIDTH.start);
-  const [tab, setTab] = useState<'chat' | 'preview'>('chat');
+  /** The width the person gave the chat; what is drawn may be less while the window is narrow. */
+  const [wanted, setWanted] = useState<number>(CHAT_WIDTH.start);
+  /** What the work area's bar needs at its most folded: the design's own number until the page has measured its own. */
+  const [foldedNeed, setFoldedNeed] = useState<number>(FOLDED_NEED_GUESS);
+  const windowWidth = useWindowWidth();
+  const wasTwo = useRef(false);
+  const layout = views({ window: windowWidth, need: foldedNeed, wanted, two: wasTwo.current });
+  wasTwo.current = layout.two;
+  const chatWidth = layout.chat;
+  const [view, setView] = useState<BuildView>('chat');
   const box = useRef<HTMLTextAreaElement>(null);
   const follow = useFollowEnd([events.length]);
 
@@ -256,15 +281,17 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     if (event.key === 'ArrowLeft') delta = rtl ? CHAT_WIDTH.step : -CHAT_WIDTH.step;
     if (delta === 0) return;
     event.preventDefault();
-    setChatWidth((width) => Math.max(CHAT_WIDTH.min, Math.min(CHAT_WIDTH.max, width + delta)));
+    // From the width as it is drawn, and no further than there is room for now.
+    setWanted(Math.max(CHAT_WIDTH.min, Math.min(layout.most, chatWidth + delta)));
   };
   const onDividerDown = (event: PointerEvent<HTMLDivElement>): void => {
     const rtl = document.documentElement.dir === 'rtl';
     const startX = event.clientX;
     const startWidth = chatWidth;
+    const most = layout.most;
     const move = (moved: globalThis.PointerEvent): void => {
       const dx = moved.clientX - startX;
-      setChatWidth(Math.round(Math.max(CHAT_WIDTH.min, Math.min(CHAT_WIDTH.max, startWidth + (rtl ? -dx : dx)))));
+      setWanted(Math.round(Math.max(CHAT_WIDTH.min, Math.min(most, startWidth + (rtl ? -dx : dx)))));
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
@@ -456,27 +483,19 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
         }
       />
 
-      <div role="tablist" aria-label={t('designer:build.halves', 'Chat and preview')} className="flex shrink-0 gap-1 border-b border-border bg-surface px-3 py-1.5 md:hidden">
-        {(['chat', 'preview'] as const).map((which) => (
-          <button
-            key={which}
-            type="button"
-            role="tab"
-            aria-selected={tab === which}
-            onClick={() => setTab(which)}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[13px] font-bold text-fg-muted aria-selected:bg-surface-2 aria-selected:text-fg"
-          >
-            {which === 'chat' ? <MessageSquare aria-hidden="true" className="size-[15px]" /> : <Eye aria-hidden="true" className="size-[15px]" />}
-            {which === 'chat' ? t('designer:build.chat', 'Chat') : t('designer:build.preview', 'Preview')}
-          </button>
-        ))}
-      </div>
+      {layout.two ? <ViewSwitch view={view} onView={setView} /> : null}
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
+        {/* In two views the one out of sight keeps its size and is out of reach: hidden, never taken out of the layout. */}
         <aside
-          aria-label={t('designer:build.chat', 'Chat')}
+          {...(layout.two ? { id: VIEW_IDS.chat.panel, role: 'tabpanel', 'aria-labelledby': VIEW_IDS.chat.tab } : { 'aria-label': t('designer:build.chat', 'Chat') })}
+          inert={layout.two && view !== 'chat'}
           style={{ '--designer-chat-w': `${String(chatWidth)}px` }}
-          className={`flex min-w-0 flex-col border-border bg-surface max-md:w-full md:w-[var(--designer-chat-w)] md:shrink-0 md:border-e ${tab === 'chat' ? '' : 'max-md:hidden'}`}
+          className={
+            layout.two
+              ? `absolute inset-0 mx-auto flex w-full min-w-0 max-w-[680px] flex-col bg-surface ${view === 'chat' ? '' : 'invisible'}`
+              : 'flex w-[var(--designer-chat-w)] min-w-0 shrink-0 flex-col border-e border-border bg-surface'
+          }
         >
           {/* `relative`: a word hidden for screen readers (a running step's "(running)") is placed absolutely. With no positioned ancestor it sat at its place in the whole chat's length, far below the window, and the page itself scrolled to empty space. */}
           <div ref={follow.scroller} onScroll={follow.onScroll} aria-busy={!loaded} className="nb-scroll relative min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-[22px] [overflow-anchor:none]">
@@ -511,17 +530,30 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           aria-orientation="vertical"
           aria-label={t('designer:build.resize', 'Resize the chat')}
           aria-valuemin={CHAT_WIDTH.min}
-          aria-valuemax={CHAT_WIDTH.max}
+          aria-valuemax={layout.most}
           aria-valuenow={chatWidth}
           tabIndex={0}
           onKeyDown={onDividerKey}
           onPointerDown={onDividerDown}
-          className="relative z-[5] -mx-1 hidden w-[9px] shrink-0 cursor-col-resize touch-none justify-center focus-visible:outline-2 focus-visible:outline-accent md:flex"
+          hidden={layout.two}
+          className={`relative z-[5] -mx-1 w-[9px] shrink-0 cursor-col-resize touch-none justify-center focus-visible:outline-2 focus-visible:outline-accent ${layout.two ? 'hidden' : 'flex'}`}
         >
           <span aria-hidden="true" className="h-full w-px bg-border" />
         </div>
-        <section aria-label={t('designer:build.work', 'The app')} className={`min-w-0 flex-1 flex-col ${tab === 'preview' ? 'flex' : 'max-md:hidden md:flex'}`}>
-          {data === undefined ? null : <WorkArea session={data.session} turns={turns} onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))} onNotice={(title) => toasts.push({ variant: 'info', title })} />}
+        <section
+          {...(layout.two ? { id: VIEW_IDS.work.panel, role: 'tabpanel', 'aria-labelledby': VIEW_IDS.work.tab } : { 'aria-label': t('designer:build.workArea', 'Work area') })}
+          inert={layout.two && view !== 'work'}
+          className={layout.two ? `absolute inset-0 flex min-w-0 flex-col bg-bg ${view === 'work' ? '' : 'invisible'}` : 'flex min-w-0 flex-1 flex-col bg-bg'}
+        >
+          {data === undefined ? null : (
+            <WorkArea
+              session={data.session}
+              turns={turns}
+              onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))}
+              onNotice={(title) => toasts.push({ variant: 'info', title })}
+              onFoldedNeed={setFoldedNeed}
+            />
+          )}
         </section>
       </div>
     </div>

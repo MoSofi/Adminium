@@ -97,7 +97,16 @@ const SESSION = {
   tokens: { in: 0, out: 0 },
 };
 
+/** The window at a width: the test's DOM starts at 1024, where the page is two views. */
+function windowAt(width: number): void {
+  act(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width });
+    window.dispatchEvent(new Event('resize'));
+  });
+}
+
 beforeEach(() => {
+  windowAt(1440);
   calls = [];
   yourApps = [];
   look = null;
@@ -809,11 +818,96 @@ describe('the build page', () => {
   it('moves the chat’s edge with the arrow keys, within 340 and 600', async () => {
     await open();
     const edge = screen.getByRole('separator', { name: 'Resize the chat' });
-    expect(edge.getAttribute('aria-valuenow')).toBe('420');
+    expect(edge.getAttribute('aria-valuenow')).toBe('380');
     edge.focus();
     await userEvent.keyboard('{ArrowRight}{ArrowRight}');
-    expect(edge.getAttribute('aria-valuenow')).toBe('460');
+    expect(edge.getAttribute('aria-valuenow')).toBe('420');
     for (let i = 0; i < 20; i += 1) await userEvent.keyboard('{ArrowLeft}');
     expect(edge.getAttribute('aria-valuenow')).toBe('340');
+    for (let i = 0; i < 20; i += 1) await userEvent.keyboard('{ArrowRight}');
+    expect(edge.getAttribute('aria-valuenow')).toBe('600');
+  });
+
+  it('lets the chat give its width up as the window narrows and get it back, and never lets it be dragged past the room there is', async () => {
+    await open();
+    const edge = screen.getByRole('separator', { name: 'Resize the chat' });
+    const chat = screen.getByRole('complementary', { name: 'Chat' });
+    const drawn = (): string => chat.style.getPropertyValue('--designer-chat-w');
+    edge.focus();
+    for (let i = 0; i < 20; i += 1) await userEvent.keyboard('{ArrowRight}');
+    expect(drawn()).toBe('600px');
+    // 1300 less the rule and the bar at its most folded leaves 547.
+    windowAt(1300);
+    expect(drawn()).toBe('547px');
+    expect(edge.getAttribute('aria-valuenow')).toBe('547');
+    expect(edge.getAttribute('aria-valuemax')).toBe('547');
+    windowAt(1100);
+    expect(drawn()).toBe('347px');
+    // Its own width comes back with the room.
+    windowAt(1500);
+    expect(drawn()).toBe('600px');
+    expect(edge.getAttribute('aria-valuemax')).toBe('600');
+
+    // Dragged while narrow: no further than fits, by the keys and by the pointer.
+    windowAt(1200);
+    expect(drawn()).toBe('447px');
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}');
+    expect(drawn()).toBe('447px');
+    // The width a person asked for is the one they saw: more room does not bring a wider chat than that.
+    windowAt(1500);
+    expect(drawn()).toBe('447px');
+    windowAt(1200);
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(drawn()).toBe('427px');
+    act(() => {
+      edge.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 427 }));
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 900 }));
+      window.dispatchEvent(new MouseEvent('pointerup', { clientX: 900 }));
+    });
+    expect(drawn()).toBe('447px');
+    windowAt(1500);
+    expect(drawn()).toBe('447px');
+  });
+
+  it('keeps the work area beside the chat at 1100, and makes them two views with a switch at 1024, each kept at its size while out of sight', async () => {
+    windowAt(1100);
+    await open();
+    expect(screen.getByRole('separator', { name: 'Resize the chat' })).toBeTruthy();
+    expect(screen.queryByRole('tablist', { name: 'View' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Work area' }).hasAttribute('inert')).toBe(false);
+
+    windowAt(1024);
+    const tabs = within(screen.getByRole('tablist', { name: 'View' })).getAllByRole('tab');
+    expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('aria-selected')])).toEqual([
+      ['Chat', 'true'],
+      ['Work area', 'false'],
+    ]);
+    expect(screen.queryByRole('separator', { name: 'Resize the chat' })).toBeNull();
+    const chat = document.getElementById(tabs[0]!.getAttribute('aria-controls')!)!;
+    const work = document.getElementById(tabs[1]!.getAttribute('aria-controls')!)!;
+    expect([chat.getAttribute('role'), chat.getAttribute('aria-labelledby')]).toEqual(['tabpanel', tabs[0]!.id]);
+    expect([work.getAttribute('role'), work.getAttribute('aria-labelledby')]).toEqual(['tabpanel', tabs[1]!.id]);
+    // Out of sight and out of reach, and still laid out: the preview's frame inside keeps its size.
+    const hiddenWell = (panel: HTMLElement): boolean => panel.hasAttribute('inert') && panel.className.includes('invisible') && !panel.hasAttribute('hidden') && !/(^| )hidden( |$)/.test(panel.className);
+    expect([hiddenWell(chat), hiddenWell(work)]).toEqual([false, true]);
+    expect(chat.className).toContain('max-w-[680px]');
+    const bar = work.querySelector('[data-part="work-bar"]');
+    expect(bar).not.toBeNull();
+
+    await userEvent.click(tabs[1]!);
+    expect([hiddenWell(chat), hiddenWell(work)]).toEqual([true, false]);
+    // The same work area, not a new one.
+    expect(work.querySelector('[data-part="work-bar"]')).toBe(bar);
+    tabs[1]!.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(tabs[0]);
+
+    // Back side by side only with a few pixels over the edge.
+    windowAt(1096);
+    expect(screen.queryByRole('tablist', { name: 'View' })).not.toBeNull();
+    windowAt(1101);
+    expect(screen.queryByRole('tablist', { name: 'View' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Chat' }).hasAttribute('inert')).toBe(false);
   });
 });

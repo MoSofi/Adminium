@@ -8719,10 +8719,6 @@
     "status": "mt",
     "srcHash": "18b683c076ce"
   },
-  "designer.build.halves": {
-    "status": "mt",
-    "srcHash": "b144ba6befb9"
-  },
   "designer.build.home": {
     "status": "mt",
     "srcHash": "35e1e52da73f"
@@ -8763,10 +8759,6 @@
     "status": "mt",
     "srcHash": "150e28631bd7"
   },
-  "designer.build.preview": {
-    "status": "mt",
-    "srcHash": "f1fbb2b43dca"
-  },
   "designer.build.rename": {
     "status": "mt",
     "srcHash": "eb75f2a8dcb3"
@@ -8803,9 +8795,13 @@
     "status": "mt",
     "srcHash": "08d7241fba97"
   },
-  "designer.build.work": {
+  "designer.build.views": {
     "status": "mt",
-    "srcHash": "9445c325125a"
+    "srcHash": "69bd4ef9fbd0"
+  },
+  "designer.build.workArea": {
+    "status": "mt",
+    "srcHash": "0e67beb64c53"
   },
   "designer.card.addIt": {
     "status": "mt",
