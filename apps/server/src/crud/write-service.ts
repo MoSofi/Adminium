@@ -3251,7 +3251,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await settleChain(target.db, target.dialect, starts, currencyFor(target), { cap: held });
     },
     // Written as a settle writes: what follows is Adminium's own columns, judged by no state and refused by nothing.
-    follow: (target, rules, before, after) => followAndSettle(target, rules, before, after, currencyFor(target), 'after-commit'),
+    follow: async (target, rules, before, after) => {
+      await followAndSettle(target, rules, before, after, currencyFor(target), 'after-commit');
+    },
   });
 
   /** A step of the ledger's, with its refusal recorded for an operator BEFORE the door words it its own way (a public door names nothing). */
