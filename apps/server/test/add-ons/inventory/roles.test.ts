@@ -74,7 +74,7 @@ describe.each(LEGS)('the three roles — %s', (dialect, available) => {
       }
       // Nothing the clerk may read is money.
       // (Two yes/no flags say a cost was guessed; they are no figure.)
-      expect(limit.readable.filter((column) => MONEY.test(column) && !['cost_to_check', 'cost_guessed'].includes(column)), ref).toEqual([]);
+      expect(limit.readable.filter((column) => MONEY.test(column) && column !== 'cost_guessed'), ref).toEqual([]);
     }
     // And the manager, asked the same way, does read it.
     const boss = await kit('max');
