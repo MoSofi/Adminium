@@ -228,9 +228,18 @@ export type DesignerEventBody =
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }
-  | { kind: 'turn-finished'; outcome: TurnOutcome };
+  | { kind: 'turn-finished'; outcome: TurnOutcome }
+  /** The app's folder taken, and handed back, by something a person did from a page: no turn runs. */
+  | { kind: 'hold'; what: FolderHold }
+  | { kind: 'released'; what: FolderHold }
+  /** The Designer was shown the page after a build. */
+  | { kind: 'sight'; side: string; path: string };
 
-export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number };
+/** What a person can do from a page that takes the app's folder for a moment. */
+export type FolderHold = 'save' | 'style' | 'restore' | 'start';
+
+/** `by: 'person'`: caused from a page, outside any turn. It carries the last turn's number and belongs to none. */
+export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
 
 export interface DesignerVersion {
   n: number;

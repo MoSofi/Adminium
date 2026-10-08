@@ -54,7 +54,7 @@ import { SessionMenu } from './SessionMenu.js';
 import { looksNow } from './sight.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
-import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
+import { foldTurns, heldBy, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
 import { useFollowEnd } from './useFollowEnd.js';
 import { useSessionEvents } from './useSessionEvents.js';
 import { VIEW_IDS, ViewSwitch, type BuildView } from './ViewSwitch.js';
@@ -92,6 +92,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const { events, loaded } = useSessionEvents(sessionId);
   const turns = useMemo(() => foldTurns(events), [events]);
   const working = isWorking(turns);
+  /** The folder taken by something done from a page (this one or another): a style change, going back, a hand save. */
+  const held = useMemo(() => heldBy(events), [events]);
   const spend = useMemo(() => spendWarnings(turns), [turns]);
   const waiting = waitingCards(turns);
   const question = waiting.find((card): card is Extract<DesignerCard, { type: 'question' }> => card.type === 'question') ?? null;
@@ -131,7 +133,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   // A turn that ends, or a version that lands, changes what the top bar and Home show.
   const lastKind = events.at(-1)?.kind;
   useEffect(() => {
-    if (lastKind === 'turn-finished' || lastKind === 'version') refresh();
+    if (lastKind === 'turn-finished' || lastKind === 'version' || lastKind === 'released') refresh();
   }, [events.length, lastKind]);
 
   // A spending mark passed while the page is open is heard once. One read from the session's file (a reload) is not.
@@ -255,7 +257,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   }
 
   const data = session.data;
-  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending || look.isPending;
+  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending || look.isPending || held !== null;
   const appSessions = apps.data?.apps.find((app) => app.key === data?.session.appKey)?.sessions ?? [];
   // A session that has not been used yet is already a new one: another would only be an empty twin.
   const canStartNew = data !== undefined && !working && !busy && turns.length > 0;
