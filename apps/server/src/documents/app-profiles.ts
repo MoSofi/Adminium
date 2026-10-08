@@ -310,6 +310,7 @@ export function storedProfile(
               ...(one.where === undefined ? {} : { where: { column: one.where.column, in: [...one.where.in] } }),
               ...(one.unless === undefined ? {} : { unless: one.unless }),
               pair: { addOn: one.addOn, table: one.table, matchTable: one.match.table, matchRow: one.match.row },
+              ...(one.takenOff === undefined ? {} : { takenOff: one.takenOff.flatMap((slotColumn) => (columns[slotColumn] === undefined ? [] : [columns[slotColumn]])) }),
             },
           });
           orderBy ??= one.orderBy ?? null;

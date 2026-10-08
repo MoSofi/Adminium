@@ -46,8 +46,8 @@
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
 | `references/manifest/settings.md` | Settings | 1211 |
 | `references/manifest/add-ons.md` | Add-ons | 3247 |
-| `references/manifest/documents.md` | Documents | 7183 |
-| `references/manifest/documents-2.md` | Documents (part 2) | 1389 |
+| `references/manifest/documents.md` | Documents | 7488 |
+| `references/manifest/documents-2.md` | Documents (part 2) | 1846 |
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |

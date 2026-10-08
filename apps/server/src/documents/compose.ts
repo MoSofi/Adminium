@@ -546,6 +546,14 @@ async function pairsFor(meta: MetaDb, profile: DocumentProfile, view: SnapshotVi
   };
 }
 
+/** An amount as taken off: its own digits behind a minus (nothing for an empty one, and no minus before a zero). */
+export function takenOff(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  const text = String(value).trim();
+  if (text === '' || /^-?0*(\.0*)?$/.test(text)) return value;
+  return text.startsWith('-') ? text.slice(1) : `-${text}`;
+}
+
 /** Each row as the reader may see it: the columns a `withhold` keeps for another holder emptied (no withhold: as read). */
 function heldFrom(view: SnapshotView, withhold: DocumentWithhold | undefined): Unheld {
   if (withhold === undefined) return Object.assign((_table: ResolvedTable, row: Record<string, unknown>) => row, { warm: async () => {} });
@@ -659,7 +667,9 @@ export async function readProfileSource(input: {
     const shown = read.map((line) => unheld(child, line));
     // What was taken off an order is kept a row a line: listed, each offer, code or voucher is one row, named in the document's language.
     const applied = source.pair === undefined ? undefined : input.pairs?.appliedOf?.(source.pair.addOn, source.pair.table);
-    const lines = applied === undefined ? shown : listedReductions(shown, applied, input.locale ?? 'en-US');
+    const listed = applied === undefined ? shown : listedReductions(shown, applied, input.locale ?? 'en-US');
+    // An amount the mapping prints as taken off: the same digits with a minus, never worked out as a number.
+    const lines = (source.takenOff ?? []).length === 0 ? listed : listed.map((line) => ({ ...line, ...Object.fromEntries(source.takenOff!.map((column) => [column, takenOff(line[column])])) }));
     await addLists(db, view, child, lines, source.lists, unheld);
     return { child, lines };
   };

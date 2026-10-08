@@ -67,6 +67,8 @@ export interface CollectionSource {
    * a stale table in a profile; with the add-on absent the list is empty.
    */
   pair?: { addOn: string; table: string; matchTable: string; matchRow: string } | undefined;
+  /** Columns of a pair's rows printed as taken off: an amount kept as 4.85 reads -4.85. */
+  takenOff?: readonly string[] | undefined;
 }
 
 /**

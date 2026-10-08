@@ -36,3 +36,10 @@ describe('what an order took off, as a list prints it', () => {
     expect(listedReductions([], COLUMNS, 'en-US')).toEqual([]);
   });
 });
+
+describe('an amount printed as taken off', () => {
+  it('keeps its digits behind a minus, and leaves nothing and zero alone', async () => {
+    const { takenOff } = await import('../src/documents/compose.js');
+    expect(['4.85', 16, '0.00', 0, '', null, '-3.5'].map(takenOff)).toEqual(['-4.85', '-16', '0.00', 0, '', null, '3.5']);
+  });
+});

@@ -77,6 +77,8 @@ export const pairSourceSchema = z
     match: z.object({ table: refSchema, row: refSchema }).strict(),
     orderBy: refSchema.optional(),
     columns: z.record(slotId, refSchema),
+    /** Slot columns whose amount is printed as taken off: what the add-on keeps as 4.85 reads −4.85 (a reduction among charges). */
+    takenOff: z.array(slotId).min(1).max(4).optional(),
     where: whereSchema.optional(),
     unless: refSchema.optional(),
   })
@@ -107,7 +109,7 @@ export const slotMappingSchema = z.union([
   z.object({ via: refSchema, column: refSchema, form: formSchema }).strict(),
   z.object({ collection: z.union([tableSourceSchema, nightlySourceSchema, pairSourceSchema]) }).strict(),
   /** One list from several sources, in order (a folio's nights, extras and charges). */
-  z.object({ collections: z.array(z.union([tableSourceSchema, nightlySourceSchema, pairSourceSchema])).min(1).max(4) }).strict(),
+  z.object({ collections: z.array(z.union([tableSourceSchema, nightlySourceSchema, pairSourceSchema])).min(1).max(6) }).strict(),
 ]);
 export type SlotMapping = z.infer<typeof slotMappingSchema>;
 
@@ -164,8 +166,12 @@ export type PerNightOf = (table: string) => ReadonlyMap<string, { rateVia: strin
  * are checked where its manifest is at hand — at install.
  */
 function pairSourceIssues(c: PairSource, named: ReadonlySet<string>, here: (...rest: (string | number)[]) => (string | number)[]): ReferenceIssue[] {
-  if (named.has(c.addOn)) return [];
-  return [{ path: here('addOn'), message: `"${c.addOn}" is not an add-on this manifest names: add it to addOns.requires or addOns.suggests` }];
+  const out: ReferenceIssue[] = [];
+  if (!named.has(c.addOn)) out.push({ path: here('addOn'), message: `"${c.addOn}" is not an add-on this manifest names: add it to addOns.requires or addOns.suggests` });
+  (c.takenOff ?? []).forEach((slotColumn, n) => {
+    if (!Object.hasOwn(c.columns, slotColumn)) out.push({ path: here('takenOff', n), message: `"${slotColumn}" is not one of this list's columns` });
+  });
+  return out;
 }
 
 /** A child-row source of one list: the table, its link to the row, and each column it reads. */

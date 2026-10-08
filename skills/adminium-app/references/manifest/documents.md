@@ -39,7 +39,8 @@ add-on's manifest, show the ones it draws. Each slot reads one of:
 | `{ "via", "column", "form"? }` | A column of the row a foreign key `via` of this table points at: the client's name on an invoice. |
 | `{ "collection": { "table", "via", "orderBy"?, "columns", "where"?, "unless"? } }` | A list of child rows, whose foreign key `via` points at this table, in `orderBy` order. `columns` maps the add-on's names for a line's values to the child's columns. `where` (`{ "column", "in": [1–16 values] }`) keeps only the rows whose column holds one of the values; a row whose `unless` column is true or set is left out (a voided line). |
 | `{ "collection": { "nightly", "columns" } }` | The nights a [price by the night](https://docs.adminium.dev/reference/manifest/#prices-by-the-night) of the row is made of, one line each, worked out when the document is drawn. `nightly` names the priced column; `columns` maps a line's values to a night's own `date`, `rate`, `base`, `qty` and `tags`, or to `<rate via>.<column>`, a column of the row the rate comes from (`room_type_id.name`). |
-| `{ "collections": [1–4 sources] }` | One list from several sources, in order, each a table source or a nightly source as above: a folio's nights, then its extras, then its charges. |
+| `{ "collection": { "addOn", "table", "match": { "table", "row" }, "orderBy"?, "columns", "takenOff"?, "where"?, "unless"? } }` | Rows an add-on keeps for this row, found by the pair each stores: this table's stored name in `match.table` and the row's key in `match.row` (what Offers & gift cards applied to an order). `addOn` is one the manifest names; `table` and the columns are the add-on's own names. With the add-on away the list is empty. Rows of what an add-on took off an order print one row for each offer, code or voucher, its amounts added, named in the document's language. `takenOff` lists the line values printed as taken off: an amount kept as `4.85` reads `−4.85`, so a reduction can sit among charges. |
+| `{ "collections": [1–6 sources] }` | One list from several sources, in order, each a table source, a nightly source or an add-on's rows as above: a folio's nights, then its extras, its charges, and what was taken off. |
 
 A line's value in a table source may also be a list of names one level below the line, printed one
 after another (a dish's options, "Farro · Grilled chicken · Avocado"):
@@ -89,9 +90,3 @@ A profile is the app's. It is made with the real table names when the app is ins
 place by an update so documents already issued keep pointing at it, and removed when the app is
 uninstalled. A profile whose add-on is not installed is skipped, with a reason on the install
 reply. An operator's own profile is never changed.
-
-When a table is [built on an add-on's shape](https://docs.adminium.dev/reference/manifest/#tables-built-on-an-add-ons-shape), the shape's own
-profiles are made for it at install. An app entry of the same kind on that table does not make a
-second profile: its slots are added to the shape's mapping (the app's slot wins on the same name,
-so an invoice can print the client's address from the app's own `clients` table), and its `name`
-replaces the shape's.
