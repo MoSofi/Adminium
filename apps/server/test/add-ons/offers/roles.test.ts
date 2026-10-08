@@ -73,6 +73,27 @@ describe.each(LEGS)("Offers' three roles — %s", (dialect, available) => {
     await w.h.close();
   });
 
+  it.skipIf(!run)('each role is shown the pages that are its own, and is served no other screen\'s code', async () => {
+    // Without a page a role holds every right on its tables and sees nothing: nobody but a Super Admin could open Offers.
+    const shown = async (who: string) => {
+      const start = (await as(who, 'GET', '/api/v1/bootstrap')).json() as { data: { addOnNav: { pages: { ref: string }[] } } };
+      // The generated pages, wherever the rail keeps them: named by their own address.
+      const listed = JSON.stringify({ ...start.data, addOnNav: undefined });
+      return {
+        code: start.data.addOnNav.pages.map((page) => page.ref.replace(/^offers-/, '')).sort(),
+        lists: ['overview', 'codes', 'vouchers', 'voucher-batches', 'gift-cards', 'activity', 'uses', 'groups', 'reasons', 'staff-limits', 'messages', 'settings'].filter((ref) => listed.includes(`offers-${ref}"`)),
+      };
+    };
+    expect(await shown('max')).toEqual({ code: ['discounts', 'issue', 'look-up', 'rules'], lists: ['overview', 'codes', 'vouchers', 'voucher-batches', 'gift-cards', 'activity', 'uses', 'groups', 'reasons', 'staff-limits', 'messages', 'settings'] });
+    expect(await shown('dee')).toEqual({ code: ['issue', 'look-up'], lists: ['overview', 'vouchers', 'gift-cards', 'activity', 'uses'] });
+    expect(await shown('vera')).toEqual({ code: ['discounts', 'look-up'], lists: ['overview', 'codes', 'vouchers', 'voucher-batches', 'gift-cards', 'activity', 'uses'] });
+    // The gate hides a screen and the route is the boundary: the desk is not handed the rules screen's code.
+    const kitOf = await kit('dee');
+    expect(kitOf.has['page:offers-look-up:view']).toBe(true);
+    expect(kitOf.has['page:offers-rules:view']).toBe(false);
+    expect(kitOf.has['page:offers-discounts:view']).toBe(false);
+  });
+
   it.skipIf(!run)('the desk and the viewer never read a whole card or voucher code', async () => {
     const [cardCode, voucherCode] = [String(card['code']), String(voucher['code'])];
     expect(cardCode).toMatch(/^GC-[0-9A-Z]{12}$/);
