@@ -36,5 +36,7 @@ parts and the reader's own grants. A manifest that uses it sets
 
 An app's table has the tab only while the add-on is connected to that app and switched on. A
 reader who cannot read the add-on's table has no tab; one who can is offered only what their role
-allows. The add-on ships the tab's `label` and `empty` in its own strings; the rest of the tab's
-words are Adminium's.
+allows. A tab is drawn before any code of the add-on runs, so its words in the other languages
+sit beside each message, by tag: `labels` beside `label`, `empties` beside `empty`, and `labels`
+on each of its `actions` (`"labels": { "de-DE": "Bestand" }`). A reader whose language is not
+there reads the English. The rest of the tab's words are Adminium's.

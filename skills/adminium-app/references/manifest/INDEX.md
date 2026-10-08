@@ -74,14 +74,14 @@
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 4645 |
-| `references/manifest/sample-data.md` | Sample data | 7630 |
+| `references/manifest/sample-data.md` | Sample data | 7741 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 4077 |
-| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2197 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
+| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |
 | `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5187 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 1853 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
-| `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2592 |
+| `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2828 |
 | `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
 | `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
 | `references/manifest/validation.md` | Validation | 3648 |

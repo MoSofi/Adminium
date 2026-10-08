@@ -53,7 +53,7 @@ A value is plain JSON, or one of these directives:
 
 | Directive | Value |
 |---|---|
-| `{ "@ref": "<label>" }` | The key of an earlier row with that label. |
+| `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
 | `{ "@in": "PT20M", "@slot": "orders" }` | The first open time of that table's [slot limit](https://docs.adminium.dev/reference/manifest/#slot-limits) at least that far ahead: its hours, closures and pauses, on its grid, with room left after the sample's own rows placed so far; on the next open day when today has none, looking two weeks ahead, else the plain `@in` time. Not with `@grid`. |
