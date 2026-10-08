@@ -1,5 +1,7 @@
 # @adminium/add-on-contracts
 
+## 0.3.19
+
 ## 0.3.18
 
 ### Patch Changes

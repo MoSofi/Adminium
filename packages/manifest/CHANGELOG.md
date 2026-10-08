@@ -1,5 +1,31 @@
 # @adminium/manifest
 
+## 0.3.19
+
+### Patch Changes
+
+- 5cfc90d: An app update gives a column its foreign key when the app now declares it `fk` and the table kept it as a plain number (a column first written `"type": "int"` and later made a link, as Adminium Designer does when it adds an add-on's rule to it). Before, the update changed nothing in the database, so nothing that follows the link found the row's parent: a rule that posts a ticket's lines to an add-on never fired, and said nothing. The check lists the change and refuses it, by name, while rows point at a row that does not exist (`LINK_ORPHANS`). A line whose rule still has no link behind it is now refused when it is saved, instead of being saved and never posted.
+  
+  On SQLite, adding the link rebuilds the table, and the rebuild ended by checking every foreign key in the whole database: a row in some other table that already pointed at nothing stopped the update halfway. The rebuild now refuses only what it would break itself; what was already there is left as it was.
+- b98ea0a: Four things an app that builds on an add-on needed.
+  
+  - A link into an add-on's table may take its default from the app's settings row, when the settings column links into the same table (`rules.default` beside `rules.addOnLink`). The default is left empty, and no save is refused, while the add-on is not connected.
+  - A role's limit may say which rows its update reaches, by what a column holds now (`writableFrom`): a clinician moves a visit along until it is seen, and cannot take a seen visit back. Judged on the stored row, through every way of changing a record.
+  - Someone who opens only their app's screens can ask the stock words of an add-on connected to that app ("3 left", the batch about to expire).
+  - An app's sample may hold the rows that link its records to an add-on's ("this visit type offers the flu kit"), and they are removed with the app's sample. What an add-on's ledger counts is still the add-on's to write.
+  
+  A manifest that uses the first two sets `minAdminiumVersion` to 0.3.19 or later.
+- 359b03f: Somebody who holds two limited roles on one table, one of which says which rows it reaches (`writableFrom`), is now held to each role on the rows it reaches: a column one role may write is no longer writable on a row only the other role reaches. Before, the two limits were added together and the row limit was dropped.
+  
+  When a discount code is checked before it is saved, the stored codes that read like it are named only to somebody who may read the codes; somebody who may only make codes is still told whether the word is taken.
+  
+  A column may keep the last four characters of a code a person types (`codeLast4.of` naming the column a `lookup` reads), as it already could for a code Adminium makes: a payment row can show which gift card paid without showing its code.
+  
+  An app update no longer adds a foreign key to a table the app took over from somebody else (an adopted table): such a table is left as its owner keeps it.
+- 66727ff: An add-on's ledger can bring a row in under a code it already has: a code rule that says `givenByLedger: true` lets the add-on's own answer give the code on a row it adds (an older gift card, moved in under the code its holder has always had). The code is kept when it is the rule's prefix and 4 to 16 capital letters and digits and no other row has it; with none given Adminium makes one as before; a change never writes a code, and no person's save gains anything. A row such an answer adds may also start in a state that only a planned move reaches from the first state. On a server with few tables a price rule's "make them for me" was refused because a link Adminium had only guessed from a column's name counted as a real one; it no longer does. A price rule that cannot be stored is now refused before any column or table is made for it, in the review and in the save; it used to add them first.
+- e59005d: A shape's part can say what its rows are to a price rule on the same table: `inAdjust` names the column that marks a row which takes no reduction (a gift-card load) or is something sold that pays later (a voucher). When Adminium Designer adds such a shape to an app's lines, or adds the price rule to lines that already carry one, it writes `excludes` or `paidBy` on the rule's line, so a discount for the whole order no longer comes off a card load.
+- @adminium/add-on-contracts@0.3.19
+
 ## 0.3.18
 
 ### Patch Changes

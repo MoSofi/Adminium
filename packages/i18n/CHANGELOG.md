@@ -1,5 +1,15 @@
 # @adminium/i18n
 
+## 0.3.19
+
+### Patch Changes
+
+- 5cfc90d: An app update gives a column its foreign key when the app now declares it `fk` and the table kept it as a plain number (a column first written `"type": "int"` and later made a link, as Adminium Designer does when it adds an add-on's rule to it). Before, the update changed nothing in the database, so nothing that follows the link found the row's parent: a rule that posts a ticket's lines to an add-on never fired, and said nothing. The check lists the change and refuses it, by name, while rows point at a row that does not exist (`LINK_ORPHANS`). A line whose rule still has no link behind it is now refused when it is saved, instead of being saved and never posted.
+  
+  On SQLite, adding the link rebuilds the table, and the rebuild ended by checking every foreign key in the whole database: a row in some other table that already pointed at nothing stopped the update halfway. The rebuild now refuses only what it would break itself; what was already there is left as it was.
+- 8af701b: Adminium Designer adds an add-on's parts to tables the app already has. For a shape whose parts carry a rule (an order that takes discounts and codes, a payment a gift card makes, a line that sells a card or a voucher), `build_on_shape` takes the app's own table for each part, adds the columns the shape needs and its rule under the app's names, at the app's own moments, with the requirement and the first Adminium the add-on runs on; nothing is written when the app's own check refuses the result. The app check holds a price rule to the add-on it asks, and no longer asks a rule to map an amount the ledger decides itself. A request for discounts, coupons, vouchers, gift cards, store credit or loyalty brings the add-ons skill and the Offers guide into the Designer's prompt, and the architecture diagram says which table an add-on prices.
+- be78bbb: Discounts, codes and staff discounts are worked out by Adminium inside the save. A table's price rule has an add-on that keeps offers lower an order's price whenever a line, a code, a reduction by hand or the customer changes; every save and quote says which reductions applied, and a guest's own read of the order says the same afterwards. A code typed on an order is found in the add-on's tables and refused on its own field; what an order used is recorded once, where it posts. What a return gives back is decided from the order priced again without it. An owner can switch a rule, store one for a table of their own and have the columns it needs made with it, try an offer on a saved order before it is on, and have a discount code made that reads like no other. The last four characters of a code are kept beside it.
+
 ## 0.3.18
 
 ### Patch Changes

@@ -8,13 +8,14 @@ Workspace settings → Add-ons.
 
 | Key | Version | Package | Fingerprint file |
 |---|---|---|---|
-| `barcode-labels` | 1.0.7 | `https://downloads.adminium.dev/add-ons/barcode-labels/barcode-labels-1.0.7.tgz` | `barcode-labels-1.0.7.tgz.integrity` holding `sha512-U3atemfywOUlwXOs+1aCrNaC1ViJPGUxutKJt9iPRE0GAO7qtHCMSyoSs3X83LyG/Ex1ys0oT65VpJVr5wnPzw==` |
-| `design-studio` | 1.0.7 | `https://downloads.adminium.dev/add-ons/design-studio/design-studio-1.0.7.tgz` | `design-studio-1.0.7.tgz.integrity` holding `sha512-VNLfMRukz3AQPIiMB1F+9wAfth6V/Z1bDJPg3FZFSZfDQWnb03NACAiGsgTsfvCFTblRym5ZtSsUmO2rAGDm2Q==` |
-| `holiday-calendars` | 1.0.7 | `https://downloads.adminium.dev/add-ons/holiday-calendars/holiday-calendars-1.0.7.tgz` | `holiday-calendars-1.0.7.tgz.integrity` holding `sha512-NwO3rDfRm65AuyiYAps6R83dyZx0/u1YJgDa+T6V5aWPTQwBYCRY2zcOCUYMuQjF6p/wN0DaenakvVKoyrU+QA==` |
-| `import-canva` | 1.0.7 | `https://downloads.adminium.dev/add-ons/import-canva/import-canva-1.0.7.tgz` | `import-canva-1.0.7.tgz.integrity` holding `sha512-9lAZVBNBNg2tc2e3GcJ4izXUWaaZSw/5AeG21v10A9o6je0Ah/tLbBkG4BgPXmmjlWJK0IHBounilvaidmzN0A==` |
-| `invoices` | 1.0.7 | `https://downloads.adminium.dev/add-ons/invoices/invoices-1.0.7.tgz` | `invoices-1.0.7.tgz.integrity` holding `sha512-A4ktI198ftL5RgJaNz0kIU6O7RAt5prb/IUa8/Vj9madh2cuB2eswH+Zbo86FTWk3gH86FixR1sSJAFcJu3AVw==` |
-| `personalizer` | 1.0.7 | `https://downloads.adminium.dev/add-ons/personalizer/personalizer-1.0.7.tgz` | `personalizer-1.0.7.tgz.integrity` holding `sha512-hME/EpGm2DoBuA6gdzzqwUxsEe7Kh34q9CjBIjV6dl5JnRwiGipTOb8hQuTxAVH8euz/9PPBpFxmtpu+5r/33w==` |
-| `shipping-dhl` | 1.0.7 | `https://downloads.adminium.dev/add-ons/shipping-dhl/shipping-dhl-1.0.7.tgz` | `shipping-dhl-1.0.7.tgz.integrity` holding `sha512-Sbu8erXXWbY4BbBa+f6ezg5JWAKc5iErKxGxO4zf5haMBURiYjYlMTAgcdEJ5T1YppU5VLkkmSPz6aaiBIy1sg==` |
+| `barcode-labels` | 1.0.8 | `https://downloads.adminium.dev/add-ons/barcode-labels/barcode-labels-1.0.8.tgz` | `barcode-labels-1.0.8.tgz.integrity` holding `sha512-oOlnJfT8N9MkBbqAwzu00x34q964pG3LMp5dPUjILrVRErGbjHduGPjWIuweovoCy/GCEi3Qglv7AJdK0WAvuw==` |
+| `design-studio` | 1.0.8 | `https://downloads.adminium.dev/add-ons/design-studio/design-studio-1.0.8.tgz` | `design-studio-1.0.8.tgz.integrity` holding `sha512-zklVXP59UKzpsFkPmrPkbSG/tzhOk5uWperbxGzB0kzBXlyRKwWk8p6SZmoUuiwgDfrd2TQryJA1+SQEG4j1CA==` |
+| `holiday-calendars` | 1.0.8 | `https://downloads.adminium.dev/add-ons/holiday-calendars/holiday-calendars-1.0.8.tgz` | `holiday-calendars-1.0.8.tgz.integrity` holding `sha512-AxzZqhXb3lET4l1SiXyJVtlIo7Q9+UhX7d4vtowZrc2UkrMGJQzbA9Bh/iZqj8eME8NJAZIPkpdC1WN3i3AQLw==` |
+| `import-canva` | 1.0.8 | `https://downloads.adminium.dev/add-ons/import-canva/import-canva-1.0.8.tgz` | `import-canva-1.0.8.tgz.integrity` holding `sha512-u3W5+n0LIWlgax7Mn7NN3Xvi4t0sYBP+ZwxqQpFvUCHuN7k0+eurYMeE1o50vwhQWcc6lXe3WcpR+/YyeGn3Xw==` |
+| `inventory` | 1.0.8 | `https://downloads.adminium.dev/add-ons/inventory/inventory-1.0.8.tgz` | `inventory-1.0.8.tgz.integrity` holding `sha512-Tek9t9e6bxyS7LygsAMA2CGftZ8jOTp+bu9c236ywLjwOkCWWKYRMpUOjtrYXV+GIOet06FND8ekG5k6MBOb/A==` |
+| `invoices` | 1.0.8 | `https://downloads.adminium.dev/add-ons/invoices/invoices-1.0.8.tgz` | `invoices-1.0.8.tgz.integrity` holding `sha512-Um7ZBVroDXJCRuI/sEgiU5wjLrKasj7s5mduO0PdOq6Dr3AlOBy3x+S2nWmBKv+ZoVfoXNJJu3/9C1+a4TQaEQ==` |
+| `personalizer` | 1.0.8 | `https://downloads.adminium.dev/add-ons/personalizer/personalizer-1.0.8.tgz` | `personalizer-1.0.8.tgz.integrity` holding `sha512-j9C/7Vn5RzmS0OW/JqofCLGNompFeMTed0RhL9lHgVG4JGfQ3iK0OZCq3dads67xeyUN0CX/prhLI7YpJX01nw==` |
+| `shipping-dhl` | 1.0.8 | `https://downloads.adminium.dev/add-ons/shipping-dhl/shipping-dhl-1.0.8.tgz` | `shipping-dhl-1.0.8.tgz.integrity` holding `sha512-383ncUsLQXB1poEPbkScUbbLPXmSS7zQ0ZQMfWSFw7KM0QTxVS9PyGijSievWA0MQY92OB0hX1JK8qIpovSrXw==` |
 
 The key is what an app writes in `manifest/add-ons.json`. To give `adminium app try` an add-on,
 put its `.tgz` and a `.tgz.integrity` file holding the fingerprint above in one folder and pass

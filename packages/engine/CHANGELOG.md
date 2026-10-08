@@ -1,5 +1,15 @@
 # @adminium/engine
 
+## 0.3.19
+
+### Patch Changes
+
+- 5cfc90d: An app update gives a column its foreign key when the app now declares it `fk` and the table kept it as a plain number (a column first written `"type": "int"` and later made a link, as Adminium Designer does when it adds an add-on's rule to it). Before, the update changed nothing in the database, so nothing that follows the link found the row's parent: a rule that posts a ticket's lines to an add-on never fired, and said nothing. The check lists the change and refuses it, by name, while rows point at a row that does not exist (`LINK_ORPHANS`). A line whose rule still has no link behind it is now refused when it is saved, instead of being saved and never posted.
+  
+  On SQLite, adding the link rebuilds the table, and the rebuild ended by checking every foreign key in the whole database: a row in some other table that already pointed at nothing stopped the update halfway. The rebuild now refuses only what it would break itself; what was already there is left as it was.
+- Updated dependencies [be78bbb]
+  - @adminium/widgets@0.3.19
+
 ## 0.3.18
 
 ### Patch Changes
