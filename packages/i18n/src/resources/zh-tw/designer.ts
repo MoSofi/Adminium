@@ -188,7 +188,6 @@ export default {
     "message": "給 Adminium Designer 的訊息",
     "missing": "此工作階段不在這裡",
     "missingBody": "它可能屬於另一個專案資料夾。",
-    "openDashboard": "在儀表板中開啟",
     "placeholder": "描述一項修改…",
     "rename": "此應用程式的名稱",
     "renameApp": "重新命名 {name}",
@@ -205,7 +204,10 @@ export default {
     "sessionTurns": "{count, plural, other {# 輪}}",
     "emptyNew": "{name} 的新工作階段。Designer 從應用程式目前的檔案開始；先前的對話保留在頂端的「此應用程式的工作階段」中。",
     "workArea": "工作區",
-    "views": "檢視"
+    "views": "檢視",
+    "openDash": "開啟儀表板",
+    "renameTip": "重新命名",
+    "renamed": "已重新命名為 {name}"
   },
   "card": {
     "addIt": "新增",

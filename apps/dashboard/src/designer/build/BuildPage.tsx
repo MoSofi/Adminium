@@ -446,11 +446,12 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
       <TopBar
+        build
         middle={
           data === undefined ? null : (
             <SessionTitle
               title={data.session.title}
-              onRename={(title) => patch.mutate({ title })}
+              onRename={(title) => patch.mutate({ title }, { onSuccess: () => toasts.push({ variant: 'success', title: t('designer:build.renamed', 'Renamed to {name}', { name: title }) }) })}
               versions={versionList}
               available={versions.data?.available ?? true}
               current={current}
@@ -472,13 +473,13 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               />
             )}
             <a
-            href="/"
-            className="inline-flex items-center gap-[7px] rounded-[10px] px-[11px] py-2 text-[13px] font-bold text-fg-muted hover:bg-surface-2 hover:text-fg"
-            aria-label={t('designer:build.openDashboard', 'Open in the dashboard')}
-          >
-            <ExternalLink aria-hidden="true" className="size-4" />
-            <span className="hidden lg:inline">{t('designer:build.openDashboard', 'Open in the dashboard')}</span>
-          </a>
+              href="/"
+              aria-label={t('designer:build.openDash', 'Open Dashboard')}
+              className="inline-flex h-[34px] min-w-[34px] shrink-0 items-center justify-center gap-[7px] whitespace-nowrap rounded-[10px] border border-border-strong bg-surface text-[13px] font-bold leading-[normal] text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent min-[900px]:px-[11px]"
+            >
+              <ExternalLink aria-hidden="true" className="size-[15px] rtl:-scale-x-100" />
+              <span className="hidden min-[900px]:inline">{t('designer:build.openDash', 'Open Dashboard')}</span>
+            </a>
           </>
         }
       />

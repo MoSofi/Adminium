@@ -188,7 +188,6 @@ export default {
     "message": "Nachricht an Adminium Designer",
     "missing": "Diese Sitzung gibt es hier nicht",
     "missingBody": "Sie gehört vielleicht zu einem anderen Projektordner.",
-    "openDashboard": "Im Dashboard öffnen",
     "placeholder": "Beschreiben Sie eine Änderung…",
     "rename": "Name dieser App",
     "renameApp": "{name} umbenennen",
@@ -205,7 +204,10 @@ export default {
     "sessionTurns": "{count, plural, one {# Runde} other {# Runden}}",
     "emptyNew": "Eine neue Sitzung zu {name}. Der Designer geht von den Dateien der App aus, wie sie jetzt sind; die früheren Chats bleiben oben unter „Sitzungen zu dieser App“.",
     "workArea": "Arbeitsbereich",
-    "views": "Ansicht"
+    "views": "Ansicht",
+    "openDash": "Dashboard öffnen",
+    "renameTip": "Umbenennen",
+    "renamed": "Umbenannt in {name}"
   },
   "card": {
     "addIt": "Hinzufügen",

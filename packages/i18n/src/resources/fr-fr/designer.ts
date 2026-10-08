@@ -188,7 +188,6 @@ export default {
     "message": "Message à Adminium Designer",
     "missing": "Cette session n’est pas ici",
     "missingBody": "Elle appartient peut-être à un autre dossier de projet.",
-    "openDashboard": "Ouvrir dans le tableau de bord",
     "placeholder": "Décrivez une modification…",
     "rename": "Nom de cette application",
     "renameApp": "Renommer {name}",
@@ -205,7 +204,10 @@ export default {
     "sessionTurns": "{count, plural, one {# tour} other {# tours}}",
     "emptyNew": "Une nouvelle session sur {name}. Le Designer part des fichiers de l’application tels qu’ils sont ; les discussions précédentes restent en haut, sous « Sessions de cette application ».",
     "workArea": "Espace de travail",
-    "views": "Vue"
+    "views": "Vue",
+    "openDash": "Ouvrir le tableau de bord",
+    "renameTip": "Renommer",
+    "renamed": "Renommé en {name}"
   },
   "card": {
     "addIt": "L’ajouter",

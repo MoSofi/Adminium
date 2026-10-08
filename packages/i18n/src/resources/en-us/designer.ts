@@ -188,7 +188,6 @@ export default {
     "message": "Message to Adminium Designer",
     "missing": "This session is not here",
     "missingBody": "It may belong to another project folder.",
-    "openDashboard": "Open in the dashboard",
     "placeholder": "Describe a change…",
     "rename": "Name of this app",
     "renameApp": "Rename {name}",
@@ -205,7 +204,10 @@ export default {
     "sessionTurns": "{count, plural, one {# turn} other {# turns}}",
     "emptyNew": "A new session on {name}. The Designer starts from the app’s files as they are now; the earlier chats are kept under “Sessions on this app”, at the top.",
     "workArea": "Work area",
-    "views": "View"
+    "views": "View",
+    "openDash": "Open Dashboard",
+    "renameTip": "Rename",
+    "renamed": "Renamed to {name}"
   },
   "card": {
     "addIt": "Add it",

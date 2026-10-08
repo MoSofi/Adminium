@@ -778,6 +778,8 @@ describe('the build page', () => {
     const router = await open();
     // A turn is running: no new session from under it.
     const button = await screen.findByRole('button', { name: 'New session' });
+    // Bar 1's own link out, by its short name.
+    expect(screen.getByRole('link', { name: 'Open Dashboard' }).getAttribute('href')).toBe('/');
     expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(within(screen.getByRole('alert')).queryByRole('button', { name: 'Start a new session' })).toBeNull();
 
@@ -805,11 +807,30 @@ describe('the build page', () => {
     await userEvent.clear(field);
     await userEvent.type(field, 'Tandem Repairs{Enter}');
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ title: 'Tandem Repairs' });
+    // Said once it is kept.
+    expect(await screen.findByText('Renamed to Tandem Repairs')).toBeTruthy();
+    // The name is a button with a pencil after it, and says what a press does.
+    const name = await screen.findByRole('button', { name: /^Rename / });
+    expect(name.querySelector('svg')).not.toBeNull();
+    name.focus();
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Rename');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Version v3: v3' }));
+    const version = screen.getByRole('button', { name: 'Version v3: v3' });
+    expect(version.textContent).toBe('v3');
+    await userEvent.click(version);
+    const menu = await screen.findByRole('menu');
+    // Every version, newest first; the one in use says so and has no way back to itself.
+    expect(within(menu).getAllByText(/^v\d$/).filter((entry) => entry.className.includes('w-[30px]')).map((entry) => entry.textContent)).toEqual(['v3', 'v2', 'v1']);
+    expect(within(menu).getByText('current')).toBeTruthy();
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.getAttribute('aria-label'))).toEqual(['Go back to v2: v2', 'Go back to v1: v1']);
+    expect(within(menu).getAllByRole('menuitem')[0]!.textContent).toBe('Go back to this');
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Go back to v1: v1' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Go back to v1?' });
+    // The version is its own piece of the title (drawn in the fixed-width face), which this DOM reads as a word apart.
+    const dialog = await screen.findByRole('dialog', { name: /^Go back to ?v1 ?\?$/ });
     expect(dialog.textContent).toContain('Your files return to v1. v2 and v3 stay in the list, so you can come forward again. Data already in the database is kept.');
+    // Two answers, and the version written as a version.
+    expect(within(dialog).getAllByRole('button').map((button) => button.textContent)).toEqual(['Cancel', 'Go back']);
+    expect(within(dialog).getAllByText('v1').every((entry) => entry.className.includes('font-mono'))).toBe(true);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Go back' }));
     await waitFor(() => expect(calls.find((call) => call.url.endsWith('/versions/1/restore'))?.body).toEqual({ record: true }));
     expect(await screen.findByText('Your files are as they were in v1.')).toBeTruthy();

@@ -188,7 +188,6 @@ export default {
     "message": "Besked til Adminium Designer",
     "missing": "Denne session findes ikke her",
     "missingBody": "Den hører måske til en anden projektmappe.",
-    "openDashboard": "Åbn i dashboardet",
     "placeholder": "Beskriv en ændring…",
     "rename": "Navnet på denne app",
     "renameApp": "Omdøb {name}",
@@ -205,7 +204,10 @@ export default {
     "sessionTurns": "{count, plural, one {# tur} other {# ture}}",
     "emptyNew": "En ny session om {name}. Designer starter fra appens filer, som de er nu; de tidligere chats ligger under “Sessioner for denne app” øverst.",
     "workArea": "Arbejdsområde",
-    "views": "Visning"
+    "views": "Visning",
+    "openDash": "Åbn dashboard",
+    "renameTip": "Omdøb",
+    "renamed": "Omdøbt til {name}"
   },
   "card": {
     "addIt": "Tilføj den",

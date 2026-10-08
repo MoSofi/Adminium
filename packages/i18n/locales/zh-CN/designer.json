@@ -178,7 +178,6 @@
     "message": "发给 Adminium Designer 的消息",
     "missing": "此会话不在这里",
     "missingBody": "它可能属于另一个项目文件夹。",
-    "openDashboard": "在仪表板中打开",
     "placeholder": "描述一项修改…",
     "rename": "此应用的名称",
     "renameApp": "重命名 {name}",
@@ -195,7 +194,10 @@
     "sessionTurns": "{count, plural, other {# 轮}}",
     "emptyNew": "{name} 的新会话。Designer 从应用当前的文件开始；之前的对话保留在顶部的“此应用的会话”中。",
     "workArea": "工作区",
-    "views": "视图"
+    "views": "视图",
+    "openDash": "打开仪表板",
+    "renameTip": "重命名",
+    "renamed": "已重命名为 {name}"
   },
   "card": {
     "addIt": "添加",

@@ -178,7 +178,6 @@
     "message": "Zpráva pro Adminium Designer",
     "missing": "Tato relace tu není",
     "missingBody": "Možná patří k jiné složce projektu.",
-    "openDashboard": "Otevřít na nástěnce",
     "placeholder": "Popište změnu…",
     "rename": "Název této aplikace",
     "renameApp": "Přejmenovat {name}",
@@ -195,7 +194,10 @@
     "sessionTurns": "{count, plural, one {# tah} few {# tahy} many {# tahu} other {# tahů}}",
     "emptyNew": "Nová relace k aplikaci {name}. Designer vychází ze souborů aplikace, jak jsou teď; dřívější chaty zůstávají nahoře pod „Relace této aplikace“.",
     "workArea": "Pracovní plocha",
-    "views": "Zobrazení"
+    "views": "Zobrazení",
+    "openDash": "Otevřít nástěnku",
+    "renameTip": "Přejmenovat",
+    "renamed": "Přejmenováno na {name}"
   },
   "card": {
     "addIt": "Přidat",

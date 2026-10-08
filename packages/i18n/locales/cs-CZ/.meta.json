@@ -8751,9 +8751,9 @@
     "status": "mt",
     "srcHash": "2e64cfc6f289"
   },
-  "designer.build.openDashboard": {
+  "designer.build.openDash": {
     "status": "mt",
-    "srcHash": "06c2ab625b0d"
+    "srcHash": "b9e922ebbb7d"
   },
   "designer.build.placeholder": {
     "status": "mt",
@@ -8766,6 +8766,14 @@
   "designer.build.renameApp": {
     "status": "mt",
     "srcHash": "c2729bef2e41"
+  },
+  "designer.build.renameTip": {
+    "status": "mt",
+    "srcHash": "d3f4cb898fbe"
+  },
+  "designer.build.renamed": {
+    "status": "mt",
+    "srcHash": "0c89781a254d"
   },
   "designer.build.resize": {
     "status": "mt",

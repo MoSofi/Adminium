@@ -188,7 +188,6 @@ export default {
     "message": "رسالة إلى Adminium Designer",
     "missing": "هذه الجلسة غير موجودة هنا",
     "missingBody": "ربما تخص مجلد مشروع آخر.",
-    "openDashboard": "فتح في لوحة التحكم",
     "placeholder": "صِف تغييرًا…",
     "rename": "اسم هذا التطبيق",
     "renameApp": "إعادة تسمية {name}",
@@ -205,7 +204,10 @@ export default {
     "sessionTurns": "{count, plural, zero {# دورة} one {دورة واحدة} two {دورتان} few {# دورات} many {# دورة} other {# دورة}}",
     "emptyNew": "جلسة جديدة لـ {name}. يبدأ المصمّم من ملفات التطبيق كما هي الآن؛ والمحادثات السابقة محفوظة ضمن «جلسات هذا التطبيق» في الأعلى.",
     "workArea": "مساحة العمل",
-    "views": "العرض"
+    "views": "العرض",
+    "openDash": "فتح لوحة التحكم",
+    "renameTip": "إعادة التسمية",
+    "renamed": "تمت إعادة التسمية إلى {name}"
   },
   "card": {
     "addIt": "أضِفها",
