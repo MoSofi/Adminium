@@ -135,7 +135,7 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   // The preview's dashboard is the person's own, on the Designer's name: the owner, with the app's page and Studio both in reach.
   const frame = page.frameLocator('iframe[title="Dashboard"]');
   expect(await page.locator('iframe[title="Dashboard"]').getAttribute('src')).toBe('/');
-  await expect(page.getByText('Seen as: you, the owner')).toBeVisible();
+  await expect(page.getByLabel('Seen as: owner. You, the owner.')).toBeVisible();
   await expect(frame.getByRole('button', { name: 'Set your password' })).toBeVisible({ timeout: 60_000 });
   expect(await frame.locator('body').evaluate(async () => (await fetch('/api/v1/auth/session')).text())).toContain('owner@adminium.localhost');
 
@@ -144,6 +144,78 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   await expect(page.getByRole('heading', { name: 'How Repair desk fits together' })).toBeVisible();
   await expect(page.getByRole('tabpanel').last().getByRole('button', { name: 'jobs' })).toBeVisible();
   await bothThemes(page, 'Architecture', testInfo);
+
+  // The address bar: it reads where the dashboard's frame is, lists the app's pages, and takes a typed one, in place.
+  await page.getByRole('tab', { name: 'Preview' }).click();
+  // The same frame as before the other tab was looked at: the preview is kept, not opened again.
+  await expect(frame.getByRole('button', { name: 'Set your password' })).toBeVisible();
+  const address = page.getByRole('combobox', { name: 'Address on the dashboard side' });
+  await expect(address).toBeEditable({ timeout: 15_000 });
+  await address.click();
+  const pages = page.getByRole('listbox', { name: 'Pages on this side' });
+  await expect(pages.getByRole('option', { name: /repair-desk-jobs/ })).toContainText('Jobs');
+  await sweep(page, 'Build, the address list open', testInfo);
+  await address.fill(`p/${APP_KEY}-jobs/`);
+  await page.keyboard.press('Enter');
+  await expect(address).toHaveValue(`/p/${APP_KEY}-jobs`);
+  await expect(frame.getByRole('heading', { name: 'Jobs' }).first()).toBeVisible({ timeout: 30_000 });
+  // Moved in place: the dashboard was not loaded again, and Back still leaves the build page.
+  expect(await frame.locator('body').evaluate(() => performance.getEntriesByType('navigation').length)).toBe(1);
+  // A reload of the preview comes back to that page.
+  await page.getByRole('button', { name: 'Reload the preview' }).click();
+  await expect(page.locator('iframe[title="Dashboard"]')).toHaveAttribute('src', `/p/${APP_KEY}-jobs`);
+  await expect(address).toHaveValue(`/p/${APP_KEY}-jobs`);
+  // The Designer itself is never shown inside its own preview.
+  await address.click();
+  await address.fill('/design');
+  await page.keyboard.press('Enter');
+  await expect(address).toHaveValue(`/p/${APP_KEY}-jobs`);
+
+  // Bar 1's menus and the dialog, each swept while open.
+  await page.getByRole('button', { name: 'Version v1: v1' }).click();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await sweep(page, 'Build, the version menu open', testInfo);
+  await page.keyboard.press('Escape');
+
+  // The work bar folds as the window narrows and never scrolls sideways; under about 1,100 the chat and the work area are two views.
+  const sideways = (): Promise<number> =>
+    page.evaluate(() => {
+      const bar = document.querySelector<HTMLElement>('[data-part="work-bar"]:not([inert] *)');
+      return bar === null ? -1 : Math.max(bar.scrollWidth - bar.clientWidth, document.documentElement.scrollWidth - window.innerWidth);
+    });
+  const levelNow = (): Promise<string | undefined> => page.evaluate(() => document.querySelector<HTMLElement>('[data-part="work-bar"]:not([inert] *)')?.dataset['level']);
+  const seen: Record<number, string | undefined> = {};
+  for (const width of [1500, 1200, 1100, 1024, 900, 768, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    const views = page.getByRole('tablist', { name: 'View' });
+    if (width >= 1100) await expect(views).toHaveCount(0);
+    else {
+      await expect(views).toBeVisible();
+      await views.getByRole('tab', { name: 'Work area' }).click();
+    }
+    await expect(address).toBeVisible();
+    await expect.poll(sideways, { message: `the bar at ${String(width)}` }).toBeLessThanOrEqual(1);
+    seen[width] = await levelNow();
+    // Nothing is lost, only moved: the camera switch is in the bar or in "More".
+    if (seen[width] === '0') await expect(page.getByRole('button', { name: 'The Designer looks at the page after it builds' })).toBeVisible();
+    else {
+      await page.getByRole('button', { name: 'More' }).click();
+      await expect(page.getByRole('menuitemcheckbox', { name: 'The Designer looks at the page after it builds' })).toBeVisible();
+      if (width === 900 || width === 390) await sweep(page, `Build at ${String(width)}, More open`, testInfo);
+      await page.keyboard.press('Escape');
+    }
+    if (width === 900) {
+      await page.getByRole('button', { name: /^Size: / }).click();
+      await expect(page.getByRole('menuitemradio', { name: 'Tablet' })).toBeVisible();
+      await sweep(page, 'Build at 900, the size menu open', testInfo);
+      await page.keyboard.press('Escape');
+    }
+  }
+  testInfo.annotations.push({ type: 'bar-levels', description: JSON.stringify(seen) });
+  expect(seen[390]).toBe('4');
+  expect(Number(seen[1500])).toBeLessThanOrEqual(Number(seen[900]));
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(page.getByRole('tablist', { name: 'View' })).toHaveCount(0);
 
   // The chat column over a streamed turn, in a window short enough that it scrolls: it stays at its
   // end at every frame, and never moves back up while the Designer writes (it used to, by a line at
