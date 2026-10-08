@@ -142,6 +142,7 @@ import { resolveEmailTemplate } from '../email/builtins.js';
 import { addOnAvailability, appDocumentDetached, appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { appUrlsFor } from './app-url.js';
 import { addOnTablesFor } from '../apps/add-on-tables.js';
+import { listedReductions, type ListedColumns } from '../crud/adjust/listed.js';
 import { storedTableRef, tableRefIndex } from '../apps/table-ref.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
@@ -387,6 +388,8 @@ export function valueForms(input: { locale: string; zone: string; currency: stri
   };
 
   return {
+    /** The language these forms are in, as it was asked for. */
+    locale: input.locale,
     /** A time: itself and its four other forms. */
     instant(prefix: string, value: unknown): Record<string, string> {
       const instant = slotInstant(value);
@@ -1159,10 +1162,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     let child: ResolvedTable;
     /** What a row of the list is found by: its link to the message's row, or — an add-on's rows — the pair it stores. */
     let by: readonly (readonly [string, unknown])[] | null = null;
+    /** Set when the list is what an add-on applied to the order: its rows are told as a screen tells them. */
+    let applied: ListedColumns | undefined;
     if (paired) {
       // The add-on's table as it stands now: absent, detached from this app or switched off for it, the list is empty and the mail still goes.
       const found = (await addOnTablesFor(deps.meta, box.connectionId, view.model))(from.addOn!, from.table, ctx.outbox.id);
       if (found === null) return [];
+      applied = found.applied;
       const parentTable = referenced(view, box.definition.table, column);
       if (parentTable === undefined) return null;
       try {
@@ -1206,8 +1212,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (from.unless !== undefined) query = query.where(sql<boolean>`(${sql.ref(from.unless)} is null or ${sql.ref(from.unless)} = ${sql.lit(false)})`);
     if (from.orderBy !== undefined && child.columns.has(from.orderBy)) query = query.orderBy(from.orderBy as never);
     for (const key of child.primaryKey) query = query.orderBy(key as never);
-    const records = (await query.limit(Math.min(50, Math.max(1, from.limit ?? 50))).execute()) as Row[];
-    if (records.length === 0) return [];
+    const read = (await query.limit(Math.min(50, Math.max(1, from.limit ?? 50))).execute()) as Row[];
+    if (read.length === 0) return [];
+    // What was taken off an order is kept a row a line: listed, a code that took a little off five lines is one row, named in the reader's language.
+    const records = applied === undefined ? read : listedReductions(read, applied, ctx.forms.locale);
     // Each list one level down, for every row at once: at most twenty names a row.
     const holders = holdersOf(box, view, holder);
     const joined = new Map<string, Map<string, string[]>>();

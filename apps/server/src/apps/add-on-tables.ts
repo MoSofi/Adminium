@@ -19,8 +19,19 @@
  */
 import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 
+import { listedColumnsOf, type ListedColumns } from '../crud/adjust/listed.js';
+
 /** The real table an add-on link points at, and its one-column key; null while the link is inert. */
-export type AddOnTables = (addOn: string, ref: string, fromTableId: string | null) => { tableId: string; key: string | null } | null;
+export type AddOnTables = (
+  addOn: string,
+  ref: string,
+  fromTableId: string | null,
+) => {
+  tableId: string;
+  key: string | null;
+  /** Set when this is the table the add-on keeps what it applied to an order in: where its rows keep each part. */
+  applied?: ListedColumns;
+} | null;
 
 const NO_SECRETS = {
   encrypt: (): string => {
@@ -79,6 +90,8 @@ export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: 
   const own = new Map<string, Map<string, ModelTable>>();
   /** The apps each add-on is attached to and switched on for. */
   const on = new Map<string, Set<string>>();
+  /** The table each add-on keeps what it applied to an order in, and where its rows keep each part. */
+  const appliedIn = new Map<string, { ref: string; columns: ListedColumns }>();
   for (const entry of manifests) {
     if (entry.row.kind !== 'add-on' || entry.row.status !== 'installed' || entry.row.connectionId !== connectionId) continue;
     const key = entry.row.manifestKey;
@@ -89,6 +102,9 @@ export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: 
       if (table !== undefined) tables.set(record.ref, table);
     }
     own.set(key, tables);
+    const kept = (entry.document as { addOn?: { adjuster?: { applied?: { table?: unknown } } } } | null)?.addOn?.adjuster?.applied;
+    const columns = listedColumnsOf(kept);
+    if (typeof kept?.table === 'string' && columns !== null) appliedIn.set(key, { ref: kept.table, columns });
     on.set(key, new Set(entry.attachments.filter((attachment) => attachment.disabledAt === null).map((attachment) => attachment.attachedTo)));
   }
 
@@ -106,6 +122,7 @@ export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: 
     const host = appOf(fromTableId);
     if (host !== null && on.get(addOn)?.has(host) !== true) return null;
     const key = table.primaryKey ?? [];
-    return { tableId: table.id, key: key.length === 1 ? (key[0] as string) : null };
+    const applied = appliedIn.get(addOn);
+    return { tableId: table.id, key: key.length === 1 ? (key[0] as string) : null, ...(applied?.ref === ref ? { applied: applied.columns } : {}) };
   };
 }
