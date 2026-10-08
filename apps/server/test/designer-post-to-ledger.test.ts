@@ -102,6 +102,8 @@ describe('post_to_ledger', () => {
 
   it('writes the columns, the rule, the requirement, the role\'s grant and the floor together, and the app still checks', async () => {
     parts();
+    // An app made before such a rule could run, whatever this build's own number is.
+    writeFileSync(file('app.json'), JSON.stringify({ ...json('app.json'), compatibility: { minAdminiumVersion: '0.3.17' } }));
     const done = await post({ role: 'staff' });
     expect(done.isError, done.content).toBeUndefined();
     expect(done.label).toBe('Posts item_parts into ledger-kit');
@@ -243,8 +245,19 @@ describe('post_to_ledger', () => {
     expect(await check()).toContain(
       'warn · apps/repairs/manifest/roles.json · No role reads ledger-kit.accounts, which item_parts.account_id links to, so nobody could pick a row there. On the role that fills it write "tables": [{ "addOn": "ledger-kit", "table": "accounts", "actions": ["read"] }] beside "permissions".',
     );
+    // A rule with no way back is said by the check only where the row it follows can be cancelled.
+    const noWayBack = 'This rule has no "reverse": what "item_parts" takes from ledger-kit/units is never given back, even when a row of "items" is cancelled or undone.';
+    const followsAStatus = (json('tables/items.json').columns as { type: string }[]).some((column) => column.type === 'enum') || json('tables/items.json').states !== undefined;
+    if (followsAStatus) expect(await check()).toContain(noWayBack);
+    else {
+      expect(await check()).not.toContain(noWayBack);
+      const items = json('tables/items.json') as { columns: unknown[] };
+      writeFileSync(file('tables/items.json'), JSON.stringify({ ...items, columns: [...items.columns, { ref: 'status', type: 'enum', values: ['open', 'done', 'cancelled'] }] }));
+      expect(await check()).toContain(`warn · apps/repairs/manifest/tables/item_parts.json · postings.0 · ${noWayBack} Call post_to_ledger for this table again with "reverse" (the change that gives it back), unless it is meant to stay taken.`);
+    }
     const whole = await post({ role: 'staff' });
     expect(whole.content).not.toContain('No "reverse" was given');
+    expect(await check()).not.toContain(noWayBack);
     expect(whole.content).not.toContain('No role reads');
     expect(await check()).not.toContain('No role reads');
     // The grant written as a permission, as the model tried three ways: the refusal says where it goes.

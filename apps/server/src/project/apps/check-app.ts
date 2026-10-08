@@ -28,7 +28,7 @@ import { addAndReadRefusal, anonymousAddAndRead, openToAnyone } from '../../apps
 import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
 import { unbuiltInManifest } from '../../crud/unbuilt-rules.js';
-import { hostPostingIssue } from './ledger-parts.js';
+import { declaredLedgers, hostPostingIssue } from './ledger-parts.js';
 import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
 import { hasOwnBuild } from './own-build.js';
@@ -264,9 +264,23 @@ export function checkApp(root: string, key: string, opts: { version: string; add
       const addOn = addOns?.get(posting.into.addOn);
       if (addOn === undefined) return;
       const issue = hostPostingIssue(posting, addOn);
-      if (issue === null) return;
       const where = at(`requiredSchema.tables.${String(t)}.postings.${String(p)}`);
-      findings.push(error(where.file, where.path, issue));
+      if (issue !== null) {
+        findings.push(error(where.file, where.path, issue));
+        return;
+      }
+      // What is taken and never given back: said while the row it follows has a state to be cancelled into.
+      const phases = (declaredLedgers(addOn).find((ledger) => ledger.id === posting.into.ledger)?.actions[posting.into.action]?.phases ?? []) as readonly string[];
+      if (posting.reverse !== undefined || !phases.includes('reverse')) return;
+      const parent = posting.via === undefined ? undefined : table.columns.find((column) => column.ref === posting.via)?.references;
+      const followed = parent === undefined ? table : manifest.requiredSchema.tables.find((candidate) => candidate.ref === parent);
+      if (followed === undefined || (followed.states === undefined && !followed.columns.some((column) => column.type === 'enum'))) return;
+      findings.push({
+        level: 'warn',
+        file: where.file,
+        path: where.path,
+        message: `This rule has no "reverse": what "${table.ref}" takes from ${posting.into.addOn}/${posting.into.ledger} is never given back, even when a row of "${followed.ref}" is cancelled or undone. Call post_to_ledger for this table again with "reverse" (the change that gives it back), unless it is meant to stay taken.`,
+      });
     });
   });
 
