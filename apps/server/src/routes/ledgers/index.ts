@@ -63,6 +63,17 @@ import {
   switchReply,
 } from './schema.js';
 
+
+/**
+ * Who changed a rule, for the rule's own record: a signed-in person. An API
+ * key that holds the right changes rules too, and its id is no user's — the
+ * record's author is a link to a user, so a key's change is written with none
+ * (the audit log still names the key).
+ */
+function changedBy(request: FastifyRequest): string | null {
+  const actor = requestWriteContext(request, 'dashboard').actor;
+  return actor?.kind === 'user' ? actor.id : null;
+}
 export interface LedgerRoutesDeps {
   manager: ConnectionManager;
   meta: MetaDb;
@@ -258,7 +269,7 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
         // The rule keeps its place among the table's own.
         const next = before === undefined ? [...own, posting] : own.map((candidate) => (candidate.id === id ? posting : candidate));
         const same = unmoved(own);
-        await changeTableRule<{ postings?: Posting[] }>(meta, { connectionId, table: at.id, op: 'table.postings', by: requestWriteContext(request, 'dashboard').actor?.id ?? null }, (stored) => {
+        await changeTableRule<{ postings?: Posting[] }>(meta, { connectionId, table: at.id, op: 'table.postings', by: changedBy(request) }, (stored) => {
           same(stored);
           return { postings: next };
         });
@@ -288,7 +299,7 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
         if (rows > 0) throw holdingRefusal(id, rows);
         const next = own.filter((candidate) => candidate.id !== id);
         const same = unmoved(own);
-        const by = requestWriteContext(request, 'dashboard').actor?.id ?? null;
+        const by = changedBy(request);
         await changeTableRule<{ postings?: Posting[] }>(meta, { connectionId, table: at.id, op: 'table.postings', by }, (stored) => {
           same(stored);
           return next.length === 0 ? null : { postings: next };
@@ -316,7 +327,7 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
         // An app's rule and the owner's are both the owner's to switch.
         if (!(table.postings ?? []).some((posting) => posting.id === id)) throw new NotFoundError('There is no such rule on this table.', { table: at.id, posting: id });
         let was = true;
-        await changeTableRule<TableSwitchedOff>(meta, { connectionId, table: at.id, op: 'table.switchedOff', by: requestWriteContext(request, 'dashboard').actor?.id ?? null }, (stored) => {
+        await changeTableRule<TableSwitchedOff>(meta, { connectionId, table: at.id, op: 'table.switchedOff', by: changedBy(request) }, (stored) => {
           was = stored?.postings.includes(id) !== true;
           if (was === enabled) return stored;
           const postings = enabled ? (stored?.postings ?? []).filter((other) => other !== id) : [...(stored?.postings ?? []), id];

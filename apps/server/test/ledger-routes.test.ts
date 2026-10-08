@@ -7,9 +7,10 @@
  * off, and what a refusal says of the ledger's own rows is told only to
  * somebody who may read them.
  */
-import { overridesRepo, permissionsRepo, rolesRepo, usersRepo, type User } from '@adminium/meta';
+import { apiKeysRepo, overridesRepo, permissionsRepo, rolesRepo, usersRepo, type User } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { generateApiKey } from '../src/rbac/api-keys.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
@@ -155,6 +156,22 @@ describe.each(LEGS)('an owner\'s rule on a table, through the routes — %s', (d
     const again = await api('POST', data('asks'), { values: { account_id: 1, qty: '2', status: 'sent' } });
     expect(again.statusCode, again.body).toBe(201);
     expect(again.json()).not.toHaveProperty('postings');
+  });
+
+  it.skipIf(!available)('an API key that holds the grant changes a rule too: the rule\'s record names no user, and nothing fails', async () => {
+    const generated = generateApiKey();
+    await apiKeysRepo(w.h.meta).create({ name: 'rules by script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: (await rolesRepo(w.h.meta).findBySlug('mapper-role'))!.id });
+    const byKey = (method: string, url: string, payload?: unknown) =>
+      served.composed.app.inject({ method: method as 'PUT', url: `/api/v1${url}`, headers: { authorization: `Bearer ${generated.key}` }, ...(payload === undefined ? {} : { payload: payload as never }) });
+    const put = await byKey('PUT', rule('strays', 'by-key'), TALLY);
+    expect(put.statusCode, put.body).toBe(200);
+    const stored = (await overridesRepo(w.h.meta).listForConnection(w.h.connectionId, { status: 'active' })).find((row) => row.op === 'table.postings' && row.tableName === id('strays'));
+    // A key's id is no user's: the record's author is left empty rather than written as a link to nobody.
+    expect(stored?.createdBy ?? null).toBeNull();
+    const off = await byKey('PATCH', `${rule('strays', 'by-key')}/switch`, { enabled: false });
+    expect(off.statusCode, off.body).toBe(200);
+    const gone = await byKey('DELETE', rule('strays', 'by-key'));
+    expect(gone.statusCode, gone.body).toBe(204);
   });
 
   it.skipIf(!available)('a rule that cannot be kept is refused with the reason, and nothing is stored', async () => {
