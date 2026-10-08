@@ -70,7 +70,7 @@ describe.each(LEGS)('what Offers prints — %s', (dialect, available) => {
 
   it.skipIf(!run)('a first print shows the amount, with no day; the strip is the same card on receipt paper', async () => {
     const first = await page({ kind: 'gift-card', table: 'gift_cards', key: 1, values: { first: '1' } });
-    expect(first).toMatch(/<div class="figure"><span dir="ltr">[^<]*50\.00[^<]*<\/span><\/div>/);
+    expect(first).toMatch(/<div class="figure"><bdi>[^<]*50\.00[^<]*<\/bdi><\/div>/);
     expect(first).not.toContain('Balance');
     const strip = await page({ kind: 'gift-card-strip', table: 'gift_cards', key: 1 });
     expect(strip).toContain('@page { size: 80mm auto;');
@@ -85,7 +85,15 @@ describe.each(LEGS)('what Offers prints — %s', (dialect, available) => {
     expect(pack).toContain('6 of 10 uses left');
     const voucher = await page({ kind: 'voucher', table: 'vouchers', key: 6 });
     expect(voucher).toContain('>VC-CCCC-DDDD-9ZZZ<');
-    expect(voucher).toMatch(/<div class="figure"><span dir="ltr">[^<]*5\.00[^<]*<\/span><\/div>/);
+    expect(voucher).toMatch(/<div class="figure"><bdi>[^<]*5\.00[^<]*<\/bdi><\/div>/);
+  });
+
+  it.skipIf(!run)('an older card from a till prints the code it has always had', async () => {
+    const no = dialect === 'postgres' ? 'false' : '0';
+    await h.rows(`INSERT INTO offers_gift_cards (id, kind, code, label, status, opening, balance, moved_from, moved_table, moving) VALUES (7, 'card', 'GC-48219930', '9930', 'active', 0, 38.5, '7', 'till:cards', ${no})`);
+    const html = await page({ kind: 'gift-card', table: 'gift_cards', key: 7 });
+    expect(html).toContain('<div class="code" dir="ltr">GC-4821-9930</div>');
+    expect(html).toMatch(/38\.50/);
   });
 
   it.skipIf(!run)('a credit has no card to print, and a row that is not there answers the same', async () => {

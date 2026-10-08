@@ -132,6 +132,46 @@ describe.each(LEGS)('a gift card\'s balance, asked by a stranger — %s', (diale
     expect((await read('GC-7K2MW3HNQ4XP')).statusCode).toBe(200);
   });
 
+  it.skipIf(!run)('the link in a card\'s mail opens that card and no other, shows three things, and only reads', async () => {
+    const TOKEN = '7K2M9QXA41TR8PZC';
+    await h.rows(`UPDATE offers_gift_cards SET link_token = '${TOKEN}' WHERE id = 1`);
+    await h.rows(`UPDATE offers_gift_cards SET link_token = '3HHW8PZC65NE9DDV' WHERE id = 2`);
+    // A card whose last day was yesterday: its link is past its day too.
+    await h.rows(`UPDATE offers_gift_cards SET link_token = '5PTC2HVT9MXR4TQ8' WHERE id = 5`);
+    const link = (await publicKeysRepo(h.meta).listManagedBy('offers')).find((key) => key.purpose === 'offers-link')!;
+    const door = await servePublic(h as never, link.id);
+    try {
+      const opened = await door.post('/claim/token', { token: TOKEN });
+      expect(opened.statusCode, opened.body).toBe(200);
+      const session = (opened.json() as { data: { session: string } }).data.session;
+      const res = await door.get(`/records/${LINK}`, session);
+      expect(res.statusCode, res.body).toBe(200);
+      const rows = (res.json() as { data: Record<string, unknown>[] }).data;
+      expect(rows).toHaveLength(1);
+      expect(Object.keys(rows[0]!).filter((key) => key !== 'id').sort()).toEqual(['balance', 'expires_on', 'status']);
+      expect(Number(rows[0]!['balance'])).toBe(10);
+      // Not its code, not its token, not whose it is.
+      expect(res.body).not.toMatch(/Ana|calla|Q4XP|7K2M|8PZC/);
+      // No other card, by its key or by a list.
+      expect((await door.get(`/records/${LINK}/2`, session)).statusCode).not.toBe(200);
+      // Without the link: nothing.
+      expect((await door.get(`/records/${LINK}`)).statusCode).not.toBe(200);
+      // It only reads.
+      for (const method of ['POST', 'PATCH', 'DELETE'] as const) {
+        const changed = await door.composed.app.inject({ method, url: `/api/v1/public/records/${LINK}${method === 'POST' ? '' : '/1'}`, headers: door.headers(session), payload: { values: { balance: 999 } } });
+        expect(changed.statusCode, `${method} ${changed.body}`).toBeGreaterThanOrEqual(400);
+      }
+      expect(Number((await h.rows('SELECT balance FROM offers_gift_cards WHERE id = 1'))[0]!['balance'])).toBe(10);
+      // The link's key opens the entry a typed code opens for nobody.
+      expect((await door.get(`/records/${BALANCE}`, session)).statusCode).not.toBe(200);
+      // A token nothing has, and the token of a card past its last day, open nothing.
+      expect((await door.post('/claim/token', { token: 'AAAAAAAAAAAAAAAA' })).statusCode).not.toBe(200);
+      expect((await door.post('/claim/token', { token: '5PTC2HVT9MXR4TQ8' })).statusCode).not.toBe(200);
+    } finally {
+      await door.close();
+    }
+  });
+
   it.skipIf(!run)('with Offers switched off for the app the door answers nothing, and on again it answers', async () => {
     const off = await h.inject({ method: 'PATCH', url: '/add-ons/offers', payload: { attachedTo: 'shop', enabled: false } });
     expect(off.statusCode, off.body).toBe(200);

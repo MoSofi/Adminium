@@ -217,6 +217,81 @@ describe.each(LEGS)("Offers' mail — %s", (dialect, available) => {
     expect(await logOf('voucher_id', bearer['id'])).toEqual([]);
   });
 
+  it.skipIf(!run)('a card with a last day is reminded once, on the morning of its reminder day; a cancelled one is not', async () => {
+    const settings = (await w.rowsOf('settings'))[0]!['id'];
+    await w.update('settings', settings, { card_expiry_months: 12 });
+    const before = (await mail()).length;
+    const made = await card({ recipient_name: 'Ida', recipient_email: 'ida@calla.dev' });
+    expect(made.row['remind_on']).not.toBeNull();
+    expect(await logOf('card_id', made.id)).toEqual(['gift_card sent', 'gift_card_expiring queued']);
+    const due = new Date(String((await w.h.rows(`select due from ${t('messages')} where card_id = ${String(made.id)} and kind = 'gift_card_expiring'`))[0]!['due'])).getTime();
+    // Nine in the morning of the reminder day, on the venue's clock.
+    expect(Math.abs(due - Date.parse(`${String(made.row['remind_on']).slice(0, 10)}T09:00:00.000Z`))).toBeLessThanOrEqual(14 * 3_600_000);
+    const mine = async () => (await mail()).slice(before).filter((one) => one.to.includes('ida@calla.dev'));
+    await sender.sendApp('offers', due - 60_000);
+    expect(await mine()).toHaveLength(1);
+    await sender.sendApp('offers', due + 60_000);
+    expect(await logOf('card_id', made.id)).toEqual(['gift_card sent', 'gift_card_expiring sent']);
+    expect(await mine()).toHaveLength(2);
+    const reminder = (await mine())[1]!;
+    expect(reminder.to).toContain('ida@calla.dev');
+    expect(reminder.text).toContain('Use it by');
+    expect(reminder.text).toContain(grouped(made.row['code']));
+    expect(reminder.text).not.toContain('{{');
+    // A top-up after that moves the last day and sends no second reminder: one for a card.
+    const was = await w.one('gift_cards', made.id);
+    await w.create('card_actions', { card_id: made.id, action: 'top_up', amount: '10.00', reason: 'Asked for more', paid_by: 'cash' });
+    await told('gift_cards', made.id, was, due + 120_000);
+    expect(await logOf('card_id', made.id)).toEqual(['gift_card sent', 'gift_card_expiring sent']);
+
+    // Cancelled while its reminder waits: skipped, and nobody is written to.
+    const other = await card({ recipient_name: 'Jo', recipient_email: 'jo@calla.dev' });
+    const held = await w.one('gift_cards', other.id);
+    await w.update('gift_cards', other.id, { status: 'void', void_reason: 'Sold by mistake' });
+    await told('gift_cards', other.id, held, due + 30 * 86_400_000);
+    expect((await mail()).filter((one) => one.to.includes('jo@calla.dev'))).toHaveLength(1);
+    expect((await logOf('card_id', other.id))[1]).toMatch(/^gift_card_expiring skipped/);
+    await w.update('settings', settings, { card_expiry_months: null });
+  });
+
+  it.skipIf(!run)('a card sold before cards had a last day is reminded once a top-up gives it one', async () => {
+    const made = await card({ recipient_name: 'Kit', recipient_email: 'kit@calla.dev' });
+    expect(made.row['remind_on']).toBeNull();
+    expect(await logOf('card_id', made.id)).toEqual(['gift_card sent']);
+    const settings = (await w.rowsOf('settings'))[0]!['id'];
+    await w.update('settings', settings, { card_expiry_months: 12 });
+    const was = await w.one('gift_cards', made.id);
+    await w.create('card_actions', { card_id: made.id, action: 'top_up', amount: '10.00', reason: 'Asked for more', paid_by: 'cash' });
+    expect((await w.one('gift_cards', made.id))['remind_on']).not.toBeNull();
+    await told('gift_cards', made.id, was);
+    expect(await logOf('card_id', made.id)).toEqual(['gift_card sent', 'gift_card_expiring queued']);
+    await w.update('settings', settings, { card_expiry_months: null });
+  });
+
+  it.skipIf(!run)('a voucher is sent again to its holder, each time it is asked; a cancelled one is not', async () => {
+    const named = (await w.create('vouchers', { worth: 'amount', value: '15', public_name: '$15.00 off', holder_name: 'Lea', holder_email: 'lea@calla.dev' })).row;
+    await told('vouchers', named['id'], null);
+    const before = (await mail()).length;
+    const again = async (minute: number) => {
+      const was = await w.one('vouchers', named['id']);
+      await w.update('vouchers', named['id'], { resent_at: new Date(clock + minute * 60_000).toISOString() });
+      await told('vouchers', named['id'], was);
+    };
+    await again(1);
+    await again(2);
+    expect(await logOf('voucher_id', named['id'])).toEqual(['voucher sent', 'voucher_again sent', 'voucher_again sent']);
+    const code = String((await w.one('vouchers', named['id']))['code']);
+    for (const one of (await mail()).slice(before)) {
+      expect(one.to).toContain('lea@calla.dev');
+      expect(one.text).toContain(`${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8, 12)}`);
+    }
+    await w.create('voucher_actions', { voucher_id: named['id'], action: 'void', note: 'Made twice' });
+    const count = (await mail()).length;
+    await again(3);
+    expect(await mail()).toHaveLength(count);
+    expect(await logOf('voucher_id', named['id'])).toHaveLength(3);
+  });
+
   it.skipIf(!run)('the messages table holds no code, whatever was sent', async () => {
     const codes = [...(await w.rowsOf('gift_cards')), ...(await w.rowsOf('vouchers'))].map((row) => String(row['code'] ?? '')).filter((code) => code.length >= 12);
     expect(codes.length).toBeGreaterThan(3);

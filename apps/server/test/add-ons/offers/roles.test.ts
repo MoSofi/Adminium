@@ -96,6 +96,24 @@ describe.each(LEGS)("Offers' three roles — %s", (dialect, available) => {
     expect((await as('max', 'GET', `${data(max, 'gift_cards')}/${String(card['id'])}`)).body).toContain(cardCode);
   });
 
+  it.skipIf(!run)('a role that cannot read a card\'s code draws no card with it', async () => {
+    const code = String(card['code']).slice(3);
+    const fours = `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8)}`;
+    const draw = async (who: string): Promise<{ status: number; body: string }> => {
+      const res = await as(who, 'POST', '/api/v1/add-ons/offers/documents/render', { kind: 'gift-card', table: 'gift_cards', key: card['id'] });
+      if (res.statusCode !== 200) return { status: res.statusCode, body: res.body };
+      const opened = await as(who, 'GET', (res.json() as { printUrl: string }).printUrl);
+      return { status: opened.statusCode, body: opened.body };
+    };
+    // Asked by the desk or the viewer, no page carries it. (This server draws no document at all — `print.test.ts`
+    // draws them — so what is proved here is only that neither is handed the code by asking.)
+    for (const who of ['dee', 'vera']) {
+      const drawn = await draw(who);
+      expect(drawn.body, who).not.toContain(fours);
+      expect(drawn.body, who).not.toContain(code);
+    }
+  });
+
   it.skipIf(!run)('a look-up answers the desk what a card is and what is on it, and carries no code back for anybody', async () => {
     for (const who of ['max', 'dee']) {
       const res = await as(who, 'POST', '/api/v1/add-ons/offers/look-up', { value: String(card['code']) });
