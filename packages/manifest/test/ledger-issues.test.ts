@@ -80,6 +80,14 @@ describe('LEDGER_WRITES_DECIDED — a written column Adminium decides', () => {
     expect(writes({ update: { by: ['id'], set: ['low'] } }, 'accounts')).toContain('"accounts.low" is decided by its formula rule');
     expect(writes({ insert: ['colour'] })).toContain('"entries" has no column "colour"');
   });
+
+  it('a code, unless its own rule lets an added row bring one — and then never on a change', () => {
+    const coded2 = (code: Doc, scope: Doc) =>
+      coded(kit({ ledger: { writes: { ...LEDGER.writes, entries: scope } }, tables: (tables) => tables.map((t) => (t.ref === 'entries' ? { ...t, columns: [...t.columns, { ref: 'code', type: 'text', maxLength: 16, nullable: true, unique: true, rules: { code } }] } : t)) }), 'LEDGER_WRITES_DECIDED');
+    expect(coded2({ prefix: 'GC-', length: 12 }, { insert: ['amount', 'code'] })).toContain('"entries.code" is decided by its code rule: an answer never writes it');
+    expect(coded2({ prefix: 'GC-', length: 12, givenByLedger: true }, { insert: ['amount', 'code'] })).toBe('');
+    expect(coded2({ prefix: 'GC-', length: 12, givenByLedger: true }, { insert: ['amount'], update: { by: ['id'], set: ['code'] } })).toContain('"entries.code" is decided by its code rule: an answer never writes it');
+  });
 });
 
 describe('LEDGER_UPDATE_KEY — an update that could name more than one row', () => {

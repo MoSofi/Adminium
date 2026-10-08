@@ -91,6 +91,22 @@ describe('the plan an add-on answers', () => {
     expect(cause(checkOutput(wide, plan([update('holds', { id: 12 }, { receipt_id: 7 })])))).toBe('scope-op');
   });
 
+  it('3 — a code an added row may bring is held to what a code is, and a change never brings one', () => {
+    const base = input();
+    const coded = input({
+      writes: { ...base.writes, holds: { insert: ['account_id', 'code'], update: { by: ['id'], set: ['state', 'code'] } } },
+      tables: { ...base.tables, holds: { key: ['id'], links: { account_id: 'accounts' }, decided: new Set(['code']), givenCodes: new Map([['code', { prefix: 'GC-' }]]) } },
+    });
+    for (const code of ['GC-48219930', 'GC-7K2MW3HNQ4XP', '48219930', null]) expect(cause(checkOutput(coded, plan([insert('holds', { account_id: 2, code })]))), String(code)).toBe('ok');
+    // Too short, too long, small letters, a space, a sign, a number that is not text.
+    for (const code of ['GC-123', 'GC-12345678901234567', 'gc-48219930', 'GC-4821 9930', 'GC-4821-9930', 48219930]) expect(cause(checkOutput(coded, plan([insert('holds', { account_id: 2, code })]))), String(code)).toBe('scope-op');
+    // On a change it is what it always was: Adminium's.
+    expect(cause(checkOutput(coded, plan([update('holds', { id: 12 }, { code: 'GC-48219930' })])))).toBe('scope-op');
+    // And a table whose rule does not say so takes none.
+    const plain = input({ writes: coded.writes, tables: { ...base.tables, holds: { key: ['id'], links: { account_id: 'accounts' }, decided: new Set(['code']) } } });
+    expect(cause(checkOutput(plain, plan([insert('holds', { account_id: 2, code: 'GC-48219930' })])))).toBe('scope-op');
+  });
+
   it('4 — an amount it is asked to decide: for a declared, mapped input, on a line of the call, from zero to every ceiling', () => {
     const decide = (value: string, more: Partial<{ line: string; input: string }> = {}) => plan([], [{ line: '', input: 'quantity', value, ...more }]);
     // Both ceilings hold: the line's `due` (3.00) and the account's balance (4.500).

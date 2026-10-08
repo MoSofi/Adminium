@@ -569,6 +569,16 @@ export const columnRulesSchema = z
          * that carry it to the row's holder still use it.
          */
         hiddenFromStaff: z.literal(true).optional(),
+        /**
+         * On a table of an add-on: a row its ledger's own answer adds may
+         * bring this code with it (a gift card brought in from an older
+         * system under the code its holder has always had). Adminium keeps a
+         * code given so, held to the code alphabet, 4 to 16 characters after
+         * the prefix, and the column's `unique`; with none given it makes one
+         * as ever. No door a person saves through gains anything by it, and a
+         * change never writes a code.
+         */
+        givenByLedger: z.literal(true).optional(),
       })
       .strict()
       .optional(),

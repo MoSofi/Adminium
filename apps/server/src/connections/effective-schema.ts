@@ -92,6 +92,8 @@ export interface ColumnCodeRule {
   renew?: { on: CodeRenewTrigger | CodeRenewTrigger[] };
   /** A code no desk hands out: left out of every staff read (`crud/read-view.ts`). */
   hiddenFromStaff?: true;
+  /** A row an add-on's ledger adds may bring this code (`crud/ledger-write.ts`): kept, not made. */
+  givenByLedger?: true;
 }
 
 /** A condition a looked-up code's row must meet (see `column.lookup`). */

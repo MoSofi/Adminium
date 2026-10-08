@@ -1070,6 +1070,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       renew: z.object({ on: z.union([codeRenewTrigger, z.array(codeRenewTrigger).min(2).max(3)]) }).strict().optional(),
       /** A code no desk hands out: left out of every staff read. */
       hiddenFromStaff: z.literal(true).optional(),
+      /** A row an add-on's ledger adds may bring its code. */
+      givenByLedger: z.literal(true).optional(),
     }),
   }),
   /** A text column written from a running number of the row: prefix + padded digits (`INV-2042`). */

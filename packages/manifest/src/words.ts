@@ -72,6 +72,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.plainText',
   'column.customerKey',
   'column.codeLast4',
+  'code.givenByLedger',
   'rollup.capUnless',
   'roles.tables',
   'roles.writableFrom',
@@ -157,6 +158,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
+      if (isDoc(rules['code']) && rules['code']['givenByLedger'] !== undefined) out.push({ word: 'code.givenByLedger', path: `${here}.code.givenByLedger` });
       if (isDoc(rules['rollup']) && rules['rollup']['capUnless'] !== undefined) out.push({ word: 'rollup.capUnless', path: `${here}.rollup.capUnless` });
       if (isDoc(rules['lookup']) && isDoc(rules['lookup']['table'])) out.push({ word: 'column.addOnLink', path: `${here}.lookup.table` });
     });

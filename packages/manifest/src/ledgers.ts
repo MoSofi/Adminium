@@ -649,6 +649,8 @@ export function ledgerIssues(m: { tables: readonly LedgerScopeTable[]; ledgers: 
         return null;
       };
       (scope.insert ?? []).forEach((ref2, i) => {
+        // The one exception: a code its own rule lets a ledger's answer bring, on a row the answer adds (never on a change).
+        if ((column(table, ref2)?.rules?.code as { givenByLedger?: unknown } | undefined)?.givenByLedger === true) return;
         const why = decided(ref2);
         if (why !== null) out.push({ code: 'LEDGER_WRITES_DECIDED', path: [...path, 'insert', i], message: `${why}: an answer never writes it` });
       });

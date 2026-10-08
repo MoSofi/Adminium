@@ -73,6 +73,8 @@ export interface LedgerTableFacts {
   links: Readonly<Record<string, string>>;
   /** The columns Adminium decides on it: a plan gives none of them. */
   decided: ReadonlySet<string>;
+  /** Code columns a row the plan adds may bring a code for (`rules.code.givenByLedger`), each with its prefix. */
+  givenCodes?: ReadonlyMap<string, { prefix: string }>;
 }
 
 export interface WriteScopeByRef {
@@ -162,6 +164,9 @@ function knownKeys(input: CheckInput, table: string): unknown[] {
   return keys;
 }
 
+/** A code as a ledger's answer may give one: what follows its prefix, in the letters and digits a code is typed in. */
+const GIVEN_CODE = /^[0-9A-Z]{4,16}$/;
+
 /** The four checks, in order, over one call's plan. */
 export function checkOutput(input: CheckInput, output: PlannedOutput): CheckResult {
   const allowed = input.action.writes === undefined ? null : new Set(input.action.writes);
@@ -195,6 +200,16 @@ export function checkOutput(input: CheckInput, output: PlannedOutput): CheckResu
     // 3. Nothing Adminium decides, and never the receipt's own link.
     for (const column of given) {
       if (column === RECEIPT_LINK) return fail('scope-op', `${at}: "${RECEIPT_LINK}" is written by Adminium`);
+      // A code its rule lets an added row bring: held to what a code is, and never written by a change.
+      const givenCode = row.op === 'insert' ? facts.givenCodes?.get(column) : undefined;
+      if (givenCode !== undefined) {
+        const value: unknown = row.op === 'insert' ? row.values[column] : undefined;
+        if (value === null || value === undefined) continue;
+        if (typeof value !== 'string' || !GIVEN_CODE.test(value.startsWith(givenCode.prefix) ? value.slice(givenCode.prefix.length) : value)) {
+          return fail('scope-op', `${at}: "${row.table}.${column}" is given a code that is not one: ${givenCode.prefix === '' ? '' : `"${givenCode.prefix}" and `}4 to 16 capital letters and digits`);
+        }
+        continue;
+      }
       if (facts.decided.has(column)) return fail('scope-op', `${at}: "${row.table}.${column}" is a column Adminium decides`);
     }
 
@@ -536,6 +551,9 @@ function tableFacts(kit: LedgerKit, target: WriteTarget, ledger: ResolvedLedger,
       key: table.primaryKey,
       links: Object.fromEntries(declared.columns.flatMap((column) => (column.type === 'fk' && column.references !== undefined ? [[column.ref, column.references] as const] : []))),
       decided: new Set([...(rules?.readOnly ?? []), ...(rules?.numbered ?? [])]),
+      givenCodes: new Map(
+        (declared.columns as readonly { ref: string; rules?: { code?: { prefix?: string; givenByLedger?: true } } }[]).flatMap((column) => (column.rules?.code?.givenByLedger === true ? [[column.ref, { prefix: column.rules.code.prefix ?? '' }] as const] : [])),
+      ),
     };
   }
   return out;

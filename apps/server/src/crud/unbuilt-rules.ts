@@ -67,6 +67,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'ledger.decides',
   // The last four characters of a code, kept beside it: cut by Adminium whenever the code is made.
   'column.codeLast4',
+  // A code a ledger's own answer brings on a row it adds (an older card, under the code its holder has): kept as given, after its checks.
+  'code.givenByLedger',
   // A column that keeps a table's name: a rename of that table rewrites its rows.
   'column.tableRef',
   // The rows an add-on's tables start with, its one settings row, and an index a table declares over a set of columns.
