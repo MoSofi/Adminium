@@ -17,7 +17,7 @@ import { sql, type Kysely } from 'kysely';
 
 import type { RuleSetting } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import type { TableRules } from './column-rules.js';
+import type { SoftLink, TableRules } from './column-rules.js';
 import type { Row } from './mask.js';
 import type { WriteAction } from './write-context.js';
 
@@ -40,6 +40,23 @@ export async function settingValue(db: Db, setting: RuleSetting, reader: RuleSet
     .limit(1)
     .executeTakeFirst()) as { value?: unknown } | undefined;
   return row?.value ?? undefined;
+}
+
+/**
+ * Whether a default for a link into an add-on's table names a row there now.
+ * Nobody chose this value in this save, so it never refuses one: while the
+ * add-on is not there for the table, and when the row the setting names has
+ * gone, the link is left empty — as it would be with no setting at all.
+ */
+async function namesRow(db: Db, link: SoftLink, value: unknown): Promise<boolean> {
+  if (link.tableId === null || link.key === null) return false;
+  const found = await db
+    .selectFrom(link.tableId as never)
+    .select(sql<number>`1`.as('one'))
+    .where(sql.ref(link.key), '=', value as never)
+    .limit(1)
+    .executeTakeFirst();
+  return found !== undefined;
 }
 
 const empty = (value: unknown) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
@@ -88,6 +105,9 @@ export async function fillFromElsewhere(
         ? await reader?.currency(target.connectionId)
         : await settingValue(target.db, rule.from, reader);
     if (empty(value)) continue;
+    // A link into an add-on's table, filled from the settings row's own link: only with a row it can name.
+    const link = rules!.addOnLinks?.find((one) => one.column === rule.column);
+    if (link !== undefined && !(await namesRow(target.db, link, value))) continue;
     out ??= { ...values };
     out[rule.column] = value;
   }
