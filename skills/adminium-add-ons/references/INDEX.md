@@ -59,7 +59,7 @@ file. Every file is 8 KB or less.
 | `references/guides/inventory--roles.md` | Roles | 700 |
 | `references/guides/inventory--when-inventory-cannot-answer.md` | When Inventory cannot answer | 581 |
 | `references/guides/inventory--sample-data.md` | Sample data | 567 |
-| `references/guides/inventory--for-app-builders.md` | For app builders | 1424 |
+| `references/guides/inventory--for-app-builders.md` | For app builders | 1597 |
 
 ## install
 

@@ -3,7 +3,7 @@
 # The Inventory add-on: For app builders
 
 An app's table takes stock through a posting into Inventory's ledger `stock`
-(see [Rows that post into a ledger](https://docs.adminium.dev/guides/apps/postings/)). Four actions are for a host's rows:
+(see [Rows that post into a ledger](https://docs.adminium.dev/guides/apps/postings/)). Five actions are for a host's rows:
 
 | Action | For | What it writes |
 |---|---|---|
@@ -11,6 +11,7 @@ An app's table takes stock through a posting into Inventory's ledger `stock`
 | `hold` | the same, before the sale is final | holds the stock; a later `use` takes what was held |
 | `use-item` | a row that names an item itself | takes that item |
 | `return` | a row that gives stock back | puts it on the shelf again, or into another place |
+| `adopt` | a row that should be a stock item itself (a product, a dish) | makes an item with the row's name and links the row to it; nothing when the row already has one |
 
 Two ids answer "is there enough?" before a save, for a public page or a till
 (see [Building on an add-on](https://docs.adminium.dev/guides/building-on-an-add-on/)): `stock`, for a row with a Stock tab,
