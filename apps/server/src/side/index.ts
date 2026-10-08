@@ -407,7 +407,10 @@ export function reportSightToFrame(target: Window | undefined = framed(), dev: b
       const faults = pageFaults(doc, target);
       // The picture is worth a few seconds and no more: what was measured goes whether or not the browser draws it.
       const picture = await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
-      target.parent.postMessage({ type: 'adminium:side-sight', app: APP_KEY, side: SIDE, width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) }, '*');
+      target.parent.postMessage(
+        { type: 'adminium:side-sight', app: APP_KEY, side: SIDE, path: pagePath(target.location.pathname), width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) },
+        '*',
+      );
     } catch {
       // Looking never breaks the page.
     }

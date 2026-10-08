@@ -505,6 +505,21 @@ describe('what is measurably broken on a page as it shows', () => {
     reportSightToFrame(target, true);
     expect(listened).toEqual(['load']);
   });
+
+  it('says which page it looked at: the page’s own path under the side, tidied as every path is', async () => {
+    vi.useFakeTimers();
+    try {
+      const customer = await bundled('repairs', 'customer');
+      const posted: Record<string, unknown>[] = [];
+      const doc = { ...page({}), readyState: 'complete', addEventListener: () => undefined };
+      const target = { ...view, innerHeight: 800, document: doc, location: { pathname: '/apps/repairs/customer/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e/' }, addEventListener: () => undefined, parent: { postMessage: (message: Record<string, unknown>) => void posted.push(message) } };
+      customer.reportSightToFrame(target as unknown as Window, true);
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(posted).toEqual([{ type: 'adminium:side-sight', app: 'repairs', side: 'customer', path: '/menu/cr%C3%A8me%20br%C3%BBl%C3%A9e', width: 1280, faults: [] }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('a page of a side has an address', () => {
