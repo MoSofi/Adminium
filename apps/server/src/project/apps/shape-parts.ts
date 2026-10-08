@@ -321,6 +321,8 @@ export type AdoptPartsResult =
       feature: string | null;
       /** The add-on's tables the added columns link into. */
       links: string[];
+      /** What a price rule's line was told of this shape's rows, on a table that is no part of it: the table, and the words. */
+      told: { ref: string; rule: string }[];
     };
 
 const PHASES = ['reserve', 'post', 'reverse'] as const;
@@ -347,7 +349,7 @@ export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
   }
   const shape = all.get(input.shape);
   if (shape === undefined) return no(`"${input.addOn}" has no shape "${input.shape}". Its shapes: ${[...all.keys()].join(', ') || 'none'}.`);
-  type Part = ShapeDefinition['parts'][string] & { adjust?: Json; postings?: Json[] };
+  type Part = ShapeDefinition['parts'][string] & { adjust?: Json; postings?: Json[]; inAdjust?: { excludes?: string; paidBy?: string } };
   const parts = Object.entries(shape.parts) as [string, Part][];
   const partNames = parts.map(([name]) => name);
   const partOf = (name: string): Part => shape.parts[name] as Part;
@@ -659,10 +661,61 @@ export function adoptParts(input: AdoptPartsInput): AdoptPartsResult {
     files[`tables/${ref}.json`] = file;
   }
 
+  // What a line that sells the add-on's own value is to a price rule on the same lines: left out of every reduction
+  // (a card load), or sold to pay later (a voucher). The sale's shape says which; the price rule's line carries it,
+  // whichever of the two shapes was added first.
+  const told: { ref: string; rule: string }[] = [];
+  const tell = (line: Json, word: 'excludes' | 'paidBy', column: string): boolean => {
+    const next = word === 'excludes' ? { column, set: true } : { column };
+    if (JSON.stringify(line[word]) === JSON.stringify(next)) return false;
+    line[word] = next;
+    return true;
+  };
+  const wordOf = (part: Part): ['excludes' | 'paidBy', string] | null => (part.inAdjust === undefined ? null : (Object.entries(part.inAdjust)[0] as ['excludes' | 'paidBy', string]));
+  // This shape's own parts, told to every price rule of this add-on that prices their table.
+  for (const [name, part] of parts) {
+    const word = wordOf(part);
+    if (word === null) continue;
+    const ref = tableOf.get(name) as string;
+    const column = at(name, word[1]) as string;
+    for (const [other, now] of Object.entries({ ...input.have, ...Object.fromEntries(Object.values(files).map((value) => [String(value['ref']), value])) })) {
+      const adjust = (files[`tables/${other}.json`] ?? now)['adjust'] as { by?: { addOn?: string }; lines?: Json[] } | undefined;
+      if (adjust?.by?.addOn !== input.addOn || !(adjust.lines ?? []).some((line) => line['table'] === ref)) continue;
+      const copy = structuredClone(files[`tables/${other}.json`] ?? now);
+      let changed = false;
+      for (const line of (copy['adjust'] as { lines: Json[] }).lines) if (line['table'] === ref && tell(line, word[0], column)) changed = true;
+      if (!changed) continue;
+      files[`tables/${other}.json`] = copy;
+      told.push({ ref: other, rule: `its price rule's lines of "${ref}" now say "${word[0]}": a line that fills ${column} ${word[0] === 'excludes' ? 'takes no reduction' : 'is something sold, and takes no reduction'}` });
+    }
+  }
+  // This shape's own price rule, told of the add-on's other shapes already on its lines: found by the rule each wrote.
+  for (const [name, part] of parts) {
+    if (part.adjust === undefined) continue;
+    const file = files[`tables/${tableOf.get(name) as string}.json`] as Json;
+    for (const line of (file['adjust'] as { lines: Json[] }).lines) {
+      const lines = files[`tables/${String(line['table'])}.json`] ?? input.have[String(line['table'])];
+      const written = lines === undefined || !Array.isArray(lines['postings']) ? [] : (lines['postings'] as Json[]);
+      for (const other of all.values()) {
+        for (const sale of Object.values(other.parts) as Part[]) {
+          const word = wordOf(sale);
+          if (word === null) continue;
+          for (const posting of sale.postings ?? []) {
+            const fed = Object.entries((posting['map'] as Json | undefined) ?? {}).find(([, from]) => from === word[1])?.[0];
+            const mine = written.find((candidate) => candidate['id'] === posting['id'] && (candidate['into'] as { addOn?: string } | undefined)?.addOn === input.addOn);
+            const column = fed === undefined ? undefined : (mine?.['map'] as Json | undefined)?.[fed];
+            if (typeof column === 'string' && tell(line, word[0], column)) (out.get(name) as AdoptedTable).rules.push(`its lines of "${String(line['table'])}" say "${word[0]}" for ${column}`);
+          }
+        }
+      }
+    }
+  }
+
   const version = typeof raw.version === 'string' ? raw.version : '0.0.0';
   const floor = raw.compatibility?.minAdminiumVersion;
   return {
     ok: true,
+    told,
     files,
     tables: [...out.values()],
     addOn: { key: input.addOn, name: typeof raw.name === 'string' ? raw.name : input.addOn, range: `>=${version}`, floor: typeof floor === 'string' ? floor : null },

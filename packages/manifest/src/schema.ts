@@ -1068,11 +1068,25 @@ export const shapePartSchema = z
     indexes: tableIndexesSchema.optional(),
     postings: postingsSchema.optional(),
     adjust: adjustSchema.optional(),
+    /**
+     * What a row of this part is to a price rule that prices the same table
+     * (another shape's `adjust`, on the order these lines belong to): a line
+     * that names this column takes no reduction (`excludes`: a gift-card
+     * load), or is something sold that pays for itself later (`paidBy`: a
+     * voucher). The host's price rule says so on its line; a tool that adds
+     * the shape to an app's tables writes it there.
+     */
+    inAdjust: z.union([z.object({ excludes: refSchema }).strict(), z.object({ paidBy: refSchema }).strict()]).optional(),
   })
   .strict()
   .refine((p) => new Set(p.columns.map((c) => c.ref)).size === p.columns.length, {
     message: 'duplicate column ref in part',
     path: ['columns'],
+  })
+  .superRefine((p, ctx) => {
+    if (p.inAdjust === undefined) return;
+    const [word, column] = Object.entries(p.inAdjust)[0] as [string, string];
+    if (!p.columns.some((c) => c.ref === column)) ctx.addIssue({ code: 'custom', message: `"${column}" is not a column of this part`, path: ['inAdjust', word] });
   })
   .superRefine((p, ctx) => {
     for (const issue of indexSetIssues(p)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });

@@ -1213,7 +1213,10 @@
                 "scale": "currency",
                 "nullable": true
               }
-            ]
+            ],
+            "inAdjust": {
+              "excludes": "gift_card_id"
+            }
           }
         }
       },
@@ -1303,7 +1306,10 @@
                 "default": false,
                 "nullable": true
               }
-            ]
+            ],
+            "inAdjust": {
+              "paidBy": "voucher_id"
+            }
           }
         }
       }

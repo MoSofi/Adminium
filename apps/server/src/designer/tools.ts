@@ -28,7 +28,7 @@
 import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 
 import { checkApp, type AppFinding } from '../project/apps/check-app.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
@@ -1321,12 +1321,18 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
                 return { problem: refused(`${base}/${file} does not read (${error instanceof Error ? error.message : String(error)}). Write it again, then call this again.`, failed) };
               }
             };
-            // The app's tables the parts are given, as their files read now.
+            // The app's tables, as their files read now: the ones the parts are given, and any whose price rule reads them.
             const have: Record<string, Record<string, unknown>> = {};
-            for (const ref of new Set(Object.values(tablesGiven ?? {}))) {
+            const folder = dirname(jail.resolve(`${base}/tables/any.json`, 'write'));
+            const there = existsSync(folder) ? readdirSync(folder).flatMap((name) => (name.endsWith('.json') ? [name.slice(0, -5)] : [])) : [];
+            for (const ref of new Set([...Object.values(tablesGiven ?? {}), ...there])) {
               if (!/^[a-z][a-z0-9_]{0,62}$/.test(ref) || read(`tables/${ref}.json`) === null) continue;
               const file = parsed<Record<string, unknown>>(`tables/${ref}.json`, {});
-              if ('problem' in file) return file.problem;
+              // A table the call did not name and that does not read is that table's trouble, not this call's.
+              if ('problem' in file) {
+                if (Object.values(tablesGiven ?? {}).includes(ref)) return file.problem;
+                continue;
+              }
               have[ref] = file.value;
             }
             const made = adoptParts({ addOn, document, shape, tables: tablesGiven, have, when: isObject(moments) ? (moments as Record<string, unknown>) : undefined, columns, need });
@@ -1359,6 +1365,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
                 .map((column) => `; ${column.column} is now a link to ${column.links ?? ''}, and may be empty`)
                 .join('')}${table.used.filter((column) => column.column !== column.as).length === 0 ? '' : `; uses ${table.used.filter((column) => column.column !== column.as).map((column) => `${column.as} as ${column.column}`).join(', ')}`}${table.rules.map((rule) => `; ${rule}`).join('')}`;
             });
+            for (const other of made.told) lines.push(`- ${base}/tables/${other.ref}.json: ${other.rule}`);
             lines.push(`- ${base}/add-ons.json: ${need} ${made.addOn.key} ${made.addOn.range}`);
             const now = app.value.compatibility?.minAdminiumVersion;
             if (typeof now !== 'string' || compareSemver(now, floor) < 0) {

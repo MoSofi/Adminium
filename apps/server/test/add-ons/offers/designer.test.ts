@@ -163,4 +163,15 @@ describe.each(LEGS)('a till the tool wrote, on Offers — %s', (dialect, availab
     await w.update('till_payments', paid['id'], { voided_at: new Date().toISOString() });
     expect(money2((await one('offers_gift_cards', held.id))['balance'])).toBe('30.00');
   });
+
+  it.skipIf(!run)('a code for the whole ticket leaves a gift-card load as it is', async () => {
+    const line = (made!.tables['tickets']!['adjust'] as { lines: Doc[] }).lines[0]!;
+    expect(line).toMatchObject({ excludes: { column: 'gift_card_id', set: true }, paidBy: { column: 'voucher_id' } });
+    const blank = await w.create('offers_gift_cards', {});
+    const id = await ticket([{ item_id: mug, unit_price: '40.00', qty: 1 }, { gift_card_id: blank['id'], load_amount: '25.00', unit_price: '25.00', qty: 1 }]);
+    await w.create('till_ticket_codes', { ticket_id: id, typed: 'TENTH' });
+    // Ten percent of the mug, and nothing of the 25.00 that goes on the card.
+    expect(money2((await one('till_tickets', id))['discount'])).toBe('4.00');
+    expect((await all('till_ticket_lines', `ticket_id = ${String(id)}`)).map((row) => money2(row['discount']))).toEqual(['4.00', '0.00']);
+  });
 });

@@ -217,6 +217,39 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     expect(columns('ticket_codes')).toEqual(['id', 'ticket_id', 'typed', 'code_id', 'voucher_id', 'removed_at']);
   });
 
+  it('a line that loads a card, or sells a voucher, takes no reduction: the price rule says so, whichever shape came first', async () => {
+    const line = () => ((json('tables/tickets.json')['adjust'] as { lines: Record<string, unknown>[] }).lines[0])!;
+    const discounts = () => build({ shape: 'discountable@1', tables: { order: 'tickets', lines: 'ticket_lines', codes: 'ticket_codes' }, columns: { 'lines.amount': 'line_total', 'lines.item': 'item_id' }, when: PAID });
+    const cards = () => build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, when: PAID });
+    const vouchers = () => build({ shape: 'voucher-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, columns: { amount: 'line_total' }, when: PAID });
+
+    // The price rule first, then the two sales: each tells the rule that is already there.
+    till();
+    expect((await discounts()).isError).toBeUndefined();
+    expect(line()['excludes']).toBeUndefined();
+    const sold = await cards();
+    expect(sold.content).toContain('apps/till/manifest/tables/tickets.json: its price rule\'s lines of "ticket_lines" now say "excludes": a line that fills gift_card_id takes no reduction');
+    expect(line()).toMatchObject({ excludes: { column: 'gift_card_id', set: true } });
+    expect((await vouchers()).content).toContain('now say "paidBy": a line that fills voucher_id is something sold, and takes no reduction');
+    expect(line()).toMatchObject({ excludes: { column: 'gift_card_id', set: true }, paidBy: { column: 'voucher_id' } });
+    // The price rule written again keeps both.
+    const again = await discounts();
+    expect(again.content).toContain('its lines of "ticket_lines" say "excludes" for gift_card_id; its lines of "ticket_lines" say "paidBy" for voucher_id');
+    expect(line()).toMatchObject({ excludes: { column: 'gift_card_id', set: true }, paidBy: { column: 'voucher_id' } });
+    // A sale added again changes nothing, and says nothing of the tickets.
+    expect((await cards()).content).not.toContain('now say');
+    expect(errors()).toEqual([]);
+
+    // The sales first, under a column of the app's own name, then the price rule: it finds them by the rules they wrote.
+    put('tables/tickets.json', TICKETS);
+    put('tables/ticket_lines.json', { ...LINES, columns: [...LINES.columns, { ref: 'card', type: 'int', nullable: true }] });
+    expect((await build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, columns: { gift_card_id: 'card' }, when: PAID })).isError).toBeUndefined();
+    expect((await discounts()).isError).toBeUndefined();
+    expect(line()).toMatchObject({ excludes: { column: 'card', set: true } });
+    expect(line()['paidBy']).toBeUndefined();
+    expect(errors()).toEqual([]);
+  });
+
   it('with "suggests" the app runs without the add-on: a feature, and the rule live only under it', async () => {
     till();
     const done = await build({ shape: 'voucher-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, columns: { amount: 'line_total' }, when: PAID, need: 'suggests' });

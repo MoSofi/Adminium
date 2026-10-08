@@ -83,7 +83,7 @@
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |
 | `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5372 |
 | `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
-| `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 1853 |
+| `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 2541 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
 | `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2828 |
 

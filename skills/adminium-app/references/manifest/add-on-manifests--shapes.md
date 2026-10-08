@@ -21,3 +21,11 @@ tables. A column's `references` names another part of the same shape (`"document
 another of the add-on's shapes (`"quote@1/document"`). A rule in a part that reads a setting reads
 one of the add-on's own (`{ "addOn": "<its key>", "setting" }`), since the add-on cannot know an
 app's settings row.
+
+A part may also carry the rules an app's table gets: `postings`, `adjust` and `indexes`. A shape
+with such a part is not built as new tables: an app adds it to tables it already has, under its own
+names, and writes no `builtOn`. A part of such a shape may say what its rows are to a price rule
+that prices the same table, with `inAdjust`: `{ "excludes": "<column>" }` (a row that fills the
+column takes no reduction, as a gift-card load) or `{ "paidBy": "<column>" }` (a row that fills it
+is something sold that pays later, as a voucher). The column is one of the part's. The app's price
+rule then names it on its line (`excludes`, `paidBy`); a tool that adds the shape writes it there.

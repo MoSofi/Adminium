@@ -58,7 +58,9 @@ paid and given back when it is cancelled.
 ```
 
 A line that loads a gift card is left out of every reduction (`excludes`), and a line that sells a
-voucher names it (`paidBy`), where the same table also carries the two sale shapes below.
+voucher names it (`paidBy`), where the same table also carries the two sale shapes below. Each sale
+shape says so itself (`inAdjust` on its `lines` part), so Adminium Designer writes the two words
+into the price rule whichever shape it adds first; by hand, write them on the rule's line.
 
 ## `card-payment@1` — a payment a gift card makes
 
