@@ -10,9 +10,18 @@
  * with the sample as an owner would (a use undone, a delivery received, a new
  * order numbered) and takes it out and puts it in again.
  */
+import { parseDatabaseModel } from '@adminium/engine';
+import { queryDescriptorSchema } from '@adminium/engine/config';
+import { overridesRepo, pagesRepo, snapshotsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createSampleDataService, findSampleOwner } from '../../../src/apps/sample-data.js';
+import { applyOverrides } from '../../../src/connections/effective-schema.js';
+import { SnapshotView } from '../../../src/crud/identifiers.js';
+import { resolveLookups } from '../../../src/crud/lookups.js';
+import { compileWidgetQuery } from '../../../src/widget-data/compiler.js';
+import { groupLabelSourceOf, groupLabelsFor } from '../../../src/widget-data/group-labels.js';
+import { shapeRows } from '../../../src/widget-data/shapers.js';
 import { LEGS } from '../../invoicing-install.helpers.js';
 import { builtAddOn, installBuilt, writing, type Writing } from '../harness.js';
 import { n, yes } from './world.js';
@@ -166,6 +175,65 @@ describe.each(LEGS)('Inventory\'s sample data — %s', (dialect, available) => {
     expect([count['number'], count['status'], n(count['lines']), n(count['counted_lines']), n(count['uncounted']), n(count['differences']), money(count['value'])]).toEqual(['CNT-0001', 'posted', 14, 14, 0, 3, '-0.95']);
     const linen = await w.h.rows(`select i.sku as sku, l.name as place, p.on_hand from ${t('stock_points')} p join ${t('items')} i on i.id = p.item_id join ${t('places')} l on l.id = p.place_id where i.sku in ('TWL-BATH', 'TWL-HAND', 'SHEET-D') order by i.id, l.position`);
     expect(linen.map((row) => `${String(row['sku'])} ${String(row['place'])} ${String(n(row['on_hand']))}`)).toEqual(['TWL-BATH Linen store 236', 'TWL-BATH At the laundry 24', 'TWL-HAND Linen store 236', 'TWL-HAND At the laundry 24', 'SHEET-D Linen store 128', 'SHEET-D At the laundry 12']);
+  });
+
+  it.skipIf(!run)('the Overview shows the sample to the cent: every card, asked as the dashboard asks', async () => {
+    const page = (await pagesRepo(w.h.meta).findBySlug(w.h.connectionId, 'inventory-overview'))!;
+    const findLayout = (value: unknown): { items: { i: string; config: { binding?: unknown } }[] } | null => {
+      if (typeof value !== 'object' || value === null) return null;
+      const node = value as Record<string, unknown>;
+      if (Array.isArray(node['items']) && node['version'] === 1) return node as never;
+      for (const child of Object.values(node)) {
+        const found = findLayout(child);
+        if (found !== null) return found;
+      }
+      return null;
+    };
+    const layout = findLayout(page.config)!;
+    expect(layout.items.map((item) => item.i)).toEqual(['value', 'low', 'out', 'expiring', 'open-orders', 'to-reorder', 'running-low', 'by-place', 'expiring-soon', 'orders', 'movements', 'used']);
+    const model = parseDatabaseModel((await snapshotsRepo(w.h.meta).latest(w.h.connectionId))!.schema);
+    const view = new SnapshotView(w.h.connectionId, applyOverrides(model, await overridesRepo(w.h.meta).listForConnection(w.h.connectionId, { status: 'active' })), new Map());
+    const { db, dialect: engine } = await w.h.manager.data(w.h.connectionId);
+    const now = new Date();
+    const cards: Record<string, Record<string, unknown>> = {};
+    for (const item of layout.items) {
+      const descriptor = queryDescriptorSchema.parse(item.config.binding);
+      const table = view.table(view.model.tables.find((candidate) => candidate.name === descriptor.source.name)!.id);
+      // As the widget-data route does: a card's lookups and its groups' names are resolved for the reader first.
+      const lookups = await resolveLookups({ view, table, raw: descriptor.lookups ?? [], canReadPii: true, canReadTable: async () => true });
+      const groupLabel = await groupLabelSourceOf({ path: descriptor.groupLabel, groupColumn: descriptor.groupBy?.[0], table, view, canReadPii: true, canReadTable: async () => true });
+      const compiled = compileWidgetQuery({ db: db as never, view, descriptor, params: {}, canReadPii: true, dialect: engine, now: () => now, timezone: 'UTC', lookups, groupLabel });
+      const rows = (await compiled.query.execute()) as Record<string, unknown>[];
+      const priorRows = compiled.prior === null ? undefined : ((await compiled.prior.execute()) as Record<string, unknown>[]);
+      const groupLabels = await groupLabelsFor({ path: descriptor.groupLabel, compiled, rows, view, db: db as never, canReadPii: true, canReadTable: async () => true });
+      cards[item.i] = shapeRows({ compiled, rows, priorRows, canReadPii: true, groupLabels }) as unknown as Record<string, unknown>;
+    }
+    const figure = (card: string) => n(cards[card]!['value']);
+    expect(money(figure('value'))).toBe('7490.43');
+    expect([figure('low'), figure('out'), figure('expiring'), figure('open-orders'), figure('to-reorder')]).toEqual([5, 1, 2, 1, 2]);
+    // What went out is a cost, not a negative amount.
+    expect(money(figure('used'))).toBe('1490.62');
+    const text = (card: string) => JSON.stringify(cards[card]);
+    // The six places, summing to the tile.
+    const places = (cards['by-place'] as unknown as { items: { label: string; value: number }[]; total: number }).items.map((item) => [item.label, money(item.value)]);
+    expect(places).toEqual([['Linen store', '5688.42'], ['Shop floor', '964.55'], ['At the laundry', '475.20'], ['Treatment room', '254.00'], ['Back room', '108.26'], ['Damaged', '0.00']]);
+    expect(money((cards['by-place'] as unknown as { total: number }).total)).toBe('7490.43');
+    // The low list, emptiest first; the two batches, the earlier first; the three orders, newest first.
+    expect(text('running-low').indexOf('T-shirt, blue, M')).toBeGreaterThan(-1);
+    expect(text('running-low').indexOf('T-shirt, blue, M')).toBeLessThan(text('running-low').indexOf('Canvas tote, natural'));
+    expect(text('expiring-soon').indexOf('LD118')).toBeGreaterThan(-1);
+    expect(text('expiring-soon').indexOf('LD118')).toBeLessThan(text('expiring-soon').indexOf('FV26A'));
+    expect(text('orders').indexOf('PO-1003')).toBeLessThan(text('orders').indexOf('PO-1001'));
+    // The latest six movements are the last evening's uses, each with its item and place by name.
+    const latest = (cards['movements'] as unknown as { rows: { kind: string; qty: unknown; item: string; place: string }[] }).rows;
+    expect(latest.map((row) => `${row.kind} ${String(n(row.qty))} ${row.item} · ${row.place}`)).toEqual([
+      'used -1 Tea selection box · Linen store',
+      'used -3 Slippers · Linen store',
+      'used -9 Soap bar 30 g · Linen store',
+      'used -5 Amenity kit · Linen store',
+      'used -3 Gauze pad, sterile · Treatment room',
+      'used -6 Plaster strip · Treatment room',
+    ]);
   });
 
   it.skipIf(!run)('a receipt of posting names its row the way a real one does', async () => {
