@@ -52,6 +52,8 @@ function inn(): Doc {
             money('room_discount', { default: 0 }),
             money('discount', { default: 0 }),
             money('room', { nullable: true, rules: { formula: { sub: ['room_total', 'discount'] } } }),
+            // Read off the stay as its own line: nothing but that reduction reaches it.
+            money('nights_net', { nullable: true, rules: { formula: { sub: ['room_total', 'room_discount'] } } }),
             { ref: 'tax_rate', type: 'decimal', scale: 2, default: 9 },
             money('tax', { nullable: true, rules: { formula: { round: [{ div: [{ mul: ['room', 'tax_rate'] }, 100] }, 2] } } }),
             money('total', { nullable: true, rules: { formula: { add: ['room', 'tax'] } } }),
@@ -94,7 +96,10 @@ describe.each(LEGS)('an order that is its own line, priced by the night — %s',
     const stay = await s.create('market_stays', { guest: 'Ada', room_type_id: double, arrive: '2026-11-02', depart: '2026-11-04' });
     // Nothing reduces it yet: two nights at 185.00, nine percent on top.
     expect(await figures(stay['id'])).toEqual({ room_total: '370.00', room_discount: '0.00', discount: '0.00', room: '370.00', tax: '33.30', total: '403.30' });
+    const net = async () => fixed((await w.rows(`SELECT nights_net FROM market_stays WHERE id = ${String(stay['id'])}`))[0]!['nights_net']);
+    expect(await net()).toBe('370.00');
     await s.create('market_stay_codes', { stay_id: stay['id'], typed: 'stay10' });
+    expect(await net()).toBe('333.00');
     expect(await figures(stay['id'])).toEqual({ room_total: '370.00', room_discount: '37.00', discount: '37.00', room: '333.00', tax: '29.97', total: '362.97' });
     // The reduction is the stay's own: one row of what was applied, on the stay as its own line.
     expect((await w.rows(`SELECT source_line, kind, amount FROM price_kit_applied WHERE source_table = 'market:stays' AND source_row = '${String(stay['id'])}'`)).map((row) => `${String(row['source_line'])} ${String(row['kind'])} ${fixed(row['amount'])}`)).toEqual([`p0:${String(stay['id'])} code 37.00`]);
