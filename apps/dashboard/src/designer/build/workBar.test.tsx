@@ -85,7 +85,8 @@ function parts(): Record<string, boolean> {
     sideMenu: has('button', /^Side: /),
     sizeSwitch: has('radiogroup', 'Size'),
     sizeMenu: has('button', /^Size: /),
-    chipText: screen.queryByText(/^Seen as: /) !== null,
+    // The words are in the bar, on a thing that may carry a name: a bare span may not, and a screen reader would be told nothing.
+    chipText: has('note', /^Seen as: /) && screen.queryByText(/^Seen as: /) !== null,
     chipIcon: has('img', /^Seen as: /),
     reload: has('button', 'Reload the preview'),
     address: screen.queryByLabelText(/^Address on the /) !== null,

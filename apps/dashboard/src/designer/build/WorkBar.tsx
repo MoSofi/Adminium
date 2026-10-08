@@ -240,7 +240,7 @@ export function WorkBar({
     : level <= 2
       ? tip(
           seen.tip,
-          <span tabIndex={live ? 0 : -1} aria-label={name(seen.said)} className="inline-flex h-7 max-w-[178px] shrink-0 cursor-default items-center gap-[5px] whitespace-nowrap rounded-[8px] bg-surface-3 pe-2.5 ps-2 text-[12px] font-bold text-fg-muted focus-visible:outline-2 focus-visible:outline-accent">
+          <span tabIndex={live ? 0 : -1} role="note" aria-label={name(seen.said)} className="inline-flex h-7 max-w-[178px] shrink-0 cursor-default items-center gap-[5px] whitespace-nowrap rounded-[8px] bg-surface-3 pe-2.5 ps-2 text-[12px] font-bold text-fg-muted focus-visible:outline-2 focus-visible:outline-accent">
             <Eye aria-hidden="true" className="size-3.5 shrink-0" />
             <span aria-hidden="true" className="overflow-hidden text-ellipsis">
               {seen.label}
