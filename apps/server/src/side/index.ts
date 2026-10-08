@@ -938,7 +938,7 @@ export function pageHref(path: string, base: string = mountBase()): string {
 
 /** As much of a window as a page's address needs. The page's own; tests pass theirs. */
 interface PageWindow {
-  location: { pathname: string };
+  location: { pathname: string; search?: string };
   history: { pushState(data: unknown, unused: string, url: string): void; replaceState(data: unknown, unused: string, url: string): void };
   parent: unknown;
   addEventListener(type: string, listener: (event: never) => void): void;
@@ -983,7 +983,8 @@ function moveTo(target: PageWindow, path: string, replace: boolean, own: boolean
   const tidy = tidyPath(path);
   if (tidy === null) return;
   if (tidy === pagePath(target.location.pathname)) return;
-  const href = pageHref(tidy, mountBase(target.location.pathname));
+  // The address's query is the visit's, not the page's (`?demo` on a staff screen): a move to another page keeps it.
+  const href = `${pageHref(tidy, mountBase(target.location.pathname))}${target.location.search ?? ''}`;
   if (replace || target.parent !== target) target.history.replaceState(null, '', href);
   else target.history.pushState(null, '', href);
   // A new page starts at its top; an address put right in place does not move the reader.

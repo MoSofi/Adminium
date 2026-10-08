@@ -644,6 +644,13 @@ describe('going from page to page', () => {
     staff = await bundled('repairs', 'staff');
   });
 
+  it('keeps the address’s query on a move: a staff screen opened with ?demo stays on the sample rows', () => {
+    const page = sideWindow('/apps/repairs/staff/');
+    (page.target as unknown as { location: { search?: string } }).location.search = '?demo';
+    staff.go('/jobs', {}, page.target);
+    expect(page.moves).toEqual(['push /apps/repairs/staff/jobs?demo']);
+  });
+
   it('adds to the history as the top window, and is silent when already there', () => {
     const page = sideWindow('/apps/repairs/customer/');
     customer.go('/menu', {}, page.target);
