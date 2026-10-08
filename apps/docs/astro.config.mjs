@@ -211,6 +211,7 @@ export default defineConfig({
                 { label: 'A menu two apps share', link: '/guides/apps/shared-menu/' },
                 { label: 'Building on an add-on', link: '/guides/building-on-an-add-on/' },
                 { label: 'Add-ons with tables', link: '/guides/add-ons-with-tables/' },
+                { label: 'The Inventory add-on', link: '/guides/add-ons/inventory/' },
               ],
             },
             {
