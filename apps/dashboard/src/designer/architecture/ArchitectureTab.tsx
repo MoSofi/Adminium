@@ -314,7 +314,9 @@ function Outline({ doc, selected, onSelect }: { doc: ArchitectureDoc; selected: 
           <h3 className="m-0 mb-1.5 text-[11px] font-extrabold uppercase tracking-wide text-fg-subtle">{group.title}</h3>
           <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {group.ids.map((id) => {
-              const lines = doc.edges.filter((edge) => edge.from === id).map((edge) => `${kindLabel(edge.kind)} ${names.get(edge.to) ?? edge.to}`);
+              const lines = doc.edges
+                .filter((edge) => edge.from === id)
+                .map((edge) => `${edge.does === 'posts' ? t('designer:arch.posts', 'Posts into') : kindLabel(edge.kind)} ${names.get(edge.to) ?? edge.to}`);
               return (
                 <li key={id}>
                   <button

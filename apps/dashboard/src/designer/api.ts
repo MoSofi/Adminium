@@ -253,7 +253,7 @@ export interface ArchitectureDoc {
   addOns: { id: string; key: string; name: string; need: 'required' | 'suggested'; state: 'installed' | 'not-installed'; version: string | null; reason: string }[];
   builtIn: BuiltIn[];
   emails: { id: string; key: string; name: string; when: string }[];
-  edges: { id: string; from: string; to: string; kind: ArchitectureEdgeKind; reads?: number; writes?: number }[];
+  edges: { id: string; from: string; to: string; kind: ArchitectureEdgeKind; reads?: number; writes?: number; does?: 'posts' | 'prices' }[];
   lists: {
     pages: { ref: string; name: string; kind: string; shows: string }[];
     roles: { tables: string[]; rows: { id: string; role: string; cells: ArchitectureCell[]; notes: (string | null)[] }[] };

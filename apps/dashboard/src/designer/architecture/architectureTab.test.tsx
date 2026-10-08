@@ -131,6 +131,19 @@ describe('the Architecture tab', () => {
     expect(screen.getAllByRole('button', { name: /^jobs/, pressed: true })).toHaveLength(1);
   });
 
+  it('a table that posts is joined to its add-on', async () => {
+    doc = { ...DOC, edges: [...DOC.edges, { id: 't_jobs>a_invoices>add-on', from: 't_jobs', to: 'a_invoices', kind: 'add-on', does: 'posts' }] };
+    mount();
+    await userEvent.click(await screen.findByRole('switch'));
+    // In the list, the table's own row says where its rows post; selecting it offers the add-on as a line.
+    // (The pending change "Table jobs" is a button too: the outline's row is the one that carries its lines.)
+    const jobs = screen.getAllByRole('button', { name: /^jobs/ }).find((button) => button.textContent?.includes('Posts into')) as HTMLElement;
+    expect(jobs.textContent).toContain('Posts into Invoices & Receipts');
+    await userEvent.click(jobs);
+    const bar = screen.getByText('Lines to').parentElement as HTMLElement;
+    expect(within(bar).getByRole('button', { name: 'Invoices & Receipts' })).toBeTruthy();
+  });
+
   it('lists the tables, roles, customer access, emails, add-ons and screens', async () => {
     doc = DOC;
     mount();

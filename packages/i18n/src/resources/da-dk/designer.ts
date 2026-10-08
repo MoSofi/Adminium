@@ -459,6 +459,7 @@ export default {
     "install": "Installér",
     "installed": "Installeret {version}",
     "keyCounts": "{reads} læs, {writes} skriv",
+    "posts": "Bogfører i",
     "kind": "Type",
     "kindAddOn": "Tilføjelse",
     "kindEmail": "Sender",

@@ -459,6 +459,7 @@ export default {
     "install": "Installieren",
     "installed": "Installiert {version}",
     "keyCounts": "{reads} Lesen, {writes} Schreiben",
+    "posts": "Bucht in",
     "kind": "Art",
     "kindAddOn": "Add-on",
     "kindEmail": "Sendet",

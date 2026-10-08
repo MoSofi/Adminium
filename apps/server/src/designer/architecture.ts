@@ -43,6 +43,8 @@ export interface ArchitectureTable {
   columns: { name: string; type: string }[];
   /** Tables this one points at (a foreign key), by ref. */
   relations: { to: string; column: string }[];
+  /** The ledgers of add-ons this table's rows post into. */
+  posts?: { addOn: string; ledger: string; action: string }[];
 }
 
 export interface ArchitectureDocument {
@@ -56,7 +58,8 @@ export interface ArchitectureDocument {
   builtIn: (typeof BUILT_IN)[number][];
   emails: { id: string; key: string; name: string; when: string }[];
   /** `reads`/`writes`: what a customer key may do on a table, for the line's label (worded by the page). */
-  edges: { id: string; from: string; to: string; kind: EdgeKind; reads?: number; writes?: number }[];
+  /** `does`: what a table's line to an add-on stands for: its rows post into the add-on's ledger, or the add-on prices them. */
+  edges: { id: string; from: string; to: string; kind: EdgeKind; reads?: number; writes?: number; does?: 'posts' | 'prices' }[];
   lists: {
     pages: { ref: string; name: string; kind: string; shows: string }[];
     roles: { tables: string[]; rows: { id: string; role: string; cells: Cell[]; notes: (string | null)[] }[] };
@@ -229,6 +232,7 @@ export async function architectureOf(deps: ArchitectureDeps, appKey: string): Pr
         rows: connectionId === null ? null : await counted(deps.count, connectionId, name),
         columns: table.columns.map((column) => ({ name: column.ref, type: column.type })),
         relations: table.columns.filter((column) => column.type === 'fk' && column.references !== undefined).map((column) => ({ to: column.references as string, column: column.ref })),
+        ...((table.postings ?? []).length === 0 ? {} : { posts: (table.postings ?? []).map((posting) => ({ addOn: posting.into.addOn, ledger: posting.into.ledger, action: posting.into.action })) }),
       };
     }),
   );
@@ -322,7 +326,21 @@ export async function architectureOf(deps: ArchitectureDeps, appKey: string): Pr
     version: row.installedVersion ?? null,
     reason: row.reason['en'] ?? row.reason['en-US'] ?? Object.values(row.reason)[0] ?? '',
   }));
-  for (const addOn of doc.addOns) edge('app', addOn.id, 'add-on');
+  // A table whose rows post into an add-on's ledger, or are priced by one, is joined to it; the app is joined to an add-on no table reaches.
+  const shown = new Set(doc.addOns.map((addOn) => addOn.id));
+  const reached = new Set<string>();
+  for (const table of tables) {
+    const does = new Map<string, 'posts' | 'prices'>();
+    if (table.adjust !== undefined) does.set(table.adjust.by.addOn, 'prices');
+    for (const posting of table.postings ?? []) does.set(posting.into.addOn, 'posts');
+    for (const [key, what] of does) {
+      const to = `a_${key}`;
+      if (!shown.has(to)) continue;
+      doc.edges.push({ id: `t_${table.ref}>${to}>add-on`, from: `t_${table.ref}`, to, kind: 'add-on', does: what });
+      reached.add(to);
+    }
+  }
+  for (const addOn of doc.addOns) if (!reached.has(addOn.id)) edge('app', addOn.id, 'add-on');
 
   doc.pending = pendingParts(manifest, folderCheck?.manifest ?? null);
   return doc;

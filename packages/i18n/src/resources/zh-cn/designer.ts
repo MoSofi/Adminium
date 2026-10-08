@@ -459,6 +459,7 @@ export default {
     "install": "安装",
     "installed": "已安装 {version}",
     "keyCounts": "{reads} 读，{writes} 写",
+    "posts": "记入",
     "kind": "类型",
     "kindAddOn": "附加组件",
     "kindEmail": "发送",

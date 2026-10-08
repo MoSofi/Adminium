@@ -8479,6 +8479,10 @@
     "status": "mt",
     "srcHash": "b37554f695b1"
   },
+  "designer.arch.posts": {
+    "status": "mt",
+    "srcHash": "2e6746f4deb8"
+  },
   "designer.arch.read": {
     "status": "mt",
     "srcHash": "852b438f91ad"

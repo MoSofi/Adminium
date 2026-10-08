@@ -459,6 +459,7 @@ export default {
     "install": "Installer",
     "installed": "Installé {version}",
     "keyCounts": "{reads} lecture, {writes} écriture",
+    "posts": "Enregistre dans",
     "kind": "Type",
     "kindAddOn": "Extension",
     "kindEmail": "Envoie",

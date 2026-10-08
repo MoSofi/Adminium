@@ -155,7 +155,12 @@ export function Diagram({ doc, selected, onSelect }: { doc: ArchitectureDoc; sel
       .filter((edge) => ids.has(edge.from) && ids.has(edge.to))
       .map((edge) => {
         const lit = linked !== null && (edge.from === selected || edge.to === selected);
-        const label = edge.kind === 'customer-key' && edge.reads !== undefined ? t('designer:arch.keyCounts', '{reads} read, {writes} write', { reads: edge.reads, writes: edge.writes ?? 0 }) : undefined;
+        const label =
+          edge.kind === 'customer-key' && edge.reads !== undefined
+            ? t('designer:arch.keyCounts', '{reads} read, {writes} write', { reads: edge.reads, writes: edge.writes ?? 0 })
+            : edge.does === 'posts'
+              ? t('designer:arch.posts', 'Posts into')
+              : undefined;
         return {
           id: edge.id,
           source: edge.from,

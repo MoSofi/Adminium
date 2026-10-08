@@ -459,6 +459,7 @@ export default {
     "install": "Install",
     "installed": "Installed {version}",
     "keyCounts": "{reads} read, {writes} write",
+    "posts": "Posts into",
     "kind": "Kind",
     "kindAddOn": "Add-on",
     "kindEmail": "Sends",
