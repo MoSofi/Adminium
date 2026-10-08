@@ -55,7 +55,9 @@ describe.each(LEGS)('Inventory\'s email to a supplier — %s', (dialect, availab
     await w.update('purchase_orders', order, values);
     const after = await one(`select * from ${t('purchase_orders')} where id = ${String(order)}`);
     await producers.onRecordEvent({ connectionId: w.h.connectionId, table, action: 'update', entity: { connectionId: w.h.connectionId, table: table.id, pk: { id: order }, label: '' }, before, after } as never);
-    clock += 60_000;
+    // A minute past the later of the last send and this moment: a message is held a second from when it was queued,
+    // and this suite may start minutes after its file was read.
+    clock = Math.max(clock, Date.now()) + 60_000;
     await sender.sendApp('inventory', clock);
   };
   const order = async (values: Record<string, unknown> = {}) => {
