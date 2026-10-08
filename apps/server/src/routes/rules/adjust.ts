@@ -96,7 +96,8 @@ export const adjustsReply = z.object({
       state: z.enum(['live', 'off', 'idle', 'unavailable']),
       adjust: z.record(z.string(), z.unknown()),
       /** The tables the rule's lines say what they sell by. */
-      what: z.array(z.object({ table: z.string(), label: z.string(), as: z.string() })),
+      /** `ref`: the table's stored name, as a row that names one of its rows keeps it (an offer's target, a voucher's thing). */
+      what: z.array(z.object({ table: z.string(), ref: z.string(), label: z.string(), as: z.string() })),
       /** How many rows of the table hold something under the rule that records what an order used. */
       holding: z.number().int().min(0),
     }),
@@ -433,14 +434,14 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
           // (A rule a manifest stored is never read as the owner's own, even where who made the table can no longer be told.)
           const owner = table.managedAdjust === true ? (makerOf(view, table.id) ?? 'app') : null;
           const state = ledgers.adjuster?.(view, at).state ?? 'unavailable';
-          const what = new Map<string, { table: string; label: string; as: string }>();
+          const what = new Map<string, { table: string; ref: string; label: string; as: string }>();
           for (const part of adjust.lines) {
             const partTable = 'self' in part && part.self === true ? table : view.model.tables.find((candidate) => candidate.id === (part as { table?: string }).table);
             for (const entry of part.what ?? []) {
               if (entry.as === 'tag' || partTable === undefined) continue;
               const relation = view.model.relations.find((r) => r.through === null && r.from.tableId === partTable.id && r.from.columns.length === 1 && r.from.columns[0] === entry.column);
               const target = relation === undefined ? undefined : view.model.tables.find((candidate) => candidate.id === relation.to.tableId);
-              if (target !== undefined) what.set(`${target.id}\u0000${entry.as}`, { table: target.id, label: target.label ?? target.name, as: entry.as });
+              if (target !== undefined) what.set(`${target.id}\u0000${entry.as}`, { table: target.id, ref: ledgers.refOf(connectionId, target.id), label: target.label ?? target.name, as: entry.as });
             }
           }
           const ownerName = owner === null ? undefined : await appName(connectionId, owner);

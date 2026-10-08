@@ -97,6 +97,8 @@ describe.each(LEGS)('the owner\'s price rule — %s', (dialect, available) => {
     expect(read.adjusts).toHaveLength(1);
     expect(read.adjusts[0]).toMatchObject({ table: ids.get('market_orders'), owner: MARKET, ownerName: 'Market', enabled: true, state: 'live', holding: 0 });
     expect((read.adjusts[0]!['what'] as { table: string; as: string }[]).map((one) => `${one.as} ${one.table}`).sort()).toEqual([`category ${ids.get('market_categories')!}`, `item ${ids.get('market_items')!}`]);
+    // Each by the name a row that points into it keeps: who made the table, and what they call it.
+    expect((read.adjusts[0]!['what'] as { ref: string; as: string }[]).map((one) => `${one.as} ${one.ref}`).sort()).toEqual([`category ${MARKET}:categories`, `item ${MARKET}:items`]);
     expect((read.adjusts[0]!.adjust['order'] as Doc)['discount']).toBe('discount');
     // Anybody signed in reads the rules; only somebody who may change what columns mean may change one.
     expect((await adjusts(clerk)).canChange).toBe(false);

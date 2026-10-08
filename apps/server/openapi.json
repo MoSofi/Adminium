@@ -11314,6 +11314,9 @@
                                 "table": {
                                   "type": "string"
                                 },
+                                "ref": {
+                                  "type": "string"
+                                },
                                 "label": {
                                   "type": "string"
                                 },
@@ -11323,6 +11326,7 @@
                               },
                               "required": [
                                 "table",
+                                "ref",
                                 "label",
                                 "as"
                               ],
