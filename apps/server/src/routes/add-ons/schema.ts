@@ -279,6 +279,8 @@ export const installPlanReply = z.object({
   connectionName: z.string().nullable().optional(),
   checksum: z.string().optional(),
   makes: installMakes.optional(),
+  /** True when the package carries code that decides inside a save and nobody vouches for its bytes: it installs, and that code does not run. */
+  codeWillNotRun: z.literal(true).optional(),
 });
 
 /** Check a staged package before installing it: what it would make, and where. */
@@ -314,6 +316,8 @@ export const installAddOnBody = z.object({
 export const installAddOnReply = z.object({
   addOn: addOnDto,
   plan: installPlanDto,
+  /** True when the package carries code that decides inside a save and nobody vouches for its bytes: it installs, and that code does not run. */
+  codeWillNotRun: z.literal(true).optional(),
   /** Where its tables are; null for an add-on that keeps none. */
   connectionId: z.string().nullable().optional(),
   /** The tables this install made, and the ones it found and took as they were. */

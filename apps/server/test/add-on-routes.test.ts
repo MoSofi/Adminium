@@ -1855,6 +1855,18 @@ describe('acquisition routes', () => {
       await settingsRepo(meta).set('addOns.deciderTrust', { 'holiday-calendars@1.0.0': sha512Integrity(tarball) });
       const again = await sideload(app, tarball);
       expect(again.statusCode, again.body).toBe(200);
+      const vouched = await app.inject({ method: 'GET', url: '/api/v1/add-ons/holiday-calendars/plan' });
+      expect(vouched.statusCode, vouched.body).toBe(200);
+      expect(vouched.json()).not.toHaveProperty('codeWillNotRun');
+
+      // Nobody vouching again: the check before the install and the install's own answer say it too, not the upload alone.
+      await settingsRepo(meta).set('addOns.deciderTrust', {});
+      const plan = await app.inject({ method: 'GET', url: '/api/v1/add-ons/holiday-calendars/plan' });
+      expect(plan.statusCode, plan.body).toBe(200);
+      expect(plan.json()).toMatchObject({ codeWillNotRun: true });
+      const installed = await app.inject({ method: 'POST', url: '/api/v1/add-ons', payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] } });
+      expect(installed.statusCode, installed.body).toBe(200);
+      expect(installed.json()).toMatchObject({ addOn: { key: 'holiday-calendars' }, codeWillNotRun: true });
       await app.close();
     });
 

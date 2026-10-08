@@ -129,6 +129,13 @@ function UsedByLine({ uses }: { uses: readonly AddOnUse[] }) {
   );
 }
 
+/** A package nobody vouches for: said at the upload, in the check before an install, and once it is installed. */
+const untrustedInWords = (): string =>
+  t(
+    'studio:addOns.sideload.untrusted',
+    'The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run.',
+  );
+
 /**
  * An install that stopped part way, or a package stored but not trusted, in
  * words a person can act on. Null for any other failure: its own message stands.
@@ -150,12 +157,7 @@ function installStoppedWords(caught: unknown): string | null {
   if (caught.code === 'ADD_ON_UPDATE_INCOMPLETE') {
     return t('studio:addOns.incomplete.update', 'The update stopped part way. Nothing was undone, and until it is finished the add-on does nothing: update it again to finish.');
   }
-  if (caught.code === 'ADD_ON_UNTRUSTED') {
-    return t(
-      'studio:addOns.sideload.untrusted',
-      'The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run.',
-    );
-  }
+  if (caught.code === 'ADD_ON_UNTRUSTED') return untrustedInWords();
   return null;
 }
 
@@ -238,6 +240,12 @@ function ConsentDialog({
             <>
               <PlanSummary plan={plan} />
               {plan.installable && <MakesSummary makes={check?.makes} database={check?.makes === undefined ? null : (check.connectionName ?? null)} />}
+              {check?.codeWillNotRun === true && (
+                <p role="note" data-part="add-on-plan-untrusted" className="flex items-start gap-2 text-sm text-fg">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
+                  {untrustedInWords()}
+                </p>
+              )}
               {plan.installable && <PublicAccessChoice access={check?.publicAccess} allowed={allowPublic} onAllowed={setAllowPublic} busy={busy} />}
             </>
           )}

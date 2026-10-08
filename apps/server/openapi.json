@@ -100106,6 +100106,12 @@
                       ],
                       "additionalProperties": false
                     },
+                    "codeWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "connectionId": {
                       "anyOf": [
                         {
@@ -100478,6 +100484,12 @@
                         "seeds"
                       ],
                       "additionalProperties": false
+                    },
+                    "codeWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [
@@ -100835,6 +100847,12 @@
                         "seeds"
                       ],
                       "additionalProperties": false
+                    },
+                    "codeWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [

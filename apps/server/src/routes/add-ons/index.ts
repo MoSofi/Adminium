@@ -450,7 +450,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
   /** Who did it, for the audit rows the shared installer writes. */
   /** Whether a staged package provides a contract whose code decides inside a save, with nobody vouching for its bytes. */
-  async function shipsDeciderUntrusted(staged: StagedPackage): Promise<boolean> {
+  async function shipsDeciderUntrusted(staged: { key: string; version: string; tree: { integrity: string } }): Promise<boolean> {
     let provides: unknown;
     try {
       provides = (JSON.parse((await deps.store.readFile(staged.key, staged.version, 'manifest.json')).toString('utf8')) as { addOn?: { provides?: unknown } }).addOn?.provides;
@@ -460,6 +460,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     const decides = Array.isArray(provides) && provides.some((entry) => DECIDER_CONTRACTS[String((entry as { contract?: unknown } | null)?.contract)] !== undefined);
     if (!decides) return false;
     return !deciderTrusted({ key: staged.key, version: staged.version, integrity: staged.tree.integrity }, await trustSources(deps.meta));
+  }
+
+  /** The same question of a package already in the store: what a plan and an install say of it, so the upload is not the only place that does. */
+  async function codeWillNotRun(key: string, version: string): Promise<{ codeWillNotRun?: true }> {
+    try {
+      return (await shipsDeciderUntrusted({ key, version, tree: await deps.store.verifyTree(key, version) })) ? { codeWillNotRun: true } : {};
+    } catch {
+      // A tree that does not verify is the install's own refusal, not this note's.
+      return {};
+    }
   }
 
   function actorOf(request: FastifyRequest): Actor {
@@ -505,7 +515,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     const attachTo = hostsToAttach(first.manifest, input.attachTo);
     const hosts = await hostsFor(installer, attachTo);
     const { manifest, warnings } = parseAddOnDocument(first.document, input.key, hosts, installer.unbuiltWords);
-    if (!installsLikeAnApp(manifest)) return { plan: (await planAddOn(installer, manifest, { attachTo, hosts, connectionId: input.connectionId, warnings })).dto };
+    const untrusted = await codeWillNotRun(input.key, input.version);
+    if (!installsLikeAnApp(manifest)) return { plan: (await planAddOn(installer, manifest, { attachTo, hosts, connectionId: input.connectionId, warnings })).dto, ...untrusted };
     const connectionId = (await installer.schemaTarget?.resolve?.({ ownsTables: true, attachTo, connectionId: input.connectionId })) ?? null;
     if (connectionId === null) {
       throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
@@ -515,6 +526,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     const publicAccess = await publicPlanOf(input.request, manifest, connectionId, attachTo);
     return {
       plan: planned.dto,
+      ...untrusted,
       ...(publicAccess === undefined ? {} : { publicAccess }),
       connectionId,
       connectionName: connection?.name ?? null,
@@ -1557,6 +1569,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         return {
           addOn: await toDto(installed),
           plan,
+          ...(await codeWillNotRun(key, installed.row.version)),
           connectionId: connectionId ?? null,
           schema: { created, reused: reused ?? plan.reuse.map((table) => table.ref) },
           ...(written === undefined ? {} : { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp }),

@@ -236,6 +236,14 @@ describe('AddOnsPage', () => {
     expect(calls.some((c) => c.method === 'POST' && c.url === '/api/v1/add-ons')).toBe(false);
   });
 
+  it('says before consent that a package nobody vouches for installs without the code that decides', async () => {
+    const user = userEvent.setup();
+    await renderPage({ respond: (method, url) => (method === 'GET' && url.endsWith('/holiday-calendars/plan') ? { status: 200, body: { plan: makePlan(), codeWillNotRun: true } } : undefined) });
+    await user.click(await screen.findByRole('button', { name: 'Install' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/Adminium does not know who made it: the part of it that decides things while a record is saved will not run/)).toBeTruthy();
+  });
+
   it('refuses to offer Install when the plan cannot be applied', async () => {
     // The dialog is the security surface. A plan that names a missing host
     // table must not have a live Install button beside it.
