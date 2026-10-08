@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { appNow, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { ADDRESSES, appNow, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -86,6 +86,15 @@ describe('what the Designer’s model is told', () => {
     // How a side's pages get addresses is said exactly: the import by name, and what to write with it.
     expect(system).toContain("import { Link, usePath, pathParams, go } from '@adminiumjs/adminium/side'");
     expect(system).toContain('const path = usePath()');
+    // Once: the surface skill says it, so the Designer's own sentence is left out of a turn that carries the skill.
+    expect(system).not.toContain(ADDRESSES);
+    const io = fakeIo({ interactive: false });
+    expect(await runCli(['app', 'new', 'plain', '--no-install'], { io, deps: { ...fakeDeps({ cwd: root, env: {} }), runProcess: () => ({ status: 0, stdout: '' }) } }), io.stderr()).toBe(0);
+    const bare = await prompt(session({ appKey: 'plain', target: 'dashboard' }), [say('user', 'Track repair jobs.')]);
+    expect(bare.system).not.toContain('===== adminium-surface/SKILL.md =====');
+    expect(bare.system).toContain(` ${ADDRESSES}\n`);
+    expect(bare.system).not.toContain('{{addresses}}');
+    expect(system).not.toContain('{{addresses}}');
     expect(system).toContain('===== adminium-app/SKILL.md =====');
     expect(system).toContain('===== adminium-surface/SKILL.md =====');
     expect(system).toContain('===== adminium-add-ons/SKILL.md =====');
