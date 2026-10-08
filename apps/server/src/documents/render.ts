@@ -138,6 +138,8 @@ export interface RenderDeps {
     tables: readonly string[];
     /** A statement's period; the others ignore it. */
     period?: StatementPeriod | undefined;
+    /** The language the document is drawn in: what an add-on kept in several (the name of a reduction) is read in this one. */
+    locale?: string | undefined;
     /** The render's own clock, so a statement's "today" is the render's. */
     at: number;
     /**
@@ -572,7 +574,16 @@ async function renderCore(
   request = drawnFor === undefined ? request : { ...request, withhold: drawnFor };
   let source: SourceRead | null;
   try {
-    source = await deps.readSource({ profile, pk: request.pk, tables, period: request.period, at, readFilters: request.readFilters, withhold: request.withhold });
+    source = await deps.readSource({
+      profile,
+      pk: request.pk,
+      tables,
+      period: request.period,
+      locale: documentLocale(request.locale, (profile.options as { locale?: string }).locale),
+      at,
+      readFilters: request.readFilters,
+      withhold: request.withhold,
+    });
   } catch (cause) {
     if (!(cause instanceof DocumentReadError) && !(cause instanceof Error && cause.name === 'StatementTooLargeError')) throw cause;
     // Too much to draw honestly: said, never drawn with lines missing.

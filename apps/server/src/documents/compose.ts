@@ -35,6 +35,7 @@ import { addOnSettingsRepo, settingsRepo, type DocumentProfile, type MetaDb } fr
 
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
+import { listedReductions, type ListedColumns } from '../crud/adjust/listed.js';
 import { compileFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { wallTimesAsInstants } from '../crud/instants.js';
@@ -503,7 +504,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      * `tables` is the mapped-table list the ROUTE resolved grants over; the
      * read itself follows the mapping, so it is named and not used here.
      */
-    readSource: async ({ profile, pk, period, at, readFilters, withhold }): Promise<SourceRead | null> => {
+    readSource: async ({ profile, pk, period, locale, at, readFilters, withhold }): Promise<SourceRead | null> => {
       const view = await loadSnapshotView(deps.meta, profile.connectionId);
       const { db, dialect } = await deps.manager.data(profile.connectionId);
       return await readProfileSource({
@@ -512,6 +513,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
         profile,
         pk,
         period,
+        ...(locale === undefined ? {} : { locale }),
         at,
         facts: await connectionFacts(deps.meta, profile.connectionId),
         dialect,
@@ -535,7 +537,13 @@ async function pairsFor(meta: MetaDb, profile: DocumentProfile, view: SnapshotVi
   if (!paired) return null;
   const tables = await addOnTablesFor(meta, profile.connectionId, view.model);
   const index = await tableRefIndex(meta, profile.connectionId, view.model);
-  return { pairs: { tableOf: (addOn, ref) => tables(addOn, ref, profile.table)?.tableId ?? null, stored: storedTableRef(index, profile.table) } };
+  return {
+    pairs: {
+      tableOf: (addOn, ref) => tables(addOn, ref, profile.table)?.tableId ?? null,
+      appliedOf: (addOn, ref) => tables(addOn, ref, profile.table)?.applied,
+      stored: storedTableRef(index, profile.table),
+    },
+  };
 }
 
 /** Each row as the reader may see it: the columns a `withhold` keeps for another holder emptied (no withhold: as read). */
@@ -605,7 +613,9 @@ export async function readProfileSource(input: {
   /** Columns kept for a row's holder, emptied for the reader the document is drawn for. */
   withhold?: DocumentWithhold | undefined;
   /** For a list of an add-on's rows found by a pair: the add-on's table as it stands (null: not here for this row's table), and this table's stored name. */
-  pairs?: { tableOf(addOn: string, ref: string): string | null; stored: string } | undefined;
+  pairs?: { tableOf(addOn: string, ref: string): string | null; appliedOf?(addOn: string, ref: string): ListedColumns | undefined; stored: string } | undefined;
+  /** The language the document is drawn in. */
+  locale?: string | undefined;
 }): Promise<SourceRead | null> {
   const { db, view, profile, facts, dialect } = input;
   const table = view.table(profile.table);
@@ -646,7 +656,10 @@ export async function readProfileSource(input: {
     const by = source.pair === undefined ? source.fkColumn : { match: [[source.pair.matchTable, input.pairs?.stored ?? table.id], [source.pair.matchRow, String(row[parentKey!])]] as const };
     const read = await readLines(db, child, by, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source);
     await unheld.warm?.(db, child, read);
-    const lines = read.map((line) => unheld(child, line));
+    const shown = read.map((line) => unheld(child, line));
+    // What was taken off an order is kept a row a line: listed, each offer, code or voucher is one row, named in the document's language.
+    const applied = source.pair === undefined ? undefined : input.pairs?.appliedOf?.(source.pair.addOn, source.pair.table);
+    const lines = applied === undefined ? shown : listedReductions(shown, applied, input.locale ?? 'en-US');
     await addLists(db, view, child, lines, source.lists, unheld);
     return { child, lines };
   };
