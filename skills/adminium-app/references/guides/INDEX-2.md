@@ -4,6 +4,8 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
+| `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
 | `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |
 | `references/guides/postings--overview.md` | Rows that post into an add-on's ledger | 874 |
 | `references/guides/postings--a-posting.md` | A posting | 1971 |
@@ -17,6 +19,18 @@
 | `references/guides/postings--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 1366 |
 | `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 753 |
 | `references/guides/postings--what-a-writer-is-told.md` | What a writer is told | 1569 |
+| `references/guides/discounts-and-codes--overview.md` | Discounts, codes and refunds worked out by Adminium | 879 |
+| `references/guides/discounts-and-codes--a-price-rule.md` | A price rule | 1737 |
+| `references/guides/discounts-and-codes--when-the-price-is-asked.md` | When the price is asked | 1060 |
+| `references/guides/discounts-and-codes--who-is-buying.md` | Who is buying | 728 |
+| `references/guides/discounts-and-codes--a-code-typed-on-an-order.md` | A code typed on an order | 1259 |
+| `references/guides/discounts-and-codes--what-a-save-says.md` | What a save says | 1126 |
+| `references/guides/discounts-and-codes--uses-are-recorded-once.md` | Uses are recorded once | 1003 |
+| `references/guides/discounts-and-codes--a-reduction-by-hand.md` | A reduction by hand | 596 |
+| `references/guides/discounts-and-codes--what-a-return-gives-back.md` | What a return gives back | 1136 |
+| `references/guides/discounts-and-codes--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 793 |
+| `references/guides/discounts-and-codes--what-the-owner-can-change.md` | What the owner can change | 809 |
+| `references/guides/discounts-and-codes--trying-an-offer-before-it-is-on.md` | Trying an offer before it is on | 586 |
 | `references/guides/undo-a-status-move--overview.md` | Undo a status move | 827 |
 | `references/guides/undo-a-status-move--a-move-back.md` | A move back | 1481 |
 | `references/guides/undo-a-status-move--naming-the-state-it-saw.md` | Naming the state it saw | 1543 |

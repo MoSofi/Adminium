@@ -18,6 +18,7 @@
 | `references/guides/manifest-by-task--emails.md` | Emails | 721 |
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
+| `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
 | `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2450 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
@@ -86,7 +87,5 @@
 | `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
 | `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
 | `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
-| `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
-| `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
 
 More: `references/guides/INDEX-2.md`
