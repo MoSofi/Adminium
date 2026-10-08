@@ -1039,6 +1039,13 @@ export function createLedgerWriter(kit: LedgerKit) {
       decided?: (line: CallLine, after: Row) => void;
       pathOf?: (line: CallLine) => readonly (string | number)[] | undefined;
       /**
+       * The rows this save itself made, as `<table id>\u0000<key>`: a row of a
+       * tree written a moment ago, on this transaction. Nobody else sees one
+       * until the save commits, so a lock that would stand for it is not
+       * asked for — it had no name when the locks were taken.
+       */
+      made?: ReadonlySet<string> | undefined;
+      /**
        * A QUOTE. Everything a save would do up to its first write of the
        * add-on's: the reads (plain, holding nothing, under no named lock),
        * the plan (`mode: 'dry'`), the checks, the cap worked out in memory.
@@ -1288,7 +1295,15 @@ export function createLedgerWriter(kit: LedgerKit) {
 
       const reads = await readOrRefuse(trx, call, { lines, source, settings, receiptIds: roundIds, ...usesRead(uses) });
       // What this call stands on must be what the save locked: a row that moved in between starts the save again. (A quote locks nothing.)
-      if (!dry) for (const name of lockNames(target.view.connectionId, ledger, call.action, reads)) if (!held.has(name)) throw new LockMoved(name);
+      if (!dry) {
+        const own = new Set<string>();
+        for (const lock of env.made === undefined ? [] : call.action.locks) {
+          const at = ledger.table(lock.table);
+          if (at === null || lock.column !== at.primaryKey[0]) continue;
+          for (const key of env.made!) if (key.startsWith(`${at.id}\u0000`)) own.add(`${target.view.connectionId}|led|${ledger.addOn}|${lock.table}|${key.slice(at.id.length + 1)}`);
+        }
+        for (const name of lockNames(target.view.connectionId, ledger, call.action, reads)) if (!held.has(name) && !own.has(name)) throw new LockMoved(name);
+      }
       // What the round wrote so far: handed when it is given back, and when what was held is taken.
       const written = phase === 'reverse' || (phase === 'post' && asked.some((entry) => entry.round.reserved !== null)) ? await roundRows(trx, ledger, roundIds) : {};
       const plan = askPlanner(call, dry ? 'dry' : 'save', { target, context, at, source, lines, reads, settings, written, uses: uses ?? undefined });
@@ -1571,6 +1586,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       clock: env.clock,
       creating: true,
       uses: env.uses,
+      made: new Set(paths.keys()),
       pathOf: (line) => paths.get(`${line.table.id}\u0000${line.key}`),
     });
   }
