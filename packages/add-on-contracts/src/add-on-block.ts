@@ -11,7 +11,7 @@
 
 import { z } from 'zod';
 
-import { i18nMessageSchema } from './common.js';
+import { i18nMessageSchema, wordsByLanguageSchema } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
 import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
@@ -131,7 +131,7 @@ export const addOnNetworkSchema = z
  * field nobody reads — `max(400)` here and `max(200)` there — and then the
  * stricter copy refuses first, for a reason no message names.
  */
-export { i18nMessageSchema, type I18nMessage } from './common.js';
+export { i18nMessageSchema, wordsByLanguageSchema, type I18nMessage, type WordsByLanguage } from './common.js';
 
 /**
  * THE RAIL'S BUILT-IN GROUPS now live in `nav-groups.ts`, re-exported here so
@@ -210,6 +210,8 @@ export const addOnPageSchema = z
     /** The last segment of `/add-ons/<key>/<ref>`. */
     ref: z.string().regex(/^[a-z][a-z0-9-]*$/, 'page ref must be a kebab-case identifier'),
     title: i18nMessageSchema,
+    /** The title in the other languages (see `wordsByLanguageSchema`): what the sidebar and the page's head show a reader. */
+    titles: wordsByLanguageSchema.optional(),
     icon: z.string().min(1).max(60),
     /** A path the bundle route will serve; its default export is the page. */
     client: z.string().min(1),
@@ -230,6 +232,8 @@ export const addOnNavGroupSchema = z
   .object({
     key: navGroupKeySchema,
     label: i18nMessageSchema,
+    /** The label in the other languages (see `wordsByLanguageSchema`). */
+    labels: wordsByLanguageSchema.optional(),
     /** Orders the trailing add-on band only; built-in groups do not move. */
     order: z.number().int(),
   })

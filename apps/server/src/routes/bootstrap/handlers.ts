@@ -16,7 +16,7 @@
  * `llm.provider` in Settings → AI, the same check `resolveProviderClient`
  * makes before a direct run.
  */
-import { bcp47, pickLabel } from '../../i18n/bcp47.js';
+import { bcp47, pickLabel, readerWords } from '../../i18n/bcp47.js';
 import type { FastifyRequest } from 'fastify';
 import {
   inIdOrder,
@@ -568,6 +568,12 @@ export function buildAddOnNav(
    * anybody signed in, as they always were. Absent: everything may be opened.
    */
   mayOpen: (ref: string) => boolean = () => true,
+  /**
+   * The reader's language. A title or a group's label the add-on wrote in it
+   * (`titles`, `labels`) is handed over as the text to show: the dashboard's
+   * catalogue holds no add-on's key, so what it is given is what it draws.
+   */
+  locale: string = 'en-US',
 ): BootstrapAddOnNav {
   const pages: BootstrapAddOnPage[] = [];
   const declared: BootstrapAddOnGroup[] = [];
@@ -587,7 +593,7 @@ export function buildAddOnNav(
         addOnKey,
         ref: page.ref,
         labelKey: page.title.key,
-        fallback: page.title.fallback,
+        fallback: readerWords(page.titles, locale) ?? page.title.fallback,
         icon: page.icon,
         client: page.client,
         group: page.nav?.group ?? DEFAULT_NAV_GROUP,
@@ -604,7 +610,7 @@ export function buildAddOnNav(
       declared.push({
         key: group.key,
         labelKey: group.label.key,
-        fallback: group.label.fallback,
+        fallback: readerWords(group.labels, locale) ?? group.label.fallback,
         order: group.order,
         addOnKey,
       });
@@ -819,7 +825,7 @@ export async function bootstrapHandler(
       if (typeof request.can !== 'function' || (await request.can(addOnPagePermission(page.ref)))) openCodePages.add(page.ref);
     }
   }
-  const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref));
+  const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref), prefs.locale);
   const addOnKeys = new Set(sectionAddOns.map((row) => row.key));
   const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);
   const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(

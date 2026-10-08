@@ -17,7 +17,7 @@
  */
 import { z } from 'zod';
 
-import { i18nMessageSchema } from './common.js';
+import { i18nMessageSchema, wordsByLanguageSchema } from './common.js';
 
 const ref = z.string().regex(/^[a-z][a-z0-9_]*$/, 'must be a snake_case identifier');
 const kebab = z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a kebab-case id');
@@ -30,12 +30,14 @@ export const RECORD_TAB_COLUMNS_MAX = 8;
 const pickSchema = z.object({ table: ref, label: ref }).strict();
 
 /** A button in the tab's head that makes a row of another own table for the same record ("Use stock"). */
-const tabActionSchema = z.object({ id: kebab, label: i18nMessageSchema, child: z.object({ table: ref, form: z.array(ref).min(1).max(RECORD_TAB_COLUMNS_MAX) }).strict() }).strict();
+const tabActionSchema = z.object({ id: kebab, label: i18nMessageSchema, labels: wordsByLanguageSchema.optional(), child: z.object({ table: ref, form: z.array(ref).min(1).max(RECORD_TAB_COLUMNS_MAX) }).strict() }).strict();
 
 export const recordTabSchema = z
   .object({
     id: kebab,
     label: i18nMessageSchema,
+    /** The label in the other languages: a tab is drawn on a record before any code of the add-on runs. */
+    labels: wordsByLanguageSchema.optional(),
     /** The add-on's own table whose rows the tab lists. */
     table: ref,
     /** Its two columns that say which record a row belongs to: a table's stored name, and a row's key. */
@@ -54,6 +56,8 @@ export const recordTabSchema = z
     /** One row, edited as a form, in place of a list. */
     form: z.array(ref).min(1).max(RECORD_TAB_COLUMNS_MAX).optional(),
     empty: i18nMessageSchema.optional(),
+    /** `empty` in the other languages. */
+    empties: wordsByLanguageSchema.optional(),
     /** A stock-words id of the add-on whose answer heads the tab. */
     summary: z.object({ words: kebab }).strict().optional(),
     actions: z.array(tabActionSchema).min(1).max(2).optional(),

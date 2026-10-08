@@ -31,3 +31,15 @@ export const i18nMessageSchema = z
   })
   .strict();
 export type I18nMessage = z.infer<typeof i18nMessageSchema>;
+
+/**
+ * A message's words in the other languages its add-on speaks, by language tag
+ * (`de-DE`). The dashboard's own catalogue holds no add-on's keys, and an
+ * add-on's bundle is not loaded while the sidebar is drawn — so a text that
+ * is shown BEFORE the add-on's code runs (a page's title in the rail, a
+ * group's heading, a tab on a record) carries its translations here, beside
+ * the message, and Adminium hands the reader theirs. The message's
+ * `fallback` stays the English.
+ */
+export const wordsByLanguageSchema = z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, 'keyed by BCP 47 tag'), z.string().min(1).max(400));
+export type WordsByLanguage = z.infer<typeof wordsByLanguageSchema>;

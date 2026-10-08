@@ -36,9 +36,9 @@ function kit(floor = '0.3.18'): Record<string, unknown> {
       attaches: [{ app: '*', range: '*' }],
       connect: { kind: 'none' },
       hostApi: 1,
-      navGroups: [{ key: 'kit-stock', label: title('Stock (code)'), order: 5 }],
+      navGroups: [{ key: 'kit-stock', label: title('Stock (code)'), labels: { 'de-DE': 'Bestand (Code)' }, order: 5 }],
       pages: [
-        { ref: 'kit-count', title: title('Count'), icon: 'clipboard', client: 'dist/count.js', nav: { group: 'kit-stock', order: 15 } },
+        { ref: 'kit-count', title: title('Count'), titles: { 'de-DE': 'Zählen', 'ar-EG': 'جرد' }, icon: 'clipboard', client: 'dist/count.js', nav: { group: 'kit-stock', order: 15 } },
         { ref: 'kit-report', title: title('Report'), icon: 'chart', client: 'dist/report.js', nav: { group: 'library', order: 30 } },
         // No place in the rail: reached by a button on another page.
         { ref: 'kit-transfer', title: title('Transfer'), icon: 'move', client: 'dist/transfer.js' },
@@ -60,6 +60,27 @@ function kit(floor = '0.3.18'): Record<string, unknown> {
 const generated = (slug: string, order: number, group: string | null) => ({
   group,
   item: { pageId: `page_${slug}`, slug, labelKey: `nav.${slug}`, fallback: slug, icon: 'box', order, connectionId: 'c1', connectionName: 'Shop', currency: null, sourceTable: 'public.kit_items', appKey: null, addOnKey: 'kit' },
+});
+
+describe('a page of an add-on\'s code, named for the reader', () => {
+  const told = (locale?: string) => {
+    // With no section of its own (no top-level groups), its group heads the shared rail.
+    const document = { ...kit(), navGroups: undefined };
+    const nav = locale === undefined ? buildAddOnNav([{ document }]) : buildAddOnNav([{ document }], () => true, locale);
+    return { count: nav.pages.find((page) => page.ref === 'kit-count')!, report: nav.pages.find((page) => page.ref === 'kit-report')!, group: nav.groups.find((group) => group.key === 'kit-stock')! };
+  };
+
+  it('is handed over in their language where the add-on wrote its title in it: the dashboard holds no add-on\'s key', () => {
+    expect([told('de_DE').count.fallback, told('de-AT').count.fallback, told('ar_EG').count.fallback]).toEqual(['Zählen', 'Zählen', 'جرد']);
+    expect(told('de_DE').group.fallback).toBe('Bestand (Code)');
+    // The key travels as before, for an add-on whose bundle does answer it.
+    expect(told('de_DE').count.labelKey).toBe(told().count.labelKey);
+  });
+
+  it('and in English where it did not — never in a third language', () => {
+    expect([told('fr_FR').count.fallback, told().count.fallback, told('de_DE').report.fallback]).toEqual(['Count', 'Count', 'Report']);
+    expect(told('fr_FR').group.fallback).toBe('Stock (code)');
+  });
 });
 
 describe('an add-on\'s section, built from what was read', () => {

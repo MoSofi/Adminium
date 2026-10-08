@@ -41,6 +41,7 @@ function manifest(): Doc {
       {
         id: 'stock',
         label: { key: 'kit.tab.stock', fallback: 'Stock' },
+        labels: { 'de-DE': 'Bestand', 'zh-TW': '庫存' },
         table: 'links',
         match: { table: 'source_table', row: 'source_row' },
         on: 'linked',
@@ -50,8 +51,9 @@ function manifest(): Doc {
         add: { pick: { table: 'accounts', label: 'name' } },
         remove: true,
         empty: { key: 'kit.tab.empty', fallback: 'Nothing is linked yet.' },
+        empties: { 'de-DE': 'Noch nichts verknüpft.' },
         summary: { words: 'units-left' },
-        actions: [{ id: 'use', label: { key: 'kit.tab.use', fallback: 'Use stock' }, child: { table: 'uses', form: ['qty'] } }],
+        actions: [{ id: 'use', label: { key: 'kit.tab.use', fallback: 'Use stock' }, labels: { 'de-DE': 'Bestand verwenden' }, child: { table: 'uses', form: ['qty'] } }],
       },
     ],
   };
@@ -99,6 +101,20 @@ describe.each(LEGS)('the tabs of an add-on\'s rows a record has — %s', (dialec
   }, 240_000);
   afterAll(async () => {
     if (available) await w.close();
+  });
+
+  it.skipIf(!available)('says its words in the reader\'s language where the add-on wrote them, and in English otherwise', async () => {
+    const read = async (locale?: string) => {
+      const [tab] = (await tabs('dishes', { asker: { ...everything, ...(locale === undefined ? {} : { locale }) } }))!;
+      return [tab!.label, tab!.empty, tab!.actions.map((action) => action.label)];
+    };
+    // The tab is drawn before any code of the add-on runs: what the server hands over is what is shown.
+    expect(await read('de_DE')).toEqual(['Bestand', 'Noch nichts verknüpft.', ['Bestand verwenden']]);
+    // Another region of the reader's language will do; a language it was not written in gets the English, never a third one.
+    expect(await read('de_AT')).toEqual(['Bestand', 'Noch nichts verknüpft.', ['Bestand verwenden']]);
+    expect(await read('zh_TW')).toEqual(['庫存', 'Nothing is linked yet.', ['Use stock']]);
+    expect(await read('fr_FR')).toEqual(['Stock', 'Nothing is linked yet.', ['Use stock']]);
+    expect(await read()).toEqual(['Stock', 'Nothing is linked yet.', ['Use stock']]);
   });
 
   it.skipIf(!available)('the table a posting hands in has the tab; a table with none has not', async () => {

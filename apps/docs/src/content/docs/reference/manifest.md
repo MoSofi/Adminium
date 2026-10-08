@@ -3539,8 +3539,8 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `network` | no | `{ "allow": [hostnames] }`: the exact HTTPS hosts its server code may call. Required, and non-empty, with the `outbound-http` capability. No wildcards, IP addresses or ports. |
 | `publicSettings` | no | The setting keys its browser code may read. Never a `secret` setting. |
 | `demoTransport` | no | The module that stands in for the real third-party service in a demo. |
-| `pages` | no | Dashboard pages it renders from its own bundle: `{ "ref", "title", "icon", "client", "nav"?, "detail"? }`, served at `/add-ons/<key>/<ref>`. Needs `hostApi`. |
-| `navGroups` | no | Sidebar groups for those pages: `{ "key", "label", "order" }`. A group may not reuse a built-in key (`workspace`, `library`, `planning`, `people`, `account`), and every declared group must be used by a page. |
+| `pages` | no | Dashboard pages it renders from its own bundle: `{ "ref", "title", "titles"?, "icon", "client", "nav"?, "detail"? }`, served at `/add-ons/<key>/<ref>`. Needs `hostApi`. `titles` is the title in the other languages, by tag (`{ "de-DE": "Zählen" }`): the sidebar is drawn before the page's code loads, so a title that is only in the bundle's own strings shows in English. |
+| `navGroups` | no | Sidebar groups for those pages: `{ "key", "label", "labels"?, "order" }` (`labels`: the label in the other languages, by tag). A group may not reuse a built-in key (`workspace`, `library`, `planning`, `people`, `account`), and every declared group must be used by a page. |
 | `hostApi` | with `pages` | The version of the host API its pages are built against: `1`, or `2` for a page that reads the [data kit](/guides/add-ons-with-tables/#the-data-kit). `2` needs `compatibility.minAdminiumVersion` `0.3.18` or later. |
 | `words` | no | 1–4 questions asked of a ledger with nothing written. See [Stock words](#stock-words). |
 | `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](#a-tab-on-another-tables-record). |
@@ -3730,8 +3730,10 @@ parts and the reader's own grants. A manifest that uses it sets
 
 An app's table has the tab only while the add-on is connected to that app and switched on. A
 reader who cannot read the add-on's table has no tab; one who can is offered only what their role
-allows. The add-on ships the tab's `label` and `empty` in its own strings; the rest of the tab's
-words are Adminium's.
+allows. A tab is drawn before any code of the add-on runs, so its words in the other languages
+sit beside each message, by tag: `labels` beside `label`, `empties` beside `empty`, and `labels`
+on each of its `actions` (`"labels": { "de-DE": "Bestand" }`). A reader whose language is not
+there reads the English. The rest of the tab's words are Adminium's.
 
 ### An add-on that works with another
 

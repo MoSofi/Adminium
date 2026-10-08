@@ -27,6 +27,7 @@ import type { AddOnManifest } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
 
 import { writeRefused } from '../connections/privileges.js';
+import { readerWords } from '../i18n/bcp47.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import type { ReadLimits } from '../rbac/read-limits.js';
 import { columnFactsFor, type ColumnFact } from '../routes/pages/column-facts.js';
@@ -154,12 +155,13 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
         for (const action of tab.actions ?? []) {
           const child = installs.tableOf(connectionId, key, action.child.table);
           if (child === null) continue;
-          actions.push({ id: action.id, label: action.label.fallback, labelKey: action.label.key, tableId: child, form: await factsOf(child, action.child.form), can: await may(child, 'create') });
+          actions.push({ id: action.id, label: readerWords(action.labels, asker.locale ?? 'en-US') ?? action.label.fallback, labelKey: action.label.key, tableId: child, form: await factsOf(child, action.child.form), can: await may(child, 'create') });
         }
         out.push({
           addOn: key,
           id: tab.id,
-          label: tab.label.fallback,
+          // In the reader's language where the add-on wrote it: the tab is drawn before any of its code runs.
+          label: readerWords(tab.labels, asker.locale ?? 'en-US') ?? tab.label.fallback,
           labelKey: tab.label.key,
           tableId: tabTable,
           key: rowKey,
@@ -172,7 +174,7 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
           add,
           remove: tab.remove === true,
           actions,
-          empty: tab.empty?.fallback ?? null,
+          empty: tab.empty === undefined ? null : (readerWords(tab.empties, asker.locale ?? 'en-US') ?? tab.empty.fallback),
           emptyKey: tab.empty?.key ?? null,
           summary: tab.summary === undefined ? null : { words: tab.summary.words },
           can: { read: true, create: await may(tabTable, 'create'), update: await may(tabTable, 'update'), delete: await may(tabTable, 'delete') },

@@ -31,6 +31,19 @@ export function pickLabel(labels: Readonly<Record<string, string>>, locale: stri
 }
 
 /**
+ * A text's words for a reader, where it has them: their exact tag, then
+ * another region of their language. Undefined when it is written in neither —
+ * the caller's own English stands, never some third language.
+ */
+export function readerWords(words: Readonly<Record<string, string>> | undefined, locale: string): string | undefined {
+  if (words === undefined) return undefined;
+  const tag = bcp47(locale);
+  if (words[tag] !== undefined) return words[tag];
+  const language = tag.split('-')[0]!.toLowerCase();
+  return Object.entries(words).find(([key]) => key.split('-')[0]!.toLowerCase() === language)?.[1];
+}
+
+/**
  * The tag a person's dates, times and numbers are written in, beside a text
  * written in `locale` (one of Adminium's own languages).
  *
