@@ -68,7 +68,9 @@ export function priceAdjustConformance(provider: PriceAdjustProvider, options: P
         it('says of every offer whether it applies, when asked', () => {
           if (!one.input.explain) return;
           const explained = new Set((answer(one.input).explain ?? []).map((entry) => entry.offer));
-          for (const rows of Object.values(one.input.offers)) for (const row of rows) if (row['id'] !== undefined && row['id'] !== null) expect(explained, `offer ${String(row['id'])}`).toContain(String(row['id']));
+          // The first read an adjuster declares is its offers; the reads after it (their breaks, their targets) are rows of other tables.
+          const [offers = []] = Object.values(one.input.offers);
+          for (const row of offers) if (row['id'] !== undefined && row['id'] !== null) expect(explained, `offer ${String(row['id'])}`).toContain(String(row['id']));
         });
 
         it('holds what the case expects', () => {
