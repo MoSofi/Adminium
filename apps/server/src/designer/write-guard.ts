@@ -102,18 +102,21 @@ export interface TurnReads {
 
 export function createTurnReads(): TurnReads {
   const reads = new Map<number, Set<string>>();
+  // One file whatever the case of its name: most disks a project sits on fold it, and a write to App.tsx there is a write to app.tsx.
+  const fold = (path: string): string => path.normalize('NFC').toLowerCase();
   return {
     read(turn, normal) {
       const seen = reads.get(turn) ?? new Set<string>();
-      seen.add(normal);
+      seen.add(fold(normal));
       reads.set(turn, seen);
       // Only the turn that runs matters: an older turn's reads are let go.
       for (const old of reads.keys()) if (old < turn) reads.delete(old);
     },
     refusal(handEdits, turn, normal) {
-      if (handEdits === undefined || !handEdits.includes(normal)) return null;
-      if (reads.get(turn)?.has(normal) === true) return null;
-      return `The person changed ${normal} by hand since your last turn, and you have not read it in this turn. Call read_file on it first, then make your change on top of what it holds now: keep what they changed unless this message asks otherwise.`;
+      const changed = handEdits?.find((path) => fold(path) === fold(normal));
+      if (changed === undefined) return null;
+      if (reads.get(turn)?.has(fold(normal)) === true) return null;
+      return `The person changed ${changed} by hand since your last turn, and you have not read it in this turn. Call read_file on it first, then make your change on top of what it holds now: keep what they changed unless this message asks otherwise.`;
     },
   };
 }

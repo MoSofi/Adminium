@@ -752,7 +752,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       run: async (input, ctx) => {
         const path = str(input, 'path');
         if (path === null) return refused('Give the "path" to delete.', 'Deleted nothing');
-        const notAllowed = buildFileRefusal(path) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        // What the person changed by hand is not deleted unread either.
+        const notAllowed = buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not delete ${shown(path)}`, () => {
           jail.delete(path);

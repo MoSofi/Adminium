@@ -1094,5 +1094,18 @@ describe('a file the person changed by hand', () => {
   it('is found however the model spells its path', async () => {
     await tool('write_file').run({ path, content: '{}' }, turn(1));
     expect(await tool('write_file').run({ path: 'APPS/repairs/manifest/pages/repairs-items.json/', content: '{"a":1}' }, turn(2, [path]))).toMatchObject({ miss: true });
+    // On a disk that folds case this is the same file: it is refused by any case, and a read by any case opens it.
+    const shouted = 'apps/repairs/manifest/pages/Repairs-Items.JSON';
+    expect(await tool('write_file').run({ path: shouted, content: '{"a":1}' }, turn(2, [path]))).toMatchObject({ miss: true });
+    expect(await tool('edit_file').run({ path: shouted, old: '{', new: '{ ' }, turn(2, [path]))).toMatchObject({ miss: true });
+    expect(readFileSync(join(root, path), 'utf8')).toBe('{}');
+  });
+
+  it('is not deleted by a model that has not read it in this turn', async () => {
+    await tool('write_file').run({ path, content: '{}' }, turn(1));
+    expect(await tool('delete_file').run({ path }, turn(2, [path]))).toMatchObject({ isError: true, miss: true, label: 'Read it first' });
+    expect(readFileSync(join(root, path), 'utf8')).toBe('{}');
+    await tool('read_file').run({ path }, turn(2, [path]));
+    expect(await tool('delete_file').run({ path }, turn(2, [path]))).not.toMatchObject({ isError: true });
   });
 });
