@@ -13,11 +13,12 @@ export interface SideChoice {
   icon: ReactNode;
 }
 
-export const RADIO_ROW = 'items-center gap-[9px] rounded-[8px] px-2.5 py-2 text-[13px] [&_svg]:size-[15px]';
+export const RADIO_ROW = 'items-center gap-[9px] rounded-[8px] px-2.5 py-2 text-[13px] font-bold [&_svg]:size-[15px]';
 
-export function SideRows({ sides }: { sides: readonly SideChoice[] }): ReactNode {
+/** `roomy`: the rows of "More", a pixel taller than a menu button's own. */
+export function SideRows({ sides, roomy = false }: { sides: readonly SideChoice[]; roomy?: boolean }): ReactNode {
   return sides.map((entry) => (
-    <DropdownMenuRadioItem key={entry.value} value={entry.value} className={RADIO_ROW}>
+    <DropdownMenuRadioItem key={entry.value} value={entry.value} className={roomy ? `${RADIO_ROW} py-[9px]` : RADIO_ROW}>
       <span className="flex items-center gap-[9px]">
         <span aria-hidden="true" className="flex text-fg-muted">
           {entry.icon}

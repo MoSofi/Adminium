@@ -23,6 +23,16 @@ import {
 import { getI18nInstance, t } from '../../i18n/t.js';
 import type { DesignerVersion } from '../api.js';
 import { editedWhen } from '../home/YourApps.js';
+import { MENU_HEADING } from './MoreMenu.js';
+
+/**
+ * A version's name with its number taken off the front: it is kept as "v3 · Cart and pickup", and a row says the
+ * number once, in its own column. A version nobody named is its number alone, and stays that.
+ */
+function ownName(version: DesignerVersion): string {
+  const rest = version.name.replace(/^v\d+\s*·\s*/, '');
+  return rest === '' ? version.name : rest;
+}
 
 function list(items: readonly string[]): string {
   try {
@@ -111,7 +121,7 @@ export function SessionTitle({
               setEditing(true);
             }}
             aria-label={t('designer:build.renameApp', 'Rename {name}', { name: title })}
-            className="inline-flex min-w-0 cursor-text items-center gap-1.5 rounded-[9px] px-2 py-[5px] text-sm font-extrabold leading-[normal] tracking-tight text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex min-w-0 cursor-text items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-[5px] text-sm font-extrabold leading-[normal] tracking-tight text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent"
           >
             <span className="truncate">{title}</span>
             <Pencil aria-hidden="true" className="size-[13px] shrink-0 text-fg-subtle max-md:hidden" />
@@ -137,13 +147,13 @@ export function SessionTitle({
             <ChevronDown aria-hidden="true" className="size-3.5 text-fg-subtle" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="nb-scroll max-h-[70vh] w-[420px] max-w-[calc(100vw-24px)] overflow-y-auto rounded-[14px] p-1.5 leading-[normal]">
-            <DropdownMenuLabel>{t('designer:versions.title', 'Versions')}</DropdownMenuLabel>
+            <DropdownMenuLabel className={MENU_HEADING}>{t('designer:versions.title', 'Versions')}</DropdownMenuLabel>
             {newestFirst.map((version) => (
               // The version in use is a row with nothing to press: said as an item that is off, so a list of one is still a menu with an item in it.
               <div key={version.n} {...(version.current ? { role: 'menuitem', 'aria-disabled': true } : {})} className={`flex items-center gap-3 rounded-[9px] px-2.5 py-2.5 ${version.current ? 'bg-surface-2' : ''}`}>
                 <span className="w-[30px] shrink-0 font-mono text-[12.5px] font-bold">{`v${String(version.n)}`}</span>
                 <span className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span className="truncate text-[13px] font-bold text-fg">{version.name}</span>
+                  <span className="truncate text-[13px] font-bold text-fg">{ownName(version)}</span>
                   <span className="font-mono text-[11px] text-fg-subtle">{editedWhen(version.at)}</span>
                 </span>
                 {version.current ? (
@@ -152,7 +162,7 @@ export function SessionTitle({
                   <DropdownMenuItem
                     disabled={busy}
                     onSelect={() => setAsking(version)}
-                    aria-label={t('designer:versions.goBackTo', 'Go back to {version}: {name}', { version: `v${String(version.n)}`, name: version.name })}
+                    aria-label={t('designer:versions.goBackTo', 'Go back to {version}: {name}', { version: `v${String(version.n)}`, name: ownName(version) })}
                     icon={<Undo2 className="text-fg rtl:-scale-x-100" />}
                     className="w-auto shrink-0 gap-1.5 whitespace-nowrap rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-[12px] font-bold text-fg [&_svg]:size-[13px]"
                   >
@@ -173,7 +183,7 @@ export function SessionTitle({
           icon={<History />}
           title={marked((mark) => t('designer:versions.confirmTitle', 'Go back to {version}?', { version: mark }), <span className="font-mono">{askingName}</span>)}
           subtitle={
-            <p className="m-0 mt-2 text-pretty text-[13px] leading-[1.6] text-fg-muted">
+            <p className="m-0 mt-1.5 text-pretty text-[13px] leading-[1.6] text-fg-muted">
               {marked(
                 (mark) =>
                   later.length === 0
@@ -183,7 +193,7 @@ export function SessionTitle({
               )}
             </p>
           }
-          className="gap-[14px] px-[22px] pb-0 pt-[22px]"
+          className="gap-[14px] px-[22px] pb-0 pt-[22px] [&>div:first-child]:size-[38px] [&>div:first-child]:rounded-[11px] [&>div:first-child_svg]:size-[19px]"
         />
         <div className="flex justify-end gap-2 p-[20px_22px]">
           <Button variant="secondary" size="lg" onClick={() => setAsking(null)} className="rounded-[10px] text-[13px] font-bold">

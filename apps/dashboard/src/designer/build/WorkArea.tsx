@@ -175,7 +175,7 @@ export function WorkArea({
           back, and one with no size cannot be looked at by the Designer. Out of sight it is out of reach
           too, for a pointer, the keyboard and a screen reader.
         */}
-        <TabsContent value="preview" forceMount inert={!onPreview} className={`absolute inset-0 flex flex-col ${onPreview ? '' : 'invisible'}`}>
+        <TabsContent value="preview" forceMount inert={!onPreview} className={`absolute inset-0 flex flex-col pt-0 ${onPreview ? '' : 'invisible'}`}>
           <Preview preview={preview} session={session} turns={turns} onFix={onFix} compact={narrow} />
         </TabsContent>
         <TabsContent value="architecture" className="relative flex min-h-0 flex-1 flex-col bg-surface-2">

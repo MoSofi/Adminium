@@ -12,7 +12,9 @@ import { t } from '../../i18n/t.js';
 import { SideRows, type SideChoice } from './sideChoices.js';
 
 /** A row of this menu: 13 px, its words free to wrap. */
-export const MENU_ROW = 'gap-[9px] rounded-[8px] px-2.5 py-[9px] text-[13px] font-semibold leading-[1.4] [&>span]:overflow-visible [&>span]:whitespace-normal [&_svg]:size-[15px]';
+export const MENU_ROW = 'gap-[9px] rounded-[8px] px-2.5 py-[9px] text-[13px] font-semibold leading-[normal] [&>span]:overflow-visible [&>span]:whitespace-normal [&_svg]:size-[15px]';
+/** A menu's heading: the kit's label at the weight and the room the design gives it. */
+export const MENU_HEADING = 'pb-1.5 font-extrabold tracking-[.06em]';
 export const MENU_PANEL = 'rounded-[12px] p-[5px] leading-[normal]';
 export const TOOL_ICON = 'flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent';
 
@@ -47,9 +49,9 @@ export function MoreMenu({
       <DropdownMenuContent align="end" className={`${MENU_PANEL} ${rows ? 'w-[290px]' : 'w-[300px]'} max-w-[calc(100vw-16px)]`}>
         {rows && sides.length > 1 ? (
           <>
-            <DropdownMenuLabel>{t('designer:preview.side', 'Side')}</DropdownMenuLabel>
+            <DropdownMenuLabel className={MENU_HEADING}>{t('designer:preview.side', 'Side')}</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={side} onValueChange={onSide}>
-              <SideRows sides={sides} />
+              <SideRows sides={sides} roomy />
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
           </>
@@ -76,7 +78,7 @@ export function MoreMenu({
             event.preventDefault();
             onSees(!sees);
           }}
-          className={MENU_ROW}
+          className={`${MENU_ROW} leading-[1.4]`}
         >
           {t('designer:preview.sees', 'The Designer looks at the page after it builds')}
         </DropdownMenuItem>

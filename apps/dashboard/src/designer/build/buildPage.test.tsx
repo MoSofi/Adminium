@@ -117,7 +117,7 @@ beforeEach(() => {
   stored = [];
   versions = [
     { n: 1, name: 'v1', at: Date.now() - 60_000, current: false },
-    { n: 2, name: 'v2', at: Date.now() - 30_000, current: false },
+    { n: 2, name: 'v2 · Order tracking', at: Date.now() - 30_000, current: false },
     { n: 3, name: 'v3', at: Date.now() - 10_000, current: true },
   ];
   FakeSocket.all = [];
@@ -825,9 +825,11 @@ describe('the build page', () => {
     // The row in use is an item that is off (a menu of one version must still hold an item); the others each hold the way back.
     expect(within(menu).getAllByRole('menuitem').map((item) => [item.getAttribute('aria-label'), item.getAttribute('aria-disabled')])).toEqual([
       [null, 'true'],
-      ['Go back to v2: v2', null],
+      ['Go back to v2: Order tracking', null],
       ['Go back to v1: v1', null],
     ]);
+    // A version's name as it is kept starts with its number; the row says the number once, in its own column.
+    expect([...menu.querySelectorAll('span.truncate.text-fg')].map((entry) => entry.textContent)).toEqual(['v3', 'Order tracking', 'v1']);
     expect(within(menu).getAllByRole('menuitem')[1]!.textContent).toBe('Go back to this');
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Go back to v1: v1' }));
     // The version is its own piece of the title (drawn in the fixed-width face), which this DOM reads as a word apart.
