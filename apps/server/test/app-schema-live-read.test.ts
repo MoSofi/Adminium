@@ -106,6 +106,32 @@ describe('readLiveTables', () => {
     expect(versions?.columns.find((c) => c.ref === 'code')?.isUnique).toBe(true);
   });
 
+  it('says where a column\'s own foreign key points, and that another has none, when the read tells links', async () => {
+    const { deps } = depsWith([
+      { schema: 'public', name: 'lines', columns: [col('id', { isPrimaryKey: true }), col('ticket_id'), col('note')] },
+      { schema: 'public', name: 'tickets', columns: [col('id', { isPrimaryKey: true })] },
+    ]);
+    const link = (to: string) => ({ kind: 'declared-fk', through: null, from: { tableId: 'public.lines', columns: ['ticket_id'] }, to: { tableId: to, columns: ['id'] } });
+    const manager = deps.manager as unknown as { introspectAdapter: () => Promise<{ introspect: (o: unknown) => Promise<Record<string, unknown>> }> };
+    const read = async (relations: unknown[]) => {
+      const real = manager.introspectAdapter;
+      manager.introspectAdapter = async () => {
+        const adapter = await real();
+        return { ...adapter, introspect: async (o: unknown) => ({ ...(await adapter.introspect(o)), tables: ((await adapter.introspect(o))['tables'] as { schema: string; name: string }[]).map((t) => ({ ...t, id: `${t.schema}.${t.name}` })), relations }) };
+      };
+      try {
+        const { tables } = await readLiveTables(deps, 'conn', new Set(['lines', 'tickets']));
+        return Object.fromEntries(tables.find((t) => t.ref === 'lines')!.columns.map((c) => [c.ref, (c as { linksTo?: string | null }).linksTo]));
+      } finally {
+        manager.introspectAdapter = real;
+      }
+    };
+    expect(await read([link('public.tickets')])).toEqual({ id: null, ticket_id: 'tickets', note: null });
+    // A target outside the tables read is named by the last part of its id.
+    expect(await read([link('public.jobs')])).toMatchObject({ ticket_id: 'jobs' });
+    expect(await read([])).toEqual({ id: null, ticket_id: null, note: null });
+  });
+
   it('prefers the default schema when a name exists in two', async () => {
     const { deps } = depsWith([
       { schema: 'archive', name: 'tickets', columns: [col('old')] },

@@ -743,6 +743,7 @@
         "enumValues": "{column} accepte aussi {values}.",
         "addUnique": "{column} ne pourra plus contenir deux fois la même valeur.",
         "addUniqueWith": "{column} ne pourra plus contenir deux fois la même valeur pour un même {with}.",
+        "addLink": "{column} est lié à {to} : il ne peut désigner qu’une ligne qui existe.",
         "noLoss": "Aucune colonne n’est supprimée et aucune donnée n’est perdue.",
         "reuseNote": "L’app lit et écrit les lignes déjà présentes.",
         "renameTitle": "Renommer la table existante pour libérer le nom",

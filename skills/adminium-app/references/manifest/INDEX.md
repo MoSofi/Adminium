@@ -12,7 +12,7 @@
 | `references/manifest/capabilities.md` | Capabilities | 928 |
 | `references/manifest/requiredschema.md` | requiredSchema | 720 |
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
-| `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 1634 |
+| `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 1832 |
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2506 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7718 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |

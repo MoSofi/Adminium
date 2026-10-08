@@ -88,6 +88,12 @@ export interface AppSchemaTarget {
    */
   repeats?(connectionId: string, table: string, columns: readonly string[]): Promise<boolean>;
   /**
+   * Whether a row of `table` holds a value in `column` that no row of
+   * `toTable` has as its `toColumn`: a foreign key asked for there would be
+   * refused. Reads, never writes.
+   */
+  orphans?(connectionId: string, table: string, column: string, toTable: string, toColumn: string): Promise<boolean>;
+  /**
    * How many rows of `table` a test matches: what a removed table or column
    * holds, and how many rows a narrower column no longer fits. Reads, never
    * writes; throws when the table or the column is not there.
@@ -127,6 +133,11 @@ export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEd
         refs.map((ref) => sql`${ref} is not null`),
         sql` and `,
       )} group by ${sql.join(refs)} having count(*) > 1 limit 1`.execute(db);
+      return found.rows.length > 0;
+    },
+    orphans: async (connectionId, table, column, toTable, toColumn) => {
+      const { db } = await deps.manager.data(connectionId);
+      const found = await sql<{ found: number }>`select 1 as found from ${sql.table(table)} as adm_from where adm_from.${sql.ref(column)} is not null and not exists (select 1 from ${sql.table(toTable)} as adm_to where adm_to.${sql.ref(toColumn)} = adm_from.${sql.ref(column)}) limit 1`.execute(db);
       return found.rows.length > 0;
     },
     count: async (connectionId, table, test) => {

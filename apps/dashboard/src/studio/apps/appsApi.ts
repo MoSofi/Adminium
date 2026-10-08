@@ -710,7 +710,7 @@ export interface PlannedAppTable {
   /** From an earlier install that used the table it found rather than making it. */
   adopted?: true;
   edits: {
-    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values' | 'add-unique' | 'add-index';
+    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values' | 'add-unique' | 'add-index' | 'add-link';
     column: string;
     from?: string;
     to?: string;

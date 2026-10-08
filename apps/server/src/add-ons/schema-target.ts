@@ -256,6 +256,8 @@ export async function readLiveTables(
       maxLength: column.maxLength,
       isIdentity: column.default?.kind === 'autoincrement',
       isUnique: column.isUnique,
+      // The one table a foreign key on this column alone points at; null when the database keeps none. A read that tells no links says nothing.
+      ...((model.relations as unknown) === undefined ? {} : { linksTo: linkedTo(model, table.id, column.name) }),
       ...(column.enumRef === undefined || column.enumRef === null
         ? {}
         : { enumValues: model.enums.find((e) => e.id === column.enumRef)?.values ?? [] }),
@@ -273,6 +275,14 @@ export async function readLiveTables(
     ],
   }));
   return { tables, dialect: model.dialect, indexNames: await snapshotIndexNames(deps.meta, connectionId) };
+}
+
+/** The name of the table a column's own foreign key points at, or null. */
+function linkedTo(model: { tables: readonly { id: string; name: string }[]; relations: readonly { kind: string; through: unknown; from: { tableId: string; columns: readonly string[] }; to: { tableId: string } }[] }, tableId: string, column: string): string | null {
+  const link = model.relations.find((relation) => relation.kind === 'declared-fk' && relation.through === null && relation.from.tableId === tableId && relation.from.columns.length === 1 && relation.from.columns[0] === column);
+  if (link === undefined) return null;
+  // A target outside the tables read is named by its id's last part.
+  return model.tables.find((candidate) => candidate.id === link.to.tableId)?.name ?? link.to.tableId.slice(link.to.tableId.lastIndexOf('.') + 1);
 }
 
 /**

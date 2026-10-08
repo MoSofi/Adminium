@@ -525,6 +525,7 @@ sends. The other sentences are in [app emails](/guides/apps/emails/#sending).
 
 | Code | Meaning |
 |---|---|
+| `LINK_ORPHANS` | A foreign key the update adds to a column that was there as a plain value, which rows already in the table break: they name a row that does not exist. Point them at one that does, or empty them, then check again. |
 | `UNIQUE_DUPLICATES` | A unique rule the install adds, which rows already in the table break. Make them differ, then check again. |
 | `UNIQUE_KEY_TOO_LONG` | On MySQL, a unique column or set of columns wider than MySQL can index (3072 bytes together, 768 characters for one text column). Make the text columns shorter. |
 

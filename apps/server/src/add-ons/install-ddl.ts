@@ -183,6 +183,8 @@ export interface ExistingTable {
     enumValues?: readonly string[];
     /** No two rows may hold the same value in it alone. */
     isUnique?: boolean;
+    /** The table its foreign key points at, by name; null when it has none. */
+    linksTo?: string | null;
   }[];
   /** The column sets the table keeps unique, read from the live database. */
   uniques?: readonly (readonly string[])[];

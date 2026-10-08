@@ -256,6 +256,32 @@ async function planWithRelations(
     });
   }
 
+  /*
+   * A link for a column that is already there (an app's `ticket_id`, first
+   * made a plain number): an `add-fk` on postgres and MySQL, and on SQLite
+   * the rebuild, which is the only way that engine links a column it has.
+   * One the table already keeps is not asked for twice.
+   */
+  for (const entry of input.edit.addForeignKeys ?? []) {
+    const fromId = tableIdOf(entry.table);
+    const toId = tableIdOf(entry.toTable);
+    if (fromId === undefined || toId === undefined) continue;
+    if (desiredRelations.some((r) => r.from.tableId === fromId && r.from.columns.length === 1 && r.from.columns[0] === entry.column)) continue;
+    desiredRelations.push({
+      id: `fk:${fromId}(${entry.column})->${toId}(${entry.toColumns.join(',')})`,
+      kind: 'declared-fk' as const,
+      cardinality: 'one-to-many' as const,
+      from: { tableId: fromId, columns: [entry.column] },
+      to: { tableId: toId, columns: [...entry.toColumns] },
+      through: null,
+      onDelete: null,
+      onUpdate: null,
+      selfReferential: fromId === toId,
+      confidence: 1,
+      constraintName: null,
+    });
+  }
+
   // --- 4. plan --------------------------------------------------------------
   const planned = planDdl({
     actual: renamed,
@@ -419,6 +445,12 @@ export function extendedTables(
     if (table === undefined) continue;
     plain.set(table.id, [...(plain.get(table.id) ?? []), { name: entry.name, columns: [...entry.columns] }]);
   }
+  // A table that only gains a link is compared against itself: the link is a relation, not a column.
+  const linked = new Set<string>();
+  for (const entry of edit.addForeignKeys ?? []) {
+    const table = find(entry.table);
+    if (table !== undefined) linked.add(table.id);
+  }
   // Columns that go: first, so everything else is laid over the table without them.
   const drops = new Map<string, string[]>();
   for (const entry of edit.dropColumns ?? []) {
@@ -427,7 +459,7 @@ export function extendedTables(
     drops.set(table.id, [...(drops.get(table.id) ?? []), entry.column]);
   }
   const out = new Map<string, TableModel>();
-  for (const tableId of new Set([...drops.keys(), ...alters.keys(), ...adds.keys(), ...sets.keys(), ...plain.keys()])) {
+  for (const tableId of new Set([...drops.keys(), ...alters.keys(), ...adds.keys(), ...sets.keys(), ...plain.keys(), ...linked])) {
     const found = actual.tables.find((t) => t.id === tableId);
     if (found === undefined) continue;
     const table = tableWithDroppedColumns(found, drops.get(tableId) ?? []);

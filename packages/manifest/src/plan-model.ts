@@ -60,6 +60,12 @@ export interface ExistingColumnView {
   enumValues?: readonly string[];
   /** No two rows may hold the same value in it alone. Absent = not known. */
   isUnique?: boolean;
+  /**
+   * The table its foreign key points at, by that table's real name; null when
+   * the database keeps no foreign key on it. Absent = not known, and never
+   * offered a link.
+   */
+  linksTo?: string | null;
 }
 
 /** What will happen to one table. */
@@ -127,6 +133,8 @@ export interface PlanProblem {
     | 'UNIQUE_KEY_TOO_LONG'
     // Added by the server, which can read the rows: a unique a table lacks, which rows already there break.
     | 'UNIQUE_DUPLICATES'
+    // Added by the server, which can read the rows: a link a table lacks, which rows already there break.
+    | 'LINK_ORPHANS'
     // Added by the server, which knows where each app is installed: the app runs on another connection.
     | 'APP_INSTALLED_ELSEWHERE'
     // An update that would take a shape off a table another installed app shares under it.
@@ -245,7 +253,14 @@ export type PlanEdit =
    * set the table declares or a ledger reads by (`with`: the columns before
    * this one, in order).
    */
-  | { kind: 'add-index'; column: string; with?: string[]; name: string };
+  | { kind: 'add-index'; column: string; with?: string[]; name: string }
+  /**
+   * The column is declared a link (`fk`) and the table keeps it as a plain
+   * value with no foreign key — it was first made a number, or the table was
+   * made by hand. `to` is the table it references, as the manifest names it.
+   * Offered only where every row already points at a row that is there.
+   */
+  | { kind: 'add-link'; column: string; to: string };
 
 export interface InstallTablePlan {
   /** The manifest's short name. */

@@ -208,7 +208,9 @@ applies to every table at once and is meaningful for a prefixed app.
 
 A reused or shared table may need changes first. The plan offers only changes that cannot lose
 data: adding a missing column (created nullable), widening a type (a longer `varchar`, `varchar` to
-`text`, `int` to `bigint`), making an integer key number itself, and adding enum values. A missing
+`text`, `int` to `bigint`), making an integer key number itself, adding enum values, and giving a
+column declared `fk` the foreign key it lacks (a column first made a plain `int`: the check names
+rows that point at nothing, `LINK_ORPHANS`, and nothing changes until they are put right). A missing
 `id`, `fk` or `blob` column cannot be added to an existing table, and a column whose type cannot
 hold the app's values is refused by name.
 

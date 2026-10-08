@@ -753,6 +753,7 @@ export default {
         "enumValues": "{column} akzeptiert zusätzlich {values}.",
         "addUnique": "{column} darf denselben Wert nicht mehr zweimal enthalten.",
         "addUniqueWith": "{column} darf pro {with} denselben Wert nicht mehr zweimal enthalten.",
+        "addLink": "{column} wird mit {to} verknüpft: Es darf nur auf eine vorhandene Zeile verweisen.",
         "noLoss": "Keine Spalte wird entfernt und keine Daten gehen verloren.",
         "reuseNote": "Die App liest und schreibt die vorhandenen Zeilen.",
         "renameTitle": "Die vorhandene Tabelle umbenennen, um Platz zu machen",

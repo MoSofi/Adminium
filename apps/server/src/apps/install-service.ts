@@ -258,6 +258,7 @@ export function editBodyFor(
   const alterColumns: NonNullable<EditBody['alterColumns']> = [];
   const addUniques: NonNullable<EditBody['addUniques']> = [];
   const addIndexes: NonNullable<EditBody['addIndexes']> = [];
+  const addForeignKeys: NonNullable<EditBody['addForeignKeys']> = [];
   for (const table of tables) {
     const spec = manifest.requiredSchema?.tables.find((t) => t.ref === table.ref);
     const id = idOf(model, table.table);
@@ -279,6 +280,12 @@ export function editBodyFor(
           const fill = column === undefined || partners !== null ? null : addedDefault(column);
           addColumns.push({ table: id, column: { name: edit.column, ...shape, default: fill } as never, ...unique });
         }
+        continue;
+      }
+      // A column that is there, declared a link: the foreign key a table made with it carries, to the target's own key.
+      if (edit.kind === 'add-link') {
+        const link = linkColumnFor(edit.to, model, idOf, names);
+        if (link !== null) addForeignKeys.push({ table: id, column: edit.column, toTable: link.foreignKey.toTable, toColumns: link.foreignKey.toColumns });
         continue;
       }
       // A plain index: one a limit or a total counts by, or a set the table declares or a ledger reads by.
@@ -310,7 +317,13 @@ export function editBodyFor(
     }
     alterColumns.push(...perColumn.values());
   }
-  return { addColumns, alterColumns, ...(addUniques.length === 0 ? {} : { addUniques }), ...(addIndexes.length === 0 ? {} : { addIndexes }) };
+  return {
+    addColumns,
+    alterColumns,
+    ...(addUniques.length === 0 ? {} : { addUniques }),
+    ...(addIndexes.length === 0 ? {} : { addIndexes }),
+    ...(addForeignKeys.length === 0 ? {} : { addForeignKeys }),
+  };
 }
 
 /**
@@ -934,6 +947,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
       ...(await repeatedUniques(pure, connectionId, manifest, dialect)),
+      ...(await orphanedLinks(pure, connectionId, manifest)),
       ...(await shareRefProblems(manifest, connectionId, pure)),
     ];
     const plan: InstallPlan =
@@ -1258,6 +1272,34 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               ? `"${table.table}" may hold the same ${columns.join(', ')} only once, and rows already there do. Make them differ, then check again.`
               : `"${table.table}.${edit.column}" may hold no value twice${edit.with === undefined ? '' : ` for the same ${edit.with.join(', ')}`}, ` +
                 'and rows already there do. Make them differ, then check again.',
+        });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * A link the plan would give a column that has rows already, one of which
+   * points at a row that is not there: refused on the check, by name, before
+   * anything moves — never an update the database stops midway.
+   */
+  async function orphanedLinks(plan: InstallPlan, connectionId: string, manifest?: Manifest): Promise<PlanProblem[]> {
+    const target = deps.schemaTarget;
+    if (target?.orphans === undefined) return [];
+    const out: PlanProblem[] = [];
+    for (const table of plan.tables ?? []) {
+      for (const edit of table.edits) {
+        if (edit.kind !== 'add-link') continue;
+        const to = (plan.tables ?? []).find((candidate) => candidate.ref === edit.to);
+        const key = (manifest?.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === edit.to)?.columns.find((column) => column.role === 'pk')?.ref ?? 'id';
+        // A table this same update makes has no rows yet: any value there points at nothing.
+        const broken = to?.action === 'create' && target.count !== undefined ? (await target.count(connectionId, table.table, { kind: 'not-null', column: edit.column })) > 0 : await target.orphans(connectionId, table.table, edit.column, to?.table ?? edit.to, key);
+        if (!broken) continue;
+        out.push({
+          code: 'LINK_ORPHANS',
+          table: table.ref,
+          column: edit.column,
+          message: `"${table.table}.${edit.column}" is to link to "${to?.table ?? edit.to}", and rows already there name one that does not exist. Point them at a row that does, or empty them, then check again.`,
         });
       }
     }

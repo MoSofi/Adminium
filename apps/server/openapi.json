@@ -94173,7 +94173,8 @@
                                         "set-identity",
                                         "enum-values",
                                         "add-unique",
-                                        "add-index"
+                                        "add-index",
+                                        "add-link"
                                       ]
                                     },
                                     "column": {

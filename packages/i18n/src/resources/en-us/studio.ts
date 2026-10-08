@@ -753,6 +753,7 @@ export default {
         "enumValues": "{column} also accepts {values}.",
         "addUnique": "{column} may no longer hold the same value twice.",
         "addUniqueWith": "{column} may no longer hold the same value twice for one {with}.",
+        "addLink": "{column} is linked to {to}: it may only name a row that is there.",
         "noLoss": "No column is removed and no data is lost.",
         "reuseNote": "The app reads and writes the rows already there.",
         "renameTitle": "Rename the existing table out of the way",

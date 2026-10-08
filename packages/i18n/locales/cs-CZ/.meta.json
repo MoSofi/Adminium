@@ -19227,6 +19227,10 @@
     "status": "mt",
     "srcHash": "77dfd2135f4d"
   },
+  "studio.hostedApps.install.check.addLink": {
+    "status": "mt",
+    "srcHash": "16d479616bb9"
+  },
   "studio.hostedApps.install.check.addUnique": {
     "status": "mt",
     "srcHash": "9459fc48400c"

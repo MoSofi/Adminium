@@ -507,6 +507,8 @@ function EditsNote({ table }: { table: PlannedAppTable }) {
                   'column',
                   edit.column,
                 )
+              : edit.kind === 'add-link'
+                ? withMono('studio:hostedApps.install.check.addLink', '{column} is linked to {to}: it may only name a row that is there.', 'column', edit.column, { to: edit.to ?? '' })
               : edit.kind === 'add-unique'
                 ? edit.with === undefined || edit.with.length === 0
                   ? withMono('studio:hostedApps.install.check.addUnique', '{column} may no longer hold the same value twice.', 'column', edit.column)

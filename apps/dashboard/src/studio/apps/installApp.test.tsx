@@ -659,6 +659,17 @@ describe('the table check', () => {
     expect(visits.textContent).toContain('v may no longer hold the same value twice for one proposal_id.');
   });
 
+  it('says a column is linked to the table it names', async () => {
+    const linked = checkPlan();
+    (linked.tables as Record<string, unknown>[])[1]!.edits = [{ kind: 'add-link', column: 'patient_id', to: 'patients' }];
+    plan = linked;
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: /visits/ }));
+    expect(screen.getByTestId('check-table-visits').textContent).toContain('patient_id is linked to patients: it may only name a row that is there.');
+  });
+
   it('does not claim it made a table an earlier install only found', async () => {
     const adopted = checkPlan();
     (adopted.tables as Record<string, unknown>[])[1]!.adopted = true;

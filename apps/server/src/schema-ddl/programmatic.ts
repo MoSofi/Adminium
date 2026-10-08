@@ -57,6 +57,7 @@ async function inputFor(
     ...(edit.dropColumns ?? []).map((a) => a.table),
     ...(edit.addUniques ?? []).map((a) => a.table),
     ...(edit.addIndexes ?? []).map((a) => a.table),
+    ...(edit.addForeignKeys ?? []).map((a) => a.table),
     ...edit.dropTables,
   ]);
   return {

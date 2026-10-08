@@ -753,6 +753,7 @@ export default {
         "enumValues": "{column} přijímá také {values}.",
         "addUnique": "{column} už nesmí obsahovat stejnou hodnotu dvakrát.",
         "addUniqueWith": "{column} už nesmí obsahovat stejnou hodnotu dvakrát pro jeden {with}.",
+        "addLink": "{column} se propojí s {to}: smí odkazovat jen na řádek, který existuje.",
         "noLoss": "Žádný sloupec se neodstraní a žádná data se neztratí.",
         "reuseNote": "Aplikace čte a zapisuje řádky, které tam už jsou.",
         "renameTitle": "Přejmenovat stávající tabulku, aby uvolnila místo",

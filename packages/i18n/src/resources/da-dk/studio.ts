@@ -753,6 +753,7 @@ export default {
         "enumValues": "{column} accepterer også {values}.",
         "addUnique": "{column} må ikke længere indeholde samme værdi to gange.",
         "addUniqueWith": "{column} må ikke længere indeholde samme værdi to gange for samme {with}.",
+        "addLink": "{column} knyttes til {to}: den må kun pege på en række, der findes.",
         "noLoss": "Ingen kolonne fjernes, og ingen data går tabt.",
         "reuseNote": "Appen læser og skriver de rækker, der allerede er der.",
         "renameTitle": "Omdøb den eksisterende tabel, så den er af vejen",

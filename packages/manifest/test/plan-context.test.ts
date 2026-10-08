@@ -161,6 +161,34 @@ describe('a table this app made on an earlier install', () => {
     expect(edits()).toEqual([{ kind: 'add-unique', column: 'ref_no' }]);
   });
 
+  it('links a column declared a link where the table says it keeps no foreign key, and only there', () => {
+    const linked = {
+      ...POS,
+      requiredSchema: {
+        ...POS.requiredSchema,
+        tables: [
+          { ref: 'tickets', columns: [{ ref: 'id', type: 'int', role: 'pk' }] },
+          { ref: 'payments', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'ticket_id', type: 'fk', references: 'tickets', nullable: true }] },
+        ],
+      },
+    } as unknown as Manifest;
+    const id = (more: Record<string, unknown> = {}) => col('id', { isPrimaryKey: true, logicalType: 'integer', isIdentity: true, nullable: false, ...more });
+    const edits = (link: Record<string, unknown>, tickets: Record<string, unknown> | null = {}) =>
+      planInstall(
+        linked,
+        view([...(tickets === null ? [] : [{ ref: 'pos_tickets', columns: [id(tickets)] }]), { ref: 'pos_payments', columns: [id(), col('ticket_id', link)] }]),
+        ctx({ records: { ...records, tickets: { table: 'pos_tickets', state: 'created', owned: true } } }),
+      ).tables?.find((t) => t.ref === 'payments')?.edits;
+    // A plain number with no foreign key: linked, to the table as the manifest names it.
+    expect(edits({ logicalType: 'integer', linksTo: null })).toEqual([{ kind: 'add-link', column: 'ticket_id', to: 'tickets' }]);
+    // Linked already, or not known: nothing is offered on a guess.
+    expect(edits({ logicalType: 'integer', linksTo: 'pos_tickets' })).toEqual([]);
+    expect(edits({ logicalType: 'integer' })).toEqual([]);
+    // A type that is not the key's cannot carry the link on every engine.
+    expect(edits({ logicalType: 'bigint', linksTo: null })).toEqual([]);
+    expect(edits({ logicalType: 'integer', linksTo: null }, { logicalType: 'bigint' })).toEqual([]);
+  });
+
   it('refuses on MySQL a unique text column wider than MySQL can index, whether the table is made or reused', () => {
     const wide = {
       ...POS,

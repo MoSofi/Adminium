@@ -1,46 +1,6 @@
-<!-- produced from apps/docs/src/content/docs/reference/errors.md § Codes met outside a request; do not edit -->
+<!-- produced from apps/docs/src/content/docs/reference/errors.md § Codes met outside a request — Saving an endpoint in Studio; do not edit -->
 
-# Error codes: Codes met outside a request
-
-### An email that is not sent
-
-An email is never sent without its list. When the table or link an [email that lists
-rows](https://docs.adminium.dev/reference/manifest/#emails-that-list-rows) reads is gone (after a rename, say), the outbox
-row is marked `failed` with the sentence "Not sent: the email lists rows from a table or link that
-is not there" in its error column. This is text on the row, not an HTTP code. An empty list still
-sends. The other sentences are in [app emails](https://docs.adminium.dev/guides/apps/emails/#sending).
-
-### An app's install check
-
-`POST /apps/plan` lists what stops an install in `problems`, each with a `code`, `table` and
-`column`. An install that meets one is refused `422` `VALIDATION_FAILED` with
-`details.reason: "PLAN_REFUSED"` and the same `problems`.
-
-| Code | Meaning |
-|---|---|
-| `UNIQUE_DUPLICATES` | A unique rule the install adds, which rows already in the table break. Make them differ, then check again. |
-| `UNIQUE_KEY_TOO_LONG` | On MySQL, a unique column or set of columns wider than MySQL can index (3072 bytes together, 768 characters for one text column). Make the text columns shorter. |
-
-### Installing, updating and removing an add-on
-
-The routes under `/add-ons` that install, update or remove an add-on which keeps tables of its
-own answer these codes. `details` names the add-on and, where it helps, what to do next.
-
-| Status | Code | Meaning |
-|---|---|---|
-| `409` | `ADD_ON_SCHEMA_CONNECTION` | Its tables go in one database and several are connected. `details.connections` lists them: send the request again with `connectionId`. |
-| `409` | `SCHEMA_DRIFT` | The database changed since the check that was read (`planChecksum`). Check again, then repeat. |
-| `422` | `VALIDATION_FAILED`, `details.code: "ADD_ON_PAGE_REF_TAKEN"` | One of its pages has a name another installed add-on has, or one under that add-on's key. A page's name opens it, so the two cannot be installed together. |
-| `409` | `ADD_ON_INSTALL_INCOMPLETE` | The install stopped part way. `details.stage` says where (`tables`, `writers`, `seeds`, `finish`). Nothing was undone: the same request finishes it. |
-| `409` | `ADD_ON_UPDATE_INCOMPLETE` | The same, for an update. Until it is finished the add-on does nothing. |
-| `409` | `ADD_ON_IN_USE` | It cannot be removed: a rule of an app still hands rows to it, or an app uses it for a feature. `details` says which. |
-| `403` | `FORBIDDEN` with `details.reason: "DROP_NEEDS_SUPER_ADMIN"` | Deleting its tables with it needs Super Admin. |
-| `422` | `VALIDATION_FAILED` with `details.reason: "CONFIRM_KEY_MISMATCH"` | Deleting its tables needs its key typed, as `confirmKey`. |
-| `403` | `FORBIDDEN` | `publicAccess: true` was sent by someone who may not manage API keys. Nothing was installed or changed. Send it without, or ask someone who can. |
-
-A request that leaves `publicAccess` out, or sends it by someone who may not allow it on a route
-that does not refuse (connecting an add-on to an app, switching it on), succeeds and opens
-nothing: the reply's `publicAccess.skipped` lists each entry left off the app's key, with why.
+# Error codes: Codes met outside a request — Saving an endpoint in Studio
 
 ### Saving an endpoint in Studio
 

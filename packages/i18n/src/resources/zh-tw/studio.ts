@@ -753,6 +753,7 @@ export default {
         "enumValues": "{column} 也接受 {values}。",
         "addUnique": "{column} 不再允許出現重複的值。",
         "addUniqueWith": "對同一個 {with}，{column} 不再允許出現重複的值。",
+        "addLink": "{column} 將連結到 {to}：只能指向已存在的列。",
         "noLoss": "不會移除任何欄位，也不會遺失任何資料。",
         "reuseNote": "應用程式會讀寫既有的資料列。",
         "renameTitle": "重新命名既有資料表以騰出名稱",

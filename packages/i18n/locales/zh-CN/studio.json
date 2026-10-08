@@ -743,6 +743,7 @@
         "enumValues": "{column} 还接受 {values}。",
         "addUnique": "{column} 不再允许出现重复的值。",
         "addUniqueWith": "对同一个 {with}，{column} 不再允许出现重复的值。",
+        "addLink": "{column} 将关联到 {to}：只能指向已存在的行。",
         "noLoss": "不会删除任何列，也不会丢失任何数据。",
         "reuseNote": "应用会读写已有的行。",
         "renameTitle": "重命名现有表以腾出名称",

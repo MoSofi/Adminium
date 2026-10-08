@@ -131,6 +131,23 @@ export function uniqueWithOf(column: RequiredColumn): string[] | null {
 }
 
 /**
+ * The logical type of the key a link points at: the live table's own key
+ * column where the table is there, else what the manifest declares the key
+ * of a table this plan makes. Null when it cannot be told (a key over
+ * several columns, a type no plain column carries): no link is offered then.
+ */
+function keyTypeOf(references: string, required: readonly RequiredTable[], names: Readonly<Record<string, string>>, live: ReadonlyMap<string, { columns: readonly ExistingColumnView[] }>): string | null {
+  const existing = live.get(names[references] ?? references);
+  if (existing !== undefined) {
+    const keys = existing.columns.filter((c) => c.isPrimaryKey === true);
+    return keys.length === 1 ? (keys[0]!.logicalType ?? null) : null;
+  }
+  const keys = (required.find((t) => t.ref === references)?.columns ?? []).filter((c) => c.role === 'pk');
+  if (keys.length !== 1) return null;
+  return keys[0]!.type === 'int' ? 'integer' : keys[0]!.type === 'bigint' ? 'bigint' : keys[0]!.type === 'uuid' ? 'uuid' : null;
+}
+
+/**
  * Whether the table keeps `columns` unique together already: a unique on
  * exactly those columns, or (for one column) the column read back as unique.
  * Unknown counts as kept, so nothing is offered on a guess.
@@ -515,6 +532,19 @@ export function planWithContext(
         if (column.type === 'enum' && have.enumValues !== undefined) {
           const missing = (column.enum ?? []).filter((value) => !have.enumValues!.includes(value));
           if (missing.length > 0) plan.edits.push({ kind: 'enum-values', column: column.ref, values: missing });
+        }
+        /*
+         * A column the app declares a link that the table keeps with no
+         * foreign key: linked, as a fresh install links it. Left out, the
+         * database knows no parent for the row, and everything that follows
+         * the link (a rule that posts through it, a list under its parent)
+         * finds nothing. Only on a table the app uses as its own, where the
+         * column's type is the target key's, and the server first checks
+         * every row points at a row that is there.
+         */
+        if (plan.action === 'reuse' && column.type === 'fk' && column.references !== undefined && have.linksTo === null) {
+          const keyType = keyTypeOf(column.references, required, names, live);
+          if (keyType !== null && have.logicalType === keyType) plan.edits.push({ kind: 'add-link', column: column.ref, to: column.references });
         }
         /*
          * A column the app keeps unique that the table does not: made so, as

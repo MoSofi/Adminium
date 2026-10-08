@@ -313,6 +313,17 @@ export const schemaEditSchema = z.strictObject({
     .max(20)
     .optional(),
   /**
+   * Links a column that is already there to another table's key: the foreign
+   * key a table made with the column would carry (an app's `ticket_id` first
+   * made as a plain number, then declared a link). The rows there must
+   * already point at rows that exist, or hold nothing — the caller checks
+   * first; the database refuses otherwise, and nothing else changes.
+   */
+  addForeignKeys: z
+    .array(z.strictObject({ table: z.string().min(1), column: identifierSchema, toTable: z.string().min(1), toColumns: z.array(identifierSchema).length(1) }))
+    .max(20)
+    .optional(),
+  /**
    * Columns removed from tables that exist, each by its table (id or bare
    * name) and its own name. The narrow door for one column going: everything
    * else on the table is the snapshot's own, so nothing untouched can read as
@@ -1015,6 +1026,24 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
     if (unknown.length > 0) push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(unknown.join(', '))} to index`, ...where });
     if (new Set(entry.columns).size !== entry.columns.length) push({ code: 'DUPLICATE_COLUMN', message: 'an index names each column once', ...where });
     checkIdentifier(entry.name, where);
+  }
+
+  // --- addForeignKeys ------------------------------------------------------
+  for (const entry of edit.addForeignKeys ?? []) {
+    if (refuseProtected(entry.table)) continue;
+    const table = byId.get(entry.table) ?? byName.get(entry.table);
+    if (table === undefined) continue;
+    const where = { table: entry.table, column: entry.column };
+    // A column the same edit adds is linked where it is added (`addColumns[].foreignKey`).
+    if (!table.columns.some((c) => c.name === entry.column)) {
+      push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(entry.column)} to link`, ...where });
+    }
+    const target = byId.get(entry.toTable) ?? byName.get(entry.toTable);
+    if (target === undefined) {
+      push({ code: 'UNKNOWN_TABLE', message: `${JSON.stringify(entry.toTable)} is not a table here`, ...where });
+    } else if (!target.columns.some((c) => c.name === entry.toColumns[0])) {
+      push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(entry.toTable)} has no column ${JSON.stringify(entry.toColumns.join(', '))} to link to`, ...where });
+    }
   }
 
   // --- addColumns ----------------------------------------------------------

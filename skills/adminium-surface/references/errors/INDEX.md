@@ -27,4 +27,7 @@
 | `references/errors/staff-and-api-key-write-codes--states.md` | Staff and API-key write codes — States | 3297 |
 | `references/errors/staff-and-api-key-write-codes--a-ledger-s-refusal.md` | Staff and API-key write codes — A ledger's refusal | 2086 |
 | `references/errors/staff-and-api-key-write-codes--what-a-read-limit-leaves-out.md` | Staff and API-key write codes — What a read limit leaves out | 933 |
-| `references/errors/codes-met-outside-a-request.md` | Codes met outside a request | 7679 |
+| `references/errors/codes-met-outside-a-request--an-email-that-is-not-sent.md` | Codes met outside a request — An email that is not sent | 758 |
+| `references/errors/codes-met-outside-a-request--an-app-s-install-check.md` | Codes met outside a request — An app's install check | 1056 |
+| `references/errors/codes-met-outside-a-request--installing-updating-and-removing-an-add-on.md` | Codes met outside a request — Installing, updating and removing an add-on | 2226 |
+| `references/errors/codes-met-outside-a-request--saving-an-endpoint-in-studio.md` | Codes met outside a request — Saving an endpoint in Studio | 4623 |
