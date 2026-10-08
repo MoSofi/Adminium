@@ -181,6 +181,58 @@ describe('a link into an add-on\'s table', () => {
     expect(issuesOf({ ...doc, compatibility: { minAdminiumVersion: '0.3.17' } }).join('\n')).toContain('"column.addOnLink" is read by Adminium 0.3.18 and later');
   });
 
+  describe('filled from the settings row', () => {
+    const place = { addOn: 'kit', table: 'places' };
+    /** A line whose shelf comes from the shop's settings, and the settings column it comes from. */
+    const shop = (setting: Doc, rules: Doc = { addOnLink: place, default: { from: { table: 'settings', column: 'place_id' } } }, floor = '0.3.19'): Doc => {
+      const doc = app({ ref: 'place_id', type: 'int', nullable: true, rules }) as Doc & { requiredSchema: { tables: Doc[] } };
+      return {
+        ...doc,
+        compatibility: { minAdminiumVersion: floor },
+        requiredSchema: { tables: [...doc.requiredSchema.tables, { ref: 'settings', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'note', type: 'text', maxLength: 40, nullable: true }, setting] }] },
+      };
+    };
+    const kept = (rules?: Doc, type = 'int'): Doc => ({ ref: 'place_id', type, nullable: true, ...(type === 'text' ? { maxLength: 40 } : {}), ...(rules === undefined ? {} : { rules }) });
+    const only = 'a link into an add-on takes its default only from a column of the settings row that links into the same table of the same add-on';
+
+    it('takes the settings row\'s own link into the same table', () => {
+      expect(issuesOf(shop(kept({ addOnLink: place })))).toEqual([]);
+    });
+
+    it('is refused when the settings column links into nothing', () => {
+      expect(issuesOf(shop(kept())).join('\n')).toContain(`${only}: "settings.place_id" links into none`);
+    });
+
+    it('is refused when the settings column links into another add-on', () => {
+      const doc = shop(kept({ addOnLink: { addOn: 'other-kit', table: 'places' } })) as Doc & { addOns: { suggests: Doc[] } };
+      const both = { ...doc, addOns: { suggests: [...doc.addOns.suggests, { key: 'other-kit', range: '>=1.0.0', reason: { 'en-US': 'More.' } }] } };
+      expect(issuesOf(both).join('\n')).toContain(`${only}: "settings.place_id" links into "other-kit", not "kit"`);
+    });
+
+    it('is refused when the settings column links into another table', () => {
+      expect(issuesOf(shop(kept({ addOnLink: { addOn: 'kit', table: 'items' } }))).join('\n')).toContain(`${only}: "settings.place_id" links into "items", not "places"`);
+    });
+
+    it('is refused when the two columns keep the key as different types', () => {
+      expect(issuesOf(shop(kept({ addOnLink: place }, 'text'))).join('\n')).toContain('kept as the same type: "settings.place_id" is text, not int');
+    });
+
+    it('takes no other default, and no other rule that fills', () => {
+      expect(issuesOf(shop(kept({ addOnLink: place }), { addOnLink: place, default: { from: 'connection.currency' } })).join('\n')).toContain(only);
+      expect(issuesOf(shop(kept({ addOnLink: place }), { addOnLink: place, default: { from: { addOn: 'kit', setting: 'default_place' } } })).join('\n')).toContain(only);
+      expect(issuesOf(shop(kept({ addOnLink: place }), { addOnLink: place, stamp: { set: 'now', on: 'create' } })).join('\n')).toContain('a link into an add-on is filled by a person, a lookup or the settings row, not by stamp');
+    });
+
+    it('needs the release that reads it, one after the install floor', () => {
+      const words = installFloorWords(shop(kept({ addOnLink: place }))).map((found) => found.word);
+      expect(words).toContain('column.addOnLink.default');
+      expect(issuesOf(shop(kept({ addOnLink: place }), undefined, ADD_ON_INSTALL_FLOOR)).join('\n')).toContain('"column.addOnLink.default" is read by Adminium 0.3.19 and later, and compatibility.minAdminiumVersion is 0.3.18');
+      // A word of the install floor is still asked for that floor, not the newer one.
+      expect(issuesOf(shop(kept({ addOnLink: place }), undefined, ADD_ON_INSTALL_FLOOR)).join('\n')).not.toContain('"column.addOnLink" is read');
+      expect(issuesOf(shop(kept({ addOnLink: place }), undefined, '0.3.17')).join('\n')).toContain('"column.addOnLink" is read by Adminium 0.3.18 and later');
+    });
+  });
+
   it('a table name is kept in a bounded text column', () => {
     expect(issuesOf(app({ ref: 'source', type: 'text', maxLength: 128, nullable: true, rules: { tableRef: true } }))).toEqual([]);
     expect(issuesOf(app({ ref: 'source', type: 'int', nullable: true, rules: { tableRef: true } })).join('\n')).toContain('a table name is kept in a text column with maxLength');
