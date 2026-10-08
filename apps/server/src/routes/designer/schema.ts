@@ -309,6 +309,7 @@ export const designerArchitectureReply = z.object({
       rows: z.number().int().nullable(),
       columns: z.array(z.object({ name: z.string(), type: z.string() })),
       relations: z.array(z.object({ to: z.string(), column: z.string() })),
+      posts: z.array(z.object({ addOn: z.string(), ledger: z.string(), action: z.string() })).optional(),
     }),
   ),
   addOns: z.array(
@@ -332,6 +333,7 @@ export const designerArchitectureReply = z.object({
       kind: z.enum(['session', 'customer-key', 'uses', 'relation', 'add-on', 'email']),
       reads: z.number().int().optional(),
       writes: z.number().int().optional(),
+      does: z.enum(['posts', 'prices']).optional(),
     }),
   ),
   lists: z.object({
