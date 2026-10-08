@@ -16,7 +16,7 @@ export const VIEW_IDS = {
   work: { tab: 'designer-view-work', panel: 'designer-view-work-panel' },
 } as const;
 
-export function ViewSwitch({ view, onView }: { view: BuildView; onView: (view: BuildView) => void }): ReactNode {
+export function ViewSwitch({ view, onView, chatWaiting = false }: { view: BuildView; onView: (view: BuildView) => void; /** The Designer waits for an answer in the chat: said on its tab, for whoever is looking at the other view. */ chatWaiting?: boolean }): ReactNode {
   const views = [
     ['chat', MessagesSquare, t('designer:build.chat', 'Chat')],
     ['work', AppWindow, t('designer:build.workArea', 'Work area')],
@@ -44,6 +44,7 @@ export function ViewSwitch({ view, onView }: { view: BuildView; onView: (view: B
         >
           <Icon aria-hidden="true" className="size-[15px]" />
           {label}
+          {id === 'chat' && chatWaiting ? <span role="img" aria-label={t('designer:build.chatWaiting', 'The Designer is waiting for your answer')} className="size-[7px] shrink-0 rounded-full bg-warn" /> : null}
         </button>
       ))}
     </div>

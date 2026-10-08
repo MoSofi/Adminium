@@ -49,6 +49,7 @@ import {
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
 import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
+import { LeaveGuard } from './LeaveGuard.js';
 import { StyleMenu } from './LookMenu.js';
 import { SessionMenu } from './SessionMenu.js';
 import { looksNow } from './sight.js';
@@ -101,6 +102,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
 
   const [text, setText] = useState('');
   const [answering, setAnswering] = useState(false);
+  /** A message was sent while files hold unsaved text: asked once what to do with them. */
+  const [askUnsaved, setAskUnsaved] = useState(false);
   const [open, setOpen] = useState<Record<number, boolean>>({});
   /** The width the person gave the chat; what is drawn may be less while the window is narrow. */
   const [wanted, setWanted] = useState<number>(CHAT_WIDTH.start);
@@ -181,7 +184,12 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       attach.clear();
       follow.pin();
     },
-    onError: fail(t('designer:build.turnFailed', 'The Designer could not start this turn')),
+    onError: (error) => {
+      // The folder is taken by something done from a page (a save, a style change): no fault, said plainly.
+      const reason = error instanceof ApiError && typeof error.details === 'object' && error.details !== null ? (error.details as { reason?: unknown }).reason : undefined;
+      if (reason === 'DESIGNER_BUSY') toasts.push({ variant: 'info', title: t('designer:code.busy', 'The app is being changed. Try again in a moment.') });
+      else fail(t('designer:build.turnFailed', 'The Designer could not start this turn'))(error);
+    },
   });
   const stop = useMutation({ mutationFn: () => designerApi.stop(sessionId), onError: fail(t('designer:build.stopFailed', 'The turn could not be stopped')) });
   const answer = useMutation({
@@ -284,7 +292,21 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       answer.mutate({ cardId: question.id, value: { text: message } });
       return;
     }
-    if (!working) start.mutate(message);
+    if (working) return;
+    // The Designer reads the files as they are on disk: what is typed and not saved is not there.
+    if (code.edited.size > 0 && !askUnsaved) {
+      setAskUnsaved(true);
+      return;
+    }
+    setAskUnsaved(false);
+    start.mutate(message);
+  };
+  const saveThenSend = (): void => {
+    const message = text.trim();
+    setAskUnsaved(false);
+    void code.save().then((applied) => {
+      if (applied && message !== '') start.mutate(message);
+    });
   };
 
   const onDividerKey = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -497,7 +519,9 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
         }
       />
 
-      {layout.two ? <ViewSwitch view={view} onView={setView} /> : null}
+      <LeaveGuard count={code.edited.size} />
+
+      {layout.two ? <ViewSwitch view={view} onView={setView} chatWaiting={waiting.length > 0} /> : null}
 
       <div className="relative flex min-h-0 flex-1">
         {/* In two views the one out of sight keeps its size and is out of reach: hidden, never taken out of the layout. */}
@@ -525,6 +549,17 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             </div>
           </div>
           <SpendNotice warnings={spend} onNewSession={canStartNew ? () => newSession.mutate() : undefined} />
+          {askUnsaved && code.edited.size > 0 ? (
+            <div role="group" aria-label={t('designer:code.unsaved', 'Unsaved changes')} className="mx-3.5 mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-[12px] border border-border bg-surface-2 px-3 py-2.5 text-[12.5px] font-semibold leading-[1.45] text-fg-muted">
+              <span className="min-w-0 flex-1 basis-[200px]">{t('designer:code.composerUnsaved', 'You have unsaved changes in {count, plural, one {# file} other {# files}}. The Designer will not see them.', { count: code.edited.size })}</span>
+              <button type="button" onClick={saveThenSend} disabled={!code.canSave} className="rounded-[8px] border border-border-strong bg-surface px-2.5 py-1 text-[12px] font-bold text-fg hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-45">
+                {t('designer:code.saveFirst', 'Save first')}
+              </button>
+              <button type="button" onClick={send} className="rounded-[8px] px-2.5 py-1 text-[12px] font-bold text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent">
+                {t('designer:code.sendAnyway', 'Send anyway')}
+              </button>
+            </div>
+          ) : null}
           <BuildComposer
             value={text}
             onChange={setText}

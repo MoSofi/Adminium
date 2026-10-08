@@ -31,6 +31,15 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, YourApp } from '../api.js';
 
+// The Code tab's editor is its own test's (`code/codeTab.test.tsx`). Here a stand-in types into the open file, so the page's part can be held: what it asks before a message is sent or the page is left.
+vi.mock('./CodeTab.js', () => ({
+  default: ({ code }: { code: { open: string | null; onText: (path: string, text: string) => void; content: { state: string } } }) => (
+    <button type="button" disabled={code.content.state !== 'ready'} onClick={() => (code.open === null ? undefined : code.onText(code.open, 'typed by hand\n'))}>
+      type in the open file
+    </button>
+  ),
+}));
+
 const spendSound = vi.hoisted(() => ({ playSpendSound: vi.fn() }));
 vi.mock('./spendSound.js', () => spendSound);
 
@@ -76,6 +85,10 @@ let uploads: number;
 /** How many times the next turns are refused before one starts. */
 let turnRefusals: number;
 let readsImages: boolean | null;
+/** Why the next turn is refused, as the server words a folder that is taken; null starts it. */
+let turnBusy: boolean;
+const FILE = 'apps/repairs/customer/src/App.tsx';
+const FILE_HASH = 'a'.repeat(64);
 
 const ev = (turn: number, body: DesignerEventBody, at = seq * 100): DesignerEvent => {
   seq += 1;
@@ -113,6 +126,7 @@ beforeEach(() => {
   seq = 0;
   uploads = 0;
   turnRefusals = 0;
+  turnBusy = false;
   readsImages = true;
   stored = [];
   versions = [
@@ -152,6 +166,16 @@ beforeEach(() => {
         return Promise.resolve(jsonResponse(201, { attachment: { id: `att_${String(uploads).padStart(20, '0')}`, label: file.name, kind: file.type === 'text/csv' ? 'csv' : 'image', mediaType: file.type, bytes: file.size } }));
       }
       if (url === '/api/v1/designer/models/reads-images') return Promise.resolve(jsonResponse(200, { readsImages }));
+      if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'GET') {
+        return Promise.resolve(jsonResponse(200, { groups: [{ key: 'customer', files: [{ path: FILE, label: 'customer/App.tsx', hash: FILE_HASH, size: 10 }] }], busy: null, version: 3 }));
+      }
+      if (url.startsWith(`/api/v1/designer/sessions/${ID}/files/content`)) return Promise.resolve(jsonResponse(200, { path: FILE, content: 'on disk\n', hash: FILE_HASH }));
+      if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'PUT') {
+        return Promise.resolve(jsonResponse(200, { applied: true, version: { n: 4, name: 'v4 · Your edit to App.tsx' }, files: [{ path: FILE, hash: 'b'.repeat(64) }] }));
+      }
+      if (url === `/api/v1/designer/sessions/${ID}/turns` && turnBusy) {
+        return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'The app is being changed. Try again in a moment.', requestId: 'r', details: { reason: 'DESIGNER_BUSY', busy: 'save' } } }));
+      }
       if (url === `/api/v1/designer/sessions/${ID}/turns` && turnRefusals > 0) {
         turnRefusals -= 1;
         return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'The Designer is already working on something in this project.', requestId: 'r' } }));
@@ -937,5 +961,90 @@ describe('the build page', () => {
     windowAt(1101);
     expect(screen.queryByRole('tablist', { name: 'View' })).toBeNull();
     expect(screen.getByRole('complementary', { name: 'Chat' }).hasAttribute('inert')).toBe(false);
+  });
+
+  /** Open the Code tab and type in its open file, through the stand-in. */
+  async function typeInCode(): Promise<void> {
+    await userEvent.click(screen.getByRole('tab', { name: 'Code' }));
+    const typer = await screen.findByRole('button', { name: 'type in the open file' });
+    await waitFor(() => expect((typer as HTMLButtonElement).disabled).toBe(false));
+    await userEvent.click(typer);
+    await screen.findByRole('status');
+  }
+
+  it('asks what to do with unsaved text before a message is sent: save it first, or send anyway', async () => {
+    stored = finishedTurn();
+    await open();
+    await typeInCode();
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Make the header blue.{Enter}');
+    const ask = await screen.findByRole('group', { name: 'Unsaved changes' });
+    expect(ask.textContent).toContain('You have unsaved changes in 1 file. The Designer will not see them.');
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Make the header blue.');
+    // Saved first: the files go, and only then the message.
+    await userEvent.click(within(ask).getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Make the header blue.' }]));
+    const order = calls.filter((call) => call.method !== 'GET' && (call.url.endsWith('/files') || call.url.endsWith('/turns'))).map((call) => `${call.method} ${call.url.slice(call.url.lastIndexOf('/'))}`);
+    expect(order).toEqual(['PUT /files', 'POST /turns']);
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ files: [{ path: FILE, content: 'typed by hand\n', base: FILE_HASH }] });
+    expect(screen.queryByRole('group', { name: 'Unsaved changes' })).toBeNull();
+  });
+
+  it('sends anyway when asked to, and asks nothing when nothing is unsaved', async () => {
+    stored = finishedTurn();
+    await open();
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'First.{Enter}');
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'First.' }]));
+    expect(screen.queryByRole('group', { name: 'Unsaved changes' })).toBeNull();
+    await typeInCode();
+    await userEvent.type(box, 'Second.{Enter}');
+    const ask = await screen.findByRole('group', { name: 'Unsaved changes' });
+    await userEvent.click(within(ask).getByRole('button', { name: 'Send anyway' }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'First.' }, { text: 'Second.' }]));
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('asks before the page is left with unsaved text, and leaves only on a yes', async () => {
+    stored = finishedTurn();
+    const router = await open();
+    // Nothing typed: the browser is not asked to hold the tab either.
+    const unload = (): boolean => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+    await typeInCode();
+    expect(unload()).toBe(true);
+    await userEvent.click(screen.getByRole('link', { name: 'Adminium Designer home' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+    expect(dialog.textContent).toContain('You have unsaved changes in 1 file. They are lost if you leave.');
+    expect(router.state.location.pathname).toBe(`/design/${ID}`);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(router.state.location.pathname).toBe(`/design/${ID}`);
+    await userEvent.click(screen.getByRole('link', { name: 'Adminium Designer home' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Leave without saving?' })).getByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/design'));
+  });
+
+  it('says a taken folder plainly when a message is refused for it, and marks the chat view while the Designer waits for an answer', async () => {
+    stored = finishedTurn();
+    await open();
+    turnBusy = true;
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Again.{Enter}');
+    expect(await screen.findByText('The app is being changed. Try again in a moment.')).toBeTruthy();
+    expect(screen.queryByText('The Designer could not start this turn')).toBeNull();
+    turnBusy = false;
+
+    windowAt(1024);
+    const chat = within(screen.getByRole('tablist', { name: 'View' })).getAllByRole('tab')[0] as HTMLElement;
+    expect(within(chat).queryByRole('img')).toBeNull();
+    live(ev(2, { kind: 'turn-started', text: 'x' }), ev(2, { kind: 'card', card: { id: 'q9', type: 'question', question: 'Which?', choices: ['A', 'B'] } }));
+    expect(within(chat).getByRole('img', { name: 'The Designer is waiting for your answer' })).toBeTruthy();
+    live(ev(2, { kind: 'card-answered', id: 'q9', value: { text: 'A' } }));
+    expect(within(chat).queryByRole('img')).toBeNull();
   });
 });
