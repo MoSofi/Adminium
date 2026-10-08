@@ -304,6 +304,11 @@ describe('the preview', () => {
       faults: [{ kind: 'broken', count: 2 }],
     });
     expect(sightFrom(sight, 'another-app')).toBeNull();
+    // The page it was on goes with it, tidied by the one path rule; what is no path is left out, and the server reads that as the first page.
+    expect(sightFrom({ ...sight, path: '/menu/1/' }, SESSION.appKey)?.path).toBe('/menu/1');
+    expect(sightFrom({ ...sight, path: 'menu' }, SESSION.appKey)).not.toHaveProperty('path');
+    expect(sightFrom({ ...sight, path: 42 }, SESSION.appKey)).not.toHaveProperty('path');
+    expect(sightFrom(sight, SESSION.appKey)).not.toHaveProperty('path');
     // It is no error of the screen: nothing is shown for it.
     expect(screen.queryByRole('alert')).toBeNull();
 

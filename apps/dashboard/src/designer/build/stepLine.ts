@@ -24,6 +24,8 @@ export function stepLine(row: StepRow): string {
     if (row.tool === 'delete_file') return t('designer:step.deleteFailed', 'Could not delete {subject}', S);
   }
   switch (row.tool) {
+    case 'sight':
+      return t('designer:step.looked', 'Looked at {subject} after it built', S);
     case 'list_files':
       return running ? t('designer:step.listing', 'Listing files') : t('designer:step.listed', 'Listed the files');
     case 'read_file':

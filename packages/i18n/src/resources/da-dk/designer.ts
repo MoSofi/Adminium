@@ -342,7 +342,8 @@ export default {
     "notNamed": "Appen blev ikke navngivet",
     "partsAdding": "Tilføjer færdige dele",
     "partsAdded": "Tilføjede færdige dele",
-    "partsFailed": "Ingen færdige dele blev tilføjet"
+    "partsFailed": "Ingen færdige dele blev tilføjet",
+    "looked": "Kiggede på {subject} efter buildet"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -386,7 +387,10 @@ export default {
     "off": "Versioner er slået fra",
     "offHint": "Versioner kræver git på denne maskine. Installér git, og start Designeren igen.",
     "title": "Versioner",
-    "wentBack": "Dine filer er, som de var i {version}."
+    "wentBack": "Dine filer er, som de var i {version}.",
+    "yourEdit": "Din ændring af {file}",
+    "yourEdits": "Din ændring af {count} filer",
+    "backTo": "Tilbage til {version}"
   },
   "work": {
     "architecture": "Arkitektur",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "Du har ændringer, der ikke er gemt, i {count, plural, one {# fil} other {# filer}}. Designeren kan ikke se dem.",
     "saveFirst": "Gem først",
     "sendAnyway": "Send alligevel"
+  },
+  "chat": {
+    "copy": "Kopiér denne besked",
+    "copied": "Kopieret"
   }
 } as const;

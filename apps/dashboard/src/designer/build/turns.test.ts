@@ -233,6 +233,10 @@ describe('what a person does outside a turn', () => {
     const turns = foldTurns([at(1, { kind: 'turn-started', text: 'x' }, 0), at(1, { kind: 'sight', side: 'customer', path: '/menu' })]);
     expect(turns[0]?.stepCount).toBe(0);
     expect(isWorking(turns)).toBe(true);
+    // It has a line of its own, where it happened: after the build it looked at.
+    const row = turns[0]?.steps[0] as StepRow;
+    expect([row.tool, row.state, row.subject]).toEqual(['sight', 'done', '/menu']);
+    expect(stepLine(row).replace('\u0001', row.subject ?? '')).toBe('Looked at /menu after it built');
   });
 });
 

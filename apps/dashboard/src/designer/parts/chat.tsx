@@ -8,7 +8,7 @@
  * Milo's chat parts are not used: they carry Milo's own turn model (a page's
  * context, option groups, a token hint) and the `assistant` words.
  */
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
   Blocks,
   FileSpreadsheet,
@@ -18,7 +18,9 @@ import {
   Shapes,
   Type,
   Wind,
+  Camera,
   Check,
+  Copy,
   ChevronDown,
   CircleSlash2,
   CircleAlert,
@@ -42,6 +44,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import { designerApi, LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type NeedItem, type SpendMark, type StyleChoice } from '../api.js';
 import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
 import type { StepRow } from '../build/turns.js';
+import { versionName } from '../build/versionName.js';
 import { lookLine, lookName, LookSwatch, StyleSwatch } from './look.js';
 import { Markdown } from './markdown.js';
 
@@ -84,10 +87,51 @@ const M1 = '\u0001';
 const M2 = '\u0002';
 const M3 = '\u0003';
 
+/** How long "Copied" stays before the button is its icon again. */
+const COPIED_MS = 1800;
+
+/**
+ * A person's own message. Its text can be selected like any text, and a small
+ * button at its lower corner copies the whole of it: shown when the message is
+ * pointed at or reached by the keyboard, and always where nothing can hover.
+ */
 export function PersonMessage({ text }: { text: string }): ReactNode {
+  const [copied, setCopied] = useState(false);
+  const back = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (back.current !== null) clearTimeout(back.current);
+    },
+    [],
+  );
+  const copy = (): void => {
+    // A page that may not write to the clipboard (an http address on a network) says nothing more than it can: the text is still there to select.
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
+    setCopied(true);
+    if (back.current !== null) clearTimeout(back.current);
+    back.current = setTimeout(() => setCopied(false), COPIED_MS);
+  };
   return (
-    <div className="flex justify-end">
-      <p dir="auto" className="m-0 min-w-0 max-w-[86%] whitespace-pre-wrap text-pretty [overflow-wrap:anywhere] rounded-2xl rounded-ee-md bg-surface-3 px-3.5 py-[11px] text-[13.5px] leading-normal text-fg">{text}</p>
+    <div className="group/message flex justify-end">
+      <div className="relative min-w-0 max-w-[86%]">
+        <p dir="auto" className="m-0 cursor-text select-text whitespace-pre-wrap text-pretty [overflow-wrap:anywhere] rounded-2xl rounded-ee-md bg-surface-3 px-3.5 py-[11px] text-[13.5px] leading-normal text-fg">{text}</p>
+        <button
+          type="button"
+          onClick={copy}
+          data-copied={copied}
+          aria-label={copied ? t('designer:chat.copied', 'Copied') : t('designer:chat.copy', 'Copy this message')}
+          className={`absolute -bottom-3 -start-3 inline-flex h-[26px] min-w-[26px] items-center justify-center gap-[5px] rounded-[8px] border border-border-strong bg-surface text-[11.5px] font-bold leading-[normal] shadow-md transition-opacity focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-focus-within/message:opacity-100 group-hover/message:opacity-100 [@media(hover:none)]:opacity-100 ${copied ? 'pe-[9px] ps-2 text-fg opacity-100' : 'text-fg-muted opacity-0 hover:text-fg'}`}
+        >
+          {copied ? (
+            <>
+              <Check aria-hidden="true" className="size-[13px] text-pos" />
+              <span aria-hidden="true">{t('designer:chat.copied', 'Copied')}</span>
+            </>
+          ) : (
+            <Copy aria-hidden="true" className="size-[13px]" />
+          )}
+        </button>
+      </div>
     </div>
   );
 }
@@ -174,6 +218,8 @@ export function StepsBlock({
                       <CircleX className="size-[13px]" />
                     ) : row.state === 'missed' ? (
                       <CircleSlash2 className="size-[13px]" />
+                    ) : row.tool === 'sight' ? (
+                      <Camera className="size-[13px]" />
                     ) : (
                       <Check className="size-[13px]" />
                     )}
@@ -211,7 +257,7 @@ export function SavedChip({ name }: { name: string }): ReactNode {
   return (
     <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-surface-3 px-[9px] py-[3px] text-[11px] font-bold text-fg-muted">
       <GitCommitHorizontal aria-hidden="true" className="size-3" />
-      {withMono(t('designer:turn.saved', 'Saved as {version}', { version: M1 }), [M1], [name])}
+      {withMono(t('designer:turn.saved', 'Saved as {version}', { version: M1 }), [M1], [versionName(name)])}
     </span>
   );
 }
@@ -229,7 +275,7 @@ export function LookChip({ direction }: { direction: string }): ReactNode {
 /** After "Change the style": what it was changed to, and that its fonts come with the next message when the project lacks them. */
 export function StyleChip({ title, fontsLater }: { title: string; fontsLater: boolean }): ReactNode {
   return (
-    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 self-start rounded-full bg-surface-3 px-[9px] py-[3px] text-[11px] font-bold text-fg-muted">
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 self-start rounded-full bg-accent-soft px-[9px] py-[3px] text-[11px] font-bold text-accent">
       <Palette aria-hidden="true" className="size-3" />
       {t('designer:style.changed', 'Style changed to {style}', { style: title })}
       {fontsLater ? <span className="font-normal">{t('designer:style.fontsLater', 'Its fonts are added when you next send a message.')}</span> : null}

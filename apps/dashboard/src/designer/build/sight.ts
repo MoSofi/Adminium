@@ -7,6 +7,8 @@
  * built the screen reads them. A person can switch it off: the choice is
  * kept in this browser, and a turn started with it off waits for nothing.
  */
+import { tidyPagePath } from './pagePath.js';
+
 const KEY = 'adminium.designer.sees';
 
 /** On unless a person switched it off here. */
@@ -51,11 +53,13 @@ export interface PageSight {
   width: number;
   faults: PageFault[];
   picture?: string;
+  /** The page the screen was on, tidied. Left out when the screen said none, or something that is no path. */
+  path?: string;
 }
 
 /** What a previewed screen posted, as a sight of the app's page; null when it is not one. */
 export function sightFrom(data: unknown, appKey: string): PageSight | null {
-  const said = data as { type?: unknown; app?: unknown; side?: unknown; width?: unknown; faults?: unknown; picture?: unknown } | null;
+  const said = data as { type?: unknown; app?: unknown; side?: unknown; width?: unknown; faults?: unknown; picture?: unknown; path?: unknown } | null;
   if (said === null || typeof said !== 'object' || said.type !== 'adminium:side-sight' || said.app !== appKey) return null;
   if (said.side !== 'staff' && said.side !== 'customer') return null;
   if (typeof said.width !== 'number' || !Number.isInteger(said.width) || said.width < 200 || said.width > 6000) return null;
@@ -65,5 +69,7 @@ export function sightFrom(data: unknown, appKey: string): PageSight | null {
     .map((fault) => Object.fromEntries(Object.entries(fault).filter((entry): entry is [string, string | number] => (typeof entry[1] === 'string' && entry[1].length <= 200) || typeof entry[1] === 'number')))
     .slice(0, 40);
   const picture = typeof said.picture === 'string' && said.picture.startsWith('data:image/jpeg;base64,') && said.picture.length <= 1_000_000 ? said.picture : undefined;
-  return { side: said.side, width: said.width, faults, ...(picture === undefined ? {} : { picture }) };
+  // Shown to the person in the chat ("Looked at /menu"), so it is held to a path's own shape here too.
+  const path = typeof said.path === 'string' && said.path.startsWith('/') ? tidyPagePath(said.path) : null;
+  return { side: said.side, width: said.width, faults, ...(picture === undefined ? {} : { picture }), ...(path === null ? {} : { path }) };
 }

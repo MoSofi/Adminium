@@ -342,7 +342,8 @@ export default {
     "notNamed": "Aplikace nebyla pojmenována",
     "partsAdding": "Přidává hotové části",
     "partsAdded": "Přidány hotové části",
-    "partsFailed": "Žádné hotové části nebyly přidány"
+    "partsFailed": "Žádné hotové části nebyly přidány",
+    "looked": "Po sestavení se podíval na {subject}"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -386,7 +387,10 @@ export default {
     "off": "Verze jsou vypnuté",
     "offHint": "Verze potřebují na tomto počítači git. Nainstalujte git a spusťte Designer znovu.",
     "title": "Verze",
-    "wentBack": "Vaše soubory jsou jako ve {version}."
+    "wentBack": "Vaše soubory jsou jako ve {version}.",
+    "yourEdit": "Vaše úprava souboru {file}",
+    "yourEdits": "Vaše úprava {count} souborů",
+    "backTo": "Zpět na {version}"
   },
   "work": {
     "architecture": "Architektura",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "Máte neuložené změny v {count, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}. Designer je neuvidí.",
     "saveFirst": "Nejdřív uložit",
     "sendAnyway": "Přesto odeslat"
+  },
+  "chat": {
+    "copy": "Zkopírovat tuto zprávu",
+    "copied": "Zkopírováno"
   }
 } as const;

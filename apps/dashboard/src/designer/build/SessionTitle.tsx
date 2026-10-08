@@ -24,14 +24,15 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import type { DesignerVersion } from '../api.js';
 import { editedWhen } from '../home/YourApps.js';
 import { MENU_HEADING } from './MoreMenu.js';
+import { versionLabel, versionName } from './versionName.js';
 
 /**
  * A version's name with its number taken off the front: it is kept as "v3 · Cart and pickup", and a row says the
  * number once, in its own column. A version nobody named is its number alone, and stays that.
  */
 function ownName(version: DesignerVersion): string {
-  const rest = version.name.replace(/^v\d+\s*·\s*/, '');
-  return rest === '' ? version.name : rest;
+  // In the person's language where the name is one the server gives by itself ("Your edit to …", "Back to …").
+  return versionLabel(version.name) ?? version.name;
 }
 
 function list(items: readonly string[]): string {
@@ -139,7 +140,7 @@ export function SessionTitle({
       ) : current === null ? null : (
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger
-            aria-label={t('designer:versions.button', 'Version {version}: {name}', { version: `v${String(current.n)}`, name: current.name })}
+            aria-label={t('designer:versions.button', 'Version {version}: {name}', { version: `v${String(current.n)}`, name: versionName(current.name) })}
             className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-border bg-surface-2 pe-[7px] ps-[9px] text-[12.5px] font-bold leading-[normal] text-fg hover:border-border-strong focus-visible:outline-2 focus-visible:outline-accent"
           >
             <History aria-hidden="true" className="size-3.5 text-fg-subtle" />

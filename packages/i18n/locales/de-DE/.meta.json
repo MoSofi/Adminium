@@ -8983,6 +8983,14 @@
     "status": "mt",
     "srcHash": "f698fbd8ec00"
   },
+  "designer.chat.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "designer.chat.copy": {
+    "status": "mt",
+    "srcHash": "784b9dca8062"
+  },
   "designer.code.brief": {
     "status": "mt",
     "srcHash": "5d0b8cd7aaf0"
@@ -10267,6 +10275,10 @@
     "status": "mt",
     "srcHash": "efff4c265955"
   },
+  "designer.step.looked": {
+    "status": "mt",
+    "srcHash": "f496156805ae"
+  },
   "designer.step.missed": {
     "status": "mt",
     "srcHash": "09c08936e181"
@@ -10779,6 +10791,10 @@
     "status": "mt",
     "srcHash": "d8715a4ff2c6"
   },
+  "designer.versions.backTo": {
+    "status": "mt",
+    "srcHash": "bf755c05770e"
+  },
   "designer.versions.button": {
     "status": "src",
     "srcHash": "e6140d8ef3ee"
@@ -10838,6 +10854,14 @@
   "designer.versions.wentBack": {
     "status": "mt",
     "srcHash": "7072e095bdcb"
+  },
+  "designer.versions.yourEdit": {
+    "status": "mt",
+    "srcHash": "18fefd4752b9"
+  },
+  "designer.versions.yourEdits": {
+    "status": "mt",
+    "srcHash": "8efabdc039b9"
   },
   "designer.work.architecture": {
     "status": "mt",

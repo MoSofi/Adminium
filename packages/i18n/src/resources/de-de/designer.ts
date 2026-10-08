@@ -342,7 +342,8 @@ export default {
     "notNamed": "Die App wurde nicht benannt",
     "partsAdding": "Fügt fertige Bausteine hinzu",
     "partsAdded": "Fertige Bausteine hinzugefügt",
-    "partsFailed": "Keine fertigen Bausteine hinzugefügt"
+    "partsFailed": "Keine fertigen Bausteine hinzugefügt",
+    "looked": "Hat sich {subject} nach dem Build angesehen"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -386,7 +387,10 @@ export default {
     "off": "Versionen sind aus",
     "offHint": "Versionen brauchen git auf diesem Rechner. Installieren Sie git und starten Sie den Designer neu.",
     "title": "Versionen",
-    "wentBack": "Ihre Dateien sind wie in {version}."
+    "wentBack": "Ihre Dateien sind wie in {version}.",
+    "yourEdit": "Ihre Änderung an {file}",
+    "yourEdits": "Ihre Änderung an {count} Dateien",
+    "backTo": "Zurück zu {version}"
   },
   "work": {
     "architecture": "Aufbau",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "Sie haben nicht gespeicherte Änderungen in {count, plural, one {# Datei} other {# Dateien}}. Der Designer sieht sie nicht.",
     "saveFirst": "Zuerst speichern",
     "sendAnyway": "Trotzdem senden"
+  },
+  "chat": {
+    "copy": "Diese Nachricht kopieren",
+    "copied": "Kopiert"
   }
 } as const;

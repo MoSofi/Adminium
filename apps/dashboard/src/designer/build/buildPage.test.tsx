@@ -384,7 +384,7 @@ describe('the build page', () => {
     stored = finishedTurn();
     await open();
     // The button names the style in use.
-    await userEvent.click(await screen.findByRole('button', { name: /^Change the style\s*Clean service$/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Change the style\s*·\s*Clean service$/ }));
     const menu = await screen.findByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Clean serviceCool white, slate and a clear blue.',
@@ -402,6 +402,13 @@ describe('the build page', () => {
     expect(posted('/turns')).toEqual([]);
     live(ev(1, { kind: 'style', skill: 'warm', title: 'Warm table', fonts: ['Playfair Display'] }), ev(1, { kind: 'version', n: 2, name: 'v2' }));
     expect(await screen.findByText('Style changed to Warm table')).toBeTruthy();
+    // One row under the reply holds what it was saved as and the way to change the style; what it was changed to comes after that row.
+    const row = document.querySelector('[data-part="saved-row"]') as HTMLElement;
+    expect(within(row).getByText(/^Saved as/)).toBeTruthy();
+    expect(within(row).getByRole('button', { name: /^Change the style/ })).toBeTruthy();
+    const changed = screen.getByText('Style changed to Warm table');
+    expect(row.contains(changed)).toBe(false);
+    expect(row.compareDocumentPosition(changed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Its fonts are not in the project yet: said, so the system's standing in is no surprise.
     expect(screen.getByText('Its fonts are added when you next send a message.')).toBeTruthy();
 

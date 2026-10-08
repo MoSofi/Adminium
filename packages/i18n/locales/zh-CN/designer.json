@@ -332,7 +332,8 @@
     "notNamed": "应用未命名",
     "partsAdding": "正在添加现成部件",
     "partsAdded": "已添加现成部件",
-    "partsFailed": "未添加现成部件"
+    "partsFailed": "未添加现成部件",
+    "looked": "构建后查看了 {subject}"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -376,7 +377,10 @@
     "off": "版本功能已关闭",
     "offHint": "版本功能需要本机安装 git。请安装 git 后重新启动 Designer。",
     "title": "版本",
-    "wentBack": "你的文件已恢复为 {version} 时的样子。"
+    "wentBack": "你的文件已恢复为 {version} 时的样子。",
+    "yourEdit": "你对 {file} 的修改",
+    "yourEdits": "你对 {count} 个文件的修改",
+    "backTo": "回到 {version}"
   },
   "work": {
     "architecture": "架构",
@@ -722,5 +726,9 @@
     "composerUnsaved": "你在 {count, plural, other {# 个文件}}中有未保存的更改。Designer 不会看到它们。",
     "saveFirst": "先保存",
     "sendAnyway": "仍然发送"
+  },
+  "chat": {
+    "copy": "复制这条消息",
+    "copied": "已复制"
   }
 }

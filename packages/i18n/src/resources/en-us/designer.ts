@@ -342,7 +342,8 @@ export default {
     "notNamed": "The app was not named",
     "partsAdding": "Adding ready-made parts",
     "partsAdded": "Added ready-made parts",
-    "partsFailed": "No ready-made parts were added"
+    "partsFailed": "No ready-made parts were added",
+    "looked": "Looked at {subject} after it built"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -386,7 +387,10 @@ export default {
     "off": "Versions are off",
     "offHint": "Versions need git on this machine. Install git and start the Designer again.",
     "title": "Versions",
-    "wentBack": "Your files are as they were in {version}."
+    "wentBack": "Your files are as they were in {version}.",
+    "yourEdit": "Your edit to {file}",
+    "yourEdits": "Your edit to {count} files",
+    "backTo": "Back to {version}"
   },
   "work": {
     "architecture": "Architecture",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "You have unsaved changes in {count, plural, one {# file} other {# files}}. The Designer will not see them.",
     "saveFirst": "Save first",
     "sendAnyway": "Send anyway"
+  },
+  "chat": {
+    "copy": "Copy this message",
+    "copied": "Copied"
   }
 } as const;

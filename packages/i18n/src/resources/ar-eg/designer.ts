@@ -342,7 +342,8 @@ export default {
     "notNamed": "لم يُسمَّ التطبيق",
     "partsAdding": "يضيف أجزاء جاهزة",
     "partsAdded": "تمت إضافة أجزاء جاهزة",
-    "partsFailed": "لم تُضف أجزاء جاهزة"
+    "partsFailed": "لم تُضف أجزاء جاهزة",
+    "looked": "نظر إلى {subject} بعد البناء"
   },
   "steps": {
     "count": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
@@ -386,7 +387,10 @@ export default {
     "off": "الإصدارات متوقفة",
     "offHint": "تحتاج الإصدارات إلى git على هذا الجهاز. ثبّت git وأعد تشغيل المصمم.",
     "title": "الإصدارات",
-    "wentBack": "ملفاتك كما كانت في {version}."
+    "wentBack": "ملفاتك كما كانت في {version}.",
+    "yourEdit": "تعديلك على {file}",
+    "yourEdits": "تعديلك على {count} ملفات",
+    "backTo": "العودة إلى {version}"
   },
   "work": {
     "architecture": "البنية",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "لديك تغييرات غير محفوظة في {count, plural, zero {# ملف} one {ملف واحد} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}}. لن يراها Designer.",
     "saveFirst": "احفظ أولًا",
     "sendAnyway": "إرسال على أي حال"
+  },
+  "chat": {
+    "copy": "نسخ هذه الرسالة",
+    "copied": "تم النسخ"
   }
 } as const;

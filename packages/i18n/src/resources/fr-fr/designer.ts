@@ -342,7 +342,8 @@ export default {
     "notNamed": "L’application n’a pas été nommée",
     "partsAdding": "Ajoute des éléments prêts à l’emploi",
     "partsAdded": "A ajouté des éléments prêts à l’emploi",
-    "partsFailed": "Aucun élément prêt à l’emploi ajouté"
+    "partsFailed": "Aucun élément prêt à l’emploi ajouté",
+    "looked": "A regardé {subject} après la construction"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -386,7 +387,10 @@ export default {
     "off": "Les versions sont désactivées",
     "offHint": "Les versions nécessitent git sur cette machine. Installez git et relancez le Designer.",
     "title": "Versions",
-    "wentBack": "Vos fichiers sont comme dans {version}."
+    "wentBack": "Vos fichiers sont comme dans {version}.",
+    "yourEdit": "Votre modification de {file}",
+    "yourEdits": "Votre modification de {count} fichiers",
+    "backTo": "Retour à {version}"
   },
   "work": {
     "architecture": "Architecture",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "Vous avez des modifications non enregistrées dans {count, plural, one {# fichier} other {# fichiers}}. Le Designer ne les verra pas.",
     "saveFirst": "Enregistrer d’abord",
     "sendAnyway": "Envoyer quand même"
+  },
+  "chat": {
+    "copy": "Copier ce message",
+    "copied": "Copié"
   }
 } as const;

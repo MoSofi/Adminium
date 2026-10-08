@@ -384,7 +384,7 @@ export const designerApi = {
   startTurn: (id: string, text: string, attachments: readonly string[] = [], sees = false) =>
     api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }), ...(sees ? { sees: true } : {}) }),
   /** What the preview saw of the app's screen, for the turn that built it. */
-  sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
+  sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
   pictureThumbUrl: (id: string, shelf: string, picture: string) => `${BASE}/sessions/${id}/picture-thumb/${shelf}/${picture}`,

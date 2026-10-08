@@ -470,9 +470,14 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate({ message: turn.text ?? '', attachments: turn.attachments.map((file) => file.id) }) : undefined} />
           ) : null}
           {turn.look === null ? null : <LookChip direction={turn.look} />}
+          {/* One row under the reply: what it was saved as, then the way to change the style. What the style was changed to comes after it. */}
+          {turn.version === null && !(last && !live && data?.look != null) ? null : (
+            <div data-part="saved-row" className="flex flex-wrap items-center gap-1.5">
+              {turn.version === null ? null : <SavedChip name={turn.version.name} />}
+              {last && !live && data?.look != null ? <StyleMenu current={data.look} styles={styles.data?.styles ?? []} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(skill) => look.mutate(skill)} /> : null}
+            </div>
+          )}
           {turn.style === null ? null : <StyleChip title={turn.style.title} fontsLater={turn.style.fonts.length > 0} />}
-          {turn.version === null ? null : <SavedChip name={turn.version.name} />}
-          {last && !live && data?.look != null ? <StyleMenu current={data.look} styles={styles.data?.styles ?? []} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(skill) => look.mutate(skill)} /> : null}
         </DesignerMessage>
       </div>
     );

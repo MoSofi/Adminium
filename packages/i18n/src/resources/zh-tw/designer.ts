@@ -342,7 +342,8 @@ export default {
     "notNamed": "應用程式未命名",
     "partsAdding": "正在加入現成元件",
     "partsAdded": "已加入現成元件",
-    "partsFailed": "未加入現成元件"
+    "partsFailed": "未加入現成元件",
+    "looked": "建置後查看了 {subject}"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -386,7 +387,10 @@ export default {
     "off": "版本功能已關閉",
     "offHint": "版本功能需要本機安裝 git。請安裝 git 後重新啟動 Designer。",
     "title": "版本",
-    "wentBack": "你的檔案已恢復為 {version} 時的樣子。"
+    "wentBack": "你的檔案已恢復為 {version} 時的樣子。",
+    "yourEdit": "你對 {file} 的修改",
+    "yourEdits": "你對 {count} 個檔案的修改",
+    "backTo": "回到 {version}"
   },
   "work": {
     "architecture": "架構",
@@ -732,5 +736,9 @@ export default {
     "composerUnsaved": "你在 {count, plural, other {# 個檔案}}中有未儲存的變更。Designer 不會看到它們。",
     "saveFirst": "先儲存",
     "sendAnyway": "仍然傳送"
+  },
+  "chat": {
+    "copy": "複製這則訊息",
+    "copied": "已複製"
   }
 } as const;

@@ -247,6 +247,10 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
       case 'style':
         turn.style = { title: event.title, fonts: event.fonts ?? [] };
         break;
+      case 'sight':
+        // The Designer was shown the page: a line where it happened, and no step of its own work.
+        list.push({ id: `sight-${String(event.seq)}`, tool: 'sight', label: 'Looked at the page', state: 'done', ms: null, detail: null, folded: 1, subject: event.path });
+        break;
       case 'limit':
         turn.limit = { which: event.which, value: event.value };
         break;
@@ -272,7 +276,7 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
     .sort((a, b) => a.turn - b.turn)
     .map((turn) => {
       const list = rows.get(turn.turn) ?? [];
-      return { ...turn, stepCount: list.filter((row) => !row.id.startsWith('apply-') && !row.id.startsWith('check-') && !row.id.startsWith('build-')).length, steps: fold(list) };
+      return { ...turn, stepCount: list.filter((row) => !row.id.startsWith('apply-') && !row.id.startsWith('check-') && !row.id.startsWith('build-') && !row.id.startsWith('sight-')).length, steps: fold(list) };
     });
 }
 
