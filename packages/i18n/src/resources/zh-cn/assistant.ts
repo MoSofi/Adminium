@@ -139,7 +139,10 @@ export default {
     "generic": "这次没成功，请再问一次。",
     "smtp": "尚未配置邮件。请在邮件设置中添加一个中继。",
     "tooLong": "这段对话超出了模型的上下文 — 请开始新的会话。",
-    "tryAgain": "重试"
+    "tryAgain": "重试",
+    "modelFormat": "此模型的回答方式不是 {name} 需要的。请在“设置 → AI”中换一个模型。",
+    "modelFormatAsk": "此模型的回答方式不是 {name} 需要的。请让管理员换一个模型。",
+    "setup": "刚才无法读取此页面。请再问一次。"
   },
   "invoiceTemplate": {
     "action1": "换一个示例预览",

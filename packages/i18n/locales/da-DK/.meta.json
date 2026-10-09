@@ -643,6 +643,18 @@
     "status": "mt",
     "srcHash": "b1ac3f12994f"
   },
+  "assistant.error.modelFormat": {
+    "status": "mt",
+    "srcHash": "f0aedec599d3"
+  },
+  "assistant.error.modelFormatAsk": {
+    "status": "mt",
+    "srcHash": "e211c7b36efd"
+  },
+  "assistant.error.setup": {
+    "status": "mt",
+    "srcHash": "7e6255361dc5"
+  },
   "assistant.error.smtp": {
     "status": "mt",
     "srcHash": "1a2ea7f39791"
@@ -24494,6 +24506,38 @@
   "studio.settingsAi.assistant.title": {
     "status": "mt",
     "srcHash": "8010d1f4d069"
+  },
+  "studio.settingsAi.assistantTest.button": {
+    "status": "mt",
+    "srcHash": "90d85172ed7b"
+  },
+  "studio.settingsAi.assistantTest.error": {
+    "status": "mt",
+    "srcHash": "cb4fdd996ecc"
+  },
+  "studio.settingsAi.assistantTest.format": {
+    "status": "mt",
+    "srcHash": "69ad5d440615"
+  },
+  "studio.settingsAi.assistantTest.noTool": {
+    "status": "mt",
+    "srcHash": "3b33cab59601"
+  },
+  "studio.settingsAi.assistantTest.ok": {
+    "status": "mt",
+    "srcHash": "6624e12ad0b4"
+  },
+  "studio.settingsAi.assistantTest.provider": {
+    "status": "mt",
+    "srcHash": "816279eb79b9"
+  },
+  "studio.settingsAi.assistantTest.running": {
+    "status": "mt",
+    "srcHash": "899a3d71f713"
+  },
+  "studio.settingsAi.assistantTest.wrongValue": {
+    "status": "mt",
+    "srcHash": "6f905197fb4e"
   },
   "studio.settingsAi.byo.body": {
     "srcHash": "743b71c41138",

@@ -139,7 +139,10 @@ export default {
     "generic": "Cela n’a pas fonctionné. Reposez la question.",
     "smtp": "L’e-mail n’est pas encore configuré. Ouvrez les paramètres d’e-mail pour ajouter un relais.",
     "tooLong": "Cette conversation est trop longue pour le modèle — démarrez une nouvelle session.",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "modelFormat": "Ce modèle ne répond pas de la manière dont {name} a besoin. Choisissez un autre modèle dans Paramètres → IA.",
+    "modelFormatAsk": "Ce modèle ne répond pas de la manière dont {name} a besoin. Demandez à un administrateur de choisir un autre modèle.",
+    "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question."
   },
   "invoiceTemplate": {
     "action1": "Voir un autre échantillon",

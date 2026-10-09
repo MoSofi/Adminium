@@ -28,9 +28,11 @@ import {
   assistantApi,
   readAsk,
   isTooLong,
+  readErrorKind,
   readErrorMessage,
   readResult,
   type AssistantAsk,
+  type AssistantErrorKind,
   type AssistantAvailability,
   type AssistantFacts,
   type AssistantResult,
@@ -57,6 +59,8 @@ export interface ThreadTurn {
   errorMessage: string | null;
   /** The one failure this app words itself: the conversation outgrew the model. */
   tooLong: boolean;
+  /** A failure this app has its own words for; `null` for one it shows in the server's. */
+  errorKind: AssistantErrorKind | null;
   jobId: string | null;
   /** What this turn cost, as the row reports it. */
   tokensIn: number;
@@ -111,6 +115,7 @@ function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): ThreadTu
     result: readResult(view.result),
     errorMessage: readErrorMessage(view.error),
     tooLong: isTooLong(view.error),
+    errorKind: readErrorKind(view.error),
     jobId: view.jobId,
     tokensIn: view.tokensIn ?? 0,
     tokensOut: view.tokensOut ?? 0,

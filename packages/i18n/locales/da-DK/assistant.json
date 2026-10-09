@@ -129,7 +129,10 @@
     "generic": "Det virkede ikke. Spørg igen.",
     "smtp": "E-mail er ikke konfigureret endnu. Åbn e-mailindstillingerne for at tilføje et relay.",
     "tooLong": "Denne samtale er for lang til modellen — start en ny session.",
-    "tryAgain": "Prøv igen"
+    "tryAgain": "Prøv igen",
+    "modelFormat": "Denne model svarer ikke på den måde, {name} har brug for. Vælg en anden model under Indstillinger → AI.",
+    "modelFormatAsk": "Denne model svarer ikke på den måde, {name} har brug for. Bed en administrator om at vælge en anden model.",
+    "setup": "Denne side kunne ikke læses lige nu. Prøv at spørge igen."
   },
   "invoiceTemplate": {
     "action1": "Se en anden prøve",

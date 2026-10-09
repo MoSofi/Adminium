@@ -139,7 +139,10 @@ export default {
     "generic": "Das hat nicht geklappt. Frag es noch einmal.",
     "smtp": "E-Mail ist noch nicht eingerichtet. Öffne die E-Mail-Einstellungen, um ein Relay hinzuzufügen.",
     "tooLong": "Dieses Gespräch ist zu lang für das Modell — starte eine neue Sitzung.",
-    "tryAgain": "Erneut versuchen"
+    "tryAgain": "Erneut versuchen",
+    "modelFormat": "Dieses Modell antwortet nicht so, wie {name} es braucht. Wählen Sie unter Einstellungen → KI ein anderes Modell.",
+    "modelFormatAsk": "Dieses Modell antwortet nicht so, wie {name} es braucht. Bitten Sie einen Administrator, ein anderes Modell zu wählen.",
+    "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal."
   },
   "invoiceTemplate": {
     "action1": "Anderes Beispiel ansehen",

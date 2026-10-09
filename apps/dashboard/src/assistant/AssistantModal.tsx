@@ -266,6 +266,8 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
                 answered={index < session.turns.length - 1}
                 workTitle={copy.workTitle}
                 context={host.context}
+                name={session.name}
+                canConfigure={session.availability?.canConfigure ?? false}
                 picks={picks[turn.id] ?? {}}
                 onPick={(groupKey, optionKey) => {
                   setPicks((previous) => ({
@@ -374,9 +376,34 @@ interface TurnViewProps {
   onGo: () => void;
   onRetry: (() => void) | null;
   renderResult: (result: AssistantResult) => ReactNode;
+  /** What the assistant is called here, for the failures worded with it. */
+  name: string;
+  /** Whether this person may choose the model: it decides what a model failure tells them to do. */
+  canConfigure: boolean;
 }
 
 /** One exchange: what was asked, what ran, and what came back. */
+/**
+ * A failed turn's sentence. The kinds this app knows are worded here, as
+ * advice to the person; anything else is shown in the server's own words.
+ * One literal key a sentence, so each is in the catalogue.
+ */
+function failureText(turn: ThreadTurn, name: string, canConfigure: boolean): string {
+  switch (turn.errorKind) {
+    case 'too-long':
+      return t('assistant:error.tooLong', 'This conversation is too long for the model — start a new session.');
+    case 'model-format':
+      // The model cannot do this, so asking again changes nothing: who can act is told what to do.
+      return canConfigure
+        ? t('assistant:error.modelFormat', 'This model does not answer in the way {name} needs. Choose another model in Settings → AI.', { name })
+        : t('assistant:error.modelFormatAsk', 'This model does not answer in the way {name} needs. Ask an administrator to choose another model.', { name });
+    case 'setup':
+      return t('assistant:error.setup', 'This page could not be read just now. Try asking again.');
+    default:
+      return turn.errorMessage ?? t('assistant:error.generic', 'That did not work. Try asking again.');
+  }
+}
+
 function TurnView({
   turn,
   live,
@@ -384,6 +411,8 @@ function TurnView({
   answered,
   workTitle,
   context,
+  name,
+  canConfigure,
   picks,
   onPick,
   onGo,
@@ -430,18 +459,8 @@ function TurnView({
         <AssistantBubble spacer bare>
           <div className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface pt-4 shadow-menu">
             <Warning
-              text={
-                // The one failure this app words itself: "too long" is a
-                // KIND the server reports, and the advice that goes with it
-                // is advice to a person, so it belongs in a message key.
-                turn.tooLong
-                  ? t(
-                      'assistant:error.tooLong',
-                      'This conversation is too long for the model — start a new session.',
-                    )
-                  : (turn.errorMessage ?? t('assistant:error.generic', 'That did not work. Try asking again.'))
-              }
-              {...(onRetry === null
+              text={failureText(turn, name, canConfigure)}
+              {...(onRetry === null || turn.errorKind === 'model-format'
                 ? {}
                 : {
                     action: (

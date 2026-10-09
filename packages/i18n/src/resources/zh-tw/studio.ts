@@ -2291,6 +2291,16 @@ export default {
       "switchOn": "開啟",
       "open": "開啟 Designer",
       "failed": "無法變更此開關。"
+    },
+    "assistantTest": {
+      "button": "用此模型測試 {name}",
+      "running": "正在請模型使用 {name} 的一個工具…",
+      "ok": "此模型可以執行 {name}。{rounds, plural, other {# 輪}}，{latency} 毫秒。",
+      "format": "此模型會回答，但不是 {name} 需要的方式。請換一個模型。",
+      "noTool": "此模型沒有使用給它的工具就回答了。{name} 會用猜的，而不是讀取你的資料。請換一個模型。",
+      "wrongValue": "此模型用了工具，卻回報了別的內容。請換一個模型。",
+      "provider": "模型沒有回答：{message}",
+      "error": "測試無法執行。請再試一次。"
     }
   },
   "settingsHub": {

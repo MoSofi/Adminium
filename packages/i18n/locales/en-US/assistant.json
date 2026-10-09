@@ -129,7 +129,10 @@
     "generic": "That did not work. Try asking again.",
     "smtp": "Email is not configured yet. Open Email settings to add a relay.",
     "tooLong": "This conversation is too long for the model — start a new session.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "modelFormat": "This model does not answer in the way {name} needs. Choose another model in Settings → AI.",
+    "modelFormatAsk": "This model does not answer in the way {name} needs. Ask an administrator to choose another model.",
+    "setup": "This page could not be read just now. Try asking again."
   },
   "invoiceTemplate": {
     "action1": "Preview another sample",

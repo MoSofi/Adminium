@@ -2291,6 +2291,16 @@ export default {
       "switchOn": "L’activer",
       "open": "Ouvrir le Designer",
       "failed": "L’interrupteur n’a pas pu être modifié."
+    },
+    "assistantTest": {
+      "button": "Tester {name} avec ce modèle",
+      "running": "On demande au modèle d’utiliser l’un des outils de {name}…",
+      "ok": "Ce modèle peut faire fonctionner {name}. {rounds, plural, one {# tour} other {# tours}}, {latency} ms.",
+      "format": "Ce modèle répond, mais pas de la manière dont {name} a besoin. Choisissez un autre modèle.",
+      "noTool": "Ce modèle a répondu sans utiliser l’outil fourni. {name} devinerait au lieu de lire vos données. Choisissez un autre modèle.",
+      "wrongValue": "Ce modèle a utilisé l’outil puis a rapporté autre chose. Choisissez un autre modèle.",
+      "provider": "Le modèle n’a pas répondu : {message}",
+      "error": "Le test n’a pas pu être exécuté. Réessayez."
     }
   },
   "settingsHub": {

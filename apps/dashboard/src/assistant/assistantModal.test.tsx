@@ -590,6 +590,54 @@ describe('a turn that failed', () => {
     expect(await screen.findByText(/too long for the model — start a new session/)).toBeTruthy();
     expect(screen.queryByText('raw server text')).toBeNull();
   });
+
+  it('tells who can act what to do when the model cannot follow the format, and offers no retry', async () => {
+    const failed = () => ({
+      turn: turn({
+        status: 'failed',
+        result: null,
+        error: { kind: 'model-format', provider: 'ollama', model: 'gpt-oss:120b', message: 'raw server text' },
+      }),
+      jobId: 'job_1',
+      nextTurnTokens: 900,
+    });
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = failed;
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+
+    expect(await screen.findByText(/does not answer in the way Milo needs\. Choose another model in Settings → AI\./)).toBeTruthy();
+    expect(screen.queryByText('raw server text')).toBeNull();
+    // The model cannot do this: asking again changes nothing.
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
+  it('tells someone who cannot choose the model to ask an administrator', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({
+      turn: turn({ status: 'failed', result: null, error: { kind: 'model-format', provider: 'ollama', model: 'm', message: 'raw' } }),
+      jobId: 'job_1',
+      nextTurnTokens: 900,
+    });
+    await openModal({ availability: { canConfigure: false } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    expect(await screen.findByText(/Ask an administrator to choose another model\./)).toBeTruthy();
+    expect(screen.queryByText(/Settings → AI/)).toBeNull();
+  });
+
+  it('says a page could not be read, and offers the question again', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({
+      turn: turn({ status: 'failed', result: null, error: { kind: 'setup', message: 'SQLITE_BUSY: database is locked' } }),
+      jobId: 'job_1',
+      nextTurnTokens: 900,
+    });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    expect(await screen.findByText('This page could not be read just now. Try asking again.')).toBeTruthy();
+    expect(screen.queryByText(/SQLITE_BUSY/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
 });
 
 describe('when the assistant cannot work here', () => {

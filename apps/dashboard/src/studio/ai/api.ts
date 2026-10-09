@@ -97,6 +97,19 @@ export interface LlmConfigTestResult {
   error: { code: string; message: string } | null;
 }
 
+/** `POST /config/assistant-test` — whether the saved model can run the assistant. */
+export interface LlmAssistantTestResult {
+  ok: boolean;
+  model: string | null;
+  /** Provider calls the test made. */
+  rounds: number;
+  latencyMs: number;
+  /** Why it did not pass, as a kind this page words. */
+  failure: 'format' | 'no-tool' | 'wrong-value' | 'provider' | null;
+  /** The provider's own sentence when the provider is what failed. */
+  message: string | null;
+}
+
 export interface LlmModelInfo {
   id: string;
   label: string;
@@ -287,6 +300,9 @@ export const aiApi = {
 
   /** Ping the active provider (`test()`); never echoes the key. */
   testConfig: () => api.post<LlmConfigTestResult>(`${BASE}/config/test`),
+
+  /** One small turn in the assistant's reply format, with one tool: can the saved model run it? */
+  testAssistant: () => api.post<LlmAssistantTestResult>(`${BASE}/config/assistant-test`),
 
   /** Model list for the active provider (live, with a static fallback). */
   listModels: () => api.get<LlmModelsResult>(`${BASE}/models`),

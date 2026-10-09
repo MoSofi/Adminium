@@ -2281,6 +2281,16 @@
       "switchOn": "Zapnout",
       "open": "Otevřít Designer",
       "failed": "Přepínač se nepodařilo změnit."
+    },
+    "assistantTest": {
+      "button": "Otestovat asistenta {name} s tímto modelem",
+      "running": "Žádáme model, aby použil jeden z nástrojů asistenta {name}…",
+      "ok": "Tento model zvládne asistenta {name}. {rounds, plural, one {# kolo} few {# kola} many {# kola} other {# kol}}, {latency} ms.",
+      "format": "Tento model odpovídá, ale ne tak, jak asistent {name} potřebuje. Vyberte jiný model.",
+      "noTool": "Tento model odpověděl, aniž použil nástroj, který dostal. Asistent {name} by hádal, místo aby četl vaše data. Vyberte jiný model.",
+      "wrongValue": "Tento model nástroj použil a pak ohlásil něco jiného. Vyberte jiný model.",
+      "provider": "Model neodpověděl: {message}",
+      "error": "Test se nepodařilo spustit. Zkuste to znovu."
     }
   },
   "settingsHub": {

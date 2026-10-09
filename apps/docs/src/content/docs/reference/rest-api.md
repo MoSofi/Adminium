@@ -125,7 +125,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
-| `/api/v1/llm/*` | 15 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
+| `/api/v1/llm/*` | 16 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
 | `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
@@ -569,6 +569,7 @@ PUT /api/v1/llm/config
 GET /api/v1/llm/connections
 GET /api/v1/llm/connections/{id}/models
 POST /api/v1/llm/config/test
+POST /api/v1/llm/config/assistant-test
 GET /api/v1/llm/models
 GET /api/v1/llm/runs
 POST /api/v1/llm/runs

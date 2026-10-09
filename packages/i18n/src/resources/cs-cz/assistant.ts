@@ -139,7 +139,10 @@ export default {
     "generic": "Tohle nevyšlo. Zkus se zeptat znovu.",
     "smtp": "E-mail zatím není nastavený. Otevřete nastavení e-mailu a přidejte relay.",
     "tooLong": "Tahle konverzace je pro model příliš dlouhá — začni novou relaci.",
-    "tryAgain": "Zkusit znovu"
+    "tryAgain": "Zkusit znovu",
+    "modelFormat": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Vyberte jiný model v Nastavení → AI.",
+    "modelFormatAsk": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Požádejte správce, aby vybral jiný model.",
+    "setup": "Tuto stránku se teď nepodařilo přečíst. Zeptejte se znovu."
   },
   "invoiceTemplate": {
     "action1": "Zobrazit jinou ukázku",

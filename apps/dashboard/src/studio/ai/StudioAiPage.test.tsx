@@ -107,6 +107,8 @@ interface StubOptions {
   runs?: LlmRunDto[];
   /** Overrides the config returned by PUT (else echoes the sent body + last4). */
   putResult?: (body: { provider: string | null; model?: string | null; baseUrl?: string | null; apiKey?: string }) => LlmConfig;
+  /** What the assistant's own test of the saved model answers (else: it passes). */
+  assistantTest?: Record<string, unknown>;
 }
 
 function stubFetch(options: StubOptions = {}) {
@@ -156,6 +158,11 @@ function stubFetch(options: StubOptions = {}) {
           apiKeyLast4: put.apiKey !== undefined ? put.apiKey.slice(-4) : config.apiKeyLast4,
         });
       return Promise.resolve(jsonResponse(200, result));
+    }
+    if (url === '/api/v1/llm/config/assistant-test' && method === 'POST') {
+      return Promise.resolve(
+        jsonResponse(200, options.assistantTest ?? { ok: true, model: 'claude-opus-4-8', rounds: 2, latencyMs: 3100, failure: null, message: null }),
+      );
     }
     if (url === '/api/v1/llm/config/test' && method === 'POST') {
       return Promise.resolve(
@@ -285,6 +292,29 @@ describe('StudioAiPage', () => {
     await user.click(testButton);
 
     expect(await screen.findByText(/Connected to claude-opus-4-8 in 87 ms/)).toBeDefined();
+  });
+
+  it('tests the saved model with the assistant, and says when it can run it', async () => {
+    const user = userEvent.setup();
+    renderPage({ config: makeConfig({ provider: 'anthropic', model: 'claude-opus-4-8', apiKeySet: true, apiKeyLast4: '1234' }) });
+    await screen.findByRole('heading', { name: 'Configure Anthropic' });
+    const button = screen.getByRole('button', { name: 'Test Milo with this model' });
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    await user.click(button);
+    expect(await screen.findByText(/This model can run Milo\. 2 rounds, 3,100 ms\./)).toBeDefined();
+  });
+
+  it('names a model that answers but cannot run the assistant', async () => {
+    const user = userEvent.setup();
+    renderPage({
+      config: makeConfig({ provider: 'anthropic', model: 'claude-opus-4-8', apiKeySet: true, apiKeyLast4: '1234' }),
+      assistantTest: { ok: false, model: 'claude-opus-4-8', rounds: 3, latencyMs: 900, failure: 'format', message: null },
+    });
+    await screen.findByRole('heading', { name: 'Configure Anthropic' });
+    const button = screen.getByRole('button', { name: 'Test Milo with this model' });
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    await user.click(button);
+    expect(await screen.findByText('This model answers, but not in the way Milo needs. Choose another model.')).toBeDefined();
   });
 
   it('a run-history row opens the review screen for that run', async () => {

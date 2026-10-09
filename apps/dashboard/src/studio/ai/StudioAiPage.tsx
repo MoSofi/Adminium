@@ -332,7 +332,9 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   const { providerApi, byoFirst } = llmAffordances(info);
 
   const byo = <ByoPanel key="byo" highlighted={byoFirst} />;
-  const provider = <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} />;
+  const provider = (
+    <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} assistantName={config.assistantName} />
+  );
 
   return (
     <PageSurface width="page" className="flex flex-col gap-6">

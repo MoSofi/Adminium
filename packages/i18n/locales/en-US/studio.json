@@ -2281,6 +2281,16 @@
       "switchOn": "Switch it on",
       "open": "Open the Designer",
       "failed": "The switch could not be changed."
+    },
+    "assistantTest": {
+      "button": "Test {name} with this model",
+      "running": "Asking the model to use one of {name}’s tools…",
+      "ok": "This model can run {name}. {rounds, plural, one {# round} other {# rounds}}, {latency} ms.",
+      "format": "This model answers, but not in the way {name} needs. Choose another model.",
+      "noTool": "This model answered without using the tool it was given. {name} would guess instead of reading your data. Choose another model.",
+      "wrongValue": "This model used the tool and then reported something else. Choose another model.",
+      "provider": "The model did not answer: {message}",
+      "error": "The test could not be run. Try again."
     }
   },
   "settingsHub": {

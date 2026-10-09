@@ -2291,6 +2291,16 @@ export default {
       "switchOn": "Slå den til",
       "open": "Åbn Designeren",
       "failed": "Kontakten kunne ikke ændres."
+    },
+    "assistantTest": {
+      "button": "Test {name} med denne model",
+      "running": "Beder modellen om at bruge et af {name}s værktøjer…",
+      "ok": "Denne model kan køre {name}. {rounds, plural, one {# runde} other {# runder}}, {latency} ms.",
+      "format": "Denne model svarer, men ikke på den måde, {name} har brug for. Vælg en anden model.",
+      "noTool": "Denne model svarede uden at bruge det værktøj, den fik. {name} ville gætte i stedet for at læse dine data. Vælg en anden model.",
+      "wrongValue": "Denne model brugte værktøjet og meldte så noget andet. Vælg en anden model.",
+      "provider": "Modellen svarede ikke: {message}",
+      "error": "Testen kunne ikke køres. Prøv igen."
     }
   },
   "settingsHub": {

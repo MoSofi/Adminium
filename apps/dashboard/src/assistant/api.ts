@@ -339,6 +339,17 @@ export function readErrorMessage(raw: Record<string, unknown> | null): string | 
   return null;
 }
 
+/**
+ * The failures this app words itself, by the KIND the server reports. Each is
+ * advice to a person, so each is a message key and not the server's English.
+ */
+export type AssistantErrorKind = 'too-long' | 'model-format' | 'setup';
+
+export function readErrorKind(raw: Record<string, unknown> | null): AssistantErrorKind | null {
+  const kind = raw === null ? null : raw.kind;
+  return kind === 'too-long' || kind === 'model-format' || kind === 'setup' ? kind : null;
+}
+
 /** True when the turn failed because the conversation no longer fits the model. */
 export function isTooLong(raw: Record<string, unknown> | null): boolean {
   return raw !== null && raw.kind === 'too-long';
