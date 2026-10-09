@@ -12,7 +12,7 @@ import { realpathSync } from 'node:fs';
 import { findProject } from '../project/locate.js';
 import { localOwnerStart, type DesignStart, type StartedUp, startUp } from './commands/start.js';
 import { CliError, EXIT_CONFIG } from './exit.js';
-import type { CliIo } from './io.js';
+import { nodeIo, type CliIo } from './io.js';
 import { defaultCliDeps, type CliDeps } from './runtime.js';
 
 export interface StartProjectOptions {
@@ -26,7 +26,14 @@ export interface StartProjectOptions {
   mode: 'design' | 'serve';
   /** `serve` only (design mode is 127.0.0.1 whatever is given). Default 127.0.0.1. */
   host?: string;
-  io: CliIo;
+  /** Where its lines go. Default: this process's own output. */
+  io?: CliIo;
+  /**
+   * Design mode: 64 hex characters that sign the project's owner in once, at
+   * `/design#designToken=…`, while that owner has no password. The host mints
+   * it and opens that address itself. Left out: no such link.
+   */
+  token?: string;
   /** The environment the project's `.env` fills in. Default: this process's. */
   env?: Record<string, string | undefined>;
   logLevel?: string;
@@ -94,9 +101,10 @@ export async function startProject(opts: StartProjectOptions): Promise<StartedPr
     throw new CliError(`${opts.root} is not a project folder (it has no adminium.config.ts).`, { code: EXIT_CONFIG });
   }
   const deps: CliDeps = { ...defaultCliDeps(), ...opts.deps, env, cwd: located.root };
+  const io = opts.io ?? nodeIo();
   return startUp(
-    { io: opts.io, deps },
+    { io, deps },
     { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse },
-    opts.mode === 'design' ? (opts.design ?? localOwnerStart(opts.io, null)) : undefined,
+    opts.mode === 'design' ? (opts.design ?? localOwnerStart(io, opts.token ?? null)) : undefined,
   );
 }

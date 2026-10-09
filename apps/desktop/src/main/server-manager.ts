@@ -676,6 +676,8 @@ class ServerManagerImpl implements ServerManager {
           fail(`The Adminium server failed to start (${stage}): ${message}`, null);
           return;
         }
+        // An answer to `busy?` (asked by `busy()`), never a start's outcome.
+        if (parsed.message.type === 'busy') return;
         const ready = parsed.message;
         finish(() => {
           resolve(ready);

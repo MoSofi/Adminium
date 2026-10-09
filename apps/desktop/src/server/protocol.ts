@@ -35,6 +35,8 @@ export const SERVER_BOOT_STAGES = [
   'migrate',
   'compose',
   'listen',
+  // Project mode: the terminal's start path, as one stage (it prints its own lines).
+  'project',
 ] as const;
 
 export type ServerBootStage = (typeof SERVER_BOOT_STAGES)[number];
@@ -87,13 +89,25 @@ export const serverErrorMessageSchema = z.object({
 });
 
 /** Child → parent. */
+/**
+ * A project's server answering `busy?`: what has the folder right now (a turn,
+ * a save, a restore…), or `null`. Main asks before anything that ends the
+ * child, so that it can ask the person first.
+ */
+export const serverBusyMessageSchema = z.object({
+  type: z.literal('busy'),
+  busy: z.object({ kind: z.string().min(1), sessionId: z.string().nullable() }).nullable(),
+});
+
 export const serverMessageSchema = z.discriminatedUnion('type', [
   serverReadyMessageSchema,
   serverErrorMessageSchema,
+  serverBusyMessageSchema,
 ]);
 
 export type ServerReadyMessage = z.infer<typeof serverReadyMessageSchema>;
 export type ServerErrorMessage = z.infer<typeof serverErrorMessageSchema>;
+export type ServerBusyMessage = z.infer<typeof serverBusyMessageSchema>;
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 
 /**
@@ -102,7 +116,10 @@ export type ServerMessage = z.infer<typeof serverMessageSchema>;
  * `wal_checkpoint(TRUNCATE)` when the meta store wires it) and exits 0. The
  * parent only reaches for `kill()` when this is ignored.
  */
-export const parentMessageSchema = z.object({ type: z.literal('shutdown') });
+export const parentMessageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('shutdown') }),
+  z.object({ type: z.literal('busy?') }),
+]);
 
 export type ParentMessage = z.infer<typeof parentMessageSchema>;
 

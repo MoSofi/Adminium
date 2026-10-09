@@ -210,6 +210,17 @@ export const STRIPPED_INHERITED_ENV_KEYS: readonly string[] = [
   // worse than meaningless inherited: the server refuses to boot on a list
   // while the flag is off, so a stray export would stop the app from starting.
   'ADMINIUM_TRUSTED_PROXIES',
+  // Project mode (plan 66). Which folder this child serves, and how, is main's
+  // to say after the person answered the trust question: an inherited value
+  // would have the app build and run a folder nobody picked.
+  'ADMINIUM_DESKTOP_PROJECT',
+  'ADMINIUM_DESKTOP_PROJECT_MODE',
+  'ADMINIUM_DESKTOP_PROGRAMS',
+  'ADMINIUM_PROJECT_DIR',
+  'ADMINIUM_PROJECT_MODE',
+  // `live` is never the desktop's, and the bundled apps' folder is the app's own.
+  'ADMINIUM_DESIGNER',
+  'ADMINIUM_BUNDLED_APPS',
 ];
 
 /**
@@ -423,4 +434,108 @@ export function toServerEnvRecord(
     delete record.ADMINIUM_TELEMETRY;
   }
   return record;
+}
+
+// ─── Project mode ────────────────────────────────────────────────────────────
+
+/** How a project is served: built on this machine only, or shared as `adminium start` serves it. */
+export type DesktopProjectMode = 'design' | 'serve';
+
+export interface BuildProjectServerEnvInput {
+  /** The project's folder, by its real path. */
+  root: string;
+  mode: DesktopProjectMode;
+  /** Picked by main before every fork: design mode must know it before it listens. */
+  port: number;
+  /** `serve` only; design mode is this machine only whatever is given. */
+  host?: string | undefined;
+  /** Signs the project's owner in once (design mode's one-use link). */
+  bootToken: string;
+  logLevel?: DesktopLogLevel | undefined;
+  staticRoot?: string | undefined;
+  bundledAddOnsDir?: string | undefined;
+  bundledAppsDir?: string | undefined;
+  inherit?: NodeJS.ProcessEnv | undefined;
+}
+
+/**
+ * The environment of a child that serves a project folder.
+ *
+ * What it does NOT set is the point: `ADMINIUM_SECRET`, `ADMINIUM_DATA_DIR`
+ * and `ADMINIUM_META_URL` are the project's own (its `.env`, its `data/`),
+ * never the classic workspace's. Every name that decides where the server
+ * listens, what it trusts and where the app's own files are is stated here or
+ * left out on purpose, and the child refuses those names from the folder's
+ * `.env` (`HOST_DECIDED_ENV` in the server package).
+ */
+export function buildProjectServerEnv(input: BuildProjectServerEnvInput): Record<string, string> {
+  if (!isAbsolute(input.root)) throw new Error(`the project folder must be an absolute path, got "${input.root}"`);
+  if (input.bootToken.length !== BOOT_TOKEN_HEX_LENGTH) {
+    throw new Error(`bootToken must be ${String(BOOT_TOKEN_HEX_LENGTH)} hex characters, got ${String(input.bootToken.length)}`);
+  }
+  if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) {
+    throw new Error(`a project's port is picked before the fork, got ${String(input.port)}`);
+  }
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input.inherit ?? {})) {
+    if (value === undefined) continue;
+    if (STRIPPED_INHERITED_ENV_KEYS.includes(key)) continue;
+    env[key] = value;
+  }
+  const host = input.mode === 'serve' ? (input.host ?? LOOPBACK_HOST) : LOOPBACK_HOST;
+  env.ADMINIUM_RUNTIME = 'desktop';
+  env.ADMINIUM_DESKTOP_PROJECT = input.root;
+  env.ADMINIUM_DESKTOP_PROJECT_MODE = input.mode;
+  env.ADMINIUM_HOST = host;
+  env.HOST = host;
+  env.ADMINIUM_PORT = String(input.port);
+  env.PORT = String(input.port);
+  env.ADMINIUM_BOOT_TOKEN = input.bootToken;
+  if (input.logLevel !== undefined) env.ADMINIUM_LOG_LEVEL = input.logLevel;
+  if (input.staticRoot !== undefined) env.ADMINIUM_STATIC_ROOT = input.staticRoot;
+  if (input.bundledAddOnsDir !== undefined) env.ADMINIUM_BUNDLED_ADD_ONS = input.bundledAddOnsDir;
+  // Absolute, always: the server's default is `./apps-bundle`, which in this child would be looked for inside the opened folder.
+  if (input.bundledAppsDir !== undefined) env.ADMINIUM_BUNDLED_APPS = input.bundledAppsDir;
+  return env;
+}
+
+export interface DesktopProjectEnv {
+  root: string;
+  mode: DesktopProjectMode;
+  host: string;
+  port: number;
+  bootToken: string;
+  logLevel: DesktopLogLevel | undefined;
+}
+
+/** Whether main started this child for a project folder. */
+export function isProjectEnv(env: NodeJS.ProcessEnv): boolean {
+  return (env.ADMINIUM_DESKTOP_PROJECT ?? '') !== '';
+}
+
+/** Reads back what {@link buildProjectServerEnv} wrote. Anything missing or odd is a refusal, not a default. */
+export function parseDesktopProjectEnv(env: NodeJS.ProcessEnv): DesktopProjectEnv {
+  const problems: string[] = [];
+  const root = env.ADMINIUM_DESKTOP_PROJECT ?? '';
+  if (root === '' || !isAbsolute(root)) problems.push('ADMINIUM_DESKTOP_PROJECT must be an absolute path');
+  const mode = env.ADMINIUM_DESKTOP_PROJECT_MODE;
+  if (mode !== 'design' && mode !== 'serve') problems.push('ADMINIUM_DESKTOP_PROJECT_MODE must be design or serve');
+  const port = Number(env.ADMINIUM_PORT);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) problems.push('ADMINIUM_PORT must be a port main picked');
+  const host = env.ADMINIUM_HOST ?? '';
+  if (host === '') problems.push('ADMINIUM_HOST must be set');
+  if (mode === 'design' && host !== LOOPBACK_HOST) problems.push(`ADMINIUM_HOST must be ${LOOPBACK_HOST} while a project is built`);
+  const bootToken = env.ADMINIUM_BOOT_TOKEN ?? '';
+  if (!/^[0-9a-f]+$/.test(bootToken) || bootToken.length !== BOOT_TOKEN_HEX_LENGTH) problems.push('ADMINIUM_BOOT_TOKEN must be the token main minted');
+  if (env.ADMINIUM_RUNTIME !== 'desktop') problems.push('ADMINIUM_RUNTIME must be desktop');
+  const level = env.ADMINIUM_LOG_LEVEL;
+  if (problems.length > 0) throw new DesktopServerEnvError(problems);
+  return {
+    root,
+    mode: mode as DesktopProjectMode,
+    host,
+    port,
+    bootToken,
+    logLevel: (DESKTOP_LOG_LEVELS as readonly string[]).includes(level ?? '') ? (level as DesktopLogLevel) : undefined,
+  };
 }

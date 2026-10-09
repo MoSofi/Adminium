@@ -53,6 +53,7 @@
 // matrix gives this app two inputs — "`@adminium/server` (spawned)" and
 // "dashboard build output (static files)" — and no others.
 import {
+  HOST_DECIDED_ENV,
   LATEST_META_MIGRATION,
   composeServer,
   firstRun,
@@ -60,11 +61,15 @@ import {
   metaEngineFromUrl,
   openRuntime,
   resolveStaticRoot,
+  startProject,
   type AdminiumServer,
   type CliRuntime,
+  type StartedProject,
 } from '@adminium/server';
 
 import {
+  isProjectEnv,
+  parseDesktopProjectEnv,
   parseDesktopServerEnv,
   toServerEnvRecord,
   type DesktopServerEnv,
@@ -292,6 +297,11 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
         log(`[server] ignoring unrecognized parent message: ${parsed.error}`);
         return;
       }
+      // The classic workspace has no folder for anything to hold.
+      if (parsed.message.type === 'busy?') {
+        post({ type: 'busy', busy: null });
+        return;
+      }
       void shutdown(booted).then(
         () => exit(0),
         () => exit(1),
@@ -322,6 +332,113 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
  * one that should not (a vitest worker importing this module for its exports).
  * Keying on `parentPort` instead would silently kill the debugging shape.
  */
+// ─── Project mode ────────────────────────────────────────────────────────────
+
+export interface RunProjectEntryOptions extends RunServerEntryOptions {
+  /** Test seams: the server package's `startProject`, and `process.chdir`. */
+  start?: typeof startProject;
+  chdir?: (directory: string) => void;
+}
+
+/**
+ * The child, serving a project folder (plan 66, spec 05).
+ *
+ * It runs the terminal's start path, not a copy of it: `startProject` is what
+ * `adminium start` and `adminium design` run, and it hands back the two things
+ * a terminal never needed, a `close()` that says when everything is gone and a
+ * `busy()` main asks before it ends this process.
+ *
+ * NOTHING HERE DECIDES WHETHER THE FOLDER MAY RUN. The trust question, the
+ * folder's state, a new project's scaffold and the install of its packages are
+ * main's, before the fork; by the time this child exists the folder is one the
+ * person said yes to and that is ready to start. This function builds and runs
+ * the folder's code, which is exactly why main must not fork it sooner.
+ *
+ * The working folder becomes the project's, as on a terminal, so `./data` is
+ * the project's own. The data folder and the secret are the project's `.env`'s;
+ * main sets neither. The names main does decide are refused from that file
+ * (`HOST_DECIDED_ENV`).
+ */
+export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<StartedProject | null> {
+  const port = opts.parentPort;
+  const log = opts.onLog ?? ((line: string) => console.error(line));
+  const exit = opts.exit ?? ((code: number) => process.exit(code));
+  const start = opts.start ?? startProject;
+  const chdir = opts.chdir ?? ((directory: string) => process.chdir(directory));
+  const post = (message: ServerMessage): void => {
+    if (port === null) {
+      log(`[server] no parentPort; ${JSON.stringify(message)}`);
+      return;
+    }
+    port.postMessage(message);
+  };
+
+  let host: string;
+  let started: StartedProject;
+  try {
+    const processEnv = opts.env ?? process.env;
+    const project = await stage('env', () => parseDesktopProjectEnv(processEnv));
+    host = project.host;
+    started = await stage('project', async () => {
+      chdir(project.root);
+      const env: NodeJS.ProcessEnv = { ...processEnv };
+      // While a project is built the token is design mode's one-use link, and no other door takes it.
+      if (project.mode === 'design') delete env.ADMINIUM_BOOT_TOKEN;
+      return start({
+        root: project.root,
+        port: project.port,
+        mode: project.mode,
+        host: project.host,
+        env,
+        refuse: HOST_DECIDED_ENV,
+        logLevel: project.logLevel ?? 'warn',
+        ...(project.mode === 'design' ? { token: project.bootToken } : {}),
+      });
+    });
+  } catch (error) {
+    const stageName: ServerBootStage = error instanceof BootStageError ? error.stage : 'env';
+    const message = error instanceof Error ? error.message : String(error);
+    const detail = error instanceof BootStageError ? error.detail : undefined;
+    post({ type: 'error', stage: stageName, message, ...(detail === undefined ? {} : { detail }) });
+    log(`[server] project start failed at stage "${stageName}": ${message}`);
+    exit(1);
+    return null;
+  }
+
+  if (port !== null) {
+    let closing = false;
+    port.on('message', (event) => {
+      const parsed = parseParentMessage(event.data);
+      if (!parsed.ok) {
+        log(`[server] ignoring unrecognized parent message: ${parsed.error}`);
+        return;
+      }
+      if (parsed.message.type === 'busy?') {
+        post({ type: 'busy', busy: started.busy() });
+        return;
+      }
+      // A second `shutdown` while the first is still closing changes nothing: the first one's exit is the answer.
+      if (closing) return;
+      closing = true;
+      void started.close().then(
+        () => exit(0),
+        () => exit(1),
+      );
+    });
+    port.start?.();
+  }
+
+  post({
+    type: 'ready',
+    port: started.port,
+    host,
+    // `startProject` migrates inside its own path and does not count; the build's newest migration is still true.
+    migrations: { applied: 0, version: LATEST_META_MIGRATION },
+  });
+  return started;
+}
+
 if (process.env.ADMINIUM_RUNTIME === 'desktop') {
-  void runServerEntry({ parentPort: resolveParentPort() });
+  if (isProjectEnv(process.env)) void runProjectEntry({ parentPort: resolveParentPort() });
+  else void runServerEntry({ parentPort: resolveParentPort() });
 }
