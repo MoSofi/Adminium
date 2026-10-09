@@ -11,4 +11,4 @@ file. Every file is 8 KB or less.
 | shapes | 6 | `references/shapes/INDEX.md` |
 | install | 8 | `references/install/INDEX.md` |
 | catalogue | 1 | `references/catalogue/INDEX.md` |
-| cli | 23 | `references/cli/INDEX.md` |
+| cli | 24 | `references/cli/INDEX.md` |
