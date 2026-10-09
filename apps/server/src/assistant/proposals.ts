@@ -31,8 +31,9 @@ import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { ConflictError, ValidationFailedError } from '../errors.js';
-import { dataPageOf, type DataPage } from './data-page.js';
+import { dataPageOf } from './data-page.js';
 import { DoorRefusedError, type Door, type DoorReply, type DoorRouteKey } from './door.js';
+import { viewOrError } from './tools/schema.js';
 import type { AssistantToolDeps } from './types.js';
 
 /** How long a checked proposal may be confirmed. After it, the person asks again. */
@@ -210,12 +211,56 @@ export interface CheckProposalInput {
 
 const ABILITY_OF = { 'row.create': 'create', 'row.change': 'change', 'row.delete': 'delete' } as const;
 
+/** Where a row action lands: ids the SERVER resolved, or why it lands nowhere. */
+type Placed = { ok: true; connectionId: string; table: string } | { ok: false; refusal: ProposalRefusal };
+type Place = (action: { connectionId: string; table: string }) => Promise<Placed>;
+
+const NOT_THIS_TABLE: ProposalRefusal = { code: 'NOT_THIS_TABLE', message: 'Changes can be proposed on the table of the page they were asked on, and no other.' };
+const NOT_A_DATA_TABLE: ProposalRefusal = { code: 'NOT_A_DATA_TABLE', message: 'That is not a table of your data.' };
+
+/**
+ * How a turn's page places a row action.
+ *
+ * On a data page there is one table, the page's own, and its ids are the
+ * page's. Away from any page (the general assistant) a table is one the
+ * person's own view of the connection holds and they may read: it is looked
+ * up there and the view's id is used. Either way nothing of the model's text
+ * is carried into an address.
+ */
+export async function placeFor(deps: AssistantToolDeps): Promise<Place> {
+  if (deps.context === 'data') {
+    const page = await dataPageOf(deps);
+    return async (action) =>
+      page === null || page.connectionId === null || page.table === null || action.connectionId !== page.connectionId || action.table !== page.table
+        ? { ok: false, refusal: NOT_THIS_TABLE }
+        : { ok: true, connectionId: page.connectionId, table: page.table };
+  }
+  if (deps.context !== 'general') return async () => ({ ok: false, refusal: NOT_THIS_TABLE });
+  const allowed = new Set(deps.host.connectionIds);
+  return async (action) => {
+    if (allowed.size > 0 && !allowed.has(action.connectionId)) return { ok: false, refusal: NOT_A_DATA_TABLE };
+    const found = await viewOrError(deps, action.connectionId);
+    if ('error' in found) return { ok: false, refusal: NOT_A_DATA_TABLE };
+    let id: string;
+    try {
+      id = found.view.table(action.table).id;
+    } catch {
+      return { ok: false, refusal: NOT_A_DATA_TABLE };
+    }
+    // Adminium's own tables are never the assistant's to write, whoever asks.
+    if (/(^|\.)adminium_/i.test(id)) return { ok: false, refusal: NOT_A_DATA_TABLE };
+    const canRead = await deps.canReadTable(action.connectionId);
+    if (!(await canRead(id))) return { ok: false, refusal: NOT_A_DATA_TABLE };
+    return { ok: true, connectionId: action.connectionId, table: id };
+  };
+}
+
 type Through = (route: DoorRouteKey, params: Record<string, string>, payload?: Record<string, unknown>) => Promise<DoorReply>;
 
 interface CheckOneInput {
   action: CheckedAction;
   abilities: { create: boolean; change: boolean; send: boolean; delete: boolean };
-  page: DataPage | null;
+  place: Place;
   through: Through;
 }
 
@@ -225,19 +270,18 @@ interface CheckOneInput {
  * is tried.
  */
 async function checkOne(input: CheckOneInput): Promise<{ checked: CheckedAction; stop?: ProposalRefusal }> {
-  const { action, abilities, page, through } = input;
+  const { action, abilities, through } = input;
   if (action.do !== 'row.create' && action.do !== 'row.change' && action.do !== 'row.delete') {
     return { checked: { ...action, refused: { code: 'NOT_OFFERED', message: 'That cannot be done from here.' } } };
   }
   if (!abilities[ABILITY_OF[action.do]]) {
     return { checked: { ...action, refused: { code: 'SWITCHED_OFF', message: 'This is switched off for the assistant in this workspace.' } } };
   }
-  // The page's own table, by the page's own ids: from here on nothing of the model's names a table.
-  if (page === null || page.connectionId === null || page.table === null || action.connectionId !== page.connectionId || action.table !== page.table) {
-    return { checked: { ...action, refused: { code: 'NOT_THIS_TABLE', message: 'Changes can be proposed on the table of the page they were asked on, and no other.' } } };
-  }
-  const placed = { ...action, connectionId: page.connectionId, table: page.table };
-  const where = { connectionId: page.connectionId, table: page.table };
+  // Placed by the server: from here on nothing of the model's names a table.
+  const at = await input.place(action);
+  if (!at.ok) return { checked: { ...action, refused: at.refusal } };
+  const placed = { ...action, connectionId: at.connectionId, table: at.table };
+  const where = { connectionId: at.connectionId, table: at.table };
   const refusedBy = (reply: DoorReply): { checked: CheckedAction; stop?: ProposalRefusal } => {
     const refused = refusalOf(reply);
     return { checked: { ...placed, refused }, ...(reply.status === 429 ? { stop: refused } : {}) };
@@ -311,7 +355,7 @@ export async function checkProposal(input: CheckProposalInput): Promise<{ propos
   if (proposal.actions.length > cap) {
     return refuseAll({ code: 'OVER_CAP', message: `That is ${String(proposal.actions.length)} changes; at most ${String(cap)} can be confirmed at once.`, count: proposal.actions.length, cap });
   }
-  const page = await dataPageOf(input.deps);
+  const place = await placeFor(input.deps);
   const through = throughFor(input);
 
   const checked: CheckedAction[] = [];
@@ -321,7 +365,7 @@ export async function checkProposal(input: CheckProposalInput): Promise<{ propos
       checked.push({ ...action, refused: stopped });
       continue;
     }
-    const one = await checkOne({ action, abilities, page, through });
+    const one = await checkOne({ action, abilities, place, through });
     checked.push(one.checked);
     if (one.stop !== undefined) stopped = one.stop;
   }
@@ -420,7 +464,7 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
     await keep(refused);
     throw conflict('proposal-changed', 'That is more than can be confirmed at once.', refused);
   }
-  const page = await dataPageOf(input.deps);
+  const place = await placeFor(input.deps);
   const through = throughFor(input);
   const actions = [...proposal.actions];
   let differs = false;
@@ -430,7 +474,8 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
     // A new row has nothing to have moved since; the write runs every check the trial ran.
     if (shown.do === 'row.create' && abilities.create) continue;
     // A change whose row still reads as the preview said needs no second trial: one read, not two requests.
-    if (shown.do === 'row.change' && abilities.change && shown.preview?.kind === 'change' && page !== null && page.connectionId === shown.connectionId && page.table === shown.table) {
+    const still = shown.do === 'row.change' && abilities.change && shown.preview?.kind === 'change' ? await place(shown) : null;
+    if (shown.do === 'row.change' && shown.preview?.kind === 'change' && still !== null && still.ok && still.connectionId === shown.connectionId && still.table === shown.table) {
       try {
         const read = await through('row.read', { connectionId: shown.connectionId, table: shown.table, recordId: shown.id });
         const row = read.status === 200 ? clip((read.body as { data?: unknown }).data) : null;
@@ -440,7 +485,7 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
         if (!(error instanceof DoorRefusedError)) throw error;
       }
     }
-    const again = await checkOne({ action: asked as CheckedAction, abilities, page, through });
+    const again = await checkOne({ action: asked as CheckedAction, abilities, place, through });
     if (JSON.stringify(sortKeys(again.checked)) === JSON.stringify(sortKeys(shown))) continue;
     actions[index] = again.checked;
     differs = true;
@@ -473,12 +518,15 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
           ? await through('row.create', where, { values: action.values })
           : action.do === 'row.change'
             ? await through('row.change', { ...where, recordId: action.id }, { values: action.values, ...(action.seen === undefined || Object.keys(action.seen).length === 0 ? {} : { seen: action.seen }) })
-            : null;
+            : action.do === 'row.delete'
+              ? // "Yes, with what refers to it" is said only for a row whose references the person was shown.
+                await through(action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete', { ...where, recordId: action.id })
+              : null;
       if (reply === null) {
         outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
       } else if (reply.status === 200 || reply.status === 201) {
         const body = reply.body as { data?: Record<string, unknown> | null; undoToken?: unknown; once?: unknown };
-        const key = action.do === 'row.change' ? action.id : input.keyColumn === undefined ? undefined : body.data?.[input.keyColumn];
+        const key = action.do === 'row.change' || action.do === 'row.delete' ? action.id : input.keyColumn === undefined ? undefined : body.data?.[input.keyColumn];
         outcome.done.push({ index, id: key === undefined || key === null ? null : String(key) });
         if (typeof body.undoToken === 'string' && body.undoToken !== '') handOver.undo.push({ index, token: body.undoToken });
         if (Array.isArray(body.once)) handOver.once.push(...(body.once as unknown[]));

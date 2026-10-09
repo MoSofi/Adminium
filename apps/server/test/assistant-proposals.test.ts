@@ -41,9 +41,9 @@ for (const [dialect, available] of legs) {
     const reply = (extra: Record<string, unknown>) => ({ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Here is what I would do.', ...extra }) });
 
     /** One whole turn through the job, with the model's replies scripted. */
-    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string) => {
+    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string, context: 'data' | 'general' = 'data') => {
       const repo = assistantSessionsRepo(s.meta);
-      const session = inSession === undefined ? await repo.create({ context: 'data', host: { connectionIds: [s.connectionId], pageId }, createdBy: userId }) : (await repo.findSession(inSession))!;
+      const session = inSession === undefined ? await repo.create({ context, host: { connectionIds: [s.connectionId], ...(context === 'data' ? { pageId } : {}) }, createdBy: userId }) : (await repo.findSession(inSession))!;
       const created = await repo.createTurn({ sessionId: session.id, askText: 'Move Ana to in house.' });
       await repo.setTurnStatus(created.id, 'queued', { jobId: 'job_test' });
       const scripted = makeScriptedClient(replies);
@@ -107,10 +107,16 @@ for (const [dialect, available] of legs) {
       expect((await on(night.id)).proposable).toEqual([]);
     });
 
-    it('offers nothing away from a page that shows a table, and nothing to nobody', async () => {
+    it('offers nothing on a data page that is not there; away from any page the switches alone decide', async () => {
       await switches({ create: true, change: true, delete: true });
-      expect((await on(all.id, 'general')).proposable).toEqual([]);
       expect((await turnAs(s, all.id, 'data', { pageId: 'page_does_not_exist' })).proposable).toEqual([]);
+      const home = await on(all.id, 'general');
+      expect(home.proposable).toEqual(['row.create', 'row.change', 'row.delete']);
+      expect(home.system).toContain('Rows can be proposed on a table you have read with describe_schema');
+      await switches({ delete: true });
+      expect((await on(all.id, 'general')).proposable).toEqual(['row.delete']);
+      await switches({});
+      expect((await on(all.id, 'general')).proposable).toEqual([]);
     });
 
     it('says the workspace`s own number of actions', async () => {
@@ -531,6 +537,104 @@ for (const [dialect, available] of legs) {
       const own = await s.app.inject({ method: 'PATCH', url: `/api/v1/data/${s.connectionId}/${s.table.stays}/1`, headers: { cookie: all.cookie }, payload: { values: { late_until: '12:45' } } });
       expect((own.json() as { undoToken: string | null }).undoToken).toBeNull();
       expect(done.undo).toEqual([]);
+    });
+
+    // ── deletes, and the assistant away from any page ────────────────────────
+
+    const proposedAtHome = async (who: { id: string }, actions: Record<string, unknown>[]) => {
+      const made = await turn(who.id, [reply({ propose: { title: 'A change', actions } })], Date.now(), undefined, 'general');
+      expect(made.stored.status, JSON.stringify(made.stored.error)).toBe('done');
+      return made;
+    };
+    const room = (doing: 'row.change' | 'row.delete', id: string, values?: Record<string, unknown>) => ({ do: doing, connectionId: s.connectionId, table: s.table.rooms, id, ...(values === undefined ? {} : { values }) });
+    const roomId = async (number: string) => {
+      const handle = await s.manager.data(s.connectionId);
+      const found = (await sql<{ id: number }>`SELECT id FROM lodge_rooms WHERE number = ${number}`.execute(handle.db)).rows[0];
+      return found === undefined ? null : String(found.id);
+    };
+
+    it('deletes a row as the person on the page`s table, and hands the screen`s own undo when there is one', async () => {
+      await switches({ delete: true });
+      await s.run(`INSERT INTO lodge_stays (room_id, arrive, depart, guest_name, total, status) VALUES (1, '2027-02-01', '2027-02-02', 'Dov', 10, 'booked')`);
+      const handle = await s.manager.data(s.connectionId);
+      const id = String((await sql<{ id: number }>`SELECT id FROM lodge_stays WHERE guest_name = 'Dov'`.execute(handle.db)).rows[0]!.id);
+      const made = await proposed(all, [{ do: 'row.delete', connectionId: s.connectionId, table: s.table.stays, id }]);
+      const shown = await check(all, made);
+      expect(shown.proposal.actions![0]).toMatchObject({ preview: { kind: 'delete', row: { guest_name: 'Dov' }, references: [] } });
+      expect(await statusOf('Dov')).toBe('booked');
+      const done = await apply(all, made, shown.proposal.hash);
+      expect(done.proposal, done.body).toMatchObject({ state: 'applied', outcome: { done: [{ index: 0, id }], failed: [] } });
+      expect(await statusOf('Dov')).toBeUndefined();
+      const [entry] = await auditRepo(s.meta).list({ actorId: all.id, category: 'data' });
+      expect(entry).toMatchObject({ action: 'record.delete' });
+      expect((entry!.changes as { via?: unknown }).via).toEqual({ assistant: { sessionId: made.sessionId, turnId: made.stored.id } });
+      // Someone who may not delete is refused by the route, at the check.
+      await switches({ change: true, delete: true });
+      // Someone who may not delete is not offered it: the reply is unreadable there.
+      const no = await turn(night.id, [reply({ propose: { title: 'x', actions: [{ do: 'row.delete', connectionId: s.connectionId, table: s.table.stays, id: '1' }] } })]);
+      expect(no.stored.status).toBe('failed');
+    });
+
+    it('away from any page: writes a table the person may write, by the view`s own ids, and its undo is theirs alone', async () => {
+      await switches({ create: true, change: true, delete: true });
+      const rooms = `table:${s.connectionId}:${s.table.rooms}`;
+      const keeper = await person(s, 'keeper@lodge.dev', [], [`${rooms}:read`, `${rooms}:update`, `${rooms}:delete`, 'system:assistant:use']);
+      await s.run(`INSERT INTO lodge_rooms (number) VALUES ('501')`);
+      const id = (await roomId('501'))!;
+      const made = await proposedAtHome(keeper, [room('row.change', id, { number: '502' })]);
+      const shown = await check(keeper, made);
+      expect(shown.proposal.actions![0], shown.body).toMatchObject({ table: s.table.rooms, preview: { kind: 'change', before: { number: '501' }, after: { number: '502' } } });
+      const done = await apply(keeper, made, shown.proposal.hash);
+      expect(done.status, done.body).toBe(200);
+      expect(await roomId('502')).toBe(id);
+      expect(done.undo).toHaveLength(1);
+      const undone = await s.app.inject({ method: 'POST', url: `/api/v1/data/undo/${done.undo[0]!.token}`, headers: { cookie: keeper.cookie } });
+      expect(undone.statusCode, undone.body).toBe(200);
+      expect(await roomId('501')).toBe(id);
+      // Another person holding the token of a second change gets nothing from it.
+      const second = await proposedAtHome(keeper, [room('row.change', id, { number: '503' })]);
+      const again = await apply(keeper, second, (await check(keeper, second)).proposal.hash);
+      const stolen = await s.app.inject({ method: 'POST', url: `/api/v1/data/undo/${again.undo[0]!.token}`, headers: { cookie: all.cookie } });
+      expect(stolen.statusCode).not.toBe(200);
+      expect(await roomId('503')).toBe(id);
+
+      // A table they do not read, one that is not there, Adminium's own, and a connection that is not theirs.
+      const hostile = await proposedAtHome(keeper, [
+        { do: 'row.change', connectionId: s.connectionId, table: s.table.stays, id: '1', values: { late_until: '01:00' } },
+        { do: 'row.delete', connectionId: s.connectionId, table: 'no_such_table', id: '1' },
+        { do: 'row.delete', connectionId: s.connectionId, table: 'adminium_users', id: '1' },
+        { do: 'row.delete', connectionId: '..', table: 'roles', id: 'abc' },
+        { do: 'row.delete', connectionId: 'conn_someone_elses', table: s.table.rooms, id: '1' },
+      ]);
+      const refused = await check(keeper, hostile);
+      expect(refused.proposal.actions!.map((action) => action.refused?.code), refused.body).toEqual(['NOT_A_DATA_TABLE', 'NOT_A_DATA_TABLE', 'NOT_A_DATA_TABLE', 'NOT_A_DATA_TABLE', 'NOT_A_DATA_TABLE']);
+    });
+
+    it('shows what a delete would take with it, and asks again when that changed before the confirm', async () => {
+      await switches({ delete: true });
+      const rooms = `table:${s.connectionId}:${s.table.rooms}`;
+      const keeper = await person(s, 'keeper2@lodge.dev', [], [`${rooms}:read`, `${rooms}:update`, `${rooms}:delete`, 'system:assistant:use']);
+      await s.run(`INSERT INTO lodge_rooms (number) VALUES ('601')`);
+      const id = (await roomId('601'))!;
+      await s.run(`INSERT INTO lodge_stays (room_id, arrive, depart, guest_name, total, status) VALUES (${id}, '2027-03-01', '2027-03-02', 'Eve', 10, 'booked')`);
+      const made = await proposedAtHome(keeper, [room('row.delete', id)]);
+      const shown = await check(keeper, made);
+      const preview = shown.proposal.actions![0]!.preview as { kind: string; references: { table: string; count: number }[] };
+      expect(preview.kind, shown.body).toBe('delete');
+      expect(preview.references.reduce((sum, entry) => sum + entry.count, 0)).toBe(1);
+      // Another stay arrives in that room: what was shown is no longer what would go.
+      await s.run(`INSERT INTO lodge_stays (room_id, arrive, depart, guest_name, total, status) VALUES (${id}, '2027-03-03', '2027-03-04', 'Fay', 10, 'booked')`);
+      const moved = await apply(keeper, made, shown.proposal.hash);
+      expect(moved).toMatchObject({ status: 409, reason: 'proposal-changed' });
+      expect((moved.proposal.actions![0]!.preview as typeof preview).references.reduce((sum, entry) => sum + entry.count, 0)).toBe(2);
+      expect(await roomId('601')).toBe(id);
+      // Confirmed as now shown, it is sent as the screen sends it: with what refers to it acknowledged.
+      const done = await apply(keeper, made, moved.proposal.hash);
+      expect(done.status, done.body).toBe(200);
+      const direct = done.proposal.outcome!;
+      expect(direct.done.length + direct.failed.length).toBe(1);
+      if (direct.done.length === 1) expect(await roomId('601')).toBeNull();
+      await s.run(`DELETE FROM lodge_stays WHERE guest_name IN ('Eve', 'Fay')`);
     });
 
     // ── the door ─────────────────────────────────────────────────────────────

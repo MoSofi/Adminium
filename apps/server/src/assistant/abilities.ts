@@ -37,9 +37,18 @@ export async function proposableKindsFor(deps: AssistantToolDeps): Promise<Propo
   const none: ProposableKinds = { kinds: [], maxActions };
   // Nobody to act as: nothing is offered, whatever the switches say.
   if (deps.userId === null) return none;
+  const abilities = await settings.get('assistant.abilities');
+  // Away from any page (Home, a settings screen): the switches alone decide what is offered.
+  // Which table, and whether this person may write it, is the check's to say, in the route's
+  // own words: there is no one table here to ask about beforehand.
+  if (deps.context === 'general') {
+    const kinds = ROW_KINDS.filter((row) => abilities[row.ability]).map((row) => row.kind as AssistantActionKind);
+    return kinds.length === 0
+      ? none
+      : { kinds, maxActions, where: 'Rows can be proposed on a table you have read with describe_schema, by its connectionId and table id. Whether this person may write it is checked before they are shown anything.' };
+  }
   if (deps.context !== 'data') return none;
 
-  const abilities = await settings.get('assistant.abilities');
   const page = await dataPageOf(deps);
   if (page === null || page.connectionId === null || page.table === null) return none;
 

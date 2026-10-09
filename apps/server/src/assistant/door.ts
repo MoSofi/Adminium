@@ -52,6 +52,8 @@ export const DOOR_ROUTES = {
   'row.delete.try': { method: 'DELETE', url: `${API}/data/:connectionId/:table/:recordId`, query: 'dryRun=true' },
   'row.create': { method: 'POST', url: `${API}/data/:connectionId/:table`, query: '' },
   'row.change': { method: 'PATCH', url: `${API}/data/:connectionId/:table/:recordId`, query: '' },
+  'row.delete': { method: 'DELETE', url: `${API}/data/:connectionId/:table/:recordId`, query: '' },
+  'row.delete.confirmed': { method: 'DELETE', url: `${API}/data/:connectionId/:table/:recordId`, query: 'confirm=true' },
 } as const satisfies Record<string, { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; url: string; query: string }>;
 export type DoorRouteKey = keyof typeof DOOR_ROUTES;
 
