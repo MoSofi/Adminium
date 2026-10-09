@@ -122,6 +122,17 @@ npmRebuild: true
 files:
   - "out/**"
   - "resources/**"
+  # npm is carried as real files (extraResources below), not inside the archive:
+  # a program run as Node cannot be handed a script that lives in an archive
+  # by a child that is not Electron, and one copy is enough.
+  - "!node_modules/npm{,/**}"
+
+# The npm a project is installed with: real files at <resources>/npm, where
+# `main/index.ts` looks for it in a packaged app. `build/after-pack.cjs` copies
+# it there whole (an `extraResources` copy leaves npm's own `node_modules` out,
+# and without them npm cannot start). It is a pinned dependency of this package
+# so that the notices attribute it and the packages it bundles.
+afterPack: build/after-pack.cjs
 
 mac:
   category: public.app-category.developer-tools

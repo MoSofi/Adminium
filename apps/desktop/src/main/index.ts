@@ -84,7 +84,7 @@ import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } f
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { createDesktopLogging } from './logging.js';
-import { provideDesktopPrograms } from './programs.js';
+import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import {
   createServerManager,
@@ -2119,7 +2119,8 @@ export function electronBootDeps(): DesktopBootDeps {
       JSON.stringify(
         provideDesktopPrograms({
           binary: process.execPath,
-          npmDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'npm'),
+          // Packaged: beside the archive, as real files. From the sources: this package's own dependency.
+          npmDir: carriedNpmDir(app.isPackaged, process.resourcesPath, dirname(fileURLToPath(import.meta.url))),
           userDataDir,
           git: null,
           platform: process.platform,

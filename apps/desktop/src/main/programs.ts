@@ -14,7 +14,7 @@
  *
  * Electron-free, so every line is tested under plain Node.
  */
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, win32 } from 'node:path';
 
 /** The value of `ADMINIUM_DESKTOP_PROGRAMS`, as the server package reads it (`project/programs.ts` there). */
@@ -38,6 +38,21 @@ export interface ProvideProgramsInput {
   /** A git that works here, or `null`. */
   git: string | null;
   platform: NodeJS.Platform;
+}
+
+/**
+ * Where the carried npm is. In a packaged app: `<resources>/npm`, real files
+ * beside the archive. Run from the sources: this package's own `npm`
+ * dependency, by its real path (the package manager links it).
+ */
+export function carriedNpmDir(isPackaged: boolean, resourcesPath: string, mainDir: string, real: (path: string) => string = realpathSync): string {
+  if (isPackaged) return join(resourcesPath, 'npm');
+  const linked = join(mainDir, '..', '..', 'node_modules', 'npm');
+  try {
+    return real(linked);
+  } catch {
+    return linked;
+  }
 }
 
 /** A path inside single quotes for `sh`: the one character that needs care is the quote itself. */

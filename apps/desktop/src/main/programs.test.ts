@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { desktopPrograms } from '@adminium/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { provideDesktopPrograms, shimForCmd, shimForSh } from './programs.js';
+import { carriedNpmDir, provideDesktopPrograms, shimForCmd, shimForSh } from './programs.js';
 
 let userData: string;
 beforeEach(() => {
@@ -77,5 +77,24 @@ describe('the stand-ins’ text', () => {
     const text = shimForCmd('C:\\100% mine\\Adminium.exe', null, NPM);
     expect(text).toContain('"C:\\100%% mine\\Adminium.exe" %*\r\nexit /b %ERRORLEVEL%\r\n');
     expect(shimForCmd('C:\\a.exe', 'C:\\npm\\bin\\npx-cli.js', NPM)).toContain('set "NPM_CONFIG_CACHE=/u/cache"');
+  });
+});
+
+describe('carriedNpmDir', () => {
+  it('is beside the archive in a packaged app, and this package’s own dependency from the sources', () => {
+    expect(carriedNpmDir(true, '/Applications/Adminium.app/Contents/Resources', '/ignored')).toBe('/Applications/Adminium.app/Contents/Resources/npm');
+    expect(carriedNpmDir(false, '/ignored', '/repo/apps/desktop/out/main', (path) => `/real${path}`)).toBe('/real/repo/apps/desktop/node_modules/npm');
+    // A link that cannot be followed is still named, so the failure says which file is missing.
+    expect(
+      carriedNpmDir(false, '/ignored', '/repo/apps/desktop/out/main', () => {
+        throw new Error('ENOENT');
+      }),
+    ).toBe('/repo/apps/desktop/node_modules/npm');
+  });
+
+  it('the dependency is there, with npm’s own entries, at the pinned version', () => {
+    const dir = carriedNpmDir(false, '', join(import.meta.dirname, '..', '..', 'out', 'main'));
+    expect(JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))).toMatchObject({ name: 'npm', version: '10.9.8' });
+    expect(readdirSync(join(dir, 'bin'))).toEqual(expect.arrayContaining(['npm-cli.js', 'npx-cli.js']));
   });
 });
