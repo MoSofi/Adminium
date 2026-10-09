@@ -2309,6 +2309,32 @@
       "roles": "Roles that may use {name}",
       "rolesHint": "Set in each role’s permissions.",
       "rolesNone": "Only Super Admin may use {name}."
+    },
+    "abilities": {
+      "title": "What {name} may do",
+      "onlyRead": "{name} can only read.",
+      "can": "{name} can {list}.",
+      "cannot": "It cannot {list}.",
+      "verb": {
+        "read": "read",
+        "create": "create",
+        "change": "change",
+        "send": "send",
+        "delete": "delete"
+      },
+      "create": "Create",
+      "createWhat": "Add a row, or save a new template, report or rule. You confirm each one.",
+      "change": "Change",
+      "changeWhat": "Edit a row or a saved document. You confirm each one.",
+      "send": "Send",
+      "sendWhat": "Send an existing email template to people in this workspace. You confirm each one.",
+      "delete": "Delete",
+      "deleteWhat": "Remove a row or a document. You confirm each one.",
+      "rows": "Rows in one confirmation",
+      "rowsHint": "1 to {max}",
+      "save": "Save",
+      "saveFailed": "Could not save that. Try again.",
+      "never": "{name} never changes permissions, people, connections, the database’s structure, or these settings."
     }
   },
   "settingsHub": {

@@ -2309,6 +2309,32 @@
       "roles": "Roller, der må bruge {name}",
       "rolesHint": "Angives i hver rolles tilladelser.",
       "rolesNone": "Kun Super Admin må bruge {name}."
+    },
+    "abilities": {
+      "title": "Hvad {name} må gøre",
+      "onlyRead": "{name} kan kun læse.",
+      "can": "{name} kan {list}.",
+      "cannot": "Ikke muligt: {list}.",
+      "verb": {
+        "read": "læse",
+        "create": "oprette",
+        "change": "ændre",
+        "send": "sende",
+        "delete": "slette"
+      },
+      "create": "Opret",
+      "createWhat": "Tilføj en række, eller gem en ny skabelon, rapport eller regel. Du bekræfter hver enkelt.",
+      "change": "Ændr",
+      "changeWhat": "Rediger en række eller et gemt dokument. Du bekræfter hver enkelt.",
+      "send": "Send",
+      "sendWhat": "Send en eksisterende e-mailskabelon til personer i dette arbejdsområde. Du bekræfter hver enkelt.",
+      "delete": "Slet",
+      "deleteWhat": "Fjern en række eller et dokument. Du bekræfter hver enkelt.",
+      "rows": "Rækker i én bekræftelse",
+      "rowsHint": "1 til {max}",
+      "save": "Gem",
+      "saveFailed": "Det kunne ikke gemmes. Prøv igen.",
+      "never": "{name} ændrer aldrig tilladelser, personer, forbindelser, databasens struktur eller disse indstillinger."
     }
   },
   "settingsHub": {

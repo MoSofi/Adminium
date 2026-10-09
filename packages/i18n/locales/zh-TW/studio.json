@@ -2309,6 +2309,32 @@
       "roles": "可以使用 {name} 的角色",
       "rolesHint": "在每個角色的權限中設定。",
       "rolesNone": "只有超級管理員可以使用 {name}。"
+    },
+    "abilities": {
+      "title": "{name} 可以做什麼",
+      "onlyRead": "{name} 只能讀取。",
+      "can": "{name} 可以{list}。",
+      "cannot": "不能{list}。",
+      "verb": {
+        "read": "讀取",
+        "create": "建立",
+        "change": "變更",
+        "send": "傳送",
+        "delete": "刪除"
+      },
+      "create": "建立",
+      "createWhat": "新增一列，或儲存新的範本、報表或規則。每一項都由您確認。",
+      "change": "變更",
+      "changeWhat": "編輯一列或已儲存的文件。每一項都由您確認。",
+      "send": "傳送",
+      "sendWhat": "將現有的電子郵件範本傳送給此工作區中的人員。每一次都由您確認。",
+      "delete": "刪除",
+      "deleteWhat": "移除一列或一份文件。每一項都由您確認。",
+      "rows": "一次確認的列數",
+      "rowsHint": "1 到 {max}",
+      "save": "儲存",
+      "saveFailed": "無法儲存。請再試一次。",
+      "never": "{name} 絕不會變更權限、人員、連線、資料庫結構或這些設定。"
     }
   },
   "settingsHub": {

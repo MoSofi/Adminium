@@ -2319,6 +2319,32 @@ export default {
       "roles": "可以使用 {name} 的角色",
       "rolesHint": "在每个角色的权限中设置。",
       "rolesNone": "只有超级管理员可以使用 {name}。"
+    },
+    "abilities": {
+      "title": "{name} 可以做什么",
+      "onlyRead": "{name} 只能读取。",
+      "can": "{name} 可以{list}。",
+      "cannot": "不能{list}。",
+      "verb": {
+        "read": "读取",
+        "create": "创建",
+        "change": "更改",
+        "send": "发送",
+        "delete": "删除"
+      },
+      "create": "创建",
+      "createWhat": "添加一行，或保存新的模板、报表或规则。每一项都由您确认。",
+      "change": "更改",
+      "changeWhat": "编辑一行或已保存的文档。每一项都由您确认。",
+      "send": "发送",
+      "sendWhat": "将现有的电子邮件模板发送给此工作区中的人员。每一次都由您确认。",
+      "delete": "删除",
+      "deleteWhat": "移除一行或一个文档。每一项都由您确认。",
+      "rows": "一次确认的行数",
+      "rowsHint": "1 到 {max}",
+      "save": "保存",
+      "saveFailed": "无法保存。请重试。",
+      "never": "{name} 绝不会更改权限、人员、连接、数据库结构或这些设置。"
     }
   },
   "settingsHub": {

@@ -24715,6 +24715,94 @@
     "srcHash": "4ca0a75c2b7f",
     "status": "mt"
   },
+  "studio.settingsAi.abilities.can": {
+    "status": "mt",
+    "srcHash": "7866a746d915"
+  },
+  "studio.settingsAi.abilities.cannot": {
+    "status": "mt",
+    "srcHash": "c76f39004597"
+  },
+  "studio.settingsAi.abilities.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "studio.settingsAi.abilities.changeWhat": {
+    "status": "mt",
+    "srcHash": "8b54f999d896"
+  },
+  "studio.settingsAi.abilities.create": {
+    "status": "mt",
+    "srcHash": "6e157c5da441"
+  },
+  "studio.settingsAi.abilities.createWhat": {
+    "status": "mt",
+    "srcHash": "2b243b3d2dd4"
+  },
+  "studio.settingsAi.abilities.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "studio.settingsAi.abilities.deleteWhat": {
+    "status": "mt",
+    "srcHash": "263ed82c70ad"
+  },
+  "studio.settingsAi.abilities.never": {
+    "status": "mt",
+    "srcHash": "020ddfd1b07b"
+  },
+  "studio.settingsAi.abilities.onlyRead": {
+    "status": "mt",
+    "srcHash": "0796593b489e"
+  },
+  "studio.settingsAi.abilities.rows": {
+    "status": "mt",
+    "srcHash": "2f5dc5ef72ac"
+  },
+  "studio.settingsAi.abilities.rowsHint": {
+    "status": "mt",
+    "srcHash": "96eb3a1f3b6c"
+  },
+  "studio.settingsAi.abilities.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.abilities.saveFailed": {
+    "status": "mt",
+    "srcHash": "848e72d4e660"
+  },
+  "studio.settingsAi.abilities.send": {
+    "status": "src",
+    "srcHash": "9bc2575c3930"
+  },
+  "studio.settingsAi.abilities.sendWhat": {
+    "status": "mt",
+    "srcHash": "f9d10e670cde"
+  },
+  "studio.settingsAi.abilities.title": {
+    "status": "mt",
+    "srcHash": "605ae2c2de20"
+  },
+  "studio.settingsAi.abilities.verb.change": {
+    "status": "mt",
+    "srcHash": "7550b672e162"
+  },
+  "studio.settingsAi.abilities.verb.create": {
+    "status": "mt",
+    "srcHash": "9b7c68a918b1"
+  },
+  "studio.settingsAi.abilities.verb.delete": {
+    "status": "mt",
+    "srcHash": "9485989ff514"
+  },
+  "studio.settingsAi.abilities.verb.read": {
+    "status": "mt",
+    "srcHash": "a7afddb68260"
+  },
+  "studio.settingsAi.abilities.verb.send": {
+    "status": "mt",
+    "srcHash": "37ed539c0cef"
+  },
   "studio.settingsAi.allowance.atLimit": {
     "status": "mt",
     "srcHash": "c2d7771faa84"

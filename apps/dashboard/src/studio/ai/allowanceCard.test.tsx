@@ -22,6 +22,9 @@ const RESETS_AT = Date.UTC(2026, 9, 10);
 function settings(overrides: Partial<AssistantSettings> = {}): AssistantSettings {
   return {
     dailyTokens: 500_000,
+    abilities: { create: false, change: false, send: false, delete: false },
+    maxRows: 50,
+    maxRowsCeiling: 50,
     today: {
       day: '2026-10-09',
       resetsAt: RESETS_AT,

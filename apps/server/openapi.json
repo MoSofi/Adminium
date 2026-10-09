@@ -107988,6 +107988,33 @@
                         }
                       ]
                     },
+                    "abilities": {
+                      "type": "object",
+                      "properties": {
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "change": {
+                          "type": "boolean"
+                        },
+                        "send": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "create",
+                        "change",
+                        "send",
+                        "delete"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxRows": {
+                      "type": "number"
+                    },
                     "budget": {
                       "type": "object",
                       "properties": {
@@ -108022,6 +108049,8 @@
                     "canConfigure",
                     "provider",
                     "model",
+                    "abilities",
+                    "maxRows",
                     "budget"
                   ],
                   "additionalProperties": false
@@ -110053,112 +110082,34 @@
                     "dailyTokens": {
                       "type": "number"
                     },
-                    "today": {
+                    "abilities": {
                       "type": "object",
                       "properties": {
-                        "day": {
-                          "type": "string"
+                        "create": {
+                          "type": "boolean"
                         },
-                        "resetsAt": {
-                          "type": "number"
+                        "change": {
+                          "type": "boolean"
                         },
-                        "people": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "userId": {
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              },
-                              "tokens": {
-                                "type": "number"
-                              },
-                              "turns": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "userId",
-                              "name",
-                              "tokens",
-                              "turns"
-                            ],
-                            "additionalProperties": false
-                          }
+                        "send": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
-                        "day",
-                        "resetsAt",
-                        "people"
+                        "create",
+                        "change",
+                        "send",
+                        "delete"
                       ],
                       "additionalProperties": false
                     },
-                    "roles": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "dailyTokens",
-                    "today",
-                    "roles"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "dailyTokens": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000
-                  }
-                },
-                "required": [
-                  "dailyTokens"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "dailyTokens": {
+                    "maxRows": {
+                      "type": "number"
+                    },
+                    "maxRowsCeiling": {
                       "type": "number"
                     },
                     "today": {
@@ -110227,6 +110178,171 @@
                   },
                   "required": [
                     "dailyTokens",
+                    "abilities",
+                    "maxRows",
+                    "maxRowsCeiling",
+                    "today",
+                    "roles"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dailyTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "abilities": {
+                    "type": "object",
+                    "properties": {
+                      "create": {
+                        "type": "boolean"
+                      },
+                      "change": {
+                        "type": "boolean"
+                      },
+                      "send": {
+                        "type": "boolean"
+                      },
+                      "delete": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "maxRows": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dailyTokens": {
+                      "type": "number"
+                    },
+                    "abilities": {
+                      "type": "object",
+                      "properties": {
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "change": {
+                          "type": "boolean"
+                        },
+                        "send": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "create",
+                        "change",
+                        "send",
+                        "delete"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxRows": {
+                      "type": "number"
+                    },
+                    "maxRowsCeiling": {
+                      "type": "number"
+                    },
+                    "today": {
+                      "type": "object",
+                      "properties": {
+                        "day": {
+                          "type": "string"
+                        },
+                        "resetsAt": {
+                          "type": "number"
+                        },
+                        "people": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "userId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tokens": {
+                                "type": "number"
+                              },
+                              "turns": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "userId",
+                              "name",
+                              "tokens",
+                              "turns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "day",
+                        "resetsAt",
+                        "people"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "dailyTokens",
+                    "abilities",
+                    "maxRows",
+                    "maxRowsCeiling",
                     "today",
                     "roles"
                   ],

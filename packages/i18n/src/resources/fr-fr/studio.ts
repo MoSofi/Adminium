@@ -2319,6 +2319,32 @@ export default {
       "roles": "Rôles pouvant utiliser {name}",
       "rolesHint": "Défini dans les autorisations de chaque rôle.",
       "rolesNone": "Seul le Super Admin peut utiliser {name}."
+    },
+    "abilities": {
+      "title": "Ce que {name} peut faire",
+      "onlyRead": "{name} peut seulement lire.",
+      "can": "{name} peut : {list}.",
+      "cannot": "Impossible : {list}.",
+      "verb": {
+        "read": "lire",
+        "create": "créer",
+        "change": "modifier",
+        "send": "envoyer",
+        "delete": "supprimer"
+      },
+      "create": "Créer",
+      "createWhat": "Ajouter une ligne, ou enregistrer un nouveau modèle, rapport ou une nouvelle règle. Vous confirmez chaque action.",
+      "change": "Modifier",
+      "changeWhat": "Modifier une ligne ou un document enregistré. Vous confirmez chaque action.",
+      "send": "Envoyer",
+      "sendWhat": "Envoyer un modèle d’e-mail existant à des personnes de cet espace de travail. Vous confirmez chaque envoi.",
+      "delete": "Supprimer",
+      "deleteWhat": "Supprimer une ligne ou un document. Vous confirmez chaque action.",
+      "rows": "Lignes par confirmation",
+      "rowsHint": "1 à {max}",
+      "save": "Enregistrer",
+      "saveFailed": "Impossible d’enregistrer. Réessayez.",
+      "never": "{name} ne modifie jamais les autorisations, les personnes, les connexions, la structure de la base de données ni ces paramètres."
     }
   },
   "settingsHub": {

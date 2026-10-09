@@ -43,6 +43,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
 import { holdsSystemAction, bootstrapQuery } from '../../app/bootstrap.js';
+import { AbilitiesCard } from './AbilitiesCard.js';
 import { AllowanceCard } from './AllowanceCard.js';
 import { AssistantCard } from './AssistantCard.js';
 import { DesignerLiveCard } from './DesignerLiveCard.js';
@@ -362,6 +363,7 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
           somebody to name an assistant in the middle of first-run setup. */}
       <AssistantCard config={config} />
       {/* What the assistant may cost is a workspace setting, with its own permission: shown to who holds it. */}
+      {mayManageSettings ? <AbilitiesCard name={config.assistantName} /> : null}
       {mayManageSettings ? <AllowanceCard name={config.assistantName} /> : null}
       <DesignerLiveCard />
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
