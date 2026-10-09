@@ -119,13 +119,45 @@ interface Offer {
   staged: boolean;
 }
 
+/**
+ * What this server knows of the online catalogue: `off` when it is switched
+ * off (or there is none), `unread` when it is on and no list of it is held
+ * (never fetched, unreachable, or not a list this version reads), `read` when
+ * a list is held. The three are told apart because they are three different
+ * things to do about an add-on that is not offered.
+ */
+type FeedState = 'off' | 'unread' | 'read';
+interface Feed {
+  state: FeedState;
+  rows: Map<string, CatalogEntry>;
+}
+
 /** The cached feed's rows, when the catalogue is on and the cache is readable. */
-async function feedRows(deps: AppAddOnDeps): Promise<Map<string, CatalogEntry>> {
-  if (deps.catalog === undefined || !(await deps.catalog.isEnabled())) return new Map();
+async function feedOf(deps: AppAddOnDeps): Promise<Feed> {
+  if (deps.catalog === undefined || !(await deps.catalog.isEnabled())) return { state: 'off', rows: new Map() };
   const cached = await deps.installer.store.readCatalogCache();
-  if (cached === null || !isCurrentCatalogFormat(cached.document)) return new Map();
+  if (cached === null || !isCurrentCatalogFormat(cached.document)) return { state: 'unread', rows: new Map() };
   const parsed = catalogSchema.safeParse(cached.document);
-  return parsed.success ? new Map(parsed.data.addOns.map((entry) => [entry.key, entry] as const)) : new Map();
+  return parsed.success ? { state: 'read', rows: new Map(parsed.data.addOns.map((entry) => [entry.key, entry] as const)) } : { state: 'unread', rows: new Map() };
+}
+
+/**
+ * Why an add-on an app names cannot be had here, and what to do about it. An
+ * add-on nobody listed has no name to show: it is said by its key, in quotes,
+ * as the app's manifest names it.
+ */
+export function notOfferedWords(name: string, key: string, feed: FeedState): string {
+  const said = name === key ? `The add-on “${key}”` : name;
+  if (feed === 'off') {
+    return `${said} doesn’t come with this Adminium, and the add-on catalogue is switched off. Switch the catalogue on in Add-ons, or upload the add-on’s file there.`;
+  }
+  if (feed === 'unread') {
+    return `${said} doesn’t come with this Adminium, and the add-on catalogue could not be read. Open Add-ons to read it again, or upload the add-on’s file there.`;
+  }
+  return (
+    `${said} doesn’t come with this Adminium, and the add-on catalogue doesn’t list it. It may be released and not on the shelf yet: ` +
+    'check again later, or upload the add-on’s file in Add-ons.'
+  );
 }
 
 /** What the server can reach for this add-on, and from where. */
@@ -207,7 +239,7 @@ export async function resolveAppAddOns(
   const named = [...(needs?.requires ?? []), ...(needs?.suggests ?? [])];
   if (named.length === 0) return [];
   const manifests = manifestsRepo(deps.installer.meta, deps.installer.credentialCrypto);
-  const [bundled, feed] = await Promise.all([bundledAddOnVersions(deps.bundledDir), feedRows(deps)]);
+  const [bundled, { state: feedState, rows: feed }] = await Promise.all([bundledAddOnVersions(deps.bundledDir), feedOf(deps)]);
   const app = input.manifest.key;
   const host = appHost(input.manifest, input.connectionId);
   const rows: AppAddOnRow[] = [];
@@ -293,8 +325,7 @@ export async function resolveAppAddOns(
           code: 'ADD_ON_UNAVAILABLE',
           message:
             offers.length === 0
-              ? `${name} isn’t available on this Adminium: it doesn’t come with it, and the add-on catalogue ` +
-                'is off or has nothing for it. Upload it in Add-ons, or switch the catalogue on.'
+              ? notOfferedWords(name, key, feedState)
               : `${input.manifest.name} works with ${name} ${entry.range}, and only ` +
                 `${offers.map((offer) => offer.version).join(', ')} ${offers.length === 1 ? 'is' : 'are'} available here.`,
         });

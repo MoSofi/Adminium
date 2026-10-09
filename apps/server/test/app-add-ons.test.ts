@@ -372,6 +372,29 @@ describe('ranges and features (sqlite)', () => {
     expect(await installedKeys(h)).toEqual(['add-on:notes@1.1.0']);
   });
 
+  it('says why an add-on cannot be had: the catalogue off, not read, or read and not listing it', async () => {
+    h = await addOnHarness('sqlite');
+    const at = h;
+    const why = async (): Promise<string> => (await at.plan(studio())).json().plan.addOns[0].problems[0].message;
+    // Off: nothing is asked of adminium.dev, and that is the thing to change.
+    expect(await why()).toBe(
+      'The add-on “ledger-kit” doesn’t come with this Adminium, and the add-on catalogue is switched off. Switch the catalogue on in Add-ons, or upload the add-on’s file there.',
+    );
+    // On, and no list held yet.
+    h.catalog.on = true;
+    expect(await why()).toBe(
+      'The add-on “ledger-kit” doesn’t come with this Adminium, and the add-on catalogue could not be read. Open Add-ons to read it again, or upload the add-on’s file there.',
+    );
+    // On and read, and the add-on is not on the shelf: switching the catalogue on would change nothing.
+    await h.addOnStore.writeCatalogCache({ format: 'adminium-marketplace/1', unavailable: [], skipped: [], generatedAt: '2026-10-09T00:00:00Z', addOns: [] } as never, Date.now());
+    const listed = await why();
+    expect(listed).toBe(
+      'The add-on “ledger-kit” doesn’t come with this Adminium, and the add-on catalogue doesn’t list it. It may be released and not on the shelf yet: check again later, or upload the add-on’s file in Add-ons.',
+    );
+    expect(listed).not.toContain('switch the catalogue on');
+    expect((await h.plan(studio())).json().plan.addOns[0]).toMatchObject({ state: 'unavailable', action: null });
+  });
+
   it('refuses a catalogue add-on whose bytes are not here yet, before writing anything', async () => {
     h = await addOnHarness('sqlite');
     h.catalog.on = true;
