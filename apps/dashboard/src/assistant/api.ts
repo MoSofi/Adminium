@@ -159,6 +159,22 @@ export interface AssistantTurnView {
   context: AssistantContext;
   /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
   answer: Record<string, unknown> | null;
+  /** Where it was asked, beyond the context: the data page (with its title now) or the open document. */
+  on?: { pageId: string | null; documentId: string | null; title: string | null };
+}
+
+/** `GET /assistant/sessions/current`: the person's open conversation, or none. */
+export interface AssistantCurrentReply {
+  session: AssistantSessionView | null;
+  turns: AssistantTurnView[];
+  /** Earlier turns the conversation holds that are not in `turns`. */
+  earlier: number;
+}
+
+/** `POST /assistant/facts`: what the header says of one page. */
+export interface AssistantFactsReply {
+  facts: AssistantFacts;
+  nextTurnTokens: number;
 }
 
 export interface AssistantTurnReply {
@@ -175,6 +191,8 @@ export type AssistantActionKind = 'save' | 'test-send' | 'sample' | 'language.ad
 
 export interface AssistantActionBody {
   action: AssistantActionKind;
+  /** The page the person is on when they press: a draft is usable only where it was made. */
+  on?: { context: AssistantContext; documentId?: string };
   open?: boolean;
   name?: string;
   locale?: string;
@@ -450,8 +468,12 @@ function sessionPath(id: string): string {
 export const assistantApi = {
   availability: (context: AssistantContext) =>
     api.get<AssistantAvailability>(`${BASE}/availability?context=${encodeURIComponent(context)}`),
-  openSession: (body: { context: AssistantContext; host: AssistantHostRef; draft?: unknown }) =>
+  openSession: (body: { context: AssistantContext; host: AssistantHostRef; draft?: unknown; kind?: 'modal' | 'panel' }) =>
     api.post<AssistantSessionReply>(`${BASE}/sessions`, body),
+  /** The person's one open panel conversation, with its last turns; `session: null` when there is none. */
+  currentSession: () => api.get<AssistantCurrentReply>(`${BASE}/sessions/current`),
+  /** What the assistant would be told of a page, without asking it anything. */
+  pageFacts: (body: { context: AssistantContext; host: AssistantHostRef }) => api.post<AssistantFactsReply>(`${BASE}/facts`, body),
   createTurn: (
     sessionId: string,
     body: {

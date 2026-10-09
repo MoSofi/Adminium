@@ -35,6 +35,7 @@ import {
   readResult,
   type AssistantAnswer,
   type AssistantAsk,
+  type AssistantContext,
   type AssistantErrorKind,
   type AssistantAvailability,
   type AssistantFacts,
@@ -68,6 +69,9 @@ export interface ThreadTurn {
   usedUpUntil: number | null;
   /** What the turn read, forgot, offers next and points at; `null` on a turn that recorded none. */
   answer: AssistantAnswer | null;
+  /** The page it was asked on. */
+  context: AssistantContext;
+  on: { pageId: string | null; documentId: string | null; title: string | null };
   jobId: string | null;
   /** What this turn cost, as the row reports it. */
   tokensIn: number;
@@ -112,7 +116,7 @@ export interface ActionOutcome {
   sample: { artefact: Record<string, unknown>; label: string } | null;
 }
 
-function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): ThreadTurn {
+export function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): ThreadTurn {
   return {
     id: view.id,
     status: view.status,
@@ -127,6 +131,8 @@ function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): ThreadTu
     errorKind: readErrorKind(view.error),
     usedUpUntil: readResetsAt(view.answer) ?? (readErrorKind(view.error) === 'budget' ? readResetsAt(view.error) : null),
     answer: readAnswer(view.answer),
+    context: view.context,
+    on: view.on ?? { pageId: null, documentId: null, title: null },
     jobId: view.jobId,
     tokensIn: view.tokensIn ?? 0,
     tokensOut: view.tokensOut ?? 0,
@@ -146,7 +152,7 @@ const LIVE: readonly AssistantTurnStatus[] = ['queued', 'running'];
  * because an English sentence in a Czech modal is a worse answer than a
  * translated one.
  */
-function messageOf(error: unknown): string {
+export function messageOf(error: unknown): string {
   if (error instanceof ApiError) {
     const details = error.details;
     const setting =
@@ -164,7 +170,7 @@ function messageOf(error: unknown): string {
 }
 
 /** Why the server refused, when it named a reason this app has its own words for. */
-function reasonOf(error: unknown): string | null {
+export function reasonOf(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null;
   const details = error.details;
   const reason = typeof details === 'object' && details !== null && !Array.isArray(details) ? (details as { reason?: unknown }).reason : undefined;

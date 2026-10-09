@@ -285,6 +285,20 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return row === undefined ? null : decodeSession(row);
     },
 
+    /** The panel conversation of a person that was closed last, or null: read to say why the panel is empty. */
+    async lastClosedPanelOf(userId: string): Promise<AssistantSession | null> {
+      const row = await db
+        .selectFrom('adminium_assistant_sessions')
+        .selectAll()
+        .where('createdBy', '=', userId)
+        .where('kind', '=', 'panel')
+        .where('status', '=', 'closed')
+        .orderBy('closedAt', 'desc')
+        .orderBy('id', 'desc')
+        .executeTakeFirst();
+      return row === undefined ? null : decodeSession(row);
+    },
+
     /** Close every open panel conversation of a person but one: a person has one. Answers how many were closed. */
     async closeOtherPanels(userId: string, keepId: string, at: number = Date.now()): Promise<number> {
       const res = await db

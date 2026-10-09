@@ -325,7 +325,7 @@ export function Topbar({
             keep a fixed position at the end of the bar as pages change. */}
         <PageActionsSlot />
         {/* After the page's own controls: its Ask button, when the page said what it is. */}
-        <PageAssistantButton />
+        <PageAssistantButton bootstrap={bootstrap} />
 
         {/* Read-only affordance: clicking (or `/`) opens the ⌘K palette.
             OUT OF THE TAB ORDER, and that is the fix for a keyboard trap

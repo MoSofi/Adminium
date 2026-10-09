@@ -119,6 +119,10 @@ function requireUserId(request: FastifyRequest): string {
 }
 
 /** A record, or `null` — what a stored JSON column is allowed to come back as. */
+/** How long after a conversation was closed for its age the panel still says so. */
+const AGED_NOTE_MS = 7 * 24 * 3_600_000;
+const DAY_MS = 24 * 3_600_000;
+
 /** Turns `GET /assistant/sessions/current` answers, newest last. */
 const CURRENT_TURNS = 30;
 /** How many of them carry their drafts' documents. */
@@ -172,7 +176,19 @@ function turnView(turn: AssistantTurn, session: AssistantSession): AssistantTurn
 function whereAsked(turn: AssistantTurn, session: AssistantSession): AssistantTurnView['on'] {
   const host = turn.host ?? session.host;
   const text = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
-  return { pageId: text(host.pageId), documentId: text(host.documentId), title: null };
+  const view = host.view;
+  const ticked = view?.selectedIds?.length ?? 0;
+  const scope: AssistantTurnView['on']['scope'] =
+    view === undefined
+      ? null
+      : ticked > 0
+        ? { kind: 'selection', count: ticked }
+        : text(view.recordId) !== null
+          ? { kind: 'record', count: 1 }
+          : text(view.q) !== null || text(view.where) !== null
+            ? { kind: 'page', count: null }
+            : null;
+  return { pageId: text(host.pageId), documentId: text(host.documentId), title: null, scope };
 }
 
 function sessionView(session: AssistantSession) {
@@ -364,7 +380,18 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       async (request) => {
         const userId = requireUserId(request);
         const session = await sessions.openPanelOf(userId);
-        if (session === null) return { session: null, turns: [], earlier: 0 };
+        if (session === null) {
+          // Closed by the sweep for its age, lately: the one way a conversation ends without the person ending it.
+          const last = await sessions.lastClosedPanelOf(userId);
+          const days = await settingsRepo(deps.meta).get('retention.assistantSessionsDays');
+          const now = Date.now();
+          const aged =
+            last !== null &&
+            last.closedAt !== null &&
+            now - last.closedAt < AGED_NOTE_MS &&
+            last.closedAt - last.createdAt >= days * DAY_MS;
+          return { session: null, turns: [], earlier: 0, aged };
+        }
         const all = await sessions.listTurns(session.id);
         const shown = all.slice(-CURRENT_TURNS);
         const turns: AssistantTurnView[] = [];
@@ -375,7 +402,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           const light = index < shown.length - CURRENT_WHOLE_TURNS && view.result !== null;
           turns.push(light ? { ...view, result: lightResult(view.result as Record<string, unknown>) } : view);
         }
-        return { session: sessionView(session), turns, earlier: all.length - shown.length };
+        return { session: sessionView(session), turns, earlier: all.length - shown.length, aged: false };
       },
     );
 
@@ -418,7 +445,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         const userId = requireUserId(request);
         const session = await mine(request, request.params.id);
         if (session.status !== 'open') {
-          throw new ConflictError('That assistant session is closed.', 'CONFLICT', { sessionId: session.id });
+          throw new ConflictError('That assistant session is closed.', 'CONFLICT', { sessionId: session.id, reason: 'closed' });
         }
         // One turn at a time: a second question over a running one would
         // replay a transcript that is still being written.

@@ -165,7 +165,17 @@ export const assistantTurnView = z.object({
    * Customers" from it, and a draft is live only where these match the page
    * the person is on.
    */
-  on: z.object({ pageId: z.string().nullable(), documentId: z.string().nullable(), title: z.string().nullable() }),
+  on: z.object({
+    pageId: z.string().nullable(),
+    documentId: z.string().nullable(),
+    title: z.string().nullable(),
+    /**
+     * What "these" meant when it was asked: the ticked rows (and how many), the
+     * open record, or a grid that was showing a part of its table. Null when
+     * the page was showing everything, or was not a page of rows.
+     */
+    scope: z.object({ kind: z.enum(['selection', 'record', 'page']), count: z.number().nullable() }).nullable(),
+  }),
 });
 export type AssistantTurnView = z.infer<typeof assistantTurnView>;
 
@@ -265,6 +275,12 @@ export const assistantCurrentReply = z.object({
   turns: z.array(assistantTurnView),
   /** How many earlier turns the conversation holds that are not in `turns`. */
   earlier: z.number(),
+  /**
+   * There is no open conversation because the last one was closed for its
+   * age, in the last few days: said once, so a person who comes back to an
+   * empty panel knows it was not lost by a fault.
+   */
+  aged: z.boolean(),
 });
 
 /** `POST /assistant/facts` — what the header says of ONE page, for a conversation that has walked to it. */

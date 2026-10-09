@@ -768,6 +768,29 @@ describe('closing and sweeping', () => {
     expect((await repo.findSession(panel.id))?.status).toBe('closed');
   });
 
+  it('says, for a few days, that the last conversation was closed for its age, and never for one the person ended', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const current = async () =>
+      (await t.app.inject({ method: 'GET', url: '/api/v1/assistant/sessions/current', headers: asUser(t.users.admin) })).json() as { session: unknown; aged: boolean };
+    const now = Date.now();
+    // Whatever earlier tests left open for this person is not this test's.
+    await repo.closeOtherPanels(t.users.admin.id, 'none', now - 40 * 86_400_000);
+    // Ended by the person an hour after it began, two days ago: nothing to explain.
+    const ended = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, now - 2 * 86_400_000 - 3_600_000);
+    await repo.close(ended.id, now - 2 * 86_400_000);
+    expect(await current()).toMatchObject({ session: null, aged: false });
+
+    // Thirty-one days old and closed by the sweep yesterday.
+    const old = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, now - 32 * 86_400_000);
+    await sweepAssistantSessions(t.meta, now - 86_400_000);
+    expect((await repo.findSession(old.id))?.status).toBe('closed');
+    expect(await current()).toMatchObject({ session: null, aged: true });
+
+    // An open conversation: nothing is said about an older one.
+    await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, now);
+    expect((await current()).aged).toBe(false);
+  });
+
   it('never closes a session whose turn is still waiting or running', async () => {
     const repo = assistantSessionsRepo(t.meta);
     const modal = await repo.create({ context: 'email', host: { connectionIds: [] }, createdBy: t.users.admin.id }, AT);
@@ -852,7 +875,7 @@ describe('a screen with no context of its own', () => {
 
     // Served with where it was asked: here no data page and no document.
     const read = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}`, headers: asUser(t.users.admin) });
-    expect((read.json() as { on: unknown }).on).toEqual({ pageId: null, documentId: null, title: null });
+    expect((read.json() as { on: unknown }).on).toEqual({ pageId: null, documentId: null, title: null, scope: null });
 
     const save = await t.app.inject({
       method: 'POST',
@@ -873,7 +896,7 @@ describe('a screen with no context of its own', () => {
     const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'How many?', context: 'data', host } });
     expect(asked.statusCode, asked.body).toBe(202);
     const turnId = (asked.json() as { turn: { id: string; on: unknown } }).turn.id;
-    expect((asked.json() as { turn: { on: unknown } }).turn.on).toEqual({ pageId: page.id, documentId: null, title: 'Customers' });
+    expect((asked.json() as { turn: { on: unknown } }).turn.on).toEqual({ pageId: page.id, documentId: null, title: 'Customers', scope: null });
 
     // Renamed since: the thread says where it was asked by today's name. Deleted: by no name.
     await pages.updateMeta(page.id, { title: 'Clients' });
@@ -882,6 +905,28 @@ describe('a screen with no context of its own', () => {
     expect(await read()).toBe('Clients');
     await pages.delete(page.id);
     expect(await read()).toBeNull();
+  });
+
+  it('serves with a turn what "these" meant when it was asked: ticked rows, an open record, or a part of the grid', async () => {
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'data', host: { connectionIds: [] } } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const scopeOf = async (view: Record<string, unknown> | undefined) => {
+      const asked = await t.app.inject({
+        method: 'POST',
+        url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+        headers: asUser(t.users.admin),
+        payload: { text: 'These?', context: 'data', host: { connectionIds: [], ...(view === undefined ? {} : { view }) } },
+      });
+      expect(asked.statusCode, asked.body).toBe(202);
+      const turn = (asked.json() as { turn: { id: string; on: { scope: unknown } } }).turn;
+      await runTurn(turn.id, [{ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'ok' }) }], t.users.admin.id);
+      return turn.on.scope;
+    };
+    expect(await scopeOf({ selectedIds: ['1', '2', '3'], q: 'ada' })).toEqual({ kind: 'selection', count: 3 });
+    expect(await scopeOf({ recordId: '42', q: 'ada' })).toEqual({ kind: 'record', count: 1 });
+    expect(await scopeOf({ where: '{"column":"a","op":"eq","value":1}' })).toEqual({ kind: 'page', count: null });
+    expect(await scopeOf({ order: 'name.asc' })).toBeNull();
+    expect(await scopeOf(undefined)).toBeNull();
   });
 
   it('keeps beside an answer in words what the person might ask next', async () => {
