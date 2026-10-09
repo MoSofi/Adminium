@@ -119,9 +119,6 @@ const WHERE_GRAMMAR = [
   ...WHERE_EXAMPLES.map((example) => JSON.stringify(example)),
 ].join('\n');
 
-/** On SQLite, the most rows of a table that may be ranked by a measure. */
-export const MEASURE_SORT_MAX_ROWS_SQLITE = 20_000;
-
 /** Measures one call may ask for: each is a subquery a listed row. */
 export const MEASURES_PER_CALL = 3;
 
@@ -217,7 +214,8 @@ export const readRowsTool: AssistantTool = {
     if (wanted === 'invalid') return { error: { code: 'BAD_ARGS', message: '`scope` is one of "selection", "record" or "page".' } };
     const scope = wanted === null ? null : scopeFilter(await dataPageOf(deps), wanted, connectionId, table);
     if (scope !== null && !scope.ok) return { error: { code: scope.code, message: scope.message } };
-    const sort = typeof args.sort === 'string' && args.sort !== '' ? args.sort : scope?.order;
+    const ownSort = typeof args.sort === 'string' && args.sort !== '' ? args.sort : undefined;
+    const sort = ownSort ?? scope?.order;
 
     const { db, dialect } = await deps.manager.data(connectionId);
     try {
@@ -230,21 +228,13 @@ export const readRowsTool: AssistantTool = {
         specs.measures.length === 0
           ? []
           : await resolveMeasures({ view, table, specs: specs.measures, canReadPii: false, canReadTable: await deps.canReadTable(connectionId) });
-      const byMeasure = measures.some((measure) => (sort ?? '').split(',').some((part) => part.split('.')[0] === measure.alias));
-      if (byMeasure && dialect === 'sqlite') {
-        // One process, one SQLite thread: ranking every row of a large table by a subquery a row
-        // would stop every other request while it ran. Said, with the way round it.
-        const size = await db.selectFrom(table.id as never).select((eb) => eb.fn.countAll().as('n')).executeTakeFirst();
-        if (Number((size as { n?: unknown } | undefined)?.n ?? 0) > MEASURE_SORT_MAX_ROWS_SQLITE) {
-          return {
-            error: {
-              code: 'TOO_MANY_ROWS_TO_RANK',
-              message: `${tableId} has too many rows to rank by a computed value here. Narrow it with \`where\` or \`scope\` first, or use aggregate on the related table.`,
-            },
-          };
-        }
-      }
-      const listed = await runList({
+      // WHICH rows are on the person's screen is decided as the person: their filter and their
+      // search, with their own right to personal columns. What is read of those rows is not.
+      const scopeAs =
+        scope === null || scope === undefined
+          ? null
+          : { canReadPii: (await deps.can(UNMASK_PERMISSION)) || (await deps.can(`table:${connectionId}:${tableId}:read_pii`)), search: scope.q };
+      const read = (order: string | undefined) => runList({
         db,
         view,
         table,
@@ -255,25 +245,28 @@ export const readRowsTool: AssistantTool = {
           count: 'exact',
           ...(columns.length > 0 ? { select: columns.join(',') } : {}),
           ...whereParam(args.where),
-          ...(sort === undefined ? {} : { order: sort }),
+          ...(order === undefined ? {} : { order }),
         },
         // Counted too: what is read as a signed-in person says how much of it there is.
         ...(scope?.mandatory === undefined ? {} : { mandatory: scope.mandatory }),
-        // WHICH rows are on the person's screen is decided as the person: their filter and their
-        // search, with their own right to personal columns. What is read of those rows is not.
-        ...(scope === null || scope === undefined
-          ? {}
-          : {
-              countMandatory: true,
-              mandatoryAs: {
-                canReadPii: (await deps.can(UNMASK_PERMISSION)) || (await deps.can(`table:${connectionId}:${tableId}:read_pii`)),
-                search: scope.q,
-              },
-            }),
+        ...(scopeAs === null ? {} : { countMandatory: true, mandatoryAs: scopeAs }),
         // Always false. See this file's header.
         canReadPii: false,
         dialect,
       });
+      // The grid's own order comes with "the rows on the page", and the assistant cannot always
+      // use it: the grid may be sorted by a personal column, or by a figure of its own that this
+      // call did not ask for. Order does not change WHICH rows those are, so it is let go, and
+      // the model is not told of a sort it never wrote.
+      let applied = sort;
+      let listed: Awaited<ReturnType<typeof read>>;
+      try {
+        listed = await read(sort);
+      } catch (error) {
+        if (ownSort !== undefined || sort === undefined || !(error instanceof AppError)) throw error;
+        applied = undefined;
+        listed = await read(undefined);
+      }
       const total = listed.page?.total ?? null;
       return {
         result: {
@@ -285,7 +278,7 @@ export const readRowsTool: AssistantTool = {
           ...(wanted === null ? {} : { scope: wanted }),
         },
         tables: [label],
-        read: { table: label, tool: 'read_rows', returned: listed.data.length, total, ...(wanted === null ? {} : { scope: wanted }), ...(sort === undefined ? {} : { sorted: true }) },
+        read: { table: label, tool: 'read_rows', returned: listed.data.length, total, ...(wanted === null ? {} : { scope: wanted }), ...(applied === undefined ? {} : { sorted: true }) },
       };
     } catch (error) {
       return { error: queryFailure(error) };

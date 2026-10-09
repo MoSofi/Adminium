@@ -59,6 +59,7 @@ import { audited, auditExempt } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { ASSISTANT_TURN_KIND } from '../../jobs/assistant-turn.js';
 import type { ConnectionManager } from '../../connections/manager.js';
+import { isUniqueViolation } from '../../crud/decided-columns.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   assistantActionBody,
@@ -233,18 +234,22 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
      * gone leaves no title, and the thread then names the turn by its context alone. Not checked
      * against the reader's grants: the turn is their own, asked while they were on that page.
      */
-    async function titled(view: AssistantTurnView): Promise<AssistantTurnView> {
+    async function titled(view: AssistantTurnView, request: { can: (permission: string) => Promise<boolean> }): Promise<AssistantTurnView> {
       // A draft made for a document (an editor's) whose document has since been deleted.
       if (view.result !== null && view.on.documentId !== null && !(await assistantDocumentExists(deps.meta, view.context, view.on.documentId))) {
         view = { ...view, on: { ...view.on, gone: true } };
       }
       if (view.on.pageId === null) return view;
-      const page = await pagesRepo(deps.meta).findById(view.on.pageId);
+      // The page id is what the browser said: its name is told only to a reader who may open
+      // that page, by the page's own view check. Anyone else is told the turn's context alone.
+      const pageId = view.on.pageId;
+      if (!(await request.can(`page:${pageId}:view`)) && !(await request.can('system:pages:manage'))) return view;
+      const page = await pagesRepo(deps.meta).findById(pageId);
       return page === null ? view : { ...view, on: { ...view.on, title: page.title } };
     }
 
     async function served(turn: AssistantTurn, session: AssistantSession, request: { can: (permission: string) => Promise<boolean> }): Promise<AssistantTurnView> {
-      const view = await titled(turnView(turn, session));
+      const view = await titled(turnView(turn, session), request);
       const suggest = view.answer === null ? undefined : view.answer.suggest;
       if (!Array.isArray(suggest) || suggest.length === 0) return view;
       const known = (await listedAddOns(deps.addOns)) ?? [];
@@ -396,8 +401,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             last.closedAt - last.createdAt >= days * DAY_MS;
           return { session: null, turns: [], earlier: 0, aged };
         }
-        const all = await sessions.listTurns(session.id);
-        const shown = all.slice(-CURRENT_TURNS);
+        const tail = await sessions.listTurnsTail(session.id, CURRENT_TURNS);
+        const shown = tail.turns;
         const turns: AssistantTurnView[] = [];
         for (const [index, turn] of shown.entries()) {
           const view = await served(turn, session, request);
@@ -406,7 +411,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           const light = index < shown.length - CURRENT_WHOLE_TURNS && view.result !== null;
           turns.push(light ? { ...view, result: lightResult(view.result as Record<string, unknown>) } : view);
         }
-        return { session: sessionView(session), turns, earlier: all.length - shown.length, aged: false };
+        return { session: sessionView(session), turns, earlier: tail.earlier, aged: false };
       },
     );
 
@@ -481,7 +486,11 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         }
 
         const at = app.rbac.now();
-        const turn = await sessions.createTurn(
+        // The checks above are made before the row: two questions posted in the same instant
+        // both pass them. In one conversation the second then clashes on the turn's number, and
+        // that is the same answer as arriving a moment later: busy.
+        const turn = await sessions
+          .createTurn(
           {
             sessionId: session.id,
             askText: request.body.text ?? null,
@@ -496,17 +505,31 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
                 }),
           },
           at,
-        );
-        const job = await jobsRepo(meta).enqueue(
-          {
-            kind: ASSISTANT_TURN_KIND,
-            // The owner convention: the acting user may follow `jobs:<id>`
-            // without holding the read-everyone's-jobs key.
-            payload: { turnId: turn.id, userId },
-          },
-          at,
-        );
-        await sessions.setTurnStatus(turn.id, 'queued', { jobId: job.id });
+          )
+          .catch((error: unknown) => {
+            if (!isUniqueViolation(error)) throw error;
+            throw new ConflictError('The assistant is still working on the last question.', 'CONFLICT', { sessionId: session.id, reason: 'busy' });
+          });
+        const job = await jobsRepo(meta)
+          .enqueue(
+            {
+              kind: ASSISTANT_TURN_KIND,
+              // The owner convention: the acting user may follow `jobs:<id>`
+              // without holding the read-everyone's-jobs key.
+              payload: { turnId: turn.id, userId },
+            },
+            at,
+          )
+          .catch(async (error: unknown) => {
+            // A turn with no job behind it would wait for ever, and "one question at a time"
+            // would then refuse this person everything: it ends here, as a failure.
+            await sessions
+              .finishTurn(turn.id, { status: 'failed', error: { kind: 'setup', message: 'The question could not be queued.' }, finishedAt: at, expected: 'queued' })
+              .catch(() => undefined);
+            throw error;
+          });
+        // Only while it is still waiting: a worker that has already taken it is not put back.
+        await sessions.setTurnStatus(turn.id, 'queued', { jobId: job.id, expected: 'queued' });
 
         const stored = (await sessions.findTurn(turn.id)) ?? turn;
         return await reply.status(202).send({

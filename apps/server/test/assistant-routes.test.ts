@@ -18,7 +18,7 @@
  */
 
 import BetterSqlite3 from 'better-sqlite3';
-import { SqliteDialect } from 'kysely';
+import { SqliteDialect, sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -41,6 +41,7 @@ import {
   permissionsRepo,
   rolesRepo,
   settingsRepo,
+  usersRepo,
 } from '@adminium/meta';
 
 import { executeAssistantTurn, INTERRUPTED_ERROR } from '../src/jobs/assistant-turn.js';
@@ -890,6 +891,8 @@ describe('a screen with no context of its own', () => {
   it('serves a turn with the data page it was asked on, by the name the page has now', async () => {
     const pages = pagesRepo(t.meta);
     const page = await pages.create({ connectionId: null, slug: 'asked-here', type: 'page-crud', title: 'Customers', config: {} });
+    // The reader may open the page: its name is theirs to be told.
+    await permissionsRepo(t.meta).grant(t.roles.admin.id, 'page', page.id, { view: true, edit: false } as never);
     const host = { connectionIds: [], pageId: page.id };
     const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'data', host } });
     const sessionId = (opened.json() as { session: { id: string } }).session.id;
@@ -921,6 +924,33 @@ describe('a screen with no context of its own', () => {
     expect(await gone()).toMatchObject({ documentId: template.id, gone: false });
     await templates.removeById(template.id);
     expect((await gone()).gone).toBe(true);
+  });
+
+  it('names the page only to a reader who may open it: the page id is the browser`s', async () => {
+    const pages = pagesRepo(t.meta);
+    const page = await pages.create({ connectionId: null, slug: 'payroll-private', type: 'page-crud', title: 'Payroll', config: {} });
+    // May use the assistant, and holds nothing on that page.
+    const roles = rolesRepo(t.meta);
+    const role = await roles.create({ slug: 'asker', name: 'Asker' });
+    await permissionsRepo(t.meta).grant(role.id, 'system', 'assistant.use', { allowed: true });
+    const asker = await usersRepo(t.meta).create({ email: 'asker@adminium.test', name: 'Asker', passwordHash: 'x', status: 'active' });
+    await roles.assignToUser(asker.id, role.id);
+
+    const host = { connectionIds: [], pageId: page.id };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(asker), payload: { context: 'data', host } });
+    expect(opened.statusCode, opened.body).toBe(201);
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(asker), payload: { text: 'What is this?', context: 'data', host } });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turn = (asked.json() as { turn: { id: string; on: { pageId: string; title: string | null } } }).turn;
+    expect(turn.on).toMatchObject({ pageId: page.id, title: null });
+    expect(asked.body).not.toContain('Payroll');
+    const current = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(asker) });
+    expect(current.body).not.toContain('Payroll');
+    // Given the page, the same turn is named.
+    await permissionsRepo(t.meta).grant(role.id, 'page', page.id, { view: true, edit: false } as never);
+    const named = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(asker) });
+    expect((named.json() as { on: { title: string } }).on.title).toBe('Payroll');
   });
 
   it('serves with a turn what "these" meant when it was asked: ticked rows, an open record, or a part of the grid', async () => {
@@ -1047,6 +1077,37 @@ describe('what the model is sent of a conversation that goes on', () => {
       'same question',
     ]);
     expect(rest.slice(1)).toEqual(['same question', plain('a2'), 'and now']);
+  });
+});
+
+describe('a question that could not be started', () => {
+  it('answers busy, not a server error, when two are posted to one conversation in the same instant', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    // The second passes the same checks the first did, and then finds its number taken.
+    const post = () => t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'At once' } });
+    const [one, two] = await Promise.all([post(), post()]);
+    const codes = [one.statusCode, two.statusCode].sort();
+    expect(codes[0]).toBe(202);
+    expect([202, 409]).toContain(codes[1]);
+    expect(codes).not.toContain(500);
+    const refused = [one, two].find((reply) => reply.statusCode === 409);
+    if (refused !== undefined) expect((refused.json() as { error: { details: { reason: string } } }).error.details.reason).toBe('busy');
+  });
+
+  it('ends a turn whose job could not be queued, so the person is not refused everything after it', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    // The queue refuses the job (this store is SQLite: a trigger stands in for a queue that is down).
+    await sql.raw(`CREATE TRIGGER queue_down BEFORE INSERT ON adminium_jobs BEGIN SELECT RAISE(ABORT, 'the queue is down'); END`).execute(t.meta.db);
+    const failed = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Lost' } });
+    await sql.raw('DROP TRIGGER queue_down').execute(t.meta.db);
+    expect(failed.statusCode).toBe(500);
+    const turns = await assistantSessionsRepo(t.meta).listTurns(sessionId);
+    expect(turns.at(-1)).toMatchObject({ status: 'failed', askText: 'Lost' });
+    // The next question is taken.
+    const next = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Again' } });
+    expect(next.statusCode, next.body).toBe(202);
   });
 });
 

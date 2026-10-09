@@ -136,6 +136,12 @@ type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
  * SQL. Returns null when the caller should run the exact count; a failed probe
  * degrades the same way rather than failing the list.
  */
+/**
+ * The most rows a list may be ORDERED BY A FOLD over, by engine: the fold is
+ * worked out for each of them before the first page is cut.
+ */
+export const MEASURE_SORT_MAX_ROWS: Readonly<Record<string, number>> = Object.freeze({ sqlite: 20_000, postgres: 200_000, mysql: 200_000 });
+
 export async function estimatedTotal(
   db: Kysely<SourceDatabase>,
   table: Pick<ResolvedTable, 'schema' | 'name'>,
@@ -201,6 +207,8 @@ export interface RunListOptions {
    * Absent: decided as {@link canReadPii}, as it always was.
    */
   mandatoryAs?: { canReadPii: boolean; search?: string | undefined } | undefined;
+  /** A tighter cap than {@link MEASURE_SORT_MAX_ROWS} on the rows a list may be ordered by a fold over. */
+  measureSortMaxRows?: number | undefined;
   /**
    * Count the rows under {@link mandatory} too. Off unless asked: on the
    * anonymous surface every list carries a mandatory predicate, and an exact
@@ -366,6 +374,24 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   // not exist. Paging by offset stays available.
   if (params.cursor !== undefined && sortKeys.some((key) => key.measure === true)) {
     throw new ValidationFailedError('Keyset pagination is unavailable when rows are ordered by a computed value; use offset pagination.', {});
+  }
+  // Ordering by a fold computes it for EVERY row the filters leave, before the limit applies:
+  // one correlated subquery a row. Over a whole large table that is a request that can hold the
+  // database for minutes (and on SQLite, one thread, every other request with it). So the rows
+  // under the filters are counted first, which is one scan, and past the cap the list is refused
+  // with the way round it. Narrowing it helps, because what is counted is what would be ranked.
+  if (sortKeys.some((key) => key.measure === true)) {
+    const cap = opts.measureSortMaxRows ?? MEASURE_SORT_MAX_ROWS[dialect] ?? 20_000;
+    const counted = await applyFilters(db.selectFrom(table.id) as unknown as Qb)
+      .select((eb) => eb.fn.countAll().as('total'))
+      .executeTakeFirst();
+    const rows = Number((counted as { total?: unknown } | undefined)?.total ?? 0);
+    if (rows > cap) {
+      throw new ValidationFailedError(
+        `Too many rows to order by a computed value (${String(rows)}; the most is ${String(cap)}). Narrow the list with a filter first.`,
+        { reason: 'too-many-rows-to-rank', rows, max: cap },
+      );
+    }
   }
 
   const cursorMode = params.cursor !== undefined;

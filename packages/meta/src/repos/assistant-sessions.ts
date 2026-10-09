@@ -457,6 +457,23 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return rows.map(decodeTurn);
     },
 
+    /**
+     * The LAST `limit` turns of a session up to and including `upToSeq`, in
+     * order, and how many came before them. A conversation that lasts weeks
+     * holds every transcript it ever sent; what the next turn and the panel
+     * need is its end, so the rest is counted and not read.
+     */
+    async listTurnsTail(sessionId: string, limit: number, upToSeq?: number): Promise<{ turns: AssistantTurn[]; earlier: number }> {
+      let ids = db.selectFrom('adminium_assistant_turns').select(['id', 'seq']).where('sessionId', '=', sessionId);
+      if (upToSeq !== undefined) ids = ids.where('seq', '<=', upToSeq);
+      // Ids first, then the rows: MySQL sorts whole rows in a fixed buffer, and a transcript is bigger than it.
+      const all = await ids.orderBy('seq', 'asc').execute();
+      const wanted = all.slice(-Math.max(limit, 1)).map((row) => row.id);
+      if (wanted.length === 0) return { turns: [], earlier: 0 };
+      const rows = await db.selectFrom('adminium_assistant_turns').selectAll().where('id', 'in', wanted).execute();
+      return { turns: inIdOrder(wanted, rows).map(decodeTurn), earlier: all.length - wanted.length };
+    },
+
     /** Is anything in this session still going? A second turn may not start over one. */
     async hasLiveTurn(sessionId: string): Promise<boolean> {
       const row = await db

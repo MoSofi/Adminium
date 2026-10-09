@@ -259,7 +259,7 @@ export async function executeAssistantTurn(
     truncated: outcome.reads.some((read) => typeof read.total === 'number' && typeof read.returned === 'number' && read.returned < read.total),
     ...(after.left ? {} : { budget: { limit: after.limit, used: after.used, resetsAt: after.resetsAt } }),
     // Earlier turns that were not sent at all: the person is told what is no longer in mind.
-    ...(composed.forgot > 0 ? { forgot: composed.forgot } : {}),
+    ...(composed.forgot + loaded.unread > 0 ? { forgot: composed.forgot + loaded.unread } : {}),
   };
   // Add-ons the reply pointed at: kept only when this server's own list has them and they are
   // not installed. The card is drawn from that list when the turn is read; nothing of the

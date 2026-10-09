@@ -127,5 +127,22 @@ for (const [dialect, available] of legs) {
       expect(negated.data.slice(0, 3).map((row) => String(row.number))).toEqual(['101', '102', '103']);
       expect(String(negated.data.at(-1)?.number)).toBe('104');
     });
+
+    it('refuses to rank more rows than the cap, counted UNDER the filters: narrowing the list is the way round', async () => {
+      const view = await loadSnapshotView(s.meta, s.connectionId);
+      const table = view.table(s.table.rooms);
+      const { db, dialect: engine } = await s.manager.data(s.connectionId);
+      const measures = await resolveMeasures({ view, table, specs: [{ id: 'stay_count', table: s.table.stays, fkColumn: 'room_id', fn: 'count' }], canReadPii: true, canReadTable: () => Promise.resolve(true) });
+      const ranked = (params: Record<string, unknown>) =>
+        runList({ db, view, table, measures, params: { order: 'stay_count.desc', count: 'none', ...params }, canReadPii: true, dialect: engine, measureSortMaxRows: 2 });
+      // Four rooms, and at most two may be ranked.
+      await expect(ranked({})).rejects.toThrow(/Too many rows to order by a computed value \(4; the most is 2\)/);
+      // The same list narrowed to two rooms is ranked: what is counted is what would be ranked.
+      const narrowed = await ranked({ where: JSON.stringify({ column: 'number', op: 'in', value: ['101', '104'] }) });
+      expect(narrowed.data.map((row) => String(row.number))).toEqual(['101', '104']);
+      // A list that is not ordered by a fold is not counted at all.
+      const plain = await runList({ db, view, table, measures, params: { order: 'number.asc', count: 'none' }, canReadPii: true, dialect: engine, measureSortMaxRows: 2 });
+      expect(plain.data).toHaveLength(4);
+    });
   });
 }

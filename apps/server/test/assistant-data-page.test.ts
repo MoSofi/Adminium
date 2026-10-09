@@ -140,6 +140,27 @@ for (const [dialect, available] of legs) {
       expect(own.error).toBeDefined();
     });
 
+    it('lets go of the grid`s own order when the assistant cannot use it: which rows are shown does not depend on it', async () => {
+      const desk = await person(s, 'desk2@lodge.dev', ['night'], [`table:${s.connectionId}:${s.table.stays}:read_pii`]);
+      const where = JSON.stringify({ column: 'status', op: 'eq', value: 'booked' });
+      // Sorted by a personal column: the person may, the assistant reads masked and may not.
+      const byPhone = await run(await on(desk.id, { where, order: 'phone.asc' }), 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(byPhone.error, JSON.stringify(byPhone.error)).toBeUndefined();
+      expect(idsOf(byPhone)).toEqual([1, 3, 5]);
+      expect((byPhone.read as { sorted?: boolean }).sorted).toBeUndefined();
+      // Sorted by a figure of the grid`s own, which this call never asked for.
+      const byFigure = await run(await on(night.id, { where, order: 'nights_total.desc' }), 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(byFigure.error, JSON.stringify(byFigure.error)).toBeUndefined();
+      expect(idsOf(byFigure)).toEqual([1, 3, 5]);
+      // An order the CALL writes itself is still its own to get right.
+      const own = await run(await on(night.id, { where }), 'read_rows', { table: s.table.stays, scope: 'page', sort: 'nights_total.desc' });
+      expect(own.error).toBeDefined();
+      // And an order the assistant can use is used.
+      const byTotal = await run(await on(night.id, { where, order: 'total.desc' }), 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(rowsOf(byTotal).map((row) => Number(row.id))).toEqual([5, 3, 1]);
+      expect((byTotal.read as { sorted?: boolean }).sorted).toBe(true);
+    });
+
     it('holds a total to the same rows', async () => {
       const [schema, name] = s.table.stays.split('.') as [string, string];
       const descriptor = { shape: 'single-metric', source: { schema, name }, aggregations: [{ fn: 'sum', column: 'total', alias: 'money' }] };

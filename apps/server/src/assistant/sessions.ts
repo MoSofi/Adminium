@@ -120,6 +120,9 @@ export function historyOf(
   return { open, pieces };
 }
 
+/** The most earlier turns a turn of the panel's conversation reads: older ones are no longer in mind. */
+export const HISTORY_TURNS_MAX = 40;
+
 /**
  * The share of a model's window the turn just before this one may take to be
  * replayed WHOLE (its tool calls and what they answered). Above it, that
@@ -282,6 +285,8 @@ export interface LoadedTurn {
   open: TurnMessage | null;
   pieces: HistoryPiece[];
   opening: TurnMessage;
+  /** Earlier turns of a long conversation that were not read at all: they count as forgotten. */
+  unread: number;
 }
 
 export async function loadTurn(meta: MetaDb, turnId: string): Promise<LoadedTurn | null> {
@@ -290,7 +295,11 @@ export async function loadTurn(meta: MetaDb, turnId: string): Promise<LoadedTurn
   if (turn === null) return null;
   const session = await repo.findSession(turn.sessionId);
   if (session === null) return null;
-  const turns = await repo.listTurns(turn.sessionId);
+  // A window's session is short and may hold rows an earlier release wrote, which are read from
+  // its first turn on. The panel's conversation lasts weeks and every row of it is marked: its
+  // END is read, and what came before is counted as no longer in mind.
+  const tail = session.kind === 'panel' ? await repo.listTurnsTail(turn.sessionId, HISTORY_TURNS_MAX + 1, turn.seq) : null;
+  const turns = tail === null ? await repo.listTurns(turn.sessionId) : tail.turns;
   const index = turns.findIndex((candidate) => candidate.id === turn.id);
   const previous = index > 0 ? (turns[index - 1] ?? null) : null;
   const history = historyOf(session, turns, turn.id);
@@ -302,5 +311,6 @@ export async function loadTurn(meta: MetaDb, turnId: string): Promise<LoadedTurn
     open: history.open,
     pieces: history.pieces,
     opening,
+    unread: tail?.earlier ?? 0,
   };
 }

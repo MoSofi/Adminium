@@ -24,7 +24,9 @@ function viewLines(page: DataPage): string[] {
   const shown: string[] = [];
   if (view.q !== undefined && view.q !== '') shown.push(`a search for ${JSON.stringify(view.q)}`);
   if (view.where !== undefined && view.where !== '') shown.push('filters');
-  if (view.order !== undefined && view.order !== '') shown.push(`sorted by ${view.order}`);
+  // What the browser sent, so only what a sort is made of is quoted: column names, a direction, a comma.
+  const order = (view.order ?? '').replace(/[^A-Za-z0-9_.,]/g, '').slice(0, 120);
+  if (order !== '') shown.push(`sorted by ${order}`);
   lines.push(
     shown.length === 0
       ? 'The grid shows every row of the table (scope "page" is the whole table).'
