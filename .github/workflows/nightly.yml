@@ -35,7 +35,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Full build without any turbo cache
-        run: pnpm turbo run lint typecheck build test --force
+        # Two tasks at a time, as the preflight runs them: every package's tests at once starve a four-core runner, and a test then passes its own time limit.
+        run: pnpm turbo run lint typecheck build test --force --concurrency=2
 
       - name: Check dependency graph boundaries
         run: pnpm run check-deps
