@@ -20,6 +20,7 @@ import { randomInt } from 'node:crypto';
 
 import { buildAssistantPrompt, type AssistantToolSpec, type ProviderClient } from '@adminium/llm';
 
+import { roundTokens } from './allowance.js';
 import { runAssistantTurn } from './turn-runner.js';
 
 /** Why a model did not pass, as a KIND: the dashboard has the words. */
@@ -41,6 +42,8 @@ export interface AssistantModelTestResult {
   failure: AssistantModelTestFailure | null;
   /** The provider's own sentence when it failed; never the key. */
   message: string | null;
+  /** What the test cost, reported or estimated: it is the pressing person's use like any turn. */
+  tokens: number;
 }
 
 /** Provider calls one test may make. */
@@ -68,6 +71,7 @@ export async function testAssistantModel(input: {
   const value = input.value ?? randomInt(1000, 10_000);
   let rounds = 0;
   let pinged = false;
+  let tokens = 0;
 
   // Counts the calls and stops at the cap: the runner's own cap is sized for real work.
   const stop = new AbortController();
@@ -107,6 +111,10 @@ export async function testAssistantModel(input: {
       return Promise.resolve({ result: { number: value } });
     },
     accept: () => Promise.resolve({ ok: false as const, errors: [] }),
+    onRound: (round) => {
+      tokens += roundTokens(round);
+      return Promise.resolve();
+    },
     signal: stop.signal,
     now,
   });
@@ -117,6 +125,7 @@ export async function testAssistantModel(input: {
     latencyMs: now() - started,
     failure,
     message,
+    tokens,
   });
 
   if (outcome.status === 'done') {

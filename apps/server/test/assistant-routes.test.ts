@@ -32,6 +32,7 @@ import {
 import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
 import {
   assistantSessionsRepo,
+  auditRepo,
   assistantUseDay,
   assistantUseRepo,
   assistantUseResetsAt,
@@ -1182,5 +1183,66 @@ describe('the daily allowance', () => {
     expect(await repo.failRunningTurns({ ...INTERRUPTED_ERROR }, AT)).toBe(1);
     expect(await repo.findTurn(running.id)).toMatchObject({ status: 'failed', error: { kind: 'interrupted' } });
     expect((await repo.findTurn(queued.turnId))?.status).toBe('queued');
+  });
+});
+
+describe('what an owner sets, and what was used today', () => {
+  it('needs the settings permission, not the assistant`s', async () => {
+    // Someone may use the assistant without deciding what it may cost.
+    const editorRole = await rolesRepo(t.meta).findBySlug('editor');
+    await permissionsRepo(t.meta).grant(editorRole!.id, 'system', 'assistant.use', { allowed: true });
+    for (const [method, payload] of [['GET', undefined], ['PUT', { dailyTokens: 1 }]] as const) {
+      const res = await t.app.inject({ method, url: '/api/v1/assistant/settings', headers: asUser(t.users.editor), ...(payload === undefined ? {} : { payload }) });
+      expect(res.statusCode, `${method}: ${res.body}`).toBe(403);
+    }
+  });
+
+  it('answers the day`s number, who used the assistant today, and which roles may', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
+    const today = assistantUseDay(Date.now());
+    await assistantUseRepo(t.meta).add(t.users.admin.id, today, { tokens: 1200, turns: 2 });
+    await assistantUseRepo(t.meta).add(t.users.editor.id, today, { tokens: 90_000, turns: 7 });
+    await assistantUseRepo(t.meta).add(t.users.editor.id, assistantUseDay(Date.now() - 86_400_000), { tokens: 5 });
+
+    const res = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
+    expect(res.statusCode, res.body).toBe(200);
+    const body = res.json() as { dailyTokens: number; today: { day: string; resetsAt: number; people: { name: string; tokens: number; turns: number }[] }; roles: { name: string }[] };
+    expect(body.dailyTokens).toBe(500_000);
+    expect(body.today).toMatchObject({ day: today, resetsAt: assistantUseResetsAt(Date.now()) });
+    // Most first, by name, today only.
+    expect(body.today.people.map((row) => [row.name, row.tokens, row.turns])).toEqual([
+      [t.users.editor.name, 90_000, 7],
+      [t.users.admin.name, 1200, 2],
+    ]);
+    // The editor role was given the permission above; the role matrix is where that is set.
+    expect(body.roles.map((role) => role.name)).toContain('Editor');
+  });
+
+  it('changes the number, holds it against the next question, and leaves a line in the audit', async () => {
+    const put = await t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin), payload: { dailyTokens: 1000 } });
+    expect(put.statusCode, put.body).toBe(200);
+    expect(put.json().dailyTokens).toBe(1000);
+    expect(await settingsRepo(t.meta).get('assistant.dailyTokens')).toBe(1000);
+
+    await assistantUseRepo(t.meta).add(t.users.admin.id, assistantUseDay(Date.now()), { tokens: 1000 });
+    const opened = await openSession();
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${(opened.json() as { session: { id: string } }).session.id}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'One more?' },
+    });
+    expect(asked.statusCode).toBe(409);
+    expect(asked.json().error.details.reason).toBe('budget');
+
+    const entries = await auditRepo(t.meta).list({ category: 'settings', limit: 5 });
+    expect(entries[0]).toMatchObject({ action: 'assistant.settings.update', changes: { before: { dailyTokens: 500_000 }, after: { dailyTokens: 1000 } } });
+
+    // A number nobody could mean is refused.
+    for (const dailyTokens of [-1, 1.5, 2_000_000_000]) {
+      const bad = await t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin), payload: { dailyTokens } });
+      expect(bad.statusCode, String(dailyTokens)).toBe(422);
+    }
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
   });
 });

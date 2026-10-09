@@ -186,3 +186,31 @@ export const assistantActionReply = z.object({
     .object({ artefact: z.record(z.string(), z.unknown()), label: z.string() })
     .nullable(),
 });
+
+// ─── What an owner sets, and what was used today ─────────────────────────────
+
+/**
+ * `GET` / `PUT /assistant/settings` — the assistant's own settings that are
+ * not the model's: how much a person may use in a day, with today's use
+ * beside it. Behind `system:settings:manage`, not the model's permission:
+ * choosing a model and deciding what the assistant costs are two people's
+ * decisions on many teams.
+ */
+export const assistantSettingsReply = z.object({
+  /** Tokens a person may use in a UTC day; 0 means no limit. */
+  dailyTokens: z.number(),
+  today: z.object({
+    /** The UTC day, `YYYY-MM-DD`. */
+    day: z.string(),
+    /** The instant the day's use starts again from nothing (epoch ms). */
+    resetsAt: z.number(),
+    /** Everybody who used the assistant today, most first. */
+    people: z.array(z.object({ userId: z.string(), name: z.string(), tokens: z.number(), turns: z.number() })),
+  }),
+  /** The roles that may use the assistant (the role matrix is where that is set). */
+  roles: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+
+export const assistantSettingsPutBody = z.object({
+  dailyTokens: z.number().int().min(0).max(1_000_000_000),
+});

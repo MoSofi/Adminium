@@ -40,6 +40,7 @@ import { settingsRepo, snapshotsRepo, type LlmRun, type MetaDb } from '@adminium
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
+import { spend } from '../../assistant/allowance.js';
 import { testAssistantModel } from '../../assistant/model-test.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -370,7 +371,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         config: { audit: auditExempt('a test of the saved model: it reads nothing of the workspace and writes nothing') },
         schema: { response: { 200: llmAssistantTestReply } },
       },
-      async () => {
+      async (request) => {
         // The SAVED provider, model, address and key, exactly as a real turn resolves them:
         // nothing of the request chooses where the key is sent.
         let resolved: Awaited<ReturnType<typeof resolveProviderClient>>;
@@ -383,12 +384,15 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
           }
           throw error;
         }
-        const result = await testAssistantModel({
+        const { tokens, ...result } = await testAssistantModel({
           client: resolved.client,
           provider: resolved.provider,
           model: resolved.model,
           name: await settings.get('assistant.name'),
         });
+        // A press of the button is the pressing person's use of the day, like any question.
+        const userId = (request as unknown as { user?: { id?: string } }).user?.id ?? null;
+        await spend(meta, userId, { tokens }, app.rbac.now());
         return { ...result, model: resolved.model };
       },
     );

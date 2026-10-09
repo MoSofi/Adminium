@@ -33,8 +33,14 @@ import type { AiConnections } from '../../llm/connections.js';
 import { estimateTokens } from '@adminium/llm';
 import {
   assistantSessionsRepo,
+  assistantUseDay,
+  assistantUseRepo,
+  assistantUseResetsAt,
   jobsRepo,
+  permissionsRepo,
+  rolesRepo,
   settingsRepo,
+  usersRepo,
   type AssistantSession,
   type AssistantTurn,
   type MetaDb,
@@ -59,6 +65,8 @@ import {
   assistantSessionCreateBody,
   assistantSessionCreateReply,
   assistantSessionParams,
+  assistantSettingsPutBody,
+  assistantSettingsReply,
   assistantTurnCreateBody,
   assistantTurnCreateReply,
   assistantTurnParams,
@@ -455,6 +463,59 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           created: outcome.created ?? null,
           sample: outcome.sample ?? null,
         };
+      },
+    );
+
+    // ── what an owner sets ───────────────────────────────────────────────────
+
+    const manage = app.rbac.require(PERMISSIONS.settingsManage);
+
+    async function settingsReply() {
+      const at = app.rbac.now();
+      const day = assistantUseDay(at);
+      const people = [];
+      for (const row of await assistantUseRepo(meta).listDay(day)) {
+        const user = await usersRepo(meta).findById(row.userId);
+        people.push({ userId: row.userId, name: user?.name ?? user?.email ?? row.userId, tokens: row.tokens, turns: row.turns });
+      }
+      const roles = [];
+      for (const grant of await permissionsRepo(meta).listForResource('system', 'assistant.use')) {
+        if ((grant.actions as { allowed?: boolean }).allowed !== true) continue;
+        const role = await rolesRepo(meta).findById(grant.roleId);
+        if (role !== null) roles.push({ id: role.id, name: role.name });
+      }
+      return {
+        dailyTokens: await settings.get('assistant.dailyTokens'),
+        today: { day, resetsAt: assistantUseResetsAt(at), people },
+        roles,
+      };
+    }
+
+    app.get(
+      '/assistant/settings',
+      { preHandler: manage, schema: { response: { 200: assistantSettingsReply } } },
+      async () => settingsReply(),
+    );
+
+    app.put(
+      '/assistant/settings',
+      {
+        preHandler: manage,
+        config: { audit: audited('rbac') },
+        schema: { body: assistantSettingsPutBody, response: { 200: assistantSettingsReply } },
+      },
+      async (request) => {
+        const before = await settings.get('assistant.dailyTokens');
+        const next = request.body.dailyTokens;
+        if (before !== next) {
+          await settings.set('assistant.dailyTokens', next, { updatedBy: requireUserId(request), at: app.rbac.now() });
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: 'assistant.settings.update',
+            changes: { before: { dailyTokens: before }, after: { dailyTokens: next } },
+          });
+        }
+        return settingsReply();
       },
     );
 
