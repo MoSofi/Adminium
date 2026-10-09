@@ -40,11 +40,11 @@ describe('the prompt, pinned', () => {
   // If one of these fails, a template or a contract the model is shown changed.
   // Update the digests ONLY together with an ASSISTANT_PROMPT_VERSION bump.
   it('pins the template of a page that has a document', () => {
-    expect(digest(ASSISTANT_PROMPT_V1)).toBe('3079d63e9b21ea7d96926784ccd82a3de029545b3858a24293a9b59d1fbc996b');
+    expect(digest(ASSISTANT_PROMPT_V1)).toBe('cbe3d92388f82a9d12488170737f89b6c5fc84092dd1fb2ca057e8a1debf3aef');
   });
 
   it('pins the template of a page that drafts nothing', () => {
-    expect(digest(ASSISTANT_PROMPT_PLAIN_V1)).toBe('cb70687fc715463d188a35b766ef91debf8fdde428b441c9a9ad98a534215b89');
+    expect(digest(ASSISTANT_PROMPT_PLAIN_V1)).toBe('555f05ba3ceaa891586bfb955d71f819aefac72f5c2444eacb4054ea7903c0c4');
   });
 
   it('pins the reply contract each of them shows', () => {

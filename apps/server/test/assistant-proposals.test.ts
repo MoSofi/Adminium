@@ -520,6 +520,19 @@ for (const [dialect, available] of legs) {
       }
     });
 
+    it('offers no undo where the table`s own save offers none (a table that keeps states)', async () => {
+      await switches({ change: true });
+      await setLate(1, '08:00');
+      const made = await proposed(all, [stay('1', { late_until: '12:30' })]);
+      const shown = await check(all, made);
+      const done = await apply(all, made, shown.proposal.hash);
+      expect(done.status, done.body).toBe(200);
+      // The same answer the screen's own save gets for this table: no token, so no button.
+      const own = await s.app.inject({ method: 'PATCH', url: `/api/v1/data/${s.connectionId}/${s.table.stays}/1`, headers: { cookie: all.cookie }, payload: { values: { late_until: '12:45' } } });
+      expect((own.json() as { undoToken: string | null }).undoToken).toBeNull();
+      expect(done.undo).toEqual([]);
+    });
+
     // ── the door ─────────────────────────────────────────────────────────────
 
     it('refuses the door`s header from outside, whatever it carries', async () => {
