@@ -16,6 +16,7 @@
 import {
   assistantOpenDocumentMessage,
   assistantPicksMessage,
+  estimateTokens,
   type AssistantAsk,
 } from '@adminium/llm';
 import { assistantSessionsRepo, type AssistantSession, type AssistantTurn, type MetaDb } from '@adminium/meta';
@@ -78,11 +79,26 @@ export function replayTranscript(
   turns: readonly AssistantTurn[],
   upTo: string,
 ): TurnMessage[] {
-  const messages: TurnMessage[] = [];
-  const open = openDocumentOf(session, turns.find((turn) => turn.id === upTo) ?? null);
-  if (open !== null) {
-    messages.push({ role: 'user', content: assistantOpenDocumentMessage(open) });
-  }
+  const history = historyOf(session, turns, upTo);
+  return [...(history.open === null ? [] : [history.open]), ...history.pieces.flatMap((piece) => piece.whole)];
+}
+
+/** One earlier turn that happened, with its own messages. */
+export interface HistoryPiece {
+  turn: AssistantTurn;
+  /** What was said in it, each message once: its opening message, the rounds, the final reply. */
+  whole: TurnMessage[];
+}
+
+/** The conversation before one turn, a piece a turn, and the document open on the page it is asked on. */
+export function historyOf(
+  session: AssistantSession,
+  turns: readonly AssistantTurn[],
+  upTo: string,
+): { open: TurnMessage | null; pieces: HistoryPiece[] } {
+  const document = openDocumentOf(session, turns.find((turn) => turn.id === upTo) ?? null);
+  const open: TurnMessage | null = document === null ? null : { role: 'user', content: assistantOpenDocumentMessage(document) };
+  const pieces: HistoryPiece[] = [];
   // How long the replay was when an unmarked row was written: the draft, then every earlier row whole.
   let legacyBefore = session.draft === null ? 0 : 1;
   let previous: AssistantTurn | null = null;
@@ -92,16 +108,110 @@ export function replayTranscript(
     previous = turn;
     if (!REPLAYED.has(turn.status)) continue;
     if (isMarked(turn.transcript)) {
-      messages.push(...spoken(turn.transcript));
+      pieces.push({ turn, whole: spoken(turn.transcript) });
       continue;
     }
     const whole = spoken(turn.transcript);
     const opening = openingMessage(turn, earlier);
     const own = whole[legacyBefore]?.role === 'user' && whole[legacyBefore]?.content === opening.content ? whole.slice(legacyBefore) : whole;
-    messages.push(...own);
+    pieces.push({ turn, whole: own });
     legacyBefore += whole.length;
   }
-  return messages;
+  return { open, pieces };
+}
+
+/**
+ * The share of a model's window the turn just before this one may take to be
+ * replayed WHOLE (its tool calls and what they answered). Above it, that
+ * turn too is told in outline.
+ */
+export const HISTORY_NEWEST_SHARE = 0.3;
+
+/** How much of an earlier answer an outline carries. */
+const RECAP_ANSWER_MAX = 600;
+
+const RECAP_NOTE =
+  'An outline of this conversation so far, oldest first: what the person asked, on which page, what was read to answer (never the rows themselves), and what you answered. A figure that is not in front of you is read again, never recalled from here.';
+
+/** One earlier turn, in outline: enough to know what was asked and answered, and what would have to be read again. */
+function recapOf(session: AssistantSession, piece: HistoryPiece): Record<string, unknown> {
+  const turn = piece.turn;
+  const answer = turn.answer as { reads?: unknown; sources?: unknown } | null;
+  const reads = Array.isArray(answer?.reads) ? answer.reads : [];
+  const draft = turn.result === null ? undefined : (turn.result as { title?: unknown }).title;
+  const say = turn.say ?? '';
+  return {
+    asked: piece.whole[0]?.content ?? turn.askText ?? '',
+    on: turn.context ?? session.context,
+    ...(reads.length > 0 ? { read: reads } : Array.isArray(answer?.sources) && answer.sources.length > 0 ? { read: answer.sources } : {}),
+    answered: say.length <= RECAP_ANSWER_MAX ? say : `${say.slice(0, RECAP_ANSWER_MAX - 1)}…`,
+    ...(typeof draft === 'string' ? { drafted: draft } : {}),
+    ...(turn.status === 'awaiting_picks' ? { asked_back: true } : {}),
+  };
+}
+
+export interface ComposedHistory {
+  /** What is sent: the open document, the outline, the newest turn whole, this turn's opening message. */
+  messages: TurnMessage[];
+  /** Earlier turns that are not in it at all: the conversation had outgrown the model's window. */
+  forgot: number;
+  /** Earlier turns told in outline rather than replayed whole. */
+  outlined: number;
+}
+
+/**
+ * What a turn is sent of the conversation before it.
+ *
+ * NOT EVERYTHING. Replayed whole, a conversation's tool calls and the rows
+ * they answered are most of its size, and it outgrows a small model's window
+ * in a handful of questions. So:
+ *
+ *  - the turn JUST BEFORE this one is replayed whole while it fits a fixed
+ *    share of the window, because "sort that by country" and "why is the
+ *    third one higher" lean on what it read. A turn that asked the person
+ *    something back is always whole: its answer is this turn's opening;
+ *  - older turns are told in OUTLINE, in one message: what was asked, on
+ *    which page, what was read (tables and counts, never rows) and what was
+ *    answered. Enough to know what "it" is; not enough to quote a figure
+ *    from, which the prompt says is read again;
+ *  - when even that does not fit, the oldest turns are left out, and the
+ *    turn says how many, so the person is told what the assistant no longer
+ *    has in mind instead of being answered from half a conversation.
+ */
+export function composeHistory(input: {
+  session: AssistantSession;
+  open: TurnMessage | null;
+  pieces: readonly HistoryPiece[];
+  opening: TurnMessage;
+  system: string;
+  /** The model's input window, in tokens as this server estimates them. */
+  limit: number;
+}): ComposedHistory {
+  const size = (messages: readonly TurnMessage[]): number => messages.reduce((total, message) => total + estimateTokens(message.content), 0);
+  const newest = input.pieces.at(-1);
+  const newestWhole =
+    newest !== undefined && (newest.turn.status === 'awaiting_picks' || size(newest.whole) <= HISTORY_NEWEST_SHARE * input.limit);
+  let outline = newestWhole ? input.pieces.slice(0, -1) : [...input.pieces];
+  const tail = newestWhole && newest !== undefined ? newest.whole : [];
+  let forgot = 0;
+
+  const build = (): TurnMessage[] => [
+    ...(input.open === null ? [] : [input.open]),
+    ...(outline.length === 0
+      ? []
+      : [{ role: 'user' as const, content: JSON.stringify({ earlier_in_this_conversation: outline.map((piece) => recapOf(input.session, piece)), note: RECAP_NOTE }) }]),
+    ...tail,
+    input.opening,
+  ];
+  const fits = (messages: readonly TurnMessage[]): boolean => estimateTokens(input.system) + size(messages) <= input.limit;
+
+  let messages = build();
+  while (!fits(messages) && outline.length > 0) {
+    outline = outline.slice(1);
+    forgot += 1;
+    messages = build();
+  }
+  return { messages, forgot, outlined: outline.length };
 }
 
 /**
@@ -166,8 +276,12 @@ export async function accrueUsage(
 export interface LoadedTurn {
   session: AssistantSession;
   turn: AssistantTurn;
-  /** Earlier turns' messages, then this turn's opening message. */
+  /** Earlier turns' messages, each whole, then this turn's opening message. */
   messages: TurnMessage[];
+  /** The same conversation in pieces, for {@link composeHistory}: what is sent depends on the model's window. */
+  open: TurnMessage | null;
+  pieces: HistoryPiece[];
+  opening: TurnMessage;
 }
 
 export async function loadTurn(meta: MetaDb, turnId: string): Promise<LoadedTurn | null> {
@@ -179,9 +293,14 @@ export async function loadTurn(meta: MetaDb, turnId: string): Promise<LoadedTurn
   const turns = await repo.listTurns(turn.sessionId);
   const index = turns.findIndex((candidate) => candidate.id === turn.id);
   const previous = index > 0 ? (turns[index - 1] ?? null) : null;
+  const history = historyOf(session, turns, turn.id);
+  const opening = openingMessage(turn, previous);
   return {
     session,
     turn,
-    messages: [...replayTranscript(session, turns, turn.id), openingMessage(turn, previous)],
+    messages: [...(history.open === null ? [] : [history.open]), ...history.pieces.flatMap((piece) => piece.whole), opening],
+    open: history.open,
+    pieces: history.pieces,
+    opening,
   };
 }

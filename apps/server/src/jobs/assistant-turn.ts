@@ -21,7 +21,7 @@
  */
 
 import { assistantSessionsRepo, type MetaDb } from '@adminium/meta';
-import { assistantStepEventMessage } from '@adminium/llm';
+import { ASSISTANT_INPUT_TOKEN_LIMIT, assistantStepEventMessage } from '@adminium/llm';
 import { z } from 'zod';
 
 import { runAssistantTurn } from '../assistant/turn-runner.js';
@@ -29,7 +29,7 @@ import { fitsContextWindow, setUpTurn } from '../assistant/turn-setup.js';
 import { readAllowance, roundTokens, spend } from '../assistant/allowance.js';
 import { listedAddOns } from '../assistant/tools/add-ons.js';
 import type { AssistantAddOn } from '../assistant/types.js';
-import { loadTurn, ownTranscript } from '../assistant/sessions.js';
+import { composeHistory, loadTurn, ownTranscript } from '../assistant/sessions.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { isProviderRunError, type RunFailureError } from '../llm/direct-runner.js';
 import type { ResolvedProviderClient } from '../routes/llm/config-service.js';
@@ -106,7 +106,7 @@ export async function executeAssistantTurn(
   const repo = assistantSessionsRepo(deps.meta);
   const loaded = await loadTurn(deps.meta, payload.turnId);
   if (loaded === null) throw new Error(`assistant.turn: turn not found: ${payload.turnId}`);
-  const { session, turn, messages } = loaded;
+  const { session, turn } = loaded;
 
   // The claim: a turn runs once. A second worker that raced this one finds the
   // row already `running` and leaves it alone.
@@ -175,8 +175,21 @@ export async function executeAssistantTurn(
     return;
   }
 
+  // What this turn is sent of the conversation before it: the turn just before it whole, older
+  // ones in outline, and the oldest left out (and said so) when the model's window is that small.
+  const composed = composeHistory({
+    session,
+    open: loaded.open,
+    pieces: loaded.pieces,
+    opening: loaded.opening,
+    system: setup.system,
+    limit: ASSISTANT_INPUT_TOKEN_LIMIT[resolved.provider],
+  });
+  const messages = composed.messages;
+
   // Refused rather than truncated: a provider that silently drops the oldest
-  // messages answers confidently from half a conversation.
+  // messages answers confidently from half a conversation. Reached only when this ONE
+  // question, with the page it is asked on, is larger than the model's window.
   const fit = fitsContextWindow(resolved.provider, setup.system, messages);
   if (!fit.fits) {
     await finish({
@@ -245,6 +258,8 @@ export async function executeAssistantTurn(
     // A read that came back short of what there is: the answer is about a part of the rows.
     truncated: outcome.reads.some((read) => typeof read.total === 'number' && typeof read.returned === 'number' && read.returned < read.total),
     ...(after.left ? {} : { budget: { limit: after.limit, used: after.used, resetsAt: after.resetsAt } }),
+    // Earlier turns that were not sent at all: the person is told what is no longer in mind.
+    ...(composed.forgot > 0 ? { forgot: composed.forgot } : {}),
   };
   // Add-ons the reply pointed at: kept only when this server's own list has them and they are
   // not installed. The card is drawn from that list when the turn is read; nothing of the

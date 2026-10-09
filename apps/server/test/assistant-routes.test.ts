@@ -753,6 +753,33 @@ describe('closing and sweeping', () => {
     expect(swept.closed).toBeGreaterThanOrEqual(1);
     expect((await repo.findSession(abandoned.id))?.status).toBe('closed');
   });
+
+  it('leaves the panel conversation open when it is only left for days, and closes it by its age', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const panel = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, AT);
+    await sweepAssistantSessions(t.meta, AT + 5 * 86_400_000);
+    expect((await repo.findSession(panel.id))?.status).toBe('open');
+
+    // Used the day before the window ends: its use does not keep it.
+    const turn = await repo.createTurn({ sessionId: panel.id, askText: 'still using it' }, AT + 30 * 86_400_000);
+    await repo.finishTurn(turn.id, { status: 'done', transcript: [], finishedAt: AT + 30 * 86_400_000 + 1 });
+    await sweepAssistantSessions(t.meta, AT + 31 * 86_400_000);
+    expect((await repo.findSession(panel.id))?.status).toBe('closed');
+  });
+
+  it('never closes a session whose turn is still waiting or running', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const modal = await repo.create({ context: 'email', host: { connectionIds: [] }, createdBy: t.users.admin.id }, AT);
+    await repo.createTurn({ sessionId: modal.id, askText: 'queued behind a long job' }, AT);
+    const panel = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.editor.id }, AT);
+    // A turn's start touches its session; put the clock back so only the live turn protects it.
+    await t.meta.db.updateTable('adminium_assistant_sessions').set({ updatedAt: AT }).where('id', '=', modal.id).execute();
+    await repo.createTurn({ sessionId: panel.id, askText: 'asked on day 31' }, AT + 31 * 86_400_000 - 1);
+
+    await sweepAssistantSessions(t.meta, AT + 31 * 86_400_000);
+    expect((await repo.findSession(modal.id))?.status).toBe('open');
+    expect((await repo.findSession(panel.id))?.status).toBe('open');
+  });
 });
 
 describe('the two assistant fields on the LLM config', () => {
@@ -812,15 +839,14 @@ describe('what the model is sent of a conversation that goes on', () => {
     await ask(sessionId, 'third question', 'third answer');
     const fourth = await ask(sessionId, 'fourth question', 'fourth answer');
 
-    expect(fourth.sent).toEqual([
-      'first question',
-      plain('first answer'),
-      'second question',
-      plain('second answer'),
-      'third question',
-      plain('third answer'),
-      'fourth question',
+    // The turn just before is whole; the ones before it are told once, in outline.
+    expect(fourth.sent.slice(1)).toEqual(['third question', plain('third answer'), 'fourth question']);
+    const outline = JSON.parse(fourth.sent[0]!) as { earlier_in_this_conversation: Array<{ asked: string; answered: string; on: string }> };
+    expect(outline.earlier_in_this_conversation).toEqual([
+      { asked: 'first question', on: 'email', answered: 'first answer' },
+      { asked: 'second question', on: 'email', answered: 'second answer' },
     ]);
+    expect(fourth.sent).toHaveLength(4);
     // And a turn stores its own messages, not the conversation before it.
     const stored = (await assistantSessionsRepo(t.meta).findTurn(fourth.turnId))!.transcript;
     expect(stored.filter((message) => message.role !== 'meta').map((message) => message.content)).toEqual([
@@ -851,13 +877,12 @@ describe('what the model is sent of a conversation that goes on', () => {
 
     const next = await ask(session.id, 'and now', 'a3');
     expect(next.sent.filter(draft)).toHaveLength(1);
-    expect(next.sent.filter((content) => !draft(content))).toEqual([
+    const rest = next.sent.filter((content) => !draft(content));
+    // Each legacy row gives its own part only: the first in outline, the newest whole.
+    expect((JSON.parse(rest[0]!) as { earlier_in_this_conversation: Array<{ asked: string }> }).earlier_in_this_conversation.map((turn) => turn.asked)).toEqual([
       'same question',
-      plain('a1'),
-      'same question',
-      plain('a2'),
-      'and now',
     ]);
+    expect(rest.slice(1)).toEqual(['same question', plain('a2'), 'and now']);
   });
 });
 

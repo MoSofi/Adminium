@@ -333,7 +333,25 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
-    /** Sessions a browser left open, last touched before `before` — the sweep's first pass. */
+    /**
+     * Open panel conversations started before `before`. A panel conversation is
+     * not abandoned by being left: it is there again on the next page and the
+     * next morning. It is closed by its age instead, whatever its use.
+     */
+    async listOldPanels(before: number, limit = 500): Promise<Array<{ id: string }>> {
+      return db
+        .selectFrom('adminium_assistant_sessions')
+        .select('id')
+        .where('status', '=', 'open')
+        .where('kind', '=', 'panel')
+        .where('createdAt', '<', before)
+        .orderBy('createdAt', 'asc')
+        .orderBy('id', 'asc')
+        .limit(limit)
+        .execute();
+    },
+
+    /** Modal sessions a browser left open, last touched before `before` — the sweep's first pass. */
     async listStaleOpen(before: number, limit = 500): Promise<AssistantSession[]> {
       // Ids first, then the rows: MySQL sorts whole rows in a fixed buffer, and a
       // long transcript is bigger than it ("Out of sort memory").
@@ -342,6 +360,7 @@ export function assistantSessionsRepo(meta: MetaDb) {
           .selectFrom('adminium_assistant_sessions')
           .select('id')
           .where('status', '=', 'open')
+          .where('kind', '=', 'modal')
           .where('updatedAt', '<', before)
           .orderBy('updatedAt', 'asc')
           .orderBy('id', 'asc')
