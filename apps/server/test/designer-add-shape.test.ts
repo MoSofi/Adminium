@@ -9,6 +9,7 @@
  * the requirement and the floor, writes no "builtOn", and writes nothing at
  * all when the app's own check refuses the result.
  */
+import { APP_VERSION } from '../src/version.js';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +33,8 @@ import { fakeDeps, fakeIo } from './cli-helpers.js';
 /** Offers' shapes, ledger and adjuster as its manifest declares them (`test/add-ons/offers/designer.test.ts` holds this file to the built add-on). */
 export const OFFERS = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'offers-shapes.json'), 'utf8')) as Record<string, unknown>;
 
-const VERSION = '0.3.19';
+/** This build's own version: what a new app's floor is written as, and what the server says it is. */
+const VERSION = APP_VERSION;
 let root: string;
 let asked: CardRequest[];
 let answers: CardAnswer[];
@@ -145,7 +147,7 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     expect((lines['columns'] as { ref: string; rules?: unknown }[]).find((column) => column.ref === 'gift_card_id')).toMatchObject({ type: 'int', nullable: true, rules: { addOnLink: { addOn: 'offers', table: 'gift_cards' } } });
     expect(json('add-ons.json')['requires']).toEqual([expect.objectContaining({ key: 'offers', range: '>=1.0.9' })]);
     // The first Adminium the add-on itself runs on.
-    expect((json('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe('0.3.19');
+    expect((json('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe('0.3.19'); // what Offers & gift cards itself runs on
     expect(done.content).toContain('apps/till/manifest/tables/ticket_lines.json: added gift_card_id (int, a link to offers.gift_cards), load_amount (money); the rule "card-load" posts into offers/value (issue)');
     expect(done.content).toContain('apps/till/manifest/tables/tickets.json: no column added');
     expect(done.content).toContain('"tables" on the role');

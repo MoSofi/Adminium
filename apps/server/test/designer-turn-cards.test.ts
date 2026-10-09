@@ -14,6 +14,7 @@
  * check are the real ones; the shapes are Offers' own, as its manifest
  * declares them.
  */
+import { APP_VERSION } from '../src/version.js';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -36,7 +37,8 @@ import { tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
 const OFFERS = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'offers-shapes.json'), 'utf8')) as Record<string, unknown>;
-const VERSION = '0.3.19';
+/** This build's own version: what a new app's floor is written as, and what the server says it is. */
+const VERSION = APP_VERSION;
 const BY = { id: 'u1', label: 'Owner' };
 let root: string;
 let sessions: string;
@@ -157,7 +159,7 @@ describe('gift cards at a till, start to finish', () => {
     expect((read('tables/ticket_lines.json')['postings'] as unknown[])[0]).toMatchObject({ id: 'card-load', via: 'ticket_id', post: { on: { to: ['paid'] } }, map: { card: 'gift_card_id', amount: 'load_amount' } });
     expect((read('tables/payments.json')['postings'] as unknown[])[0]).toMatchObject({ id: 'card', via: 'ticket_id', reverse: { on: { column: 'voided_at', set: true, own: true } }, map: { card: 'card_id', due: { parent: 'due' }, amount: 'amount' } });
     for (const file of ['tables/tickets.json', 'tables/ticket_lines.json', 'tables/payments.json']) expect(read(file)['builtOn'], file).toBeUndefined();
-    expect((read('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe('0.3.19');
+    expect((read('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe(VERSION);
     expect(errorsNow()).toEqual([]);
 
     // The next turn starts from an app that says what posts where, with the add-ons skill whatever is said.
