@@ -35,6 +35,8 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
+import { buildLinePath } from '../programs.js';
+
 import { BUILD_DIR } from '../build-shared.js';
 import { APPS_DIR, SIDES, appDir, type AppSide } from './read-app.js';
 
@@ -305,7 +307,10 @@ export const runLine: StepRunner = (line, cwd, signal, env) =>
     let output = '';
     // Its own process group where there are groups: the shell's children (npm, Vite) end with it.
     const grouped = process.platform !== 'win32';
-    const child = spawn(line, { cwd, env: { ...buildEnvironment(process.env), ...env }, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
+    const base = buildEnvironment(process.env);
+    // In the desktop app `node`, `npm` and `npx` on a build line are the app's own: their folder comes first.
+    const path = buildLinePath(base['PATH']);
+    const child = spawn(line, { cwd, env: { ...base, ...(path === undefined ? {} : { PATH: path }), ...env }, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
     const keep = (chunk: Buffer): void => {
       output = `${output}${chunk.toString('utf8')}`.slice(-MAX_OUTPUT);
     };

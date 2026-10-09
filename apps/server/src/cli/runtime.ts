@@ -37,6 +37,7 @@ import { createConnectionStatsCollector } from '../llm/stats-collector.js';
 import type { CollectRunStats } from '../llm/prompt-service.js';
 import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
+import { mayOpenBrowser } from '../project/programs.js';
 import type { ProjectServerOptions } from '../project/service.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
@@ -506,7 +507,7 @@ export function installSignalShutdown(
 export type RunProcess = (
   command: string,
   args: readonly string[],
-  opts: { cwd: string; inherit?: boolean },
+  opts: { cwd: string; inherit?: boolean; env?: Readonly<Record<string, string>> },
 ) => { status: number | null; stdout: string };
 
 export const runProcess: RunProcess = (command, args, opts) => {
@@ -514,6 +515,7 @@ export const runProcess: RunProcess = (command, args, opts) => {
     cwd: opts.cwd,
     stdio: opts.inherit === true ? 'inherit' : ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
+    ...(opts.env === undefined ? {} : { env: { ...process.env, ...opts.env } }),
     // npm, pnpm and yarn are `.cmd` shims on Windows, which only a shell runs.
     // The arguments are fixed words, never user input.
     shell: process.platform === 'win32',
@@ -582,6 +584,8 @@ export const openBrowser: OpenBrowser = async (url) => {
   // Only ever called with a URL this process just bound, but the check is cheap
   // and keeps a future caller from turning this into a shell-injection sink.
   if (!/^https?:\/\//.test(url)) return false;
+  // Inside the desktop app the window is the browser: nothing is opened beside it.
+  if (!mayOpenBrowser()) return false;
   try {
     const { spawn } = await import('node:child_process');
     const { command, args } = browserCommand(process.platform);

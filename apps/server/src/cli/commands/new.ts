@@ -29,13 +29,13 @@ import { diskFileStore } from '../../project/file-store.js';
 import { configFileIn } from '../../project/locate.js';
 import { pullProject } from '../../project/reconcile.js';
 import {
-  detectPackageManager,
   installCommand,
   isPackageManager,
   PACKAGE_MANAGERS,
   runScript,
   type PackageManager,
 } from '../../project/package-manager.js';
+import { gitProgram, namedPackageManager, packageManagerProgram } from '../../project/programs.js';
 import { createSampleDatabase } from '../../project/sample.js';
 import { scaffoldProject } from '../../project/scaffold.js';
 import { APP_VERSION } from '../../version.js';
@@ -161,11 +161,13 @@ async function adoptInstance(root: string, secret: string, deps: CliDeps, io: Cl
   }
 }
 
-function initGit(root: string, run: RunProcess, io: CliIo): void {
-  if (run('git', ['--version'], { cwd: root }).status !== 0) return;
-  const inside = run('git', ['rev-parse', '--is-inside-work-tree'], { cwd: root });
+function initGit(root: string, run: RunProcess, io: CliIo, git: string | null): void {
+  // No git to use (the desktop app found none): the project is made without a repository, as with --no-git.
+  if (git === null) return;
+  if (run(git, ['--version'], { cwd: root }).status !== 0) return;
+  const inside = run(git, ['rev-parse', '--is-inside-work-tree'], { cwd: root });
   if (inside.status === 0 && inside.stdout.trim() === 'true') return;
-  if (run('git', ['init', '--quiet'], { cwd: root }).status === 0) {
+  if (run(git, ['init', '--quiet'], { cwd: root }).status === 0) {
     io.out('Started a git repository.');
   }
 }
@@ -249,7 +251,9 @@ export const newCommand: Command = {
         newCommand.name,
       );
     }
-    const packageManager: PackageManager = pmFlag ?? detectPackageManager(deps.env);
+    // In the desktop app there is one manager, the npm it carries, whatever was asked for.
+    const program = packageManagerProgram(deps.cwd, deps.env, pmFlag ?? namedPackageManager(deps.env));
+    const packageManager: PackageManager = program.manager;
 
     const databaseFlag = stringFlag(values.database);
     const sampleFlag = boolFlag(values.sample);
@@ -373,13 +377,14 @@ export const newCommand: Command = {
       await adoptInstance(root, secret ?? dotenv?.ADMINIUM_SECRET ?? '', deps, io);
     }
 
-    if (!boolFlag(values['no-git'])) initGit(root, run, io);
+    if (!boolFlag(values['no-git'])) initGit(root, run, io, gitProgram(deps.env));
 
     let installed: boolean | null = null;
     if (!boolFlag(values['no-install'])) {
       const { command, args } = installCommand(packageManager);
+      const launch = program.launch(args);
       io.out(`Installing dependencies with ${command}…`);
-      installed = run(command, args, { cwd: root, inherit: true }).status === 0;
+      installed = run(launch.command, launch.args, { cwd: root, inherit: true, ...(Object.keys(launch.env).length === 0 ? {} : { env: launch.env }) }).status === 0;
       if (!installed) io.err(`\`${command} ${args.join(' ')}\` failed. Fix the problem above and run it again.`);
     }
 

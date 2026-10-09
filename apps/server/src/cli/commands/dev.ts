@@ -7,6 +7,8 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
+
+import { nodeProgram } from '../../project/programs.js';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -187,9 +189,10 @@ export const devCommand: Command = {
       spawnServer: (): DevChild => {
         const args = ['start', ...forwarded];
         if (deps.spawnDevServer !== undefined) return deps.spawnDevServer(args, { cwd: project.root, env });
-        const child = spawn(process.execPath, [CLI_ENTRY, ...args], {
+        const node = nodeProgram([CLI_ENTRY, ...args], env);
+        const child = spawn(node.command, node.args, {
           cwd: project.root,
-          env,
+          env: { ...env, ...node.env },
           stdio: 'inherit',
         });
         return {

@@ -30,6 +30,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 
+import { nodeProgram } from '../project/programs.js';
+
 import { checkApp, type AppFinding } from '../project/apps/check-app.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
 import { applyLook, cleanLook, directionFromWords, lookInUse, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
@@ -932,12 +934,14 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           if (answer.type !== 'question' || answer.text !== RUN_THEM) return text('The person said not to run the tests. Go on without them.', 'Tests not run');
           testsAllowed = true;
         }
-        const result = await runChild(process.execPath, ['--test', ...files.map((name) => `apps/${appKey}/tests/${name}`)], {
+        // Node, wherever this server runs: inside the desktop app its own path is a helper that cannot be Node.
+        const node = nodeProgram(['--test', ...files.map((name) => `apps/${appKey}/tests/${name}`)]);
+        const result = await runChild(node.command, node.args, {
           cwd: deps.root,
           timeoutMs: TESTS_TIMEOUT_MS,
           signal: ctx.signal,
           // The starter's own test calls `adminium app check` through the CLI; check_app is that check, run here.
-          env: { ...process.env, ADMINIUM_SKIP_CLI: '1' },
+          env: { ...process.env, ...node.env, ADMINIUM_SKIP_CLI: '1' },
         });
         const tail = result.output.split('\n').slice(-200).join('\n');
         if (result.timedOut) return refused(`The tests ran longer than ${String(TESTS_TIMEOUT_MS / 1000)} s and were stopped.\n${tail}`, 'Tests took too long');
