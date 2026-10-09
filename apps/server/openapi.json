@@ -108733,6 +108733,87 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "on": {
+                            "type": "object",
+                            "properties": {
+                              "pageId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "documentId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "scope": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "selection",
+                                          "record",
+                                          "page"
+                                        ]
+                                      },
+                                      "count": {
+                                        "anyOf": [
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "gone": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "pageId",
+                              "documentId",
+                              "title",
+                              "scope",
+                              "gone"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -108752,19 +108833,24 @@
                           "createdAt",
                           "finishedAt",
                           "context",
-                          "answer"
+                          "answer",
+                          "on"
                         ],
                         "additionalProperties": false
                       }
                     },
                     "earlier": {
                       "type": "number"
+                    },
+                    "aged": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "session",
                     "turns",
-                    "earlier"
+                    "earlier",
+                    "aged"
                   ],
                   "additionalProperties": false
                 }
@@ -109280,6 +109366,87 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "on": {
+                          "type": "object",
+                          "properties": {
+                            "pageId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "documentId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "title": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "scope": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "selection",
+                                        "record",
+                                        "page"
+                                      ]
+                                    },
+                                    "count": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "count"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "gone": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "pageId",
+                            "documentId",
+                            "title",
+                            "scope",
+                            "gone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -109299,7 +109466,8 @@
                         "createdAt",
                         "finishedAt",
                         "context",
-                        "answer"
+                        "answer",
+                        "on"
                       ],
                       "additionalProperties": false
                     },
@@ -109562,6 +109730,87 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "on": {
+                      "type": "object",
+                      "properties": {
+                        "pageId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "documentId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "title": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "scope": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "selection",
+                                    "record",
+                                    "page"
+                                  ]
+                                },
+                                "count": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "count"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gone": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "pageId",
+                        "documentId",
+                        "title",
+                        "scope",
+                        "gone"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -109581,7 +109830,8 @@
                     "createdAt",
                     "finishedAt",
                     "context",
-                    "answer"
+                    "answer",
+                    "on"
                   ],
                   "additionalProperties": false
                 }
