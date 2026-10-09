@@ -264,6 +264,7 @@ export async function executeAssistantTurn(
   // Add-ons the reply pointed at: kept only when this server's own list has them and they are
   // not installed. The card is drawn from that list when the turn is read; nothing of the
   // model's wording about an add-on is stored as fact.
+  if ('followups' in outcome && outcome.followups.length > 0) answer.followups = outcome.followups;
   const suggested = 'suggest' in outcome ? outcome.suggest : [];
   if (suggested.length > 0) {
     const known = await listedAddOns(deps.addOns);

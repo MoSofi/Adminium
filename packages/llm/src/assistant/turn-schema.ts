@@ -194,6 +194,17 @@ const assistantTurnFields = z.object({
     .max(ASSISTANT_MAX_SUGGESTIONS)
     .optional()
     .describe('Keys from list_add_ons of add-ons that are NOT installed and would give what the person asked for. Only when relevant; three at most.'),
+  /**
+   * Not a move: what the person might ask next, after an answer in words.
+   * Drawn as buttons under the answer; a click sends the text as THEIR next
+   * message, so each is written as their question. A draft carries its own
+   * (`result.followups`).
+   */
+  followups: z
+    .array(z.string().min(1).max(80))
+    .max(3)
+    .optional()
+    .describe('With an answer in words only: up to 3 questions the person might ask next, shown as buttons. A click sends the text to you as their next message, so write each as THEIR question to you ("Who comes next?"), never as yours to them. Only ones you can answer with your tools.'),
 });
 
 export const assistantTurnV1 = assistantTurnFields.refine(

@@ -859,6 +859,25 @@ describe('a screen with no context of its own', () => {
     expect(save.statusCode).toBeLessThan(500);
   });
 
+  it('keeps beside an answer in words what the person might ask next', async () => {
+    const host = { connectionIds: [] };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'How many?' } });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    await runTurn(turnId, [{ text: reply({ say: 'Twelve.', followups: ['Who comes next?', 'And last year?'] }) }], t.users.admin.id);
+    const read = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`, headers: asUser(t.users.admin) });
+    expect((read.json() as { answer: { followups: string[] } }).answer.followups).toEqual(['Who comes next?', 'And last year?']);
+
+    // More than three is not a reply: the model is told, and its next one is taken.
+    const again = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'And now?' } });
+    const secondId = (again.json() as { turn: { id: string } }).turn.id;
+    await runTurn(secondId, [{ text: reply({ say: 'x', followups: ['a', 'b', 'c', 'd'] }) }, { text: reply({ say: 'Thirteen.' }) }], t.users.admin.id);
+    const second = await assistantSessionsRepo(t.meta).findTurn(secondId);
+    expect(second).toMatchObject({ status: 'done', say: 'Thirteen.' });
+    expect((second!.answer as { followups?: unknown }).followups).toBeUndefined();
+  });
+
   it('refuses a draft the model sends anyway', async () => {
     const host = { connectionIds: [] };
     const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });

@@ -144,6 +144,8 @@ export type TurnOutcome =
       say: string;
       /** Add-on keys the reply pointed at, as the model wrote them: unchecked. */
       suggest: string[];
+      /** What the person might ask next, after an answer in words. Empty beside a draft, which carries its own. */
+      followups: string[];
       /** Present when the model produced a draft. */
       result: TurnResult | null;
       steps: TurnStep[];
@@ -451,6 +453,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         status: 'done',
         say: turn.say,
         suggest: [...(turn.suggest ?? [])],
+        followups: [],
         result: {
           title: result.title,
           meta: result.meta,
@@ -498,6 +501,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       status: 'done',
       say: turn.say,
       suggest: [...(turn.suggest ?? [])],
+      followups: [...(turn.followups ?? [])],
       result: null,
       steps,
       messages,
