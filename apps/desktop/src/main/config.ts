@@ -98,7 +98,7 @@ export class SecretUnavailableError extends DesktopConfigError {
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
 /** The `version` this build writes. Bump only alongside a migration. */
-export const CURRENT_CONFIG_VERSION = 1;
+export const CURRENT_CONFIG_VERSION = 2;
 
 /** Update modes. */
 export const updateModeSchema = z.enum(['notify', 'manual', 'disabled']);
@@ -162,6 +162,35 @@ export const MIN_WINDOW_HEIGHT = 700;
  * screen can warn") and is read back by `getRuntimeInfo()`, so it is persisted
  * here rather than recomputed by every reader.
  */
+/**
+ * A project folder the app has opened (version 2).
+ *
+ * `trusted` is not a yes/no: it is the fingerprint of the folder's code at the
+ * moment the person said "Open". The question is asked again when the code is
+ * no longer that code. It is kept HERE, in the app's own folder, and never in
+ * the project, where whoever sent the folder could have written it.
+ */
+export const projectEntrySchema = z.strictObject({
+  /** The folder, by its real path. */
+  path: z.string().min(1),
+  name: z.string().min(1),
+  /** When it was last opened here (ISO 8601). */
+  lastOpened: z.string().min(1),
+  /** How it was last served: the chip beside it in the recent list. */
+  state: z.enum(['building', 'shared']),
+  /** The port it is shared on, kept so a phone's address survives a restart. `null` until it is first shared. */
+  sharePort: portSchema.nullable(),
+  /** The fingerprint of the code the person agreed to run, or `null`: never agreed. */
+  trusted: z.string().min(1).nullable(),
+});
+
+export type ProjectEntry = z.infer<typeof projectEntrySchema>;
+
+/** How many recent projects are kept. The list is for getting back to work, not a history. */
+export const MAX_RECENT_PROJECTS = 12;
+
+export const themeChoiceSchema = z.enum(['system', 'light', 'dark']);
+
 export const desktopConfigSchema = z.strictObject({
   version: z.literal(CURRENT_CONFIG_VERSION),
   dataDir: z.string().min(1),
@@ -178,6 +207,13 @@ export const desktopConfigSchema = z.strictObject({
   telemetryOptIn: z.boolean(),
   autoBackup: autoBackupSchema,
   window: windowStateSchema,
+  // ── version 2: the app's own first screens ──
+  /** The project folders opened here, newest first. */
+  projects: z.array(projectEntrySchema),
+  /** The language of the app's own screens (a locale tag), or `null`: the system's. Set from the Designer's top bar too. */
+  language: z.string().min(2).nullable(),
+  /** Light, dark, or as the system is. */
+  theme: themeChoiceSchema,
 });
 
 export type DesktopConfig = z.infer<typeof desktopConfigSchema>;
@@ -219,6 +255,9 @@ export function createDefaultConfig(dataDir: string): DesktopConfig {
     telemetryOptIn: false,
     autoBackup: { enabled: true, keep: DEFAULT_AUTO_BACKUP_KEEP },
     window: { width: 1440, height: 900, maximized: false },
+    projects: [],
+    language: null,
+    theme: 'system',
   };
 }
 
@@ -245,6 +284,10 @@ export function redactConfig(config: DesktopConfig): RedactedDesktopConfig {
     telemetryOptIn: config.telemetryOptIn,
     autoBackup: { ...config.autoBackup },
     window: { ...config.window },
+    // No secret among them: a path, a name, a port, and the fingerprint of code the person agreed to run.
+    projects: config.projects.map((project) => ({ ...project })),
+    language: config.language,
+    theme: config.theme,
   };
 }
 
@@ -312,6 +355,8 @@ export type ConfigMigration = (raw: Record<string, unknown>) => Record<string, u
  */
 export const CONFIG_MIGRATIONS: Readonly<Record<number, ConfigMigration>> = {
   0: (raw) => ({ ...raw, version: 1 }),
+  // 1 → 2: the first screens. An empty list of projects, the system's language and theme; nothing else changes.
+  1: (raw) => ({ ...raw, version: 2, projects: [], language: null, theme: 'system' }),
 };
 
 /** Just enough of the body to read the version before the real schema runs. */
