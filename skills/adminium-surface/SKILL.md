@@ -1,6 +1,6 @@
 ---
 name: adminium-surface
-description: Build the screens of an Adminium app — the staff side used by people signed in to Adminium, and the public customer side that uses the public API with a served browser key. Use when someone wants a custom front end, a staff screen, a booking, ordering or request form, a customer portal or any public page for an Adminium app. Open `adminium` and `adminium-app` first, because the screens sit on the app's manifest.
+description: Build the screens of an Adminium app — the staff side used by people signed in to Adminium, and the public customer side that uses the public API with a served browser key. Use when someone wants a custom front end, a staff screen, a booking, ordering or request form, a customer portal or any public page for an Adminium app. Open `adminium` and `adminium-app` first; the screens sit on the app's manifest.
 license: AGPL-3.0-only
 ---
 
