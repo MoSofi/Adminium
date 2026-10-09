@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
 import type { AssistantSession, AssistantTurn } from '@adminium/meta';
 import { composeHistory, HISTORY_NEWEST_SHARE, type HistoryPiece } from '../src/assistant/sessions.js';
