@@ -46,12 +46,14 @@
 import { utilityProcess } from 'electron';
 
 import {
+  buildProjectServerEnv,
   buildServerEnv,
   LOOPBACK_HOST,
   type BuildServerEnvInput,
   type DesktopLogLevel,
+  type DesktopProjectMode,
 } from '../server/env.js';
-import { parseServerMessage, type ServerReadyMessage } from '../server/protocol.js';
+import { parseServerMessage, type ServerBusyMessage, type ServerReadyMessage } from '../server/protocol.js';
 import {
   createDesktopLogging,
   createMemoryLogSink,
@@ -194,6 +196,40 @@ export const DEFAULT_RESTART_POLICY: RestartPolicy = {
 export const DEFAULT_READY_TIMEOUT_MS = 30_000;
 /** How long a `shutdown` message gets before `kill()`. */
 export const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
+
+/**
+ * A project's first start builds its apps' screens and migrates its own
+ * database before it listens; thirty seconds is the classic workspace's
+ * number, for a store that is already there.
+ */
+export const PROJECT_READY_TIMEOUT_MS = 120_000;
+/** How long a project's server gets to end a turn or an install it is in the middle of. */
+export const PROJECT_BUSY_SHUTDOWN_TIMEOUT_MS = 20_000;
+/** How long main waits for the answer to `busy?` before it takes silence for "nothing". */
+export const BUSY_ANSWER_TIMEOUT_MS = 2_000;
+
+/** What a project's server is in the middle of, in the Designer's own word. */
+export type ServerBusy = NonNullable<ServerBusyMessage['busy']>;
+
+/**
+ * A manager that serves a project folder instead of the classic workspace
+ * (plan 66, spec 05). The folder is one the person already said yes to, and
+ * that is ready to start: this object forks, it does not ask.
+ */
+export interface ProjectServerOptions {
+  /** The project's folder, by its real path. */
+  root: string;
+  mode: DesktopProjectMode;
+  /**
+   * A free port, asked for before EVERY fork: design mode must know its port
+   * before it listens (its two host names are built from it), and a port
+   * reused across a restart that something else took meanwhile is a start
+   * that fails for no reason the person could see.
+   */
+  pickPort: (mode: DesktopProjectMode) => Promise<number>;
+  /** The app's own bundled apps, as an absolute path. */
+  bundledAppsDir?: string | undefined;
+}
 /** Lines of log attached to a failure. Enough for a stack, short enough to read. */
 export const CRASH_EXCERPT_LINES = 20;
 
@@ -220,6 +256,10 @@ export function decideRestart(input: RestartDecisionInput): RestartDecision {
   if (input.expected) return { action: 'none' };
 
   const count = input.exitsInWindow.length;
+  // A policy of no restarts at all (a project's): one stop is the end, in words that do not count to zero.
+  if (input.policy.maxRestarts === 0) {
+    return { action: 'give-up', reason: `This project's server stopped${input.exitCode === null ? '' : ` (exit code ${String(input.exitCode)})`}.` };
+  }
   if (count >= input.policy.maxRestarts) {
     const seconds = Math.round(input.policy.windowMs / 1000);
     return {
@@ -276,9 +316,11 @@ export interface CreateServerManagerOptions {
   /** Absolute path of `out/server/index.js`. */
   entry: string;
   /** `dataDir`, absolute. */
-  dataDir: string;
+  /** The classic workspace's. Not read when {@link project} is given. */
+  dataDir?: string | undefined;
   /** The decrypted `ADMINIUM_SECRET`. */
-  secret: string;
+  /** The classic workspace's. Not read when {@link project} is given. */
+  secret?: string | undefined;
   /**
    * Mints boot token. Called ONCE PER FORK, not once per app launch — read
    * {@link ServerManager.bootToken} after `ready` to learn the live child's
@@ -309,7 +351,10 @@ export interface CreateServerManagerOptions {
    * BuildServerEnvInput.singleUser} gives: forgetting it is a silent 403 on
    * every launch, not a compile error.
    */
-  singleUser: boolean;
+  /** The classic workspace's. Not read when {@link project} is given. */
+  singleUser?: boolean | undefined;
+  /** Serve this project folder instead of the classic workspace. */
+  project?: ProjectServerOptions | undefined;
   /** Defaults to loopback; only the LAN toggle passes `0.0.0.0`. */
   host?: string | undefined;
   /** Defaults to 0 — the random free port. */
@@ -358,7 +403,14 @@ export interface ServerManager {
   /** Graceful: `shutdown` message, then `kill()` if ignored. */
   stop(): Promise<void>;
   /** Deliberate (LAN toggle). Not throttled, not counted. */
-  restart(changes?: { host?: string; port?: number }): Promise<ServerReadyInfo>;
+  restart(changes?: { host?: string; port?: number; mode?: DesktopProjectMode }): Promise<ServerReadyInfo>;
+  /** The project this manager serves and how, or `null` for the classic workspace. */
+  readonly project: { readonly root: string; readonly mode: DesktopProjectMode } | null;
+  /**
+   * What the server is in the middle of, or `null` (also when it does not
+   * answer in time, or is not running). Asked before anything that ends it.
+   */
+  busy(): Promise<ServerBusy | null>;
   /** Unexpected post-`ready` exits only. Returns an unsubscribe. */
   onExit(listener: ServerExitListener): () => void;
   /** Every state transition, called immediately with the current one. */
@@ -376,7 +428,7 @@ class ServerManagerImpl implements ServerManager {
   readonly #log: LogSink;
   readonly #timers: TimerApi;
   readonly #now: () => number;
-  readonly #policy: RestartPolicy;
+  #policy: RestartPolicy;
   readonly #fork: ForkServer;
   readonly #stateListeners = new Set<ServerStateListener>();
   readonly #exitListeners = new Set<ServerExitListener>();
@@ -411,6 +463,8 @@ class ServerManagerImpl implements ServerManager {
    * this AFTER `ready`.
    */
   #bootToken: string | null = null;
+  #mode: DesktopProjectMode | null;
+  readonly #busyWaiters = new Set<(busy: ServerBusy | null) => void>();
 
   constructor(opts: CreateServerManagerOptions) {
     this.#opts = opts;
@@ -425,6 +479,9 @@ class ServerManagerImpl implements ServerManager {
     this.#fork = opts.fork ?? utilityProcessFork;
     this.#host = opts.host ?? LOOPBACK_HOST;
     this.#port = opts.port;
+    this.#mode = opts.project?.mode ?? null;
+    // A project is never restarted behind the person's back: its port changes at every fork, and the window is on it.
+    if (opts.project !== undefined) this.#policy = { ...this.#policy, maxRestarts: 0 };
   }
 
   get state(): ServerState {
@@ -486,10 +543,11 @@ class ServerManagerImpl implements ServerManager {
    * Stop and start again, deliberately (LAN toggle is the caller). Not
    * throttled and not counted against the cap: the user asked for it.
    */
-  async restart(changes: { host?: string; port?: number } = {}): Promise<ServerReadyInfo> {
+  async restart(changes: { host?: string; port?: number; mode?: DesktopProjectMode } = {}): Promise<ServerReadyInfo> {
     this.#cancelRestartTimer();
     if (changes.host !== undefined) this.#host = changes.host;
     if (changes.port !== undefined) this.#port = changes.port;
+    if (changes.mode !== undefined && this.#opts.project !== undefined) this.#mode = changes.mode;
 
     const child = this.#child;
     if (child !== null) {
@@ -536,12 +594,68 @@ class ServerManagerImpl implements ServerManager {
    * would 401 — move the mint into `#spawnAndWait` rather than letting
    * `#buildEnv` become non-idempotent.
    */
-  #buildEnv(): Record<string, string> {
+  get project(): { readonly root: string; readonly mode: DesktopProjectMode } | null {
+    return this.#opts.project === undefined || this.#mode === null ? null : { root: this.#opts.project.root, mode: this.#mode };
+  }
+
+  async busy(): Promise<ServerBusy | null> {
+    const child = this.#child;
+    if (child === null || this.#state.status !== 'ready') return null;
+    return new Promise<ServerBusy | null>((resolve) => {
+      let settled = false;
+      const done = (busy: ServerBusy | null): void => {
+        if (settled) return;
+        settled = true;
+        this.#timers.clearTimeout(timer);
+        this.#busyWaiters.delete(done);
+        resolve(busy);
+      };
+      const timer = this.#timers.setTimeout(() => {
+        done(null);
+      }, BUSY_ANSWER_TIMEOUT_MS);
+      this.#busyWaiters.add(done);
+      try {
+        child.postMessage({ type: 'busy?' });
+      } catch {
+        done(null);
+      }
+    });
+  }
+
+  /**
+   * The classic block is built in the same tick as the fork (nothing awaits
+   * between `start()` and the child existing); a project's needs its port
+   * first, which is asked of the machine.
+   */
+  #buildEnv(): Record<string, string> | Promise<Record<string, string>> {
     // Step 4, per FORK. The previous child's token dies with it: nothing in the
     // new process has ever heard of it, which is precisely the property
     // "one success per boot token" needs and the old once-per-launch token did
     // not have.
     this.#bootToken = this.#opts.createBootToken();
+    const project = this.#opts.project;
+    if (project !== undefined) {
+      const mode = this.#mode ?? project.mode;
+      const bootToken = this.#bootToken;
+      return project.pickPort(mode).then((port) => {
+        this.#port = port;
+        return buildProjectServerEnv({
+        root: project.root,
+        mode,
+        port,
+        host: this.#host,
+        bootToken,
+        ...(this.#opts.logLevel === undefined ? {} : { logLevel: this.#opts.logLevel }),
+        ...(this.#opts.staticRoot === undefined ? {} : { staticRoot: this.#opts.staticRoot }),
+        ...(this.#opts.bundledAddOnsDir === undefined ? {} : { bundledAddOnsDir: this.#opts.bundledAddOnsDir }),
+        ...(project.bundledAppsDir === undefined ? {} : { bundledAppsDir: project.bundledAppsDir }),
+        ...(this.#opts.inheritEnv === undefined ? {} : { inherit: this.#opts.inheritEnv }),
+        });
+      });
+    }
+    if (this.#opts.dataDir === undefined || this.#opts.secret === undefined || this.#opts.singleUser === undefined) {
+      throw new Error('the classic workspace needs its data folder, its secret and its sign-in rule');
+    }
     const input: BuildServerEnvInput = {
       dataDir: this.#opts.dataDir,
       secret: this.#opts.secret,
@@ -568,10 +682,11 @@ class ServerManagerImpl implements ServerManager {
   /** One fork + one handshake. */
   async #spawnAndWait(): Promise<ServerReadyInfo> {
     this.#supervise = false;
-    const env = this.#buildEnv();
 
     let child: ServerChildLike;
     try {
+      const built = this.#buildEnv();
+      const env = built instanceof Promise ? await built : built;
       child = this.#fork({ entry: this.#opts.entry, env });
     } catch (error) {
       throw new ServerStartError(
@@ -598,6 +713,11 @@ class ServerManagerImpl implements ServerManager {
     }
 
     const ready = this.#awaitReady(child);
+    child.on('message', (raw) => {
+      const parsed = parseServerMessage(raw);
+      if (!parsed.ok || parsed.message.type !== 'busy') return;
+      for (const waiter of [...this.#busyWaiters]) waiter(parsed.message.busy);
+    });
     child.on('exit', (code) => {
       this.#onExit(child, code);
     });
@@ -634,7 +754,7 @@ class ServerManagerImpl implements ServerManager {
   #awaitReady(child: ServerChildLike): Promise<ServerReadyMessage> {
     return new Promise<ServerReadyMessage>((resolve, reject) => {
       let settled = false;
-      const timeoutMs = this.#opts.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
+      const timeoutMs = this.#opts.readyTimeoutMs ?? (this.#opts.project === undefined ? DEFAULT_READY_TIMEOUT_MS : PROJECT_READY_TIMEOUT_MS);
 
       const finish = (fn: () => void): void => {
         if (settled) return;
@@ -698,6 +818,7 @@ class ServerManagerImpl implements ServerManager {
     // A stale child's exit (we already replaced it) must not drive state.
     if (this.#child !== child) return;
     this.#child = null;
+    for (const waiter of [...this.#busyWaiters]) waiter(null);
 
     for (const waiter of this.#exitWaiters) waiter(code);
     this.#exitWaiters.clear();
@@ -781,8 +902,11 @@ class ServerManagerImpl implements ServerManager {
   }
 
   /** Post `shutdown`, wait, then `kill()`. Resolves once the child is gone. */
-  #closeChild(child: ServerChildLike): Promise<void> {
-    const timeoutMs = this.#opts.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_TIMEOUT_MS;
+  async #closeChild(child: ServerChildLike): Promise<void> {
+    // A project's server that is in the middle of a turn gets the time to end it and write that it did.
+    const wasBusy = this.#opts.project === undefined ? null : await this.busy();
+    if (this.#child !== child) return;
+    const timeoutMs = this.#opts.shutdownTimeoutMs ?? (wasBusy === null ? DEFAULT_SHUTDOWN_TIMEOUT_MS : PROJECT_BUSY_SHUTDOWN_TIMEOUT_MS);
     return new Promise<void>((resolve) => {
       let settled = false;
       const done = (): void => {

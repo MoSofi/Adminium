@@ -28,6 +28,11 @@ import {
   type ServerChildLike,
   type ServerExit,
   type ServerState,
+  BUSY_ANSWER_TIMEOUT_MS,
+  DEFAULT_READY_TIMEOUT_MS,
+  DEFAULT_SHUTDOWN_TIMEOUT_MS,
+  PROJECT_BUSY_SHUTDOWN_TIMEOUT_MS,
+  PROJECT_READY_TIMEOUT_MS,
 } from './server-manager.js';
 
 // ─── Fakes ───────────────────────────────────────────────────────────────────
@@ -702,5 +707,185 @@ describe('ServerManager.subscribe', () => {
     await started;
 
     expect(h.states.map((state) => state.status)).toEqual(['idle', 'starting', 'ready']);
+  });
+});
+
+// ─── A project folder (plan 66, spec 05) ─────────────────────────────────────
+
+describe('ServerManager serving a project', () => {
+  const ROOT = '/Users/someone/Adminium/juniper';
+  const tick = async (): Promise<void> => {
+    for (let i = 0; i < 5; i += 1) await Promise.resolve();
+  };
+
+  function project(over: Partial<CreateServerManagerOptions> = {}, ports: number[] = [4700, 4701, 4702]) {
+    const asked: string[] = [];
+    const h = harness({
+      dataDir: undefined,
+      secret: undefined,
+      singleUser: undefined,
+      project: {
+        root: ROOT,
+        mode: 'design',
+        bundledAppsDir: '/app/apps-bundle',
+        pickPort: (mode) => {
+          asked.push(mode);
+          return Promise.resolve(ports.shift() ?? 4799);
+        },
+      },
+      ...over,
+    });
+    return { ...h, asked };
+  }
+
+  async function up(h: Harness, index: number, port: number): Promise<void> {
+    await tick();
+    childAt(h, index).ready(port);
+    await tick();
+  }
+
+  it('forks with the project’s block: the folder, a port picked first, and nothing of the classic workspace', async () => {
+    const h = project();
+    const started = h.manager.start();
+    await up(h, 0, 4700);
+    await expect(started).resolves.toMatchObject({ port: 4700, url: 'http://127.0.0.1:4700' });
+
+    const env = h.forkCalls[0]?.env ?? {};
+    expect(env).toMatchObject({
+      ADMINIUM_RUNTIME: 'desktop',
+      ADMINIUM_DESKTOP_PROJECT: ROOT,
+      ADMINIUM_DESKTOP_PROJECT_MODE: 'design',
+      ADMINIUM_PORT: '4700',
+      ADMINIUM_HOST: '127.0.0.1',
+      ADMINIUM_BUNDLED_APPS: '/app/apps-bundle',
+      ADMINIUM_BOOT_TOKEN: TOKEN,
+    });
+    for (const name of ['ADMINIUM_SECRET', 'ADMINIUM_DATA_DIR', 'ADMINIUM_META_DSN', 'ADMINIUM_DESKTOP_SINGLE_USER']) expect(env).not.toHaveProperty(name);
+    expect(h.manager.project).toEqual({ root: ROOT, mode: 'design' });
+    expect(h.manager.bootToken).toBe(TOKEN);
+  });
+
+  it('the classic manager names no project', () => {
+    expect(harness().manager.project).toBeNull();
+  });
+
+  it('picks the port again at every fork, and a restart can change how the folder is served', async () => {
+    const h = project();
+    void h.manager.start();
+    await up(h, 0, 4700);
+
+    const again = h.manager.restart({ mode: 'serve', host: '0.0.0.0' });
+    await tick();
+    // Nothing is in the way: the question is answered, then the stop is asked for.
+    childAt(h, 0).send({ type: 'busy', busy: null });
+    await tick();
+    expect(childAt(h, 0).posted).toEqual([{ type: 'busy?' }, { type: 'shutdown' }]);
+    childAt(h, 0).exit(0);
+    await up(h, 1, 4701);
+    await expect(again).resolves.toMatchObject({ port: 4701 });
+
+    expect(h.asked).toEqual(['design', 'serve']);
+    expect(h.forkCalls[1]?.env).toMatchObject({ ADMINIUM_PORT: '4701', ADMINIUM_DESKTOP_PROJECT_MODE: 'serve', ADMINIUM_HOST: '0.0.0.0' });
+    expect(h.manager.project).toEqual({ root: ROOT, mode: 'serve' });
+  });
+
+  it('waits two minutes for a first start, not thirty seconds', async () => {
+    const h = project();
+    const started = h.manager.start();
+    started.catch(() => undefined);
+    await tick();
+    h.clock.advance(DEFAULT_READY_TIMEOUT_MS + 1);
+    await tick();
+    expect(h.manager.state.status).toBe('starting');
+    h.clock.advance(PROJECT_READY_TIMEOUT_MS);
+    await expect(started).rejects.toThrow(/did not start within 120 seconds/);
+  });
+
+  it('a start that fails is one failure with the server’s own words, and nothing is tried again', async () => {
+    const h = project();
+    const started = h.manager.start();
+    await tick();
+    childAt(h, 0).send({ type: 'error', stage: 'project', message: 'This project is already running (in a terminal), on port 4711.' });
+    await expect(started).rejects.toThrow('(project): This project is already running (in a terminal), on port 4711.');
+    childAt(h, 0).exit(1);
+    h.clock.advance(60_000);
+    await tick();
+    expect(h.children).toHaveLength(1);
+    expect(h.manager.state.status).toBe('failed');
+  });
+
+  it('a server that stops on its own is not restarted behind the person’s back', async () => {
+    const h = project();
+    void h.manager.start();
+    await up(h, 0, 4700);
+    childAt(h, 0).exit(1);
+    h.clock.advance(60_000);
+    await tick();
+    expect(h.children).toHaveLength(1);
+    expect(h.manager.state).toMatchObject({ status: 'failed', reason: 'This project’s server stopped (exit code 1).'.replace('’', "'") });
+    expect(h.exits).toEqual([expect.objectContaining({ willRestart: false, giveUp: true })]);
+  });
+
+  it('asks what the server is in the middle of, and takes silence for nothing', async () => {
+    const h = project();
+    void h.manager.start();
+    await up(h, 0, 4700);
+
+    const asked = h.manager.busy();
+    expect(childAt(h, 0).posted).toEqual([{ type: 'busy?' }]);
+    childAt(h, 0).send({ type: 'busy', busy: { kind: 'turn', sessionId: 'ds_1' } });
+    await expect(asked).resolves.toEqual({ kind: 'turn', sessionId: 'ds_1' });
+
+    const silent = h.manager.busy();
+    h.clock.advance(BUSY_ANSWER_TIMEOUT_MS);
+    await expect(silent).resolves.toBeNull();
+  });
+
+  it('a server that is not up is not asked', async () => {
+    const h = project();
+    await expect(h.manager.busy()).resolves.toBeNull();
+    expect(h.children).toHaveLength(0);
+  });
+
+  it('gives a server in the middle of a turn twenty seconds to end it, an idle one five', async () => {
+    const h = project();
+    void h.manager.start();
+    await up(h, 0, 4700);
+    const stopping = h.manager.stop();
+    await tick();
+    childAt(h, 0).send({ type: 'busy', busy: { kind: 'turn', sessionId: 'ds_1' } });
+    await tick();
+    h.clock.advance(DEFAULT_SHUTDOWN_TIMEOUT_MS + 1);
+    expect(childAt(h, 0).killed).toBe(false);
+    h.clock.advance(PROJECT_BUSY_SHUTDOWN_TIMEOUT_MS);
+    await stopping;
+    expect(childAt(h, 0).killed).toBe(true);
+
+    const idle = project();
+    void idle.manager.start();
+    await up(idle, 0, 4700);
+    const stop = idle.manager.stop();
+    await tick();
+    childAt(idle, 0).send({ type: 'busy', busy: null });
+    await tick();
+    idle.clock.advance(DEFAULT_SHUTDOWN_TIMEOUT_MS + 1);
+    await stop;
+    expect(childAt(idle, 0).killed).toBe(true);
+  });
+
+  it('a busy answer never passes for a start’s outcome', async () => {
+    const h = project();
+    const started = h.manager.start();
+    await tick();
+    childAt(h, 0).send({ type: 'busy', busy: null });
+    await tick();
+    expect(h.manager.state.status).toBe('starting');
+    childAt(h, 0).ready(4700);
+    await expect(started).resolves.toMatchObject({ port: 4700 });
+  });
+
+  it('the classic workspace still needs its own three', async () => {
+    const h = harness({ secret: undefined });
+    await expect(h.manager.start()).rejects.toThrow(/needs its data folder, its secret and its sign-in rule/);
   });
 });

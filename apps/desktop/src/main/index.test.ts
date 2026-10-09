@@ -308,6 +308,8 @@ function harness(
     get bootToken() {
       return liveBootToken;
     },
+    project: null,
+    busy: () => Promise.resolve(null),
     start: () =>
       fork(
         overrides.start ??
