@@ -120,7 +120,8 @@ export async function executeAssistantTurn(
   const startedAt = now();
   const userId = payload.userId ?? session.createdBy;
   const finish = async (patch: Parameters<typeof repo.finishTurn>[1]): Promise<void> => {
-    await repo.finishTurn(turn.id, { ...patch, durationMs: now() - startedAt, finishedAt: now() });
+    // Only while this run still holds the turn: one the person stopped meanwhile stays stopped.
+    await repo.finishTurn(turn.id, { ...patch, durationMs: now() - startedAt, finishedAt: now(), expected: 'running' });
   };
 
   let resolved: ResolvedProviderClient;
@@ -138,14 +139,26 @@ export async function executeAssistantTurn(
     return;
   }
 
-  const setup = await setUpTurn({
-    meta: deps.meta,
-    manager: deps.manager,
-    context: session.context,
-    host: session.host,
-    userId: userId ?? null,
-    can: (permission) => deps.can(userId ?? null, permission),
-  });
+  // Reading the page can fail for reasons that are nobody's bug (a page deleted since, a
+  // connection gone). Thrown, the job would be tried again and the person told half a minute
+  // later that the server restarted; it is said at once, as what it is.
+  let setup: Awaited<ReturnType<typeof setUpTurn>>;
+  try {
+    setup = await setUpTurn({
+      meta: deps.meta,
+      manager: deps.manager,
+      context: session.context,
+      host: session.host,
+      userId: userId ?? null,
+      can: (permission) => deps.can(userId ?? null, permission),
+    });
+  } catch (error) {
+    await finish({
+      status: 'failed',
+      error: { kind: 'setup', message: error instanceof Error ? error.message : String(error) },
+    });
+    return;
+  }
 
   // Refused rather than truncated: a provider that silently drops the oldest
   // messages answers confidently from half a conversation.

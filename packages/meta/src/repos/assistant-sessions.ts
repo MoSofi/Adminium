@@ -122,6 +122,11 @@ export interface FinishAssistantTurnInput {
   durationMs?: number | null;
   /** Stamped for every terminal status; omit to leave the turn unfinished. */
   finishedAt?: number | null;
+  /**
+   * Write only while the turn is still in this status. The job ends a turn it
+   * holds as `running`; a turn the person stopped meanwhile keeps `cancelled`.
+   */
+  expected?: AssistantTurnStatus;
 }
 
 function decodeSession(row: Selectable<AdminiumAssistantSessionsTable>): AssistantSession {
@@ -335,6 +340,8 @@ export function assistantSessionsRepo(meta: MetaDb) {
         finishedAt: null,
       };
       await db.insertInto('adminium_assistant_turns').values(row).execute();
+      // A question is use: the sweep that closes a conversation left alone for a day reads this.
+      await db.updateTable('adminium_assistant_sessions').set({ updatedAt: at }).where('id', '=', input.sessionId).execute();
       return decodeTurn(row as unknown as Selectable<AdminiumAssistantTurnsTable>);
     },
 
@@ -431,11 +438,9 @@ export function assistantSessionsRepo(meta: MetaDb) {
       if (input.tokensOut !== undefined) set.tokensOut = input.tokensOut;
       if (input.durationMs !== undefined) set.durationMs = input.durationMs;
       if (input.finishedAt !== undefined) set.finishedAt = input.finishedAt;
-      const res = await db
-        .updateTable('adminium_assistant_turns')
-        .set(set)
-        .where('id', '=', id)
-        .executeTakeFirst();
+      let query = db.updateTable('adminium_assistant_turns').set(set).where('id', '=', id);
+      if (input.expected !== undefined) query = query.where('status', '=', input.expected);
+      const res = await query.executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
     },
   };

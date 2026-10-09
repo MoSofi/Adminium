@@ -46,7 +46,7 @@ import { z } from 'zod';
 import { runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { ConflictError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { ASSISTANT_TURN_KIND } from '../../jobs/assistant-turn.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -85,9 +85,18 @@ export interface AssistantRoutesDeps {
 
 const USE_PERMISSION = 'system:assistant:use';
 
+/**
+ * The signed-in person. An API key is refused by name: a turn runs as a
+ * person, and a key's id looked up as one holds no role, so its tools would
+ * read no table and the conversation would answer about nothing.
+ */
 function requireUserId(request: FastifyRequest): string {
-  const user = (request as unknown as { user?: { id?: string } }).user;
-  const id = user?.id ?? request.apiKeyPrincipal?.id ?? null;
+  if (request.apiKeyPrincipal != null) {
+    throw new ForbiddenError('The assistant works for a signed-in person, not for an API key.', 'FORBIDDEN', {
+      reason: 'api-key',
+    });
+  }
+  const id = (request as unknown as { user?: { id?: string } }).user?.id ?? null;
   if (id === null) throw new UnauthorizedError();
   return id;
 }
@@ -336,8 +345,11 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        if (turn.jobId !== null) deps.cancelJob?.(turn.jobId);
-        await sessions.finishTurn(turn.id, { status: 'cancelled', finishedAt: app.rbac.now() });
+        // Only a turn that is still being worked on: one that has ended keeps what it ended as.
+        if (turn.status === 'queued' || turn.status === 'running') {
+          if (turn.jobId !== null) deps.cancelJob?.(turn.jobId);
+          await sessions.finishTurn(turn.id, { status: 'cancelled', finishedAt: app.rbac.now(), expected: turn.status });
+        }
         return await reply.status(204).send(null);
       },
     );

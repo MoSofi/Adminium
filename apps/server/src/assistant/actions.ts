@@ -46,6 +46,7 @@ import { ConflictError, ForbiddenError, ValidationFailedError } from '../errors.
 import { requiredGrants, resolveRule } from '../automations/validate.js';
 import { sealWebhookSecrets } from '../automations/webhook-secrets.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { readViewForUser } from '../crud/read-view.js';
 import { liveTemplateKeys } from './contexts/automation.js';
 import { documentColumns, mintKey, normalizeDocument, slugKey, type EmailDocument } from '../email/document.js';
 import { renderEmail } from '../email/render.js';
@@ -226,10 +227,26 @@ function savedOf(result: Record<string, unknown> | null): { id: string; kind: st
 
 /** Whether the document a turn was saved as is still there, on the page it was saved to. */
 async function documentExists(input: AssistantActionInput, id: string): Promise<boolean> {
-  if (input.context === 'email') return (await emailTemplatesRepo(input.meta).findById(id)) !== null;
-  if (input.context === 'report') return (await reportDocumentsRepo(input.meta).findById(id)) !== null;
-  if (input.context === 'automation') return (await automationsRepo(input.meta).findById(id)) !== null;
-  return (await invoiceDocumentsRepo(input.meta).findById(id)) !== null;
+  const context = input.context;
+  switch (context) {
+    case 'email':
+      return (await emailTemplatesRepo(input.meta).findById(id)) !== null;
+    case 'report':
+      return (await reportDocumentsRepo(input.meta).findById(id)) !== null;
+    case 'automation':
+      return (await automationsRepo(input.meta).findById(id)) !== null;
+    case 'invoice-template':
+    case 'invoices':
+      return (await invoiceDocumentsRepo(input.meta).findById(id)) !== null;
+    default:
+      // A page added to the list and not here is a compile error, never a silent read of invoices.
+      return unknownContext(context);
+  }
+}
+
+/** A context this file does not know: unreachable while every `switch` over them is whole. */
+function unknownContext(context: never): never {
+  throw new ValidationFailedError('This page has nothing Milo can save.', { context: String(context) });
 }
 
 /**
@@ -299,8 +316,10 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     const trigger = automationTriggerSchema.parse(artefact.trigger);
     const graph = automationGraphSchema.parse(artefact.graph);
     const connectionId = trigger.connectionId;
+    // As its author reads the table, like the draft's own check: a rule saved here names no column they are not shown.
+    const whole = connectionId === null ? null : await loadSnapshotView(input.meta, connectionId);
     resolveRule(trigger, graph, {
-      view: connectionId === null ? null : await loadSnapshotView(input.meta, connectionId),
+      view: whole === null || input.actor.id === null ? whole : await readViewForUser(input.meta, input.actor.id, whole),
       templateKeys: new Set((await liveTemplateKeys({ meta: input.meta })).map((row) => row.key)),
       blockLoopback: process.env['NODE_ENV'] === 'production',
     });
@@ -326,6 +345,8 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     await writeAudit(input, 'create', { id: rule.id, kind: 'rule', name, enabled: false }, at);
     return { echo: { kind: 'saved', open, name }, created: { id: rule.id, kind: 'rule', name } };
   }
+
+  if (input.context !== 'invoice-template' && input.context !== 'invoices') return unknownContext(input.context);
 
   const repo = invoiceDocumentsRepo(input.meta);
   const name = text(input.name, text(artefact.name, 'Untitled invoice'));

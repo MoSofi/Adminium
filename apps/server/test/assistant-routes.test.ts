@@ -815,3 +815,85 @@ describe('what the model is sent of a conversation that goes on', () => {
     ]);
   });
 });
+
+describe('what a turn ends as when something else got there first', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+
+  async function asked(text: string) {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text },
+    });
+    return { sessionId, turnId: (res.json() as { turn: { id: string } }).turn.id };
+  }
+
+  it('keeps a turn stopped when the person stopped it while the model was answering', async () => {
+    const { sessionId, turnId } = await asked('Draft something long');
+    const repo = assistantSessionsRepo(t.meta);
+    const scripted = makeScriptedClient([{ text: plain('Here it is.') }], {
+      // The person presses Stop while the provider is still answering.
+      beforeReply: async () => {
+        const res = await t.app.inject({
+          method: 'POST',
+          url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/cancel`,
+          headers: asUser(t.users.admin),
+        });
+        expect(res.statusCode).toBe(204);
+      },
+    });
+    await executeAssistantTurn({ turnId, userId: t.users.admin.id }, jobContext(), {
+      meta: t.meta,
+      manager: t.manager,
+      resolveClient: () => Promise.resolve({ client: scripted.client, provider: 'anthropic', model: 'm', baseUrl: null }),
+      can: () => Promise.resolve(true),
+      now: () => AT,
+    });
+    const turn = await repo.findTurn(turnId);
+    expect(turn?.status).toBe('cancelled');
+    expect(turn?.say).toBeNull();
+  });
+
+  it('leaves a turn that has ended as it ended when Stop arrives late', async () => {
+    const { sessionId, turnId } = await asked('What is a campaign?');
+    await runTurn(turnId, [{ text: plain('A campaign goes to a list.') }], t.users.admin.id);
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/cancel`,
+      headers: asUser(t.users.admin),
+    });
+    expect(res.statusCode).toBe(204);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn).toMatchObject({ status: 'done', say: 'A campaign goes to a list.' });
+  });
+
+  it('says at once that the page could not be read, instead of trying the job again', async () => {
+    const { turnId } = await asked('Draft a welcome email');
+    const list = t.manager.connections.list.bind(t.manager.connections);
+    t.manager.connections.list = () => Promise.reject(new Error('the meta store went away'));
+    try {
+      // Thrown, this would be retried and end as "the server restarted" half a minute later.
+      await runTurn(turnId, [{ text: plain('unused') }], t.users.admin.id);
+    } finally {
+      t.manager.connections.list = list;
+    }
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('failed');
+    expect(turn?.error).toMatchObject({ kind: 'setup', message: 'the meta store went away' });
+  });
+
+  it('counts a question as use, so a conversation is not swept a day after it was opened', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const session = await repo.create(
+      { context: 'email', host: { connectionIds: [] }, provider: 'anthropic', model: 'm', createdBy: t.users.admin.id },
+      AT - 30 * 3_600_000,
+    );
+    // Asked an hour ago, on a provider that reports no usage (nothing else moves the session's clock).
+    await repo.createTurn({ sessionId: session.id, askText: 'still here' }, AT - 3_600_000);
+    await sweepAssistantSessions(t.meta, AT);
+    expect((await repo.findSession(session.id))?.status).toBe('open');
+  });
+});
