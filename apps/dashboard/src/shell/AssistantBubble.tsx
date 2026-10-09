@@ -13,6 +13,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { assistantAllowed, assistantName, type BootstrapData } from '../app/bootstrap.js';
 import { initDock, setDockOpen, useDockOpen, useDockSignal, type DockSignal } from '../assistant/dock/dockStore.js';
 import { t } from '../i18n/t.js';
+import { useShortcut } from './ShortcutsProvider.js';
 
 const AssistantDock = lazy(async () => ({ default: (await import('../assistant/dock/AssistantDock.js')).AssistantDock }));
 
@@ -46,8 +47,18 @@ export function AssistantBubble({ bootstrap }: { bootstrap: BootstrapData }) {
     if (open) setLoaded(true);
   }, [open]);
 
-  if (!allowed) return null;
   const name = assistantName(bootstrap);
+  // In the registry, so the shortcuts panel lists it: open the panel from anywhere, and close it again.
+  useShortcut({
+    id: 'assistant',
+    group: 'General',
+    label: t('shell.assistant.open', 'Ask {name}', { name }),
+    keys: ['⌘', '.'],
+    when: () => allowed,
+    handler: () => setDockOpen(!open),
+  });
+
+  if (!allowed) return null;
   const dock =
     loaded || open ? (
       <Suspense fallback={null}>

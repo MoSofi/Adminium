@@ -8,7 +8,8 @@
  * mounted once loaded so a question asked and left is still followed, and
  * that the bubble and the toasts do not stand on each other.
  */
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render as renderBare, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { resetDock, setDockOpen, setDockSignal } from '../assistant/dock/dockStore.js';
@@ -16,10 +17,14 @@ import { makeBootstrap } from '../test/fixtures.js';
 import { AssistantBubble } from './AssistantBubble.js';
 import { PageActions, PageActionsProvider } from './PageActionsProvider.js';
 import { PageAssistantButton } from './PageAssistantButton.js';
+import { ShortcutsProvider } from './ShortcutsProvider.js';
 
 vi.mock('../assistant/dock/AssistantDock.js', () => ({
   AssistantDock: ({ visible }: { visible: boolean }) => <div data-testid="dock" data-visible={String(visible)} />,
 }));
+
+/** As in the shell: the bubble registers its shortcut with the manager. */
+const render = (ui: ReactElement) => renderBare(<ShortcutsProvider>{ui}</ShortcutsProvider>);
 
 afterEach(() => {
   cleanup();
@@ -74,6 +79,15 @@ describe('the bubble', () => {
     render(<AssistantBubble bootstrap={other} />);
     expect(screen.getByTestId('assistant-bubble')).toBeTruthy();
     expect(screen.queryByTestId('dock')).toBeNull();
+  });
+
+  it('opens and closes from the keyboard, with a shortcut the registry lists', async () => {
+    render(<AssistantBubble bootstrap={allowed()} />);
+    const press = () => act(async () => void window.dispatchEvent(new KeyboardEvent('keydown', { key: '.', ctrlKey: true, metaKey: true, bubbles: true })));
+    await press();
+    expect((await screen.findByTestId('dock')).getAttribute('data-visible')).toBe('true');
+    await press();
+    expect(screen.getByTestId('dock').getAttribute('data-visible')).toBe('false');
   });
 
   it('says in words what its ring and its dot show', () => {
