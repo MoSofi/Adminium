@@ -38,7 +38,9 @@ import {
   assistantStepEventMessage,
   assistantToolResultsMessage,
   parseAssistantTurn,
+  type AssistantActionKind,
   type AssistantAsk,
+  type AssistantProposal,
   type AssistantResult,
   type AssistantStepEvent,
   type AssistantToolResult,
@@ -97,6 +99,8 @@ export interface TurnRunInput {
    * one that drafts anyway costs a repair like any other unreadable reply.
    */
   document?: Pick<AssistantDocument, 'projectForDiff' | 'details'> | undefined;
+  /** The actions a reply may propose here: what the prompt offered. Absent or empty, `propose` is not a move. */
+  propose?: readonly AssistantActionKind[] | undefined;
   /** Runs one tool call. Answers a failure as data; never throws for the model's mistakes. */
   execute: (call: { id: string; tool: string; args: Record<string, unknown> }) => Promise<AssistantToolOutcome>;
   /** Resolve the lines a `basedOn` document projects to, for the diff. */
@@ -148,6 +152,8 @@ export type TurnOutcome =
       followups: string[];
       /** Present when the model produced a draft. */
       result: TurnResult | null;
+      /** What the reply asked the person to confirm, exactly as the model wrote it: UNCHECKED. */
+      proposal: AssistantProposal | null;
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
@@ -333,7 +339,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     usage.tokensOut += reply.usage?.outputTokens ?? 0;
     await input.onRound?.({ system: input.system, messages, reply: reply.text, usage: reply.usage });
 
-    const parsed = parseAssistantTurn(reply.text, undefined, { document: input.document !== undefined });
+    const parsed = parseAssistantTurn(reply.text, undefined, { document: input.document !== undefined, propose: input.propose ?? [] });
     if (!parsed.ok) {
       // A model that DECLINED said so in the contract's own way: that is an answer, not a format it cannot follow.
       const declined = parsed.errors.some((error) => error.code === 'LLM_MODEL_DECLINED');
@@ -454,6 +460,8 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         say: turn.say,
         suggest: [...(turn.suggest ?? [])],
         followups: [],
+        // The one action that saves this draft, when the reply carried it.
+        proposal: turn.propose ?? null,
         result: {
           title: result.title,
           meta: result.meta,
@@ -486,6 +494,24 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       };
     }
 
+    if (move === 'propose') {
+      messages.push({ role: 'assistant', content: reply.text });
+      return {
+        status: 'done',
+        say: turn.say,
+        suggest: [...(turn.suggest ?? [])],
+        followups: [],
+        result: null,
+        proposal: turn.propose ?? null,
+        steps,
+        messages,
+        sources,
+        reads,
+        tokensIn: usage.tokensIn,
+        tokensOut: usage.tokensOut,
+      };
+    }
+
     // A plain answer: no move, just words. With no words either it is nothing at all, and the
     // person would be shown an empty bubble as if it were an answer: asked again, like any reply
     // that cannot be read.
@@ -503,6 +529,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       suggest: [...(turn.suggest ?? [])],
       followups: [...(turn.followups ?? [])],
       result: null,
+      proposal: null,
       steps,
       messages,
       sources,

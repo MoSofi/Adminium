@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * What the assistant may PROPOSE on one page, for one person.
+ *
+ * Two things have to hold for a kind to be offered: the workspace has
+ * switched that ability on, and the person holds the matching right on this
+ * page's own table. A kind that is not offered is not in the prompt and not
+ * in the reply contract, so a model is never told of a move that cannot work;
+ * and a proposal is checked again, as the person, before anything is shown.
+ *
+ * Nothing here writes, and nothing here is the check: it only decides what
+ * is worth offering.
+ */
+import type { AssistantActionKind } from '@adminium/llm';
+import { settingsRepo } from '@adminium/meta';
+
+import { dataPageOf } from './data-page.js';
+import type { AssistantToolDeps } from './types.js';
+
+export interface ProposableKinds {
+  kinds: AssistantActionKind[];
+  /** The most actions one proposal may hold: the workspace's own number. */
+  maxActions: number;
+  /** One line for the prompt that says where the kinds apply; absent when nothing is offered. */
+  where?: string;
+}
+
+const ROW_KINDS = [
+  { kind: 'row.create', ability: 'create', action: 'create' },
+  { kind: 'row.change', ability: 'change', action: 'update' },
+  { kind: 'row.delete', ability: 'delete', action: 'delete' },
+] as const;
+
+export async function proposableKindsFor(deps: AssistantToolDeps): Promise<ProposableKinds> {
+  const settings = settingsRepo(deps.meta);
+  const maxActions = await settings.get('assistant.maxRows');
+  const none: ProposableKinds = { kinds: [], maxActions };
+  // Nobody to act as: nothing is offered, whatever the switches say.
+  if (deps.userId === null) return none;
+  if (deps.context !== 'data') return none;
+
+  const abilities = await settings.get('assistant.abilities');
+  const page = await dataPageOf(deps);
+  if (page === null || page.connectionId === null || page.table === null) return none;
+
+  const kinds: AssistantActionKind[] = [];
+  for (const row of ROW_KINDS) {
+    if (!abilities[row.ability]) continue;
+    if (await deps.can(`table:${page.connectionId}:${page.table}:${row.action}`)) kinds.push(row.kind);
+  }
+  if (kinds.length === 0) return none;
+  return {
+    kinds,
+    maxActions,
+    where: `Rows can be proposed on this page's own table only: connectionId ${JSON.stringify(page.connectionId)}, table ${JSON.stringify(page.table)}.`,
+  };
+}

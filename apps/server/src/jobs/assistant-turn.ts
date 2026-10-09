@@ -216,6 +216,7 @@ export async function executeAssistantTurn(
     pageFacts: setup.facts as Record<string, string | number | boolean>,
     messages,
     document: document,
+    propose: setup.proposable,
     execute: setup.execute,
     // Never reached on a page that drafts nothing: a `result` does not parse there.
     accept: (artefact) =>
@@ -270,6 +271,13 @@ export async function executeAssistantTurn(
     const known = await listedAddOns(deps.addOns);
     const keep = suggested.filter((key, index) => suggested.indexOf(key) === index && (known ?? []).some((item) => item.key === key && item.state !== 'installed'));
     if (keep.length > 0) answer.suggest = keep.map((key) => ({ key }));
+  }
+
+  // What the reply asked the person to confirm. Stored as the model wrote it and marked
+  // unchecked: this job has no session of the person's to check it with, so nothing of it is
+  // shown until the panel's own request has run the checks as them.
+  if (outcome.status === 'done' && outcome.proposal !== null) {
+    answer.proposal = { state: 'unchecked', title: outcome.proposal.title, actions: outcome.proposal.actions, madeAt: now() };
   }
 
   const common = {
