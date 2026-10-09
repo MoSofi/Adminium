@@ -53,6 +53,10 @@ export const ASSISTANT_MAX_CALLS_PER_TURN = 12;
 export const ASSISTANT_MAX_ROUNDS = ASSISTANT_MAX_CALLS_PER_TURN + 2;
 /** Tool calls one reply may request. */
 export const ASSISTANT_MAX_CALLS_PER_REPLY = 8;
+/** Add-ons one reply may point the person at. */
+export const ASSISTANT_MAX_SUGGESTIONS = 3;
+/** The longest add-on key a reply may name. */
+export const ASSISTANT_SUGGEST_KEY_MAX = 80;
 /** Rows one `read_rows` / `aggregate` call may return. */
 export const ASSISTANT_MAX_ROWS_PER_CALL = 50;
 
@@ -180,6 +184,16 @@ const assistantTurnFields = z.object({
   calls: z.array(assistantToolCallSchema).min(1).max(ASSISTANT_MAX_CALLS_PER_REPLY).optional(),
   ask: assistantAskSchema.optional(),
   result: assistantResultSchema.optional(),
+  /**
+   * Not a move: add-ons that would give what was asked. KEYS only; the server
+   * checks each against its own list and draws the card from that list, so a
+   * name or a promise the model writes never reaches the person.
+   */
+  suggest: z
+    .array(z.string().min(1).max(ASSISTANT_SUGGEST_KEY_MAX))
+    .max(ASSISTANT_MAX_SUGGESTIONS)
+    .optional()
+    .describe('Keys from list_add_ons of add-ons that are NOT installed and would give what the person asked for. Only when relevant; three at most.'),
 });
 
 export const assistantTurnV1 = assistantTurnFields.refine(

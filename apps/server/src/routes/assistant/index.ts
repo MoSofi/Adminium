@@ -51,6 +51,8 @@ import { z } from 'zod';
 
 import { runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
 import { readAllowance } from '../../assistant/allowance.js';
+import { listedAddOns } from '../../assistant/tools/add-ons.js';
+import type { AssistantAddOn } from '../../assistant/types.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
@@ -90,6 +92,8 @@ export interface AssistantRoutesDeps {
    * whole of it.
    */
   cancelJob?: ((jobId: string) => void) | undefined;
+  /** The add-ons this server has and could have: the tool's list, and where a suggestion's card is drawn from. */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
 }
 
 const USE_PERMISSION = 'system:assistant:use';
@@ -177,6 +181,26 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         throw new NotFoundError('That assistant session does not exist.', { sessionId });
       }
       return session;
+    }
+
+    /**
+     * A turn as it is answered, with its suggestions drawn from THIS SERVER'S list as it is now:
+     * each add-on's name and one line come from the list, never from the model, and one that has
+     * been installed since, or is no longer listed, is not suggested any more.
+     */
+    async function served(turn: AssistantTurn, session: AssistantSession): Promise<AssistantTurnView> {
+      const view = turnView(turn, session);
+      const suggest = view.answer === null ? undefined : view.answer.suggest;
+      if (!Array.isArray(suggest) || suggest.length === 0) return view;
+      const known = (await listedAddOns(deps.addOns)) ?? [];
+      const cards: { key: string; name: string; line: string }[] = [];
+      for (const entry of suggest) {
+        const key = (entry as { key?: unknown } | null)?.key;
+        const found = typeof key === 'string' ? known.find((item) => item.key === key && item.state !== 'installed') : undefined;
+        if (found !== undefined) cards.push({ key: found.key, name: found.name, line: found.line });
+      }
+      const { suggest: _stored, ...rest } = view.answer as Record<string, unknown>;
+      return { ...view, answer: cards.length === 0 ? rest : { ...rest, suggest: cards } };
     }
 
     async function providerState(): Promise<{
@@ -354,7 +378,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
 
         const stored = (await sessions.findTurn(turn.id)) ?? turn;
         return await reply.status(202).send({
-          turn: turnView(stored, session),
+          turn: await served(stored, session),
           jobId: job.id,
           nextTurnTokens: estimateTokens(request.body.text ?? ''),
         });
@@ -370,7 +394,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        return turnView(turn, session);
+        return await served(turn, session);
       },
     );
 

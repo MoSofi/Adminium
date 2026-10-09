@@ -81,7 +81,7 @@ for (const [dialect, available] of legs) {
       expect(setup.system).not.toContain('== The document format ==');
       expect(setup.system).not.toContain('"result"');
       expect(setup.system).toContain('This page has no document');
-      expect(setup.specs.map((spec) => spec.name)).toEqual(['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record']);
+      expect(setup.specs.map((spec) => spec.name)).toEqual(['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons']);
     });
 
     it('holds "the rows shown" to the grid`s own filter, which a call can narrow and never widen', async () => {
@@ -204,6 +204,57 @@ for (const [dialect, available] of legs) {
       ]);
       // One read came back short of what there is: the answer is about a part of the rows.
       expect(answer.truncated).toBe(true);
+    });
+
+    it('lists the add-ons this server has and could have, and keeps only a suggestion its own list confirms', async () => {
+      const addOns = () =>
+        Promise.resolve([
+          { key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.', state: 'listed' as const },
+          { key: 'inventory', name: 'Inventory', line: 'Stock by place and by batch.', state: 'installed' as const },
+        ]);
+      // The tool answers the list, and says which are installed.
+      const setup = await turnAs(s, night.id, 'data', { pageId });
+      const withList = await (async () => {
+        const again = await import('../src/assistant/turn-setup.js');
+        return again.setUpTurn({ meta: s.meta, manager: s.manager, context: 'data', host: { connectionIds: [s.connectionId], pageId }, userId: night.id, can: () => Promise.resolve(true), addOns });
+      })();
+      const listed = await withList.execute({ id: 'c1', tool: 'list_add_ons', args: {} });
+      expect((listed.result as { addOns: unknown[] }).addOns).toEqual([
+        { key: 'offers', name: 'Offers & gift cards', what: 'Discounts, codes, vouchers, packs and gift cards.', installed: false },
+        { key: 'inventory', name: 'Inventory', what: 'Stock by place and by batch.', installed: true },
+      ]);
+      // Where there is no list, it says so and tells the model to suggest nothing.
+      const none = await setup.execute({ id: 'c1', tool: 'list_add_ons', args: {} });
+      expect(none.result).toMatchObject({ addOns: [] });
+      expect(JSON.stringify(none.result)).toContain('Do not suggest one');
+
+      const repo = assistantSessionsRepo(s.meta);
+      const answered = async (suggest: string[], list: typeof addOns | undefined) => {
+        const session = await repo.create({ context: 'data', host: { connectionIds: [s.connectionId], pageId }, createdBy: night.id });
+        const turn = await repo.createTurn({ sessionId: session.id, askText: 'Can I give customers a discount code?' });
+        await repo.setTurnStatus(turn.id, 'queued', { jobId: 'job_test' });
+        const scripted = makeScriptedClient([{ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Not here yet.', suggest }) }]);
+        await executeAssistantTurn(
+          { turnId: turn.id, userId: night.id },
+          { jobId: 'job_test', kind: 'assistant.turn', attempt: 1, maxAttempts: 3, signal: new AbortController().signal, progress: () => undefined, log: () => undefined },
+          {
+            meta: s.meta,
+            manager: s.manager,
+            resolveClient: () => Promise.resolve({ client: scripted.client, provider: 'anthropic', model: 'm', baseUrl: null }),
+            can: () => Promise.resolve(true),
+            ...(list === undefined ? {} : { addOns: list }),
+          },
+        );
+        const stored = (await repo.findTurn(turn.id))!;
+        expect(stored.status, JSON.stringify(stored.error)).toBe('done');
+        return stored.answer as { suggest?: { key: string }[] };
+      };
+      // One that is listed and not installed is kept, once; an installed one and a made-up one are not.
+      expect((await answered(['offers', 'inventory', 'made-up-by-the-model'], addOns)).suggest).toEqual([{ key: 'offers' }]);
+      expect((await answered(['offers', 'offers'], addOns)).suggest).toEqual([{ key: 'offers' }]);
+      expect(await answered(['inventory', 'nothing-like-this'], addOns)).not.toHaveProperty('suggest');
+      // No list on this server: nothing the model names is passed on.
+      expect(await answered(['offers'], undefined)).not.toHaveProperty('suggest');
     });
   });
 }

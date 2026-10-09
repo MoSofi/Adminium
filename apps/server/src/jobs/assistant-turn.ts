@@ -27,6 +27,8 @@ import { z } from 'zod';
 import { runAssistantTurn } from '../assistant/turn-runner.js';
 import { fitsContextWindow, setUpTurn } from '../assistant/turn-setup.js';
 import { readAllowance, roundTokens, spend } from '../assistant/allowance.js';
+import { listedAddOns } from '../assistant/tools/add-ons.js';
+import type { AssistantAddOn } from '../assistant/types.js';
 import { loadTurn, ownTranscript } from '../assistant/sessions.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { isProviderRunError, type RunFailureError } from '../llm/direct-runner.js';
@@ -49,6 +51,8 @@ export interface AssistantTurnDeps {
   resolveClient: () => Promise<ResolvedProviderClient>;
   /** A system permission, for one user, outside a request. */
   can: (userId: string | null, permission: string) => Promise<boolean>;
+  /** The add-ons this server has and could have, for the tool that lists them and for checking a suggestion. */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
   /** The output budget one provider reply may use. */
   maxTokens?: number | undefined;
   now?: (() => number) | undefined;
@@ -161,6 +165,7 @@ export async function executeAssistantTurn(
       host: turn.host ?? session.host,
       userId: userId ?? null,
       can: (permission) => deps.can(userId ?? null, permission),
+      ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
     });
   } catch (error) {
     await finish({
@@ -241,6 +246,15 @@ export async function executeAssistantTurn(
     truncated: outcome.reads.some((read) => typeof read.total === 'number' && typeof read.returned === 'number' && read.returned < read.total),
     ...(after.left ? {} : { budget: { limit: after.limit, used: after.used, resetsAt: after.resetsAt } }),
   };
+  // Add-ons the reply pointed at: kept only when this server's own list has them and they are
+  // not installed. The card is drawn from that list when the turn is read; nothing of the
+  // model's wording about an add-on is stored as fact.
+  const suggested = 'suggest' in outcome ? outcome.suggest : [];
+  if (suggested.length > 0) {
+    const known = await listedAddOns(deps.addOns);
+    const keep = suggested.filter((key, index) => suggested.indexOf(key) === index && (known ?? []).some((item) => item.key === key && item.state !== 'installed'));
+    if (keep.length > 0) answer.suggest = keep.map((key) => ({ key }));
+  }
 
   const common = {
     // The turn's own messages: the conversation before it is in the rows before it.

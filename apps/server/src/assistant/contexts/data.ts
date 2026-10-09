@@ -37,7 +37,7 @@ function viewLines(page: DataPage): string[] {
 export const dataContext: AssistantContextAdapter = {
   key: 'data',
   pageLabel: 'Data',
-  toolNames: ['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record'],
+  toolNames: ['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons'],
 
   async pageFacts(deps) {
     const page = await dataPageOf(deps);
@@ -65,6 +65,7 @@ export const dataContext: AssistantContextAdapter = {
       'Answer in "say", in words, with the figures you read. When a question names no measure ("best customers", "busiest day"), use the most natural one the tables can give, and say which one you used.',
       'Every row tool answers `returned` and `total`. When `returned` is less than `total` your answer is about a part of the rows: say so, with both numbers, or read the rest with `offset`.',
       'You cannot change the page (its filters, its saved views) and you cannot change data. Say so if asked.',
+      'When what is asked needs something this workspace does not have, call list_add_ons. If an add-on that is NOT installed would give it, say in one sentence what is missing and put its key in "suggest" (three at most). Never suggest one that is installed, and never when nothing asked for needs one.',
       '',
       'The databases you may read:',
       connectionsSection(connections),

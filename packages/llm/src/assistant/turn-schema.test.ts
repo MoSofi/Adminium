@@ -275,3 +275,23 @@ describe('step events', () => {
     expect(readAssistantStepEvent(JSON.stringify({ ...event, state: 'paused' }))).toBeNull();
   });
 });
+
+describe('pointing at an add-on', () => {
+  const reply = (suggest: unknown) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Not here yet.', suggest });
+
+  it('is not a move: it rides beside an answer, on a page with a document or without one', () => {
+    for (const variant of [{ document: true }, { document: false }]) {
+      const parsed = parseAssistantTurn(reply(['offers']), undefined, variant);
+      expect(parsed).toMatchObject({ ok: true, turn: { say: 'Not here yet.', suggest: ['offers'] } });
+      if (parsed.ok) expect(assistantMoveOf(parsed.turn)).toBe('answer');
+    }
+  });
+
+  it('carries keys only, three at most', () => {
+    expect(parseAssistantTurn(reply(['a', 'b', 'c'])).ok).toBe(true);
+    expect(parseAssistantTurn(reply(['a', 'b', 'c', 'd'])).ok).toBe(false);
+    expect(parseAssistantTurn(reply([{ key: 'offers', name: 'Free money' }])).ok).toBe(false);
+    expect(parseAssistantTurn(reply(['x'.repeat(81)])).ok).toBe(false);
+    expect(parseAssistantTurn(reply([''])).ok).toBe(false);
+  });
+});

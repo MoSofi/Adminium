@@ -43,6 +43,22 @@ export interface AssistantToolDeps {
   t: I18nInstance['t'];
   context: AssistantContextKey;
   host: AssistantHost;
+  /**
+   * The add-ons this server has and could have, one line each. Absent in a
+   * harness with no add-on store: the tool that lists them then says the
+   * list is not available, and nothing is suggested.
+   */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+}
+
+/** One add-on as the assistant is told of it. */
+export interface AssistantAddOn {
+  key: string;
+  name: string;
+  /** One line on what it adds. */
+  line: string;
+  /** `installed` here; `available` in this server's store; `listed` only in the catalogue. */
+  state: 'installed' | 'available' | 'listed';
 }
 
 /** A tool failure the model can recover from. */

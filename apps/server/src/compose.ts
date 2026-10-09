@@ -77,7 +77,7 @@ import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplates } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
-import { createCatalogClient } from './add-ons/catalog.js';
+import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import {
@@ -198,6 +198,7 @@ import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
 import { sweepAssistantSessions } from './assistant/retention.js';
 import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
+import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
@@ -1168,6 +1169,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     });
 
   const addOnStore = createAddOnStore({ dataDir: env.ADMINIUM_DATA_DIR });
+  // What the assistant is told of add-ons: installed here, in this server's store, and in the
+  // catalogue as it was last read (never the network, and nothing of the catalogue while its
+  // switch is off). The same list the Designer reads, a line an add-on.
+  const assistantAddOns = async (): Promise<AssistantAddOn[]> =>
+    (
+      await addOnLines({
+        meta,
+        credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+        store: addOnStore,
+        catalogEnabled: async () => env.ADMINIUM_NETWORK_FEATURES && (await settingsRepo(meta).get(CATALOG_ENABLED_SETTING)) === true,
+      })
+    ).map((line) => ({ key: line.key, name: line.name, line: line.line, state: line.state }));
   /*
    * Kept, not voided: the boot-time runtime build waits for it (see
    * `rebuildAddOnRuntime` below), and so does the missing-package report.
@@ -1316,6 +1329,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                     await resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId }),
                     permission,
                   ),
+            addOns: assistantAddOns,
           },
         }),
   });
@@ -2404,6 +2418,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             cancelJob: (jobId) => {
               jobs.worker.requestCancel(jobId);
             },
+            addOns: assistantAddOns,
           }),
         );
       }

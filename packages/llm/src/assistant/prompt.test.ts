@@ -49,8 +49,8 @@ describe('the prompt, pinned', () => {
 
   it('pins the reply contract each of them shows', () => {
     // The contract is rendered when a prompt is built, so the templates' digests do not see it move.
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true })))).toBe('f453bd2301aa2f2fce83f47217b682d6773c0b6eb6303d6d60260a83773114d3');
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false })))).toBe('882e36a8f1e9cd219c326072cc7bc54c334d0cb753c5ae17bb6feea591ebbcd3');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true })))).toBe('a736dad618e293ea4028621689275051d165f546f23b70d3cf94f45ade4bdbf1');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false })))).toBe('6ff3e7c7a6184d9b4eb7451fb345d317ae10602be0d11e41898644ffea2f8035');
   });
 
   it('the pinned version is v1.1', () => {

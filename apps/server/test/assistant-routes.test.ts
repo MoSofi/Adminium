@@ -175,6 +175,8 @@ beforeAll(async () => {
           manager: ctx.manager,
           networkFeatures: true,
           secret: null,
+          // What this server has and could have, as the tests set it.
+          addOns: () => Promise.resolve(ADD_ONS),
         }) as never,
       );
     },
@@ -192,6 +194,9 @@ beforeEach(async () => {
 afterAll(async () => {
   await t.app.close();
 });
+
+/** The add-ons the test server lists; a test changes it to change what the server knows. */
+let ADD_ONS: { key: string; name: string; line: string; state: 'installed' | 'available' | 'listed' }[] = [];
 
 // Each test stands alone: a question one of them left unanswered is not "still under way" for the
 // next (a person asks one question at a time, in whichever conversation), and a day's use is its own.
@@ -1245,5 +1250,29 @@ describe('what an owner sets, and what was used today', () => {
       expect(bad.statusCode, String(dailyTokens)).toBe(422);
     }
     await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
+  });
+});
+
+describe('a suggestion, as a turn is read', () => {
+  it('is drawn from this server`s list as it is now, and goes when the add-on is installed or no longer listed', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const turn = await repo.createTurn({ sessionId, askText: 'Can I give customers a discount code?' }, AT);
+    // As the job left it: a key, and nothing of the model's wording.
+    await repo.finishTurn(turn.id, { status: 'done', say: 'Not here yet.', answer: { sources: [], reads: [], truncated: false, suggest: [{ key: 'offers' }, { key: 'gone' }] }, finishedAt: AT });
+    const read = async () =>
+      (await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(t.users.admin) })).json() as { answer: { suggest?: unknown; reads: unknown[] } };
+
+    ADD_ONS = [{ key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.', state: 'listed' }];
+    // The name and the line are the list`s; the key that is not listed is not shown.
+    expect((await read()).answer.suggest).toEqual([{ key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.' }]);
+
+    // Installed since: nothing to suggest any more, and the rest of the answer is untouched.
+    ADD_ONS = [{ key: 'offers', name: 'Offers & gift cards', line: 'x', state: 'installed' }];
+    const after = await read();
+    expect(after.answer).not.toHaveProperty('suggest');
+    expect(after.answer.reads).toEqual([]);
+    ADD_ONS = [];
   });
 });
