@@ -22,7 +22,7 @@ npx @adminiumjs/adminium app check
   "publisher": { "id": "local", "name": "Local" },
   "license": "UNLICENSED", "categories": ["operations"],
   "description": { "key": "repairs.description", "fallback": "Repairs, made with Adminium." },
-  "compatibility": { "minAdminiumVersion": "0.3.19" },
+  "compatibility": { "minAdminiumVersion": "0.3.20" },
   "frontends": [{ "side": "customer", "kind": "spa" }],
   "navGroups": [{ "key": "main", "label": { "en-US": "Repairs" }, "order": 1 }],
   "prefixed": true
