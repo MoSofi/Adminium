@@ -37,6 +37,7 @@ import {
   assistantUseRepo,
   assistantUseResetsAt,
   emailTemplatesRepo,
+  pagesRepo,
   permissionsRepo,
   rolesRepo,
   settingsRepo,
@@ -849,6 +850,10 @@ describe('a screen with no context of its own', () => {
     const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
     expect(turn).toMatchObject({ status: 'done', say: 'On [Team](/settings/team).', result: null, context: 'general' });
 
+    // Served with where it was asked: here no data page and no document.
+    const read = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}`, headers: asUser(t.users.admin) });
+    expect((read.json() as { on: unknown }).on).toEqual({ pageId: null, documentId: null, title: null });
+
     const save = await t.app.inject({
       method: 'POST',
       url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}/actions`,
@@ -857,6 +862,26 @@ describe('a screen with no context of its own', () => {
     });
     expect(save.statusCode).toBeGreaterThanOrEqual(400);
     expect(save.statusCode).toBeLessThan(500);
+  });
+
+  it('serves a turn with the data page it was asked on, by the name the page has now', async () => {
+    const pages = pagesRepo(t.meta);
+    const page = await pages.create({ connectionId: null, slug: 'asked-here', type: 'page-crud', title: 'Customers', config: {} });
+    const host = { connectionIds: [], pageId: page.id };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'data', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'How many?', context: 'data', host } });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string; on: unknown } }).turn.id;
+    expect((asked.json() as { turn: { on: unknown } }).turn.on).toEqual({ pageId: page.id, documentId: null, title: 'Customers' });
+
+    // Renamed since: the thread says where it was asked by today's name. Deleted: by no name.
+    await pages.updateMeta(page.id, { title: 'Clients' });
+    const read = async () =>
+      ((await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`, headers: asUser(t.users.admin) })).json() as { on: { title: string | null } }).on.title;
+    expect(await read()).toBe('Clients');
+    await pages.delete(page.id);
+    expect(await read()).toBeNull();
   });
 
   it('keeps beside an answer in words what the person might ask next', async () => {

@@ -37,6 +37,7 @@ import {
   assistantUseRepo,
   assistantUseResetsAt,
   jobsRepo,
+  pagesRepo,
   permissionsRepo,
   rolesRepo,
   settingsRepo,
@@ -163,7 +164,15 @@ function turnView(turn: AssistantTurn, session: AssistantSession): AssistantTurn
     finishedAt: turn.finishedAt,
     context: turn.context ?? session.context,
     answer: asRecord(turn.answer),
+    on: whereAsked(turn, session),
   };
+}
+
+/** The page or document a turn was asked on. The title is filled as the turn is served. */
+function whereAsked(turn: AssistantTurn, session: AssistantSession): AssistantTurnView['on'] {
+  const host = turn.host ?? session.host;
+  const text = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
+  return { pageId: text(host.pageId), documentId: text(host.documentId), title: null };
 }
 
 function sessionView(session: AssistantSession) {
@@ -203,8 +212,19 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
      * each add-on's name and one line come from the list, never from the model, and one that has
      * been installed since, or is no longer listed, is not suggested any more.
      */
+    /**
+     * The title of the data page a turn was asked on, as the page is called NOW. A page that is
+     * gone leaves no title, and the thread then names the turn by its context alone. Not checked
+     * against the reader's grants: the turn is their own, asked while they were on that page.
+     */
+    async function titled(view: AssistantTurnView): Promise<AssistantTurnView> {
+      if (view.on.pageId === null) return view;
+      const page = await pagesRepo(deps.meta).findById(view.on.pageId);
+      return page === null ? view : { ...view, on: { ...view.on, title: page.title } };
+    }
+
     async function served(turn: AssistantTurn, session: AssistantSession, request: { can: (permission: string) => Promise<boolean> }): Promise<AssistantTurnView> {
-      const view = turnView(turn, session);
+      const view = await titled(turnView(turn, session));
       const suggest = view.answer === null ? undefined : view.answer.suggest;
       if (!Array.isArray(suggest) || suggest.length === 0) return view;
       const known = (await listedAddOns(deps.addOns)) ?? [];

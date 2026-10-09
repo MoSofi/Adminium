@@ -190,7 +190,9 @@ export function ToastStack({
       role="region"
       aria-label={label}
       className={cn(
-        'pointer-events-none fixed bottom-4 end-4 z-[100] flex w-[360px] max-w-[calc(100vw-32px)] flex-col gap-2.5',
+        // `--toast-lift`: set by whatever else claims this corner (the assistant's bubble), so the
+        // two never overlap. Unset, the stack sits where it always has.
+        'pointer-events-none fixed bottom-[calc(1rem+var(--toast-lift,0px))] end-4 z-[100] flex w-[360px] max-w-[calc(100vw-32px)] flex-col gap-2.5',
         className,
       )}
       {...props}

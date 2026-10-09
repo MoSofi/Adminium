@@ -159,6 +159,13 @@ export const assistantTurnView = z.object({
   context: assistantContextSchema,
   /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
   answer: z.record(z.string(), z.unknown()).nullable(),
+  /**
+   * Where it was asked, beyond the context: the data page (and its title, a
+   * NAME, as it is now) or the document that was open. The thread says "on
+   * Customers" from it, and a draft is live only where these match the page
+   * the person is on.
+   */
+  on: z.object({ pageId: z.string().nullable(), documentId: z.string().nullable(), title: z.string().nullable() }),
 });
 export type AssistantTurnView = z.infer<typeof assistantTurnView>;
 
