@@ -2904,6 +2904,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.addHook('onClose', async () => {
     await publicStats.flush();
   });
+  // What has the project's folder, for whoever is about to stop this server (the desktop app asks before it does).
+  if (!app.hasDecorator('designerBusy')) app.decorate('designerBusy', () => designer?.runner.busy() ?? null);
   // A Designer turn that runs is stopped, and its end written, before the store closes.
   app.addHook('onClose', async () => {
     await designer?.shutdown();

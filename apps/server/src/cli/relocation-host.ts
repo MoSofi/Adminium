@@ -48,6 +48,8 @@ export interface RelocationHost {
   onMetaRelocated: OnMetaRelocated;
   /** The live server, for callers that print its URL. */
   current(): StartedServer | null;
+  /** End the live server, then its stores (after any restart that is under way). */
+  close(): Promise<void>;
 }
 
 export interface CreateRelocationHostOptions {
@@ -149,5 +151,12 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
     start: boot,
     onMetaRelocated,
     current: () => server,
+    async close() {
+      await chain.catch(() => undefined);
+      await server?.close().catch(() => undefined);
+      await runtime?.close().catch(() => undefined);
+      server = null;
+      runtime = null;
+    },
   };
 }
