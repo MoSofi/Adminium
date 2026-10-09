@@ -173,7 +173,7 @@ export function decideNavigation(target: string, appOrigin: string | null): Navi
  *
  * WHY A SECOND RULE AND NOT A WIDER FIRST ONE. The Designer's preview is a frame
  * on `http://localhost:<port>` that signs in with a 303 on that name. Tried on a
- * packed build (66-T12, B5): `will-redirect` fires for subframes too, so the
+ * packed build: `will-redirect` fires for subframes too, so the
  * main frame's rule cancelled that redirect and the preview stayed blank.
  * Adding `localhost` to the main frame's rule instead would let a page written
  * by a model take the whole window to `localhost` (with a click's activation

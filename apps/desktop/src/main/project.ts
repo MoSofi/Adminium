@@ -83,7 +83,7 @@ export function projectPortRange(env: NodeJS.ProcessEnv, isPackaged: boolean): {
   return { first, last: first + 19 };
 }
 
-/** A native question's words. English here; the app's own pages bring the other languages (66-T15). */
+/** A native question's words. English here, as the menu's and the backup dialogs' words are in main. */
 export interface StopBusyWords {
   title: string;
   detail: string;

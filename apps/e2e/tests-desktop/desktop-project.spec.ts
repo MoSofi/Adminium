@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A project folder in the desktop app (plan 66, 66-T12): the app's own server
+ * A project folder in the desktop app: the app's own server
  * child serves the folder as a terminal would, and the window opens Adminium
  * Designer on it, signed in.
  *
@@ -67,7 +67,7 @@ test.beforeAll(async ({}, testInfo) => {
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
   const modelUrl = `http://localhost:${String((model.address() as AddressInfo).port)}`;
 
-  // The model, where the Designer's own model screen writes it today: the project's `.env` (66-T17 moves keys to the
+  // The model, where the Designer's own model screen writes it today: the project's `.env` (keys are to move to the
   // app's own store). Not the environment: the app's server child inherits none of the app's.
   appendFileSync(join(project.root, '.env'), `\nADMINIUM_AI_OLLAMA_BASE_URL=${modelUrl}\nADMINIUM_AI_MODEL=ollama/fake\n`);
 
