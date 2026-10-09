@@ -39,7 +39,8 @@ describe('what was released before an add-on could install like an app', () => {
     ]);
     expect(new Set(RELEASED.filter(([, doc]) => doc['kind'] !== 'add-on').map(([, doc]) => doc['key'])).size).toBe(6);
     for (const [file, doc] of RELEASED) expect(issuesOf(doc), file).toEqual([]);
-  });
+    // Thirteen whole manifests through the validator: about a second alone, and past the default five on a runner building everything at once.
+  }, 30_000);
 
   it('none of them uses a word that needs the install floor, and none installs like an app', () => {
     for (const [file, doc] of RELEASED) {
@@ -47,7 +48,7 @@ describe('what was released before an add-on could install like an app', () => {
       const result = validateManifest(doc);
       if (result.ok && result.manifest.kind === 'add-on') expect(installsLikeAnApp(result.manifest), file).toBe(false);
     }
-  });
+  }, 30_000);
 
   it('a code page ref is exempt below the floor', () => {
     const invoices = RELEASED.find(([file]) => file === 'invoices-1.0.7.manifest.json')![1];
