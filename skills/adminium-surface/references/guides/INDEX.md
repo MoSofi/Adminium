@@ -85,6 +85,5 @@
 | `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
-| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
 
 More: `references/guides/INDEX-2.md`
