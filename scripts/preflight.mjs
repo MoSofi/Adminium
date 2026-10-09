@@ -173,6 +173,14 @@ const STEPS = [
     why: 'the same, for the six that need a built workspace package',
     tier: 'full',
   },
+  {
+    // After the build: it parses every scripted reply with the built reply contract. A script
+    // that stopped being a valid reply would otherwise make an e2e spec pass for the wrong reason.
+    id: 'check-assistant-script',
+    cmd: 'pnpm run check-assistant-script',
+    why: 'every reply the scripted model gives the e2e specs is a valid reply under the real contract',
+    tier: 'full',
+  },
   { id: 'check-offline-assets', cmd: 'pnpm run check-offline-assets', why: 'no remote URL in the shipped bundles outside the reviewed allowlist', tier: 'full' },
   { id: 'check-email-block-vocab', cmd: 'pnpm run check-email-block-vocab', why: 'the email block vocabulary matches canvas and renderer', tier: 'full' },
   { id: 'check-invoice-money-fixture', cmd: 'pnpm run check-invoice-money-fixture', why: 'the invoice money fixture is current', tier: 'full' },

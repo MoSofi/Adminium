@@ -107920,7 +107920,8 @@
                 "invoice-template",
                 "invoices",
                 "report",
-                "automation"
+                "automation",
+                "data"
               ]
             },
             "in": "query",
@@ -108046,7 +108047,8 @@
                       "invoice-template",
                       "invoices",
                       "report",
-                      "automation"
+                      "automation",
+                      "data"
                     ]
                   },
                   "host": {
@@ -108067,6 +108069,39 @@
                         "items": {
                           "type": "string",
                           "maxLength": 64
+                        }
+                      },
+                      "pageId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "view": {
+                        "type": "object",
+                        "properties": {
+                          "q": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "order": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "where": {
+                            "type": "string",
+                            "maxLength": 10205
+                          },
+                          "selectedIds": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 200
+                            }
+                          },
+                          "recordId": {
+                            "type": "string",
+                            "maxLength": 200
+                          }
                         }
                       }
                     }
@@ -108108,7 +108143,8 @@
                             "invoice-template",
                             "invoices",
                             "report",
-                            "automation"
+                            "automation",
+                            "data"
                           ]
                         },
                         "status": {
@@ -108256,7 +108292,8 @@
                       "invoice-template",
                       "invoices",
                       "report",
-                      "automation"
+                      "automation",
+                      "data"
                     ]
                   },
                   "host": {
@@ -108277,6 +108314,39 @@
                         "items": {
                           "type": "string",
                           "maxLength": 64
+                        }
+                      },
+                      "pageId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "view": {
+                        "type": "object",
+                        "properties": {
+                          "q": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "order": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "where": {
+                            "type": "string",
+                            "maxLength": 10205
+                          },
+                          "selectedIds": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 200
+                            }
+                          },
+                          "recordId": {
+                            "type": "string",
+                            "maxLength": 200
+                          }
                         }
                       }
                     }
@@ -108505,7 +108575,8 @@
                             "invoice-template",
                             "invoices",
                             "report",
-                            "automation"
+                            "automation",
+                            "data"
                           ]
                         },
                         "answer": {
@@ -108785,7 +108856,8 @@
                         "invoice-template",
                         "invoices",
                         "report",
-                        "automation"
+                        "automation",
+                        "data"
                       ]
                     },
                     "answer": {

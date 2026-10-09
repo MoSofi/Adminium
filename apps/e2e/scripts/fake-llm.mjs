@@ -362,6 +362,23 @@ const SCENARIOS = [
         }),
     ],
   },
+  {
+    // A data page: no document. It reads, then answers in words. The chip a data page offers
+    // first is what opens it, so the e2e can press that chip in any language (see below).
+    key: 'data',
+    match: /how many rows are shown here/i,
+    ends: 'answer',
+    replies: [
+      () =>
+        calls('Looking at what you can read.', [
+          { id: 'c1', tool: 'list_connections', args: {}, step: step('database', 'Read the connections', '') },
+        ]),
+      (messages) => {
+        const found = /"readableTables":(\d+)/.exec(lastUser(messages));
+        return { schema_version: SCHEMA, say: `You can read ${found === null ? 'some' : found[1]} tables here.` };
+      },
+    ],
+  },
 ];
 
 /**
@@ -379,6 +396,7 @@ const PAGE_SCENARIOS = [
   [/"Email templates"/, 'email'],
   [/"Invoice builder"|"Invoices"/, 'invoice'],
   [/"Report builder"/, 'report'],
+  [/"Data" page/, 'data'],
 ];
 
 /** The scenario whose `match` any user message satisfies, and where it started. */
@@ -572,7 +590,7 @@ async function selfTest() {
   const { parseAssistantTurn, assistantToolResultsMessage } = await import('@adminium/llm');
   /** The results the scripts read back — enough shape for the report scenario. */
   const FAKE_RESULTS = {
-    list_connections: { connections: [{ id: 'conn_1', name: 'northwind', tables: ['main.orders'] }] },
+    list_connections: { connections: [{ id: 'conn_1', name: 'northwind', tables: ['main.orders'], readableTables: 14 }] },
     describe_schema: { tables: [{ id: 'main.orders', columns: [{ name: 'status', type: 'text', personalData: false }] }] },
     list_documents: { documents: [{ id: 'doc_1', kind: 'template', name: 'Standard invoice' }] },
     aggregate: { table: 'main.orders', shape: 'categorical', data: { items: [{ label: 'a', value: 3 }], total: 3 } },
@@ -620,6 +638,11 @@ async function selfTest() {
         });
         continue;
       }
+      // A page with no document ends in words, and that is its end.
+      if (scenario.ends === 'answer' && turn.say.trim() !== '') {
+        console.log(`✓ ${scenario.key}: ${String(round + 1)} replies, ends in an answer ("${turn.say}")`);
+        break;
+      }
       failures += 1;
       console.error(`✗ ${scenario.key}: reply ${String(round)} made no move and is not a result`);
       break;
@@ -659,6 +682,8 @@ function scenarioOpener(scenario) {
       return 'Do a repair round, please';
     case 'refused':
       return 'Use a table I cannot read';
+    case 'data':
+      return 'How many rows are shown here?';
     default:
       return '';
   }
