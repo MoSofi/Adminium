@@ -172,6 +172,38 @@ describe.skipIf(!hasGit)('the Designer’s versions', () => {
   });
 });
 
+describe.skipIf(!hasGit)('versions that come on after a session was worked in', () => {
+  it('record the folder as it stands as the first version, named for what it is, and the next change on top', async () => {
+    // Two turns' worth of work, made while this machine had no git.
+    const off = createVersions(root, { git: null });
+    put('apps/repairs/manifest/app.json', '{"key":"repairs"}');
+    put('apps/repairs/manifest/tables/jobs.json', '{"ref":"jobs"}');
+    expect(await off.catchUp(session)).toBeNull();
+    expect(await off.commit(session)).toBeNull();
+
+    // git is found (or fetched): before the next turn changes anything, what is there is kept.
+    const on = createVersions(root);
+    expect(await on.catchUp(session)).toEqual({ n: 1, name: 'v1 · Before versions were on' });
+    expect((await on.list(session.id)).map((version) => version.name)).toEqual(['v1 · Before versions were on']);
+    // Once is enough: a second ask changes nothing.
+    expect(await on.catchUp(session)).toBeNull();
+
+    put('apps/repairs/manifest/tables/jobs.json', '{"ref":"jobs","label":"Job"}');
+    expect(await on.commit(session)).toEqual({ n: 2, name: 'v2' });
+    // And "go back" reaches what was built before versions were on.
+    await on.restore(session, 1, { record: false });
+    expect(read('apps/repairs/manifest/tables/jobs.json')).toBe('{"ref":"jobs"}');
+  });
+
+  it('do nothing for a session that had versions on from its start', async () => {
+    const on = createVersions(root);
+    put('apps/repairs/manifest/app.json', '{"key":"repairs"}');
+    await on.snapshot(session);
+    expect(await on.catchUp(session)).toBeNull();
+    expect(await on.list(session.id)).toEqual([]);
+  });
+});
+
 describe('versions with no git on the machine', () => {
   it('are off, and say so', async () => {
     const off = createVersions(root, { git: join(root, 'no-such-git') });

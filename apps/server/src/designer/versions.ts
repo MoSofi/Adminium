@@ -36,6 +36,13 @@ export interface Versions {
   commit(session: DesignerSession, label?: string): Promise<{ n: number; name: string } | null>;
   /** The state before the first turn, for "put the files back" when no version exists yet. */
   snapshot(session: DesignerSession): Promise<void>;
+  /**
+   * For a session that was worked in while versions were off (no git on the
+   * machine then, one now): record the folder as it stands as its first
+   * version, named so the person can tell what it is. Does nothing for a
+   * session that has anything recorded already, or when versions are off.
+   */
+  catchUp(session: DesignerSession): Promise<{ n: number; name: string } | null>;
   list(sessionId: string): Promise<Version[]>;
   /**
    * Put the folder back as version `n` was (0: as it was before the session).
@@ -53,6 +60,9 @@ export interface Versions {
 }
 
 const GIT_TIMEOUT_MS = 30_000;
+
+/** The name of the first version of a session that was worked in before versions came on. */
+export const BEFORE_VERSIONS_LABEL = 'Before versions were on';
 
 export class VersionsError extends Error {
   override readonly name = 'VersionsError';
@@ -190,6 +200,13 @@ export function createVersions(root: string, opts: { git?: string | null } = {})
       const tree = await treeOfFolder(session);
       const commit = (await git(['commit-tree', tree, '-m', 'before the session'])).trim();
       await git(['update-ref', base(session.id), commit]);
+    },
+    async catchUp(session) {
+      if (!(await this.available())) return null;
+      await ensure();
+      // Anything recorded (a before-state or a version) means versions were on for this session: nothing to catch up.
+      if ((await revision(base(session.id))) !== null || (await revision(branch(session.id))) !== null) return null;
+      return record(session, (n) => `v${String(n)} · ${BEFORE_VERSIONS_LABEL}`);
     },
     async list(sessionId) {
       if (!(await this.available()) || !existsSync(join(gitDir, 'HEAD'))) return [];
