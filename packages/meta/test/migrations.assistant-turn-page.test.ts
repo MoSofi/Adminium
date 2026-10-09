@@ -13,7 +13,7 @@
 import { sql } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ALL_MIGRATIONS, applyMigrations, assistantSessionsRepo } from '../src/index.js';
+import { ALL_MIGRATIONS, applyMigrations, assistantSessionsRepo, usersRepo } from '../src/index.js';
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
 
 const WAVE = '0052_assistant_turn_page';
@@ -69,6 +69,34 @@ for (const dialect of TEST_DIALECTS) {
       // A turn that names no page: the reader's fallback is the session's.
       const plain = await repo.createTurn({ sessionId: session.id, askText: 'And again' });
       expect(plain).toMatchObject({ context: null, host: null, draft: null });
+    });
+
+    it('a person has one panel conversation: the oldest open one is found, the others closed, an old one listed by its age', async () => {
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+      const repo = assistantSessionsRepo(t.meta);
+      const at = 1_800_000_000_000;
+      const person = async (email: string) => (await usersRepo(t.meta).create({ email, name: email, passwordHash: 'x' })).id;
+      const a = await person('a@example.test');
+      const b = await person('b@example.test');
+      const first = await repo.create({ context: 'email', host: { connectionIds: [] }, kind: 'panel', createdBy: a }, at);
+      const second = await repo.create({ context: 'email', host: { connectionIds: [] }, kind: 'panel', createdBy: a }, at + 5);
+      const modal = await repo.create({ context: 'email', host: { connectionIds: [] }, createdBy: a }, at + 6);
+      const other = await repo.create({ context: 'email', host: { connectionIds: [] }, kind: 'panel', createdBy: b }, at + 7);
+
+      expect((await repo.openPanelOf(a))?.id).toBe(first.id);
+      expect(await repo.closeOtherPanels(a, first.id, at + 10)).toBe(1);
+      expect((await repo.findSession(second.id))?.status).toBe('closed');
+      // Not a panel, and not this person's: both untouched.
+      expect((await repo.findSession(modal.id))?.status).toBe('open');
+      expect((await repo.findSession(other.id))?.status).toBe('open');
+
+      expect((await repo.listOldPanels(at + 6)).map((row) => row.id)).toEqual([first.id]);
+      // The day's pass for a window left open lists the modal and no panel.
+      expect((await repo.listStaleOpen(at + 1_000)).map((row) => row.id)).toEqual([modal.id]);
+
+      expect(await repo.hasLiveTurn(first.id)).toBe(false);
+      await repo.createTurn({ sessionId: first.id, askText: 'still going' }, at + 20);
+      expect(await repo.hasLiveTurn(first.id)).toBe(true);
     });
 
     it('reads a page this build does not know as the session`s, and refuses to write one', async () => {
