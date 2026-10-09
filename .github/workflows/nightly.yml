@@ -16,7 +16,8 @@ jobs:
   full-no-cache:
     name: full-no-cache
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The server's suite alone is about 35 minutes in ci's own job; at 30 this job was cancelled before it ended.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v7
