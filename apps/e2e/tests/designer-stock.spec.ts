@@ -152,8 +152,10 @@ test.describe('the Designer builds a supplies app on Inventory', () => {
     await expect(page).toHaveURL(/\/design\/ds_[0-9a-z]{24}$/);
 
     const staff = page.request;
-    // Inventory is in the folder of add-ons this server came with, so no card asks for it: under
-    // `adminium design` the apply installs what the app requires and the server already holds.
+    // Inventory is in this server's store and not installed: the rule asks for it first, with what it adds.
+    await expect(page.getByText('This app needs the add-on Inventory')).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByText(/^It adds \d+ tables to your database\.$/)).toBeVisible();
+    await page.getByRole('button', { name: 'Install it' }).click();
     // The turn: the rule written, the app checked, applied with its add-on, saved as v1.
     await expect(page.getByText(REPLY)).toBeVisible({ timeout: 180_000 });
     await expect(page.getByText(/^Saved as v1$/)).toBeVisible();
