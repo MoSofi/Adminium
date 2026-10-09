@@ -239,6 +239,7 @@ async function documentExists(input: AssistantActionInput, id: string): Promise<
     case 'invoices':
       return (await invoiceDocumentsRepo(input.meta).findById(id)) !== null;
     case 'data':
+    case 'general':
       // A page that drafts nothing has no document that could have been saved.
       return false;
     default:
@@ -349,7 +350,7 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     return { echo: { kind: 'saved', open, name }, created: { id: rule.id, kind: 'rule', name } };
   }
 
-  if (input.context === 'data') {
+  if (input.context === 'data' || input.context === 'general') {
     throw new ValidationFailedError('This page has no document, so there is nothing to save.', { context: input.context });
   }
   if (input.context !== 'invoice-template' && input.context !== 'invoices') return unknownContext(input.context);

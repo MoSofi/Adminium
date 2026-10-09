@@ -107921,7 +107921,8 @@
                 "invoices",
                 "report",
                 "automation",
-                "data"
+                "data",
+                "general"
               ]
             },
             "in": "query",
@@ -108048,7 +108049,8 @@
                       "invoices",
                       "report",
                       "automation",
-                      "data"
+                      "data",
+                      "general"
                     ]
                   },
                   "host": {
@@ -108103,6 +108105,14 @@
                             "maxLength": 200
                           }
                         }
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "app": {
+                        "type": "string",
+                        "maxLength": 64
                       }
                     }
                   },
@@ -108151,7 +108161,8 @@
                             "invoices",
                             "report",
                             "automation",
-                            "data"
+                            "data",
+                            "general"
                           ]
                         },
                         "status": {
@@ -108293,7 +108304,8 @@
                             "invoices",
                             "report",
                             "automation",
-                            "data"
+                            "data",
+                            "general"
                           ]
                         },
                         "status": {
@@ -108443,7 +108455,8 @@
                                 "invoices",
                                 "report",
                                 "automation",
-                                "data"
+                                "data",
+                                "general"
                               ]
                             },
                             "status": {
@@ -108703,7 +108716,8 @@
                               "invoices",
                               "report",
                               "automation",
-                              "data"
+                              "data",
+                              "general"
                             ]
                           },
                           "answer": {
@@ -108777,7 +108791,8 @@
                       "invoices",
                       "report",
                       "automation",
-                      "data"
+                      "data",
+                      "general"
                     ]
                   },
                   "host": {
@@ -108832,6 +108847,14 @@
                             "maxLength": 200
                           }
                         }
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "app": {
+                        "type": "string",
+                        "maxLength": 64
                       }
                     }
                   }
@@ -108948,7 +108971,8 @@
                       "invoices",
                       "report",
                       "automation",
-                      "data"
+                      "data",
+                      "general"
                     ]
                   },
                   "host": {
@@ -109003,6 +109027,14 @@
                             "maxLength": 200
                           }
                         }
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "app": {
+                        "type": "string",
+                        "maxLength": 64
                       }
                     }
                   },
@@ -109231,7 +109263,8 @@
                             "invoices",
                             "report",
                             "automation",
-                            "data"
+                            "data",
+                            "general"
                           ]
                         },
                         "answer": {
@@ -109512,7 +109545,8 @@
                         "invoices",
                         "report",
                         "automation",
-                        "data"
+                        "data",
+                        "general"
                       ]
                     },
                     "answer": {
@@ -109617,7 +109651,8 @@
                           "invoices",
                           "report",
                           "automation",
-                          "data"
+                          "data",
+                          "general"
                         ]
                       },
                       "documentId": {

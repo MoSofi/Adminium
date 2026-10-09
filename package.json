@@ -20,6 +20,7 @@
     "check-invoice-money-fixture": "node scripts/check-invoice-money-fixture.mjs",
     "check-assistant-script": "node apps/e2e/scripts/fake-llm.mjs --self-test",
     "check-assistant-contexts": "node scripts/check-assistant-contexts.mjs --self-test && node scripts/check-assistant-contexts.mjs",
+    "check-assistant-places": "node scripts/check-assistant-places.mjs --self-test && node scripts/check-assistant-places.mjs",
     "check-private-citations": "node scripts/check-private-citations.mjs",
     "check-spdx": "node scripts/check-spdx.mjs",
     "check-tailwind-utilities": "node scripts/check-tailwind-utilities.mjs",

@@ -106,6 +106,13 @@ const STEPS = [
     tier: 'quick',
   },
   {
+    // In `quick`: three files read as text, from the root and uncached, for the same reason.
+    id: 'check-assistant-places',
+    cmd: 'pnpm run check-assistant-places',
+    why: 'every screen the assistant may point a person to is a route of the dashboard, behind the guard listed',
+    tier: 'quick',
+  },
+  {
     // In `quick` because it costs under a second and catches something no other
     // gate here can see: tsc and eslint do not read the inside of a string, so
     // an undefined Tailwind utility compiles to nothing and ships looking

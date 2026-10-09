@@ -379,6 +379,27 @@ const SCENARIOS = [
       },
     ],
   },
+  {
+    // A screen with no context of its own: it asks where the place is, then answers with a link
+    // to it. Opened by the first chip that screen offers, like the data page's.
+    key: 'general',
+    match: /where do i invite a colleague/i,
+    ends: 'answer',
+    replies: [
+      () =>
+        calls('Looking for the place.', [
+          { id: 'c1', tool: 'where_is', args: { q: 'invite team' }, step: step('compass', 'Looked for the place', '') },
+        ]),
+      (messages) => {
+        // Answered from what the tool gave, as a real model is told to: no place, no link.
+        const found = /"path":"(\/settings\/team)"/.exec(lastUser(messages));
+        return {
+          schema_version: SCHEMA,
+          say: found === null ? 'You do not have access to the screen where people are invited.' : `On [Team](${found[1]}).`,
+        };
+      },
+    ],
+  },
 ];
 
 /**
@@ -397,6 +418,7 @@ const PAGE_SCENARIOS = [
   [/"Invoice builder"|"Invoices"/, 'invoice'],
   [/"Report builder"/, 'report'],
   [/"Data" page/, 'data'],
+  [/"Workspace" page/, 'general'],
 ];
 
 /** The scenario whose `match` any user message satisfies, and where it started. */
@@ -684,6 +706,8 @@ function scenarioOpener(scenario) {
       return 'Use a table I cannot read';
     case 'data':
       return 'How many rows are shown here?';
+    case 'general':
+      return 'Where do I invite a colleague?';
     default:
       return '';
   }

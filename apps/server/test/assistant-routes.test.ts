@@ -814,6 +814,65 @@ describe('the two assistant fields on the LLM config', () => {
   });
 });
 
+describe('a screen with no context of its own', () => {
+  const reply = (body: Record<string, unknown>) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, ...body });
+
+  it('answers where something is done from where_is, drafts nothing, and has nothing to save', async () => {
+    const host = { connectionIds: [], route: '/settings/roles' };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });
+    expect(opened.statusCode, opened.body).toBe(201);
+    const session = opened.json() as { session: { id: string; context: string }; facts: { values: Record<string, unknown> } };
+    expect(session.session.context).toBe('general');
+
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${session.session.id}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'Where do I invite a colleague?', context: 'general', host },
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const scripted = await runTurn(
+      turnId,
+      [
+        { text: reply({ say: '', calls: [{ id: 'c1', tool: 'where_is', args: { q: 'invite team' }, step: { icon: 'compass', label: 'Looking for the place', detail: '' } }] }) },
+        { text: reply({ say: 'On [Team](/settings/team).' }) },
+      ],
+      t.users.admin.id,
+    );
+    // The prompt is the general one: where the person is, and no document to draft.
+    expect(scripted.calls[0]!.system).toContain('route is /settings/roles');
+    expect(scripted.calls[0]!.system).not.toContain('open_document');
+    // What the tool answered went back to the model: the place, by its path.
+    expect(scripted.calls[1]!.messages.at(-1)!.content).toContain('/settings/team');
+
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn).toMatchObject({ status: 'done', say: 'On [Team](/settings/team).', result: null, context: 'general' });
+
+    const save = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}/actions`,
+      headers: asUser(t.users.admin),
+      payload: { action: 'save' },
+    });
+    expect(save.statusCode).toBeGreaterThanOrEqual(400);
+    expect(save.statusCode).toBeLessThan(500);
+  });
+
+  it('refuses a draft the model sends anyway', async () => {
+    const host = { connectionIds: [] };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Write me a welcome email' } });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const drafted = reply({ say: 'Here.', result: { title: 'Welcome', artefact: { subject: 'Hi' } } });
+    await runTurn(turnId, [{ text: drafted }, { text: drafted }, { text: drafted }, { text: drafted }], t.users.admin.id);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.result).toBeNull();
+    expect(turn?.status).toBe('failed');
+  });
+});
+
 describe('what the model is sent of a conversation that goes on', () => {
   const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
 

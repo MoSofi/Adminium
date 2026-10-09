@@ -294,5 +294,18 @@
       "body": "Asistent {name} na této stránce nic nenavrhuje.",
       "button": "Zavřít"
     }
+  },
+  "general": {
+    "page": "Tento pracovní prostor",
+    "blurb": "Zná tento pracovní prostor · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "greeting": "Mohu číst tabulky, které smí číst vaše role, a říct vám, kde se co dělá.",
+    "greetingSub": "Zeptejte se na svá data nebo na to, kde něco změnit. Odpovím slovy a přidám odkaz na dané místo.",
+    "placeholder": "Zeptejte se na tento pracovní prostor…",
+    "chip1": "Kde pozvu kolegu?",
+    "chip2": "Co v tomto pracovním prostoru uvidím?",
+    "chip3": "Která tabulka má nejvíce řádků?",
+    "workTitle": "Vyhledáno",
+    "scopePrimary": "pracovní prostor",
+    "readPage": "{tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}"
   }
 }

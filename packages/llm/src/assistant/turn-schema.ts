@@ -32,7 +32,7 @@ export const ASSISTANT_SCHEMA_VERSION = 'adminium.assistant/v1';
 export const SUPPORTED_ASSISTANT_VERSIONS: readonly string[] = [ASSISTANT_SCHEMA_VERSION];
 
 /** The pages the assistant can be opened from. The context is the HOST's, never the model's. */
-export const ASSISTANT_CONTEXTS = ['email', 'invoice-template', 'invoices', 'report', 'automation', 'data'] as const;
+export const ASSISTANT_CONTEXTS = ['email', 'invoice-template', 'invoices', 'report', 'automation', 'data', 'general'] as const;
 export type AssistantContext = (typeof ASSISTANT_CONTEXTS)[number];
 export const assistantContextSchema = z.enum(ASSISTANT_CONTEXTS);
 

@@ -19,7 +19,7 @@ import { api } from '../app/api.js';
 const BASE = '/api/v1/assistant';
 
 /** The four pages the assistant can be opened from. */
-export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation' | 'data';
+export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation' | 'data' | 'general';
 
 /** Why the modal cannot work, when it cannot. */
 export type AssistantUnavailableReason = 'no-provider' | 'network-disabled' | 'forbidden';
@@ -49,6 +49,9 @@ export interface AssistantHostRef {
   pageId?: string;
   /** What that page is showing: what "these" means in a question. */
   view?: AssistantPageView;
+  /** A screen with no context of its own: the router's route id, and the app's key over a framed staff side. */
+  route?: string;
+  app?: string;
 }
 
 /** A data page's state, in the list route's own spellings. */

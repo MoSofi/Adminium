@@ -139,6 +139,12 @@ jobs:
       - name: Check the assistant's pages are one list in three places
         run: pnpm run check-assistant-contexts
 
+      # The screens the assistant may point a person to are a table on the
+      # server; the routes are code in the dashboard. A screen moved or put
+      # behind another permission fails here, not as a dead link in an answer.
+      - name: Check the places the assistant names are the dashboard's routes
+        run: pnpm run check-assistant-places
+
       # Tailwind emits NOTHING for a utility whose token is undefined — no
       # warning, no error — so the element falls back to the CSS initial value
       # and ships looking deliberate. On 2026-09-10 that was thirty call sites

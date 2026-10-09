@@ -37,6 +37,9 @@ export const assistantHostBody = z.object({
       recordId: z.string().max(200).optional(),
     })
     .optional(),
+  /** A screen with no context of its own: the router's route id, and the app's key over a framed staff side. */
+  route: z.string().max(120).optional(),
+  app: z.string().max(64).optional(),
 });
 
 export const assistantAvailabilityQuery = z.object({

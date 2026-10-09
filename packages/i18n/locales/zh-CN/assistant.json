@@ -294,5 +294,18 @@
       "body": "{name} 在此页面不起草任何内容。",
       "button": "关闭"
     }
+  },
+  "general": {
+    "page": "此工作区",
+    "blurb": "了解此工作区 · {tables, plural, other {# 张可读的表}}",
+    "greeting": "我可以读取您的角色有权读取的表，并告诉您在哪里完成各项操作。",
+    "greetingSub": "可以询问您的数据，或在哪里更改某项内容。我会用文字回答，并附上该位置的链接。",
+    "placeholder": "询问此工作区…",
+    "chip1": "在哪里邀请同事？",
+    "chip2": "我在此工作区能看到什么？",
+    "chip3": "哪个表的行数最多？",
+    "workTitle": "已查找",
+    "scopePrimary": "工作区",
+    "readPage": "{tables, plural, other {# 张可读的表}}"
   }
 }

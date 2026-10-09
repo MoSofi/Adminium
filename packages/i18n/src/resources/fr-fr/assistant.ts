@@ -304,5 +304,18 @@ export default {
       "body": "{name} ne rédige rien sur cette page.",
       "button": "Fermer"
     }
+  },
+  "general": {
+    "page": "Cet espace de travail",
+    "blurb": "Connaît cet espace de travail · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "greeting": "Je peux lire les tables que votre rôle peut lire et vous dire où les choses se font.",
+    "greetingSub": "Posez une question sur vos données ou sur l’endroit où modifier quelque chose. Je réponds en mots, avec un lien vers l’endroit.",
+    "placeholder": "Posez une question sur cet espace de travail…",
+    "chip1": "Où inviter un collègue ?",
+    "chip2": "Que puis-je voir dans cet espace de travail ?",
+    "chip3": "Quelle table contient le plus de lignes ?",
+    "workTitle": "Recherche effectuée",
+    "scopePrimary": "espace de travail",
+    "readPage": "{tables, plural, one {# table lisible} other {# tables lisibles}}"
   }
 } as const;

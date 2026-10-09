@@ -294,5 +294,18 @@
       "body": "{name} drafts nothing on this page.",
       "button": "Close"
     }
+  },
+  "general": {
+    "page": "This workspace",
+    "blurb": "Knows this workspace · {tables, plural, one {# readable table} other {# readable tables}}",
+    "greeting": "I can read the tables your role can read, and tell you where things are done.",
+    "greetingSub": "Ask about your data, or where to change something. I answer in words and link to the place.",
+    "placeholder": "Ask about this workspace…",
+    "chip1": "Where do I invite a colleague?",
+    "chip2": "What can I see in this workspace?",
+    "chip3": "Which table has the most rows?",
+    "workTitle": "Looked it up",
+    "scopePrimary": "workspace",
+    "readPage": "{tables, plural, one {# readable table} other {# readable tables}}"
   }
 }

@@ -294,5 +294,18 @@
       "body": "{name} udarbejder ikke noget på denne side.",
       "button": "Luk"
     }
+  },
+  "general": {
+    "page": "Dette arbejdsområde",
+    "blurb": "Kender dette arbejdsområde · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "greeting": "Jeg kan læse de tabeller, din rolle må læse, og fortælle dig, hvor tingene gøres.",
+    "greetingSub": "Spørg om dine data, eller hvor noget ændres. Jeg svarer med ord og linker til stedet.",
+    "placeholder": "Spørg om dette arbejdsområde…",
+    "chip1": "Hvor inviterer jeg en kollega?",
+    "chip2": "Hvad kan jeg se i dette arbejdsområde?",
+    "chip3": "Hvilken tabel har flest rækker?",
+    "workTitle": "Slået op",
+    "scopePrimary": "arbejdsområde",
+    "readPage": "{tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}"
   }
 }

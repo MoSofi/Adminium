@@ -743,6 +743,50 @@
     "status": "mt",
     "srcHash": "042c862e4467"
   },
+  "assistant.general.blurb": {
+    "status": "mt",
+    "srcHash": "67cd14620b24"
+  },
+  "assistant.general.chip1": {
+    "status": "mt",
+    "srcHash": "8b0e3b69cee8"
+  },
+  "assistant.general.chip2": {
+    "status": "mt",
+    "srcHash": "d9c7e54f9e34"
+  },
+  "assistant.general.chip3": {
+    "status": "mt",
+    "srcHash": "626b04bd49cb"
+  },
+  "assistant.general.greeting": {
+    "status": "mt",
+    "srcHash": "84f7acabc84d"
+  },
+  "assistant.general.greetingSub": {
+    "status": "mt",
+    "srcHash": "77768e7b33c8"
+  },
+  "assistant.general.page": {
+    "status": "mt",
+    "srcHash": "c3a7ef1fffd0"
+  },
+  "assistant.general.placeholder": {
+    "status": "mt",
+    "srcHash": "fecad416e6cd"
+  },
+  "assistant.general.readPage": {
+    "status": "mt",
+    "srcHash": "3579131827c9"
+  },
+  "assistant.general.scopePrimary": {
+    "status": "mt",
+    "srcHash": "a279fe916f63"
+  },
+  "assistant.general.workTitle": {
+    "status": "mt",
+    "srcHash": "587315461ce7"
+  },
   "assistant.invoiceTemplate.action1": {
     "status": "mt",
     "srcHash": "3ade62446518"

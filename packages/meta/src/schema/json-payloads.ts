@@ -2529,7 +2529,7 @@ export const manifestDocSchema = z
  * depend on that package, and the value here is a stored enum whose job is to
  * keep round-tripping whatever an older server wrote.
  */
-export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation', 'data']);
+export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation', 'data', 'general']);
 export type AssistantContextKey = z.infer<typeof assistantContextSchema>;
 
 /** `open` while a modal holds it; `closed` once the operator leaves or the sweep gives up. */
@@ -2622,6 +2622,13 @@ export const assistantHostSchema = z.object({
       recordId: z.string().optional(),
     })
     .optional(),
+  /**
+   * A screen with no context of its own: the dashboard router's route id
+   * (`/settings/roles`, `/a/$appKey/$`), and over an app's framed staff side
+   * the app's key. Said to the model as where the person is; read by no tool.
+   */
+  route: z.string().optional(),
+  app: z.string().optional(),
 });
 export type AssistantHost = z.infer<typeof assistantHostSchema>;
 

@@ -304,5 +304,18 @@ export default {
       "body": "{name} entwirft auf dieser Seite nichts.",
       "button": "Schließen"
     }
+  },
+  "general": {
+    "page": "Dieser Arbeitsbereich",
+    "blurb": "Kennt diesen Arbeitsbereich · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "greeting": "Ich kann die Tabellen lesen, die Ihre Rolle lesen darf, und Ihnen sagen, wo etwas erledigt wird.",
+    "greetingSub": "Fragen Sie nach Ihren Daten oder danach, wo sich etwas ändern lässt. Ich antworte in Worten und verlinke die Stelle.",
+    "placeholder": "Fragen Sie nach diesem Arbeitsbereich …",
+    "chip1": "Wo lade ich eine Kollegin oder einen Kollegen ein?",
+    "chip2": "Was kann ich in diesem Arbeitsbereich sehen?",
+    "chip3": "Welche Tabelle hat die meisten Zeilen?",
+    "workTitle": "Nachgeschlagen",
+    "scopePrimary": "Arbeitsbereich",
+    "readPage": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}"
   }
 } as const;

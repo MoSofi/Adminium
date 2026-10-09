@@ -294,5 +294,18 @@
       "body": "{name} 在此頁面不起草任何內容。",
       "button": "關閉"
     }
+  },
+  "general": {
+    "page": "此工作區",
+    "blurb": "瞭解此工作區 · {tables, plural, other {# 張可讀的資料表}}",
+    "greeting": "我可以讀取您的角色有權讀取的資料表，並告訴您在哪裡完成各項操作。",
+    "greetingSub": "可以詢問您的資料，或在哪裡變更某項內容。我會用文字回答，並附上該位置的連結。",
+    "placeholder": "詢問此工作區…",
+    "chip1": "在哪裡邀請同事？",
+    "chip2": "我在此工作區能看到什麼？",
+    "chip3": "哪個資料表的列數最多？",
+    "workTitle": "已查詢",
+    "scopePrimary": "工作區",
+    "readPage": "{tables, plural, other {# 張可讀的資料表}}"
   }
 }

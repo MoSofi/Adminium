@@ -18,6 +18,7 @@ import { listDocumentsTool, listStartersTool, readDocumentTool } from './documen
 import { readRowsTool, sampleRecordTool } from './rows.js';
 import { describeSchemaTool, listConnectionsTool } from './schema.js';
 import { emailVariablesTool, workspaceSettingsTool } from './settings.js';
+import { whereIsTool } from './where.js';
 import type { AssistantTool } from '../types.js';
 
 /** Every tool, by name. */
@@ -35,6 +36,7 @@ export const ASSISTANT_TOOLS: Readonly<Record<string, AssistantTool>> = Object.f
       aggregateTool,
       sampleRecordTool,
       listAddOnsTool,
+      whereIsTool,
     ].map((tool) => [tool.name, tool]),
   ),
 );

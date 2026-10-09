@@ -278,6 +278,29 @@ export function contextCopy(
         actions: [],
       };
     }
+    case 'general':
+      // Every screen with no context of its own. It knows the workspace, not what is on the screen.
+      return {
+        page: t('assistant:general.page', 'This workspace'),
+        pageIcon: 'compass',
+        blurb: t('assistant:general.blurb', 'Knows this workspace · {tables, plural, one {# readable table} other {# readable tables}}', args),
+        greeting: t('assistant:general.greeting', 'I can read the tables your role can read, and tell you where things are done.', args),
+        greetingSub: t(
+          'assistant:general.greetingSub',
+          'Ask about your data, or where to change something. I answer in words and link to the place.',
+          args,
+        ),
+        placeholder: t('assistant:general.placeholder', 'Ask about this workspace…'),
+        suggestions: [
+          { icon: 'compass', label: t('assistant:general.chip1', 'Where do I invite a colleague?') },
+          { icon: 'search', label: t('assistant:general.chip2', 'What can I see in this workspace?') },
+          { icon: 'calculator', label: t('assistant:general.chip3', 'Which table has the most rows?') },
+        ],
+        workTitle: t('assistant:general.workTitle', 'Looked it up'),
+        scopePrimary: t('assistant:general.scopePrimary', 'workspace'),
+        // Nothing to save, send or open: it drafts nothing.
+        actions: [],
+      };
   }
 }
 
@@ -389,7 +412,8 @@ export function confirmCopy(
         icon: 'save',
       };
     case 'data':
-      // Never drawn: a data page has no action that writes. Said plainly in case it ever is.
+    case 'general':
+      // Never drawn: neither has an action that writes. Said plainly in case it ever is.
       return {
         title: t('assistant:data.confirm.title', 'Nothing to save here'),
         body: t('assistant:data.confirm.body', '{name} drafts nothing on this page.', args),
@@ -591,6 +615,11 @@ export function pageReadStep(
           'Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}',
           args,
         ),
+      };
+    case 'general':
+      return {
+        label,
+        detail: t('assistant:general.readPage', '{tables, plural, one {# readable table} other {# readable tables}}', args),
       };
     case 'data':
       return {
