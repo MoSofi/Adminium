@@ -63,3 +63,22 @@ describe('the .deb', () => {
     expect(asked).toEqual(['libgtk-3-0', 'libnotify4', 'libnss3', 'libxss1', 'libxtst6', 'xdg-utils', 'libatspi2.0-0', 'libuuid1', 'libsecret-1-0', 'libgbm1', 'libasound2 | libasound2t64']);
   });
 });
+
+describe('the archive', () => {
+  const builder = read('electron-builder.yml').replace(/^\s*#.*$/gm, '');
+
+  it('cuts a workspace package back to what the package itself ships', () => {
+    const cut = /"!node_modules\/@adminium\/\*\/\{([^}]*)\}\{,\/\*\*\}"/.exec(builder)?.[1]?.split(',') ?? [];
+    expect(cut).toEqual(expect.arrayContaining(['coverage', '.turbo', 'vrt', 'storybook-static', 'scripts', 'data']));
+    expect(builder).toContain('/src{,/**}"');
+    // The carried npm is beside the archive, not in it.
+    expect(builder).toContain('"!node_modules/npm{,/**}"');
+  });
+
+  it('is checked after it is made, by the step that also carries npm', () => {
+    expect(builder).toMatch(/^afterPack: build\/after-pack\.cjs$/m);
+    const hook = read('build/after-pack.cjs');
+    expect(hook).toContain('checkWorkspacePackages(context)');
+    expect(hook).toContain('the carried npm is not whole');
+  });
+});

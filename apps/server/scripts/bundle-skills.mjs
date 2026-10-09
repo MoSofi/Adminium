@@ -17,5 +17,8 @@ if (!existsSync(join(source, 'adminium', 'SKILL.md'))) {
   process.exit(1);
 }
 rmSync(target, { recursive: true, force: true });
-cpSync(source, target, { recursive: true, filter: (path) => !path.split(/[\\/]/).some((part) => part.startsWith('.') && part.length > 1) });
+// `VERSION` stays behind: it is the number the skills were last mirrored at, written by the mirror step for the
+// mirror. Inside the server it would be a second, older answer to "which version is this" beside the server's own.
+const versionFile = join(source, 'VERSION');
+cpSync(source, target, { recursive: true, filter: (path) => path !== versionFile && !path.split(/[\\/]/).some((part) => part.startsWith('.') && part.length > 1) });
 console.log(`bundle-skills: copied ${source} → ${target}`);

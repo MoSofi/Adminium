@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * electron-builder's `afterPack`: put the carried npm beside the archive.
+ * electron-builder's `afterPack`: check what the archive holds, and put the
+ * carried npm beside it.
  *
  * Why a step of our own. A project in the app is installed with the npm the app
  * carries, started as "the app's program, as Node, with npm's entry file". That
@@ -14,7 +15,7 @@
  * library, so it adds nothing to sign; it is covered by the app's seal like any
  * other resource.
  */
-const { cpSync, existsSync, readFileSync, realpathSync, rmSync } = require('node:fs');
+const { closeSync, cpSync, existsSync, openSync, readFileSync, readSync, realpathSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 
 /** Where a packed app keeps its resources, per system. */
@@ -25,7 +26,50 @@ function resourcesDir(context) {
   return join(context.appOutDir, 'resources');
 }
 
+/** The archive's own list of what it holds (its header), read with no library. */
+function archiveHeader(file) {
+  const fd = openSync(file, 'r');
+  try {
+    const head = Buffer.alloc(16);
+    readSync(fd, head, 0, 16, 0);
+    const json = Buffer.alloc(head.readUInt32LE(12));
+    readSync(fd, json, 0, json.length, 16);
+    return JSON.parse(json.toString('utf8'));
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** What npm always puts in a package, whatever its `files` says. */
+const ALWAYS = new Set(['package.json', 'README.md', 'LICENSE', 'LICENSES']);
+
+/**
+ * Every workspace package in the archive holds what its own `files` names and
+ * nothing else. The same package installed from npm is exactly that; here it
+ * is a folder of the repository, and whatever lies in that folder rides along
+ * unless the build's list cuts it (41 MB of test pictures once did).
+ */
+function checkWorkspacePackages(context) {
+  const archive = join(resourcesDir(context), 'app.asar');
+  if (!existsSync(archive)) return;
+  const scope = archiveHeader(archive).files?.node_modules?.files?.['@adminium']?.files ?? {};
+  const strays = [];
+  for (const [name, node] of Object.entries(scope)) {
+    const manifest = join(context.packager.projectDir, 'node_modules', '@adminium', name, 'package.json');
+    if (!existsSync(manifest)) continue;
+    const named = (JSON.parse(readFileSync(manifest, 'utf8')).files ?? []).map((entry) => entry.split('/')[0]);
+    for (const entry of Object.keys(node.files ?? {})) {
+      if (!ALWAYS.has(entry) && !named.includes(entry)) strays.push(`@adminium/${name}/${entry}`);
+    }
+  }
+  if (strays.length > 0) {
+    throw new Error(`after-pack: the archive holds what no package's \`files\` names. Cut it in electron-builder.yml's \`files\`:\n  ${strays.join('\n  ')}`);
+  }
+  console.log(`  • ${Object.keys(scope).length} workspace packages in the archive, each holding only what its \`files\` names`);
+}
+
 exports.default = async function afterPack(context) {
+  checkWorkspacePackages(context);
   const from = realpathSync(join(context.packager.projectDir, 'node_modules', 'npm'));
   const to = join(resourcesDir(context), 'npm');
   rmSync(to, { recursive: true, force: true });
