@@ -259,8 +259,10 @@ interface DataContext {
    */
   readView: SnapshotView;
   readTable: ResolvedTable;
-  /** Columns this caller may not read but their update may write (`writable` names them). */
+  /** Columns this caller may not read but may write: their update's `writable` or their create's `creatable` names them (a code typed once, never read back). */
   hiddenWritable: ReadonlySet<string>;
+  /** The same for a row of another table written below this one (a child row a form adds). */
+  hiddenCreatable?: ((tableId: string, column: string) => boolean) | undefined;
 }
 
 /** A read-only route's context: the connection as the caller reads it, for its reads and its checks alike. */
@@ -523,6 +525,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const readTable = readView === view ? table : readView.table(table.id);
       const hidden = [...readTable.columns.values()].filter((column) => column.unreadable === true).map((column) => column.name);
       const writable = hidden.length === 0 ? null : updateLimitOf(permissions, connectionId, table.id);
+      const creatable = hidden.length === 0 ? null : createLimitOf(permissions, connectionId, table.id);
       const ctx: DataContext = {
         connectionId,
         view,
@@ -534,7 +537,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         target: { connectionId, view, table, db, dialect, rights },
         readView,
         readTable,
-        hiddenWritable: new Set(writable === null ? [] : hidden.filter((column) => writable.writable.includes(column))),
+        hiddenWritable: new Set(hidden.filter((column) => writable?.writable.includes(column) === true || creatable?.writable.includes(column) === true)),
+        hiddenCreatable: (tableId, column) => createLimitOf(permissions, connectionId, tableId)?.writable.includes(column) === true,
       };
       // A refusal of this request is told as the caller reads the table (see the error hook below).
       if (readView.readLimited) readersOf.set(request, ctx);
@@ -634,7 +638,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
       const out: Row = {};
       for (const [key, value] of entries) {
-        // A column this caller's read does not show is not theirs to write either, unless their update names it.
+        // A column this caller's read does not show is not theirs to write either, unless their update or their create names it.
         if (ctx.readTable.columns.get(key)?.unreadable === true && !ctx.hiddenWritable.has(key)) ctx.readView.column(ctx.readTable, key);
         const column = ctx.view.column(ctx.table, key); // 422 unknown/secret
         // Zoned instants aimed at naive timestamp columns re-encode to the
@@ -855,7 +859,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const shown = ctx.readView === ctx.view ? null : ctx.readView.linkTable(child.child.id);
       for (const [key, value] of Object.entries(values)) {
         if (key === child.foreignColumn) continue;
-        if (shown?.columns.get(key)?.unreadable === true) ctx.readView.column(shown, key);
+        if (shown?.columns.get(key)?.unreadable === true && ctx.hiddenCreatable?.(child.child.id, key) !== true) ctx.readView.column(shown, key);
         const column = ctx.view.column(child.child, key);
         out[column.name] = isVenueLocal(child.child, column.name) ? value : normalizeWriteValue(column, value);
       }

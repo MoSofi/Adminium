@@ -94,6 +94,13 @@ const MANIFEST = {
       limits: { stays: { readable: ['arrive', 'depart', 'late_until'], writable: ['arrive', 'depart', 'late_until', 'note'] } },
     },
     { key: 'manager', name: 'Manager', permissions: ['table:@stays:read', 'table:@rooms:read'] },
+    // Starts a stay with a note it may never read back: typed once, kept, shown to nobody of this role.
+    {
+      key: 'clerk',
+      name: 'Clerk',
+      permissions: ['table:@stays:read', 'table:@stays:create', 'table:@rooms:read'],
+      limits: { stays: { readable: ['arrive', 'depart', 'late_until'], creatable: ['arrive', 'depart', 'guest_name', 'note'] } },
+    },
     // Changes any column of a stay it reads, and none it does not.
     { key: 'porter', name: 'Porter', permissions: ['table:@stays:read', 'table:@stays:update', 'table:@stays:create'], limits: { stays: { readable: ['arrive', 'depart', 'late_until'] } } },
   ],
@@ -467,6 +474,23 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       const late = await porter({ late_until: '15:00' });
       expect(late.statusCode, late.body).toBe(200);
       withoutHidden(late.json().data);
+    },
+  ],
+  [
+    "a new row takes a hidden column the role's create names; the reply and the check before it show none; any other hidden column is refused",
+    async (c) => {
+      const clerk = await person(c.s, 'clerk@lodge.dev', ['clerk']);
+      const made = await post(c, clerk.cookie, data(c, c.s.table.stays), { values: { arrive: '2026-12-03', depart: '2026-12-04', guest_name: 'Walk-in', note: 'typed once' } });
+      expect(made.statusCode, made.body).toBe(201);
+      withoutHidden(made.json().data);
+      const asked = await post(c, clerk.cookie, data(c, `${c.s.table.stays}/dry-run`), { values: { arrive: '2026-12-05', depart: '2026-12-06', guest_name: 'Walk-in', note: 'asked first' } });
+      expect(asked.statusCode, asked.body).toBe(200);
+      withoutHidden(asked.json().data);
+      // Kept as typed, for whoever reads the whole row.
+      const kept = await c.s.app.inject({ method: 'GET', url: data(c, `${c.s.table.stays}/${String(made.json().data.id)}`), headers: { cookie: c.owner } });
+      expect(kept.json().data.note).toBe('typed once');
+      const other = await post(c, clerk.cookie, data(c, c.s.table.stays), { values: { arrive: '2026-12-07', depart: '2026-12-08', guest_name: 'Walk-in', total: 9 } });
+      expect(other.statusCode, other.body).toBe(403);
     },
   ],
   [

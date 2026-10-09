@@ -23,7 +23,7 @@ import {
 } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
-import { STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
+import { ADD_ON_LOOK_UP_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
 import { discoverSurfaces } from '../src/cli/surfaces-root.js';
 import { composeServer } from '../src/compose.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -132,6 +132,20 @@ describe('someone who opens only an app’s own screens', () => {
     expect(allowed('GET', '/api/v1/add-ons/:addOn/words', { addOn: 'stock' })).toBe(false);
     expect(allowed('GET', WORDS, { addOn: ['stock'], wordsId: 'item' })).toBe(false);
     expect(allowed('GET', WORDS, null)).toBe(false);
+  });
+
+  it('may look a scanned or typed code up in an add-on their app uses: that route, a POST, and that add-on', () => {
+    const LOOK_UP = '/api/v1/add-ons/:key/look-up';
+    const allowed = (method: string, route: string, params: unknown, addOns: ReadonlySet<string> = new Set(['offers'])) => allowedForScreensOnly(method, route, params, new Set(['conn_1']), ['clients'], addOns);
+    expect(ADD_ON_LOOK_UP_ROUTE).toBe(LOOK_UP);
+    expect(allowed('POST', LOOK_UP, { key: 'offers' })).toBe(true);
+    // Another add-on, none of theirs, another method, and the add-on's other routes.
+    expect(allowed('POST', LOOK_UP, { key: 'stock' })).toBe(false);
+    expect(allowed('POST', LOOK_UP, { key: 'offers' }, new Set())).toBe(false);
+    expect(allowed('GET', LOOK_UP, { key: 'offers' })).toBe(false);
+    expect(allowed('POST', '/api/v1/add-ons/:key/connect', { key: 'offers' })).toBe(false);
+    expect(allowed('PATCH', '/api/v1/add-ons/:key', { key: 'offers' })).toBe(false);
+    expect(allowed('POST', LOOK_UP, { key: ['offers'] })).toBe(false);
   });
 
   it('finds who they are, and their token, in the staff config', async () => {

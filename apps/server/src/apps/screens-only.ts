@@ -47,6 +47,8 @@ export async function appConnections(meta: MetaDb, settings: SurfaceSettings, ap
 
 /** The route a screen asks an add-on's stock words through. */
 export const STAFF_WORDS_ROUTE = `${API}/words/:addOn/:wordsId`;
+/** The route a screen looks a scanned or typed code up through. */
+export const ADD_ON_LOOK_UP_ROUTE = `${API}/add-ons/:key/look-up`;
 
 /**
  * The add-ons a screens-only person's apps use: connected to one of their
@@ -94,6 +96,8 @@ export function allowedForScreensOnly(
   // What an add-on of their app says of the rows their screen shows. The route still asks that they read the table asked about.
   const addOn = (params as { addOn?: unknown } | null)?.addOn;
   if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;
+  // A code scanned or typed at their app's desk, looked up in an add-on of their app. The route answers only from columns they read.
+  if (method === 'POST' && route === ADD_ON_LOOK_UP_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

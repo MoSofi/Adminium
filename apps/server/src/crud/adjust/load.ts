@@ -112,9 +112,11 @@ export function adjustLineOf(input: { view: SnapshotView; line: LoadedLine; inde
   const { part, row, table } = line;
   const price = toRatio(row[part.price]) ?? ZERO;
   const stored = part.quantity === undefined ? { n: 1n, d: 1n } : (toRatio(row[part.quantity]) ?? ZERO);
-  // A stay's quantity is its nights, and its price column already the whole stay's.
+  // A stay's price column is already the whole stay's, and its nights are handed one by one: beside them the
+  // quantity is how many of the thing are stayed in — one. (Handed the night count, an add-on that reads the
+  // nights counts each of them that many times: a voucher for a night took a quarter of a two-night room.)
   const nights = part.nights === undefined ? undefined : input.nights;
-  const quantity = input.quantity ?? (nights === undefined ? stored : { n: BigInt(nights.length), d: 1n });
+  const quantity = input.quantity ?? (nights === undefined ? stored : { n: 1n, d: 1n });
   const worth = nights !== undefined || part.quantity === undefined ? price : times(price, quantity);
   // A row worth less than nothing (a correction keyed in as a line) is never reduced, and counts for nothing an offer adds up.
   const owed = worth.n * worth.d < 0n;

@@ -2,7 +2,7 @@
 /**
  * AN ORDER THAT IS ITS OWN LINE — a stay: one row, priced by the night, with
  * no table of lines under it. The price rule reads the row itself as the one
- * line (its amount the whole stay's room price, its quantity the nights), a
+ * line (its amount the whole stay's room price, its quantity one, its nights listed), a
  * code typed on it takes its share off the room, and a voucher for one night
  * takes the dearest night. Through real saves, on every engine.
  */
