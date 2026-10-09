@@ -24,13 +24,16 @@ import type { ProviderId } from '../types.js';
 
 import {
   ASSISTANT_DOCUMENT_VARIANT,
+  ASSISTANT_MAX_ACTIONS_PER_PROPOSAL,
   ASSISTANT_MAX_CALLS_PER_TURN,
   ASSISTANT_MAX_ROWS_PER_CALL,
+  type AssistantActionKind,
+  assistantProposableKinds,
   assistantTurnSchemaFor,
   type AssistantTurnVariant,
 } from './turn-schema.js';
 
-export const ASSISTANT_PROMPT_VERSION = 'adminium.assistant-prompt/v1.1';
+export const ASSISTANT_PROMPT_VERSION = 'adminium.assistant-prompt/v1.2';
 
 /** One read tool as the model is told about it. */
 export interface AssistantToolSpec {
@@ -65,6 +68,18 @@ export interface AssistantPromptInput {
   tools: readonly AssistantToolSpec[];
   /** Why row tools are missing from `tools`, when they are; `null` when they are present. */
   rowsUnavailable: string | null;
+  /**
+   * What may be proposed on this page: the kinds the workspace has switched
+   * on AND this person holds a right for. Absent or empty, the prompt says
+   * nothing can be changed and the contract shown has no `propose`.
+   */
+  propose?: {
+    kinds: readonly AssistantActionKind[];
+    /** The most actions one proposal may hold here: the workspace's own cap. */
+    maxActions: number;
+    /** One line on where they apply ("this page's own table only: …"). */
+    where?: string | undefined;
+  };
 }
 
 /**
@@ -73,7 +88,7 @@ export interface AssistantPromptInput {
  */
 export const ASSISTANT_PROMPT_V1 = `You are {{name}}, the assistant inside {{appName}}'s "{{pageLabel}}" page. Answer in {{localeName}}.
 
-You help the person using this page by reading what the page and their database hold, and by drafting a document in this page's own format. You never save, send or change anything: you propose, and the person decides.
+You help the person using this page by reading what the page and their database hold, and by drafting a document in this page's own format. {{writes}}
 
 == This page ==
 {{pageFacts}}
@@ -87,9 +102,12 @@ You help the person using this page by reading what the page and their database 
 == Tools ==
 {{tools}}
 
+== What you may propose ==
+{{proposable}}
+
 == Rules ==
 - Reply with ONE JSON object matching the turn schema below. No prose outside it, no code fences.
-- Use exactly one of "calls", "ask" or "result" — or none of them, for a plain answer in "say".
+- {{moves}}
 - Never invent a table, column, variable, block kind or document id: read them with a tool first.
 - Ask (with groups) when the template or the data source is ambiguous; otherwise proceed.
 - Prefer the smallest set of tool calls. At most {{maxCalls}} tool calls per request, and never more than {{maxRows}} rows at once.
@@ -110,7 +128,7 @@ You help the person using this page by reading what the page and their database 
  */
 export const ASSISTANT_PROMPT_PLAIN_V1 = `You are {{name}}, the assistant inside {{appName}}'s "{{pageLabel}}" page. Answer in {{localeName}}.
 
-You help the person using this page by reading what the page and their database hold, and answering in words. You never save, send or change anything.
+You help the person using this page by reading what the page and their database hold, and answering in words. {{writes}}
 
 == This page ==
 {{pageFacts}}
@@ -118,9 +136,12 @@ You help the person using this page by reading what the page and their database 
 == Tools ==
 {{tools}}
 
+== What you may propose ==
+{{proposable}}
+
 == Rules ==
 - Reply with ONE JSON object matching the turn schema below. No prose outside it, no code fences.
-- Use "calls" or "ask" — or neither, for your answer in "say". This page has no document: there is nothing to draft.
+- {{moves}}
 - Never invent a table or a column: read them with a tool first.
 - Ask (with groups) when the question could mean different things and the data gives no hint; otherwise proceed.
 - Prefer the smallest set of tool calls. At most {{maxCalls}} tool calls per request, and never more than {{maxRows}} rows at once.
@@ -134,6 +155,68 @@ You help the person using this page by reading what the page and their database 
 `;
 
 const NO_EXAMPLES = '(none for this page)';
+
+const WRITES_NEVER = 'You never save, send or change anything.';
+const WRITES_NEVER_DOCUMENT = 'You never save, send or change anything: you draft, and the person decides.';
+const WRITES_BY_PROPOSAL =
+  'You never save, send or change anything yourself: you may PROPOSE what the section below lists, the person is shown each change, and nothing happens unless they confirm it.';
+
+const NOTHING_PROPOSABLE = 'You cannot change anything here; say so if asked.';
+
+/** One line per kind, as the model is told about it. A kind that is not listed is not offered. */
+const PROPOSABLE_LINES: Record<AssistantActionKind, string> = {
+  'row.create': '- row.create: add a row to a table. Give every required column; read the table with a tool first.',
+  'row.change': '- row.change: change columns of ONE row you have read. Give its id and only the columns that change.',
+  'row.delete': '- row.delete: delete ONE row you have read, by its id.',
+  'doc.save': '- doc.save: save the draft in "result" of this same reply as a new document.',
+  'doc.change': '- doc.change: save the draft in "result" of this same reply over the document that is open on this page.',
+  'doc.delete': '- doc.delete: delete one email template, report or rule, by the id a tool returned.',
+  'send.document': '- send.document: send one document to the recipient it already names.',
+  'send.template': '- send.template: send one email template to everyone who holds one of the named roles.',
+};
+
+/** Words for a kind that is switched off or not this person's, so the model can say so plainly. */
+const NOT_PROPOSABLE_WORDS: Record<AssistantActionKind, string> = {
+  'row.create': 'adding rows',
+  'row.change': 'changing rows',
+  'row.delete': 'deleting rows',
+  'doc.save': 'saving a draft',
+  'doc.change': 'saving over the open document',
+  'doc.delete': 'deleting documents',
+  'send.document': 'sending documents',
+  'send.template': 'sending email templates',
+};
+
+function renderProposable(variant: AssistantTurnVariant, maxActions: number, where: string | undefined): string {
+  const kinds = assistantProposableKinds(variant);
+  if (kinds.length === 0) return NOTHING_PROPOSABLE;
+  const offered = new Set<AssistantActionKind>(kinds);
+  const missing = (Object.keys(NOT_PROPOSABLE_WORDS) as AssistantActionKind[])
+    .filter((kind) => !offered.has(kind) && (variant.document || (kind !== 'doc.save' && kind !== 'doc.change')))
+    .map((kind) => NOT_PROPOSABLE_WORDS[kind]);
+  const cap = Math.max(1, Math.min(maxActions, ASSISTANT_MAX_ACTIONS_PER_PROPOSAL));
+  return [
+    'With "propose" you may ask the person to confirm these, and only these:',
+    ...kinds.map((kind) => PROPOSABLE_LINES[kind]),
+    ...(where === undefined || where === '' ? [] : [where]),
+    `At most ${cap} actions in one proposal. For more, say that the page's own bulk tools do it and propose nothing.`,
+    'Propose only what the person asked for, with ids and values a tool returned in this conversation. Never guess an id.',
+    'You are not told whether a proposal was confirmed. Never say that something was saved, sent, changed or deleted.',
+    ...(missing.length === 0 ? [] : [`Not possible from here, so say so if asked: ${missing.join(', ')}.`]),
+  ].join('\n');
+}
+
+function renderMoves(variant: AssistantTurnVariant): string {
+  const proposes = assistantProposableKinds(variant).length > 0;
+  if (variant.document) {
+    return proposes
+      ? 'Use exactly one of "calls", "ask", "result" or "propose" — or none of them, for a plain answer in "say". The one pair allowed: "result" with a "propose" that only saves that draft.'
+      : 'Use exactly one of "calls", "ask" or "result" — or none of them, for a plain answer in "say".';
+  }
+  return proposes
+    ? 'Use "calls", "ask" or "propose" — or none of them, for your answer in "say". This page has no document: there is nothing to draft.'
+    : 'Use "calls" or "ask" — or neither, for your answer in "say". This page has no document: there is nothing to draft.';
+}
 const NO_TOOLS = '(no tools are available in this session)';
 
 /** The reply contract as JSON Schema — what the `{{turnSchema}}` slot holds, for one variant. */
@@ -156,6 +239,8 @@ function renderTools(tools: readonly AssistantToolSpec[], rowsUnavailable: strin
  */
 export function buildAssistantPrompt(input: AssistantPromptInput): string {
   const document = input.document;
+  const variant: AssistantTurnVariant = { document: document !== null, propose: input.propose?.kinds ?? [] };
+  const proposes = assistantProposableKinds(variant).length > 0;
   const slots: Record<string, string> = {
     name: input.name,
     appName: input.appName,
@@ -167,7 +252,10 @@ export function buildAssistantPrompt(input: AssistantPromptInput): string {
     tools: renderTools(input.tools, input.rowsUnavailable),
     maxCalls: String(ASSISTANT_MAX_CALLS_PER_TURN),
     maxRows: String(ASSISTANT_MAX_ROWS_PER_CALL),
-    turnSchema: JSON.stringify(assistantTurnJsonSchema({ document: document !== null })),
+    writes: proposes ? WRITES_BY_PROPOSAL : document === null ? WRITES_NEVER : WRITES_NEVER_DOCUMENT,
+    proposable: renderProposable(variant, input.propose?.maxActions ?? ASSISTANT_MAX_ACTIONS_PER_PROPOSAL, input.propose?.where),
+    moves: renderMoves(variant),
+    turnSchema: JSON.stringify(assistantTurnJsonSchema(variant)),
   };
   const template = document === null ? ASSISTANT_PROMPT_PLAIN_V1 : ASSISTANT_PROMPT_V1;
   return template.replace(/\{\{(\w+)\}\}/g, (marker, key: string) => slots[key] ?? marker);

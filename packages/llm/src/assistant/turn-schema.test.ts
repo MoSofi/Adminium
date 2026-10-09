@@ -2,7 +2,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ASSISTANT_ACTION_KINDS,
+  ASSISTANT_DRAFT_WITH_PROPOSAL_MESSAGE,
+  ASSISTANT_MAX_ACTIONS_PER_PROPOSAL,
   ASSISTANT_MAX_ARTEFACT_ERRORS,
+  ASSISTANT_NO_PROPOSE_MESSAGE,
+  ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE,
   ASSISTANT_SCHEMA_VERSION,
   ASSISTANT_STEP_ICON_FALLBACK,
   assistantArtefactErrorsMessage,
@@ -10,7 +15,9 @@ import {
   assistantOpenDocumentMessage,
   assistantPicksMessage,
   assistantStepEventMessage,
+  assistantProposableKinds,
   assistantToolResultsMessage,
+  assistantTurnSchemaFor,
   assistantTurnV1,
   parseAssistantTurn,
   readAssistantStepEvent,
@@ -295,3 +302,90 @@ describe('pointing at an add-on', () => {
     expect(parseAssistantTurn(reply([''])).ok).toBe(false);
   });
 });
+
+describe('a proposal', () => {
+  const reply = (extra: Record<string, unknown>): string => JSON.stringify({ schema_version: 'adminium.assistant/v1', say: 'Here.', ...extra });
+  const create = { do: 'row.create', connectionId: 'c1', table: 'main.customers', values: { name: 'Ada' } };
+  const change = { do: 'row.change', connectionId: 'c1', table: 'main.customers', id: '7', values: { city: 'Ulm' } };
+  const remove = { do: 'row.delete', connectionId: 'c1', table: 'main.customers', id: '7' };
+  const draft = { title: 'Welcome', meta: '', artefact: { blocks: [] } };
+  const rows = { document: false, propose: ['row.create', 'row.change'] } as const;
+
+  it('is not a move where nothing is offered, and is refused by name', () => {
+    for (const variant of [{ document: true }, { document: false }, { document: false, propose: [] }]) {
+      const parsed = parseAssistantTurn(reply({ propose: { title: 'Add Ada', actions: [create] } }), undefined, variant);
+      expect(parsed).toMatchObject({ ok: false, errors: [{ code: 'LLM_SCHEMA_INVALID', path: 'propose', message: ASSISTANT_NO_PROPOSE_MESSAGE }] });
+    }
+  });
+
+  it('is read where it is offered, and is its own move', () => {
+    const parsed = parseAssistantTurn(reply({ propose: { title: 'Add Ada', actions: [create, change] } }), undefined, rows);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(assistantMoveOf(parsed.turn)).toBe('propose');
+    expect(parsed.turn.propose?.actions).toEqual([create, change]);
+  });
+
+  it('refuses a kind this page does not offer, naming what it does', () => {
+    const parsed = parseAssistantTurn(reply({ propose: { title: 'Tidy', actions: [create, remove] } }), undefined, rows);
+    expect(parsed).toMatchObject({ ok: false, errors: [{ path: 'propose.actions[1].do' }] });
+    if (parsed.ok) return;
+    expect(parsed.errors[0]?.message).toBe('"row.delete" cannot be proposed here. What can: row.create, row.change.');
+  });
+
+  it('refuses a kind that does not exist, an empty list, and one too many', () => {
+    const variant = { document: false, propose: ASSISTANT_ACTION_KINDS };
+    expect(parseAssistantTurn(reply({ propose: { title: 'x', actions: [{ do: 'row.truncate', table: 't' }] } }), undefined, variant).ok).toBe(false);
+    expect(parseAssistantTurn(reply({ propose: { title: 'x', actions: [] } }), undefined, variant).ok).toBe(false);
+    const many = Array.from({ length: ASSISTANT_MAX_ACTIONS_PER_PROPOSAL + 1 }, () => create);
+    expect(parseAssistantTurn(reply({ propose: { title: 'x', actions: many } }), undefined, variant).ok).toBe(false);
+    expect(parseAssistantTurn(reply({ propose: { title: 'x', actions: many.slice(1) } }), undefined, variant).ok).toBe(true);
+  });
+
+  it('refuses a row with no values, and drops what the contract does not name', () => {
+    expect(parseAssistantTurn(reply({ propose: { title: 'x', actions: [{ ...create, values: {} }] } }), undefined, rows).ok).toBe(false);
+    const parsed = parseAssistantTurn(reply({ propose: { title: 'x', actions: [{ ...change, seen: { city: 'Bonn' }, route: '/api/v1/roles' }] } }), undefined, rows);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.turn.propose?.actions[0]).toEqual(change);
+  });
+
+  it('is one move: not beside calls or ask', () => {
+    const call = { id: 'a', tool: 'read_rows', args: {}, step: { icon: 'search', label: 'Read', detail: '' } };
+    const parsed = parseAssistantTurn(reply({ calls: [call], propose: { title: 'x', actions: [create] } }), undefined, rows);
+    expect(parsed).toMatchObject({ ok: false, errors: [{ message: 'Use at most one of calls, ask and propose in a single reply.' }] });
+  });
+
+  it('may travel with a draft only as the one action that saves it', () => {
+    const variant = { document: true, propose: ['doc.save', 'doc.change', 'row.create'] } as const;
+    const both = parseAssistantTurn(reply({ result: draft, propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } }), undefined, variant);
+    expect(both.ok).toBe(true);
+    if (both.ok) expect(assistantMoveOf(both.turn)).toBe('result');
+
+    const mixed = parseAssistantTurn(reply({ result: draft, propose: { title: 'x', actions: [create] } }), undefined, variant);
+    expect(mixed).toMatchObject({ ok: false, errors: [{ path: 'propose.actions', message: ASSISTANT_DRAFT_WITH_PROPOSAL_MESSAGE }] });
+    const twice = parseAssistantTurn(reply({ result: draft, propose: { title: 'x', actions: [{ do: 'doc.save' }, { do: 'doc.change' }] } }), undefined, variant);
+    expect(twice.ok).toBe(false);
+
+    const alone = parseAssistantTurn(reply({ propose: { title: 'x', actions: [{ do: 'doc.save' }] } }), undefined, variant);
+    expect(alone).toMatchObject({ ok: false, errors: [{ path: 'propose.actions', message: ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE }] });
+  });
+
+  it('offers no draft action on a page without a document, whatever was asked for', () => {
+    expect(assistantProposableKinds({ document: false, propose: ['doc.save', 'doc.change', 'row.delete'] })).toEqual(['row.delete']);
+    expect(assistantProposableKinds({ document: true, propose: ['send.template', 'row.create'] })).toEqual(['row.create', 'send.template']);
+    expect(assistantProposableKinds({ document: true })).toEqual([]);
+  });
+
+  it('a change names no id of a document: the open one is the server\'s to know', () => {
+    const variant = { document: true, propose: ['doc.change'] } as const;
+    const parsed = parseAssistantTurn(reply({ result: draft, propose: { title: 'x', actions: [{ do: 'doc.change', id: 'someone-elses' }] } }), undefined, variant);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.turn.propose?.actions[0]).toEqual({ do: 'doc.change' });
+  });
+
+  it('keeps the same schema object for the same offer', () => {
+    expect(assistantTurnSchemaFor({ document: false, propose: ['row.change', 'row.create'] })).toBe(assistantTurnSchemaFor(rows));
+    expect(assistantTurnSchemaFor({ document: true })).toBe(assistantTurnV1);
+  });
+});
+
