@@ -102,7 +102,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
-| `/api/v1/assistant/*` | 9 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
+| `/api/v1/assistant/*` | 11 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
 | `/api/v1/automation-runs/*` | 3 | Every execution of a rule — the last seven days, the three status filters, one run’s full step-by-step trace, and today’s counters |
@@ -267,6 +267,8 @@ DELETE /api/v1/apps/{key}
 ```http
 GET /api/v1/assistant/availability
 POST /api/v1/assistant/sessions
+GET /api/v1/assistant/sessions/current
+POST /api/v1/assistant/facts
 POST /api/v1/assistant/sessions/{id}/turns
 GET /api/v1/assistant/sessions/{id}/turns/{turnId}
 POST /api/v1/assistant/sessions/{id}/turns/{turnId}/cancel
