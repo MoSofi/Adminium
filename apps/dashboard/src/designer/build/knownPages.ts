@@ -9,7 +9,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 
-import { architectureQuery, designerApi, type ArchitectureDoc } from '../api.js';
+import { architectureQuery, designerApi, designerKeys, type ArchitectureDoc } from '../api.js';
 import type { KnownPage } from './AddressBar.js';
 import { tidyPagePath, type VisitedPage } from './pagePath.js';
 import type { PreviewSide } from './usePreview.js';
@@ -59,7 +59,8 @@ export function useKnownPages(sessionId: string, appKey: string, side: PreviewSi
   const architecture = useQuery({ ...architectureQuery(sessionId), enabled: enabled && side === 'dashboard' });
   const navPath = `apps/${appKey}/staff/nav.json`;
   const nav = useQuery({
-    queryKey: ['designer', 'file', sessionId, navPath] as const,
+    // Under the files' own key: what asks for the files again (a turn's end, a save, a hold let go) asks for this list too.
+    queryKey: [...designerKeys.files(sessionId), 'content', navPath] as const,
     queryFn: () => designerApi.fileContent(sessionId, navPath),
     enabled: enabled && side === 'staff',
     retry: false,

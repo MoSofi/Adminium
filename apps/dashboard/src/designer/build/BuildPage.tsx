@@ -618,7 +618,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               turns={turns}
               code={code}
               codeAsked={codeAsked}
-              onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))}
+              onFix={(message) => (working || busy ? undefined : start.mutate({ message, attachments: [] }))}
               onNotice={(title) => toasts.push({ variant: 'info', title })}
               onFoldedNeed={setFoldedNeed}
             />

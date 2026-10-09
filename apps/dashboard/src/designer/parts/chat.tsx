@@ -106,10 +106,14 @@ export function PersonMessage({ text }: { text: string }): ReactNode {
   );
   const copy = (): void => {
     // A page that may not write to the clipboard (an http address on a network) says nothing more than it can: the text is still there to select.
-    void navigator.clipboard?.writeText(text).catch(() => undefined);
-    setCopied(true);
-    if (back.current !== null) clearTimeout(back.current);
-    back.current = setTimeout(() => setCopied(false), COPIED_MS);
+    void navigator.clipboard
+      ?.writeText(text)
+      .then(() => {
+        setCopied(true);
+        if (back.current !== null) clearTimeout(back.current);
+        back.current = setTimeout(() => setCopied(false), COPIED_MS);
+      })
+      .catch(() => undefined);
   };
   return (
     <div className="group/message flex justify-end">

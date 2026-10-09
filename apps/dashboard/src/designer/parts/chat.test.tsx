@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe('a person’s own message', () => {
-  it('copies the whole message, says so for a moment, and is the button again after', () => {
+  it('copies the whole message, says so for a moment, and is the button again after', async () => {
     vi.useFakeTimers();
     const written: string[] = [];
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: (text: string) => (written.push(text), Promise.resolve()) } });
@@ -27,6 +27,7 @@ describe('a person’s own message', () => {
     expect(button.textContent).toBe('');
     fireEvent.click(button);
     expect(written).toEqual(['A fried-chicken shop.\nTwo lines.']);
+    await act(async () => undefined);
     expect(screen.getByRole('button', { name: 'Copied' }).textContent).toBe('Copied');
     // Shown while it says so, whatever the pointer is doing.
     expect(button.className).toContain('opacity-100');
@@ -34,6 +35,20 @@ describe('a person’s own message', () => {
     expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeNull();
     act(() => vi.advanceTimersByTime(2));
     expect(screen.getByRole('button', { name: 'Copy this message' }).textContent).toBe('');
+  });
+
+  it('does not say it copied where the page may not write to the clipboard, or the write was refused', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
+    const first = render(<PersonMessage text="Hello" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy this message' }));
+    await act(async () => undefined);
+    expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull();
+    first.unmount();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: () => Promise.reject(new Error('NotAllowedError')) } });
+    render(<PersonMessage text="Hello" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy this message' }));
+    await act(async () => undefined);
+    expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull();
   });
 
   it('is out of sight until the message is pointed at or reached, always there for the keyboard, and always shown where nothing can hover', () => {

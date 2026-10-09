@@ -4,14 +4,14 @@
  * real path back, when it only shows, and the pages it offers on each side.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@adminium/ui';
 
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
-import type { ArchitectureDoc } from '../api.js';
+import { designerKeys, type ArchitectureDoc } from '../api.js';
 import { AddressBar, cutMiddle, offered, type KnownPage } from './AddressBar.js';
 import { customerPages, dashboardPages, staffPages, useKnownPages } from './knownPages.js';
 import type { PreviewSide } from './usePreview.js';
@@ -275,6 +275,10 @@ describe('the pages each side offers', () => {
     const shown = renderHook(({ side }: { side: PreviewSide }) => useKnownPages('ds_000000000000000000000013', 'shop', side, [{ path: '/', title: 'Crispy Bites' }], true), { wrapper, initialProps: { side: 'staff' as PreviewSide } });
     await waitFor(() => expect(shown.result.current).toEqual([{ path: '/', name: 'Items' }, { path: '/requests', name: 'Requests' }]));
     expect(asked).toEqual(['/api/v1/designer/sessions/ds_000000000000000000000013/files/content?path=apps%2Fshop%2Fstaff%2Fnav.json']);
+    // What ends a turn or a save asks for the files again: the staff pages are among them, or a screen just added is never offered.
+    await act(() => client.invalidateQueries({ queryKey: designerKeys.files('ds_000000000000000000000013') }));
+    await waitFor(() => expect(asked).toHaveLength(2));
+    asked.pop();
     // A customer side asks the server nothing: its list is what this preview has been on.
     shown.rerender({ side: 'customer' });
     expect(shown.result.current).toEqual([{ path: '/', name: 'Crispy Bites' }]);
