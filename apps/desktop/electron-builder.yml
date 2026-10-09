@@ -216,6 +216,27 @@ linux:
 # `app-update.yml` is read at DOWNLOAD time, for `updaterCacheDirName` and (on
 # NSIS) `publisherName`. Nothing reads it at construction, so a missing file
 # breaks the download, never the check.
+# What the .deb asks the system for. Written out whole because naming any
+# replaces electron-builder's own list (the first nine below are that list).
+# The last two were missing: the program links against libgbm and libasound,
+# a desktop system happens to have both, and a minimal one does not, where the
+# installed app then failed to start with "libgbm.so.1: cannot open shared
+# object file" (seen on Debian 12 with the 0.2.10 package). The second spelling
+# of libasound is the name newer Ubuntu releases gave it.
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libgbm1
+    - libasound2 | libasound2t64
+
 publish:
   provider: github
   owner: MoSofi

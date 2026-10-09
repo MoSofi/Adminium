@@ -54,3 +54,12 @@ describe('the fuses', () => {
     expect(read('package.json')).not.toContain('@electron/fuses');
   });
 });
+
+describe('the .deb', () => {
+  it('asks for every library the program links against, the two a desktop system hides included', () => {
+    const builder = read('electron-builder.yml').replace(/^\s*#.*$/gm, '');
+    const block = /^deb:\n\s+depends:\n((?:\s+- .*\n)+)/m.exec(builder)?.[1] ?? '';
+    const asked = block.split('\n').map((line) => line.replace(/^\s+- /, '').trim()).filter((line) => line !== '');
+    expect(asked).toEqual(['libgtk-3-0', 'libnotify4', 'libnss3', 'libxss1', 'libxtst6', 'xdg-utils', 'libatspi2.0-0', 'libuuid1', 'libsecret-1-0', 'libgbm1', 'libasound2 | libasound2t64']);
+  });
+});
