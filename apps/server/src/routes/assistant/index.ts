@@ -50,7 +50,7 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
+import { assistantDocumentExists, runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
 import { readAllowance } from '../../assistant/allowance.js';
 import { listedAddOns } from '../../assistant/tools/add-ons.js';
 import type { AssistantAddOn } from '../../assistant/types.js';
@@ -188,7 +188,7 @@ function whereAsked(turn: AssistantTurn, session: AssistantSession): AssistantTu
           : text(view.q) !== null || text(view.where) !== null
             ? { kind: 'page', count: null }
             : null;
-  return { pageId: text(host.pageId), documentId: text(host.documentId), title: null, scope };
+  return { pageId: text(host.pageId), documentId: text(host.documentId), title: null, scope, gone: false };
 }
 
 function sessionView(session: AssistantSession) {
@@ -234,6 +234,10 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
      * against the reader's grants: the turn is their own, asked while they were on that page.
      */
     async function titled(view: AssistantTurnView): Promise<AssistantTurnView> {
+      // A draft made for a document (an editor's) whose document has since been deleted.
+      if (view.result !== null && view.on.documentId !== null && !(await assistantDocumentExists(deps.meta, view.context, view.on.documentId))) {
+        view = { ...view, on: { ...view.on, gone: true } };
+      }
       if (view.on.pageId === null) return view;
       const page = await pagesRepo(deps.meta).findById(view.on.pageId);
       return page === null ? view : { ...view, on: { ...view.on, title: page.title } };

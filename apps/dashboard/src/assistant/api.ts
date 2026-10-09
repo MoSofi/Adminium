@@ -160,7 +160,14 @@ export interface AssistantTurnView {
   /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
   answer: Record<string, unknown> | null;
   /** Where it was asked, beyond the context: the data page (with its title now) or the open document. */
-  on?: { pageId: string | null; documentId: string | null; title: string | null; scope?: { kind: 'selection' | 'record' | 'page'; count: number | null } | null };
+  on?: {
+    pageId: string | null;
+    documentId: string | null;
+    title: string | null;
+    scope?: { kind: 'selection' | 'record' | 'page'; count: number | null } | null;
+    /** It drafted for a document that has been deleted since. */
+    gone?: boolean;
+  };
 }
 
 /** `GET /assistant/sessions/current`: the person's open conversation, or none. */

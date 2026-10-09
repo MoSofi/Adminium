@@ -27,7 +27,7 @@ import {
   type AssistantHostRef,
   type AssistantTurnStatus,
 } from '../api.js';
-import { messageOf, reasonOf, toThreadTurn, type ActionOutcome, type ThreadTurn } from '../useAssistantSession.js';
+import { messageOf, reasonOf, toThreadTurn, type ActionOutcome, type ThreadTurn } from '../thread.js';
 import { useTurnProgress, type LiveStep } from '../useTurnProgress.js';
 
 /** The page a question is asked on, as the page published it. */
@@ -67,6 +67,8 @@ export interface PanelConversation {
   stop: () => void;
   newConversation: () => void;
   runAction: (turnId: string, body: AssistantActionBody) => Promise<ActionOutcome | null>;
+  /** Read one turn again, whole: an older draft comes without its document until it is needed. */
+  loadWhole: (turnId: string) => void;
 }
 
 const LIVE: readonly AssistantTurnStatus[] = ['queued', 'running'];
@@ -96,11 +98,12 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
 
   // ── load: who may ask, and the conversation they left ─────────────────────
   const context = page.context;
+  const firstContext = useRef(context);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const [state, current] = await Promise.all([assistantApi.availability(context), assistantApi.currentSession()]);
+        const [state, current] = await Promise.all([assistantApi.availability(firstContext.current), assistantApi.currentSession()]);
         if (cancelled) return;
         setAvailability(state);
         setUsedUpUntil(state.budget !== undefined && !state.budget.left ? state.budget.resetsAt : null);
@@ -120,6 +123,24 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     };
     // Once a panel: the page the person walks to changes the facts below, not who they are.
   }, []);
+
+  // What the person may do is per page (saving a template and saving a rule are different grants):
+  // asked again when they walk to a page of another kind.
+  const loaded = phase !== 'loading';
+  useEffect(() => {
+    if (!loaded || context === firstContext.current) return;
+    firstContext.current = context;
+    let cancelled = false;
+    assistantApi.availability(context).then(
+      (state) => {
+        if (!cancelled) setAvailability(state);
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded, context]);
 
   // ── the page the person is on: what the assistant would be told of it ─────
   const pageKey = JSON.stringify([page.context, page.host]);
@@ -269,6 +290,8 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     }
   }, []);
 
+  const loadWhole = useCallback((turnId: string) => void refreshTurn(turnId), [refreshTurn]);
+
   return {
     phase,
     availability,
@@ -283,6 +306,7 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     nextTurnTokens,
     problem,
     usedUpUntil: usedUpUntil ?? turns.reduce<number | null>((found, turn) => turn.usedUpUntil ?? found, null),
+    loadWhole,
     closedElsewhere,
     // Said until the person asks something: then there is a conversation again.
     aged: aged && sessionId === null,

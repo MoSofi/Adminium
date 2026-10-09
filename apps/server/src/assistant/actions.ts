@@ -225,8 +225,13 @@ function savedOf(result: Record<string, unknown> | null): { id: string; kind: st
   return { id, kind, name };
 }
 
+/** Whether a document a turn was made for is still there: asked when a turn is served, to say so on its card. */
+export function assistantDocumentExists(meta: MetaDb, context: AssistantContextKey, id: string): Promise<boolean> {
+  return documentExists({ meta, context }, id);
+}
+
 /** Whether the document a turn was saved as is still there, on the page it was saved to. */
-async function documentExists(input: AssistantActionInput, id: string): Promise<boolean> {
+async function documentExists(input: Pick<AssistantActionInput, 'meta' | 'context'>, id: string): Promise<boolean> {
   const context = input.context;
   switch (context) {
     case 'email':

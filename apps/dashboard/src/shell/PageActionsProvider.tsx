@@ -38,6 +38,8 @@ import { cn } from '@adminium/ui';
 export interface PageAssistantContext {
   context: string;
   host: { connectionIds: string[]; pageId?: string; documentId?: string; tab?: string };
+  /** The page draws its own Ask button, where its design has it: the shell then draws none. */
+  ownButton?: boolean;
 }
 
 /** What that page is showing right now, in the list route's own spellings: what "these" means. */
@@ -68,6 +70,7 @@ export interface PublishedPageAssistant {
   context: string;
   host: PageAssistantContext['host'] & { view?: PageAssistantView };
   shown: PageAssistantShown;
+  ownButton: boolean;
 }
 
 /**
@@ -85,6 +88,13 @@ interface AssistantStore {
   setBase: (base: PageAssistantContext | null) => void;
   setView: (view: PageAssistantView | null) => void;
   setShown: (key: 'page' | 'view', shown: PageAssistantShown | null) => void;
+  /**
+   * What only the page can do with a draft: draw it with the page's own
+   * renderer, put it on screen, follow a save. Functions and an unsaved
+   * document, so they are held by reference and read when they are needed;
+   * nothing is notified when they change, and nothing has to be.
+   */
+  handlers: { current: unknown };
 }
 
 function createAssistantStore(): AssistantStore {
@@ -98,7 +108,12 @@ function createAssistantStore(): AssistantStore {
     merged =
       base === null
         ? null
-        : { context: base.context, host: view === null ? base.host : { ...base.host, view }, shown: { ...shown.page, ...shown.view } };
+        : {
+            context: base.context,
+            host: view === null ? base.host : { ...base.host, view },
+            shown: { ...shown.page, ...shown.view },
+            ownButton: base.ownButton === true,
+          };
     for (const listener of listeners) listener();
   };
   return {
@@ -119,6 +134,7 @@ function createAssistantStore(): AssistantStore {
       shown[key] = next;
       publish();
     },
+    handlers: { current: null },
   };
 }
 
@@ -250,6 +266,32 @@ const NO_ASSISTANT = () => null;
 export function usePageAssistant(): PublishedPageAssistant | null {
   const store = useContext(PageActionsContext)?.assistant;
   return useSyncExternalStore(store?.subscribe ?? NO_SUBSCRIPTION, store?.get ?? NO_ASSISTANT, NO_ASSISTANT);
+}
+
+/**
+ * Hand the assistant what only this page can do with a draft, for as long as
+ * the page is mounted. Kept apart from {@link PageActions}' props because it
+ * is functions and an unsaved document: nothing to compare, nothing to publish.
+ */
+export function usePageAssistantHandlers<T>(handlers: T): void {
+  const store = useContext(PageActionsContext)?.assistant;
+  // Every render: the page's closures and its unsaved document are always the latest.
+  useEffect(() => {
+    if (store === undefined) return;
+    store.handlers.current = handlers;
+  });
+  useEffect(
+    () => () => {
+      if (store !== undefined) store.handlers.current = null;
+    },
+    [store],
+  );
+}
+
+/** Reads the current page's handlers at the moment they are needed; null when the page handed none. */
+export function usePageAssistantHandlersRef<T>(): () => T | null {
+  const store = useContext(PageActionsContext)?.assistant;
+  return () => (store === undefined ? null : (store.handlers.current as T | null));
 }
 
 export interface PageActionsProps {

@@ -27,19 +27,28 @@ import { ArrowUp, Ellipsis, ListFilter, MessageSquarePlus, Rows3, Sparkles, Squa
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
 import { t } from '../../i18n/t.js';
-import { usePageAssistant, type PageAssistantShown, type PageAssistantView } from '../../shell/PageActionsProvider.js';
+import {
+  usePageAssistant,
+  usePageAssistantHandlersRef,
+  type PageAssistantShown,
+  type PageAssistantView,
+} from '../../shell/PageActionsProvider.js';
 import type { AssistantContext, AssistantHostRef } from '../api.js';
 import { useAssistantMessages } from '../assistantMessages.js';
 import { contextCopy, type AssistantFactValues } from '../contexts.js';
+import type { AssistantHostContext } from '../hostContext.js';
 import { AllowanceBar } from '../parts/AllowanceBar.js';
 import { AssistantBubble as Speaker } from '../parts/AssistantBubble.js';
+import { ChipList } from '../parts/ChipList.js';
 import { Idle } from '../parts/Idle.js';
+import { ReadOnlyBar } from '../parts/ReadOnlyBar.js';
 import { Warning } from '../parts/ResultCard.js';
 import { UnavailableBar } from '../parts/UnavailableBar.js';
 import { TurnView } from '../TurnView.js';
-import type { ThreadTurn } from '../useAssistantSession.js';
+import type { ThreadTurn } from '../thread.js';
 import { dockLayout, type DockLayout } from './dockLayout.js';
 import { setDockOpen, setDockSignal } from './dockStore.js';
+import { LiveDraft } from './LiveDraft.js';
 import { ParkedDraft } from './ParkedDraft.js';
 import { usePanelConversation, type PanelPage } from './usePanelConversation.js';
 
@@ -110,7 +119,10 @@ function useDockLayout(element: HTMLElement | null, visible: boolean): DockLayou
 function usePageDialogOpen(active: boolean): boolean {
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      setOpen(false);
+      return;
+    }
     const check = () => {
       const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
       setOpen([...dialogs].some((dialog) => dialog.closest('[data-assistant-dock]') === null));
@@ -124,8 +136,11 @@ function usePageDialogOpen(active: boolean): boolean {
 }
 
 /** The header's second line: what the assistant is looking at. */
-function lookingAt(context: AssistantContext, shown: PageAssistantShown, facts: AssistantFactValues, name: string): string {
-  const title = shown.title ?? contextCopy(context, facts, name).page;
+function lookingAt(context: AssistantContext, shown: PageAssistantShown, facts: AssistantFactValues | null, name: string): string {
+  const copy = contextCopy(context, facts ?? {}, name);
+  // A page that drafts says what it knows of itself, from the server's counts (once they are in).
+  if (context !== 'data' && context !== 'general') return facts === null ? copy.page : copy.blurb;
+  const title = shown.title ?? copy.page;
   if (shown.record !== undefined) return t('assistant:panel.recordOpen', '{page} · {record} open', { page: title, record: shown.record });
   if (typeof shown.rows === 'number') {
     return t('assistant:panel.rowsShown', '{page} · {rows, plural, one {# row shown} other {# rows shown}}', { page: title, rows: shown.rows });
@@ -217,7 +232,24 @@ export function AssistantDock({ visible }: AssistantDockProps) {
   }, [visible, turns.length, lastStatus, conversation.liveSteps.length]);
 
   const close = useCallback(() => setDockOpen(false), []);
-  const pageDialogOpen = usePageDialogOpen(visible && !floating);
+  // The confirm before a save is a dialog of the panel's own: not one to wait behind.
+  const [ownDialogs, setOwnDialogs] = useState(0);
+  const onOwnDialog = useCallback((open: boolean) => setOwnDialogs((count) => Math.max(count + (open ? 1 : -1), 0)), []);
+  const pageDialogOpen = usePageDialogOpen(visible && !floating && ownDialogs === 0);
+
+  // ── a page that drafts: its own hands, and the lock on what writes ────────
+  const pageHost = usePageAssistantHandlersRef<AssistantHostContext>();
+  const homeKey = `${page.context}\n${page.host.documentId ?? ''}\n${page.host.pageId ?? ''}`;
+  // The guardrail is per page and per visit: walking away, or a reload, locks it again.
+  const [enabledOn, setEnabledOn] = useState<string | null>(null);
+  const enabled = enabledOn === homeKey;
+  const canWrite = conversation.availability?.canWrite ?? false;
+  const leave = useCallback(() => {
+    if (floating) setDockOpen(false);
+  }, [floating]);
+  /** A draft is at home on the page, and for an editor the document, it was made for. */
+  const atHome = (turn: ThreadTurn): boolean =>
+    !turn.on.gone && turn.context === page.context && turn.on.documentId === (page.host.documentId ?? null) && pageHost() !== null;
 
   // ── over the page it is a dialog: the page is inert, focus comes in, Escape closes ──
   useEffect(() => {
@@ -273,8 +305,11 @@ export function AssistantDock({ visible }: AssistantDockProps) {
     (text: string) => {
       if (text.trim() === '') return;
       setInput('');
-      conversation.ask(text, askedPage);
+      // An editor's unsaved document goes with the question, as it is at this moment.
+      const draft = pageHost()?.draft;
+      conversation.ask(text, draft === undefined ? askedPage : { ...askedPage, draft });
     },
+    // `pageHost` reads a ref: it has no identity worth depending on.
     [conversation, askedPage],
   );
 
@@ -285,6 +320,9 @@ export function AssistantDock({ visible }: AssistantDockProps) {
     if (floating) close();
     void navigate({ to: '/studio/settings/ai' });
   };
+  // A draft's own next steps, while it is the newest thing said and it is at home.
+  const newestTurn = turns.at(-1);
+  const newestDraft = newestTurn !== undefined && newestTurn.result !== null && atHome(newestTurn) ? newestTurn.result : null;
   const ChipIcon = chip === null ? null : chip.icon === 'selection' ? SquareCheck : chip.icon === 'record' ? Rows3 : ListFilter;
   const sendIdle = input.trim() === '';
 
@@ -321,7 +359,7 @@ export function AssistantDock({ visible }: AssistantDockProps) {
           <p data-testid="assistant-looking-at" className="mt-0.5 truncate text-[11.5px] text-fg-subtle">
             {conversation.phase === 'loading'
               ? t('assistant:panel.loading', 'Loading conversation…')
-              : lookingAt(page.context, shown, facts, name)}
+              : lookingAt(page.context, shown, conversation.facts === null ? null : facts, name)}
           </p>
         </div>
         <button
@@ -355,6 +393,11 @@ export function AssistantDock({ visible }: AssistantDockProps) {
           onOpenSettings={openSettings}
         />
       ) : null}
+      {unavailable || copy.actions.length === 0 || (enabled && canWrite) ? null : (
+        // Until part 4 gives each kind of action its own switch, one lock for all of them: it is
+        // per page and per visit, and says so by being there again.
+        <ReadOnlyBar name={name} canWrite={canWrite} onEnable={() => setEnabledOn(homeKey)} />
+      )}
       {conversation.usedUpUntil === null ? null : <AllowanceBar resetsAt={conversation.usedUpUntil} />}
 
       {/* ── thread ─────────────────────────────────────────────────────────── */}
@@ -411,7 +454,27 @@ export function AssistantDock({ visible }: AssistantDockProps) {
               }}
               onGo={() => conversation.answer(turn.id, picks[turn.id] ?? {}, askedPage)}
               onRetry={turn.askText === null ? null : () => submit(turn.askText ?? '')}
-              renderResult={(result) => <ParkedDraft title={result.title} madeOn={turn} name={name} onNavigate={floating ? close : undefined} />}
+              renderResult={(result) =>
+                atHome(turn) ? (
+                  <LiveDraft
+                    turn={turn}
+                    result={result}
+                    host={pageHost}
+                    copy={copy}
+                    name={name}
+                    enabled={enabled}
+                    canWrite={canWrite}
+                    tokensIn={turn.tokensIn}
+                    tokensOut={turn.tokensOut}
+                    runAction={conversation.runAction}
+                    loadWhole={conversation.loadWhole}
+                    onOwnDialog={onOwnDialog}
+                    onLeave={leave}
+                  />
+                ) : (
+                  <ParkedDraft title={result.title} madeOn={turn} name={name} onNavigate={floating ? close : undefined} />
+                )
+              }
             />
           ))}
 
@@ -447,6 +510,9 @@ export function AssistantDock({ visible }: AssistantDockProps) {
             {t('assistant:panel.stillWorking', '{name} is still working on your last question.', { name })}
           </p>
         ) : null}
+        {newestDraft === null ? null : (
+          <ChipList variant="compact" items={newestDraft.followups.map((label) => ({ label }))} onPick={submit} disabled={blocked || working} />
+        )}
         {chip === null || ChipIcon === null ? null : (
           <div className="flex">
             <span

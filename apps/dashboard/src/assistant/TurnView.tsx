@@ -17,7 +17,7 @@ import { StepsCard } from './parts/StepsCard.js';
 import { SuggestionCard } from './parts/SuggestionCard.js';
 import { UserBubble } from './parts/UserBubble.js';
 import type { LiveStep } from './useTurnProgress.js';
-import type { ThreadTurn } from './useAssistantSession.js';
+import type { ThreadTurn } from './thread.js';
 
 export interface TurnViewProps {
   turn: ThreadTurn;

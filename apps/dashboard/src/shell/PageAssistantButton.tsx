@@ -23,7 +23,8 @@ import { usePageAssistant } from './PageActionsProvider.js';
 export function PageAssistantButton({ bootstrap }: { bootstrap: BootstrapData }) {
   const page = usePageAssistant();
   const open = useDockOpen();
-  if (page === null || !assistantAllowed(bootstrap)) return null;
+  // A page with its own button (the document editors and managers) draws it where its design has it.
+  if (page === null || page.ownButton || !assistantAllowed(bootstrap)) return null;
   const label = t('shell.assistant.open', 'Ask {name}', { name: assistantName(bootstrap) });
   return (
     <Button

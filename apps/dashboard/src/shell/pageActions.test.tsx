@@ -11,7 +11,15 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { PageActions, PageActionsProvider, PageActionsSlot, usePageAssistant, usePageSubtitle } from './PageActionsProvider.js';
+import {
+  PageActions,
+  PageActionsProvider,
+  PageActionsSlot,
+  usePageAssistant,
+  usePageAssistantHandlers,
+  usePageAssistantHandlersRef,
+  usePageSubtitle,
+} from './PageActionsProvider.js';
 
 /** Stands in for the Topbar: the slot plus a subtitle read from the channel. */
 function Header() {
@@ -121,11 +129,11 @@ describe('what a page tells the assistant, through the same channel', () => {
     expect(shown()).toBe('none');
 
     rerender(<Case step="page" />);
-    await waitFor(() => expect(JSON.parse(shown()!)).toEqual({ ...base, shown: {} }));
+    await waitFor(() => expect(JSON.parse(shown()!)).toEqual({ ...base, shown: {}, ownButton: false }));
 
     rerender(<Case step="view" />);
     await waitFor(() =>
-      expect(JSON.parse(shown()!)).toEqual({ context: 'data', host: { ...base.host, view: { q: 'ada', order: 'name.asc', selectedIds: ['1', '2'] } }, shown: {} }),
+      expect(JSON.parse(shown()!)).toEqual({ context: 'data', host: { ...base.host, view: { q: 'ada', order: 'name.asc', selectedIds: ['1', '2'] } }, shown: {}, ownButton: false }),
     );
 
     // Another view replaces the first whole: a record page says nothing of ticked rows.
@@ -181,6 +189,41 @@ describe('what a page tells the assistant, through the same channel', () => {
     await waitFor(() => expect(shown()).toContain('"q":"ab"'));
     // The frame itself re-rendered twice above (rerender), and that is all the header saw.
     expect(headerRenders - before).toBeLessThanOrEqual(2);
+  });
+
+  it('lets a page say it draws its own Ask button, so the shell draws none', async () => {
+    render(
+      <Frame>
+        <PageActions assistant={{ context: 'email', host: { connectionIds: [], documentId: 'tpl_1' }, ownButton: true }} />
+      </Frame>,
+    );
+    await waitFor(() => expect(JSON.parse(shown()!)).toMatchObject({ context: 'email', ownButton: true, host: { documentId: 'tpl_1' } }));
+  });
+
+  it('holds what only the page can do with a draft by reference, always the latest, and lets go of it when the page goes', async () => {
+    let read: (() => { label: string } | null) | null = null;
+    function Panel() {
+      read = usePageAssistantHandlersRef<{ label: string }>();
+      return null;
+    }
+    function Page({ label }: { label: string }) {
+      usePageAssistantHandlers({ label });
+      return null;
+    }
+    function Case({ label }: { label: string | null }) {
+      return (
+        <PageActionsProvider>
+          <Panel />
+          {label === null ? null : <Page label={label} />}
+        </PageActionsProvider>
+      );
+    }
+    const { rerender } = render(<Case label="first" />);
+    await waitFor(() => expect(read?.()).toEqual({ label: 'first' }));
+    rerender(<Case label="second" />);
+    await waitFor(() => expect(read?.()).toEqual({ label: 'second' }));
+    rerender(<Case label={null} />);
+    await waitFor(() => expect(read?.()).toBeNull());
   });
 
   it('reads as nothing outside a provider', () => {

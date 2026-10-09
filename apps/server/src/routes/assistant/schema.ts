@@ -175,6 +175,8 @@ export const assistantTurnView = z.object({
      * the page was showing everything, or was not a page of rows.
      */
     scope: z.object({ kind: z.enum(['selection', 'record', 'page']), count: z.number().nullable() }).nullable(),
+    /** The turn drafted for a document that is no longer there: its draft has no home to be used in. */
+    gone: z.boolean(),
   }),
 });
 export type AssistantTurnView = z.infer<typeof assistantTurnView>;

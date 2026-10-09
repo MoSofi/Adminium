@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * The assistant modal, phase by phase.
+ * A page that drafts, in the panel: its drafts, their locks and their confirm, phase by phase.
  *
  * WHAT IS WORTH PINNING HERE, and it is not the layout:
  *
@@ -28,12 +28,24 @@
  * PROPERTIES a DOM can answer for — the dialog's name, the tabs' panels, the
  * labelled icon-only controls.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AssistantModal } from './AssistantModal.js';
-import type { AssistantHostContext } from './hostContext.js';
+import { PageActionsProvider } from '../../shell/PageActionsProvider.js';
+import { makeBootstrap } from '../../test/fixtures.js';
+import { AskAssistant } from '../AskAssistant.js';
+import { AssistantDock } from './AssistantDock.js';
+import { resetDock } from './dockStore.js';
+import type { AssistantHostContext } from '../hostContext.js';
+
+// Beside the page, as on a wide window: how it stands is the layout test's.
+vi.mock('./dockLayout.js', async (original) => ({
+  ...(await original<typeof import('./dockLayout.js')>()),
+  dockLayout: () => 'docked',
+}));
 
 // ─── the wire, scripted ──────────────────────────────────────────────────────
 
@@ -95,10 +107,22 @@ beforeEach(() => {
       }
     },
   );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {
+        // no-op
+      }
+      disconnect(): void {
+        // no-op
+      }
+    },
+  );
 });
 
 afterEach(() => {
   cleanup();
+  resetDock();
   vi.unstubAllGlobals();
 });
 
@@ -155,6 +179,10 @@ function turn(overrides: Record<string, unknown> = {}) {
     tokensOut: 120,
     createdAt: 1,
     finishedAt: 2,
+    // Asked on the page the panel is opened on in these tests: a draft made here is at home here.
+    context: 'email',
+    answer: null,
+    on: { pageId: null, documentId: null, title: null, scope: null },
     ...overrides,
   };
 }
@@ -200,33 +228,46 @@ function makeHost(overrides: Partial<AssistantHostContext> = {}): AssistantHostC
 }
 
 /** Open the modal with the standard happy-path scripting. */
+/**
+ * Open the panel on a page that drafts, with the standard happy-path scripting: the page tells
+ * the shell what it is and hands over its renderer through its own Ask button, as a host does.
+ */
 async function openModal(options: { host?: Partial<AssistantHostContext>; availability?: Record<string, unknown> } = {}) {
   routes[key('GET', `${BASE}/availability`)] = () => availability(options.availability ?? {});
+  routes[key('GET', `${BASE}/sessions/current`)] ??= () => ({ session: null, turns: [], earlier: 0, aged: false });
+  routes[key('POST', `${BASE}/facts`)] ??= () => ({ facts: sessionReply().facts, nextTurnTokens: 1200 });
   routes[key('POST', `${BASE}/sessions`)] = () => sessionReply();
-  const onClose = vi.fn();
-  const view = render(<AssistantModal host={makeHost(options.host ?? {})} open onClose={onClose} />);
-  await screen.findByText('Describe the template you need…', {}, { timeout: 2000 }).catch(() => null);
-  return { onClose, view };
+  const host = makeHost(options.host ?? {});
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient.setQueryData(['bootstrap'], makeBootstrap({ assistant: { allowed: true, name: 'Milo' } } as never));
+  const rootRoute = createRootRoute({
+    component: () => (
+      <QueryClientProvider client={queryClient}>
+        <PageActionsProvider>
+          <div data-testid="page-column">
+            <AskAssistant host={host} slot="manager" />
+          </div>
+          <AssistantDock visible />
+        </PageActionsProvider>
+      </QueryClientProvider>
+    ),
+  });
+  const router = createRouter({ routeTree: rootRoute, history: createMemoryHistory({ initialEntries: ['/'] }) });
+  const view = render(<RouterProvider router={router} />);
+  await waitFor(() => expect(screen.getByTestId('assistant-looking-at').textContent).not.toBe('Loading conversation…'));
+  return { host, view, router };
 }
 
 // ─── the shell ───────────────────────────────────────────────────────────────
 
 describe('the shell', () => {
-  it('names itself, the page it is on, and what it can read', async () => {
+  it('names itself, and says what it knows of the page it is on', async () => {
     await openModal();
-    const dialog = await screen.findByRole('dialog');
-    // The dialog has an accessible NAME, which is what a screen reader
-    // announces when focus lands in it — the assistant and the page it is on.
-    const labelledBy = dialog.getAttribute('aria-labelledby') ?? '';
-    const title = document.getElementById(labelledBy);
-    expect(title?.textContent).toContain('Milo');
-    expect(title?.textContent).toContain('Email templates');
-    // The blurb is composed HERE from the server's counts, so it can be
-    // translated; the server never sends a sentence.
-    expect(within(dialog).getByText(/3 templates · 2 campaigns/)).toBeTruthy();
-    // The scope chip says how much else is readable, and the token chip starts at zero.
-    expect(within(dialog).getByTitle('Data this session can read')).toBeTruthy();
-    expect(within(dialog).getByTitle('Tokens used this session').textContent).toContain('0 tokens');
+    // Beside the page it is a landmark with a NAME, which is what a screen reader announces.
+    const panel = await screen.findByRole('complementary', { name: 'Milo' });
+    // The line is composed HERE from the server's counts, so it can be translated; the server
+    // never sends a sentence.
+    await waitFor(() => expect(within(panel).getByTestId('assistant-looking-at').textContent).toMatch(/3 templates · 2 campaigns/));
   });
 
   it('greets with what it can see and offers three things to try', async () => {
@@ -240,16 +281,6 @@ describe('the shell', () => {
   it('shows what the next request will cost before it is sent', async () => {
     await openModal();
     expect(await screen.findByText('~1200 tokens')).toBeTruthy();
-  });
-
-  it('closes the session when the modal closes', async () => {
-    routes[key('POST', `${BASE}/sessions/ast_1/close`)] = () => null;
-    const { view, onClose } = await openModal();
-    await screen.findByText(/I can see your email templates/);
-    view.rerender(<AssistantModal host={makeHost()} open={false} onClose={onClose} />);
-    await waitFor(() => {
-      expect(calls.some((call) => call.url.endsWith('/sessions/ast_1/close'))).toBe(true);
-    });
   });
 });
 
@@ -390,7 +421,7 @@ describe('a turn, end to end', () => {
     await waitFor(() => {
       const posts = calls.filter((call) => call.method === 'POST' && call.url.endsWith('/turns'));
       expect(posts).toHaveLength(2);
-      expect(posts[1]?.body).toEqual({ text: 'Make it shorter' });
+      expect(posts[1]?.body).toMatchObject({ text: 'Make it shorter', context: 'email' });
     });
   });
 });
@@ -439,7 +470,7 @@ describe('when the assistant asks back', () => {
     await user.click(screen.getByRole('button', { name: /Continue/ }));
     await waitFor(() => {
       const posts = calls.filter((call) => call.method === 'POST' && call.url.endsWith('/turns'));
-      expect(posts[1]?.body).toEqual({ picks: { tpl: 't2' } });
+      expect(posts[1]?.body).toMatchObject({ picks: { tpl: 't2' }, context: 'email' });
     });
     // The bubble for that turn shows the LABEL, not the key.
     expect(await screen.findByText('EU reverse charge', { selector: 'p' })).toBeTruthy();
@@ -545,20 +576,16 @@ describe('saving a draft', () => {
 
   it('puts the draft straight on an editor`s screen, with no confirm and no write', async () => {
     const applyDraft = vi.fn();
-    const onClose = vi.fn();
-    routes[key('GET', `${BASE}/availability`)] = () => availability();
-    routes[key('POST', `${BASE}/sessions`)] = () => sessionReply();
-    render(<AssistantModal host={makeHost({ applyDraft })} open onClose={onClose} />);
+    await openModal({ host: { applyDraft } });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
     await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     await user.click(screen.getByRole('button', { name: 'Open in editor' }));
 
-    // An editor host has somewhere to put it: nothing is written, so nothing
-    // is confirmed, and the modal gets out of the way.
+    // An editor host has somewhere to put it: nothing is written, so nothing is confirmed.
     expect(applyDraft).toHaveBeenCalledWith({ kind: 'template', name: 'Welcome' });
     expect(calls.some((call) => call.url.includes('/actions'))).toBe(false);
-    expect(onClose).toHaveBeenCalled();
+    expect(await screen.findByText('Drafted into the editor — review the highlighted blocks.')).toBeTruthy();
   });
 });
 
@@ -705,7 +732,7 @@ describe('the daily allowance, in the window', () => {
     await openModal();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
-    expect(await screen.findByText('Your last question is still being worked on. Wait for it, or stop it first.')).toBeTruthy();
+    expect((await screen.findByTestId('assistant-still-working')).textContent).toBe('Milo is still working on your last question.');
     expect(screen.queryByText('raw server text')).toBeNull();
   });
 });
@@ -714,20 +741,19 @@ describe('when the assistant cannot work here', () => {
   it('names the missing provider and offers the page that fixes it', async () => {
     routes[key('GET', `${BASE}/availability`)] = () =>
       availability({ enabled: false, reason: 'no-provider', provider: null });
-    const onOpenSettings = vi.fn();
-    render(<AssistantModal host={makeHost()} open onClose={vi.fn()} onOpenSettings={onOpenSettings} />);
+    const { router } = await openModal({ availability: { enabled: false, reason: 'no-provider', provider: null } });
 
     expect(await screen.findByText('No AI provider is configured yet.')).toBeTruthy();
     // The composer is closed: there is nothing to send it to.
     expect(screen.getByRole('textbox').hasAttribute('disabled')).toBe(true);
     await userEvent.setup().click(screen.getByRole('button', { name: 'Open Settings → AI' }));
-    expect(onOpenSettings).toHaveBeenCalled();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/studio/settings/ai'));
   });
 
   it('tells a session that cannot reach Settings to ask an administrator instead', async () => {
     routes[key('GET', `${BASE}/availability`)] = () =>
       availability({ enabled: false, reason: 'no-provider', canConfigure: false });
-    render(<AssistantModal host={makeHost()} open onClose={vi.fn()} />);
+    await openModal({ availability: { enabled: false, reason: 'no-provider', canConfigure: false } });
 
     // A link that would 403 is worse than a sentence.
     expect(await screen.findByText(/Ask an administrator to set one up\./)).toBeTruthy();
@@ -737,14 +763,14 @@ describe('when the assistant cannot work here', () => {
   it('names the air-gapped instance rather than blaming the configuration', async () => {
     routes[key('GET', `${BASE}/availability`)] = () =>
       availability({ enabled: false, reason: 'network-disabled' });
-    render(<AssistantModal host={makeHost()} open onClose={vi.fn()} />);
+    await openModal({ availability: { enabled: false, reason: 'network-disabled' } });
     expect(await screen.findByText('Outbound network features are off on this instance.')).toBeTruthy();
   });
 
   it('names the missing permission, and offers nothing to press', async () => {
     routes[key('GET', `${BASE}/availability`)] = () =>
       availability({ enabled: false, reason: 'forbidden', canConfigure: true });
-    render(<AssistantModal host={makeHost()} open onClose={vi.fn()} />);
+    await openModal({ availability: { enabled: false, reason: 'forbidden', canConfigure: true } });
     expect(await screen.findByText('You do not have permission to use Milo.')).toBeTruthy();
     // Nothing an operator configures fixes a grant, so the link is absent even
     // for a session that holds the settings key.
@@ -777,7 +803,15 @@ describe('each page speaks for itself', () => {
       jobId: 'job_1',
       nextTurnTokens: 900,
     });
-    render(<AssistantModal host={makeHost({ context: 'invoices' })} open onClose={vi.fn()} />);
+    routes[key('POST', `${BASE}/facts`)] = () => ({ facts: { values: { invoices: 8, templates: 3, write: true }, scope: { primary: '', extra: 4 } }, nextTurnTokens: 1200 });
+    const scripted = routes[key('POST', `${BASE}/sessions`)]!;
+    const scriptedTurn = routes[key('POST', `${BASE}/sessions/ast_1/turns`)]!;
+    await openModal({ host: { context: 'invoices' } });
+    routes[key('POST', `${BASE}/sessions`)] = scripted;
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => {
+      const reply = scriptedTurn() as { turn: Record<string, unknown> };
+      return { ...reply, turn: { ...reply.turn, context: 'invoices' } };
+    };
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Create an invoice for a customer/ }));
 
@@ -789,15 +823,76 @@ describe('each page speaks for itself', () => {
     expect(preview.getAttribute('data-based-on')).toBe('Consulting');
   });
 
-  it('names the connection in the scope chip on the report page', async () => {
-    routes[key('GET', `${BASE}/availability`)] = () => availability();
-    routes[key('POST', `${BASE}/sessions`)] = () => ({
-      ...sessionReply(),
+  it('names the connection the report page reads, in the line under its name', async () => {
+    routes[key('POST', `${BASE}/facts`)] = () => ({
       facts: { values: { reports: 4, tables: 12, connection: 'Warehouse' }, scope: { primary: 'Warehouse', extra: 12 } },
+      nextTurnTokens: 1200,
     });
-    render(<AssistantModal host={makeHost({ context: 'report' })} open onClose={vi.fn()} />);
-    const chip = await screen.findByTitle('Data this session can read');
-    expect(chip.textContent).toContain('Warehouse · 12 tables');
+    await openModal({ host: { context: 'report' } });
+    await waitFor(() => expect(screen.getByTestId('assistant-looking-at').textContent).toMatch(/4 reports · Warehouse · 12 readable tables/));
+  });
+});
+
+// ─── a draft belongs to its page and its document ────────────────────────────
+
+describe('a draft and the page it was made for', () => {
+  const drafted = (on: Record<string, unknown>, over: Record<string, unknown> = {}) => ({
+    session: sessionReply().session,
+    earlier: 0,
+    aged: false,
+    turns: [turn({ result: result(), on: { pageId: null, documentId: null, title: null, scope: null, ...on }, ...over })],
+  });
+
+  it('is live on its own page, and says where it is pressed with every action', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({});
+    routes[key('POST', `${BASE}/sessions/ast_1/turns/atn_1/actions`)] = () => ({ echo: { kind: 'saved', open: false, name: 'Welcome' }, created: { id: 'tpl_9', kind: 'template', name: 'Welcome' }, sample: null });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
+    await user.click(screen.getByRole('button', { name: 'Save template' }));
+    await user.click(await screen.findByRole('button', { name: 'Save as draft' }));
+    await waitFor(() => expect(calls.some((call) => call.url.endsWith('/actions'))).toBe(true));
+    const sent = calls.find((call) => call.url.endsWith('/actions'))!.body as { action: string; on: unknown };
+    expect(sent.action).toBe('save');
+    expect(sent.on).toEqual({ context: 'email' });
+  });
+
+  it('made for one document, is parked on another document of the same kind', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({ documentId: 'tpl_1' });
+    await openModal({ host: { host: { connectionIds: ['conn_1'], documentId: 'tpl_2' } } });
+    const card = await screen.findByTestId('assistant-parked-draft');
+    expect(card.textContent).toContain('Welcome email');
+    expect(screen.getByRole('link', { name: /to use this draft/ }).getAttribute('href')).toBe('/email-templates/tpl_1');
+    expect(screen.queryByRole('button', { name: 'Save template' })).toBeNull();
+  });
+
+  it('whose document was deleted keeps its title, says so, and offers nothing', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({ documentId: 'tpl_1', gone: true });
+    await openModal();
+    const card = await screen.findByTestId('assistant-parked-draft');
+    expect(card.textContent).toContain('Welcome email');
+    expect(card.textContent).toContain('This draft’s document was deleted.');
+    expect(within(card).queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save template' })).toBeNull();
+  });
+
+  it('made for the document that is open, is live there', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({ documentId: 'tpl_1' });
+    await openModal({ host: { host: { connectionIds: ['conn_1'], documentId: 'tpl_1' } } });
+    expect(await screen.findByRole('button', { name: 'Save template' })).toBeTruthy();
+    expect(screen.queryByTestId('assistant-parked-draft')).toBeNull();
+  });
+
+  it('served without its document, as an older turn is, asks for it whole before it can be used', async () => {
+    const light = { ...result(), light: true } as Record<string, unknown>;
+    delete light.artefact;
+    delete light.diff;
+    routes[key('GET', `${BASE}/sessions/current`)] = () => ({ ...drafted({}), turns: [turn({ result: light })] });
+    routes[key('GET', `${BASE}/sessions/ast_1/turns/atn_1`)] = () => turn({ result: result() });
+    await openModal();
+    // The page's own renderer draws it once the document has arrived.
+    expect(await screen.findByTestId('host-preview')).toBeTruthy();
+    expect(calls.filter((call) => call.method === 'GET' && call.url.endsWith('/turns/atn_1'))).toHaveLength(1);
   });
 });
 

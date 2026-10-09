@@ -9,12 +9,12 @@
  * person is not offered it.
  */
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, FileText, MapPin } from 'lucide-react';
+import { ArrowRight, FileText, FileX, MapPin } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
 import type { AssistantContext } from '../api.js';
 import { contextCopy } from '../contexts.js';
-import type { ThreadTurn } from '../useAssistantSession.js';
+import type { ThreadTurn } from '../thread.js';
 
 /** Where a context's drafts are used: its manager, or the open document's editor. Null: a page with no fixed address. */
 export function draftHome(context: AssistantContext, documentId: string | null): { to: string; params?: Record<string, string> } | null {
@@ -42,7 +42,9 @@ export interface ParkedDraftProps {
 
 export function ParkedDraft({ title, madeOn, name, onNavigate }: ParkedDraftProps) {
   const page = madeOn.on.title ?? contextCopy(madeOn.context, {}, name).page;
-  const home = draftHome(madeOn.context, madeOn.on.documentId);
+  // Its document is gone: there is nowhere left to use it, and nothing to offer.
+  const gone = madeOn.on.gone;
+  const home = gone ? null : draftHome(madeOn.context, madeOn.on.documentId);
   return (
     <div data-testid="assistant-parked-draft" className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface shadow-menu">
       <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
@@ -51,8 +53,8 @@ export function ParkedDraft({ title, madeOn, name, onNavigate }: ParkedDraftProp
       </div>
       <div className="flex flex-col gap-2.5 px-3.5 pb-3.5 pt-3">
         <div className="flex items-start gap-[7px] text-[12px] font-medium leading-[1.5] text-fg-muted">
-          <MapPin className="mt-[3px] size-3 shrink-0" aria-hidden="true" />
-          <span>{t('assistant:parked.madeOn', 'Made on {page}.', { page })}</span>
+          {gone ? <FileX className="mt-[3px] size-3 shrink-0" aria-hidden="true" /> : <MapPin className="mt-[3px] size-3 shrink-0" aria-hidden="true" />}
+          <span>{gone ? t('assistant:parked.deleted', 'This draft’s document was deleted.') : t('assistant:parked.madeOn', 'Made on {page}.', { page })}</span>
         </div>
         {home === null ? null : (
           <Link

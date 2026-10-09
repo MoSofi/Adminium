@@ -875,7 +875,7 @@ describe('a screen with no context of its own', () => {
 
     // Served with where it was asked: here no data page and no document.
     const read = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}`, headers: asUser(t.users.admin) });
-    expect((read.json() as { on: unknown }).on).toEqual({ pageId: null, documentId: null, title: null, scope: null });
+    expect((read.json() as { on: unknown }).on).toEqual({ pageId: null, documentId: null, title: null, scope: null, gone: false });
 
     const save = await t.app.inject({
       method: 'POST',
@@ -896,7 +896,7 @@ describe('a screen with no context of its own', () => {
     const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'How many?', context: 'data', host } });
     expect(asked.statusCode, asked.body).toBe(202);
     const turnId = (asked.json() as { turn: { id: string; on: unknown } }).turn.id;
-    expect((asked.json() as { turn: { on: unknown } }).turn.on).toEqual({ pageId: page.id, documentId: null, title: 'Customers', scope: null });
+    expect((asked.json() as { turn: { on: unknown } }).turn.on).toEqual({ pageId: page.id, documentId: null, title: 'Customers', scope: null, gone: false });
 
     // Renamed since: the thread says where it was asked by today's name. Deleted: by no name.
     await pages.updateMeta(page.id, { title: 'Clients' });
@@ -905,6 +905,22 @@ describe('a screen with no context of its own', () => {
     expect(await read()).toBe('Clients');
     await pages.delete(page.id);
     expect(await read()).toBeNull();
+  });
+
+  it('says when the document a draft was made for has been deleted since', async () => {
+    const templates = emailTemplatesRepo(t.meta);
+    const template = await templates.create({ kind: 'template', key: 'autumn-menu', locale: 'en-US', name: 'Autumn', subject: 'Autumn', blocks: [] });
+    const host = { connectionIds: [], documentId: template.id };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'email', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const repo = assistantSessionsRepo(t.meta);
+    const turn = await repo.createTurn({ sessionId, askText: 'Make it warmer', context: 'email', host }, AT);
+    await repo.finishTurn(turn.id, { status: 'done', say: 'Here.', result: { title: 'Autumn, warmer', artefact: {} }, finishedAt: AT });
+    const gone = async () =>
+      ((await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(t.users.admin) })).json() as { on: { gone: boolean; documentId: string } }).on;
+    expect(await gone()).toMatchObject({ documentId: template.id, gone: false });
+    await templates.removeById(template.id);
+    expect((await gone()).gone).toBe(true);
   });
 
   it('serves with a turn what "these" meant when it was asked: ticked rows, an open record, or a part of the grid', async () => {
