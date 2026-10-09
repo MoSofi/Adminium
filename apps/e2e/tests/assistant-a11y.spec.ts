@@ -167,9 +167,7 @@ test.describe('the page assistant under axe', () => {
         await sweep(page, `${combo.theme}/${combo.locale} result · ${tab}`, tally, testInfo, DIALOG);
       }
 
-      // --- the read-only bar, and the confirm layered over it ---------------------
-      await expect(modal(page).getByTestId('assistant-readonly')).toBeVisible();
-      await modal(page).getByTestId('assistant-enable').click();
+      // --- the confirm layered over the panel --------------------------------------
       await modal(page).locator('[data-testid="assistant-action"][data-action="save"]').click();
       await expect(page.getByTestId('assistant-confirm')).toBeVisible();
       // The confirm is a second dialog OVER the first; analysed within itself
@@ -182,6 +180,31 @@ test.describe('the page assistant under axe', () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await sweep(page, `${combo.theme}/${combo.locale} result at 390px`, tally, testInfo, DIALOG);
       await page.setViewportSize({ width: 1440, height: 940 });
+
+      // --- a change to confirm: the card that asks, and what it leaves behind -------
+      const switches = async (change: boolean): Promise<void> => {
+        const res = await page.request.put('/api/v1/assistant/settings', { data: { abilities: { create: true, change, send: false, delete: false } } });
+        expect(res.ok(), `the assistant's switches → ${String(res.status())}`).toBeTruthy();
+      };
+      await switches(true);
+      try {
+        await page.goto('/p/customers');
+        await openAssistant(page);
+        // Typed, not picked: the scripted model knows this sentence in English whatever the language.
+        await modal(page).getByTestId('assistant-input').fill('Move ALFKI to Hamburg');
+        await modal(page).getByTestId('assistant-send').click();
+        await expect(modal(page).getByTestId('assistant-proposal-confirm')).toBeVisible({ timeout: 30_000 });
+        await sweep(page, `${combo.theme}/${combo.locale} a change to confirm`, tally, testInfo, DIALOG);
+        // Cancelled: nothing is written, and the card says so.
+        await modal(page).getByTestId('assistant-proposal-cancel').click();
+        await expect(modal(page).getByTestId('assistant-proposal-confirm')).toHaveCount(0);
+        await sweep(page, `${combo.theme}/${combo.locale} a change, cancelled`, tally, testInfo, DIALOG);
+      } finally {
+        await switches(false);
+      }
+      await page.goto('/email-templates');
+      await expect(page.getByTestId('email-manager')).toBeVisible();
+      await expect(modal(page)).toBeVisible({ timeout: 20_000 });
 
       // --- the unavailable bar ----------------------------------------------------
       await clearProvider(page);
@@ -200,7 +223,7 @@ test.describe('the page assistant under axe', () => {
         type: 'axe-summary',
         description: `${combo.theme}/${combo.locale}: ${String(tally.states)} states swept, ${String(tally.minor)} lesser violations`,
       });
-      expect(tally.states, 'every state was swept').toBeGreaterThanOrEqual(9);
+      expect(tally.states, 'every state was swept').toBeGreaterThanOrEqual(11);
     });
   }
 });
