@@ -1,5 +1,40 @@
 # @adminium/server
 
+## 0.3.20
+
+### Patch Changes
+
+- 31f78fe: Two things a shop selling gift cards from an app ran into:
+  
+  - An add-on installed as part of an app's install or update, with the app's public access allowed, now opens its own key too. Before, only installing the add-on by itself did, so the link in a gift card's email could not be opened in a shop that ticked Offers & gift cards while installing its app.
+  - An account that opens only its app's screens may draw a document of an add-on its app uses (`POST /add-ons/:key/documents/render`) and open the page by its one-time ticket: a cashier prints the gift card they have just sold.
+- f9c422e: A document's list may be made of up to six sources (four before), and a source that reads an add-on's rows can print an amount as taken off (`takenOff`): what the add-on keeps as 4.85 reads −4.85, so a folio or a receipt can name each reduction among its charges.
+- 00f66bd: A dry run of a payment whose amount Adminium decides (a gift card paying part of an order that is already there) answered `payment.due` as what was due before the payment. It now answers what would be left after it, as the save does: a desk's "Check" reads "$19.00 from this card · $10.23 still to pay".
+- 1c14b5a: A document that lists what an add-on took off an order (a collection over the add-on's applied rows, found by a table-and-row pair) prints one row for each offer, code or voucher, with its amounts added and its name in the document's language — as an email's rows block does.
+- e663535: Three things an app's update to a larger version ran into:
+  
+  - An update may add up to 400 columns in one go (50 before). An app that gained 51 planned as installable and then stopped half-way at the tables step.
+  - An update takes a column whose name the database reserves (`left`), as the app's first install does: every statement quotes its names. Before, the plan said installable and the update stopped with `RESERVED_IDENTIFIER`. Studio still tells a person who picks such a name.
+  - A row that posts for itself (a posting with no `via`) is left out by its `unlessSet` or `only`, as a line under a parent is. Before, a refund line marked "not put back" still put one back on the shelf.
+- 69c3773: An email that lists what an add-on took off an order (a rows block over the add-on's applied rows) prints one row for each offer, code or voucher, with its amounts added and its name in the reader's language. Before, a code spread over several lines printed a row a line, each named by the stored value in every language.
+- 573c16b: Three things an app's desk needed of an add-on:
+  
+  - A role may write a column its read limit hides when its create limit names it (`creatable`), as it already could when its update limit did (`writable`): a gift card's code is typed once at a counter and read back by nobody of that role. Before, the create was refused `COLUMN_FORBIDDEN`. The reply and the dry run still show none of what is hidden.
+  - An account that opens only its app's screens may look a scanned or typed code up in an add-on its app uses (`POST /add-ons/:key/look-up`). Before, it was answered `APP_SCREENS_ONLY`.
+  - A stay priced by the night is handed to the add-on as one of the thing with its nights listed, not as a quantity of nights beside them: a voucher for one night now takes one night of a two-night stay, not a quarter of it.
+- Updated dependencies [f9c422e]
+- Updated dependencies [e663535]
+  - @adminium/manifest@0.3.20
+  - @adminium/engine@0.3.20
+  - @adminium/adapter-mysql@0.3.20
+  - @adminium/adapter-postgres@0.3.20
+  - @adminium/adapter-sqlite@0.3.20
+  - @adminium/llm@0.3.20
+  - @adminium/schema-import@0.3.20
+  - @adminium/add-on-contracts@0.3.20
+  - @adminium/i18n@0.3.20
+  - @adminium/meta@0.3.20
+
 ## 0.3.19
 
 ### Patch Changes

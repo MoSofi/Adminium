@@ -4,4 +4,4 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
-| `references/catalogue/add-ons.md` | Add-ons: the first-party set | 2604 |
+| `references/catalogue/add-ons.md` | Add-ons: the first-party set | 2856 |

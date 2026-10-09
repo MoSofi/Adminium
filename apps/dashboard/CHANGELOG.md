@@ -1,5 +1,18 @@
 # @adminium/dashboard
 
+## 0.3.20
+
+### Patch Changes
+
+- Updated dependencies [e663535]
+  - @adminium/engine@0.3.20
+  - @adminium/add-on-contracts@0.3.20
+  - @adminium/charts@0.3.20
+  - @adminium/i18n@0.3.20
+  - @adminium/tokens@0.3.20
+  - @adminium/ui@0.3.20
+  - @adminium/widgets@0.3.20
+
 ## 0.3.19
 
 ### Patch Changes
