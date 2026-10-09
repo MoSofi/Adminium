@@ -199,11 +199,11 @@
     "workTitle": "Drafted an invoice"
   },
   "readOnly": {
-    "enable": "Enable actions",
-    "lockedTitle": "Enable actions to let {name} do this",
     "noWrite": "Your role can look, draft and preview here, but not save.",
     "noWriteTitle": "Your role cannot do this here",
-    "note": "{name} is read-only right now — it can look, draft and preview, but not save, send or create."
+    "switchedOff": "Saving is switched off for {name} in this workspace.",
+    "openSettings": "Open settings",
+    "switchedOffTitle": "Saving is switched off for {name} in this workspace"
   },
   "report": {
     "action1": "Run full preview",
@@ -345,5 +345,110 @@
     "madeOn": "Made on {page}.",
     "open": "Open {page} to use this draft",
     "deleted": "This draft’s document was deleted."
+  },
+  "proposal": {
+    "checking": {
+      "title": "A change to confirm",
+      "line": "Checking what would change…"
+    },
+    "badge": {
+      "replaced": "Replaced",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "parked": "Parked"
+    },
+    "replaced": "Something else was asked after this. Nothing was changed.",
+    "expired": "This proposal is 30 minutes old. Ask again.",
+    "overCap": "That is {count} changes; at most {cap} can be confirmed at once. Use the page’s own bulk tools for more.",
+    "applying": "Working…",
+    "undone": "Undone. Everything is as it was.",
+    "undonePart": "{count, plural, one {# change was} other {# changes were}} taken back.",
+    "undoneRest": "The rest stay as changed.",
+    "interrupted": "This stopped part way.",
+    "group": {
+      "done": "Done",
+      "check": "Check this one",
+      "checkLine": "The save was cut off. It may or may not have changed.",
+      "notTried": "Not attempted",
+      "shared": "{field} {arrow} {value} on {count, plural, one {# row} other {# rows}}"
+    },
+    "openHome": "Open {page}",
+    "notTried": "Not attempted: too many requests at once. Ask again in a minute.",
+    "again": "Propose the rest again",
+    "againAsk": "Propose again the changes that were not made:\n{rows}",
+    "undo": "Undo",
+    "undoSome": "Undo {count} of {total}",
+    "undoPassed": "The time to undo has passed.",
+    "noUndo": "This cannot be undone from here.",
+    "noUndoSome": "{count, plural, one {# change} other {# changes}} cannot be undone from here.",
+    "notChanged": "{count, plural, one {This one was} other {These # were}} not changed:",
+    "cancelled": "Nothing was changed.",
+    "parked": "Open {page} to use this.",
+    "someRefused": "{refused} of {count, plural, one {# change} other {# changes}} cannot be made.",
+    "changedSince": "This changed since you were shown it. Look again before confirming.",
+    "fix": "Ask {name} to fix this",
+    "fixAsk": "Some of that cannot be done. Propose it again without these:\n{reasons}",
+    "send": {
+      "template": "Template",
+      "subject": "Subject",
+      "to": "To",
+      "roles": "everyone with the role {roles} ({count, plural, one {# person} other {# people}})",
+      "open": "Open template"
+    },
+    "more": "{count} more. Open large to see them all.",
+    "irreversible": "This cannot be undone.",
+    "chosen": "{picked} of {count} chosen",
+    "large": "Open large",
+    "doc": {
+      "email": "email template",
+      "report": "report",
+      "rule": "rule",
+      "invoice": "invoice",
+      "invoiceTemplate": "invoice template"
+    },
+    "ask": {
+      "change": "Change {count, plural, one {# row} other {# rows}}",
+      "add": "Add {count, plural, one {# row} other {# rows}}",
+      "delete": "Delete {count, plural, one {# row} other {# rows}}",
+      "save": "Save as a new {what}",
+      "saveOver": "Save over “{name}”",
+      "deleteDoc": "Delete “{name}”",
+      "deleteDocs": "Delete {count, plural, one {# document} other {# documents}}",
+      "send": "Send to {count, plural, one {# person} other {# people}}",
+      "mixed": "Make {count, plural, one {# change} other {# changes}}"
+    },
+    "done": {
+      "changePart": "Changed {done} of {count, plural, one {# row} other {# rows}}.",
+      "part": "{done} of {count, plural, one {# change} other {# changes}} made.",
+      "change": "Changed {count, plural, one {# row} other {# rows}}.",
+      "add": "Added {count, plural, one {# row} other {# rows}}.",
+      "delete": "Deleted {count, plural, one {# row} other {# rows}}.",
+      "save": "Saved.",
+      "deleteDoc": "Deleted {count, plural, one {# document} other {# documents}}.",
+      "send": "Sending to {count, plural, one {# person} other {# people}}.",
+      "mixed": "{count, plural, one {# change} other {# changes}} made."
+    },
+    "refused": {
+      "generic": "The server refused this.",
+      "switchedOff": "This is switched off for {name} in this workspace.",
+      "notThisTable": "Only the table of the page this was asked on can be changed from here.",
+      "notData": "That is not a table of your data.",
+      "noChange": "The row already holds these values.",
+      "unsafeKey": "That id cannot be used.",
+      "notFound": "This is no longer there.",
+      "notOffered": "That cannot be done from here.",
+      "builtIn": "A built-in mail is changed on its own screen.",
+      "notCampaign": "Only a campaign can be sent to people.",
+      "noRecipients": "Nobody would get this mail."
+    },
+    "row": {
+      "untitled": "Untitled",
+      "new": "New row",
+      "switchesOff": "Saved switched off: switch it on again when you have looked at it."
+    },
+    "delete": {
+      "reference": "{count} in {table}",
+      "references": "Other rows refer to this: {list}. They go or change with it, as on the page’s own delete."
+    }
   }
 }

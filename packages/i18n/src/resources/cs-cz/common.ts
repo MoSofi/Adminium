@@ -1768,7 +1768,8 @@ export default {
     "assistant": {
       "open": "Zeptat se {name}",
       "working": "{name} pracuje",
-      "unread": "1 nepřečtená odpověď"
+      "unread": "1 nepřečtená odpověď",
+      "proposal": "Čeká na vás změna"
     }
   }
 } as const;

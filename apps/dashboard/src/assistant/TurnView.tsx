@@ -8,7 +8,7 @@ import { cn } from '@adminium/ui';
 import type { ReactNode } from 'react';
 
 import { t } from '../i18n/t.js';
-import type { AssistantContext, AssistantResult } from './api.js';
+import type { AssistantContext, AssistantProposal, AssistantResult } from './api.js';
 import { AnswerFoot, ForgotDivider } from './parts/AnswerFoot.js';
 import { AskCard } from './parts/AskCard.js';
 import { AssistantBubble } from './parts/AssistantBubble.js';
@@ -43,6 +43,8 @@ export interface TurnViewProps {
   /** Send a message as the person: a follow-up, or the same question to be read this time. */
   onAsk: (text: string) => void;
   onOpenAddOn: (key: string) => void;
+  /** Draws what the answer asked the person to confirm; absent where nothing can be confirmed. */
+  renderProposal?: ((proposal: AssistantProposal, indent: boolean) => ReactNode) | undefined;
   /** Where it was asked and what "these" meant, in the panel's thread; absent in a window that is one page's. */
   askedOn?: string | undefined;
   askedScope?: string | undefined;
@@ -91,6 +93,7 @@ export function TurnView({
   onOpenAddOn,
   askedOn,
   askedScope,
+  renderProposal,
   picks,
   onPick,
   onGo,
@@ -107,6 +110,7 @@ export function TurnView({
   const answer =
     turn.answer !== null && turn.status === 'done' && turn.ask === null && turn.result === null && turn.say !== null ? turn.answer : null;
   const question = turn.askText;
+  const proposal = turn.status === 'done' ? (turn.answer?.proposal ?? null) : null;
   return (
     <>
       {turn.answer !== null && turn.answer.forgot > 0 ? <ForgotDivider count={turn.answer.forgot} name={name} /> : null}
@@ -195,6 +199,9 @@ export function TurnView({
           {renderResult(turn.result)}
         </AssistantBubble>
       )}
+
+      {/* What it asks the person to confirm: after its words and, when it drafted, after the draft it would save. */}
+      {proposal === null || renderProposal === undefined || working ? null : renderProposal(proposal, (turn.say ?? '') !== '' || turn.result !== null)}
     </>
   );
 }

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2796 entries. */
+/** `namespace:key` — 2819 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -52,6 +52,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:chip.selected',
   'assistant:close',
   'assistant:composer.send',
+  'assistant:confirm.cancel',
   'assistant:data.chip1',
   'assistant:data.chip2',
   'assistant:data.chip3',
@@ -98,8 +99,30 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:invoices.placeholder',
   'assistant:panel.new',
   'assistant:panel.stop',
-  'assistant:readOnly.lockedTitle',
+  'assistant:proposal.again',
+  'assistant:proposal.applying',
+  'assistant:proposal.checking.title',
+  'assistant:proposal.fix',
+  'assistant:proposal.group.check',
+  'assistant:proposal.group.done',
+  'assistant:proposal.group.notTried',
+  'assistant:proposal.group.shared',
+  'assistant:proposal.interrupted',
+  'assistant:proposal.large',
+  'assistant:proposal.openHome',
+  'assistant:proposal.parked',
+  'assistant:proposal.row.new',
+  'assistant:proposal.row.untitled',
+  'assistant:proposal.send.open',
+  'assistant:proposal.send.subject',
+  'assistant:proposal.send.template',
+  'assistant:proposal.send.to',
+  'assistant:proposal.undo',
+  'assistant:proposal.undoSome',
+  'assistant:proposal.undone',
+  'assistant:proposal.undonePart',
   'assistant:readOnly.noWriteTitle',
+  'assistant:readOnly.switchedOffTitle',
   'assistant:report.action1',
   'assistant:report.action2',
   'assistant:report.action3',

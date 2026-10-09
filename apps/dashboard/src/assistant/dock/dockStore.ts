@@ -14,7 +14,7 @@
 import { useSyncExternalStore } from 'react';
 
 /** What the bubble shows while the panel is closed. */
-export type DockSignal = 'idle' | 'working' | 'unread';
+export type DockSignal = 'idle' | 'working' | 'unread' | 'proposal';
 
 let open = false;
 let signal: DockSignal = 'idle';

@@ -1235,7 +1235,8 @@ export default {
     "assistant": {
       "open": "Ask {name}",
       "working": "{name} is working",
-      "unread": "1 unread answer"
+      "unread": "1 unread answer",
+      "proposal": "A change is waiting for you"
     }
   }
 } as const;

@@ -199,11 +199,11 @@
     "workTitle": "Rechnung entworfen"
   },
   "readOnly": {
-    "enable": "Aktionen freigeben",
-    "lockedTitle": "Gib Aktionen frei, damit {name} das tun kann",
     "noWrite": "Deine Rolle darf hier ansehen, entwerfen und vorschauen, aber nicht speichern.",
     "noWriteTitle": "Deine Rolle darf das hier nicht",
-    "note": "{name} ist gerade schreibgeschützt — es kann ansehen, entwerfen und vorschauen, aber nicht speichern, senden oder anlegen."
+    "switchedOff": "Speichern ist für {name} in diesem Arbeitsbereich ausgeschaltet.",
+    "openSettings": "Einstellungen öffnen",
+    "switchedOffTitle": "Speichern ist für {name} in diesem Arbeitsbereich ausgeschaltet"
   },
   "report": {
     "action1": "Vollständige Vorschau ausführen",
@@ -345,5 +345,110 @@
     "madeOn": "Erstellt auf {page}.",
     "open": "{page} öffnen, um diesen Entwurf zu verwenden",
     "deleted": "Das Dokument dieses Entwurfs wurde gelöscht."
+  },
+  "proposal": {
+    "checking": {
+      "title": "Eine Änderung zum Bestätigen",
+      "line": "Es wird geprüft, was sich ändern würde…"
+    },
+    "badge": {
+      "replaced": "Ersetzt",
+      "expired": "Abgelaufen",
+      "cancelled": "Abgebrochen",
+      "parked": "Geparkt"
+    },
+    "replaced": "Danach wurde etwas anderes gefragt. Nichts wurde geändert.",
+    "expired": "Dieser Vorschlag ist 30 Minuten alt. Frag noch einmal.",
+    "overCap": "Das sind {count} Änderungen; höchstens {cap} lassen sich auf einmal bestätigen. Für mehr nutze die Sammelfunktionen der Seite.",
+    "applying": "Wird ausgeführt…",
+    "undone": "Rückgängig gemacht. Alles ist wie zuvor.",
+    "undonePart": "{count, plural, one {# Änderung wurde} other {# Änderungen wurden}} zurückgenommen.",
+    "undoneRest": "Der Rest bleibt geändert.",
+    "interrupted": "Das wurde mittendrin unterbrochen.",
+    "group": {
+      "done": "Erledigt",
+      "check": "Diesen Eintrag prüfen",
+      "checkLine": "Das Speichern wurde abgeschnitten. Es kann geändert sein oder nicht.",
+      "notTried": "Nicht versucht",
+      "shared": "{field} {arrow} {value} in {count, plural, one {# Zeile} other {# Zeilen}}"
+    },
+    "openHome": "{page} öffnen",
+    "notTried": "Nicht versucht: zu viele Anfragen auf einmal. Frag in einer Minute noch einmal.",
+    "again": "Den Rest noch einmal vorschlagen",
+    "againAsk": "Schlage die Änderungen noch einmal vor, die nicht gemacht wurden:\n{rows}",
+    "undo": "Rückgängig",
+    "undoSome": "{count} von {total} rückgängig machen",
+    "undoPassed": "Die Zeit zum Rückgängigmachen ist vorbei.",
+    "noUndo": "Das lässt sich von hier aus nicht rückgängig machen.",
+    "noUndoSome": "{count, plural, one {# Änderung lässt} other {# Änderungen lassen}} sich von hier aus nicht rückgängig machen.",
+    "notChanged": "{count, plural, one {Dieser Eintrag wurde} other {Diese # wurden}} nicht geändert:",
+    "cancelled": "Nichts wurde geändert.",
+    "parked": "Öffne {page}, um das zu nutzen.",
+    "someRefused": "{refused} von {count, plural, one {# Änderung} other {# Änderungen}} können nicht gemacht werden.",
+    "changedSince": "Das hat sich geändert, seit es dir gezeigt wurde. Sieh es dir vor dem Bestätigen noch einmal an.",
+    "fix": "{name} bitten, das zu korrigieren",
+    "fixAsk": "Ein Teil davon geht nicht. Schlage es ohne diese noch einmal vor:\n{reasons}",
+    "send": {
+      "template": "Vorlage",
+      "subject": "Betreff",
+      "to": "An",
+      "roles": "alle mit der Rolle {roles} ({count, plural, one {# Person} other {# Personen}})",
+      "open": "Vorlage öffnen"
+    },
+    "more": "{count} weitere. Groß öffnen, um alle zu sehen.",
+    "irreversible": "Das lässt sich nicht rückgängig machen.",
+    "chosen": "{picked} von {count} gewählt",
+    "large": "Groß öffnen",
+    "doc": {
+      "email": "E-Mail-Vorlage",
+      "report": "Bericht",
+      "rule": "Regel",
+      "invoice": "Rechnung",
+      "invoiceTemplate": "Rechnungsvorlage"
+    },
+    "ask": {
+      "change": "{count, plural, one {# Zeile} other {# Zeilen}} ändern",
+      "add": "{count, plural, one {# Zeile} other {# Zeilen}} hinzufügen",
+      "delete": "{count, plural, one {# Zeile} other {# Zeilen}} löschen",
+      "save": "Als neu speichern: {what}",
+      "saveOver": "„{name}“ überschreiben",
+      "deleteDoc": "„{name}“ löschen",
+      "deleteDocs": "{count, plural, one {# Dokument} other {# Dokumente}} löschen",
+      "send": "An {count, plural, one {# Person} other {# Personen}} senden",
+      "mixed": "{count, plural, one {# Änderung} other {# Änderungen}} vornehmen"
+    },
+    "done": {
+      "changePart": "{done} von {count, plural, one {# Zeile} other {# Zeilen}} geändert.",
+      "part": "{done} von {count, plural, one {# Änderung} other {# Änderungen}} gemacht.",
+      "change": "{count, plural, one {# Zeile} other {# Zeilen}} geändert.",
+      "add": "{count, plural, one {# Zeile} other {# Zeilen}} hinzugefügt.",
+      "delete": "{count, plural, one {# Zeile} other {# Zeilen}} gelöscht.",
+      "save": "Gespeichert.",
+      "deleteDoc": "{count, plural, one {# Dokument} other {# Dokumente}} gelöscht.",
+      "send": "Wird an {count, plural, one {# Person} other {# Personen}} gesendet.",
+      "mixed": "{count, plural, one {# Änderung} other {# Änderungen}} gemacht."
+    },
+    "refused": {
+      "generic": "Der Server hat das abgelehnt.",
+      "switchedOff": "Das ist für {name} in diesem Arbeitsbereich ausgeschaltet.",
+      "notThisTable": "Von hier aus lässt sich nur die Tabelle der Seite ändern, auf der gefragt wurde.",
+      "notData": "Das ist keine Tabelle deiner Daten.",
+      "noChange": "Die Zeile enthält diese Werte bereits.",
+      "unsafeKey": "Diese ID kann nicht verwendet werden.",
+      "notFound": "Das gibt es nicht mehr.",
+      "notOffered": "Das geht von hier aus nicht.",
+      "builtIn": "Eine eingebaute Mail wird auf ihrer eigenen Seite geändert.",
+      "notCampaign": "Nur eine Kampagne kann an Personen gesendet werden.",
+      "noRecipients": "Niemand würde diese Mail bekommen."
+    },
+    "row": {
+      "untitled": "Ohne Titel",
+      "new": "Neue Zeile",
+      "switchesOff": "Wird ausgeschaltet gespeichert: Schalte sie wieder ein, wenn du sie angesehen hast."
+    },
+    "delete": {
+      "reference": "{count} in {table}",
+      "references": "Andere Zeilen verweisen darauf: {list}. Sie werden mit entfernt oder geändert, wie beim Löschen auf der Seite selbst."
+    }
   }
 }

@@ -1768,7 +1768,8 @@ export default {
     "assistant": {
       "open": "询问 {name}",
       "working": "{name} 正在处理",
-      "unread": "1 条未读回答"
+      "unread": "1 条未读回答",
+      "proposal": "有一项更改等待你确认"
     }
   }
 } as const;

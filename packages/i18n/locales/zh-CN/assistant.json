@@ -199,11 +199,11 @@
     "workTitle": "已起草发票"
   },
   "readOnly": {
-    "enable": "启用操作",
-    "lockedTitle": "启用操作后 {name} 才能执行",
     "noWrite": "你的角色在这里可以查看、起草和预览，但不能保存。",
     "noWriteTitle": "你的角色在这里无法执行此操作",
-    "note": "{name} 目前是只读的 — 可以查看、起草和预览，但不能保存、发送或创建。"
+    "switchedOff": "此工作区已为 {name} 关闭保存。",
+    "openSettings": "打开设置",
+    "switchedOffTitle": "此工作区已为 {name} 关闭保存"
   },
   "report": {
     "action1": "运行完整预览",
@@ -345,5 +345,110 @@
     "madeOn": "创建于 {page}。",
     "open": "打开 {page} 以使用此草稿",
     "deleted": "此草稿的文档已被删除。"
+  },
+  "proposal": {
+    "checking": {
+      "title": "待确认的更改",
+      "line": "正在检查会更改什么…"
+    },
+    "badge": {
+      "replaced": "已被替换",
+      "expired": "已过期",
+      "cancelled": "已取消",
+      "parked": "已搁置"
+    },
+    "replaced": "之后又问了别的问题。没有任何更改。",
+    "expired": "此提议已过去 30 分钟。请重新提问。",
+    "overCap": "共 {count} 项更改；一次最多可确认 {cap} 项。更多请使用页面自带的批量工具。",
+    "applying": "处理中…",
+    "undone": "已撤销。一切恢复原样。",
+    "undonePart": "已撤回 {count, plural, other {#}} 项更改。",
+    "undoneRest": "其余保持已更改。",
+    "interrupted": "此操作中途停止了。",
+    "group": {
+      "done": "已完成",
+      "check": "请检查此项",
+      "checkLine": "保存被中断。它可能已更改，也可能没有。",
+      "notTried": "未尝试",
+      "shared": "{count, plural, other {#}} 行的 {field} {arrow} {value}"
+    },
+    "openHome": "打开{page}",
+    "notTried": "未尝试：同时请求过多。请一分钟后再问。",
+    "again": "重新提议其余部分",
+    "againAsk": "请重新提议未完成的更改：\n{rows}",
+    "undo": "撤销",
+    "undoSome": "撤销 {total} 项中的 {count} 项",
+    "undoPassed": "撤销时间已过。",
+    "noUndo": "此操作无法在这里撤销。",
+    "noUndoSome": "{count, plural, other {#}} 项更改无法在这里撤销。",
+    "notChanged": "以下 {count, plural, other {#}} 项未更改：",
+    "cancelled": "没有任何更改。",
+    "parked": "打开{page}以使用此项。",
+    "someRefused": "{count, plural, other {#}} 项更改中有 {refused} 项无法执行。",
+    "changedSince": "自向你展示后，此内容已发生变化。确认前请再看一遍。",
+    "fix": "让 {name} 修正",
+    "fixAsk": "其中一部分无法执行。请去掉以下内容后重新提议：\n{reasons}",
+    "send": {
+      "template": "模板",
+      "subject": "主题",
+      "to": "收件人",
+      "roles": "所有拥有 {roles} 角色的人（{count, plural, other {#}} 人）",
+      "open": "打开模板"
+    },
+    "more": "还有 {count} 项。放大查看全部。",
+    "irreversible": "此操作无法撤销。",
+    "chosen": "已选 {picked}/{count}",
+    "large": "放大查看",
+    "doc": {
+      "email": "邮件模板",
+      "report": "报告",
+      "rule": "规则",
+      "invoice": "发票",
+      "invoiceTemplate": "发票模板"
+    },
+    "ask": {
+      "change": "更改 {count, plural, other {#}} 行",
+      "add": "添加 {count, plural, other {#}} 行",
+      "delete": "删除 {count, plural, other {#}} 行",
+      "save": "另存为新的{what}",
+      "saveOver": "覆盖保存“{name}”",
+      "deleteDoc": "删除“{name}”",
+      "deleteDocs": "删除 {count, plural, other {#}} 个文档",
+      "send": "发送给 {count, plural, other {#}} 人",
+      "mixed": "执行 {count, plural, other {#}} 项更改"
+    },
+    "done": {
+      "changePart": "已更改 {count, plural, other {#}} 行中的 {done} 行。",
+      "part": "已执行 {count, plural, other {#}} 项更改中的 {done} 项。",
+      "change": "已更改 {count, plural, other {#}} 行。",
+      "add": "已添加 {count, plural, other {#}} 行。",
+      "delete": "已删除 {count, plural, other {#}} 行。",
+      "save": "已保存。",
+      "deleteDoc": "已删除 {count, plural, other {#}} 个文档。",
+      "send": "正在发送给 {count, plural, other {#}} 人。",
+      "mixed": "已执行 {count, plural, other {#}} 项更改。"
+    },
+    "refused": {
+      "generic": "服务器拒绝了此操作。",
+      "switchedOff": "此工作区已为 {name} 关闭此功能。",
+      "notThisTable": "在这里只能更改提问所在页面的表。",
+      "notData": "这不是你的数据表。",
+      "noChange": "该行已是这些值。",
+      "unsafeKey": "无法使用该 ID。",
+      "notFound": "此项已不存在。",
+      "notOffered": "无法在这里执行此操作。",
+      "builtIn": "内置邮件需在其自己的页面上更改。",
+      "notCampaign": "只有营销邮件可以发送给人员。",
+      "noRecipients": "没有人会收到这封邮件。"
+    },
+    "row": {
+      "untitled": "未命名",
+      "new": "新行",
+      "switchesOff": "保存后为关闭状态：查看后再重新开启。"
+    },
+    "delete": {
+      "reference": "{table} 中 {count} 行",
+      "references": "其他行引用了此项：{list}。它们会随之删除或更改，与页面自身的删除相同。"
+    }
   }
 }

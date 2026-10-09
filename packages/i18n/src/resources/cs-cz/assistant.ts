@@ -209,11 +209,11 @@ export default {
     "workTitle": "Navržena faktura"
   },
   "readOnly": {
-    "enable": "Povolit akce",
-    "lockedTitle": "Povol akce, aby to {name} mohl udělat",
     "noWrite": "Tvoje role si tu může prohlížet, navrhovat a zobrazovat náhledy, ale ne ukládat.",
     "noWriteTitle": "Tvoje role tohle tady nemůže",
-    "note": "{name} je teď jen pro čtení — může se dívat, navrhovat a zobrazovat náhledy, ale ne ukládat, odesílat ani zakládat."
+    "switchedOff": "Ukládání je pro {name} v tomto pracovním prostoru vypnuté.",
+    "openSettings": "Otevřít nastavení",
+    "switchedOffTitle": "Ukládání je pro {name} v tomto pracovním prostoru vypnuté"
   },
   "report": {
     "action1": "Spustit plný náhled",
@@ -355,5 +355,110 @@ export default {
     "madeOn": "Vytvořeno na stránce {page}.",
     "open": "Otevřít {page} a použít tento koncept",
     "deleted": "Dokument tohoto konceptu byl smazán."
+  },
+  "proposal": {
+    "checking": {
+      "title": "Změna k potvrzení",
+      "line": "Zjišťuje se, co by se změnilo…"
+    },
+    "badge": {
+      "replaced": "Nahrazeno",
+      "expired": "Vypršelo",
+      "cancelled": "Zrušeno",
+      "parked": "Odloženo"
+    },
+    "replaced": "Potom přišel jiný dotaz. Nic se nezměnilo.",
+    "expired": "Tento návrh je 30 minut starý. Zeptejte se znovu.",
+    "overCap": "To je {count} změn; najednou lze potvrdit nejvýše {cap}. Pro více použijte hromadné nástroje stránky.",
+    "applying": "Pracuje se…",
+    "undone": "Vráceno zpět. Vše je jako předtím.",
+    "undonePart": "{count, plural, one {# změna byla vzata} few {# změny byly vzaty} other {# změn bylo vzato}} zpět.",
+    "undoneRest": "Zbytek zůstává změněn.",
+    "interrupted": "Tohle se zastavilo v půli.",
+    "group": {
+      "done": "Hotovo",
+      "check": "Zkontrolujte tento",
+      "checkLine": "Uložení bylo přerušeno. Mohl se změnit, a nemusel.",
+      "notTried": "Nezkoušeno",
+      "shared": "{field} {arrow} {value} u {count, plural, one {# řádku} few {# řádků} other {# řádků}}"
+    },
+    "openHome": "Otevřít {page}",
+    "notTried": "Nezkoušeno: příliš mnoho požadavků najednou. Zeptejte se znovu za minutu.",
+    "again": "Navrhnout zbytek znovu",
+    "againAsk": "Navrhni znovu změny, které nebyly provedeny:\n{rows}",
+    "undo": "Vrátit zpět",
+    "undoSome": "Vrátit zpět {count} z {total}",
+    "undoPassed": "Čas na vrácení zpět uplynul.",
+    "noUndo": "Odtud to nelze vrátit zpět.",
+    "noUndoSome": "{count, plural, one {# změnu} few {# změny} other {# změn}} odtud nelze vrátit zpět.",
+    "notChanged": "{count, plural, one {Tento nebyl změněn} few {Tyto # nebyly změněny} other {Těchto # nebylo změněno}}:",
+    "cancelled": "Nic se nezměnilo.",
+    "parked": "Chcete-li to použít, otevřete {page}.",
+    "someRefused": "{refused} z {count, plural, one {# změny} few {# změn} other {# změn}} nelze provést.",
+    "changedSince": "Od chvíle, kdy vám to bylo ukázáno, se to změnilo. Před potvrzením se podívejte znovu.",
+    "fix": "Požádat {name}, ať to opraví",
+    "fixAsk": "Část z toho nelze provést. Navrhni to znovu bez těchto:\n{reasons}",
+    "send": {
+      "template": "Šablona",
+      "subject": "Předmět",
+      "to": "Komu",
+      "roles": "všichni s rolí {roles} ({count, plural, one {# člověk} few {# lidé} other {# lidí}})",
+      "open": "Otevřít šablonu"
+    },
+    "more": "Dalších {count}. Otevřete velké zobrazení a uvidíte všechny.",
+    "irreversible": "Tohle nelze vrátit zpět.",
+    "chosen": "Vybráno {picked} z {count}",
+    "large": "Otevřít velké",
+    "doc": {
+      "email": "e-mailová šablona",
+      "report": "report",
+      "rule": "pravidlo",
+      "invoice": "faktura",
+      "invoiceTemplate": "šablona faktury"
+    },
+    "ask": {
+      "change": "Změnit {count, plural, one {# řádek} few {# řádky} other {# řádků}}",
+      "add": "Přidat {count, plural, one {# řádek} few {# řádky} other {# řádků}}",
+      "delete": "Smazat {count, plural, one {# řádek} few {# řádky} other {# řádků}}",
+      "save": "Uložit jako nové: {what}",
+      "saveOver": "Uložit přes „{name}“",
+      "deleteDoc": "Smazat „{name}“",
+      "deleteDocs": "Smazat {count, plural, one {# dokument} few {# dokumenty} other {# dokumentů}}",
+      "send": "Odeslat {count, plural, one {# člověku} few {# lidem} other {# lidem}}",
+      "mixed": "Provést {count, plural, one {# změnu} few {# změny} other {# změn}}"
+    },
+    "done": {
+      "changePart": "Změněno {done} z {count, plural, one {# řádku} few {# řádků} other {# řádků}}.",
+      "part": "Provedeno {done} z {count, plural, one {# změny} few {# změn} other {# změn}}.",
+      "change": "{count, plural, one {Změněn # řádek} few {Změněny # řádky} other {Změněno # řádků}}.",
+      "add": "{count, plural, one {Přidán # řádek} few {Přidány # řádky} other {Přidáno # řádků}}.",
+      "delete": "{count, plural, one {Smazán # řádek} few {Smazány # řádky} other {Smazáno # řádků}}.",
+      "save": "Uloženo.",
+      "deleteDoc": "{count, plural, one {Smazán # dokument} few {Smazány # dokumenty} other {Smazáno # dokumentů}}.",
+      "send": "Odesílá se {count, plural, one {# člověku} few {# lidem} other {# lidem}}.",
+      "mixed": "{count, plural, one {Provedena # změna} few {Provedeny # změny} other {Provedeno # změn}}."
+    },
+    "refused": {
+      "generic": "Server to odmítl.",
+      "switchedOff": "Tohle je pro {name} v tomto pracovním prostoru vypnuté.",
+      "notThisTable": "Odtud lze měnit jen tabulku stránky, na které byl dotaz položen.",
+      "notData": "To není tabulka vašich dat.",
+      "noChange": "Řádek už tyto hodnoty má.",
+      "unsafeKey": "Toto id nelze použít.",
+      "notFound": "Tohle už neexistuje.",
+      "notOffered": "To odtud nelze udělat.",
+      "builtIn": "Vestavěný e-mail se mění na vlastní obrazovce.",
+      "notCampaign": "Lidem lze odeslat jen kampaň.",
+      "noRecipients": "Tento e-mail by nikdo nedostal."
+    },
+    "row": {
+      "untitled": "Bez názvu",
+      "new": "Nový řádek",
+      "switchesOff": "Uloží se vypnuté: zapněte ho znovu, až si ho prohlédnete."
+    },
+    "delete": {
+      "reference": "{count} v {table}",
+      "references": "Odkazují na to jiné řádky: {list}. Zmizí nebo se změní s ním, stejně jako při mazání na stránce."
+    }
   }
 } as const;

@@ -7,10 +7,10 @@
  * the product — not offered by the model. A model that could name its own
  * buttons could name one that writes.
  *
- * TWO DIFFERENT LOCKS, and the difference is worth the two sentences. Actions
- * are locked while the guardrail is on, and *Enable actions* clears that for
- * the rest of this open. A role that cannot save on this page is a different
- * matter: that lock never clears, so its title says what is true rather than
+ * TWO DIFFERENT LOCKS, and the difference is worth the two sentences. What
+ * writes is held while the workspace has not let the assistant create things:
+ * an administrator's switch, in Settings. A role that cannot save on this
+ * page is a different matter. Each title says which is true, rather than
  * inviting a click that would 403.
  *
  * An action that WRITES NOTHING — preview another sample, run the full
@@ -26,7 +26,7 @@ import { assistantIcon } from '../icons.js';
 
 export interface ActionsRowProps {
   actions: readonly AssistantActionSpec[];
-  /** The guardrail: false until the operator enables actions in this open. */
+  /** Whether the workspace lets the assistant create things (its Create switch). */
   enabled: boolean;
   /** Whether this session may save on this page at all. */
   canWrite: boolean;
@@ -56,7 +56,7 @@ export function ActionsRow({ actions, enabled, canWrite, saved, name, busy, onRu
         const title = needsGrant
           ? t('assistant:readOnly.noWriteTitle', 'Your role cannot do this here')
           : needsEnable
-            ? t('assistant:readOnly.lockedTitle', 'Enable actions to let {name} do this', { name })
+            ? t('assistant:readOnly.switchedOffTitle', 'Saving is switched off for {name} in this workspace', { name })
             : label;
         return (
           <Button

@@ -333,6 +333,7 @@ describe('what stands under an answer', () => {
       forgot: 4,
       followups: ['Who comes next?'],
       suggest: [{ key: 'offers', name: 'Offers', line: 'Codes.', mayInstall: true }],
+      proposal: null,
     });
   });
 

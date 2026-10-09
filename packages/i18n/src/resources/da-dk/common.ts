@@ -1768,7 +1768,8 @@ export default {
     "assistant": {
       "open": "Spørg {name}",
       "working": "{name} arbejder",
-      "unread": "1 ulæst svar"
+      "unread": "1 ulæst svar",
+      "proposal": "En ændring venter på dig"
     }
   }
 } as const;

@@ -1768,7 +1768,8 @@ export default {
     "assistant": {
       "open": "{name} fragen",
       "working": "{name} arbeitet",
-      "unread": "1 ungelesene Antwort"
+      "unread": "1 ungelesene Antwort",
+      "proposal": "Eine Änderung wartet auf dich"
     }
   }
 } as const;

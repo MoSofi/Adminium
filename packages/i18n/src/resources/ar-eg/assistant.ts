@@ -209,11 +209,11 @@ export default {
     "workTitle": "صيغت فاتورة"
   },
   "readOnly": {
-    "enable": "تفعيل الإجراءات",
-    "lockedTitle": "فعِّل الإجراءات ليتمكن {name} من ذلك",
     "noWrite": "يستطيع دورك هنا الاطلاع والصياغة والمعاينة، لكن ليس الحفظ.",
     "noWriteTitle": "لا يستطيع دورك فعل ذلك هنا",
-    "note": "{name} للقراءة فقط الآن — يستطيع الاطلاع والصياغة والمعاينة، لكن ليس الحفظ أو الإرسال أو الإنشاء."
+    "switchedOff": "الحفظ متوقف لـ{name} في مساحة العمل هذه.",
+    "openSettings": "افتح الإعدادات",
+    "switchedOffTitle": "الحفظ متوقف لـ{name} في مساحة العمل هذه"
   },
   "report": {
     "action1": "تشغيل المعاينة الكاملة",
@@ -355,5 +355,110 @@ export default {
     "madeOn": "أُنشئت في {page}.",
     "open": "افتح {page} لاستخدام هذه المسودة",
     "deleted": "حُذف مستند هذه المسودة."
+  },
+  "proposal": {
+    "checking": {
+      "title": "تغيير بانتظار التأكيد",
+      "line": "جارٍ التحقق مما سيتغيّر…"
+    },
+    "badge": {
+      "replaced": "استُبدل",
+      "expired": "انتهت مدته",
+      "cancelled": "أُلغي",
+      "parked": "مؤجَّل"
+    },
+    "replaced": "طُلب شيء آخر بعد هذا. لم يتغيّر شيء.",
+    "expired": "مرّ على هذا الاقتراح 30 دقيقة. اسأل من جديد.",
+    "overCap": "هذه {count} تغييرات؛ يمكن تأكيد {cap} على الأكثر في المرة الواحدة. للمزيد استخدم أدوات الصفحة الجماعية.",
+    "applying": "جارٍ التنفيذ…",
+    "undone": "تم التراجع. عاد كل شيء كما كان.",
+    "undonePart": "تم التراجع عن {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييران} few {# تغييرات} many {# تغييرًا} other {# تغيير}}.",
+    "undoneRest": "الباقي يبقى كما تغيّر.",
+    "interrupted": "توقف هذا في منتصفه.",
+    "group": {
+      "done": "تم",
+      "check": "تحقّق من هذا",
+      "checkLine": "انقطع الحفظ. ربما تغيّر وربما لم يتغيّر.",
+      "notTried": "لم تجرِ المحاولة",
+      "shared": "{field} {arrow} {value} في {count, plural, zero {لا صفوف} one {صف واحد} two {صفّان} few {# صفوف} many {# صفًّا} other {# صف}}"
+    },
+    "openHome": "افتح {page}",
+    "notTried": "لم تجرِ المحاولة: طلبات كثيرة في وقت واحد. اسأل من جديد بعد دقيقة.",
+    "again": "اقترح الباقي من جديد",
+    "againAsk": "اقترح من جديد التغييرات التي لم تُنفَّذ:\n{rows}",
+    "undo": "تراجع",
+    "undoSome": "تراجع عن {count} من {total}",
+    "undoPassed": "انتهى وقت التراجع.",
+    "noUndo": "لا يمكن التراجع عن هذا من هنا.",
+    "noUndoSome": "لا يمكن التراجع من هنا عن {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييران} few {# تغييرات} many {# تغييرًا} other {# تغيير}}.",
+    "notChanged": "{count, plural, zero {لا شيء} one {هذا لم يتغيّر} two {هذان لم يتغيّرا} few {هذه الـ# لم تتغيّر} many {هذه الـ# لم تتغيّر} other {هذه الـ# لم تتغيّر}}:",
+    "cancelled": "لم يتغيّر شيء.",
+    "parked": "افتح {page} لاستخدام هذا.",
+    "someRefused": "لا يمكن تنفيذ {refused} من {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييران} few {# تغييرات} many {# تغييرًا} other {# تغيير}}.",
+    "changedSince": "تغيّر هذا منذ عُرض عليك. انظر مرة أخرى قبل التأكيد.",
+    "fix": "اطلب من {name} إصلاح هذا",
+    "fixAsk": "بعض ذلك لا يمكن تنفيذه. اقترحه من جديد دون هذه:\n{reasons}",
+    "send": {
+      "template": "القالب",
+      "subject": "الموضوع",
+      "to": "إلى",
+      "roles": "كل من له الدور {roles} ({count, plural, zero {لا أحد} one {شخص واحد} two {شخصين} few {# أشخاص} many {# شخصًا} other {# شخص}})",
+      "open": "افتح القالب"
+    },
+    "more": "{count} أخرى. افتح بحجم كبير لرؤيتها كلها.",
+    "irreversible": "لا يمكن التراجع عن هذا.",
+    "chosen": "اختير {picked} من {count}",
+    "large": "افتح بحجم كبير",
+    "doc": {
+      "email": "قالب بريد",
+      "report": "تقرير",
+      "rule": "قاعدة",
+      "invoice": "فاتورة",
+      "invoiceTemplate": "قالب فاتورة"
+    },
+    "ask": {
+      "change": "تغيير {count, plural, zero {لا صفوف} one {صف واحد} two {صفّين} few {# صفوف} many {# صفًّا} other {# صف}}",
+      "add": "إضافة {count, plural, zero {لا صفوف} one {صف واحد} two {صفّين} few {# صفوف} many {# صفًّا} other {# صف}}",
+      "delete": "حذف {count, plural, zero {لا صفوف} one {صف واحد} two {صفّين} few {# صفوف} many {# صفًّا} other {# صف}}",
+      "save": "حفظ كجديد: {what}",
+      "saveOver": "حفظ فوق «{name}»",
+      "deleteDoc": "حذف «{name}»",
+      "deleteDocs": "حذف {count, plural, zero {لا مستندات} one {مستند واحد} two {مستندين} few {# مستندات} many {# مستندًا} other {# مستند}}",
+      "send": "إرسال إلى {count, plural, zero {لا أحد} one {شخص واحد} two {شخصين} few {# أشخاص} many {# شخصًا} other {# شخص}}",
+      "mixed": "تنفيذ {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييرين} few {# تغييرات} many {# تغييرًا} other {# تغيير}}"
+    },
+    "done": {
+      "changePart": "تغيّر {done} من {count, plural, zero {لا صفوف} one {صف واحد} two {صفّان} few {# صفوف} many {# صفًّا} other {# صف}}.",
+      "part": "نُفّذ {done} من {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييران} few {# تغييرات} many {# تغييرًا} other {# تغيير}}.",
+      "change": "تم تغيير {count, plural, zero {لا صفوف} one {صف واحد} two {صفّين} few {# صفوف} many {# صفًّا} other {# صف}}.",
+      "add": "تمت إضافة {count, plural, zero {لا صفوف} one {صف واحد} two {صفّين} few {# صفوف} many {# صفًّا} other {# صف}}.",
+      "delete": "تم حذف {count, plural, zero {لا صفوف} one {صف واحد} two {صفّين} few {# صفوف} many {# صفًّا} other {# صف}}.",
+      "save": "تم الحفظ.",
+      "deleteDoc": "تم حذف {count, plural, zero {لا مستندات} one {مستند واحد} two {مستندين} few {# مستندات} many {# مستندًا} other {# مستند}}.",
+      "send": "جارٍ الإرسال إلى {count, plural, zero {لا أحد} one {شخص واحد} two {شخصين} few {# أشخاص} many {# شخصًا} other {# شخص}}.",
+      "mixed": "تم تنفيذ {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييرين} few {# تغييرات} many {# تغييرًا} other {# تغيير}}."
+    },
+    "refused": {
+      "generic": "رفض الخادم هذا.",
+      "switchedOff": "هذا متوقف لـ{name} في مساحة العمل هذه.",
+      "notThisTable": "من هنا يمكن تغيير جدول الصفحة التي طُرح فيها السؤال فقط.",
+      "notData": "هذا ليس جدولًا من بياناتك.",
+      "noChange": "الصف يحمل هذه القيم بالفعل.",
+      "unsafeKey": "لا يمكن استخدام هذا المعرّف.",
+      "notFound": "لم يعد هذا موجودًا.",
+      "notOffered": "لا يمكن فعل ذلك من هنا.",
+      "builtIn": "البريد المضمَّن يُغيَّر من شاشته الخاصة.",
+      "notCampaign": "الحملة وحدها يمكن إرسالها إلى الأشخاص.",
+      "noRecipients": "لن يستلم أحد هذا البريد."
+    },
+    "row": {
+      "untitled": "بلا عنوان",
+      "new": "صف جديد",
+      "switchesOff": "تُحفظ متوقفة: شغّلها من جديد بعد أن تراجعها."
+    },
+    "delete": {
+      "reference": "{count} في {table}",
+      "references": "صفوف أخرى تشير إلى هذا: {list}. تذهب أو تتغيّر معه، كما في حذف الصفحة نفسها."
+    }
   }
 } as const;

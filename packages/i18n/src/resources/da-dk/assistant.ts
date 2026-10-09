@@ -209,11 +209,11 @@ export default {
     "workTitle": "Faktura skrevet"
   },
   "readOnly": {
-    "enable": "Aktivér handlinger",
-    "lockedTitle": "Aktivér handlinger, så {name} kan gøre det",
     "noWrite": "Din rolle kan se, skrive udkast og forhåndsvise her, men ikke gemme.",
     "noWriteTitle": "Din rolle kan ikke det her",
-    "note": "{name} er skrivebeskyttet lige nu — den kan se, skrive udkast og forhåndsvise, men ikke gemme, sende eller oprette."
+    "switchedOff": "Gemning er slået fra for {name} i dette arbejdsområde.",
+    "openSettings": "Åbn indstillinger",
+    "switchedOffTitle": "Gemning er slået fra for {name} i dette arbejdsområde"
   },
   "report": {
     "action1": "Kør fuld forhåndsvisning",
@@ -355,5 +355,110 @@ export default {
     "madeOn": "Lavet på {page}.",
     "open": "Åbn {page} for at bruge denne kladde",
     "deleted": "Denne kladdes dokument blev slettet."
+  },
+  "proposal": {
+    "checking": {
+      "title": "En ændring til bekræftelse",
+      "line": "Tjekker, hvad der ville ændre sig…"
+    },
+    "badge": {
+      "replaced": "Erstattet",
+      "expired": "Udløbet",
+      "cancelled": "Annulleret",
+      "parked": "Parkeret"
+    },
+    "replaced": "Der blev spurgt om noget andet bagefter. Intet blev ændret.",
+    "expired": "Dette forslag er 30 minutter gammelt. Spørg igen.",
+    "overCap": "Det er {count} ændringer; højst {cap} kan bekræftes ad gangen. Brug sidens egne masseværktøjer til flere.",
+    "applying": "Arbejder…",
+    "undone": "Fortrudt. Alt er, som det var.",
+    "undonePart": "{count, plural, one {# ændring blev} other {# ændringer blev}} taget tilbage.",
+    "undoneRest": "Resten forbliver ændret.",
+    "interrupted": "Dette stoppede undervejs.",
+    "group": {
+      "done": "Udført",
+      "check": "Tjek denne",
+      "checkLine": "Gemningen blev afbrudt. Den er måske ændret, måske ikke.",
+      "notTried": "Ikke forsøgt",
+      "shared": "{field} {arrow} {value} på {count, plural, one {# række} other {# rækker}}"
+    },
+    "openHome": "Åbn {page}",
+    "notTried": "Ikke forsøgt: for mange forespørgsler på én gang. Spørg igen om et minut.",
+    "again": "Foreslå resten igen",
+    "againAsk": "Foreslå igen de ændringer, der ikke blev lavet:\n{rows}",
+    "undo": "Fortryd",
+    "undoSome": "Fortryd {count} af {total}",
+    "undoPassed": "Tiden til at fortryde er gået.",
+    "noUndo": "Dette kan ikke fortrydes herfra.",
+    "noUndoSome": "{count, plural, one {# ændring} other {# ændringer}} kan ikke fortrydes herfra.",
+    "notChanged": "{count, plural, one {Denne blev} other {Disse # blev}} ikke ændret:",
+    "cancelled": "Intet blev ændret.",
+    "parked": "Åbn {page} for at bruge dette.",
+    "someRefused": "{refused} af {count, plural, one {# ændring} other {# ændringer}} kan ikke laves.",
+    "changedSince": "Dette har ændret sig, siden du fik det vist. Se igen, før du bekræfter.",
+    "fix": "Bed {name} om at rette dette",
+    "fixAsk": "Noget af det kan ikke lade sig gøre. Foreslå det igen uden disse:\n{reasons}",
+    "send": {
+      "template": "Skabelon",
+      "subject": "Emne",
+      "to": "Til",
+      "roles": "alle med rollen {roles} ({count, plural, one {# person} other {# personer}})",
+      "open": "Åbn skabelon"
+    },
+    "more": "{count} mere. Åbn stort for at se dem alle.",
+    "irreversible": "Dette kan ikke fortrydes.",
+    "chosen": "{picked} af {count} valgt",
+    "large": "Åbn stort",
+    "doc": {
+      "email": "e-mailskabelon",
+      "report": "rapport",
+      "rule": "regel",
+      "invoice": "faktura",
+      "invoiceTemplate": "fakturaskabelon"
+    },
+    "ask": {
+      "change": "Ændr {count, plural, one {# række} other {# rækker}}",
+      "add": "Tilføj {count, plural, one {# række} other {# rækker}}",
+      "delete": "Slet {count, plural, one {# række} other {# rækker}}",
+      "save": "Gem som ny {what}",
+      "saveOver": "Gem oven i “{name}”",
+      "deleteDoc": "Slet “{name}”",
+      "deleteDocs": "Slet {count, plural, one {# dokument} other {# dokumenter}}",
+      "send": "Send til {count, plural, one {# person} other {# personer}}",
+      "mixed": "Lav {count, plural, one {# ændring} other {# ændringer}}"
+    },
+    "done": {
+      "changePart": "Ændrede {done} af {count, plural, one {# række} other {# rækker}}.",
+      "part": "{done} af {count, plural, one {# ændring} other {# ændringer}} lavet.",
+      "change": "Ændrede {count, plural, one {# række} other {# rækker}}.",
+      "add": "Tilføjede {count, plural, one {# række} other {# rækker}}.",
+      "delete": "Slettede {count, plural, one {# række} other {# rækker}}.",
+      "save": "Gemt.",
+      "deleteDoc": "Slettede {count, plural, one {# dokument} other {# dokumenter}}.",
+      "send": "Sender til {count, plural, one {# person} other {# personer}}.",
+      "mixed": "{count, plural, one {# ændring} other {# ændringer}} lavet."
+    },
+    "refused": {
+      "generic": "Serveren afviste dette.",
+      "switchedOff": "Dette er slået fra for {name} i dette arbejdsområde.",
+      "notThisTable": "Herfra kan kun tabellen på den side, der blev spurgt på, ændres.",
+      "notData": "Det er ikke en tabel med dine data.",
+      "noChange": "Rækken har allerede disse værdier.",
+      "unsafeKey": "Det id kan ikke bruges.",
+      "notFound": "Dette findes ikke længere.",
+      "notOffered": "Det kan ikke gøres herfra.",
+      "builtIn": "En indbygget mail ændres på sin egen skærm.",
+      "notCampaign": "Kun en kampagne kan sendes til personer.",
+      "noRecipients": "Ingen ville få denne mail."
+    },
+    "row": {
+      "untitled": "Uden titel",
+      "new": "Ny række",
+      "switchesOff": "Gemmes slået fra: slå den til igen, når du har set på den."
+    },
+    "delete": {
+      "reference": "{count} i {table}",
+      "references": "Andre rækker henviser til denne: {list}. De forsvinder eller ændres med den, som ved sidens egen sletning."
+    }
   }
 } as const;

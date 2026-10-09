@@ -45,13 +45,44 @@ import type { ThreadTurn } from '../thread.js';
 import { dockLayout, type DockLayout } from './dockLayout.js';
 import { setDockOpen, setDockSignal } from './dockStore.js';
 import { LiveDraft } from './LiveDraft.js';
+import { LiveProposal } from './LiveProposal.js';
 import { PanelView, type ScopeChip } from './PanelView.js';
-import { ParkedDraft } from './ParkedDraft.js';
+import { draftHome, ParkedDraft, type DraftHome } from './ParkedDraft.js';
 import { usePanelConversation, type PanelPage } from './usePanelConversation.js';
 
 export interface AssistantDockProps {
   /** False while the panel is closed: nothing is drawn, the conversation is still followed. */
   visible: boolean;
+  /** Whatever lists this person's pages (the bootstrap): read only to find a page's address from its id. */
+  pages?: unknown;
+}
+
+/**
+ * The address of a data page, from its id. Pages are reached by slug, and a
+ * turn remembers the id; the list of this person's pages has both. `null` for
+ * a page they no longer have.
+ */
+export function pageSlugOf(pages: unknown, pageId: string): string | null {
+  const seen = new Set<unknown>();
+  const walk = (node: unknown, depth: number): string | null => {
+    if (typeof node !== 'object' || node === null || depth > 8 || seen.has(node)) return null;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      for (const entry of node) {
+        const found = walk(entry, depth + 1);
+        if (found !== null) return found;
+      }
+      return null;
+    }
+    const record = node as Record<string, unknown>;
+    if (record.pageId === pageId && typeof record.slug === 'string' && record.slug !== '') return record.slug;
+    for (const value of Object.values(record)) {
+      const found = walk(value, depth + 1);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return walk(pages, 0);
 }
 
 /** The page the person is on, for the assistant: what the page published, or the general one. */
@@ -172,7 +203,17 @@ function scopeLabel(turn: ThreadTurn): string | undefined {
   return t('assistant:chip.filteredUnknown', 'Filtered rows');
 }
 
-export function AssistantDock({ visible }: AssistantDockProps) {
+/** Where a turn's proposal is used: the data page it was asked on, or its document's page. Null: nowhere to send the person. */
+function proposalHome(turn: ThreadTurn, pages: unknown): DraftHome | null {
+  if (turn.context === 'data') {
+    const slug = turn.on.pageId === null ? null : pageSlugOf(pages, turn.on.pageId);
+    return slug === null ? null : { to: '/p/$slug', params: { slug } };
+  }
+  if (turn.context === 'general') return null;
+  return draftHome(turn.context, turn.on.documentId);
+}
+
+export function AssistantDock({ visible, pages }: AssistantDockProps) {
   useAssistantMessages();
   const navigate = useNavigate();
   const { page, shown, view } = usePanelPage();
@@ -209,17 +250,22 @@ export function AssistantDock({ visible }: AssistantDockProps) {
 
   // ── the bubble's signal while the panel is closed ─────────────────────────
   const wasWorking = useRef(false);
+  const lastProposal = turns.at(-1)?.answer?.proposal ?? null;
+  const waiting = lastProposal !== null && (lastProposal.state === 'unchecked' || lastProposal.state === 'open');
   useEffect(() => {
     if (visible) {
       setDockSignal('idle');
     } else if (working) {
       setDockSignal('working');
+    } else if (waiting) {
+      // It asks for a yes or a no: more than an answer that has not been read.
+      setDockSignal('proposal');
     } else if (wasWorking.current) {
       // It finished while nobody was looking.
       setDockSignal('unread');
     }
     wasWorking.current = working;
-  }, [visible, working]);
+  }, [visible, working, waiting]);
 
   // ── the thread follows its end ───────────────────────────────────────────
   const lastStatus = turns.at(-1)?.status;
@@ -235,14 +281,9 @@ export function AssistantDock({ visible }: AssistantDockProps) {
 
   // ── a page that drafts: its own hands, and the lock on what writes ────────
   const pageHost = usePageAssistantHandlersRef<AssistantHostContext>();
-  const homeKey = `${page.context}\n${page.host.documentId ?? ''}\n${page.host.pageId ?? ''}`;
-  // The guardrail is per page and per visit: walking away, or a reload, locks it again.
-  const [enabledOn, setEnabledOn] = useState<string | null>(null);
-  useEffect(() => {
-    // Walking away takes the permission with it: coming back, it is asked for again.
-    setEnabledOn(null);
-  }, [homeKey]);
-  const enabled = enabledOn === homeKey;
+  // What writes is the workspace's to allow: the Create switch stands where a per-visit lock stood.
+  // A server from before the switches says nothing of them, and saved drafts: that is kept.
+  const enabled = conversation.availability?.abilities?.create ?? true;
   const canWrite = conversation.availability?.canWrite ?? false;
   const leave = useCallback(() => {
     if (floating) setDockOpen(false);
@@ -400,10 +441,9 @@ export function AssistantDock({ visible }: AssistantDockProps) {
           onOpenSettings={openSettings}
         />
       ) : null}
-      {unavailable || copy.actions.length === 0 || (enabled && canWrite) ? null : (
-        // Until part 4 gives each kind of action its own switch, one lock for all of them: it is
-        // per page and per visit, and says so by being there again.
-        <ReadOnlyBar name={name} canWrite={canWrite} onEnable={() => setEnabledOn(homeKey)} />
+      {unavailable || copy.actions.length === 0 || canWrite ? null : (
+        // A fact about this person's role on this page: they draft and preview here, and do not save.
+        <ReadOnlyBar />
       )}
       {conversation.usedUpUntil === null ? null : <AllowanceBar resetsAt={conversation.usedUpUntil} />}
         </>
@@ -472,6 +512,35 @@ export function AssistantDock({ visible }: AssistantDockProps) {
               }}
               onGo={() => conversation.answer(turn.id, picks[turn.id] ?? {}, askedPage)}
               onRetry={turn.askText === null ? null : () => submit(turn.askText ?? '')}
+              renderProposal={(proposal, indent) => {
+                const home = proposalHome(turn, pages);
+                const open = (): void => {
+                  if (home === null) return;
+                  if (floating) close();
+                  void navigate({ to: home.to, ...(home.params === undefined ? {} : { params: home.params }) } as never);
+                };
+                return (
+                  <Speaker spacer={indent} bare>
+                    <LiveProposal
+                      sessionId={conversation.sessionId}
+                      turnId={turn.id}
+                      proposal={proposal}
+                      name={name}
+                      atHome={turn.context === page.context && turn.on.pageId === (page.host.pageId ?? null) && turn.on.documentId === (page.host.documentId ?? null)}
+                      homeTitle={turn.on.title ?? contextCopy(turn.context, {}, name).page}
+                      onOpenHome={home === null ? null : open}
+                      onAsk={submit}
+                      blocked={blocked || working}
+                      onChanged={() => conversation.loadWhole(turn.id)}
+                      onOpenTemplate={(id) => {
+                        if (floating) close();
+                        void navigate({ to: '/email-templates/$id', params: { id } } as never);
+                      }}
+                      rtl={document.documentElement.dir === 'rtl'}
+                    />
+                  </Speaker>
+                );
+              }}
               renderResult={(result) =>
                 atHome(turn) ? (
                   <LiveDraft
@@ -482,6 +551,7 @@ export function AssistantDock({ visible }: AssistantDockProps) {
                     name={name}
                     enabled={enabled}
                     canWrite={canWrite}
+                    {...(canConfigure ? { onOpenSettings: openSettings } : {})}
                     tokensIn={turn.tokensIn}
                     tokensOut={turn.tokensOut}
                     runAction={conversation.runAction}
