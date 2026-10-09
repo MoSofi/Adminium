@@ -15,6 +15,7 @@ import {
   ProviderError,
   requireModel,
   stripTrailingSlash,
+  nativeToolCallNames,
   type ProviderClient,
   type ProviderConfig,
 } from './types.js';
@@ -22,7 +23,7 @@ import {
 const DEFAULT_BASE_URL = 'http://localhost:11434';
 
 interface OllamaChatResponse {
-  message?: { content?: string };
+  message?: { content?: string; tool_calls?: { function?: { name?: unknown } }[] };
   prompt_eval_count?: number;
   eval_count?: number;
 }
@@ -60,10 +61,18 @@ export function createOllamaClient(config: ProviderConfig): ProviderClient {
 
       const text = json.message?.content;
       if (typeof text !== 'string' || text.length === 0) {
+        // Some models answer a request for JSON with a call in their own
+        // tool format and no text at all. Named, so a caller can ask again
+        // and say what was wrong; unnamed, it reads as a provider fault.
+        const toolCalls = nativeToolCallNames(json.message?.tool_calls);
         throw new ProviderError({
           provider: 'ollama',
           code: 'empty_response',
-          message: 'ollama: response contained no message content',
+          message:
+            toolCalls.length > 0
+              ? `ollama: the model answered with its own tool call (${toolCalls.join(', ')}) and no text`
+              : 'ollama: response contained no message content',
+          toolCalls,
         });
       }
       return toCompleteResult(text, json.prompt_eval_count, json.eval_count);

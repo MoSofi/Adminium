@@ -56,6 +56,9 @@ export interface AssistantTurnDeps {
 /** The output budget a turn asks for. A drafted document is a few thousand tokens. */
 export const ASSISTANT_MAX_OUTPUT_TOKENS = 8000;
 
+/** The English of a `model-format` failure, for a reader that has no words of its own for it. */
+export const MODEL_FORMAT_MESSAGE = 'This model does not answer in the way the assistant needs. Choose another model.';
+
 /** What a turn is told it ended as when the process running it went away. */
 export const INTERRUPTED_ERROR = {
   kind: 'interrupted',
@@ -228,7 +231,15 @@ export async function executeAssistantTurn(
     return;
   }
   if (outcome.status === 'failed') {
-    await finish({ ...common, status: 'failed', error: errorPayload(outcome.errors) });
+    await finish({
+      ...common,
+      status: 'failed',
+      error:
+        outcome.reason === 'model-format'
+          ? // The model cannot follow the reply format: say which one, so the person can be told to choose another.
+            { kind: 'model-format', provider: resolved.provider, model: resolved.model, message: MODEL_FORMAT_MESSAGE }
+          : errorPayload(outcome.errors),
+    });
     return;
   }
   if (outcome.status === 'cancelled') {

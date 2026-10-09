@@ -467,3 +467,67 @@ describe('a page that drafts nothing', () => {
     expect(outcome.status).toBe('failed');
   });
 });
+
+describe('a model that does not answer in the reply format', () => {
+  const empty = (toolCalls?: string[]) => ({
+    throw: new ProviderError({ provider: 'ollama', code: 'empty_response', message: 'ollama: no text', ...(toolCalls === undefined ? {} : { toolCalls }) }),
+  });
+
+  it('is asked again when its reply was only its own tool call, and told which call that was', async () => {
+    const { scripted, promise } = run([empty(['repo_browser.open_file']), { text: reply({}, 'There are 12.') }], { document: null });
+    const outcome = await promise;
+    expect(outcome).toMatchObject({ status: 'done', say: 'There are 12.' });
+    const sent = scripted.calls[1]!.messages;
+    expect(sent.at(-1)!.content).toContain('"repo_browser.open_file"');
+    expect(sent.at(-1)!.content).toContain('in "calls" INSIDE that object');
+    // Its empty turn is in the record as a word: a provider refuses a message with no text.
+    expect(sent.at(-2)).toEqual({ role: 'assistant', content: '(no text)' });
+  });
+
+  it('ends as the model`s fault, not the wire`s, when it never does', async () => {
+    const { scripted, promise } = run([empty(['shell'])], { document: null });
+    const outcome = await promise;
+    expect(outcome).toMatchObject({ status: 'failed', reason: 'model-format' });
+    // Asked, then twice more.
+    expect(scripted.calls).toHaveLength(3);
+  });
+
+  it('ends the same way after replies it could not read, and not when the model declined', async () => {
+    const unreadable = await run([{ text: 'I think the answer is twelve.' }], { document: null }).promise;
+    expect(unreadable).toMatchObject({ status: 'failed', reason: 'model-format' });
+    const declined = await run([{ text: JSON.stringify({ error: 'I will not do that.' }) }], { document: null }).promise;
+    expect(declined.status).toBe('failed');
+    expect((declined as { reason?: string }).reason).toBeUndefined();
+  });
+
+  it('still ends a turn at once when the provider itself fails', async () => {
+    const { scripted, promise } = run([{ throw: new ProviderError({ provider: 'ollama', code: 'network', message: 'refused' }) }]);
+    const outcome = await promise;
+    expect(outcome.status).toBe('failed');
+    expect((outcome as { reason?: string }).reason).toBeUndefined();
+    expect(scripted.calls).toHaveLength(1);
+  });
+
+  it('keeps a repair for the draft after two for the format', async () => {
+    const draft = (name: string) => reply({ result: { title: 'T', meta: '', artefact: { name } } });
+    let seen = 0;
+    const { promise } = run([{ text: 'not json' }, { text: 'still not json' }, { text: draft('bad') }, { text: draft('good') }], {
+      document: {
+        formatSpec: () => '',
+        examples: () => [],
+        // The first draft is refused by the page; the second is fine.
+        acceptArtefact: (artefact) => {
+          seen += 1;
+          return Promise.resolve(artefact.name === 'good' ? { ok: true as const, artefact } : { ok: false as const, errors: [{ path: 'name', code: 'X', message: 'not that name' }] });
+        },
+        projectForDiff: () => [],
+        baseForDiff: () => Promise.resolve(null),
+        details: () => [],
+      },
+    });
+    const outcome = await promise;
+    // With one shared budget of two, the refused draft was the end of the turn.
+    expect(outcome.status).toBe('done');
+    expect(seen).toBe(2);
+  });
+});
