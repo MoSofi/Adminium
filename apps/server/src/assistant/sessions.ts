@@ -21,6 +21,7 @@ import {
 } from '@adminium/llm';
 import { assistantSessionsRepo, type AssistantSession, type AssistantTurn, type MetaDb } from '@adminium/meta';
 
+import { storedProposalOf } from './proposals.js';
 import type { TurnMessage } from './turn-runner.js';
 
 /** Turns whose messages are worth replaying: the ones that actually happened. */
@@ -150,6 +151,32 @@ function recapOf(session: AssistantSession, piece: HistoryPiece): Record<string,
     answered: say.length <= RECAP_ANSWER_MAX ? say : `${say.slice(0, RECAP_ANSWER_MAX - 1)}…`,
     ...(typeof draft === 'string' ? { drafted: draft } : {}),
     ...(turn.status === 'awaiting_picks' ? { asked_back: true } : {}),
+    ...(proposalOutcomeOf(turn) ?? {}),
+  };
+}
+
+const PROPOSAL_NOTE =
+  'What became of the proposal in your last reply. Only what is listed as done was written; say nothing else was. A proposal that was not confirmed changed nothing: propose again only if the person asks.';
+
+/**
+ * What became of a turn's proposal, as the model is told: whether the person
+ * confirmed it and what the server then did. Never a preview and never a
+ * row: the model learns the outcome, not what the person was shown.
+ */
+function proposalOutcomeOf(turn: AssistantTurn): Record<string, unknown> | null {
+  const proposal = storedProposalOf(turn.answer);
+  if (proposal === null) return null;
+  if (proposal.state !== 'applied' && proposal.state !== 'interrupted' && proposal.state !== 'applying') {
+    return { proposed: proposal.title, confirmed: false };
+  }
+  const outcome = proposal.outcome ?? { done: [], failed: [], notTried: [] };
+  return {
+    proposed: proposal.title,
+    confirmed: true,
+    done: outcome.done.map((entry) => ({ action: entry.index, ...(entry.id === null ? {} : { id: entry.id }) })),
+    ...(outcome.failed.length === 0 ? {} : { refused: outcome.failed.map((entry) => ({ action: entry.index, code: entry.code, message: entry.message })) }),
+    ...(outcome.notTried.length === 0 ? {} : { not_tried: outcome.notTried }),
+    ...(outcome.unsure === undefined || outcome.unsure.length === 0 ? {} : { not_known: outcome.unsure }),
   };
 }
 
@@ -197,6 +224,9 @@ export function composeHistory(input: {
   let outline = newestWhole ? input.pieces.slice(0, -1) : [...input.pieces];
   const tail = newestWhole && newest !== undefined ? newest.whole : [];
   let forgot = 0;
+  // The newest turn's own reply is replayed whole, so what became of its proposal follows it.
+  const became = newestWhole && newest !== undefined ? proposalOutcomeOf(newest.turn) : null;
+  const outcomeNote: TurnMessage | null = became === null ? null : { role: 'user', content: JSON.stringify({ proposal_outcome: became, note: PROPOSAL_NOTE }) };
 
   const build = (): TurnMessage[] => [
     ...(input.open === null ? [] : [input.open]),
@@ -204,6 +234,7 @@ export function composeHistory(input: {
       ? []
       : [{ role: 'user' as const, content: JSON.stringify({ earlier_in_this_conversation: outline.map((piece) => recapOf(input.session, piece)), note: RECAP_NOTE }) }]),
     ...tail,
+    ...(outcomeNote === null ? [] : [outcomeNote]),
     input.opening,
   ];
   const fits = (messages: readonly TurnMessage[]): boolean => estimateTokens(input.system) + size(messages) <= input.limit;

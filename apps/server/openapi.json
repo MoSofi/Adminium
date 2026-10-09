@@ -50997,6 +50997,31 @@
                               "type": "integer",
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991
+                            },
+                            "via": {
+                              "type": "object",
+                              "properties": {
+                                "assistant": {
+                                  "type": "object",
+                                  "properties": {
+                                    "sessionId": {
+                                      "type": "string"
+                                    },
+                                    "turnId": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "sessionId",
+                                    "turnId"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "assistant"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -109917,7 +109942,8 @@
                       "test-send",
                       "sample",
                       "language.add",
-                      "check"
+                      "check",
+                      "apply"
                     ]
                   },
                   "on": {
@@ -109956,6 +109982,20 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 10
+                  },
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "pick": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 49
+                    }
                   }
                 },
                 "required": [
@@ -110075,6 +110115,29 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "undo": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "index": {
+                                "type": "number"
+                              },
+                              "token": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "index",
+                              "token"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "once": {
+                          "type": "array",
+                          "items": {}
                         }
                       },
                       "required": [

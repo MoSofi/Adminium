@@ -202,6 +202,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     rule: input.rule,
     runId: input.runId,
     hops: input.event.hops,
+    ...(input.event.via === undefined ? {} : { via: input.event.via }),
     now,
     source,
     tokens: {},

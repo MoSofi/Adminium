@@ -227,7 +227,7 @@ export const assistantTurnParams = z.object({
 });
 
 export const assistantActionBody = z.object({
-  action: z.enum(['save', 'test-send', 'sample', 'language.add', 'check']),
+  action: z.enum(['save', 'test-send', 'sample', 'language.add', 'check', 'apply']),
   /**
    * The page the person is on when they press the button, and the document
    * open there. A draft belongs to the page and the document it was made
@@ -240,6 +240,10 @@ export const assistantActionBody = z.object({
   name: z.string().min(1).max(120).optional(),
   /** `language.add` only. */
   locale: z.string().min(2).max(10).optional(),
+  /** `apply` only: the hash of the proposal as the person was shown it. */
+  hash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+  /** `apply` only: the actions they left ticked, by index. Left out: every one that can be done. */
+  pick: z.array(z.number().int().min(0).max(49)).min(1).max(50).optional(),
 });
 
 const assistantDraftActionReply = z.object({
@@ -255,7 +259,16 @@ const assistantDraftActionReply = z.object({
  * with what they would see, or let go. Its own shape, so a reply of one kind
  * is never read as the other.
  */
-const assistantCheckReply = z.object({ proposal: z.record(z.string(), z.unknown()) });
+const assistantCheckReply = z.object({
+  proposal: z.record(z.string(), z.unknown()),
+  /**
+   * `apply` only, and only in this one reply: the route's own undo token for
+   * each row that has one, and the one-time codes a new row answered. Neither
+   * is stored with the conversation.
+   */
+  undo: z.array(z.object({ index: z.number(), token: z.string() })).optional(),
+  once: z.array(z.unknown()).optional(),
+});
 
 export const assistantActionReply = z.union([assistantDraftActionReply, assistantCheckReply]);
 

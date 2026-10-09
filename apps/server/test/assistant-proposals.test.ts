@@ -14,15 +14,16 @@
  * - A proposal is let go when the conversation moves on or its time passes.
  */
 import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
-import { assistantSessionsRepo, pagesRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { assistantSessionsRepo, auditRepo, pagesRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { DOOR_HEADER, DOOR_ROUTES, doorPath, DoorRefusedError, isSafeSegment } from '../src/assistant/door.js';
+import { endInterruptedProposals, storedProposalOf } from '../src/assistant/proposals.js';
 import { executeAssistantTurn } from '../src/jobs/assistant-turn.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
-import { legs, person, stack, turnAs, type Stack } from './assistant-lodge.helpers.js';
+import { legs, person, signIn, stack, turnAs, type Stack } from './assistant-lodge.helpers.js';
 import { makeScriptedClient } from './llm-fixtures.js';
 
 const OFF = { create: false, change: false, send: false, delete: false };
@@ -40,9 +41,9 @@ for (const [dialect, available] of legs) {
     const reply = (extra: Record<string, unknown>) => ({ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Here is what I would do.', ...extra }) });
 
     /** One whole turn through the job, with the model's replies scripted. */
-    const turn = async (userId: string, replies: { text: string }[], at = Date.now()) => {
+    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string) => {
       const repo = assistantSessionsRepo(s.meta);
-      const session = await repo.create({ context: 'data', host: { connectionIds: [s.connectionId], pageId }, createdBy: userId });
+      const session = inSession === undefined ? await repo.create({ context: 'data', host: { connectionIds: [s.connectionId], pageId }, createdBy: userId }) : (await repo.findSession(inSession))!;
       const created = await repo.createTurn({ sessionId: session.id, askText: 'Move Ana to in house.' });
       await repo.setTurnStatus(created.id, 'queued', { jobId: 'job_test' });
       const scripted = makeScriptedClient(replies);
@@ -291,6 +292,232 @@ for (const [dialect, available] of legs) {
       expect((await check(night, plain)).status).toBe(422);
       const made = await proposed(night, [stay('1', { late_until: '15:00' })]);
       expect((await check(all, made)).status).toBe(404);
+    });
+
+
+    // ── the confirm ──────────────────────────────────────────────────────────
+
+    type Applied = { status: number; body: string; proposal: Checked & { picked?: number[]; outcome?: { done: { index: number; id: string | null }[]; failed: { index: number; code: string }[]; notTried: number[]; unsure?: number[] } }; undo: { index: number; token: string }[]; reason?: string };
+    const apply = async (who: { cookie: string }, made: { sessionId: string; stored: { id: string } }, hash: string | undefined, pick?: number[]): Promise<Applied> => {
+      const res = await s.app.inject({
+        method: 'POST',
+        url: `/api/v1/assistant/sessions/${made.sessionId}/turns/${made.stored.id}/actions`,
+        headers: { cookie: who.cookie, 'user-agent': 'Panel/1.0' },
+        remoteAddress: '10.9.8.7',
+        payload: { action: 'apply', ...(hash === undefined ? {} : { hash }), ...(pick === undefined ? {} : { pick }) },
+      });
+      const json = res.json() as { proposal?: Applied['proposal']; undo?: Applied['undo']; error?: { details?: { reason?: string; proposal?: Applied['proposal'] } } };
+      return { status: res.statusCode, body: res.body, proposal: (json.proposal ?? json.error?.details?.proposal) as Applied['proposal'], undo: json.undo ?? [], ...(json.error?.details?.reason === undefined ? {} : { reason: json.error.details.reason }) };
+    };
+    const lateOf = async (id: number) => {
+      const handle = await s.manager.data(s.connectionId);
+      return (await sql<{ late: string | null }>`SELECT late_until AS late FROM lodge_stays WHERE id = ${id}`.execute(handle.db)).rows[0]?.late ?? null;
+    };
+    const setLate = (id: number, value: string | null) => s.run(`UPDATE lodge_stays SET late_until = ${value === null ? 'NULL' : `'${value}'`} WHERE id = ${String(id)}`);
+
+    it('writes what was confirmed as the person, once, and the audit says it came through the assistant', async () => {
+      await switches({ create: true, change: true });
+      await setLate(1, null);
+      const made = await proposed(night, [stay('1', { late_until: '14:00' })]);
+      // Not before its check.
+      expect((await apply(night, made, 'a'.repeat(64))).status).toBe(422);
+      const shown = await check(night, made);
+      // Not with another hash, and not without one.
+      const wrong = await apply(night, made, 'b'.repeat(64));
+      expect(wrong).toMatchObject({ status: 409, reason: 'proposal-changed' });
+      expect((await apply(night, made, undefined)).status).toBe(422);
+      expect(await lateOf(1)).toBeNull();
+
+      const done = await apply(night, made, shown.proposal.hash);
+      expect(done.status, done.body).toBe(200);
+      expect(done.proposal).toMatchObject({ state: 'applied', picked: [0], outcome: { done: [{ index: 0, id: '1' }], failed: [], notTried: [] } });
+      expect(await lateOf(1)).toBe('14:00');
+
+      const [entry] = await auditRepo(s.meta).list({ actorId: night.id, category: 'data' });
+      expect(entry).toMatchObject({ action: 'record.update', actorKind: 'user', actorId: night.id, ip: '10.9.8.7', userAgent: 'Panel/1.0' });
+      expect((entry!.changes as { via?: unknown }).via).toEqual({ assistant: { sessionId: made.sessionId, turnId: made.stored.id } });
+
+      // A second confirm finds it spent and writes nothing more.
+      await setLate(1, '09:00');
+      const again = await apply(night, made, shown.proposal.hash);
+      expect(again).toMatchObject({ status: 409, reason: 'proposal-spent', proposal: { state: 'applied' } });
+      expect(await lateOf(1)).toBe('09:00');
+
+      // What the turn keeps: the outcome, and neither a preview nor a token.
+      const kept = await s.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${made.sessionId}/turns/${made.stored.id}`, headers: { cookie: night.cookie } });
+      expect(kept.body).toContain('"state":"applied"');
+      expect(kept.body).not.toContain('preview');
+      for (const { token } of done.undo) expect(kept.body).not.toContain(token);
+
+      // The person's own save on the screen carries no such mark.
+      const own = await s.app.inject({ method: 'PATCH', url: `/api/v1/data/${s.connectionId}/${s.table.stays}/1`, headers: { cookie: night.cookie }, payload: { values: { late_until: '10:00' } } });
+      expect(own.statusCode, own.body).toBe(200);
+      const [plain] = await auditRepo(s.meta).list({ actorId: night.id, category: 'data' });
+      expect(plain!.changes).not.toHaveProperty('via');
+    });
+
+    it('lets one of two confirms sent at once through', async () => {
+      await switches({ change: true });
+      await setLate(1, null);
+      const made = await proposed(night, [stay('1', { late_until: '15:00' })]);
+      const { proposal } = await check(night, made);
+      const both = await Promise.all([apply(night, made, proposal.hash), apply(night, made, proposal.hash)]);
+      expect(both.map((one) => one.status).sort()).toEqual([200, 409]);
+      const writes = (await auditRepo(s.meta).list({ actorId: night.id, category: 'data' })).filter((row) => (row.changes as { via?: { assistant?: { turnId?: string } } } | null)?.via?.assistant?.turnId === made.stored.id);
+      expect(writes).toHaveLength(1);
+    });
+
+    it('shows the difference and asks again when a row moved since the check, a switch was turned off, or the cap was lowered', async () => {
+      await switches({ change: true });
+      await setLate(1, null);
+      const made = await proposed(night, [stay('1', { late_until: '16:00' })]);
+      const shown = await check(night, made);
+      expect(shown.proposal.actions![0]!.preview).toMatchObject({ before: { late_until: null } });
+      // Someone else changed the row.
+      await setLate(1, '11:00');
+      const moved = await apply(night, made, shown.proposal.hash);
+      expect(moved).toMatchObject({ status: 409, reason: 'proposal-changed', proposal: { state: 'open' } });
+      expect(moved.proposal.hash).not.toBe(shown.proposal.hash);
+      expect(moved.proposal.actions![0]).toMatchObject({ seen: { late_until: '11:00' }, preview: { before: { late_until: '11:00' }, after: { late_until: '16:00' } } });
+      expect(await lateOf(1)).toBe('11:00');
+
+      // Switched off meanwhile: nothing is written, and the card says why.
+      await switches({});
+      const off = await apply(night, made, moved.proposal.hash);
+      expect(off).toMatchObject({ status: 409, reason: 'proposal-changed' });
+      expect(off.proposal.actions![0]!.refused).toMatchObject({ code: 'SWITCHED_OFF' });
+      expect(await lateOf(1)).toBe('11:00');
+
+      await switches({ change: true });
+      const two = await proposed(night, [stay('1', { late_until: '17:00' }), stay('1', { depart: '2026-12-05' })]);
+      const both = await check(night, two);
+      const one = await proposed(night, [stay('1', { late_until: '17:00' }), stay('1', { depart: '2026-12-05' })]);
+      const oneShown = await check(night, one);
+      await settingsRepo(s.meta).set('assistant.maxRows', 1);
+      const over = await apply(night, two, both.proposal.hash);
+      // One of the two, ticked, is within the number.
+      const picked = await apply(night, one, oneShown.proposal.hash, [1]);
+      await settingsRepo(s.meta).set('assistant.maxRows', 50);
+      expect(over).toMatchObject({ status: 409, proposal: { state: 'refused', refusal: { code: 'OVER_CAP', count: 2, cap: 1 } } });
+      expect(picked.status, picked.body).toBe(200);
+      expect(picked.proposal).toMatchObject({ picked: [1], outcome: { done: [{ index: 1 }] } });
+      expect(await lateOf(1)).toBe('11:00');
+    });
+
+    it('refuses a pick of something that cannot be done, and reports a row the route refuses at the write', async () => {
+      await switches({ change: true });
+      await setLate(1, null);
+      const made = await proposed(night, [stay('1', { late_until: '18:00' }), stay('999', { late_until: '18:00' })]);
+      const shown = await check(night, made);
+      expect((await apply(night, made, shown.proposal.hash, [1])).status).toBe(422);
+      expect((await apply(night, made, shown.proposal.hash, [0, 7])).status).toBe(422);
+      // Left out, the pick is every action that can be done.
+      const done = await apply(night, made, shown.proposal.hash);
+      expect(done.proposal).toMatchObject({ state: 'applied', picked: [0], outcome: { done: [{ index: 0 }] } });
+    });
+
+    it('adds a row as the person and names it', async () => {
+      await switches({ create: true });
+      const made = await proposed(all, [{ do: 'row.create', connectionId: s.connectionId, table: s.table.stays, values: { room_id: 1, arrive: '2027-01-01', depart: '2027-01-03', guest_name: 'Cleo', status: 'booked' } }]);
+      const shown = await check(all, made);
+      const done = await apply(all, made, shown.proposal.hash);
+      expect(done.status, done.body).toBe(200);
+      const id = done.proposal.outcome!.done[0]!.id;
+      expect(id).toMatch(/^\d+$/);
+      expect(await statusOf('Cleo')).toBe('booked');
+      const [entry] = await auditRepo(s.meta).list({ actorId: all.id, category: 'data' });
+      expect(entry).toMatchObject({ action: 'record.create' });
+      expect((entry!.changes as { via?: unknown }).via).toEqual({ assistant: { sessionId: made.sessionId, turnId: made.stored.id } });
+      await s.run(`DELETE FROM lodge_stays WHERE guest_name = 'Cleo'`);
+    });
+
+    it('ends a confirm that died with its process: what was written is kept, the row in flight is not known, the rest was not tried', async () => {
+      await switches({ change: true });
+      const made = await proposed(night, [stay('1', { late_until: '19:00' }), stay('1', { depart: '2026-12-06' }), stay('1', { arrive: '2026-11-02' })]);
+      await check(night, made);
+      const repo = assistantSessionsRepo(s.meta);
+      const turnRow = (await repo.findTurn(made.stored.id))!;
+      const open = storedProposalOf(turnRow.answer)!;
+      expect(await repo.claimProposal(made.stored.id, Date.now())).toBe(true);
+      expect(await repo.claimProposal(made.stored.id, Date.now())).toBe(false);
+      await repo.recordAnswer(made.stored.id, { ...turnRow.answer, proposal: { ...open, state: 'applying', picked: [0, 1, 2], outcome: { done: [{ index: 0, id: '1' }], failed: [], notTried: [] } } });
+      expect(await endInterruptedProposals(repo, Date.now())).toBeGreaterThanOrEqual(1);
+      const ended = storedProposalOf((await repo.findTurn(made.stored.id))!.answer)!;
+      expect(ended).toMatchObject({ state: 'interrupted', outcome: { done: [{ index: 0 }], unsure: [1], notTried: [2] } });
+      // Ended once: a second start finds nothing left of it.
+      expect((await repo.listUnfinishedProposals()).some((row) => row.id === made.stored.id)).toBe(false);
+      // And it cannot be confirmed again.
+      expect((await apply(night, made, open.hash)).status).toBe(409);
+    });
+
+    it('tells the model what became of its proposal, and never what the person was shown', async () => {
+      await switches({ change: true });
+      await setLate(1, null);
+      const made = await proposed(night, [stay('1', { late_until: '20:00' }), stay('999', { late_until: '20:00' })]);
+      const shown = await check(night, made);
+      // Asked something else before confirming: it was not confirmed.
+      const other = await proposed(night, [stay('1', { late_until: '21:00' })]);
+      await check(night, other);
+      const after = await turn(night.id, [reply({})], Date.now(), other.sessionId);
+      const told = JSON.stringify(after.scripted.calls[0]!.messages);
+      expect(told).toContain('proposal_outcome');
+      expect(told).toContain('\\"confirmed\\":false');
+      expect(told).not.toContain('preview');
+
+      await apply(night, made, shown.proposal.hash);
+      const next = await turn(night.id, [reply({})], Date.now(), made.sessionId);
+      const heard = JSON.stringify(next.scripted.calls[0]!.messages);
+      expect(heard).toContain('\\"confirmed\\":true');
+      expect(heard).toContain('\\"done\\":[{\\"action\\":0,\\"id\\":\\"1\\"}]');
+      expect(heard).not.toContain('preview');
+      expect(heard).not.toContain('undoToken');
+    });
+
+    it('marks what a rule writes because of a confirmed change, and leaves a rule fired by a plain save unmarked', async () => {
+      await switches({ change: true });
+      const owner = await signIn(s.app, 'owner@lodge.dev');
+      const rule = await s.app.inject({
+        method: 'POST',
+        url: '/api/v1/automations',
+        headers: { cookie: owner },
+        payload: {
+          name: 'Note a late leaving',
+          connectionId: s.connectionId,
+          trigger: { kind: 'record', connectionId: s.connectionId, table: s.table.stays, event: 'updated', when: [] },
+          graph: { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'Trigger' }, { id: 'n2', kind: 'action', title: 'Note it', onError: false, action: { kind: 'record.update', values: { note: 'late leaving asked' } } }] },
+          enabled: true,
+        },
+      });
+      expect(rule.statusCode, rule.body).toBe(201);
+      // A run started by a person's write waits out the undo minute; the test does not.
+      const dueNow = async () => {
+        await s.meta.db.updateTable('adminium_jobs').set({ runAt: 0 }).where('status', '=', 'pending').execute();
+        await s.meta.db.updateTable('adminium_automation_runs').set({ wakeAt: 0 }).where('status', '=', 'pending').execute();
+      };
+      const ruleId = (rule.json() as { data?: { id: string }; id?: string }).data?.id ?? (rule.json() as { id: string }).id;
+      try {
+        await setLate(1, null);
+        await s.run(`UPDATE lodge_stays SET note = NULL WHERE id = 1`);
+        const made = await proposed(night, [stay('1', { late_until: '22:00' })]);
+        const shown = await check(night, made);
+        expect((await apply(night, made, shown.proposal.hash)).status).toBe(200);
+        await dueNow();
+        await s.runJobs();
+        const byRule = (await auditRepo(s.meta).list({ category: 'automation' })).filter((row) => row.action === 'record.update' && row.actorKind === 'automation');
+        expect(byRule.length, 'the rule wrote').toBeGreaterThanOrEqual(1);
+        expect((byRule[0]!.changes as { via?: unknown }).via).toEqual({ assistant: { sessionId: made.sessionId, turnId: made.stored.id } });
+
+        // The person's own save starts the same rule, and that run's write carries no mark.
+        await s.run(`UPDATE lodge_stays SET note = NULL WHERE id = 1`);
+        const own = await s.app.inject({ method: 'PATCH', url: `/api/v1/data/${s.connectionId}/${s.table.stays}/1`, headers: { cookie: night.cookie }, payload: { values: { late_until: '23:00' } } });
+        expect(own.statusCode, own.body).toBe(200);
+        await dueNow();
+        await s.runJobs();
+        const [latest] = (await auditRepo(s.meta).list({ category: 'automation' })).filter((row) => row.action === 'record.update' && row.actorKind === 'automation');
+        expect(latest!.changes).not.toHaveProperty('via');
+      } finally {
+        await s.app.inject({ method: 'DELETE', url: `/api/v1/automations/${ruleId}`, headers: { cookie: owner } });
+      }
     });
 
     // ── the door ─────────────────────────────────────────────────────────────

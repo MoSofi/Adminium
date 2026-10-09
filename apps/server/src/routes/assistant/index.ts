@@ -51,10 +51,12 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { assistantDocumentExists, runAssistantAction } from '../../assistant/actions.js';
-import { checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
+import { dataPageOf } from '../../assistant/data-page.js';
+import { applyProposal, checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
+import { viewOrError } from '../../assistant/tools/schema.js';
 import { readAllowance } from '../../assistant/allowance.js';
 import { listedAddOns } from '../../assistant/tools/add-ons.js';
-import type { AssistantAddOn } from '../../assistant/types.js';
+import type { AssistantAddOn, AssistantToolDeps } from '../../assistant/types.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
@@ -185,6 +187,20 @@ function answerView(answer: unknown): Record<string, unknown> | null {
   const stored = storedProposalOf(record);
   const { proposal: _stored, ...rest } = record;
   return stored === null ? rest : { ...rest, proposal: proposalView(stored) };
+}
+
+/** The one key column of the table a turn's page shows, to name a row a confirm made; absent when there is not exactly one. */
+async function keyColumnOf(deps: AssistantToolDeps): Promise<string | undefined> {
+  const page = await dataPageOf(deps);
+  if (page === null || page.connectionId === null || page.table === null) return undefined;
+  const found = await viewOrError(deps, page.connectionId);
+  if ('error' in found) return undefined;
+  try {
+    const key = found.view.table(page.table).primaryKey;
+    return key.length === 1 ? key[0] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The page or document a turn was asked on. The title is filled as the turn is served. */
@@ -609,33 +625,50 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        if (request.body.action === 'check') {
+        if (request.body.action === 'check' || request.body.action === 'apply') {
           const stored = storedProposalOf(turn.answer);
           if (turn.status !== 'done' || stored === null) {
             throw new ValidationFailedError('That turn proposed nothing.', { turnId: turn.id });
           }
           const tail = await sessions.listTurnsTail(session.id, 1);
-          const checked = await checkProposal({
+          // The page the proposal was made on, and the person asking now.
+          const toolDeps = await toolDepsFor({
+            meta,
+            manager: deps.manager,
+            context: turn.context ?? session.context,
+            host: turn.host ?? session.host,
+            userId,
+            can: (permission) => request.can(permission),
+          });
+          const checking = {
             request,
             door: app.assistantDoor,
             meta,
-            // The page the proposal was made on, and the person asking now.
-            deps: await toolDepsFor({
-              meta,
-              manager: deps.manager,
-              context: turn.context ?? session.context,
-              host: turn.host ?? session.host,
-              userId,
-              can: (permission) => request.can(permission),
-            }),
+            deps: toolDeps,
             sessionId: session.id,
             turnId: turn.id,
             proposal: stored,
             newest: tail.turns.at(-1)?.id === turn.id,
             now: app.rbac.now(),
+          };
+          const answer = asRecord(turn.answer) ?? {};
+          if (request.body.action === 'check') {
+            const checked = await checkProposal(checking);
+            if (checked.changed) await sessions.recordAnswer(turn.id, { ...answer, proposal: checked.proposal });
+            return { proposal: proposalView(checked.proposal) };
+          }
+          if (request.body.hash === undefined) {
+            throw new ValidationFailedError('A confirm names the proposal it confirms.', { fields: { hash: { code: 'required' } } });
+          }
+          const applied = await applyProposal({
+            ...checking,
+            store: sessions,
+            answer,
+            hash: request.body.hash,
+            pick: request.body.pick,
+            keyColumn: await keyColumnOf(toolDeps),
           });
-          if (checked.changed) await sessions.recordAnswer(turn.id, { ...(asRecord(turn.answer) ?? {}), proposal: checked.proposal });
-          return { proposal: proposalView(checked.proposal) };
+          return { proposal: proposalView(applied.proposal), undo: applied.handOver.undo, once: applied.handOver.once };
         }
         const result = asRecord(turn.result);
         const artefact = result === null ? null : asRecord(result.artefact);
