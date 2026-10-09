@@ -21,10 +21,12 @@ import {
   WEB_PREFERENCES,
   clampWindowState,
   crashRenderScript,
+  decideFrameNavigation,
   decideNavigation,
   isPermissionAllowed,
   jsonForScript,
   originOf,
+  previewOriginOf,
   parseCrashAction,
   type DisplayArea,
   type WindowState,
@@ -199,6 +201,48 @@ describe('decideNavigation', () => {
     // Same family as blob:, different scheme. The scheme check covers both
     // without either having to be enumerated.
     expect(decideNavigation(`filesystem:${APP_ORIGIN}/temporary/x`, APP_ORIGIN).action).toBe('deny');
+  });
+});
+
+describe('decideFrameNavigation (a frame that is not the main one)', () => {
+  const PREVIEW = previewOriginOf(`${APP_ORIGIN}/design`);
+
+  it('names the preview by the app\'s own port under localhost', () => {
+    expect(PREVIEW).toBe(`http://localhost:${new URL(APP_ORIGIN).port}`);
+    expect(previewOriginOf('https://127.0.0.1:4700/')).toBeNull();
+    expect(previewOriginOf('http://192.168.1.4:4700/')).toBeNull();
+    expect(previewOriginOf('http://127.0.0.1/')).toBeNull();
+    expect(previewOriginOf('not a url')).toBeNull();
+  });
+
+  it.each([
+    ['the preview\'s sign-in', (p: string) => `${p}/designer-preview/enter?ticket=abc`, 'allow'],
+    ['the page the sign-in redirects to', (p: string) => `${p}/a/repairs/`, 'allow'],
+    ['a hosted app framed on the app\'s own origin', () => `${APP_ORIGIN}/apps/repairs/staff/`, 'allow'],
+    ['another port on localhost', () => 'http://localhost:1/', 'deny'],
+    ['localhost over https', (p: string) => p.replace('http:', 'https:') + '/', 'deny'],
+    ['a look-alike host', (p: string) => p.replace('localhost', 'localhost.evil.com') + '/', 'deny'],
+    ['the web', () => 'https://example.com/', 'deny'],
+    ['a blob minted on the preview', (p: string) => `blob:${p}/abc-123`, 'deny'],
+    ['a data: document', () => 'data:text/html,x', 'deny'],
+    ['javascript:', () => 'javascript:alert(1)', 'deny'],
+    ['an unparseable target', () => 'http://', 'deny'],
+  ])('%s', (_label, make, expected) => {
+    expect(decideFrameNavigation(make(PREVIEW as string), APP_ORIGIN, PREVIEW)).toBe(expected);
+  });
+
+  it('knows no preview outside a project being built', () => {
+    expect(decideFrameNavigation(`${PREVIEW as string}/a/repairs/`, APP_ORIGIN, null)).toBe('deny');
+    expect(decideFrameNavigation(`${APP_ORIGIN}/apps/repairs/staff/`, APP_ORIGIN, null)).toBe('allow');
+  });
+
+  it('allows nothing before the handshake', () => {
+    expect(decideFrameNavigation(`${APP_ORIGIN}/`, null, null)).toBe('deny');
+  });
+
+  it('leaves the main frame\'s rule alone: the preview\'s name is not the app', () => {
+    // A frame may be on localhost; the window may not (the preload would load there).
+    expect(decideNavigation(`${PREVIEW as string}/takeover`, APP_ORIGIN).action).toBe('deny');
   });
 });
 

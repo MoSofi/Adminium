@@ -163,6 +163,53 @@ export function decideNavigation(target: string, appOrigin: string | null): Navi
   return { action: 'deny', reason: `blocked ${url.protocol} navigation to ${url.host || target}` };
 }
 
+/**
+ * The rule for a frame that is NOT the main one (`will-frame-navigate`, and
+ * `will-redirect` on a subframe): it may load the app's own origin (a hosted
+ * app's screens are framed there) or the Designer's preview origin, and nothing
+ * else. Nothing is handed to the system browser from here: a frame that wants
+ * to leave simply does not.
+ *
+ * WHY A SECOND RULE AND NOT A WIDER FIRST ONE. The Designer's preview is a frame
+ * on `http://localhost:<port>` that signs in with a 303 on that name. Tried on a
+ * packed build (66-T12, B5): `will-redirect` fires for subframes too, so the
+ * main frame's rule cancelled that redirect and the preview stayed blank.
+ * Adding `localhost` to the main frame's rule instead would let a page written
+ * by a model take the whole window to `localhost` (with a click's activation
+ * Chromium lets a frame set `top.location`), where the preload loads and the
+ * bridge is live. So the main frame keeps {@link decideNavigation} unchanged,
+ * and only a subframe may be on the preview's name.
+ *
+ * @param previewOrigin `http://localhost:<port>` while a project is being
+ *                      built, else `null`.
+ */
+export function decideFrameNavigation(
+  target: string,
+  appOrigin: string | null,
+  previewOrigin: string | null,
+): 'allow' | 'deny' {
+  const url = safeParse(target);
+  if (url === null) return 'deny';
+  for (const allowed of [appOrigin, previewOrigin]) {
+    const origin = allowed === null ? null : safeParse(allowed);
+    // The scheme is matched for the reason given on decideNavigation: `blob:`
+    // inherits the origin of the URL inside it.
+    if (origin !== null && url.protocol === origin.protocol && url.origin === origin.origin) return 'allow';
+  }
+  return 'deny';
+}
+
+/**
+ * The preview's origin for an app URL: the same port under the name
+ * `localhost`, which is what design mode serves the preview on. `null` for
+ * anything that is not `http://127.0.0.1:<port>`.
+ */
+export function previewOriginOf(appUrl: string): string | null {
+  const parsed = safeParse(appUrl);
+  if (parsed === null || parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || parsed.port === '') return null;
+  return `http://localhost:${parsed.port}`;
+}
+
 /** `new URL`, as a value rather than an exception. */
 function safeParse(url: string): URL | null {
   try {
@@ -422,8 +469,12 @@ export function crashRenderScript(info: CrashScreenInfo): string {
 export interface DesktopWindows {
   /** The bundled splash. Creates the window if it does not exist. */
   showBoot(): Promise<void>;
-  /** Navigate to the loopback app URL. */
-  loadApp(url: string): Promise<void>;
+  /**
+   * Navigate to the loopback app URL. `preview: true` while a project is being
+   * built: a subframe may then also load the Designer's preview origin
+   * ({@link decideFrameNavigation}).
+   */
+  loadApp(url: string, opts?: { readonly preview?: boolean }): Promise<void>;
   /** The bundled crash page. */
   showCrash(info: CrashScreenInfo): Promise<void>;
   /** A second launch focuses the existing window. */
@@ -504,6 +555,9 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   let win: BrowserWindow | null = null;
   /** The loopback origin nav is locked to; `null` whenever no server page is up. */
   let appOrigin: string | null = null;
+  /** The Designer's preview origin a subframe may load; `null` outside a project being built. */
+  let previewOrigin: string | null = null;
+  let lastAppPreview = false;
   /**
    * Whether the crash page is the document currently loaded — the gate on
    * treating a `?action=` navigation as a button press.
@@ -619,8 +673,19 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
 
     // A redirect can cross origins after `will-navigate` already allowed the
     // request, so the decision is re-made on the redirect itself.
+    // It fires for subframes as well, which have their own rule.
     created.webContents.on('will-redirect', (event, target) => {
-      if (decideNavigation(target, appOrigin).action !== 'allow') event.preventDefault();
+      const allowed = event.isMainFrame
+        ? decideNavigation(target, appOrigin).action === 'allow'
+        : decideFrameNavigation(target, appOrigin, previewOrigin) === 'allow';
+      if (!allowed) event.preventDefault();
+    });
+
+    // `will-navigate` is the main frame's only. This one fires for every frame,
+    // a frame's first load included; the main frame is left to the handler above.
+    created.webContents.on('will-frame-navigate', (event) => {
+      if (event.isMainFrame) return;
+      if (decideFrameNavigation(event.url, appOrigin, previewOrigin) !== 'allow') event.preventDefault();
     });
 
     // ── permission handlers ──
@@ -689,13 +754,16 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       // handshake lands. Clearing it means a server that died and is restarting
       // cannot leave a dead origin allowed.
       appOrigin = null;
+      previewOrigin = null;
       showingCrash = false;
       await target.loadFile(bootPage);
     },
 
-    async loadApp(url: string): Promise<void> {
+    async loadApp(url: string, opts?: { readonly preview?: boolean }): Promise<void> {
       const target = await create();
       appOrigin = originOf(url);
+      lastAppPreview = opts?.preview === true;
+      previewOrigin = lastAppPreview ? previewOriginOf(url) : null;
       showingCrash = false;
       lastAppUrl = url;
       await target.loadURL(url);
@@ -704,6 +772,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     async showCrash(info: CrashScreenInfo): Promise<void> {
       const target = await create();
       appOrigin = null;
+      previewOrigin = null;
       showingCrash = true;
       await target.loadFile(crashPage);
       await target.webContents.executeJavaScript(crashRenderScript(info));
@@ -722,6 +791,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
         return;
       }
       appOrigin = originOf(lastAppUrl);
+      previewOrigin = lastAppPreview ? previewOriginOf(lastAppUrl) : null;
       await target.loadURL(lastAppUrl);
     },
 
