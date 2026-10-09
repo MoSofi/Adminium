@@ -25,6 +25,7 @@
 @source "../../../widgets/src/**/*.{ts,tsx}";
 @source "../../../charts/src/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/designer/**/*.{ts,tsx}";
+@source "../../../../apps/dashboard/src/assistant/**/*.{ts,tsx}";
 
 /* Paint the theme onto the preview surface.
 

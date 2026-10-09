@@ -17,6 +17,8 @@ const config: StorybookConfig = {
     '../../widgets/src/**/*.stories.tsx',
     // Adminium Designer's presentational pieces: pure components with their data as props.
     '../../../apps/dashboard/src/designer/**/*.stories.tsx',
+    // The assistant's panel: a view fed by props, in the states the comp draws.
+    '../../../apps/dashboard/src/assistant/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

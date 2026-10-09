@@ -8,7 +8,6 @@
  * offers the way back. The server refuses the action as well; this is why the
  * person is not offered it.
  */
-import { Link } from '@tanstack/react-router';
 import { ArrowRight, FileText, FileX, MapPin } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
@@ -17,7 +16,17 @@ import { contextCopy } from '../contexts.js';
 import type { ThreadTurn } from '../thread.js';
 
 /** Where a context's drafts are used: its manager, or the open document's editor. Null: a page with no fixed address. */
-export function draftHome(context: AssistantContext, documentId: string | null): { to: string; params?: Record<string, string> } | null {
+export interface DraftHome {
+  to: string;
+  params?: Record<string, string>;
+}
+
+/** The address of a draft's home, for the link's own `href`: opened in a new tab it still goes there. */
+export function draftHref(home: DraftHome): string {
+  return Object.entries(home.params ?? {}).reduce((path, [key, value]) => path.replace(`$${key}`, encodeURIComponent(value)), home.to);
+}
+
+export function draftHome(context: AssistantContext, documentId: string | null): DraftHome | null {
   switch (context) {
     case 'email':
       return documentId === null ? { to: '/email-templates' } : { to: '/email-templates/$id', params: { id: documentId } };
@@ -36,11 +45,11 @@ export interface ParkedDraftProps {
   /** The turn that made it: its context and document say where it belongs. */
   madeOn: Pick<ThreadTurn, 'context' | 'on'>;
   name: string;
-  /** Called as the link is followed, to put a panel that lies over the page out of the way. */
-  onNavigate?: (() => void) | undefined;
+  /** Go there, inside the app. Absent (a story): the link is a plain link. */
+  onOpen?: ((home: DraftHome) => void) | undefined;
 }
 
-export function ParkedDraft({ title, madeOn, name, onNavigate }: ParkedDraftProps) {
+export function ParkedDraft({ title, madeOn, name, onOpen }: ParkedDraftProps) {
   const page = madeOn.on.title ?? contextCopy(madeOn.context, {}, name).page;
   // Its document is gone: there is nowhere left to use it, and nothing to offer.
   const gone = madeOn.on.gone;
@@ -57,15 +66,19 @@ export function ParkedDraft({ title, madeOn, name, onNavigate }: ParkedDraftProp
           <span>{gone ? t('assistant:parked.deleted', 'This draft’s document was deleted.') : t('assistant:parked.madeOn', 'Made on {page}.', { page })}</span>
         </div>
         {home === null ? null : (
-          <Link
-            to={home.to}
-            {...(home.params === undefined ? {} : { params: home.params })}
-            onClick={onNavigate}
+          <a
+            href={draftHref(home)}
+            onClick={(event) => {
+              // A plain click stays in the app; a modified one (new tab) is the browser's.
+              if (onOpen === undefined || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+              event.preventDefault();
+              onOpen(home);
+            }}
             className="nb-press inline-flex items-center gap-[7px] self-start whitespace-nowrap rounded-[10px] border border-border-strong bg-surface px-[13px] py-2 text-[12.5px] font-bold leading-[1.2] text-fg hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {t('assistant:parked.open', 'Open {page} to use this draft', { page })}
             <ArrowRight className="size-3.5 rtl:-scale-x-100" aria-hidden="true" />
-          </Link>
+          </a>
         )}
       </div>
     </div>
