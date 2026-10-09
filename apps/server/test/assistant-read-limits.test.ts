@@ -401,7 +401,7 @@ for (const [dialect, available] of legs) {
           ],
         },
       });
-      const accept = (who: TurnSetup, artefact: Record<string, unknown>) => automationContext.acceptArtefact(artefact, who.deps);
+      const accept = (who: TurnSetup, artefact: Record<string, unknown>) => automationContext.document!.acceptArtefact(artefact, who.deps);
       // What the planner reads and may change: accepted.
       const fine = await accept(setup, rule('late_until'));
       expect(fine.ok, JSON.stringify(fine)).toBe(true);

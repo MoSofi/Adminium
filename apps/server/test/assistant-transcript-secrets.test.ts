@@ -25,7 +25,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { runAssistantTurn, type TurnMessage } from '../src/assistant/turn-runner.js';
-import type { AssistantContextAdapter } from '../src/assistant/types.js';
+import type { AssistantDocument } from '../src/assistant/types.js';
 import type { ProviderClient } from '@adminium/llm';
 
 const KEY = 'sk-ant-this-is-the-secret-key-0123456789';
@@ -52,12 +52,8 @@ function clientHoldingKey(seen: { system: string; messages: readonly TurnMessage
   } as unknown as ProviderClient;
 }
 
-function stubContext(): AssistantContextAdapter {
+function stubDocument(): AssistantDocument {
   return {
-    key: 'email',
-    pageLabel: 'Email templates',
-    toolNames: [],
-    pageFacts: () => Promise.resolve({ values: {}, scope: { primary: '', extra: 0 }, prompt: '' }),
     formatSpec: () => 'FORMAT',
     examples: () => [],
     acceptArtefact: (artefact) => Promise.resolve({ ok: true, artefact }),
@@ -79,7 +75,7 @@ describe('the stored transcript', () => {
       system: 'You are Milo.',
       pageFacts: { templates: 2 },
       messages: [{ role: 'user', content: 'Draft a reminder' }],
-      context: stubContext(),
+      document: stubDocument(),
       execute: () => Promise.resolve({ result: {} }),
       accept: (artefact) => Promise.resolve({ ok: true, artefact }),
       onStep: (event) => {
@@ -123,7 +119,7 @@ describe('the stored transcript', () => {
       maxTokens: 1000,
       system: 'You are Milo.',
       messages: [{ role: 'user', content: 'What were you given?' }],
-      context: stubContext(),
+      document: stubDocument(),
       execute: () => Promise.resolve({ result: {} }),
       accept: (artefact) => Promise.resolve({ ok: true, artefact }),
     });

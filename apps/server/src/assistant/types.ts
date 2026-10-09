@@ -143,18 +143,13 @@ export type AssistantArtefactCheck =
   | { ok: false; errors: AssistantArtefactRejection[] };
 
 /**
- * One host page, as the runner sees it. Everything that differs between the
- * four pages lives behind this and nothing else in the runner branches on the
- * context.
+ * What a page DRAFTS: its format, its worked examples, its own validator and
+ * what a diff compares. A page that drafts nothing (a data page, the general
+ * assistant) has none of this, and says so by leaving
+ * {@link AssistantContextAdapter.document} out — the prompt then has no
+ * document sections and the reply contract no `result`.
  */
-export interface AssistantContextAdapter {
-  key: AssistantContextKey;
-  /** The page's name in the prompt's first line. English; the model answers in the operator's locale. */
-  pageLabel: string;
-  /** Which tools this page offers, in catalogue order. Row tools are filtered out elsewhere. */
-  toolNames: readonly string[];
-  /** What is true of the page right now. */
-  pageFacts: (deps: AssistantToolDeps) => Promise<AssistantPageFacts>;
+export interface AssistantDocument {
   /** The document format, rendered for the prompt. */
   formatSpec: () => string;
   /** Worked examples in that format — the page's own starters, rendered. */
@@ -184,6 +179,23 @@ export interface AssistantContextAdapter {
    * silently recomputed by somebody else's reach.
    */
   resample?: (artefact: Record<string, unknown>, deps: AssistantToolDeps) => Promise<AssistantResample>;
+}
+
+/**
+ * One host page, as the runner sees it. Everything that differs between the
+ * pages lives behind this and nothing else in the runner branches on the
+ * context.
+ */
+export interface AssistantContextAdapter {
+  key: AssistantContextKey;
+  /** The page's name in the prompt's first line. English; the model answers in the operator's locale. */
+  pageLabel: string;
+  /** Which tools this page offers, in catalogue order. Row tools are filtered out elsewhere. */
+  toolNames: readonly string[];
+  /** What is true of the page right now. */
+  pageFacts: (deps: AssistantToolDeps) => Promise<AssistantPageFacts>;
+  /** What the page drafts. Absent on a page that drafts nothing. */
+  document?: AssistantDocument;
 }
 
 /** What a re-run came back with. */

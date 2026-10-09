@@ -582,11 +582,11 @@ async function testSend(input: AssistantActionInput, at: number): Promise<Assist
 async function sampleAgain(input: AssistantActionInput): Promise<AssistantActionResult> {
   const artefact = input.artefact;
   const label = text(record(artefact.body).customerName, 'sample');
-  const adapter = contextAdapter(input.context);
-  if (adapter.resample === undefined || input.toolDeps === undefined) {
+  const resample = contextAdapter(input.context).document?.resample;
+  if (resample === undefined || input.toolDeps === undefined) {
     return { echo: { kind: 'sampled', label }, sample: { artefact, label } };
   }
-  const run = await adapter.resample(artefact, input.toolDeps);
+  const run = await resample(artefact, input.toolDeps);
   // A redraw NAMES its record; a re-run COUNTS its figures. The page decides
   // which it did, because only the page knows what its preview is made of.
   return {

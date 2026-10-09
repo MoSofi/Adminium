@@ -128,8 +128,7 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
     pageLabel: adapter.pageLabel,
     localeName: localeName(locale),
     pageFacts: facts.prompt,
-    formatSpec: adapter.formatSpec(),
-    examples: adapter.examples(deps),
+    document: adapter.document === undefined ? null : { formatSpec: adapter.document.formatSpec(), examples: adapter.document.examples(deps) },
     tools: specs,
     rowsUnavailable: rowData ? null : ROWS_UNAVAILABLE_NOTE,
   });

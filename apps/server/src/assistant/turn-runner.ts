@@ -50,7 +50,7 @@ import {
 } from '@adminium/llm';
 
 import { buildRepairMessage, DEFAULT_MAX_REPAIRS, type RunFailureError } from '../llm/direct-runner.js';
-import type { AssistantContextAdapter, AssistantToolOutcome } from './types.js';
+import type { AssistantDocument, AssistantToolOutcome } from './types.js';
 
 /** A message as it goes to the provider and as the transcript stores it. */
 export interface TurnMessage {
@@ -90,7 +90,13 @@ export interface TurnRunInput {
   pageFacts?: Record<string, string | number | boolean> | undefined;
   /** Earlier turns' messages, then this turn's opening message. */
   messages: readonly TurnMessage[];
-  context: AssistantContextAdapter;
+  /**
+   * What the page drafts: how a draft is projected for the diff and which
+   * rows its details tab carries. `undefined` on a page that drafts nothing —
+   * a reply is then checked against the contract that has no `result`, and
+   * one that drafts anyway costs a repair like any other unreadable reply.
+   */
+  document?: Pick<AssistantDocument, 'projectForDiff' | 'details'> | undefined;
   /** Runs one tool call. Answers a failure as data; never throws for the model's mistakes. */
   execute: (call: { id: string; tool: string; args: Record<string, unknown> }) => Promise<AssistantToolOutcome>;
   /** Resolve the lines a `basedOn` document projects to, for the diff. */
@@ -260,7 +266,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     usage.tokensIn += reply.usage?.inputTokens ?? 0;
     usage.tokensOut += reply.usage?.outputTokens ?? 0;
 
-    const parsed = parseAssistantTurn(reply.text);
+    const parsed = parseAssistantTurn(reply.text, undefined, { document: input.document !== undefined });
     if (!parsed.ok) {
       if (repairs >= maxRepairs) return failed([...parsed.errors]);
       repairs += 1;
@@ -365,7 +371,8 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       messages.push({ role: 'assistant', content: reply.text });
       const artefact = accepted.artefact;
       const basedOn = result.basedOn ?? null;
-      const draftLines = input.context.projectForDiff(artefact);
+      // A `result` only parses on a page that has a document, so this is never the empty case.
+      const draftLines = input.document?.projectForDiff(artefact) ?? [];
       const baseLines = basedOn === null ? null : ((await input.baseLines?.(basedOn)) ?? null);
       // No base means a new document, and every line of it is an addition —
       // which is what the card says above the lines.
@@ -384,7 +391,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
           // The page's own rows first, then whatever the model added. The
           // page's are KINDS the dashboard words; the model's are its own
           // label/value pairs and are shown as it wrote them.
-          details: input.context.details(artefact),
+          details: input.document?.details(artefact) ?? [],
           modelDetails: [...(result.details ?? [])],
           checks: [...(result.checks ?? [])],
           followups: [...(result.followups ?? [])],

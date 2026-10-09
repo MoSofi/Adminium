@@ -19,7 +19,7 @@ import {
 } from '@adminium/llm';
 
 import { runAssistantTurn, type TurnMessage, type TurnRunInput } from '../src/assistant/turn-runner.js';
-import type { AssistantContextAdapter, AssistantToolOutcome } from '../src/assistant/types.js';
+import type { AssistantDocument, AssistantToolOutcome } from '../src/assistant/types.js';
 import { makeScriptedClient, ProviderError, type ScriptStep } from './llm-fixtures.js';
 
 /** A reply the contract accepts, with whichever move the test needs. */
@@ -31,13 +31,9 @@ function call(id: string, tool: string, args: Record<string, unknown> = {}): Rec
   return { id, tool, args, step: { icon: 'database', label: `Run ${tool}`, detail: '' } };
 }
 
-/** A context that accepts anything with a `name`, and projects two lines. */
-function stubContext(overrides: Partial<AssistantContextAdapter> = {}): AssistantContextAdapter {
+/** A page's document that accepts anything, and projects two lines. */
+function stubDocument(overrides: Partial<AssistantDocument> = {}): AssistantDocument {
   return {
-    key: 'email',
-    pageLabel: 'Email templates',
-    toolNames: [],
-    pageFacts: () => Promise.resolve({ values: {}, scope: { primary: '', extra: 0 }, prompt: '' }),
     formatSpec: () => '',
     examples: () => [],
     acceptArtefact: (artefact) => Promise.resolve({ ok: true as const, artefact }),
@@ -50,7 +46,8 @@ function stubContext(overrides: Partial<AssistantContextAdapter> = {}): Assistan
 
 interface RunOptions {
   execute?: TurnRunInput['execute'];
-  context?: AssistantContextAdapter;
+  /** `null` for a page that drafts nothing. */
+  document?: AssistantDocument | null;
   overrides?: Partial<TurnRunInput>;
 }
 
@@ -58,6 +55,7 @@ function run(script: readonly ScriptStep[], options: RunOptions = {}) {
   const scripted = makeScriptedClient(script);
   const events: { event: AssistantStepEvent; percent: number }[] = [];
   const messages: TurnMessage[] = [{ role: 'user', content: 'Draft a welcome email' }];
+  const document = options.document === undefined ? stubDocument() : options.document;
   const promise = runAssistantTurn({
     client: scripted.client,
     model: 'm',
@@ -65,9 +63,9 @@ function run(script: readonly ScriptStep[], options: RunOptions = {}) {
     maxTokens: 4000,
     system: 'SYSTEM',
     messages,
-    context: options.context ?? stubContext(),
+    document: document ?? undefined,
     execute: options.execute ?? (() => Promise.resolve({ result: { ok: true } })),
-    accept: (artefact) => (options.context ?? stubContext()).acceptArtefact(artefact, {} as never),
+    accept: (artefact) => (document ?? stubDocument()).acceptArtefact(artefact, {} as never),
     onStep: (event, percent) => {
       events.push({ event, percent });
     },
@@ -437,5 +435,35 @@ describe('the page-read step', () => {
   it('is absent when the caller has no page to report', async () => {
     const outcome = await run([{ text: reply({}) }]).promise;
     expect(outcome.steps.map((step) => step.id)).not.toContain('page');
+  });
+});
+
+describe('a page that drafts nothing', () => {
+  it('answers in words, with the tools it ran', async () => {
+    const { promise } = run(
+      [
+        { text: reply({ calls: [call('c1', 'read_rows', { table: 'main.customers' })] }) },
+        { text: reply({}, 'You have 12 customers.') },
+      ],
+      { document: null, execute: () => Promise.resolve({ result: { total: 12 }, tables: ['shop.main.customers'] }) },
+    );
+    const outcome = await promise;
+    expect(outcome).toMatchObject({ status: 'done', say: 'You have 12 customers.', result: null, sources: ['shop.main.customers'] });
+  });
+
+  it('sends a draft back as a reply the page cannot use, and takes the answer that follows', async () => {
+    const drafted = reply({ result: { title: 'T', meta: '', artefact: { name: 'x' } } }, 'Here is a draft.');
+    const { scripted, promise } = run([{ text: drafted }, { text: reply({}, 'There are 12.') }], { document: null });
+    const outcome = await promise;
+    expect(outcome).toMatchObject({ status: 'done', say: 'There are 12.', result: null });
+    // The model was told why, in the words of the contract it was shown.
+    expect(scripted.calls[1]?.messages.at(-1)?.content).toContain('This page has no document');
+  });
+
+  it('ends the turn when the model keeps drafting', async () => {
+    const drafted = reply({ result: { title: 'T', meta: '', artefact: { name: 'x' } } });
+    const { promise } = run([{ text: drafted }], { document: null });
+    const outcome = await promise;
+    expect(outcome.status).toBe('failed');
   });
 });

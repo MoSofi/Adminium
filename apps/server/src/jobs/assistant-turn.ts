@@ -176,6 +176,7 @@ export async function executeAssistantTurn(
     return;
   }
 
+  const document = setup.adapter.document;
   const outcome = await runAssistantTurn({
     client: resolved.client,
     model: resolved.model,
@@ -186,10 +187,14 @@ export async function executeAssistantTurn(
     // first step, before anything is asked.
     pageFacts: setup.facts as Record<string, string | number | boolean>,
     messages,
-    context: setup.adapter,
+    document: document,
     execute: setup.execute,
-    accept: (artefact) => setup.adapter.acceptArtefact(artefact, setup.deps),
-    baseLines: (basedOn) => setup.adapter.baseForDiff(basedOn, setup.deps),
+    // Never reached on a page that drafts nothing: a `result` does not parse there.
+    accept: (artefact) =>
+      document === undefined
+        ? Promise.resolve({ ok: false as const, errors: [{ path: 'result', code: 'NO_DOCUMENT', message: 'This page has no document.' }] })
+        : document.acceptArtefact(artefact, setup.deps),
+    baseLines: (basedOn) => (document === undefined ? Promise.resolve(null) : document.baseForDiff(basedOn, setup.deps)),
     onStep: async (event, _percent, steps) => {
       // The step envelope IS the message: the dashboard parses it and draws
       // the row. `pct` is advisory — a turn does not know how many rounds it

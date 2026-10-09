@@ -24,6 +24,7 @@ import { connectionsSection, countLabel, documentNamesSection, readableConnectio
 import type {
   AssistantArtefactCheck,
   AssistantContextAdapter,
+  AssistantDocument,
   AssistantDetailRow,
   AssistantToolDeps,
 } from '../types.js';
@@ -187,43 +188,8 @@ function documentOf(artefact: Record<string, unknown>): Record<string, unknown> 
   return asRecord(artefact.document);
 }
 
-export const emailContext: AssistantContextAdapter = {
-  key: 'email',
-  pageLabel: 'Email templates',
-  toolNames: [
-    'list_documents',
-    'read_document',
-    'list_starters',
-    'workspace_settings',
-    'email_variables',
-    'list_connections',
-    'describe_schema',
-    'read_rows',
-    'aggregate',
-  ],
-
-  async pageFacts(deps) {
-    const templates = emailTemplatesRepo(deps.meta);
-    const counts = await templates.counts(false);
-    const rows = await templates.list({});
-    const connections = await readableConnections(deps);
-    const summary = tablesSummary(connections);
-    const locales = [...new Set(rows.map((row) => row.locale))];
-
-    return {
-      values: { templates: counts.template, campaigns: counts.campaign, tables: summary.tables },
-      scope: { primary: '', extra: summary.tables },
-      prompt: [
-        `This page holds ${countLabel(counts.template, 'template', 'templates')} and ${countLabel(counts.campaign, 'campaign', 'campaigns')}.`,
-        `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
-        `Languages in use: ${locales.length === 0 ? 'none yet' : locales.join(', ')}.`,
-        '',
-        'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
-      ].join('\n'),
-    };
-  },
-
+/** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
+const emailDocument: AssistantDocument = {
   formatSpec() {
     return [
       'A document is `{ kind, name, locale, document }`, plus `basedOn` when it is a language variation of an existing document.',
@@ -272,4 +238,44 @@ export const emailContext: AssistantContextAdapter = {
       { kind: 'variables', args: { variables: vars.join(', ') } },
     ];
   },
+};
+
+export const emailContext: AssistantContextAdapter = {
+  key: 'email',
+  pageLabel: 'Email templates',
+  toolNames: [
+    'list_documents',
+    'read_document',
+    'list_starters',
+    'workspace_settings',
+    'email_variables',
+    'list_connections',
+    'describe_schema',
+    'read_rows',
+    'aggregate',
+  ],
+
+  async pageFacts(deps) {
+    const templates = emailTemplatesRepo(deps.meta);
+    const counts = await templates.counts(false);
+    const rows = await templates.list({});
+    const connections = await readableConnections(deps);
+    const summary = tablesSummary(connections);
+    const locales = [...new Set(rows.map((row) => row.locale))];
+
+    return {
+      values: { templates: counts.template, campaigns: counts.campaign, tables: summary.tables },
+      scope: { primary: '', extra: summary.tables },
+      prompt: [
+        `This page holds ${countLabel(counts.template, 'template', 'templates')} and ${countLabel(counts.campaign, 'campaign', 'campaigns')}.`,
+        `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
+        `Languages in use: ${locales.length === 0 ? 'none yet' : locales.join(', ')}.`,
+        '',
+        'Connected databases and the tables this person may read:',
+        connectionsSection(connections),
+      ].join('\n'),
+    };
+  },
+
+  document: emailDocument,
 };
