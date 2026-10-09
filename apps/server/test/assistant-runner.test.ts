@@ -531,3 +531,17 @@ describe('a model that does not answer in the reply format', () => {
     expect(seen).toBe(2);
   });
 });
+
+describe('an answer with nothing in it', () => {
+  it('is asked for again rather than shown as an empty reply', async () => {
+    const { scripted, promise } = run([{ text: reply({}, '') }, { text: reply({}, '   ') }, { text: reply({}, 'Twelve.') }], { document: null });
+    const outcome = await promise;
+    expect(outcome).toMatchObject({ status: 'done', say: 'Twelve.' });
+    expect(scripted.calls[1]!.messages.at(-1)!.content).toContain('"say" is empty');
+  });
+
+  it('lets a draft speak for itself: a result needs no words beside it', async () => {
+    const { promise } = run([{ text: reply({ result: { title: 'T', meta: '', artefact: { name: 'x' } } }, '') }]);
+    expect((await promise).status).toBe('done');
+  });
+});

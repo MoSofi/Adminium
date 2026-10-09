@@ -438,7 +438,16 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       };
     }
 
-    // A plain answer: no move, just words.
+    // A plain answer: no move, just words. With no words either it is nothing at all, and the
+    // person would be shown an empty bubble as if it were an answer: asked again, like any reply
+    // that cannot be read.
+    if (turn.say.trim() === '') {
+      if (formatRepairs >= maxRepairs) return failed([{ code: 'LLM_SCHEMA_INVALID', severity: 'fatal', path: 'say', message: NOTHING_SAID_MESSAGE }], 'model-format');
+      formatRepairs += 1;
+      messages.push({ role: 'assistant', content: reply.text });
+      messages.push({ role: 'user', content: buildRepairMessage([{ code: 'LLM_SCHEMA_INVALID', severity: 'fatal', path: 'say', message: NOTHING_SAID_MESSAGE }]) });
+      continue;
+    }
     messages.push({ role: 'assistant', content: reply.text });
     return {
       status: 'done',
@@ -454,6 +463,9 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
 
   return failed([ROUND_CAP_ERROR]);
 }
+
+/** Said to a model that made no move and wrote nothing. */
+const NOTHING_SAID_MESSAGE = 'Your reply made no move and "say" is empty. Answer the person in "say", or use "calls" or "ask".';
 
 /** What stands in the transcript for a reply that had no text. */
 export const EMPTY_REPLY_PLACEHOLDER = '(no text)';
