@@ -30,8 +30,9 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PageActionsProvider } from '../../shell/PageActionsProvider.js';
@@ -238,6 +239,13 @@ async function openModal(options: { host?: Partial<AssistantHostContext>; availa
   routes[key('POST', `${BASE}/facts`)] ??= () => ({ facts: sessionReply().facts, nextTurnTokens: 1200 });
   routes[key('POST', `${BASE}/sessions`)] = () => sessionReply();
   const host = makeHost(options.host ?? {});
+  /** The page on screen: swapped by a test that walks away and back. */
+  let walk: (next: AssistantHostContext | null) => void = () => undefined;
+  function Page() {
+    const [current, setCurrent] = useState<AssistantHostContext | null>(host);
+    walk = setCurrent;
+    return current === null ? null : <AskAssistant host={current} slot="manager" />;
+  }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   queryClient.setQueryData(['bootstrap'], makeBootstrap({ assistant: { allowed: true, name: 'Milo' } } as never));
   const rootRoute = createRootRoute({
@@ -245,7 +253,7 @@ async function openModal(options: { host?: Partial<AssistantHostContext>; availa
       <QueryClientProvider client={queryClient}>
         <PageActionsProvider>
           <div data-testid="page-column">
-            <AskAssistant host={host} slot="manager" />
+            <Page />
           </div>
           <AssistantDock visible />
         </PageActionsProvider>
@@ -255,7 +263,7 @@ async function openModal(options: { host?: Partial<AssistantHostContext>; availa
   const router = createRouter({ routeTree: rootRoute, history: createMemoryHistory({ initialEntries: ['/'] }) });
   const view = render(<RouterProvider router={router} />);
   await waitFor(() => expect(screen.getByTestId('assistant-looking-at').textContent).not.toBe('Loading conversation…'));
-  return { host, view, router };
+  return { host, view, router, walk: (next: AssistantHostContext | null) => act(() => walk(next)) };
 }
 
 // ─── the shell ───────────────────────────────────────────────────────────────
@@ -683,7 +691,8 @@ describe('a turn that failed', () => {
 });
 
 describe('the daily allowance, in the window', () => {
-  const RESETS_AT = Date.UTC(2026, 9, 10);
+  // Always ahead of the clock the test runs by: the bar goes by itself once the day has turned.
+  const RESETS_AT = Date.now() + 6 * 3_600_000;
 
   it('says the day is used up and when it starts again, and takes no question', async () => {
     await openModal({ availability: { budget: { limit: 1000, used: 1000, resetsAt: RESETS_AT, left: false } } });
@@ -855,6 +864,35 @@ describe('a draft and the page it was made for', () => {
     const sent = calls.find((call) => call.url.endsWith('/actions'))!.body as { action: string; on: unknown };
     expect(sent.action).toBe('save');
     expect(sent.on).toEqual({ context: 'email' });
+  });
+
+  it('locks its actions again when the person walks away and comes back', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({});
+    const { host, walk } = await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Enable actions' })).toBeNull());
+    // To a page that drafts nothing (there the draft is parked), and back.
+    walk(null);
+    await screen.findByTestId('assistant-parked-draft');
+    walk(host);
+    // The permission was for that visit: it is asked for again.
+    expect(await screen.findByRole('button', { name: 'Enable actions' })).toBeTruthy();
+    expect(screen.queryByTestId('assistant-parked-draft')).toBeNull();
+  });
+
+  it('says a draft is saved after the panel is closed and opened again: the turn is read back', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({});
+    routes[key('POST', `${BASE}/sessions/ast_1/turns/atn_1/actions`)] = () => ({ echo: { kind: 'saved', open: false, name: 'Welcome' }, created: { id: 'tpl_9', kind: 'template', name: 'Welcome' }, sample: null });
+    routes[key('GET', `${BASE}/sessions/ast_1/turns/atn_1`)] = () => turn({ result: result({ saved: { id: 'tpl_9', kind: 'template', name: 'Welcome' } }) });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
+    await user.click(screen.getByRole('button', { name: 'Save template' }));
+    await user.click(await screen.findByRole('button', { name: 'Save as draft' }));
+    // What the server recorded on the turn is what the card is drawn from now.
+    await waitFor(() => expect(calls.some((call) => call.method === 'GET' && call.url.endsWith('/turns/atn_1'))).toBe(true));
+    expect(await screen.findByRole('button', { name: 'Saved' })).toBeTruthy();
   });
 
   it('made for one document, is parked on another document of the same kind', async () => {

@@ -21,7 +21,7 @@
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PageActions, PageActionsProvider } from '../../shell/PageActionsProvider.js';
@@ -70,7 +70,7 @@ const availability = (over: Record<string, unknown> = {}) => ({
   canConfigure: true,
   provider: 'anthropic',
   model: 'm',
-  budget: { limit: 500_000, used: 0, resetsAt: Date.UTC(2026, 9, 10), left: true },
+  budget: { limit: 500_000, used: 0, resetsAt: Date.now() + 6 * 3_600_000, left: true },
   ...over,
 });
 const session = { id: 'ast_1', context: 'data', status: 'open', provider: 'anthropic', model: 'm', tokensIn: 0, tokensOut: 0, createdAt: 1 };
@@ -134,9 +134,14 @@ afterEach(() => {
 const CUSTOMERS = { context: 'data', host: { connectionIds: ['c1'], pageId: 'page_1' } };
 
 /** The shell's row: the page column, then the panel, sharing the page channel. */
-function mount(page: ReactNode = <PageActions assistant={CUSTOMERS} assistantShown={{ title: 'Customers' }} />, visible = true) {
+function mount(page: ReactNode = <PageActions assistant={CUSTOMERS} assistantShown={{ title: 'Customers' }} />, visible: boolean | 'store' = true) {
   function Signals() {
     return <output data-testid="signals">{`${String(useDockOpen())}|${useDockSignal()}`}</output>;
+  }
+  /** As the shell mounts it: drawn while the store says open, kept mounted while it says closed. */
+  function Dock() {
+    const open = useDockOpen();
+    return <AssistantDock visible={visible === 'store' ? open : visible} />;
   }
   const rootRoute = createRootRoute({
     component: () => (
@@ -145,7 +150,7 @@ function mount(page: ReactNode = <PageActions assistant={CUSTOMERS} assistantSho
           <Signals />
           {page}
         </div>
-        <AssistantDock visible={visible} />
+        <Dock />
       </PageActionsProvider>
     ),
   });
@@ -333,7 +338,7 @@ describe('what a refusal becomes', () => {
   });
 
   it('marks the day used up and takes no more questions', async () => {
-    await askRefused({ reason: 'budget', limit: 1000, used: 1000, resetsAt: Date.UTC(2026, 9, 10, 0) });
+    await askRefused({ reason: 'budget', limit: 1000, used: 1000, resetsAt: Date.now() + 6 * 3_600_000 });
     expect(await screen.findByTestId('assistant-allowance-used')).toBeTruthy();
     expect((screen.getByTestId('assistant-input') as HTMLInputElement).disabled).toBe(true);
   });
@@ -439,4 +444,172 @@ describe('while it is closed', () => {
     await waitFor(() => expect(screen.getByTestId('signals').textContent).toBe('false|unread'), { timeout: 9000 });
     await act(async () => undefined);
   }, 14_000);
+});
+
+// ─── what the release review found ───────────────────────────────────────────
+
+describe('a panel that lives as long as the app', () => {
+  it('asks the server nothing while it is closed, however the page changes', async () => {
+    function Page({ q }: { q: string }) {
+      return (
+        <>
+          <PageActions assistant={CUSTOMERS} />
+          <PageActions assistantView={{ q }} />
+        </>
+      );
+    }
+    const view = mount(<Page q="a" />, false);
+    await waitFor(() => expect(calls.some((call) => call.url.endsWith('/sessions/current'))).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(posts('/facts')).toHaveLength(0);
+    view.unmount();
+  });
+
+  it('learns that a model has been set up when it is opened again', async () => {
+    let enabled = false;
+    routes[key('GET', `${BASE}/availability`)] = () => (enabled ? availability() : availability({ enabled: false, reason: 'no-provider' }));
+    setDockOpen(true);
+    mount(undefined, 'store');
+    expect(await screen.findByTestId('assistant-unavailable')).toBeTruthy();
+    // The person goes to settings, sets one up, comes back, opens the panel.
+    act(() => setDockOpen(false));
+    enabled = true;
+    act(() => setDockOpen(true));
+    await waitFor(() => expect(screen.queryByTestId('assistant-unavailable')).toBeNull());
+    await waitFor(() => expect((screen.getByTestId('assistant-input') as HTMLInputElement).disabled).toBe(false));
+  });
+
+  it('lets go of "the day is used up" when the server says there is allowance again', async () => {
+    let left = false;
+    const budget = () => ({ limit: 1000, used: left ? 0 : 1000, resetsAt: Date.now() + 6 * 3_600_000, left });
+    routes[key('GET', `${BASE}/availability`)] = () => availability({ budget: budget() });
+    setDockOpen(true);
+    mount(undefined, 'store');
+    expect(await screen.findByTestId('assistant-allowance-used')).toBeTruthy();
+    act(() => setDockOpen(false));
+    left = true;
+    act(() => setDockOpen(true));
+    await waitFor(() => expect(screen.queryByTestId('assistant-allowance-used')).toBeNull());
+  });
+
+  it('tries a first load that failed again when it is next opened', async () => {
+    let down = true;
+    routes[key('GET', `${BASE}/sessions/current`)] = () => (down ? new Refusal(500, {}) : { session: null, turns: [], earlier: 0, aged: false });
+    setDockOpen(true);
+    mount(undefined, 'store');
+    await waitFor(() => expect((screen.getByTestId('assistant-input') as HTMLInputElement).disabled).toBe(true));
+    await screen.findByText('raw server text');
+    act(() => setDockOpen(false));
+    down = false;
+    act(() => setDockOpen(true));
+    expect(await screen.findByText('Try')).toBeTruthy();
+    await waitFor(() => expect((screen.getByTestId('assistant-input') as HTMLInputElement).disabled).toBe(false));
+  });
+
+  it('takes no focus when a reload finds it open beside the page: the page being read keeps it', async () => {
+    setDockOpen(true);
+    mount(undefined, 'store');
+    const field = await screen.findByTestId('assistant-input');
+    await waitFor(() => expect((field as HTMLInputElement).disabled).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(document.activeElement).not.toBe(field);
+  });
+
+  it('puts focus in the field when the person opens it beside the page', async () => {
+    mount(undefined, 'store');
+    // Mounted closed (it has been opened before); then the person opens it.
+    await screen.findByTestId('signals');
+    act(() => setDockOpen(true));
+    const field = await screen.findByTestId('assistant-input');
+    await waitFor(() => expect((field as HTMLInputElement).disabled).toBe(false));
+    await waitFor(() => expect(document.activeElement).toBe(field));
+  });
+});
+
+describe('asking, and starting over', () => {
+  it('sends a question once, however fast it is pressed twice', async () => {
+    let release: (() => void) | null = null;
+    routes[key('POST', `${BASE}/sessions`)] = () => new Promise((resolve) => (release = () => resolve({ session, facts: facts().facts, nextTurnTokens: 3300 })));
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({ turn: turn(), jobId: 'job_1', nextTurnTokens: 9 });
+    mount();
+    const chips = await screen.findAllByTestId('assistant-chip');
+    await act(async () => {
+      chips[0]!.click();
+      chips[0]!.click();
+    });
+    // While it is on its way nothing else can be started, and the conversation cannot be ended under it.
+    expect((screen.getByTestId('assistant-new') as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => release?.());
+    await screen.findByText('There are 12 rows shown here.');
+    expect(posts('/sessions')).toHaveLength(1);
+    expect(posts('/turns')).toHaveLength(1);
+  });
+
+  it('ends the old conversation before it opens the next, when a question follows New at once', async () => {
+    const order: string[] = [];
+    let closed: (() => void) | null = null;
+    routes[key('GET', `${BASE}/sessions/current`)] = () => ({ session, earlier: 0, aged: false, turns: [turn()] });
+    routes[key('POST', `${BASE}/sessions/ast_1/close`)] = () =>
+      new Promise((resolve) => {
+        closed = () => {
+          order.push('closed');
+          resolve(null);
+        };
+      });
+    routes[key('POST', `${BASE}/sessions`)] = () => {
+      order.push('opened');
+      return { session: { ...session, id: 'ast_2' }, facts: facts().facts, nextTurnTokens: 3300 };
+    };
+    routes[key('POST', `${BASE}/sessions/ast_2/turns`)] = () => ({ turn: turn({ id: 'atn_9', sessionId: 'ast_2', say: 'A new start.' }), jobId: 'job_9', nextTurnTokens: 9 });
+    mount();
+    await screen.findByText('There are 12 rows shown here.');
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('assistant-new'));
+    await user.click((await screen.findAllByTestId('assistant-chip'))[0]!);
+    // Nothing is opened while the close is still on its way.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(order).toEqual([]);
+    await act(async () => closed?.());
+    expect(await screen.findByText('A new start.')).toBeTruthy();
+    expect(order).toEqual(['closed', 'opened']);
+  });
+
+  it('does not put a finished answer back to "working" for a read that was on its way', async () => {
+    routes[key('GET', `${BASE}/sessions/current`)] = () => ({ session, earlier: 0, aged: false, turns: [turn({ status: 'running', say: null, answer: null })] });
+    const rows = [turn(), turn({ status: 'running', say: null, answer: null })];
+    routes[key('GET', `${BASE}/sessions/ast_1/turns/atn_1`)] = () => rows.shift() ?? turn();
+    routes[key('POST', `${BASE}/sessions/ast_1/turns/atn_1/cancel`)] = () => null;
+    mount();
+    // Stop reads the row (finished), and then a slower read answers "running".
+    await userEvent.setup().click(await screen.findByTestId('assistant-stop'));
+    expect(await screen.findByText('There are 12 rows shown here.')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.queryByTestId('assistant-stop')).toBeNull();
+    expect(screen.getByText('There are 12 rows shown here.')).toBeTruthy();
+  });
+});
+
+describe('the chip, on another page', () => {
+  it('put away on one page is there again on another that shows the same', async () => {
+    function Case({ pageId }: { pageId: string }) {
+      return (
+        <>
+          <PageActions assistant={{ context: 'data', host: { connectionIds: ['c1'], pageId } }} />
+          <PageActions assistantView={{ q: 'acme' }} assistantShown={{ rows: 3 }} />
+        </>
+      );
+    }
+    let setPage: ((id: string) => void) | null = null;
+    function Walk() {
+      const [pageId, set] = useState('page_1');
+      setPage = set;
+      return <Case pageId={pageId} />;
+    }
+    mount(<Walk />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Ask without “3 filtered rows”' }));
+    expect(screen.queryByTestId('assistant-chip-scope')).toBeNull();
+    act(() => setPage?.('page_2'));
+    expect(await screen.findByTestId('assistant-chip-scope')).toBeTruthy();
+  });
 });

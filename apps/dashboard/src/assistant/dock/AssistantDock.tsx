@@ -177,12 +177,19 @@ export function AssistantDock({ visible }: AssistantDockProps) {
   const navigate = useNavigate();
   const { page, shown, view } = usePanelPage();
   const [element, setElement] = useState<HTMLElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  panelRef.current = element;
   const layout = useDockLayout(element, visible);
   const floating = layout !== 'docked';
 
   // The chip can be put away: the next message is then asked without "these", until the page shows something else.
-  const viewKey = JSON.stringify(view ?? null);
+  // Put away for THIS page showing THIS: another page, or the same one showing something else
+  // (and then the same thing again), has its chip.
+  const viewKey = `${page.context}\n${page.host.pageId ?? ''}\n${page.host.documentId ?? ''}\n${JSON.stringify(view ?? null)}`;
   const [dismissedView, setDismissedView] = useState<string | null>(null);
+  useEffect(() => {
+    setDismissedView((current) => (current !== null && current !== viewKey ? null : current));
+  }, [viewKey]);
   const chip = dismissedView === viewKey ? null : chipOf(view, shown);
   const askedPage = useMemo<PanelPage>(() => {
     if (dismissedView !== viewKey) return page;
@@ -190,7 +197,7 @@ export function AssistantDock({ visible }: AssistantDockProps) {
     return { ...page, host };
   }, [page, dismissedView, viewKey]);
 
-  const conversation = usePanelConversation(askedPage);
+  const conversation = usePanelConversation(askedPage, visible);
   const { turns, working, name } = conversation;
   const facts = (conversation.facts?.values ?? {}) as AssistantFactValues;
   const copy = useMemo(() => contextCopy(page.context, facts, name), [page.context, facts, name]);
@@ -231,6 +238,10 @@ export function AssistantDock({ visible }: AssistantDockProps) {
   const homeKey = `${page.context}\n${page.host.documentId ?? ''}\n${page.host.pageId ?? ''}`;
   // The guardrail is per page and per visit: walking away, or a reload, locks it again.
   const [enabledOn, setEnabledOn] = useState<string | null>(null);
+  useEffect(() => {
+    // Walking away takes the permission with it: coming back, it is asked for again.
+    setEnabledOn(null);
+  }, [homeKey]);
   const enabled = enabledOn === homeKey;
   const canWrite = conversation.availability?.canWrite ?? false;
   const leave = useCallback(() => {
@@ -245,22 +256,66 @@ export function AssistantDock({ visible }: AssistantDockProps) {
     if (!visible || !floating || element === null) return;
     const pageColumn = element.previousElementSibling;
     if (pageColumn instanceof HTMLElement) pageColumn.inert = true;
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return () => {
       if (pageColumn instanceof HTMLElement) pageColumn.inert = false;
-      // Back to what opened it, when that is still there.
-      if (before !== null && before.isConnected) before.focus();
     };
   }, [visible, floating, element]);
 
+  // ── focus: in when it opens, back when it closes ──────────────────────────
+  // What had focus when the panel was opened (the header's Ask button; the bubble is gone by then).
+  const opener = useRef<HTMLElement | null>(null);
+  const shownBefore = useRef(visible);
+  useEffect(() => {
+    const opened = visible && !shownBefore.current;
+    const closed = !visible && shownBefore.current;
+    shownBefore.current = visible;
+    if (opened) {
+      const active = document.activeElement;
+      opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
+      // Opened by the person, just now: they came to type. (A panel found open after a reload
+      // takes nothing: the page they are reading keeps its focus.)
+      // After this commit has painted: the field is in the document by then.
+      setTimeout(() => {
+        const field = inputRef.current;
+        if (field !== null && !field.disabled) field.focus();
+        else panelRef.current?.focus();
+      }, 0);
+    }
+    if (closed) {
+      // Back to what opened it when that is still there; else to the bubble, which is.
+      // After this commit: the bubble is back in the document by then.
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (active !== null && active !== document.body) return;
+        const back = opener.current !== null && opener.current.isConnected ? opener.current : document.querySelector<HTMLElement>('[data-testid="assistant-bubble"]');
+        back?.focus();
+      }, 0);
+    }
+  }, [visible]);
+  // The field is closed while a question is answered, and a closed field drops focus: when the
+  // answer is in and nothing else has taken focus, the person is put back where they were typing.
+  const answering = useRef(false);
+  useEffect(() => {
+    const ended = answering.current && !working;
+    answering.current = working;
+    if (ended && visible && (document.activeElement === null || document.activeElement === document.body)) inputRef.current?.focus();
+  }, [working, visible]);
+
   // Focus comes inside: to the field when it can be typed in, to the panel itself while it loads.
+  // Over the page it MUST (the page behind is inert); beside the page it is only moved on from
+  // the panel itself, where it was put to wait for the field to open.
   const fieldClosed = conversation.phase !== 'ready' || working;
   useEffect(() => {
-    if (!visible || !floating || element === null) return;
+    if (!visible || element === null) return;
     const active = document.activeElement;
-    if (active instanceof HTMLElement && active !== element && element.contains(active)) return;
-    if (fieldClosed) element.focus();
-    else inputRef.current?.focus();
+    const inside = active instanceof HTMLElement && active !== element && element.contains(active);
+    if (inside) return;
+    if (floating) {
+      if (fieldClosed) element.focus();
+      else inputRef.current?.focus();
+    } else if (active === element && !fieldClosed) {
+      inputRef.current?.focus();
+    }
   }, [visible, floating, element, fieldClosed]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
@@ -288,7 +343,12 @@ export function AssistantDock({ visible }: AssistantDockProps) {
 
   const unavailable = conversation.phase === 'unavailable';
   const blocked =
-    unavailable || conversation.phase !== 'ready' || conversation.usedUpUntil !== null || conversation.closedElsewhere || pageDialogOpen;
+    unavailable ||
+    conversation.phase !== 'ready' ||
+    conversation.usedUpUntil !== null ||
+    conversation.closedElsewhere ||
+    conversation.asking ||
+    pageDialogOpen;
 
   const submit = useCallback(
     (text: string) => {
@@ -325,7 +385,8 @@ export function AssistantDock({ visible }: AssistantDockProps) {
           ? t('assistant:panel.loading', 'Loading conversation…')
           : lookingAt(page.context, shown, conversation.facts === null ? null : facts, name)
       }
-      canStartNew={conversation.sessionId !== null && !working}
+      canStartNew={conversation.sessionId !== null && !working && !conversation.asking}
+      loading={conversation.phase === 'loading'}
       onNew={conversation.newConversation}
       onClose={close}
       onKeyDown={onKeyDown}

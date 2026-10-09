@@ -87,6 +87,9 @@ test.afterAll(async ({ browser }) => {
 });
 
 test.describe('the page assistant', () => {
+  // The comp's frame, and clear of the width at which the panel changes from beside the page to over it.
+  test.use({ viewport: { width: 1440, height: 940 } });
+
   test('(f) email manager → chip → steps → result → test send → save → the row is there', async ({ page }) => {
     await signIn(page);
     await page.request.delete(`${SINK_URL}/messages`);

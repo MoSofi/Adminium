@@ -27,6 +27,8 @@ export interface PanelViewProps {
   /** The header's second line: what the assistant is looking at, or that it is loading. */
   lookingAt: string;
   canStartNew: boolean;
+  /** The conversation is still being fetched: nothing of it is announced as it arrives. */
+  loading?: boolean;
   onNew: () => void;
   onClose: () => void;
   /** The bars under the header: no model, actions locked, the day used up. */
@@ -66,6 +68,7 @@ export function PanelView({
   name,
   lookingAt,
   canStartNew,
+  loading,
   onNew,
   onClose,
   bars,
@@ -156,7 +159,13 @@ export function PanelView({
       {/* ── thread ─────────────────────────────────────────────────────────── */}
       <div data-testid="assistant-thread" className="min-h-0 flex-1 overflow-y-auto bg-bg px-4 py-[18px]">
         {/* Announced once each is complete, politely: the page the person is working on comes first. */}
-        <div role="log" aria-live="polite" aria-relevant="additions" className="flex min-h-full flex-col justify-end gap-3.5">
+        <div
+          // A LOG only once the conversation is in: what a reload restores is the past, not news,
+          // and a region that exists while it arrives would read all of it out.
+          key={loading === true ? 'loading' : 'thread'}
+          {...(loading === true ? {} : { role: 'log', 'aria-live': 'polite' as const, 'aria-relevant': 'additions' as const })}
+          className="flex min-h-full flex-col justify-end gap-3.5"
+        >
           {children}
           <div ref={threadEndRef} />
         </div>

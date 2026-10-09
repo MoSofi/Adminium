@@ -10,6 +10,12 @@
  * each question carries the page it is asked on, because the person walks
  * while they talk.
  *
+ * IT LIVES AS LONG AS THE APP IS OPEN, so nothing it learns may be for ever:
+ * whether a model is set up, whether the day's allowance is used, what this
+ * person may do on this page are all asked again (on opening the panel, on
+ * walking to a page of another kind, when the day turns), because the panel
+ * that learned them an hour ago is the same panel.
+ *
  * ONE QUESTION AT A TIME, IN WHICHEVER WINDOW. The server refuses a second
  * while one runs; that refusal is a state here (the line above the field),
  * not an error under the question.
@@ -55,6 +61,8 @@ export interface PanelConversation {
   working: boolean;
   /** A question was refused because another is still running (asked in another window, or not yet seen here). */
   busyElsewhere: boolean;
+  /** A question is on its way to the server: nothing else may be started or ended meanwhile. */
+  asking: boolean;
   nextTurnTokens: number;
   problem: string | null;
   usedUpUntil: number | null;
@@ -77,7 +85,7 @@ const FACTS_SETTLE_MS = 350;
 /** How often a running turn's row is read, beside the channel that announces its end. */
 export const LIVE_POLL_MS = 5_000;
 
-export function usePanelConversation(page: PanelPage): PanelConversation {
+export function usePanelConversation(page: PanelPage, active: boolean): PanelConversation {
   const [phase, setPhase] = useState<PanelPhase>('loading');
   const [availability, setAvailability] = useState<AssistantAvailability | null>(null);
   const [facts, setFacts] = useState<AssistantFacts | null>(null);
@@ -90,21 +98,40 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
   const [closedElsewhere, setClosedElsewhere] = useState(false);
   const [busyElsewhere, setBusyElsewhere] = useState(false);
   const [aged, setAged] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // Bumped to load everything again: a first load that failed is tried again when the panel is next opened.
+  const [attempt, setAttempt] = useState(0);
 
   const sessionRef = useRef<string | null>(null);
   sessionRef.current = sessionId;
+  /** "New conversation" closing the old one: the next conversation is not opened until it has. */
+  const closing = useRef<Promise<unknown> | null>(null);
+  const askingRef = useRef(false);
 
   const live = turns.find((turn) => LIVE.includes(turn.status)) ?? null;
 
+  /** What the server says of who may ask, folded in: it decides the bars, never a guess kept from earlier. */
+  const takeAvailability = useCallback((state: AssistantAvailability) => {
+    setAvailability(state);
+    setUsedUpUntil(state.budget !== undefined && !state.budget.left ? state.budget.resetsAt : null);
+    setPhase((current) => (current === 'loading' || current === 'error' ? current : state.enabled ? 'ready' : 'unavailable'));
+  }, []);
+
   // ── load: who may ask, and the conversation they left ─────────────────────
   const context = page.context;
-  const firstContext = useRef(context);
+  const contextRef = useRef(context);
+  contextRef.current = context;
+  const askedFor = useRef<AssistantContext | null>(null);
   useEffect(() => {
     let cancelled = false;
+    setPhase('loading');
+    setProblem(null);
     void (async () => {
       try {
-        const [state, current] = await Promise.all([assistantApi.availability(firstContext.current), assistantApi.currentSession()]);
+        const forContext = contextRef.current;
+        const [state, current] = await Promise.all([assistantApi.availability(forContext), assistantApi.currentSession()]);
         if (cancelled) return;
+        askedFor.current = forContext;
         setAvailability(state);
         setUsedUpUntil(state.budget !== undefined && !state.budget.left ? state.budget.resetsAt : null);
         setSessionId(current.session?.id ?? null);
@@ -121,32 +148,56 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     return () => {
       cancelled = true;
     };
-    // Once a panel: the page the person walks to changes the facts below, not who they are.
-  }, []);
+  }, [attempt]);
 
-  // What the person may do is per page (saving a template and saving a rule are different grants):
-  // asked again when they walk to a page of another kind.
-  const loaded = phase !== 'loading';
+  // Asked again whenever the answer may have changed: the panel is opened (a model may have been
+  // set up since, the day may have turned, an admin may have raised the allowance), or the
+  // person walked to a page of another kind (saving a template and saving a rule are different
+  // grants). Not while it is closed: a closed panel asks the server nothing.
+  const loaded = phase !== 'loading' && phase !== 'error';
+  const wasActive = useRef(active);
   useEffect(() => {
-    if (!loaded || context === firstContext.current) return;
-    firstContext.current = context;
+    const opened = active && !wasActive.current;
+    wasActive.current = active;
+    if (!active) return;
+    if (phase === 'error') {
+      if (opened) setAttempt((count) => count + 1);
+      return;
+    }
+    if (!loaded || (!opened && askedFor.current === context)) return;
+    askedFor.current = context;
     let cancelled = false;
     assistantApi.availability(context).then(
       (state) => {
-        if (!cancelled) setAvailability(state);
+        if (!cancelled) takeAvailability(state);
       },
-      () => undefined,
+      () => {
+        // Asked again on the next page or the next opening.
+        askedFor.current = null;
+      },
     );
     return () => {
       cancelled = true;
     };
-  }, [loaded, context]);
+  }, [active, loaded, phase, context, takeAvailability]);
+
+  // The day's allowance starts again at an instant the server named: the bar goes when it comes.
+  useEffect(() => {
+    if (usedUpUntil === null) return;
+    const wait = Math.min(Math.max(usedUpUntil - Date.now(), 0) + 1_000, 2_147_000_000);
+    const timer = setTimeout(() => {
+      setUsedUpUntil(null);
+      askedFor.current = null;
+    }, wait);
+    return () => clearTimeout(timer);
+  }, [usedUpUntil]);
 
   // ── the page the person is on: what the assistant would be told of it ─────
   const pageKey = JSON.stringify([page.context, page.host]);
   const enabled = availability?.enabled === true;
   useEffect(() => {
-    if (!enabled) return;
+    // Only while the panel is open: a closed one costs the person none of their requests.
+    if (!enabled || !active) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       const [pageContext, host] = JSON.parse(pageKey) as [AssistantContext, AssistantHostRef];
@@ -166,19 +217,35 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [enabled, pageKey]);
+  }, [enabled, active, pageKey]);
+
+  /** A turn as the server has it now, folded into the thread. */
+  const fold = useCallback((view: Parameters<typeof toThreadTurn>[0], pickedLabels?: string[]) => {
+    setTurns((previous) => {
+      const at = previous.findIndex((turn) => turn.id === view.id);
+      const next = toThreadTurn(view, pickedLabels ?? previous[at]?.pickedLabels ?? []);
+      // A read that was on its way when the turn ended must not put it back to "working".
+      if (at !== -1 && !LIVE.includes(previous[at]!.status) && LIVE.includes(next.status)) return previous;
+      return at === -1 ? [...previous, next] : previous.map((turn, index) => (index === at ? next : turn));
+    });
+    // The answer that used the last of the day says when it starts again.
+    const reset = readResetsAt(view.answer) ?? (view.error !== null && view.error.kind === 'budget' ? readResetsAt(view.error) : null);
+    if (reset !== null && reset > Date.now()) setUsedUpUntil(reset);
+  }, []);
 
   /** Read one turn's row and fold it into the thread. */
-  const refreshTurn = useCallback(async (turnId: string) => {
-    const id = sessionRef.current;
-    if (id === null) return;
-    try {
-      const view = await assistantApi.turn(id, turnId);
-      setTurns((previous) => previous.map((turn) => (turn.id === turnId ? toThreadTurn(view, turn.pickedLabels) : turn)));
-    } catch (error) {
-      setProblem(messageOf(error));
-    }
-  }, []);
+  const refreshTurn = useCallback(
+    async (turnId: string) => {
+      const id = sessionRef.current;
+      if (id === null) return;
+      try {
+        fold(await assistantApi.turn(id, turnId));
+      } catch (error) {
+        setProblem(messageOf(error));
+      }
+    },
+    [fold],
+  );
 
   const onTerminal = useCallback(() => {
     const id = live?.id;
@@ -196,42 +263,50 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     const timer = setInterval(() => void refreshTurn(liveTurnId), LIVE_POLL_MS);
     return () => clearInterval(timer);
   }, [liveTurnId, refreshTurn]);
+  // Nothing is running here any more: whatever was "still working" has been seen to end.
+  useEffect(() => {
+    if (liveTurnId === null) setBusyElsewhere(false);
+  }, [liveTurnId]);
 
-  const start = useCallback(async (body: { text?: string; picks?: Record<string, string> }, pickedLabels: string[], on: PanelPage) => {
-    setProblem(null);
-    setBusyElsewhere(false);
-    const where = { context: on.context, host: on.host, ...(on.draft === undefined ? {} : { draft: on.draft }) };
-    try {
-      let id = sessionRef.current;
-      if (id === null) {
-        // The first question of a conversation makes it. Two windows that do this at once are
-        // both answered the same conversation by the server.
-        const opened = await assistantApi.openSession({ ...where, kind: 'panel' });
-        id = opened.session.id;
-        sessionRef.current = id;
-        setSessionId(id);
+  const start = useCallback(
+    async (body: { text?: string; picks?: Record<string, string> }, pickedLabels: string[], on: PanelPage) => {
+      // One at a time from here too: a second press while the first is on its way is not a second question.
+      if (askingRef.current) return;
+      askingRef.current = true;
+      setAsking(true);
+      setProblem(null);
+      setBusyElsewhere(false);
+      const where = { context: on.context, host: on.host, ...(on.draft === undefined ? {} : { draft: on.draft }) };
+      try {
+        // A conversation being ended is ended first: opened before that, the server would answer
+        // the very conversation that is about to close.
+        if (closing.current !== null) await closing.current;
+        let id = sessionRef.current;
+        if (id === null) {
+          // The first question of a conversation makes it. Two windows that do this at once are
+          // both answered the same conversation by the server.
+          const opened = await assistantApi.openSession({ ...where, kind: 'panel' });
+          id = opened.session.id;
+          sessionRef.current = id;
+          setSessionId(id);
+        }
+        const started = await assistantApi.createTurn(id, { ...body, ...where });
+        // The estimate under the field stays the page's (`pageFacts`): what this reply carries is
+        // the size of the next message alone, which says nothing of what a question here costs.
+        fold(started.turn, pickedLabels);
+      } catch (error) {
+        const reason = reasonOf(error);
+        if (reason === 'budget') setUsedUpUntil(readResetsAt(error instanceof ApiError ? error.details : null));
+        else if (reason === 'busy') setBusyElsewhere(true);
+        else if (reason === 'closed') setClosedElsewhere(true);
+        else setProblem(messageOf(error));
+      } finally {
+        askingRef.current = false;
+        setAsking(false);
       }
-      const started = await assistantApi.createTurn(id, { ...body, ...where });
-      // The estimate under the field stays the page's (`pageFacts`): what this reply carries is
-      // the size of the next message alone, which says nothing of what a question here costs.
-      setTurns((previous) => [...previous, toThreadTurn(started.turn, pickedLabels)]);
-    } catch (error) {
-      const reason = reasonOf(error);
-      if (reason === 'budget') {
-        setUsedUpUntil(readResetsAt(error instanceof ApiError ? error.details : null));
-        return;
-      }
-      if (reason === 'busy') {
-        setBusyElsewhere(true);
-        return;
-      }
-      if (reason === 'closed') {
-        setClosedElsewhere(true);
-        return;
-      }
-      setProblem(messageOf(error));
-    }
-  }, []);
+    },
+    [fold],
+  );
 
   const ask = useCallback(
     (text: string, on: PanelPage) => {
@@ -265,6 +340,8 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
   }, [liveId, refreshTurn]);
 
   const newConversation = useCallback(() => {
+    // Not while a question is on its way: its turn would arrive in a thread that no longer is its own.
+    if (askingRef.current) return;
     const id = sessionRef.current;
     sessionRef.current = null;
     setSessionId(null);
@@ -273,22 +350,35 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     setProblem(null);
     setClosedElsewhere(false);
     setBusyElsewhere(false);
+    if (id === null) return;
     // Closed for good on the server; a failure is swept by its age, and the person has moved on.
-    if (id !== null) void assistantApi.closeSession(id).catch(() => undefined);
+    const closed = assistantApi
+      .closeSession(id)
+      .catch(() => undefined)
+      .finally(() => {
+        if (closing.current === closed) closing.current = null;
+      });
+    closing.current = closed;
   }, []);
 
-  const runAction = useCallback(async (turnId: string, body: AssistantActionBody): Promise<ActionOutcome | null> => {
-    const id = sessionRef.current;
-    if (id === null) return null;
-    setProblem(null);
-    try {
-      const reply = await assistantApi.action(id, turnId, body);
-      return { echo: reply.echo, created: reply.created, sample: reply.sample };
-    } catch (error) {
-      setProblem(messageOf(error));
-      return null;
-    }
-  }, []);
+  const runAction = useCallback(
+    async (turnId: string, body: AssistantActionBody): Promise<ActionOutcome | null> => {
+      const id = sessionRef.current;
+      if (id === null) return null;
+      setProblem(null);
+      try {
+        const reply = await assistantApi.action(id, turnId, body);
+        // What the server recorded on the turn (a draft that is now saved) is read back, so the
+        // card says so after the panel has been closed and opened again.
+        if (reply.created !== null) void refreshTurn(turnId);
+        return { echo: reply.echo, created: reply.created, sample: reply.sample };
+      } catch (error) {
+        setProblem(messageOf(error));
+        return null;
+      }
+    },
+    [refreshTurn],
+  );
 
   const loadWhole = useCallback((turnId: string) => void refreshTurn(turnId), [refreshTurn]);
 
@@ -303,9 +393,10 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     liveSteps,
     working: live !== null,
     busyElsewhere,
+    asking,
     nextTurnTokens,
     problem,
-    usedUpUntil: usedUpUntil ?? turns.reduce<number | null>((found, turn) => turn.usedUpUntil ?? found, null),
+    usedUpUntil,
     loadWhole,
     closedElsewhere,
     // Said until the person asks something: then there is a conversation again.

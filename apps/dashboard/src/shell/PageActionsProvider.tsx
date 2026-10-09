@@ -86,7 +86,7 @@ interface AssistantStore {
   get: () => PublishedPageAssistant | null;
   subscribe: (listener: () => void) => () => void;
   setBase: (base: PageAssistantContext | null) => void;
-  setView: (view: PageAssistantView | null) => void;
+  setView: (key: 'page' | 'view', view: PageAssistantView | null) => void;
   setShown: (key: 'page' | 'view', shown: PageAssistantShown | null) => void;
   /**
    * What only the page can do with a draft: draw it with the page's own
@@ -99,12 +99,16 @@ interface AssistantStore {
 
 function createAssistantStore(): AssistantStore {
   let base: PageAssistantContext | null = null;
-  let view: PageAssistantView | null = null;
+  // Two publishers, as for the words below: the binding says what its grid shows, the frame which
+  // record is open. The frame's is laid over the binding's, so a record open on a page whose own
+  // template also draws its list is still "this record".
+  const views: Record<'page' | 'view', PageAssistantView | null> = { page: null, view: null };
   let merged: PublishedPageAssistant | null = null;
   // Two publishers, as for the context: the frame names the page, its binding counts what is on it.
   const shown: Record<'page' | 'view', PageAssistantShown | null> = { page: null, view: null };
   const listeners = new Set<() => void>();
   const publish = () => {
+    const view = views.page === null && views.view === null ? null : { ...views.view, ...views.page };
     merged =
       base === null
         ? null
@@ -126,8 +130,8 @@ function createAssistantStore(): AssistantStore {
       base = next;
       publish();
     },
-    setView: (next) => {
-      view = next;
+    setView: (key, next) => {
+      views[key] = next;
       publish();
     },
     setShown: (key, next) => {
@@ -401,15 +405,16 @@ export function PageActions({
     assistantStore.setBase(JSON.parse(assistantKey) as PageAssistantContext);
     return () => assistantStore.setBase(null);
   }, [assistantStore, assistantKey]);
+  // The frame's words and view go in the frame's slot and a binding's in the binding's, so neither clears the other.
+  const viewSlot = assistant !== undefined ? 'page' : 'view';
   const viewKey = assistantView === undefined ? null : JSON.stringify(assistantView);
   useEffect(() => {
     if (assistantStore === undefined || viewKey === null) return;
-    assistantStore.setView(JSON.parse(viewKey) as PageAssistantView);
-    return () => assistantStore.setView(null);
-  }, [assistantStore, viewKey]);
+    assistantStore.setView(viewSlot, JSON.parse(viewKey) as PageAssistantView);
+    return () => assistantStore.setView(viewSlot, null);
+  }, [assistantStore, viewKey, viewSlot]);
 
-  // The frame's words go in the frame's slot and a binding's in the binding's, so neither clears the other.
-  const shownSlot = assistant !== undefined ? 'page' : 'view';
+  const shownSlot = viewSlot;
   const shownKey = assistantShown === undefined ? null : JSON.stringify(assistantShown);
   useEffect(() => {
     if (assistantStore === undefined || shownKey === null) return;

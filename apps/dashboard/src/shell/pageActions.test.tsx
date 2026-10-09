@@ -191,6 +191,16 @@ describe('what a page tells the assistant, through the same channel', () => {
     expect(headerRenders - before).toBeLessThanOrEqual(2);
   });
 
+  it('lays the frame`s open record over the binding`s list view, whichever is published last', async () => {
+    render(
+      <Frame>
+        <PageActions assistant={base} assistantView={{ recordId: '5' }} />
+        <PageActions assistantView={{ q: 'ada', order: 'name.asc' }} />
+      </Frame>,
+    );
+    await waitFor(() => expect(JSON.parse(shown()!).host.view).toEqual({ q: 'ada', order: 'name.asc', recordId: '5' }));
+  });
+
   it('lets a page say it draws its own Ask button, so the shell draws none', async () => {
     render(
       <Frame>

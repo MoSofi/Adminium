@@ -114,6 +114,9 @@ async function openAssistant(page: Page): Promise<void> {
 const made: string[] = [];
 
 test.describe('the page assistant under axe', () => {
+  // Beside the page, as on a wide window: 390 px is set where the sheet is swept.
+  test.use({ viewport: { width: 1440, height: 940 } });
+
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async ({ browser }) => {
