@@ -1938,6 +1938,7 @@ export function electronBootDeps(): DesktopBootDeps {
     registerBridge: (context) => {
       const handlers = registerIpcHandlers({
         ipc: ipcMain,
+        pinSender: app.isPackaged,
         // The two synchronous properties. `versions.app` is `app.getVersion()`
         // and exists ONLY here: a sandboxed preload's polyfilled `process` knows
         // electron/chrome/node and nothing about the app itself, which is the

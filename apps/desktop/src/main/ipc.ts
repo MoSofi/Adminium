@@ -460,8 +460,10 @@ export interface RegisterIpcHandlersOptions {
   showLogs: () => Promise<void>;
   /** Relaunch the app (e.g. after a data-dir change). */
   relaunch: () => void;
-  /** An override. Defaults to {@link loopbackSenderPolicy}. */
+  /** An override. Defaults to {@link loopbackSenderPolicy}, or to {@link pinnedSenderPolicy} with `pinSender`. */
   senderPolicy?: SenderPolicy | undefined;
+  /** The packaged app: only the origin of the server main started may call. Off in the dev loop. */
+  pinSender?: boolean | undefined;
   /** The main log. Handler failures are recorded, never swallowed. */
   log?: ((line: string) => void) | undefined;
 }
@@ -512,6 +514,34 @@ export const loopbackSenderPolicy: SenderPolicy = (senderUrl) => {
     return false;
   }
 };
+
+/**
+ * The packaged app's answer: the bundled pages, and the ONE origin this app's
+ * own server answers on (`http://127.0.0.1:<the port main started>`), read
+ * when the call arrives so a restart on a new port is followed at once.
+ *
+ * Why pinned after all (plan 66, critique B2). The app now also shows pages
+ * that are not its own on this machine's loopback: the Designer's preview on
+ * `localhost:<port>` (pages a model wrote), and another Adminium a person
+ * connects to, which may itself be on `localhost` or behind a tunnel that ends
+ * there. "Any loopback host" would hand those the bridge the moment one of
+ * them became a top-level document. The dev loop keeps
+ * {@link loopbackSenderPolicy}: its dashboard is Vite's, on a port of its own.
+ */
+export function pinnedSenderPolicy(serverPort: () => number | null): SenderPolicy {
+  return (senderUrl) => {
+    if (senderUrl === null) return false;
+    if (senderUrl.startsWith('file://')) return true;
+    const port = serverPort();
+    if (port === null) return false;
+    try {
+      const url = new URL(senderUrl);
+      return url.protocol === 'http:' && url.origin === `http://127.0.0.1:${String(port)}`;
+    } catch {
+      return false;
+    }
+  };
+}
 
 /**
  * `senderFrame` is a getter over a live frame: it is `null` once the frame is
@@ -593,7 +623,8 @@ export function toErrorPayload(error: unknown): IpcErrorPayload {
  */
 export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandlers {
   const { ipc } = opts;
-  const senderPolicy = opts.senderPolicy ?? loopbackSenderPolicy;
+  const senderPolicy =
+    opts.senderPolicy ?? (opts.pinSender === true ? pinnedSenderPolicy(() => opts.runtime()?.serverPort ?? null) : loopbackSenderPolicy);
   const lanShareUrls = opts.lanShareUrls ?? ((): readonly string[] => []);
   const log = opts.log ?? ((): void => {});
 

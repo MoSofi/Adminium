@@ -24,6 +24,7 @@ import { createDefaultConfig, type DesktopConfig } from './config.js';
 import {
   isLoopbackHostname,
   loopbackSenderPolicy,
+  pinnedSenderPolicy,
   registerIpcHandlers,
   toErrorPayload,
   type DesktopDialogs,
@@ -337,6 +338,37 @@ describe('sender policy', () => {
 
   it('refuses a frame that is already gone', () => {
     expect(loopbackSenderPolicy(null)).toBe(false);
+  });
+
+  describe('pinned, in the packaged app', () => {
+    let port: number | null = 51234;
+    const pinned = pinnedSenderPolicy(() => port);
+
+    it.each([
+      ['the server main started', 'http://127.0.0.1:51234/design', true],
+      ['the bundled boot/crash pages', 'file:///opt/app/out/renderer/crash.html', true],
+      ['the preview’s name on the same port (pages a model wrote)', 'http://localhost:51234/a/repairs/', false],
+      ['another Adminium on this machine', 'http://127.0.0.1:4600/', false],
+      ['another Adminium on localhost', 'http://localhost:4600/', false],
+      ['the same port over https', 'https://127.0.0.1:51234/', false],
+      ['IPv6 loopback', 'http://[::1]:51234/', false],
+      ['a lookalike host', 'http://127.0.0.1.evil.example:51234/', false],
+      ['a blob minted on the app', 'blob:http://127.0.0.1:51234/abc', false],
+      ['garbage', 'not a url', false],
+    ])('%s', (_name, url, allowed) => {
+      port = 51234;
+      expect(pinned(url)).toBe(allowed);
+    });
+
+    it('follows a restart on a new port at once, and knows no server before one is up', () => {
+      port = 60001;
+      expect(pinned('http://127.0.0.1:60001/')).toBe(true);
+      expect(pinned('http://127.0.0.1:51234/')).toBe(false);
+      port = null;
+      expect(pinned('http://127.0.0.1:60001/')).toBe(false);
+      expect(pinned('file:///opt/app/out/renderer/crash.html')).toBe(true);
+      expect(pinned(null)).toBe(false);
+    });
   });
 
   it('classifies loopback hostnames', () => {
