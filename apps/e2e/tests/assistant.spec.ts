@@ -261,8 +261,12 @@ test.describe('the page assistant', () => {
     };
     const connections = (await (await page.request.get('/api/v1/connections')).json()) as { data?: { id: string }[]; connections?: { id: string }[] };
     const connectionId = (connections.data ?? connections.connections ?? [])[0]?.id ?? '';
+    // The table's id is the engine's own (`main.customers`, `public.customers`, `<database>.customers`).
+    const schema = (await (await page.request.get(`/api/v1/connections/${connectionId}/schema`)).json()) as { model: { tables: { id: string; name: string }[] } };
+    const customers = schema.model.tables.find((table) => table.name === 'customers')?.id ?? '';
+    expect(customers, 'the customers table').not.toBe('');
     const cityOf = async (): Promise<unknown> => {
-      const row = (await (await page.request.get(`/api/v1/data/${connectionId}/main.customers/ALFKI`)).json()) as { data: { city: unknown } };
+      const row = (await (await page.request.get(`/api/v1/data/${connectionId}/${customers}/ALFKI`)).json()) as { data: { city: unknown } };
       return row.data.city;
     };
     const before = await cityOf();
