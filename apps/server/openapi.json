@@ -109916,7 +109916,8 @@
                       "save",
                       "test-send",
                       "sample",
-                      "language.add"
+                      "language.add",
+                      "check"
                     ]
                   },
                   "on": {
@@ -109992,76 +109993,96 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "echo": {
+                  "anyOf": [
+                    {
                       "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {}
-                    },
-                    "created": {
-                      "anyOf": [
-                        {
+                      "properties": {
+                        "echo": {
                           "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "kind": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
+                          "propertyNames": {
+                            "type": "string"
                           },
-                          "required": [
-                            "id",
-                            "kind",
-                            "name"
-                          ],
-                          "additionalProperties": false
+                          "additionalProperties": {}
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "sample": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "artefact": {
+                        "created": {
+                          "anyOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "id",
+                                "kind",
+                                "name"
+                              ],
+                              "additionalProperties": false
                             },
-                            "label": {
-                              "type": "string"
+                            {
+                              "type": "null"
                             }
-                          },
-                          "required": [
-                            "artefact",
-                            "label"
-                          ],
-                          "additionalProperties": false
+                          ]
                         },
-                        {
-                          "type": "null"
+                        "sample": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "artefact": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "artefact",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "echo",
+                        "created",
+                        "sample"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "proposal": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "proposal"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "echo",
-                    "created",
-                    "sample"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }

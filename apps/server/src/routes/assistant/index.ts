@@ -50,7 +50,8 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { assistantDocumentExists, runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
+import { assistantDocumentExists, runAssistantAction } from '../../assistant/actions.js';
+import { checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
 import { readAllowance } from '../../assistant/allowance.js';
 import { listedAddOns } from '../../assistant/tools/add-ons.js';
 import type { AssistantAddOn } from '../../assistant/types.js';
@@ -169,9 +170,21 @@ function turnView(turn: AssistantTurn, session: AssistantSession): AssistantTurn
     createdAt: turn.createdAt,
     finishedAt: turn.finishedAt,
     context: turn.context ?? session.context,
-    answer: asRecord(turn.answer),
+    answer: answerView(turn.answer),
     on: whereAsked(turn, session),
   };
+}
+
+/**
+ * A turn's answer as a reader is given it. A proposal that has not been
+ * checked is the model's own text: only the fact of it is told.
+ */
+function answerView(answer: unknown): Record<string, unknown> | null {
+  const record = asRecord(answer);
+  if (record === null || record.proposal === undefined) return record;
+  const stored = storedProposalOf(record);
+  const { proposal: _stored, ...rest } = record;
+  return stored === null ? rest : { ...rest, proposal: proposalView(stored) };
 }
 
 /** The page or document a turn was asked on. The title is filled as the turn is served. */
@@ -596,6 +609,34 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
+        if (request.body.action === 'check') {
+          const stored = storedProposalOf(turn.answer);
+          if (turn.status !== 'done' || stored === null) {
+            throw new ValidationFailedError('That turn proposed nothing.', { turnId: turn.id });
+          }
+          const tail = await sessions.listTurnsTail(session.id, 1);
+          const checked = await checkProposal({
+            request,
+            door: app.assistantDoor,
+            meta,
+            // The page the proposal was made on, and the person asking now.
+            deps: await toolDepsFor({
+              meta,
+              manager: deps.manager,
+              context: turn.context ?? session.context,
+              host: turn.host ?? session.host,
+              userId,
+              can: (permission) => request.can(permission),
+            }),
+            sessionId: session.id,
+            turnId: turn.id,
+            proposal: stored,
+            newest: tail.turns.at(-1)?.id === turn.id,
+            now: app.rbac.now(),
+          });
+          if (checked.changed) await sessions.recordAnswer(turn.id, { ...(asRecord(turn.answer) ?? {}), proposal: checked.proposal });
+          return { proposal: proposalView(checked.proposal) };
+        }
         const result = asRecord(turn.result);
         const artefact = result === null ? null : asRecord(result.artefact);
         if (artefact === null) {
@@ -631,7 +672,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             : undefined;
         const outcome = await runAssistantAction({
           meta,
-          action: request.body.action as AssistantActionKind,
+          action: request.body.action,
           // The page the DRAFT was made on. A conversation opened on one page and asked on
           // another would otherwise be saved by the first page's code.
           context: turn.context ?? session.context,

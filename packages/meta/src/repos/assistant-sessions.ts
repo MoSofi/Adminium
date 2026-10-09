@@ -566,6 +566,21 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * Replace what a finished turn's answer holds, as its proposal is checked,
+     * confirmed or let go. Only a turn that is done: one still running writes
+     * its own answer when it ends.
+     */
+    async recordAnswer(id: string, answer: Record<string, unknown>): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer) })
+        .where('id', '=', id)
+        .where('status', '=', 'done')
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
     /** Write everything a turn ended with, in one statement. */
     async finishTurn(id: string, input: FinishAssistantTurnInput): Promise<boolean> {
       const status = assistantTurnStatusSchema.safeParse(input.status);

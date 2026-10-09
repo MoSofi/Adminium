@@ -227,7 +227,7 @@ export const assistantTurnParams = z.object({
 });
 
 export const assistantActionBody = z.object({
-  action: z.enum(['save', 'test-send', 'sample', 'language.add']),
+  action: z.enum(['save', 'test-send', 'sample', 'language.add', 'check']),
   /**
    * The page the person is on when they press the button, and the document
    * open there. A draft belongs to the page and the document it was made
@@ -242,13 +242,22 @@ export const assistantActionBody = z.object({
   locale: z.string().min(2).max(10).optional(),
 });
 
-export const assistantActionReply = z.object({
+const assistantDraftActionReply = z.object({
   echo: z.record(z.string(), z.unknown()),
   created: z.object({ id: z.string(), kind: z.string(), name: z.string() }).nullable(),
   sample: z
     .object({ artefact: z.record(z.string(), z.unknown()), label: z.string() })
     .nullable(),
 });
+
+/**
+ * `check` answers the turn's proposal as it now stands: tried as the person,
+ * with what they would see, or let go. Its own shape, so a reply of one kind
+ * is never read as the other.
+ */
+const assistantCheckReply = z.object({ proposal: z.record(z.string(), z.unknown()) });
+
+export const assistantActionReply = z.union([assistantDraftActionReply, assistantCheckReply]);
 
 // ─── What an owner sets, and what was used today ─────────────────────────────
 
