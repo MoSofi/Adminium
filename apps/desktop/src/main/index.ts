@@ -84,10 +84,12 @@ import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } f
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { createDesktopLogging } from './logging.js';
+import { firstFreePort, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import {
   createServerManager,
   type CreateServerManagerOptions,
   type ServerExit,
+  type ServerBusy,
   type ServerManager,
   type ServerReadyInfo,
   type ServerState,
@@ -105,6 +107,7 @@ import {
   type CrashAction,
   type CrashScreenInfo,
   type DesktopWindows,
+  projectPartition,
 } from './window.js';
 
 // ─── Pure policy ─────────────────────────────────────────────────────────────
@@ -169,6 +172,23 @@ export interface AppUrlOptions {
  * by our own auth route, and would drop a session cookie on an origin every
  * other device on the network can reach.
  */
+/** Said when a setting of the classic workspace is asked for while a project is open. */
+export const CLASSIC_ONLY_SETTING = 'This setting belongs to the classic workspace. Close the project to change it.';
+
+/**
+ * Where the window goes for a project.
+ *
+ * While it is built: the Designer, with the one-use token after `#` (never part
+ * of a request a log could hold). It signs the project's own owner in, once,
+ * while that owner has no password: the same door `adminium design` opens in a
+ * browser. Shared: the dashboard's front door.
+ */
+export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null }): string {
+  const origin = `http://${LOOPBACK_HOST}:${String(opts.port)}`;
+  if (opts.mode === 'serve') return `${origin}/`;
+  return opts.token === null ? `${origin}/design` : `${origin}/design#designToken=${opts.token}`;
+}
+
 export function appUrl(opts: AppUrlOptions): string {
   const hostname = opts.host === '0.0.0.0' || opts.host === '::' ? '127.0.0.1' : opts.host;
   const origin = `http://${hostname}:${String(opts.port)}`;
@@ -514,6 +534,30 @@ export interface DesktopBootDeps {
    * panel reports the mode the updater actually runs in, not the raw config.
    */
   updatesDisabledByEnv: boolean;
+
+  // ── a project folder (plan 66) ──
+  /**
+   * The project folder to open instead of the classic workspace, or
+   * `undefined`.
+   *
+   * WHOEVER SETS THIS HAS ALREADY ASKED. Opening a folder builds and runs the
+   * code in it (`adminium.config.ts`, hooks, actions, its apps): the trust
+   * question, the folder's state and the install of its packages are main's to
+   * settle BEFORE this is set (spec 08). The boot sequence below forks; it does
+   * not ask. Until the app's own first screens exist the only thing that sets
+   * it is the test seam in the production wiring, which a packaged app ignores.
+   */
+  openProject?: { readonly root: string } | undefined;
+  /** A free port for a project's server, asked for before every fork (from 4700, as `adminium design` does). */
+  pickProjectPort?: ((mode: 'design' | 'serve') => Promise<number>) | undefined;
+  /** The app's own bundled apps, as an absolute path. */
+  bundledAppsDir?: string | undefined;
+  /**
+   * Asked before the app ends a project's server that is in the middle of
+   * something. Resolves `true` to go on, `false` to leave it running. Left
+   * out: nobody to ask, and the app goes on.
+   */
+  confirmStopBusy?: ((busy: ServerBusy, why: 'quit') => Promise<boolean>) | undefined;
 }
 
 /** What {@link DesktopBootDeps.createBackup} needs from the boot sequence. */
@@ -780,6 +824,11 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           }
           const previous = config;
           const next = applyConfigPatch(previous, patch);
+          // With a project open, the network switch would restart the PROJECT's
+          // server on the classic workspace's port. Sharing a project is its own state.
+          if (manager?.project != null && patch.lanShare !== undefined) {
+            throw new Error(CLASSIC_ONLY_SETTING);
+          }
           const binding = lanBindingChange(previous, next);
           if (binding === null) {
             await deps.config.save(next);
@@ -805,6 +854,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
          * now showing the directory the user picked.
          */
         setDataDir: async (input): Promise<SetDataDirResult> => {
+          if (manager?.project != null) {
+            throw new Error(CLASSIC_ONLY_SETTING);
+          }
           if (config === null) {
             throw new Error('the desktop config has not been loaded yet.');
           }
@@ -895,28 +947,53 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // re-forks a server while the app is closing, and the `onExit` listener
       // below builds a BrowserWindow on the way out.
       let stopping = false;
+      let asking = false;
       host.onBeforeQuit((event) => {
         // The second pass — our own `host.quit()` re-emits `before-quit`.
         // Letting it through is what actually ends the app.
         if (stopping) return;
-        // The schedule, before anything else: a 03:00 tick that landed during
-        // teardown would post a backup to a server we are in the middle of
-        // stopping, and the manager would classify the resulting failure as a
-        // crash on the way out.
-        stopAutoBackup?.();
-        stopAutoBackup = null;
-        // Cancel the updater's launch/periodic schedules and detach its
-        // autoUpdater listeners on the same beat, so a check cannot fire into a
-        // closing app. `null` in `disabled` mode and before step 5 — both
-        // no-ops.
-        updateManager?.dispose();
-        updateManager = null;
         const target = manager;
+        const finish = (): void => {
+          // The schedule, before anything else: a 03:00 tick that landed during
+          // teardown would post a backup to a server we are in the middle of
+          // stopping, and the manager would classify the resulting failure as a
+          // crash on the way out.
+          stopAutoBackup?.();
+          stopAutoBackup = null;
+          // Cancel the updater's launch/periodic schedules and detach its
+          // autoUpdater listeners on the same beat, so a check cannot fire into a
+          // closing app. `null` in `disabled` mode and before step 5 — both
+          // no-ops.
+          updateManager?.dispose();
+          updateManager = null;
+        };
         // No child yet (a quit during boot steps 1–4): nothing to shut down, and
         // cancelling the quit to await nothing would hang the app instead.
-        if (target === null) return;
-        stopping = true;
+        if (target === null) {
+          finish();
+          return;
+        }
         event.preventDefault();
+        // A project's server may be in the middle of a turn: the person is asked
+        // BEFORE anything is torn down, so that "keep working" leaves the app
+        // whole (its updater and its window as they were).
+        if (target.project !== null) {
+          if (asking) return;
+          asking = true;
+          void (async () => {
+            const busy = await target.busy().catch(() => null);
+            const goOn = busy === null || deps.confirmStopBusy === undefined || (await deps.confirmStopBusy(busy, 'quit').catch(() => true));
+            asking = false;
+            if (!goOn) return;
+            stopping = true;
+            finish();
+            await target.stop().catch(() => undefined);
+            host.quit();
+          })();
+          return;
+        }
+        finish();
+        stopping = true;
         void target.stop().finally(() => {
           host.quit();
         });
@@ -932,6 +1009,79 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // in the dock forever showing nothing, with no dialog and no log line.
       // `canRestart: false` because none of them is fixed by forking the server
       // again; the messages config.ts raises already say what to do instead.
+      /*
+       * A project folder instead of the classic workspace (plan 66, spec 05).
+       *
+       * What is NOT here is the point. No secret is resolved (the project's is
+       * its `.env`'s; resolving the classic one may write to the key store). No
+       * backup coordinator is built, so the menu's two backup entries are
+       * disabled and no schedule runs: they act on the classic data folder, and
+       * a restore would unpack over it while stopping this project's server
+       * mid-turn. The network switch and the data-folder setting are refused in
+       * the bridge above for the same reason.
+       */
+      const bootProject = async (loadedConfig: DesktopConfig, project: { readonly root: string }): Promise<void> => {
+        const pickPort = deps.pickProjectPort;
+        if (pickPort === undefined) {
+          await windows.showCrash({ reason: 'This build cannot open a project folder.', canRestart: false });
+          return;
+        }
+        runtime = { dataDir: project.root, firstRun: false, secretStorage: 'plain', serverPort: -1 };
+        // Its own cookie jar: the classic workspace's session and a project's never meet.
+        windows.useProjectSession?.(project.root);
+        const projectManager = deps.createServerManager({
+          entry: deps.serverEntry,
+          createBootToken: deps.createBootToken,
+          logsDir: deps.logsDir,
+          ...(deps.staticRoot === undefined ? {} : { staticRoot: deps.staticRoot }),
+          ...(deps.bundledAddOnsDir === undefined ? {} : { bundledAddOnsDir: deps.bundledAddOnsDir }),
+          project: {
+            root: project.root,
+            mode: 'design',
+            pickPort,
+            ...(deps.bundledAppsDir === undefined ? {} : { bundledAppsDir: deps.bundledAppsDir }),
+          },
+        });
+        manager = projectManager;
+        updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
+        menuHandlers = {
+          showLogs: () => void deps.showLogs(),
+          ...(updateManager === null ? {} : { checkForUpdates: (): void => void updateManager?.checkForUpdates() }),
+        };
+        rebuildMenu();
+
+        const show = (ready: { host: string; port: number }): Promise<void> => {
+          const mode = projectManager.project?.mode ?? 'design';
+          return windows.loadApp(projectUrl({ port: ready.port, mode, token: projectManager.bootToken }), { preview: mode === 'design' });
+        };
+        const started = projectManager.start();
+        await windows.showBoot();
+        let ready: ServerReadyInfo;
+        try {
+          ready = await started;
+        } catch (error) {
+          await windows.showCrash(crashFromStartError(error));
+          return;
+        }
+        runtime = { ...runtime, serverPort: ready.port };
+        await show(ready);
+
+        // Never restarted behind the person's back: the crash page's button is the way on.
+        projectManager.onExit((exit: ServerExit) => {
+          void windows.showCrash({
+            reason: exit.code === null ? 'This project stopped unexpectedly.' : `This project stopped unexpectedly (exit code ${String(exit.code)}).`,
+            logPath: exit.logPath,
+            canRestart: true,
+          });
+        });
+        projectManager.subscribe((state: ServerState) => {
+          if (state.status !== 'ready') return;
+          if (runtime !== null && state.port === runtime.serverPort) return;
+          runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
+          void show(state);
+        });
+      };
+
       let firstRun: boolean;
       let secret: string;
       try {
@@ -940,6 +1090,10 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         config = loaded.config;
         firstRun = loaded.firstRun;
         // Step 3 — safeStorage, or the flagged plaintext fallback.
+        if (deps.openProject !== undefined) {
+          await bootProject(loaded.config, deps.openProject);
+          return;
+        }
         const resolved = await deps.config.resolveSecret(loaded.config);
         secret = resolved.secret;
         runtime = {
@@ -1551,15 +1705,17 @@ const backupReplySchema = z.object({
  */
 function electronCapabilityGrantReader(
   serverOrigin: () => string | null,
+  /** The project that is open, whose cookies are in a jar of their own under a name of their own; `null` for the classic workspace. */
+  project: () => { readonly root: string } | null = () => null,
 ): CapabilityGrantReader {
   return async () => {
     const origin = serverOrigin();
     if (origin === null) return null;
 
-    const cookies = await session.defaultSession.cookies.get({
-      url: origin,
-      name: SESSION_COOKIE_NAME,
-    });
+    const opened = project();
+    const jar = opened === null ? session.defaultSession : session.fromPartition(projectPartition(opened.root));
+    const names = opened === null ? [SESSION_COOKIE_NAME] : sessionCookieNames(SESSION_COOKIE_NAME, Number(new URL(origin).port));
+    const cookies = (await jar.cookies.get({ url: origin })).filter((held) => names.includes(held.name));
     const cookie = cookies[0];
     if (cookie === undefined) return null;
 
@@ -1709,6 +1865,8 @@ function mainProcessConfigLogger(write: (line: string) => void): ConfigLogger {
 
 /** The real ports. Never called under vitest — see the module header. */
 export function electronBootDeps(): DesktopBootDeps {
+  // The test seam (see `project.ts`): a packaged app never reads it.
+  const openedProject = seamProject(process.env, app.isPackaged);
   const userDataDir = app.getPath('userData');
   // `<userData>/logs`, which is exactly what Electron's `logs` path is.
   const logsDir = app.getPath('logs');
@@ -1935,6 +2093,30 @@ export function electronBootDeps(): DesktopBootDeps {
     demoSeedScript: bundledDemoSeedScript(),
     bundledAddOnsDir: bundledAddOnsBundleDir(),
 
+    // A project folder (plan 66). Until the app's own first screens exist, the
+    // only way in is the test seam, which a packaged app does not read.
+    openProject: openedProject,
+    pickProjectPort: () => firstFreePort(),
+    // Absolute even though this build bundles no apps: the server's default is
+    // `./apps-bundle`, which a project's child would look for inside the opened folder.
+    bundledAppsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'apps-bundle'),
+    confirmStopBusy: async (busy) => {
+      const words = stopBusyWords(busy);
+      const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+      const options: Electron.MessageBoxOptions = {
+        type: 'warning',
+        buttons: [words.goOn, words.stay],
+        // Staying is the default and the escape route: a stray Return must not end a turn.
+        defaultId: 1,
+        cancelId: 1,
+        title: words.title,
+        message: words.title,
+        detail: words.detail,
+      };
+      const result = parent === null ? await dialog.showMessageBox(options) : await dialog.showMessageBox(parent, options);
+      return result.response === 0;
+    },
+
     registerBridge: (context) => {
       const handlers = registerIpcHandlers({
         ipc: ipcMain,
@@ -1990,12 +2172,13 @@ export function electronBootDeps(): DesktopBootDeps {
         // moves on every restart, so a captured string would post to a dead port
         // the first time LAN share flipped.
         capabilities: createCapabilityHost({
-          readGrants: electronCapabilityGrantReader(() => {
-            const rt = context.runtime();
-            return rt === null || rt.serverPort < 0
-              ? null
-              : `http://127.0.0.1:${String(rt.serverPort)}`;
-          }),
+          readGrants: electronCapabilityGrantReader(
+            () => {
+              const rt = context.runtime();
+              return rt === null || rt.serverPort < 0 ? null : `http://127.0.0.1:${String(rt.serverPort)}`;
+            },
+            () => openedProject ?? null,
+          ),
           providers: [createEscposPrinterProvider()],
           log: mainLog,
         }),

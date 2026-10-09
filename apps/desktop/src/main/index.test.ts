@@ -16,6 +16,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BackupCoordinator } from './backup.js';
 import { createDefaultConfig, type DesktopConfig, type UpdateMode } from './config.js';
 import {
+  projectUrl,
+  CLASSIC_ONLY_SETTING,
   appUrl,
   applyConfigPatch,
   createDesktopApp,
@@ -1393,5 +1395,186 @@ describe('isElectronMain', () => {
     // If this ever returns true in a test runner, the module-scope guard at the
     // bottom of index.ts would boot a real app during the suite.
     expect(isElectronMain()).toBe(false);
+  });
+});
+
+// ─── a project folder (plan 66, spec 05) ─────────────────────────────────────
+
+describe('createDesktopApp opening a project folder', () => {
+  const ROOT = '/Users/someone/Adminium/juniper';
+  const PROJECT_READY = { ...READY, port: 4700, url: 'http://127.0.0.1:4700' };
+
+  function projectHarness(over: { busy?: { kind: string; sessionId: string | null } | null; confirm?: boolean; startFails?: Error } = {}) {
+    const h = harness();
+    const opts: CreateServerManagerOptions[] = [];
+    const shown: Array<{ url: string; preview: boolean }> = [];
+    const sessions: Array<string | null> = [];
+    const confirmed: string[] = [];
+    let stops = 0;
+    let stateListener: (s: ServerState) => void = () => undefined;
+    let exitListener: (e: ServerExit) => void = () => undefined;
+    let mode: 'design' | 'serve' = 'design';
+    const manager: ServerManager = {
+      state: { status: 'ready', ...PROJECT_READY },
+      bootToken: 'c'.repeat(64),
+      get project() {
+        return { root: ROOT, mode };
+      },
+      busy: () => Promise.resolve(over.busy ?? null),
+      start: () => (over.startFails === undefined ? Promise.resolve(PROJECT_READY) : Promise.reject(over.startFails)),
+      stop: () => {
+        stops += 1;
+        h.calls.push('server.stop');
+        return Promise.resolve();
+      },
+      restart: (changes) => {
+        if (changes?.mode !== undefined) mode = changes.mode;
+        const next = { ...PROJECT_READY, port: 4701, url: 'http://127.0.0.1:4701' };
+        stateListener({ status: 'ready', ...next });
+        return Promise.resolve(next);
+      },
+      onExit: (l) => {
+        exitListener = l;
+        return () => undefined;
+      },
+      subscribe: (l) => {
+        stateListener = l;
+        l({ status: 'ready', ...PROJECT_READY });
+        return () => undefined;
+      },
+    };
+    const deps: DesktopBootDeps = {
+      ...h.deps,
+      windows: {
+        ...h.deps.windows,
+        loadApp: (url, o) => {
+          shown.push({ url, preview: o?.preview === true });
+          return Promise.resolve();
+        },
+        useProjectSession: (root) => void sessions.push(root),
+      },
+      createServerManager: (o) => {
+        opts.push(o);
+        return manager;
+      },
+      openProject: { root: ROOT },
+      pickProjectPort: () => Promise.resolve(4700),
+      bundledAppsDir: '/app/apps-bundle',
+      confirmStopBusy: (busy) => {
+        confirmed.push(busy.kind);
+        return Promise.resolve(over.confirm ?? true);
+      },
+    };
+    return { h, deps, opts, shown, sessions, confirmed, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e) };
+  }
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+  };
+
+  it('serves the folder, not the classic workspace: no secret, no backup, no schedule', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+
+    expect(p.opts).toHaveLength(1);
+    expect(p.opts[0]).toMatchObject({ project: { root: ROOT, mode: 'design', bundledAppsDir: '/app/apps-bundle' }, staticRoot: '/app/out/dashboard' });
+    for (const name of ['dataDir', 'secret', 'singleUser', 'host', 'port']) expect(p.opts[0]).not.toHaveProperty(name);
+    // Resolving the classic secret may write to the key store; a project has its own in its .env.
+    expect(p.h.calls).not.toContain('config.resolveSecret');
+    expect(p.h.calls).not.toContain('createBackup');
+    expect(p.h.autoBackupRunning()).toBe(false);
+    expect(p.h.backupWiring()).toBeNull();
+    // The menu's two backup entries have no handler, which is how the menu disables them.
+    expect(p.h.menuHandlers()).not.toHaveProperty('backupNow');
+    expect(p.h.menuHandlers()).not.toHaveProperty('restore');
+    expect(p.h.menuHandlers()?.showLogs).toBeTypeOf('function');
+  });
+
+  it('opens the Designer with the one-use token after #, on a cookie jar of the project’s own, the preview allowed', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    expect(p.sessions).toEqual([ROOT]);
+    expect(p.shown).toEqual([{ url: `http://127.0.0.1:4700/design#designToken=${'c'.repeat(64)}`, preview: true }]);
+    expect(p.h.bridge()?.runtime()).toMatchObject({ dataDir: ROOT, serverPort: 4700, secretStorage: 'plain' });
+  });
+
+  it('refuses the classic workspace’s network switch and data folder while the project is open', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    const bridge = p.h.bridge();
+    await expect(bridge?.writeConfig({ lanShare: { enabled: true, port: 4600 } })).rejects.toThrow(CLASSIC_ONLY_SETTING);
+    await expect(bridge?.setDataDir({ dir: '/elsewhere' })).rejects.toThrow(CLASSIC_ONLY_SETTING);
+    expect(p.h.restarted()).toBe(0);
+    // A setting that is the app's own still saves.
+    await expect(bridge?.writeConfig({ telemetryOptIn: false })).resolves.toBeUndefined();
+  });
+
+  it('quits at once when nothing is running', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    expect(p.h.fireBeforeQuit()).toBe(false);
+    await settle();
+    expect(p.confirmed).toEqual([]);
+    expect(p.stops()).toBe(1);
+    expect(p.h.quit()).toBe(true);
+  });
+
+  it('asks before it ends a turn, and “keep working” leaves the app whole', async () => {
+    const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, confirm: false });
+    await createDesktopApp(p.deps).start();
+    expect(p.h.fireBeforeQuit()).toBe(false);
+    await settle();
+    expect(p.confirmed).toEqual(['turn']);
+    expect(p.stops()).toBe(0);
+    expect(p.h.quit()).toBe(false);
+    expect(p.h.updateDisposed()).toBe(0);
+    // Asked again the next time, not remembered as a no.
+    p.h.fireBeforeQuit();
+    await settle();
+    expect(p.confirmed).toEqual(['turn', 'turn']);
+  });
+
+  it('and on a yes stops the server first, then quits', async () => {
+    const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, confirm: true });
+    await createDesktopApp(p.deps).start();
+    p.h.fireBeforeQuit();
+    await settle();
+    expect(p.stops()).toBe(1);
+    expect(p.h.quit()).toBe(true);
+    // The second pass, our own quit, goes through.
+    expect(p.h.fireBeforeQuit()).toBe(true);
+  });
+
+  it('a start that fails shows the server’s own words, with a way to try again', async () => {
+    const p = projectHarness({ startFails: new Error('The Adminium server failed to start (project): This project is already running (in a terminal), on port 4711.') });
+    await createDesktopApp(p.deps).start();
+    expect(p.shown).toEqual([]);
+    expect(p.h.crashes.at(-1)?.reason).toContain('already running (in a terminal), on port 4711');
+  });
+
+  it('a project that stops is not restarted: the crash page’s button is the way on, and it follows the new port', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    p.fireExit({ code: 1, signal: null, willRestart: false, giveUp: true, logPath: '/logs/server.log' });
+    await settle();
+    expect(p.h.crashes.at(-1)).toMatchObject({ reason: 'This project stopped unexpectedly (exit code 1).', canRestart: true });
+    p.h.fireCrashAction('retry');
+    await settle();
+    expect(p.shown.at(-1)).toEqual({ url: `http://127.0.0.1:4701/design#designToken=${'c'.repeat(64)}`, preview: true });
+    expect(p.h.bridge()?.runtime()).toMatchObject({ serverPort: 4701 });
+  });
+
+  it('a build that cannot pick a port says so instead of forking', async () => {
+    const p = projectHarness();
+    await createDesktopApp({ ...p.deps, pickProjectPort: undefined }).start();
+    expect(p.opts).toHaveLength(0);
+    expect(p.h.crashes.at(-1)?.reason).toBe('This build cannot open a project folder.');
+  });
+});
+
+describe('projectUrl', () => {
+  it('is the Designer with its token after #, or the front door when shared', () => {
+    expect(projectUrl({ port: 4700, mode: 'design', token: 'ab' })).toBe('http://127.0.0.1:4700/design#designToken=ab');
+    expect(projectUrl({ port: 4700, mode: 'design', token: null })).toBe('http://127.0.0.1:4700/design');
+    expect(projectUrl({ port: 4712, mode: 'serve', token: 'ab' })).toBe('http://127.0.0.1:4712/');
   });
 });

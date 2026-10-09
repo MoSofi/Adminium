@@ -21,6 +21,7 @@
  * against a table of hostile URLs.
  */
 
+import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -197,6 +198,15 @@ export function decideFrameNavigation(
     if (origin !== null && url.protocol === origin.protocol && url.origin === origin.origin) return 'allow';
   }
   return 'deny';
+}
+
+/**
+ * The session partition of a project: persistent, and named by a hash of the
+ * folder's path so that two projects never share cookies and the name says
+ * nothing about where the folder is.
+ */
+export function projectPartition(root: string): string {
+  return `persist:project-${createHash('sha256').update(root).digest('hex').slice(0, 24)}`;
 }
 
 /**
@@ -475,6 +485,12 @@ export interface DesktopWindows {
    * ({@link decideFrameNavigation}).
    */
   loadApp(url: string, opts?: { readonly preview?: boolean }): Promise<void>;
+  /**
+   * Give the window a cookie jar of this project's own (a session partition
+   * named by the folder's path), or `null` for the default one. A window that
+   * exists on another jar is closed; the next page makes a new one.
+   */
+  useProjectSession?(root: string | null): void;
   /** The bundled crash page. */
   showCrash(info: CrashScreenInfo): Promise<void>;
   /** A second launch focuses the existing window. */
@@ -558,6 +574,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   /** The Designer's preview origin a subframe may load; `null` outside a project being built. */
   let previewOrigin: string | null = null;
   let lastAppPreview = false;
+  /** The session partition new windows are made on; `undefined` is Electron's default session. */
+  let partition: string | undefined;
   /**
    * Whether the crash page is the document currently loaded — the gate on
    * treating a `?action=` navigation as a button press.
@@ -622,7 +640,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       show: false,
       // "standard OS chrome in v1 (no custom titlebar)".
       title: 'Adminium',
-      webPreferences: { ...WEB_PREFERENCES, preload: preloadEntry() },
+      webPreferences: { ...WEB_PREFERENCES, preload: preloadEntry(), ...(partition === undefined ? {} : { partition }) },
     });
     win = created;
 
@@ -797,6 +815,14 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
 
     exists(): boolean {
       return win !== null && !win.isDestroyed();
+    },
+
+    useProjectSession(root: string | null): void {
+      const next = root === null ? undefined : projectPartition(root);
+      if (next === partition) return;
+      partition = next;
+      if (win !== null && !win.isDestroyed()) win.destroy();
+      win = null;
     },
 
     handleFileArgument(path: string): void {
