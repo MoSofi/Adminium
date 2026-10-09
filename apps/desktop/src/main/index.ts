@@ -553,6 +553,14 @@ export interface DesktopBootDeps {
   /** The app's own bundled apps, as an absolute path. */
   bundledAppsDir?: string | undefined;
   /**
+   * The environment a project's server starts from, before main's own block
+   * is laid over it (and the stripped names are taken out). A terminal's
+   * server has the person's environment: their PATH is where `git` is found
+   * (versions), their proxy settings are how a package is fetched. The classic
+   * workspace's child inherits nothing, and still does.
+   */
+  projectEnv?: NodeJS.ProcessEnv | undefined;
+  /**
    * Asked before the app ends a project's server that is in the middle of
    * something. Resolves `true` to go on, `false` to leave it running. Left
    * out: nobody to ask, and the app goes on.
@@ -1035,6 +1043,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           logsDir: deps.logsDir,
           ...(deps.staticRoot === undefined ? {} : { staticRoot: deps.staticRoot }),
           ...(deps.bundledAddOnsDir === undefined ? {} : { bundledAddOnsDir: deps.bundledAddOnsDir }),
+          ...(deps.projectEnv === undefined ? {} : { inheritEnv: deps.projectEnv }),
           project: {
             root: project.root,
             mode: 'design',
@@ -2096,6 +2105,7 @@ export function electronBootDeps(): DesktopBootDeps {
     // A project folder (plan 66). Until the app's own first screens exist, the
     // only way in is the test seam, which a packaged app does not read.
     openProject: openedProject,
+    projectEnv: process.env,
     pickProjectPort: () => {
       const range = projectPortRange(process.env, app.isPackaged);
       return firstFreePort(range.first, range.last);

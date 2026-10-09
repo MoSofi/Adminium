@@ -1460,6 +1460,7 @@ describe('createDesktopApp opening a project folder', () => {
       openProject: { root: ROOT },
       pickProjectPort: () => Promise.resolve(4700),
       bundledAppsDir: '/app/apps-bundle',
+      projectEnv: { PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' },
       confirmStopBusy: (busy) => {
         confirmed.push(busy.kind);
         return Promise.resolve(over.confirm ?? true);
@@ -1478,6 +1479,8 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.opts).toHaveLength(1);
     expect(p.opts[0]).toMatchObject({ project: { root: ROOT, mode: 'design', bundledAppsDir: '/app/apps-bundle' }, staticRoot: '/app/out/dashboard' });
     for (const name of ['dataDir', 'secret', 'singleUser', 'host', 'port']) expect(p.opts[0]).not.toHaveProperty(name);
+    // The person's environment, as a terminal's server has it (the manager strips what main decides).
+    expect(p.opts[0]?.inheritEnv).toEqual({ PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' });
     // Resolving the classic secret may write to the key store; a project has its own in its .env.
     expect(p.h.calls).not.toContain('config.resolveSecret');
     expect(p.h.calls).not.toContain('createBackup');
