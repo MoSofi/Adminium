@@ -50,7 +50,7 @@ import {
 } from '@adminium/llm';
 
 import { buildRepairMessage, DEFAULT_MAX_REPAIRS, type RunFailureError } from '../llm/direct-runner.js';
-import type { AssistantDocument, AssistantToolOutcome } from './types.js';
+import type { AssistantDocument, AssistantRead, AssistantToolOutcome } from './types.js';
 
 /** A message as it goes to the provider and as the transcript stores it. */
 export interface TurnMessage {
@@ -147,6 +147,8 @@ export type TurnOutcome =
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
+      /** Every read of rows this turn made, as it happened: what came back of how much. */
+      reads: AssistantRead[];
       tokensIn: number;
       tokensOut: number;
     }
@@ -157,6 +159,8 @@ export type TurnOutcome =
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
+      /** Every read of rows this turn made, as it happened: what came back of how much. */
+      reads: AssistantRead[];
       tokensIn: number;
       tokensOut: number;
     }
@@ -174,10 +178,12 @@ export type TurnOutcome =
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
+      /** Every read of rows this turn made, as it happened: what came back of how much. */
+      reads: AssistantRead[];
       tokensIn: number;
       tokensOut: number;
     }
-  | { status: 'cancelled'; steps: TurnStep[]; messages: TurnMessage[]; sources: string[]; tokensIn: number; tokensOut: number };
+  | { status: 'cancelled'; steps: TurnStep[]; messages: TurnMessage[]; sources: string[]; reads: AssistantRead[]; tokensIn: number; tokensOut: number };
 
 /** The drafted document and everything the result card shows beside it. */
 export interface TurnResult {
@@ -236,6 +242,9 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
 
   const steps: TurnStep[] = [];
   const sources: string[] = [];
+  // What each row read really covered. The line under an answer is built from these, by the
+  // server: never from what the model says it read.
+  const reads: AssistantRead[] = [];
   const usage = { tokensIn: 0, tokensOut: 0 };
   let callsUsed = 0;
   // Two budgets, because they are two different mistakes: a reply the contract cannot READ
@@ -268,6 +277,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     steps,
     messages,
     sources,
+    reads,
     tokensIn: usage.tokensIn,
     tokensOut: usage.tokensOut,
   });
@@ -279,6 +289,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     steps,
     messages,
     sources,
+    reads,
     tokensIn: usage.tokensIn,
     tokensOut: usage.tokensOut,
   });
@@ -341,6 +352,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         steps,
         messages,
         sources,
+        reads,
         tokensIn: usage.tokensIn,
         tokensOut: usage.tokensOut,
       };
@@ -375,6 +387,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         await publish(input, step, round, null, steps);
 
         const outcome = await input.execute({ id: call.id, tool: call.tool, args: call.args });
+        if (outcome.read !== undefined) reads.push(outcome.read);
         if (outcome.tables !== undefined) {
           for (const table of outcome.tables) {
             step.tables.push(table);
@@ -461,6 +474,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         steps,
         messages,
         sources,
+        reads,
         tokensIn: usage.tokensIn,
         tokensOut: usage.tokensOut,
       };
@@ -484,6 +498,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       steps,
       messages,
       sources,
+    reads,
       tokensIn: usage.tokensIn,
       tokensOut: usage.tokensOut,
     };

@@ -10,12 +10,16 @@
  * - A row read says how many rows came back of how many there are.
  * - The page drafts nothing: its prompt has no document in it.
  */
-import { pagesRepo } from '@adminium/meta';
+import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
+import { assistantSessionsRepo, pagesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dataPageOf } from '../src/assistant/data-page.js';
+import { executeAssistantTurn } from '../src/jobs/assistant-turn.js';
+import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
 import type { TurnSetup } from '../src/assistant/turn-setup.js';
 import { legs, person, stack, turnAs, type Stack } from './assistant-lodge.helpers.js';
+import { makeScriptedClient } from './llm-fixtures.js';
 
 for (const [dialect, available] of legs) {
   describe.skipIf(!available)(`the assistant on a data page — ${dialect}`, () => {
@@ -167,6 +171,39 @@ for (const [dialect, available] of legs) {
       expect(next.result).toMatchObject({ returned: 2, total: 5, offset: 2 });
       expect(idsOf(next)).toEqual([3, 4]);
       expect(first.read).toMatchObject({ returned: 2, total: 5 });
+    });
+
+    it('stores beside an answer what its tools really read: the tables, and how much of each', async () => {
+      const repo = assistantSessionsRepo(s.meta);
+      const session = await repo.create({ context: 'data', host: { connectionIds: [s.connectionId], pageId }, createdBy: night.id });
+      const turn = await repo.createTurn({ sessionId: session.id, askText: 'Who stays longest?' });
+      await repo.setTurnStatus(turn.id, 'queued', { jobId: 'job_test' });
+      const call = (id: string, tool: string, args: Record<string, unknown>) => ({ id, tool, args: { connectionId: s.connectionId, ...args }, step: { icon: 'database', label: 'Read', detail: '' } });
+      const scripted = makeScriptedClient([
+        { text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: '', calls: [call('c1', 'read_rows', { table: s.table.stays, limit: 2 }), call('c2', 'read_rows', { table: s.table.stays, scope: 'page' })] }) },
+        // The model may claim what it likes; what is stored is what happened.
+        { text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Ana, from every table there is.' }) },
+      ]);
+      await executeAssistantTurn(
+        { turnId: turn.id, userId: night.id },
+        { jobId: 'job_test', kind: 'assistant.turn', attempt: 1, maxAttempts: 3, signal: new AbortController().signal, progress: () => undefined, log: () => undefined },
+        {
+          meta: s.meta,
+          manager: s.manager,
+          resolveClient: () => Promise.resolve({ client: scripted.client, provider: 'anthropic', model: 'm', baseUrl: null }),
+          can: async (userId, permission) => (userId === null ? false : permissionSetAllows(await resolvePermissionSet(s.meta, { kind: 'user', id: userId, label: userId }), permission)),
+        },
+      );
+      const stored = (await repo.findTurn(turn.id))!;
+      expect(stored.status, JSON.stringify(stored.error)).toBe('done');
+      const answer = stored.answer as { sources: string[]; reads: { table: string; tool: string; returned: number; total: number; scope?: string }[]; truncated: boolean };
+      expect(answer.sources).toEqual([`Lodge.${s.table.stays}`]);
+      expect(answer.reads).toEqual([
+        { table: `Lodge.${s.table.stays}`, tool: 'read_rows', returned: 2, total: 5 },
+        { table: `Lodge.${s.table.stays}`, tool: 'read_rows', returned: 5, total: 5, scope: 'page' },
+      ]);
+      // One read came back short of what there is: the answer is about a part of the rows.
+      expect(answer.truncated).toBe(true);
     });
   });
 }

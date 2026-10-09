@@ -988,7 +988,8 @@ describe('a question asked on another page than the one the conversation began o
 
     // Read back, each turn says where it was asked.
     const stored = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${second.turn.id}`, headers: asUser(t.users.admin) });
-    expect(stored.json()).toMatchObject({ context: 'report', answer: null });
+    // …and what it read to answer: here, nothing.
+    expect(stored.json()).toMatchObject({ context: 'report', answer: { sources: [], reads: [], truncated: false } });
 
     // A page that is not an editor shows no document at all.
     const third = await askOn(sessionId, { text: 'How many rules are there?', context: 'automation', host: { connectionIds: [] } }, [{ text: plain('None.') }]);

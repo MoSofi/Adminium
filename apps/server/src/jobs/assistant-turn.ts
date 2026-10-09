@@ -230,9 +230,17 @@ export async function executeAssistantTurn(
     await repo.addUsage(session.id, { tokensIn: outcome.tokensIn, tokensOut: outcome.tokensOut }, now());
   }
 
-  // A turn that used the last of the day says so beside its answer.
+  // What the turn ended with besides its words and its draft. Built here, from what the tools
+  // did: the tables that were really read, each row read's "this many of that many", and
+  // whether the turn used the last of the day's allowance.
   const after = await readAllowance(deps.meta, userId ?? null, now());
-  const usedUp = after.left ? {} : { answer: { budget: { limit: after.limit, used: after.used, resetsAt: after.resetsAt } } };
+  const answer: Record<string, unknown> = {
+    sources: [...outcome.sources],
+    reads: outcome.reads.map((read) => ({ ...read })),
+    // A read that came back short of what there is: the answer is about a part of the rows.
+    truncated: outcome.reads.some((read) => typeof read.total === 'number' && typeof read.returned === 'number' && read.returned < read.total),
+    ...(after.left ? {} : { budget: { limit: after.limit, used: after.used, resetsAt: after.resetsAt } }),
+  };
 
   const common = {
     // The turn's own messages: the conversation before it is in the rows before it.
@@ -243,7 +251,7 @@ export async function executeAssistantTurn(
   };
 
   if (outcome.status === 'awaiting_picks') {
-    await finish({ ...common, status: 'awaiting_picks', say: outcome.say, ask: outcome.ask as unknown as Record<string, unknown> });
+    await finish({ ...common, answer, status: 'awaiting_picks', say: outcome.say, ask: outcome.ask as unknown as Record<string, unknown> });
     return;
   }
   if (outcome.status === 'failed' && outcome.reason === 'budget') {
@@ -274,7 +282,7 @@ export async function executeAssistantTurn(
   }
   await finish({
     ...common,
-    ...usedUp,
+    answer,
     status: 'done',
     say: outcome.say,
     result: outcome.result === null ? null : (outcome.result as unknown as Record<string, unknown>),
