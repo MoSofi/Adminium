@@ -217,7 +217,9 @@ export function projectPartition(root: string): string {
 export function previewOriginOf(appUrl: string): string | null {
   const parsed = safeParse(appUrl);
   if (parsed === null || parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || parsed.port === '') return null;
-  return `http://localhost:${parsed.port}`;
+  // Built from the parsed URL, not written out: the same port, the other name.
+  parsed.hostname = 'localhost';
+  return parsed.origin;
 }
 
 /** `new URL`, as a value rather than an exception. */

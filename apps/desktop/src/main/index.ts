@@ -184,7 +184,7 @@ export const CLASSIC_ONLY_SETTING = 'This setting belongs to the classic workspa
  * browser. Shared: the dashboard's front door.
  */
 export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null }): string {
-  const origin = `http://${LOOPBACK_HOST}:${String(opts.port)}`;
+  const origin = `http://127.0.0.1:${String(opts.port)}`;
   if (opts.mode === 'serve') return `${origin}/`;
   return opts.token === null ? `${origin}/design` : `${origin}/design#designToken=${opts.token}`;
 }
