@@ -2389,7 +2389,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       if (llm !== null) {
         // A turn left `running` by a process that is gone: with one process, nothing is running
         // it now. Ended here, or its person is told "still working" until the job's lock lapses.
-        await assistantSessionsRepo(meta).failRunningTurns({ ...INTERRUPTED_ERROR }, Date.now());
+        // Never a reason not to start: a store that has not been migrated yet has no such table,
+        // and so no turn to end.
+        await assistantSessionsRepo(meta)
+          .failRunningTurns({ ...INTERRUPTED_ERROR }, Date.now())
+          .catch(() => undefined);
         await api.register(
           assistantRoutes({
             meta,
