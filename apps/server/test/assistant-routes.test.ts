@@ -1369,7 +1369,12 @@ describe('a suggestion, as a turn is read', () => {
 
     ADD_ONS = [{ key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.', state: 'listed' }];
     // The name and the line are the list`s; the key that is not listed is not shown.
-    expect((await read()).answer.suggest).toEqual([{ key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.' }]);
+    const card = { key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.' };
+    // Whether the way in is offered is this person`s own: not while their role may not install…
+    expect((await read()).answer.suggest).toEqual([{ ...card, mayInstall: false }]);
+    // …and once it may.
+    await permissionsRepo(t.meta).grant(t.roles.admin.id, 'system', 'manifests.manage', { allowed: true });
+    expect((await read()).answer.suggest).toEqual([{ ...card, mayInstall: true }]);
 
     // Installed since: nothing to suggest any more, and the rest of the answer is untouched.
     ADD_ONS = [{ key: 'offers', name: 'Offers & gift cards', line: 'x', state: 'installed' }];

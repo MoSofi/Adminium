@@ -203,16 +203,18 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
      * each add-on's name and one line come from the list, never from the model, and one that has
      * been installed since, or is no longer listed, is not suggested any more.
      */
-    async function served(turn: AssistantTurn, session: AssistantSession): Promise<AssistantTurnView> {
+    async function served(turn: AssistantTurn, session: AssistantSession, request: { can: (permission: string) => Promise<boolean> }): Promise<AssistantTurnView> {
       const view = turnView(turn, session);
       const suggest = view.answer === null ? undefined : view.answer.suggest;
       if (!Array.isArray(suggest) || suggest.length === 0) return view;
       const known = (await listedAddOns(deps.addOns)) ?? [];
-      const cards: { key: string; name: string; line: string }[] = [];
+      // Whether THIS person may install one: the card offers the way in only to them.
+      const mayInstall = await request.can(PERMISSIONS.manifestsManage);
+      const cards: { key: string; name: string; line: string; mayInstall: boolean }[] = [];
       for (const entry of suggest) {
         const key = (entry as { key?: unknown } | null)?.key;
         const found = typeof key === 'string' ? known.find((item) => item.key === key && item.state !== 'installed') : undefined;
-        if (found !== undefined) cards.push({ key: found.key, name: found.name, line: found.line });
+        if (found !== undefined) cards.push({ key: found.key, name: found.name, line: found.line, mayInstall });
       }
       const { suggest: _stored, ...rest } = view.answer as Record<string, unknown>;
       return { ...view, answer: cards.length === 0 ? rest : { ...rest, suggest: cards } };
@@ -347,7 +349,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         const shown = all.slice(-CURRENT_TURNS);
         const turns: AssistantTurnView[] = [];
         for (const [index, turn] of shown.entries()) {
-          const view = await served(turn, session);
+          const view = await served(turn, session, request);
           // The newest come whole. An older draft comes as its card's words; its document is the
           // heavy part and is read with the turn when the person opens it.
           const light = index < shown.length - CURRENT_WHOLE_TURNS && view.result !== null;
@@ -457,7 +459,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
 
         const stored = (await sessions.findTurn(turn.id)) ?? turn;
         return await reply.status(202).send({
-          turn: await served(stored, session),
+          turn: await served(stored, session, request),
           jobId: job.id,
           nextTurnTokens: estimateTokens(request.body.text ?? ''),
         });
@@ -473,7 +475,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        return await served(turn, session);
+        return await served(turn, session, request);
       },
     );
 
