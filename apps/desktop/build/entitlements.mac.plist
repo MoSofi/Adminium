@@ -23,14 +23,32 @@
     is not required. No sandbox means no need for user-selected-file entitlements
     either — the app already has ordinary file access.
 
-  Nothing here disables library validation: with npmRebuild the native addons are
-  rebuilt from source and then co-signed by electron-builder with the same
-  Developer ID as the app, so the default (strict) validation passes.
+  * com.apple.security.cs.disable-library-validation — GRANTED, and it is the
+    widest thing in this file. The app opens a project folder and serves it, and
+    a project's own packages bring libraries that are signed ad hoc or by someone
+    else: SQLite's, argon2's, Tailwind's and lightningcss's native parts. Under
+    the hardened runtime every one of them is refused without this key (seen on
+    the notarized build: no Tailwind, no database driver from a project's
+    node_modules). The app's OWN native addons do not need it: they are
+    co-signed with the app's Developer ID and pass strict validation.
+
+    What it costs, said plainly: this process will load a library nobody at
+    Adminium signed. What stands in front of that is not a signature but a
+    question: a folder's code and libraries load only after the person said they
+    trust that folder. And because the app's program also runs as Node when
+    asked to, any other program this person runs can start it that way; the key
+    store therefore protects a key at rest, not from the person's own programs.
+
+    One file serves the app and every helper (entitlementsInherit), so the
+    renderers carry the key too. They load no project library; a second, narrower
+    file for them is possible and is not done here.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
   </dict>
 </plist>
