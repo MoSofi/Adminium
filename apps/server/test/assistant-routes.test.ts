@@ -391,9 +391,28 @@ describe('a session and its turns', () => {
       url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`,
       headers: asUser(t.users.admin),
     });
-    const view = read.json() as { status: string; error: { kind: string } | null };
+    const view = read.json() as { status: string; error: { kind: string; provider?: string; model?: string } | null };
     expect(view.status).toBe('failed');
-    expect(view.error?.kind).toBe('validation');
+    // Three replies nobody could read: it is the model that cannot do this, and the card can say which.
+    expect(view.error).toMatchObject({ kind: 'model-format', provider: 'anthropic', model: 'm' });
+  });
+
+  it('records a draft the page kept refusing as that, not as the model`s format', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'Draft something' },
+    });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    // Readable every time, and never a document the email page accepts.
+    const bad = reply({ result: { title: 'T', meta: '', artefact: { kind: 'template', name: 'x', locale: 'en_US', document: { blocks: [{ block: 'email.nonsense', data: {} }] } } } });
+    await runTurn(turnId, [{ text: bad }], t.users.admin.id);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('failed');
+    expect(turn?.error).toMatchObject({ kind: 'validation' });
   });
 
   it('claims a turn once — a second worker leaves it alone', async () => {
