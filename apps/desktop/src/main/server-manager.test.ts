@@ -841,6 +841,20 @@ describe('ServerManager serving a project', () => {
     await expect(silent).resolves.toBeNull();
   });
 
+  it('an answer that comes after the wait is over changes nothing, and a project needs no bundled apps', async () => {
+    const h = harness({ dataDir: undefined, secret: undefined, singleUser: undefined, project: { root: ROOT, mode: 'serve', pickPort: () => Promise.resolve(4700) } });
+    void h.manager.start();
+    await up(h, 0, 4700);
+    expect(h.forkCalls[0]?.env).not.toHaveProperty('ADMINIUM_BUNDLED_APPS');
+    const late = h.manager.busy();
+    h.clock.advance(BUSY_ANSWER_TIMEOUT_MS);
+    await expect(late).resolves.toBeNull();
+    const next = h.manager.busy();
+    childAt(h, 0).send({ type: 'busy', busy: { kind: 'save', sessionId: null } });
+    childAt(h, 0).send({ type: 'busy', busy: null });
+    await expect(next).resolves.toEqual({ kind: 'save', sessionId: null });
+  });
+
   it('a server that is not up is not asked', async () => {
     const h = project();
     await expect(h.manager.busy()).resolves.toBeNull();
@@ -882,6 +896,43 @@ describe('ServerManager serving a project', () => {
     expect(h.manager.state.status).toBe('starting');
     childAt(h, 0).ready(4700);
     await expect(started).resolves.toMatchObject({ port: 4700 });
+  });
+
+  it('hands on the app’s own folders, the log level and the person’s environment, stripped', async () => {
+    const h = project({ logLevel: 'debug', staticRoot: '/app/out/dashboard', bundledAddOnsDir: '/app/add-ons', inheritEnv: { PATH: '/usr/bin', ADMINIUM_SECRET: 'inherited', ADMINIUM_DESKTOP_PROJECT: '/elsewhere' } });
+    void h.manager.start();
+    await up(h, 0, 4700);
+    expect(h.forkCalls[0]?.env).toMatchObject({ ADMINIUM_LOG_LEVEL: 'debug', ADMINIUM_STATIC_ROOT: '/app/out/dashboard', ADMINIUM_BUNDLED_ADD_ONS: '/app/add-ons', PATH: '/usr/bin', ADMINIUM_DESKTOP_PROJECT: ROOT });
+    expect(h.forkCalls[0]?.env).not.toHaveProperty('ADMINIUM_SECRET');
+  });
+
+  it('a port that cannot be picked is a start that fails with those words, and no child', async () => {
+    const h = harness({ dataDir: undefined, secret: undefined, singleUser: undefined, project: { root: ROOT, mode: 'design', pickPort: () => Promise.reject(new Error('No port from 4700 to 4799 is free on this computer.')) } });
+    await expect(h.manager.start()).rejects.toThrow('Could not start the Adminium server process: No port from 4700 to 4799 is free on this computer.');
+    expect(h.children).toHaveLength(0);
+    expect(h.manager.state.status).toBe('failed');
+  });
+
+  it('a child that cannot be asked is taken for idle, and a mode means nothing to the classic manager', async () => {
+    const h = project();
+    void h.manager.start();
+    await up(h, 0, 4700);
+    childAt(h, 0).postMessage = () => {
+      throw new Error('port closed');
+    };
+    await expect(h.manager.busy()).resolves.toBeNull();
+
+    const classic = harness();
+    void classic.manager.start();
+    childAt(classic, 0).ready();
+    await tick();
+    const again = classic.manager.restart({ mode: 'serve' });
+    childAt(classic, 0).exit(0);
+    await tick();
+    childAt(classic, 1).ready();
+    await again;
+    expect(classic.manager.project).toBeNull();
+    expect(classic.forkCalls[1]?.env).not.toHaveProperty('ADMINIUM_DESKTOP_PROJECT_MODE');
   });
 
   it('the classic workspace still needs its own three', async () => {

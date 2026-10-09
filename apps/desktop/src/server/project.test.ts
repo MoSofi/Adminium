@@ -15,7 +15,7 @@ import {
   parseDesktopProjectEnv,
   STRIPPED_INHERITED_ENV_KEYS,
 } from './env.js';
-import { runProjectEntry, type ParentPortLike } from './index.js';
+import { resolveParentPort, runProjectEntry, runServerEntry, type ParentPortLike } from './index.js';
 import { parseParentMessage, parseServerMessage } from './protocol.js';
 
 const TOKEN = 'ab'.repeat(32);
@@ -222,5 +222,72 @@ describe('runProjectEntry', () => {
     expect(start).not.toHaveBeenCalled();
     expect(chdir).not.toHaveBeenCalled();
     expect(posted).toEqual([expect.objectContaining({ type: 'error', stage: 'env' })]);
+  });
+});
+
+describe('the entries, at their edges', () => {
+  it('a child that was not forked says so on its log instead of posting', async () => {
+    const lines: string[] = [];
+    const exit = vi.fn();
+    await runProjectEntry({ parentPort: null, env: block(), start: vi.fn(async () => started()), chdir: vi.fn(), exit, onLog: (line) => lines.push(line) });
+    expect(lines.join('\n')).toContain('no parentPort; {"type":"ready"');
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it('a start that throws something that is not an Error is still told, as text', async () => {
+    const { port, posted } = fakePort();
+    await runProjectEntry({ parentPort: port, env: block(), start: vi.fn(async () => Promise.reject('no disk')), chdir: vi.fn(), exit: vi.fn(), onLog: vi.fn() });
+    expect(posted).toEqual([{ type: 'error', stage: 'project', message: 'no disk' }]);
+  });
+
+  it('a message that is not one of main’s is ignored, and said so', async () => {
+    const { port, send } = fakePort();
+    const lines: string[] = [];
+    const handle = started();
+    await runProjectEntry({ parentPort: port, env: block(), start: vi.fn(async () => handle), chdir: vi.fn(), exit: vi.fn(), onLog: (line) => lines.push(line) });
+    send({ type: 'eval', code: 'process.exit()' });
+    expect(handle.close).not.toHaveBeenCalled();
+    expect(lines.join('\n')).toContain('ignoring unrecognized parent message');
+  });
+
+  it('a close that fails still ends the child, with a failing exit', async () => {
+    const { port, send } = fakePort();
+    const exit = vi.fn();
+    await runProjectEntry({ parentPort: port, env: block(), start: vi.fn(async () => started({ close: vi.fn(async () => Promise.reject(new Error('busy file'))) })), chdir: vi.fn(), exit, onLog: vi.fn() });
+    send({ type: 'shutdown' });
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
+  });
+
+  it('the classic child refuses an environment that is not its own, at the first step', async () => {
+    const { port, posted } = fakePort();
+    const exit = vi.fn();
+    const lines: string[] = [];
+    expect(await runServerEntry({ parentPort: port, env: { ADMINIUM_RUNTIME: 'desktop' }, exit, onLog: (line) => lines.push(line) })).toBeNull();
+    expect(posted).toEqual([expect.objectContaining({ type: 'error', stage: 'env' })]);
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(lines.join('\n')).toContain('boot failed at stage "env"');
+    // And with no parent it says the same on its log.
+    const alone: string[] = [];
+    await runServerEntry({ parentPort: null, env: {}, exit: vi.fn(), onLog: (line) => alone.push(line) });
+    expect(alone.join('\n')).toContain('no parentPort; {"type":"error"');
+  });
+
+  it('starts the port when it has a start, and skips a name inherited with no value', async () => {
+    const { port } = fakePort();
+    const startPort = vi.fn();
+    await runProjectEntry({ parentPort: { ...port, start: startPort }, env: block({ inherit: { EMPTY: undefined, LANG: 'C' } }), start: vi.fn(async () => started()), chdir: vi.fn(), exit: vi.fn(), onLog: vi.fn() });
+    expect(startPort).toHaveBeenCalledTimes(1);
+    expect(block({ inherit: { EMPTY: undefined } })).not.toHaveProperty('EMPTY');
+  });
+
+  it('finds the parent’s port where Electron puts it, or nothing under plain Node', () => {
+    const parentPort = fakePort().port;
+    expect(resolveParentPort({ parentPort } as unknown as NodeJS.Process)).toBe(parentPort);
+    expect(resolveParentPort({} as NodeJS.Process)).toBeNull();
+  });
+
+  it('parseDesktopProjectEnv names everything an empty environment lacks', () => {
+    expect(() => parseDesktopProjectEnv({})).toThrow(/ADMINIUM_DESKTOP_PROJECT[\s\S]*ADMINIUM_DESKTOP_PROJECT_MODE[\s\S]*ADMINIUM_PORT[\s\S]*ADMINIUM_HOST[\s\S]*ADMINIUM_BOOT_TOKEN[\s\S]*ADMINIUM_RUNTIME/);
+    expect(parseDesktopProjectEnv({ ...block(), ADMINIUM_LOG_LEVEL: 'loud' }).logLevel).toBeUndefined();
   });
 });

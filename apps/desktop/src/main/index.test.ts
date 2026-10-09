@@ -1466,7 +1466,7 @@ describe('createDesktopApp opening a project folder', () => {
         return Promise.resolve(over.confirm ?? true);
       },
     };
-    return { h, deps, opts, shown, sessions, confirmed, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e) };
+    return { h, deps, opts, shown, sessions, confirmed, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
   }
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -1564,6 +1564,26 @@ describe('createDesktopApp opening a project folder', () => {
     await settle();
     expect(p.shown.at(-1)).toEqual({ url: `http://127.0.0.1:4701/design#designToken=${'c'.repeat(64)}`, preview: true });
     expect(p.h.bridge()?.runtime()).toMatchObject({ serverPort: 4701 });
+  });
+
+  it('a build with none of the optional folders and no updater still opens the project', async () => {
+    const p = projectHarness();
+    const bare: DesktopBootDeps = { ...p.deps, createUpdateManager: () => null };
+    for (const name of ['staticRoot', 'bundledAddOnsDir', 'bundledAppsDir', 'projectEnv'] as const) Reflect.deleteProperty(bare, name);
+    await createDesktopApp(bare).start();
+    expect(p.opts[0]).not.toHaveProperty('staticRoot');
+    expect(p.opts[0]).not.toHaveProperty('inheritEnv');
+    expect(p.opts[0]?.project).toEqual({ root: ROOT, mode: 'design', pickPort: expect.any(Function) as unknown });
+    expect(p.h.menuHandlers()).not.toHaveProperty('checkForUpdates');
+    expect(p.shown).toHaveLength(1);
+
+    // A stop with no exit code (a signal) has its own words.
+    p.fireExit({ code: null, signal: 'SIGKILL', willRestart: false, giveUp: true, logPath: '/logs/server.log' });
+    await settle();
+    expect(p.h.crashes.at(-1)?.reason).toBe('This project stopped unexpectedly.');
+    // A state that is not "ready" moves nothing.
+    p.emit({ status: 'starting', attempt: 0 });
+    expect(p.shown).toHaveLength(1);
   });
 
   it('a build that cannot pick a port says so instead of forking', async () => {
