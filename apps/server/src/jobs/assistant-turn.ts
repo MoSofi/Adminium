@@ -26,7 +26,7 @@ import { z } from 'zod';
 
 import { runAssistantTurn } from '../assistant/turn-runner.js';
 import { fitsContextWindow, setUpTurn } from '../assistant/turn-setup.js';
-import { loadTurn } from '../assistant/sessions.js';
+import { loadTurn, ownTranscript } from '../assistant/sessions.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { isProviderRunError, type RunFailureError } from '../llm/direct-runner.js';
 import type { ResolvedProviderClient } from '../routes/llm/config-service.js';
@@ -197,7 +197,8 @@ export async function executeAssistantTurn(
   }
 
   const common = {
-    transcript: outcome.messages,
+    // The turn's own messages: the conversation before it is in the rows before it.
+    transcript: ownTranscript(outcome.messages, messages.length - 1),
     steps: outcome.steps,
     tokensIn: outcome.tokensIn,
     tokensOut: outcome.tokensOut,

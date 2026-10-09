@@ -26,12 +26,52 @@ import type { TurnMessage } from './turn-runner.js';
 const REPLAYED: ReadonlySet<string> = new Set(['done', 'awaiting_picks']);
 
 /**
+ * The first message of a transcript that holds ONE turn: its opening message
+ * and what followed. Its role is neither `user` nor `assistant`, so it is
+ * never sent to a provider; it only says how the row is to be read.
+ */
+export const TRANSCRIPT_MARK: TurnTranscriptMessage = { role: 'meta', content: 'adminium.transcript/v2' };
+
+interface TurnTranscriptMessage {
+  role: string;
+  content: string;
+}
+
+/** What a turn stores: the mark, then its own messages (`before` is how many came from earlier turns). */
+export function ownTranscript(messages: readonly TurnMessage[], before: number): TurnTranscriptMessage[] {
+  return [TRANSCRIPT_MARK, ...messages.slice(before)];
+}
+
+function isMarked(transcript: readonly TurnTranscriptMessage[]): boolean {
+  const first = transcript[0];
+  return first !== undefined && first.role === TRANSCRIPT_MARK.role && first.content === TRANSCRIPT_MARK.content;
+}
+
+function spoken(transcript: readonly TurnTranscriptMessage[]): TurnMessage[] {
+  const out: TurnMessage[] = [];
+  for (const message of transcript) {
+    if (message.role !== 'user' && message.role !== 'assistant') continue;
+    out.push({ role: message.role, content: message.content });
+  }
+  return out;
+}
+
+/**
  * Every earlier turn's messages, in order, plus the editor's on-screen draft
  * before the first of them.
  *
  * A failed or cancelled turn is left out: its messages end in an error the
  * model would try to answer, and nothing it produced is a fact about this
  * conversation.
+ *
+ * EACH MESSAGE ONCE. A turn stores its own messages behind {@link TRANSCRIPT_MARK}.
+ * Rows written before the mark existed hold the whole conversation before
+ * them as well (the draft, then every earlier row as it was stored), so
+ * joining them said the first question twice by the third turn and four times
+ * by the fourth. Such a row is recognised by its length, not by its words: it
+ * begins with exactly what the replay of its day was, and its own opening
+ * message stands right after. Two turns that ask the same thing are therefore
+ * never mistaken for one another.
  */
 export function replayTranscript(
   session: AssistantSession,
@@ -42,13 +82,23 @@ export function replayTranscript(
   if (session.draft !== null) {
     messages.push({ role: 'user', content: assistantOpenDocumentMessage(session.draft) });
   }
+  // How long the replay was when an unmarked row was written: the draft, then every earlier row whole.
+  let legacyBefore = session.draft === null ? 0 : 1;
+  let previous: AssistantTurn | null = null;
   for (const turn of turns) {
     if (turn.id === upTo) break;
+    const earlier = previous;
+    previous = turn;
     if (!REPLAYED.has(turn.status)) continue;
-    for (const message of turn.transcript) {
-      if (message.role !== 'user' && message.role !== 'assistant') continue;
-      messages.push({ role: message.role, content: message.content });
+    if (isMarked(turn.transcript)) {
+      messages.push(...spoken(turn.transcript));
+      continue;
     }
+    const whole = spoken(turn.transcript);
+    const opening = openingMessage(turn, earlier);
+    const own = whole[legacyBefore]?.role === 'user' && whole[legacyBefore]?.content === opening.content ? whole.slice(legacyBefore) : whole;
+    messages.push(...own);
+    legacyBefore += whole.length;
   }
   return messages;
 }

@@ -741,3 +741,77 @@ describe('the two assistant fields on the LLM config', () => {
     );
   });
 });
+
+describe('what the model is sent of a conversation that goes on', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+
+  /** Ask one question in a session and run its turn; hands back what the provider was sent. */
+  async function ask(sessionId: string, text: string, reply: string) {
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text },
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const scripted = await runTurn(turnId, [{ text: plain(reply) }], t.users.admin.id);
+    return { turnId, sent: scripted.calls[0]!.messages.map((message) => message.content) };
+  }
+
+  it('says each earlier message once, however long the conversation', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    await ask(sessionId, 'first question', 'first answer');
+    await ask(sessionId, 'second question', 'second answer');
+    await ask(sessionId, 'third question', 'third answer');
+    const fourth = await ask(sessionId, 'fourth question', 'fourth answer');
+
+    expect(fourth.sent).toEqual([
+      'first question',
+      plain('first answer'),
+      'second question',
+      plain('second answer'),
+      'third question',
+      plain('third answer'),
+      'fourth question',
+    ]);
+    // And a turn stores its own messages, not the conversation before it.
+    const stored = (await assistantSessionsRepo(t.meta).findTurn(fourth.turnId))!.transcript;
+    expect(stored.filter((message) => message.role !== 'meta').map((message) => message.content)).toEqual([
+      'fourth question',
+      plain('fourth answer'),
+    ]);
+  });
+
+  it('reads the rows an earlier release wrote, which hold the whole conversation each', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const session = await repo.create(
+      { context: 'email', host: { connectionIds: [] }, draft: { subject: 'On screen' }, provider: 'anthropic', model: 'm', createdBy: t.users.admin.id },
+      AT,
+    );
+    const draft = (content: string) => content.includes('open_document');
+    // Written as 0.3.20 wrote them: the replay before the turn, then the turn.
+    const one = await repo.createTurn({ sessionId: session.id, askText: 'same question' }, AT);
+    const D = { role: 'user', content: JSON.stringify({ open_document: { subject: 'On screen' }, note: 'This is the document currently open in the editor; it is unsaved.' }) };
+    const t1 = [D, { role: 'user', content: 'same question' }, { role: 'assistant', content: plain('a1') }];
+    await repo.finishTurn(one.id, { status: 'done', transcript: t1, finishedAt: AT + 1 });
+    // A failed turn between two that happened: it holds its prefix and is never replayed.
+    const bad = await repo.createTurn({ sessionId: session.id, askText: 'broken' }, AT + 2);
+    await repo.finishTurn(bad.id, { status: 'failed', transcript: [D, ...t1, { role: 'user', content: 'broken' }, { role: 'assistant', content: 'not json' }], finishedAt: AT + 3 });
+    // The same words again (a follow-up button does this).
+    const two = await repo.createTurn({ sessionId: session.id, askText: 'same question' }, AT + 4);
+    const t2 = [D, ...t1, { role: 'user', content: 'same question' }, { role: 'assistant', content: plain('a2') }];
+    await repo.finishTurn(two.id, { status: 'done', transcript: t2, finishedAt: AT + 5 });
+
+    const next = await ask(session.id, 'and now', 'a3');
+    expect(next.sent.filter(draft)).toHaveLength(1);
+    expect(next.sent.filter((content) => !draft(content))).toEqual([
+      'same question',
+      plain('a1'),
+      'same question',
+      plain('a2'),
+      'and now',
+    ]);
+  });
+});
