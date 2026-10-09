@@ -1571,7 +1571,8 @@ export default {
       "resource": "Ressource",
       "subtitle": "{actor} · {when}",
       "truncated": "Afkortet ved 16 KB",
-      "userAgent": "User agent"
+      "userAgent": "User agent",
+      "subtitleVia": "{actor}, gennem {name} · {when}"
     },
     "empty": {
       "body": "Ændringer af data, skema, indstillinger og rettigheder lander her, efterhånden som de sker.",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "Indlæs ældre hændelser",
     "subtitle": "Hver ændring i dette arbejdsområde, hvem der foretog den, og hvad den ændrede.",
-    "title": "Auditlog"
+    "title": "Auditlog",
+    "via": "gennem {name}"
   },
   "security": {
     "password": {

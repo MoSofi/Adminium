@@ -3427,6 +3427,10 @@
     "status": "src",
     "srcHash": "66e2f1c7082a"
   },
+  "common.audit.drawer.subtitleVia": {
+    "status": "mt",
+    "srcHash": "f72dca3e66cf"
+  },
   "common.audit.drawer.truncated": {
     "status": "mt",
     "srcHash": "7e77a196e37b"
@@ -3486,6 +3490,10 @@
   "common.audit.title": {
     "status": "mt",
     "srcHash": "3cfc5f1cc987"
+  },
+  "common.audit.via": {
+    "status": "mt",
+    "srcHash": "744cf406f310"
   },
   "common.auth.description": {
     "status": "mt",

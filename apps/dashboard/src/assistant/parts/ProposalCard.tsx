@@ -190,6 +190,13 @@ function Line({ line }: { line: ProposalLine }) {
 
 const STRUCK = 'text-fg-subtle line-through decoration-fg-subtle/70';
 
+/**
+ * A row that will not be done: refused, or unticked. Drawn quieter by colour
+ * and ground, never by opacity: a faded row's text would fall under the
+ * contrast a person needs to read why it was refused.
+ */
+const quiet = (row: ProposalRow): boolean => row.dim === true || row.checked === false;
+
 export function ProposalCard(props: ProposalCardProps) {
   const { tone = 'default', iconTone = 'accent', rtl = false } = props;
   const HeadIcon = ICONS[props.icon];
@@ -209,7 +216,7 @@ export function ProposalCard(props: ProposalCardProps) {
   };
 
   return (
-    <div className="flex items-start gap-[11px]" data-testid={props.testId ?? 'assistant-proposal'} onKeyDown={onKeyDown}>
+    <div className="flex min-w-0 flex-1 items-start gap-[11px]" data-testid={props.testId ?? 'assistant-proposal'} onKeyDown={onKeyDown}>
       {props.indent === true ? <div className="w-7 shrink-0" /> : null}
       <div
         className={cn(
@@ -278,7 +285,7 @@ export function ProposalCard(props: ProposalCardProps) {
           {props.rows === undefined || props.rows.length === 0 ? null : (
             <div className="flex flex-col gap-px overflow-hidden rounded-[11px] border border-border bg-border">
               {props.rows.map((row) => (
-                <div key={row.id} data-testid="assistant-proposal-row" className={cn('flex flex-col gap-1.5 bg-surface px-[11px] py-[9px]', (row.dim === true || row.checked === false) && 'opacity-55')}>
+                <div key={row.id} data-testid="assistant-proposal-row" data-dim={quiet(row) ? '' : undefined} className={cn('flex flex-col gap-1.5 px-[11px] py-[9px]', quiet(row) ? 'bg-surface-2' : 'bg-surface')}>
                   <div className="flex min-w-0 items-center gap-[9px]">
                     {row.checked === undefined || row.onToggle === undefined ? null : (
                       <button
@@ -295,7 +302,7 @@ export function ProposalCard(props: ProposalCardProps) {
                         <Check className="size-[11px]" aria-hidden="true" />
                       </button>
                     )}
-                    <span className={cn('shrink-0 font-bold text-fg', row.plain === true ? 'text-[13px]' : 'font-mono text-[12px]')}>{row.label}</span>
+                    <span className={cn('shrink-0 font-bold', quiet(row) ? 'text-fg-muted' : 'text-fg', row.plain === true ? 'text-[13px]' : 'font-mono text-[12px]')}>{row.label}</span>
                     {row.sub === undefined || row.sub === '' ? null : <span className="min-w-0 truncate text-[11.5px] text-fg-muted">{row.sub}</span>}
                     {row.inline === undefined ? null : (
                       <span className="ms-auto flex shrink-0 items-center gap-1.5 font-mono text-[11.5px]">
@@ -303,7 +310,7 @@ export function ProposalCard(props: ProposalCardProps) {
                         <span className="text-fg-subtle" aria-hidden="true">
                           {arrow}
                         </span>
-                        <span className="font-semibold">{row.inline.after}</span>
+                        <span className={cn('font-semibold', quiet(row) && 'text-fg-muted')}>{row.inline.after}</span>
                       </span>
                     )}
                   </div>

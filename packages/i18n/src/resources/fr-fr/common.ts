@@ -1571,7 +1571,8 @@ export default {
       "resource": "Ressource",
       "subtitle": "{actor} · {when}",
       "truncated": "Tronqué à 16 Ko",
-      "userAgent": "Agent utilisateur"
+      "userAgent": "Agent utilisateur",
+      "subtitleVia": "{actor}, via {name} · {when}"
     },
     "empty": {
       "body": "Les modifications apportées aux données, au schéma, aux paramètres et aux permissions apparaissent ici au fil de l’eau.",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "Charger les entrées plus anciennes",
     "subtitle": "Chaque modification apportée à cet espace de travail, son auteur, et ce qu’elle a changé.",
-    "title": "Journal d’audit"
+    "title": "Journal d’audit",
+    "via": "via {name}"
   },
   "security": {
     "password": {
