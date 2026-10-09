@@ -1,0 +1,66 @@
+# TEMPORARY, and never for main: one question asked of a real x86_64 Linux machine.
+#
+# Does npm install a project when it is run by the desktop app's own program as
+# Node? In an emulated amd64 container it stopped at once ("cannot set
+# sizeCalculation without setting maxSize or maxEntrySize") and the same line
+# works on arm64 macOS, so only a real machine can say which of the two it is.
+#
+# It runs when THIS FILE is pushed to the branch it was written on, and on
+# nothing else. It reads no secret and writes nothing anywhere. It is deleted
+# from the branch once it has answered.
+name: trial — npm under the app's program on Linux
+on:
+  push:
+    branches: [plan-66-d]
+    paths: ['.github/workflows/zz-trial-linux-npm.yml']
+permissions:
+  contents: read
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: The machine
+        run: uname -a && lsb_release -ds && nproc && free -g | head -2
+      - name: The released 0.2.10 .deb, its checksum, and the two libraries its list lacks
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o adminium.deb https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.10/adminium-0.2.10-linux-amd64.deb
+          echo "8d7a11e404de07809b57fa1c4c6d30394973fc8d519704ad92da3bc3750b02ef  adminium.deb" | sha256sum -c -
+          mkdir deb && dpkg-deb -x adminium.deb deb
+          echo "missing before anything is added:"; ldd deb/opt/Adminium/adminium | grep 'not found' || echo "  (none: this runner has them)"
+          sudo apt-get update -qq && sudo apt-get install -y -qq libgbm1 libasound2t64 || sudo apt-get install -y -qq libgbm1 libasound2
+          echo "BIN=$RUNNER_TEMP/deb/opt/Adminium/adminium" >> "$GITHUB_ENV"
+      - name: Electron 44.4.5 too (what the next build carries), and npm 10.9.8 as the app carries it
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP"
+          mkdir e44 && cd e44 && npm init -y >/dev/null && npm install --no-audit --no-fund electron@44.4.5 >/dev/null
+          echo "E44=$RUNNER_TEMP/e44/node_modules/electron/dist/electron" >> "$GITHUB_ENV"
+          cd "$RUNNER_TEMP" && npm pack npm@10.9.8 >/dev/null && mkdir carried && tar -xzf npm-10.9.8.tgz -C carried
+          echo "NPM=$RUNNER_TEMP/carried/package" >> "$GITHUB_ENV"
+      - name: The question
+        run: |
+          set -u
+          for P in "$BIN" "$E44"; do
+            echo "=================== $P"
+            ELECTRON_RUN_AS_NODE=1 "$P" -e '
+              const v8 = require("node:v8");
+              console.log("electron", process.versions.electron, "node", process.versions.node, process.platform + "/" + process.arch, "heap_size_limit", v8.getHeapStatistics().heap_size_limit);
+              try { const C = require(process.argv[1] + "/node_modules/@npmcli/arborist/lib/packument-cache.js"); console.log("packument cache made, maxSize", new C().maxSize); }
+              catch (e) { console.log("PACKUMENT CACHE FAILED:", e.message); }' "$NPM"
+            echo 'console.log("LOADED via NODE_OPTIONS")' > "$RUNNER_TEMP/probe.cjs"
+            ELECTRON_RUN_AS_NODE=1 NODE_OPTIONS="--require $RUNNER_TEMP/probe.cjs" "$P" -e 'console.log("main ran")'
+            D=$(mktemp -d) && cd "$D" && echo '{"name":"t","private":true}' > package.json && : > "$D/u" && : > "$D/g"
+            START=$(date +%s)
+            ELECTRON_RUN_AS_NODE=1 NPM_CONFIG_USERCONFIG="$D/u" NPM_CONFIG_GLOBALCONFIG="$D/g" NPM_CONFIG_CACHE="$D/cache" NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ NPM_CONFIG_UPDATE_NOTIFIER=false NPM_CONFIG_FUND=false NPM_CONFIG_IGNORE_SCRIPTS=true \
+              "$P" "$NPM/bin/npm-cli.js" install @tailwindcss/oxide@4.3.3 lightningcss@1.33.0 better-sqlite3@13.0.1 argon2@0.44.0 --ignore-scripts --save-exact 2>&1 | tail -4
+            echo "install exit ${PIPESTATUS[0]} in $(( $(date +%s) - START )) s; node_modules $(du -sh node_modules 2>/dev/null | cut -f1)"
+            ELECTRON_RUN_AS_NODE=1 "$P" -e '
+              const t = (n, f) => { try { console.log("ok  ", n, f()); } catch (e) { console.log("FAIL", n, String(e.message).split("\n")[0].slice(0, 150)); } };
+              t("@tailwindcss/oxide", () => typeof require("@tailwindcss/oxide").Scanner);
+              t("lightningcss", () => require("lightningcss").transform({ filename: "a.css", code: Buffer.from("a{color:red}"), minify: true }).code.toString());
+              t("better-sqlite3", () => new (require("better-sqlite3"))(":memory:").prepare("select sqlite_version() v").get().v);
+              t("argon2", () => typeof require("argon2").hash);'
+          done
