@@ -401,7 +401,7 @@ export function AssistantDock({ visible }: AssistantDockProps) {
       {conversation.usedUpUntil === null ? null : <AllowanceBar resetsAt={conversation.usedUpUntil} />}
 
       {/* ── thread ─────────────────────────────────────────────────────────── */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-bg px-4 py-[18px]">
+      <div data-testid="assistant-thread" className="min-h-0 flex-1 overflow-y-auto bg-bg px-4 py-[18px]">
         {/* Announced once each is complete, politely: the page the person is working on comes first. */}
         <div role="log" aria-live="polite" aria-relevant="additions" className="flex min-h-full flex-col justify-end gap-3.5">
           {conversation.earlier > 0 ? (

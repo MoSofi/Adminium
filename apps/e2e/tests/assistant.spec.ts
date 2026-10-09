@@ -28,20 +28,25 @@ import { clearProvider, configureFakeProvider, signIn } from './helpers.js';
 test.describe.configure({ mode: 'serial' });
 
 /**
- * The assistant's dialog — every handle below is scoped to it.
+ * The assistant's panel — every handle below is scoped to it.
  *
- * Scoped to the DIALOG, not to its body: the header and the read-only bar are
- * siblings of the body inside Radix's content element, and `Modal`'s own
- * props land on Radix's Root, which renders no DOM node. The body's handle is
- * what identifies WHICH dialog, since the confirm is a second one.
+ * It is a panel beside the page (a dialog only where it lies over the page),
+ * so it is found by its own handle and not by a role.
  */
-const modal = (page: Page) =>
-  page.getByRole('dialog').filter({ has: page.getByTestId('assistant-thread') });
+const modal = (page: Page) => page.getByTestId('assistant-dock');
 
-/** Open the assistant from whatever page is on screen. */
+/**
+ * Open the assistant from whatever page is on screen, on a conversation of
+ * this test's own: the conversation is the PERSON'S and outlives a test, so
+ * whatever an earlier one left is ended first.
+ */
 async function openAssistant(page: Page): Promise<void> {
-  await page.getByTestId('ask-assistant').click();
+  if (!(await modal(page).isVisible())) await page.getByTestId('ask-assistant').click();
   await expect(modal(page)).toBeVisible();
+  await expect(modal(page).getByTestId('assistant-looking-at')).not.toHaveText(/…$/, { timeout: 20_000 });
+  const fresh = modal(page).getByTestId('assistant-new');
+  if (await fresh.isEnabled()) await fresh.click();
+  await expect(modal(page).getByTestId('assistant-steps')).toHaveCount(0);
 }
 
 /** Ask by clicking the chip whose label matches, and wait for the turn to settle. */
@@ -108,7 +113,7 @@ test.describe('the page assistant', () => {
     await result.locator('[data-testid="assistant-tab"][data-tab="details"]').click();
     await expect(result.getByText('Sources read')).toBeVisible();
 
-    // Locked until somebody turns actions on — for this open, not for ever.
+    // Locked until somebody turns actions on — for this page and this visit, not for ever.
     await expect(modal(page).getByTestId('assistant-readonly')).toBeVisible();
     await expect(action(page, 'save')).toBeDisabled();
     await modal(page).getByTestId('assistant-enable').click();
@@ -170,22 +175,30 @@ test.describe('the page assistant', () => {
     }, { timeout: 20_000 }).toBe('draft');
   });
 
-  test('(f) the window fits both viewports the fidelity walk uses', async ({ page }) => {
+  test('(f) the panel stands beside the page when there is room, and as a sheet on a phone', async ({ page }) => {
     await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 940 });
     await page.goto('/email-templates');
     await openAssistant(page);
 
-    // 1440 × 940 is the comp's frame. The panel is `max-h-[88vh]`, and a
-    // modal taller than its own cap scrolls the PAGE behind it instead of
-    // itself — the failure a walk sees as "the background moved".
-    await page.setViewportSize({ width: 1440, height: 940 });
-    const panel = page.getByRole('dialog').filter({ has: page.getByTestId('assistant-thread') });
-    await expect.poll(async () => (await panel.boundingBox())?.height ?? 0).toBeLessThanOrEqual(940 * 0.88 + 1);
+    // 1440 with the rail open is the comp's frame: the page gives up the panel's width and
+    // nothing is covered.
+    await expect(modal(page)).toHaveAttribute('data-layout', 'docked');
+    const docked = await modal(page).boundingBox();
+    expect(Math.round(docked?.width ?? 0)).toBe(400);
+    expect(Math.round(docked?.height ?? 0)).toBe(940);
+    const manager = await page.getByTestId('email-manager').boundingBox();
+    expect((manager?.x ?? 0) + (manager?.width ?? 0), 'the page ends where the panel begins').toBeLessThanOrEqual((docked?.x ?? 0) + 1);
 
-    // 390 px is where a header full of chips wraps. A group held on one line
-    // made the whole SHELL scroll sideways once before, on another surface —
-    // it is invisible until somebody opens the product on a phone.
+    // Narrower, it lies over the page's end, in front of the top bar.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(modal(page)).toHaveAttribute('data-layout', 'over');
+    await expect(modal(page).getByTestId('assistant-close')).toBeVisible();
+
+    // 390 px: a sheet. A group held on one line made the whole SHELL scroll sideways once
+    // before, on another surface — invisible until somebody opens the product on a phone.
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(modal(page)).toHaveAttribute('data-layout', 'sheet');
     await expect(page.getByTestId('assistant-thread')).toBeVisible();
     const overflow = await page.evaluate(() => ({
       doc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -193,7 +206,49 @@ test.describe('the page assistant', () => {
     }));
     expect(overflow.doc, 'the document scrolls sideways at 390px').toBeLessThanOrEqual(0);
     expect(overflow.body, 'the body scrolls sideways at 390px').toBeLessThanOrEqual(0);
+    // Escape closes a panel that lies over the page, and the bubble is back.
+    await page.keyboard.press('Escape');
+    await expect(modal(page)).toBeHidden();
+    await expect(page.getByTestId('assistant-bubble')).toBeVisible();
     await page.setViewportSize({ width: 1440, height: 940 });
+  });
+
+  test('(f) one conversation across pages: asked on a page of rows, carried to a settings screen, there after a reload', async ({ page }) => {
+    await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 940 });
+    // Nothing of the panel is fetched before the first press.
+    const panelChunks: string[] = [];
+    page.on('request', (request) => {
+      if (/\/assets\/AssistantDock-[^/]+\.js$/.test(request.url())) panelChunks.push(request.url());
+    });
+    await page.goto('/p/customers');
+    await expect(page.getByTestId('ask-assistant')).toBeVisible();
+    await expect(page.getByTestId('assistant-bubble')).toBeVisible();
+    expect(panelChunks, 'the panel was fetched before it was opened').toEqual([]);
+
+    // The page's own Ask button, drawn by the shell: this page of rows said what it is.
+    await openAssistant(page);
+    expect(panelChunks.length).toBeGreaterThan(0);
+    await expect(modal(page).getByTestId('assistant-looking-at')).toContainText('Customers');
+    await modal(page).getByTestId('assistant-chip').first().click();
+    await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible({ timeout: 30_000 });
+    await expect(modal(page).getByTestId('assistant-asked-on').last()).toContainText('Customers');
+
+    // Walk to a screen with no page of its own for the assistant: the same conversation, now the
+    // general assistant, which says where things are done with a link it was given.
+    await page.goto('/settings/team');
+    await expect(modal(page)).toBeVisible();
+    await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible({ timeout: 20_000 });
+    await modal(page).getByTestId('assistant-input').fill('Where do I invite a colleague?');
+    await modal(page).getByTestId('assistant-send').click();
+    await expect(modal(page).getByText(/Team|do not have access/).last()).toBeVisible({ timeout: 30_000 });
+    await expect(modal(page).getByTestId('assistant-asked-on')).toHaveCount(2);
+
+    // A reload finds the panel as it was left, and the conversation in it.
+    await page.reload();
+    await expect(modal(page)).toBeVisible({ timeout: 20_000 });
+    await expect(modal(page).getByTestId('assistant-asked-on')).toHaveCount(2, { timeout: 20_000 });
+    await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible();
   });
 
   test('(f) with no provider the window explains itself instead of failing', async ({ page }) => {

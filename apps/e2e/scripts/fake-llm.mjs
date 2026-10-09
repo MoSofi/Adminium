@@ -421,12 +421,21 @@ const PAGE_SCENARIOS = [
   [/"Workspace" page/, 'general'],
 ];
 
-/** The scenario whose `match` any user message satisfies, and where it started. */
+/**
+ * The scenario whose `match` a user message satisfies, and where it started.
+ *
+ * THE NEWEST ONE THAT MATCHES. A conversation goes on across pages, so the
+ * messages hold earlier questions too: the scenario in play is the one the
+ * LATEST question opened. Messages the server writes itself (the outline of
+ * earlier turns, the open document) quote what was asked before and are not
+ * questions.
+ */
 function findScenario(messages) {
-  for (let i = 0; i < messages.length; i += 1) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
     if (message?.role !== 'user') continue;
     const text = String(message.content ?? '');
+    if (/^\{"(earlier_in_this_conversation|open_document)"/.test(text)) continue;
     const scenario = SCENARIOS.find((candidate) => candidate.match.test(text));
     if (scenario !== undefined) return { scenario, at: i };
   }
