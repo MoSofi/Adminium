@@ -82,6 +82,8 @@ export const assistantSessionView = z.object({
   tokensIn: z.number(),
   tokensOut: z.number(),
   createdAt: z.number(),
+  /** One window on one page (`modal`), or the conversation that stays open across pages (`panel`). */
+  kind: z.enum(['modal', 'panel']),
 });
 
 /** What the modal's header and read-only bar draw, computed per page. */
@@ -102,6 +104,12 @@ export const assistantSessionCreateBody = z.object({
   host: assistantHostBody,
   /** The editor page's on-screen, unsaved document. */
   draft: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * `panel` asks for the person's ONE conversation that stays open across
+   * pages: when they already have one open, that one is answered and no
+   * second is made. Left out, a session is one window's, as it always was.
+   */
+  kind: z.enum(['modal', 'panel']).optional(),
 });
 
 export const assistantSessionCreateReply = z.object({
@@ -186,6 +194,13 @@ export const assistantTurnParams = z.object({
 
 export const assistantActionBody = z.object({
   action: z.enum(['save', 'test-send', 'sample', 'language.add']),
+  /**
+   * The page the person is on when they press the button, and the document
+   * open there. A draft belongs to the page and the document it was made
+   * for: pressed anywhere else, the action is refused. Left out by a window
+   * that is one page's by construction.
+   */
+  on: z.object({ context: assistantContextSchema, documentId: z.string().max(64).optional() }).optional(),
   /** `save` only: create the row and open it in the editor. */
   open: z.boolean().optional(),
   name: z.string().min(1).max(120).optional(),
@@ -228,3 +243,20 @@ export const assistantSettingsReply = z.object({
 export const assistantSettingsPutBody = z.object({
   dailyTokens: z.number().int().min(0).max(1_000_000_000),
 });
+
+/**
+ * `GET /assistant/sessions/current` — the person's open panel conversation,
+ * so a reload or a second window finds it again. `session: null` when they
+ * have none. The newest turns come whole; older ones without their drafts'
+ * documents, which are the heavy part and are asked for a turn at a time.
+ */
+export const assistantCurrentReply = z.object({
+  session: assistantSessionView.nullable(),
+  turns: z.array(assistantTurnView),
+  /** How many earlier turns the conversation holds that are not in `turns`. */
+  earlier: z.number(),
+});
+
+/** `POST /assistant/facts` — what the header says of ONE page, for a conversation that has walked to it. */
+export const assistantFactsBody = z.object({ context: assistantContextSchema, host: assistantHostBody });
+export const assistantFactsReply = z.object({ facts: assistantFactsView, nextTurnTokens: z.number() });

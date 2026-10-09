@@ -1276,3 +1276,150 @@ describe('a suggestion, as a turn is read', () => {
     ADD_ONS = [];
   });
 });
+
+describe('the conversation that stays open across pages', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+  const openPanel = (user: 'admin' | 'editor' = 'admin', context = 'email') =>
+    t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users[user]), payload: { context, host: { connectionIds: [] }, kind: 'panel' } });
+  const current = async (user: 'admin' | 'editor' = 'admin') =>
+    (await t.app.inject({ method: 'GET', url: '/api/v1/assistant/sessions/current', headers: asUser(t.users[user]) })).json() as {
+      session: { id: string; kind: string } | null;
+      turns: { id: string; say: string | null; context: string; result: Record<string, unknown> | null }[];
+      earlier: number;
+    };
+
+  beforeEach(async () => {
+    // Each test starts with nobody holding a conversation.
+    await t.meta.db.updateTable('adminium_assistant_sessions').set({ status: 'closed' }).where('status', '=', 'open').execute();
+  });
+
+  it('is one a person: asked for again it is the same one, on whatever page, and it is found after a reload', async () => {
+    expect((await current()).session).toBeNull();
+    const first = await openPanel();
+    expect(first.statusCode, first.body).toBe(201);
+    const id = (first.json() as { session: { id: string; kind: string } }).session.id;
+    expect((first.json() as { session: { kind: string } }).session.kind).toBe('panel');
+
+    // Asked for again from another page: the same conversation, and that page's own facts.
+    const again = await openPanel('admin', 'report');
+    expect(again.statusCode).toBe(200);
+    expect((again.json() as { session: { id: string } }).session.id).toBe(id);
+    expect((again.json() as { facts: { values: Record<string, unknown> } }).facts.values).toHaveProperty('reports');
+
+    // A question on each of two pages, then "a reload": the conversation and both turns are there.
+    for (const [text, context] of [['first', 'email'], ['second', 'report']] as const) {
+      const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${id}/turns`, headers: asUser(t.users.admin), payload: { text, context, host: { connectionIds: [] } } });
+      await runTurn((asked.json() as { turn: { id: string } }).turn.id, [{ text: plain(`answer to ${text}`) }], t.users.admin.id);
+    }
+    const found = await current();
+    expect(found.session).toMatchObject({ id, kind: 'panel' });
+    expect(found.turns.map((turn) => [turn.say, turn.context])).toEqual([
+      ['answer to first', 'email'],
+      ['answer to second', 'report'],
+    ]);
+    expect(found.earlier).toBe(0);
+
+    // Somebody else has none of it, and a window of the old kind is its own session still.
+    expect((await current('editor')).session).toBeNull();
+    const modal = await openSession();
+    expect((modal.json() as { session: { id: string; kind: string } }).session).toMatchObject({ kind: 'modal' });
+    expect((modal.json() as { session: { id: string } }).session.id).not.toBe(id);
+    expect((await current()).session?.id).toBe(id);
+  });
+
+  it('stays one when two windows ask for it in the same instant', async () => {
+    const [a, b, c] = await Promise.all([openPanel(), openPanel(), openPanel()]);
+    const ids = [a, b, c].map((res) => (res.json() as { session: { id: string } }).session.id);
+    const open = await t.meta.db.selectFrom('adminium_assistant_sessions').select('id').where('status', '=', 'open').where('kind', '=', 'panel').where('createdBy', '=', t.users.admin.id).execute();
+    expect(open).toHaveLength(1);
+    // Whatever each window was answered, asking now gives every one of them the one that stayed.
+    expect((await current()).session?.id).toBe(open[0]!.id);
+    expect(ids).toContain(open[0]!.id);
+  });
+
+  it('starts anew when the person asks for a new conversation, and only then', async () => {
+    const id = ((await openPanel()).json() as { session: { id: string } }).session.id;
+    const closed = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${id}/close`, headers: asUser(t.users.admin) });
+    expect(closed.statusCode).toBe(204);
+    expect((await current()).session).toBeNull();
+    const next = ((await openPanel()).json() as { session: { id: string } }).session.id;
+    expect(next).not.toBe(id);
+  });
+
+  it('answers the newest turns whole and older drafts by their cards` words, and counts what is further back', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const id = ((await openPanel()).json() as { session: { id: string } }).session.id;
+    for (let index = 1; index <= 33; index += 1) {
+      const turn = await repo.createTurn({ sessionId: id, askText: `q${String(index)}` }, AT + index);
+      await repo.finishTurn(turn.id, {
+        status: 'done',
+        say: `a${String(index)}`,
+        result: { title: `Draft ${String(index)}`, meta: 'template', artefact: { name: 'x', document: { blocks: [] } }, diff: { lines: [] } },
+        finishedAt: AT + index,
+      });
+    }
+    const found = await current();
+    expect(found.turns).toHaveLength(30);
+    expect(found.earlier).toBe(3);
+    expect(found.turns[0]!.say).toBe('a4');
+    // The last five carry their documents; the ones before carry the card's words and a mark.
+    expect(found.turns.at(-1)!.result).toHaveProperty('artefact');
+    expect(found.turns.at(-5)!.result).toHaveProperty('artefact');
+    const older = found.turns.at(-6)!.result!;
+    expect(older).toMatchObject({ title: 'Draft 28', light: true });
+    expect(older).not.toHaveProperty('artefact');
+    // …and the whole of one is still a read away.
+    const whole = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${id}/turns/${found.turns.at(-6)!.id}`, headers: asUser(t.users.admin) });
+    expect((whole.json() as { result: Record<string, unknown> }).result).toHaveProperty('artefact');
+  });
+
+  it('answers what a page`s header says, for a conversation that has walked to it', async () => {
+    const res = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/facts', headers: asUser(t.users.admin), payload: { context: 'report', host: { connectionIds: [] } } });
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as { facts: { values: Record<string, unknown>; scope: unknown } }).facts.values).toHaveProperty('reports');
+    const refused = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/facts', headers: asUser(t.users.viewer), payload: { context: 'report', host: { connectionIds: [] } } });
+    expect(refused.statusCode).toBe(403);
+  });
+});
+
+describe('a draft belongs to the page and the document it was made for', () => {
+  const draft = reply({
+    result: {
+      title: 'Welcome',
+      meta: 'template',
+      artefact: { kind: 'template', name: 'Page-bound welcome', locale: 'en_US', document: { subject: 'Welcome', preheader: '', blocks: [{ block: 'email.text', data: { paras: ['Hello'] } }], footer: '' } },
+    },
+  });
+
+  async function drafted(host: Record<string, unknown>) {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Draft a welcome', context: 'email', host: { connectionIds: [], ...host } } });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    await runTurn(turnId, [{ text: draft }], t.users.admin.id);
+    const press = (on: Record<string, unknown> | undefined) =>
+      t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/actions`, headers: asUser(t.users.admin), payload: { action: 'sample', ...(on === undefined ? {} : { on }) } });
+    return press;
+  }
+
+  it('is used on the page it was made on, and refused on another', async () => {
+    const press = await drafted({});
+    expect((await press({ context: 'email' })).statusCode).toBe(200);
+    const elsewhere = await press({ context: 'report' });
+    expect(elsewhere.statusCode).toBe(409);
+    expect(elsewhere.json().error.details).toMatchObject({ reason: 'draft-elsewhere', context: 'email', documentId: null });
+    // A window that is one page`s by construction says nothing, and is taken at its word as before.
+    expect((await press(undefined)).statusCode).toBe(200);
+  });
+
+  it('is refused on another document of the same page: a list`s draft is not some editor`s, and an editor`s is not another`s', async () => {
+    // Made on the list (no document open).
+    const fromList = await drafted({});
+    expect((await fromList({ context: 'email', documentId: 'tpl_other' })).statusCode).toBe(409);
+    // Made in one template`s editor.
+    const fromEditor = await drafted({ documentId: 'tpl_mine' });
+    expect((await fromEditor({ context: 'email', documentId: 'tpl_mine' })).statusCode).toBe(200);
+    expect((await fromEditor({ context: 'email', documentId: 'tpl_other' })).statusCode).toBe(409);
+    expect((await fromEditor({ context: 'email' })).statusCode).toBe(409);
+  });
+});

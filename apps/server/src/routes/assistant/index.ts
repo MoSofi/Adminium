@@ -64,6 +64,9 @@ import {
   assistantActionReply,
   assistantAvailabilityQuery,
   assistantAvailabilityReply,
+  assistantCurrentReply,
+  assistantFactsBody,
+  assistantFactsReply,
   assistantSessionCreateBody,
   assistantSessionCreateReply,
   assistantSessionParams,
@@ -115,6 +118,17 @@ function requireUserId(request: FastifyRequest): string {
 }
 
 /** A record, or `null` — what a stored JSON column is allowed to come back as. */
+/** Turns `GET /assistant/sessions/current` answers, newest last. */
+const CURRENT_TURNS = 30;
+/** How many of them carry their drafts' documents. */
+const CURRENT_WHOLE_TURNS = 5;
+
+/** A result card's words without its document: enough to draw the card, parked or not. */
+function lightResult(result: Record<string, unknown>): Record<string, unknown> {
+  const { artefact: _artefact, diff: _diff, ...rest } = result;
+  return { ...rest, light: true };
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -162,6 +176,7 @@ function sessionView(session: AssistantSession) {
     tokensIn: session.tokensIn,
     tokensOut: session.tokensOut,
     createdAt: session.createdAt,
+    kind: session.kind,
   };
 }
 
@@ -258,7 +273,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       {
         preHandler: guard,
         config: { audit: auditExempt('opening a modal changes nothing; the session row IS the record'), rateLimitBucket: 'assistant' },
-        schema: { body: assistantSessionCreateBody, response: { 201: assistantSessionCreateReply } },
+        schema: { body: assistantSessionCreateBody, response: { 200: assistantSessionCreateReply, 201: assistantSessionCreateReply } },
       },
       async (request, reply) => {
         const userId = requireUserId(request);
@@ -280,7 +295,20 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         });
         const facts = await setup.adapter.pageFacts(setup.deps);
 
-        const session = await sessions.create(
+        // The panel's conversation: a person has ONE, open across pages. Asked for again (a
+        // reload, a second window), the one they have is answered.
+        if (request.body.kind === 'panel') {
+          const open = await sessions.openPanelOf(userId);
+          if (open !== null) {
+            return await reply.status(200).send({
+              session: sessionView(open),
+              facts: { values: facts.values as never, scope: facts.scope },
+              nextTurnTokens: estimateTokens(setup.system),
+            });
+          }
+        }
+
+        const made = await sessions.create(
           {
             context,
             host,
@@ -288,14 +316,65 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             provider: state.provider,
             model: state.model,
             createdBy: userId,
+            ...(request.body.kind === undefined ? {} : { kind: request.body.kind }),
           },
           app.rbac.now(),
         );
-        return await reply.status(201).send({
+        // Two windows that asked in the same instant each made one. The oldest is THE one, for
+        // both: the other is closed, and whoever made it is answered the one that stays.
+        let session = made;
+        if (made.kind === 'panel') {
+          const first = (await sessions.openPanelOf(userId)) ?? made;
+          await sessions.closeOtherPanels(userId, first.id, app.rbac.now());
+          session = first;
+        }
+        return await reply.status(session.id === made.id ? 201 : 200).send({
           session: sessionView(session),
           facts: { values: facts.values, scope: facts.scope },
           nextTurnTokens: estimateTokens(setup.system),
         });
+      },
+    );
+
+    app.get(
+      '/assistant/sessions/current',
+      { preHandler: guard, schema: { response: { 200: assistantCurrentReply } } },
+      async (request) => {
+        const userId = requireUserId(request);
+        const session = await sessions.openPanelOf(userId);
+        if (session === null) return { session: null, turns: [], earlier: 0 };
+        const all = await sessions.listTurns(session.id);
+        const shown = all.slice(-CURRENT_TURNS);
+        const turns: AssistantTurnView[] = [];
+        for (const [index, turn] of shown.entries()) {
+          const view = await served(turn, session);
+          // The newest come whole. An older draft comes as its card's words; its document is the
+          // heavy part and is read with the turn when the person opens it.
+          const light = index < shown.length - CURRENT_WHOLE_TURNS && view.result !== null;
+          turns.push(light ? { ...view, result: lightResult(view.result as Record<string, unknown>) } : view);
+        }
+        return { session: sessionView(session), turns, earlier: all.length - shown.length };
+      },
+    );
+
+    app.post(
+      '/assistant/facts',
+      {
+        preHandler: guard,
+        config: { audit: auditExempt('reads what a page holds, for the header of a conversation that walked to it; writes nothing') },
+        schema: { body: assistantFactsBody, response: { 200: assistantFactsReply } },
+      },
+      async (request) => {
+        const setup = await setUpTurn({
+          meta,
+          manager,
+          context: request.body.context,
+          host: request.body.host,
+          userId: requireUserId(request),
+          can: (permission) => request.can(permission),
+          ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
+        });
+        return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system) };
       },
     );
 
@@ -442,6 +521,17 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         const artefact = result === null ? null : asRecord(result.artefact);
         if (artefact === null) {
           throw new ValidationFailedError('That turn produced no draft to act on.', { turnId: turn.id });
+        }
+        // A draft belongs to the page and the document it was made for. Pressed on another page,
+        // or on another document of the same page (a new-template draft on some other template's
+        // editor), it is refused: the page it belongs to is where it is used.
+        const on = request.body.on;
+        if (on !== undefined) {
+          const madeOn = turn.context ?? session.context;
+          const madeFor = (turn.context === null ? session.host : (turn.host ?? session.host)).documentId ?? null;
+          if (on.context !== madeOn || (on.documentId ?? null) !== madeFor) {
+            throw new ConflictError('That draft was made on another page.', 'CONFLICT', { reason: 'draft-elsewhere', context: madeOn, documentId: madeFor });
+          }
         }
 
         const principal = (request as unknown as { user?: { id?: string; name?: string; email?: string } }).user;

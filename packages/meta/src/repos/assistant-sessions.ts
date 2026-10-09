@@ -268,6 +268,37 @@ export function assistantSessionsRepo(meta: MetaDb) {
     },
 
     /**
+     * The person's open PANEL conversation: the one that stays open while they
+     * walk from page to page. The oldest open one, so two windows that opened
+     * one each in the same instant agree on which it is.
+     */
+    async openPanelOf(userId: string): Promise<AssistantSession | null> {
+      const row = await db
+        .selectFrom('adminium_assistant_sessions')
+        .selectAll()
+        .where('createdBy', '=', userId)
+        .where('kind', '=', 'panel')
+        .where('status', '=', 'open')
+        .orderBy('createdAt', 'asc')
+        .orderBy('id', 'asc')
+        .executeTakeFirst();
+      return row === undefined ? null : decodeSession(row);
+    },
+
+    /** Close every open panel conversation of a person but one: a person has one. Answers how many were closed. */
+    async closeOtherPanels(userId: string, keepId: string, at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_assistant_sessions')
+        .set({ status: 'closed', closedAt: at, updatedAt: at })
+        .where('createdBy', '=', userId)
+        .where('kind', '=', 'panel')
+        .where('status', '=', 'open')
+        .where('id', '!=', keepId)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
+    },
+
+    /**
      * Add a turn's usage to the session's running totals. A read-modify-write
      * would lose a concurrent turn's tokens; this is one statement, so the
      * database adds them.
