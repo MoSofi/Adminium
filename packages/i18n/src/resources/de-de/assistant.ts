@@ -459,6 +459,7 @@ export default {
     "delete": {
       "reference": "{count} in {table}",
       "references": "Andere Zeilen verweisen darauf: {list}. Sie werden mit entfernt oder geändert, wie beim Löschen auf der Seite selbst."
-    }
+    },
+    "noneAble": "Nichts davon lässt sich machen"
   }
 } as const;

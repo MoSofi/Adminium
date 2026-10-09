@@ -338,6 +338,9 @@ export const ASSISTANT_DRAFT_WITH_PROPOSAL_MESSAGE =
 export const ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE =
   '"doc.save" and "doc.change" save the draft in "result" of the SAME reply. Send the draft with it, or leave the action out.';
 
+/** Said when a send travels with anything else. */
+export const ASSISTANT_SEND_ALONE_MESSAGE = 'A send is proposed by itself: ONE "send.template" action and nothing else in that proposal.';
+
 type TurnShape = z.infer<typeof assistantTurnFields>;
 
 function isDraftAction(action: { do: string }): boolean {
@@ -359,6 +362,10 @@ function checkMoves(turn: Partial<TurnShape>, context: z.RefinementCtx, message:
     return;
   }
   if (moves > 1) context.addIssue({ code: 'custom', message });
+  // A mail to people is confirmed by itself: one card, one mail, who gets it.
+  if (actions.length > 1 && actions.some((action) => action.do === 'send.template' || action.do === 'send.document')) {
+    context.addIssue({ code: 'custom', path: ['propose', 'actions'], message: ASSISTANT_SEND_ALONE_MESSAGE });
+  }
   if (turn.result === undefined && actions.some(isDraftAction)) {
     context.addIssue({ code: 'custom', path: ['propose', 'actions'], message: ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE });
   }

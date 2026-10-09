@@ -655,6 +655,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           const answer = asRecord(turn.answer) ?? {};
           if (request.body.action === 'check') {
             const checked = await checkProposal(checking);
+            // Not written when a confirm took it meanwhile: the stored copy is then the confirm's.
             if (checked.changed) await sessions.recordAnswer(turn.id, { ...answer, proposal: checked.proposal });
             return { proposal: proposalView(checked.proposal) };
           }

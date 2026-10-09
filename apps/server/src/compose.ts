@@ -2975,6 +2975,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // tidy-up over the same store, and a second 03:00 job would only mean two
     // places to look.
     const assistantSessions = await sweepAssistantSessions(meta, at);
+    // A confirm that died with its process is ended here too, so nobody waits for a restart.
+    await endInterruptedProposals(assistantSessionsRepo(meta), at).catch(() => 0);
 
     // Public-surface sessions past their `expires_at` (28). `purgeExpired` was
     // written with the repo and never called, so the table only grew. Last,

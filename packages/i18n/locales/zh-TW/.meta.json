@@ -1275,6 +1275,10 @@
     "status": "mt",
     "srcHash": "8a31169f99f2"
   },
+  "assistant.proposal.noneAble": {
+    "status": "mt",
+    "srcHash": "edf6ee875fbb"
+  },
   "assistant.proposal.notChanged": {
     "status": "mt",
     "srcHash": "1a963739cddb"

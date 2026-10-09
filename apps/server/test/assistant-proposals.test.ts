@@ -460,12 +460,22 @@ for (const [dialect, available] of legs) {
       const open = storedProposalOf(turnRow.answer)!;
       expect(await repo.claimProposal(made.stored.id, Date.now())).toBe(true);
       expect(await repo.claimProposal(made.stored.id, Date.now())).toBe(false);
-      await repo.recordAnswer(made.stored.id, { ...turnRow.answer, proposal: { ...open, state: 'applying', picked: [0, 1, 2], outcome: { done: [{ index: 0, id: '1' }], failed: [], notTried: [] } } });
-      expect(await endInterruptedProposals(repo, Date.now())).toBeGreaterThanOrEqual(1);
+      expect(await repo.recordProposalProgress(made.stored.id, { ...turnRow.answer, proposal: { ...open, state: 'applying', picked: [0, 1, 2], outcome: { done: [{ index: 0, id: '1' }], failed: [], notTried: [] } } })).toBe(true);
+      // Too young to be an orphan: a server starting beside the one that holds it leaves it alone.
+      expect((await repo.listUnfinishedProposals(Date.now() - 600_000)).some((row) => row.id === made.stored.id)).toBe(false);
+      await endInterruptedProposals(repo, Date.now());
+      expect(storedProposalOf((await repo.findTurn(made.stored.id))!.answer)).toMatchObject({ state: 'applying' });
+      // A check that was still running when the confirm began cannot write its older copy over it.
+      expect(await repo.recordAnswer(made.stored.id, { ...turnRow.answer, proposal: open })).toBe(false);
+      expect(storedProposalOf((await repo.findTurn(made.stored.id))!.answer)).toMatchObject({ state: 'applying' });
+      // Old enough, it is ended.
+      expect(await endInterruptedProposals(repo, Date.now(), 0)).toBeGreaterThanOrEqual(1);
       const ended = storedProposalOf((await repo.findTurn(made.stored.id))!.answer)!;
       expect(ended).toMatchObject({ state: 'interrupted', outcome: { done: [{ index: 0 }], unsure: [1], notTried: [2] } });
       // Ended once: a second start finds nothing left of it.
-      expect((await repo.listUnfinishedProposals()).some((row) => row.id === made.stored.id)).toBe(false);
+      expect((await repo.listUnfinishedProposals(Date.now() + 1)).some((row) => row.id === made.stored.id)).toBe(false);
+      // And the run that held it can write nothing more.
+      expect(await repo.recordProposalProgress(made.stored.id, { proposal: { ...open, state: 'applying' } })).toBe(false);
       // And it cannot be confirmed again.
       expect((await apply(night, made, open.hash)).status).toBe(409);
     });
@@ -642,6 +652,10 @@ for (const [dialect, available] of legs) {
       expect(moved).toMatchObject({ status: 409, reason: 'proposal-changed' });
       expect((moved.proposal.actions![0]!.preview as typeof preview).references.reduce((sum, entry) => sum + entry.count, 0)).toBe(2);
       expect(await roomId('601')).toBe(id);
+      // The card that showed one reference cannot confirm what now takes two: its hash is of what IT showed.
+      expect(moved.proposal.hash).not.toBe(shown.proposal.hash);
+      expect(await apply(keeper, made, shown.proposal.hash)).toMatchObject({ status: 409, reason: 'proposal-changed' });
+      expect(await roomId('601')).toBe(id);
       // Confirmed as now shown, it is sent as the screen sends it: with what refers to it acknowledged.
       const done = await apply(keeper, made, moved.proposal.hash);
       expect(done.status, done.body).toBe(200);
@@ -706,14 +720,29 @@ for (const [dialect, available] of legs) {
       const plain = await make('Receipt', 'template');
       const send = (templateId: string, roles: string[]) => ({ do: 'send.template', templateId, roles });
 
-      const made = await turn(owner.id, [reply({ propose: { title: 'Send the news', actions: [send(campaign.id, ['planner', 'Planner']), send(plain.id, ['Planner']), send(campaign.id, ['Nobody at all']), send('tpl_nothing', ['Planner'])] } })], Date.now(), undefined, 'email');
-      expect(made.stored.status, JSON.stringify(made.stored.error)).toBe('done');
+      const one = async (action: Record<string, unknown>) => {
+        const asked = await turn(owner.id, [reply({ propose: { title: 'Send the news', actions: [action] } })], Date.now(), undefined, 'email');
+        expect(asked.stored.status, JSON.stringify(asked.stored.error)).toBe('done');
+        return asked;
+      };
+      const made = await one(send(campaign.id, ['planner', 'Planner']));
       expect(made.scripted.calls[0]!.system).toContain('"send.template" takes the id of a CAMPAIGN');
       const shown = await check(owner, made);
-      const [first, second, third, fourth] = shown.proposal.actions!;
+      const [first] = shown.proposal.actions!;
       expect(first, shown.body).toMatchObject({ preview: { kind: 'send.template', id: campaign.id, name: 'News', subject: 'Winter hours', roles: [{ name: 'Planner' }] } });
       expect((first!.preview as { total: number }).total).toBeGreaterThanOrEqual(1);
-      expect([second!.refused?.code, third!.refused?.code, fourth!.refused?.code]).toEqual(['NOT_A_CAMPAIGN', 'UNKNOWN_ROLE', 'NOT_FOUND']);
+      const refusals: (string | undefined)[] = [];
+      for (const action of [send(plain.id, ['Planner']), send(campaign.id, ['Nobody at all']), send('tpl_nothing', ['Planner'])]) {
+        refusals.push((await check(owner, await one(action))).proposal.actions![0]!.refused?.code);
+      }
+      expect(refusals).toEqual(['NOT_A_CAMPAIGN', 'UNKNOWN_ROLE', 'NOT_FOUND']);
+      // Two mails in one proposal, or a mail beside anything else, is not a proposal at all.
+      const two = await turn(owner.id, [reply({ propose: { title: 'x', actions: [send(campaign.id, ['Planner']), send(campaign.id, ['Planner'])] } })], Date.now(), undefined, 'email');
+      expect(two.stored.status).toBe('failed');
+      // A campaign that is switched off (as one the assistant itself drafted is saved) is not sent.
+      const draft = await templates.create({ kind: 'campaign', key: `p64-draft-${dialect}`, locale: 'en_US', name: 'Draft', category: 'lifecycle', starter: null, enabled: false, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Unread', blocks: [] } as never)) });
+      const unread = await turn(owner.id, [reply({ propose: { title: 'Send it', actions: [send(draft.id, ['Planner'])] } })], Date.now(), undefined, 'email');
+      expect((await check(owner, unread)).proposal.actions![0]!.refused).toMatchObject({ code: 'NOT_LIVE' });
 
       // No mail server is set up on this workspace: the page's own route says so, and nothing is queued.
       const done = await apply(owner, made, shown.proposal.hash);
@@ -774,6 +803,29 @@ for (const [dialect, available] of legs) {
       } finally {
         await s.app.inject({ method: 'DELETE', url: `/api/v1/automations/${ruleId}`, headers: { cookie: ownerCookie } });
       }
+    });
+
+    it('changes a column the person writes and does not see in clear: shown as their own value, and written', async () => {
+      await switches({ change: true });
+      await s.run(`UPDATE lodge_stays SET phone = '555-0100' WHERE id = 1`);
+      // `all` writes every column and holds no right to read personal ones in clear.
+      const made = await proposed(all, [stay('1', { phone: '555-0177' })]);
+      const shown = await check(all, made);
+      const [action] = shown.proposal.actions!;
+      expect(action!.refused, shown.body).toBeUndefined();
+      const preview = action!.preview as { before: Record<string, unknown>; after: Record<string, unknown> };
+      expect(preview.after.phone).toBe('555-0177');
+      // What the row holds now is not told to someone who may not read it, here either.
+      expect(shown.body).not.toContain('555-0100');
+      // The mask is not sent as what the row was seen to hold: it would refuse every such change.
+      expect(action!.seen ?? {}).not.toHaveProperty('phone');
+      const done = await apply(all, made, shown.proposal.hash);
+      expect(done.proposal.outcome, done.body).toMatchObject({ done: [{ index: 0, id: '1' }], failed: [] });
+      const handle = await s.manager.data(s.connectionId);
+      expect((await sql<{ phone: string }>`SELECT phone FROM lodge_stays WHERE id = 1`.execute(handle.db)).rows[0]?.phone).toBe('555-0177');
+      // The same value again is still "no change" for someone who reads it in clear... and for them, who cannot tell, it is offered.
+      const again = await check(all, await proposed(all, [stay('1', { late_until: await lateOf(1) ?? '07:00' })]));
+      expect(again.proposal.actions![0]!.refused?.code ?? 'ok').toMatch(/NO_CHANGE|ok/);
     });
 
     // ── what is tried against it ─────────────────────────────────────────────

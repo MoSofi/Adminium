@@ -449,6 +449,7 @@
     "delete": {
       "reference": "{table} 中 {count} 行",
       "references": "其他行引用了此项：{list}。它们会随之删除或更改，与页面自身的删除相同。"
-    }
+    },
+    "noneAble": "这些都无法执行"
   }
 }

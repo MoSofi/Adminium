@@ -174,7 +174,7 @@ const PROPOSABLE_LINES: Record<AssistantActionKind, string> = {
   'doc.change': '- doc.change: save the draft in "result" of this same reply over the document that is open on this page.',
   'doc.delete': '- doc.delete: delete one email template, report or rule, by the id a tool returned.',
   'send.document': '- send.document: send one document to the recipient it already names.',
-  'send.template': '- send.template: send one email template to everyone who holds one of the named roles.',
+  'send.template': '- send.template: send ONE campaign to everyone who holds one of the named roles. Proposed by itself: nothing else in the same proposal.',
 };
 
 /** Words for a kind that is switched off or not this person's, so the model can say so plainly. */

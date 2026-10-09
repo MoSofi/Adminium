@@ -459,6 +459,7 @@ export default {
     "delete": {
       "reference": "{count} في {table}",
       "references": "صفوف أخرى تشير إلى هذا: {list}. تذهب أو تتغيّر معه، كما في حذف الصفحة نفسها."
-    }
+    },
+    "noneAble": "لا يمكن تنفيذ أي من هذا"
   }
 } as const;

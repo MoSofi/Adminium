@@ -459,6 +459,7 @@ export default {
     "delete": {
       "reference": "{count} v {table}",
       "references": "Odkazují na to jiné řádky: {list}. Zmizí nebo se změní s ním, stejně jako při mazání na stránce."
-    }
+    },
+    "noneAble": "Nic z toho nelze provést"
   }
 } as const;

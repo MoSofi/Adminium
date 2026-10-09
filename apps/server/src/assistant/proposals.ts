@@ -31,7 +31,7 @@ import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { isBuiltinEmailKey } from '../email/document.js';
-import { ConflictError, ValidationFailedError } from '../errors.js';
+import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import { dataPageOf } from './data-page.js';
 import { DoorRefusedError, type Door, type DoorReply, type DoorRouteKey } from './door.js';
@@ -148,7 +148,7 @@ export function proposalView(proposal: StoredProposal): Record<string, unknown> 
       state: proposal.state,
       title: proposal.title,
       madeAt: proposal.madeAt,
-      actions: bare(proposal.actions),
+      actions: spent(proposal.actions),
       picked: proposal.picked ?? [],
       outcome: proposal.outcome ?? { done: [], failed: [], notTried: [] },
       ...(proposal.appliedAt === undefined ? {} : { appliedAt: proposal.appliedAt }),
@@ -157,13 +157,14 @@ export function proposalView(proposal: StoredProposal): Record<string, unknown> 
   return { state: proposal.state, title: proposal.title, madeAt: proposal.madeAt, count: proposal.actions.length };
 }
 
-/** The hash a confirm must name: the actions as they were checked, and nothing a preview holds. */
+/**
+ * The hash a confirm must name: everything the person was shown. The actions,
+ * what each would change, what refers to a row, who would get a mail, and
+ * what cannot be done. A card that shows anything else has another hash, so
+ * an older card in a second window can never confirm what a newer check found.
+ */
 export function proposalHash(actions: readonly CheckedAction[]): string {
-  const canonical = actions.map((action) => {
-    const { preview: _preview, refused: _refused, ...rest } = action;
-    return sortKeys(rest);
-  });
-  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+  return createHash('sha256').update(JSON.stringify(actions.map(sortKeys))).digest('hex');
 }
 
 function sortKeys(value: unknown): unknown {
@@ -174,6 +175,20 @@ function sortKeys(value: unknown): unknown {
       .sort()
       .map((key) => [key, sortKeys((value as Record<string, unknown>)[key])]),
   );
+}
+
+/**
+ * What a confirmed proposal keeps of each action: no row's values (what a
+ * row held is dropped once the proposal is spent), but the name of a
+ * document and of a mail and how many people it went to, so the result can
+ * say what was saved, deleted or sent.
+ */
+function spent(actions: readonly CheckedAction[]): CheckedAction[] {
+  return actions.map((action) => {
+    const { preview, refused: _refused, seen: _seen, ...rest } = action;
+    const named = preview !== undefined && (preview.kind === 'doc.save' || preview.kind === 'doc.change' || preview.kind === 'doc.delete' || preview.kind === 'send.template');
+    return (named ? { ...rest, preview } : rest) as CheckedAction;
+  });
 }
 
 /** Without previews and refusals: what a proposal keeps once it stops being open. */
@@ -206,6 +221,11 @@ function refusalOf(reply: DoorReply): ProposalRefusal {
 }
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** The same value, however it was written: a route answers `5` for a `"5"` it was sent. */
+const loose = (a: unknown, b: unknown): boolean =>
+  same(a, b) || (a !== null && a !== undefined && b !== null && b !== undefined && typeof a !== 'object' && typeof b !== 'object' && String(a) === String(b));
+const isPlain = (value: unknown): boolean => value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+const clipCell = (value: unknown): unknown => (typeof value === 'string' && value.length > PREVIEW_CELL_MAX ? `${value.slice(0, PREVIEW_CELL_MAX - 1)}…` : value);
 
 export interface CheckProposalInput {
   request: FastifyRequest;
@@ -252,6 +272,9 @@ async function checkSend(input: { action: CheckedAction; abilities: CheckDocInpu
   if (row === null) return { checked: { ...action, refused: { code: 'NOT_FOUND', message: 'That mail is not there.' } } };
   if (row.kind !== 'campaign') return { checked: { ...action, refused: { code: 'NOT_A_CAMPAIGN', message: 'Only a campaign can be sent to people.' } } };
   if (row.archivedAt !== null) return { checked: { ...action, refused: { code: 'ARCHIVED', message: 'An archived campaign cannot be sent.' } } };
+  // A mail the assistant drafted is saved switched off. It is sent only after a person has
+  // looked at it and switched it on: the assistant never sends what only it has read.
+  if (!row.enabled) return { checked: { ...action, refused: { code: 'NOT_LIVE', message: 'A draft is switched on by a person before it can be sent.' } } };
   const known = await rolesRepo(deps.meta).list();
   const roles: { id: string; name: string }[] = [];
   for (const asked of action.roles) {
@@ -268,10 +291,12 @@ async function checkSend(input: { action: CheckedAction; abilities: CheckDocInpu
       return { checked: { ...placed, refused }, ...(tried.status === 429 ? { stop: refused } : {}) };
     }
     const counted = tried.body as { total?: unknown; skipped?: unknown };
-    const total = typeof counted.total === 'number' ? counted.total : 0;
+    const skipped = typeof counted.skipped === 'number' ? counted.skipped : 0;
+    // The route counts everyone in the roles, those who opted out included: the card says who gets it.
+    const total = Math.max((typeof counted.total === 'number' ? counted.total : 0) - skipped, 0);
     if (total === 0) return { checked: { ...placed, refused: { code: 'NO_RECIPIENTS', message: 'Nobody would get this mail.' } } };
     return {
-      checked: { ...placed, preview: { kind: 'send.template', id: row.id, name: row.name, subject: row.subject, roles, total, skipped: typeof counted.skipped === 'number' ? counted.skipped : 0 } },
+      checked: { ...placed, preview: { kind: 'send.template', id: row.id, name: row.name, subject: row.subject, roles, total, skipped } },
     };
   } catch (error) {
     if (!(error instanceof DoorRefusedError)) throw error;
@@ -442,6 +467,7 @@ async function checkOne(input: CheckOneInput): Promise<{ checked: CheckedAction;
     const read = await through('row.read', row);
     if (read.status !== 200) return refusedBy(read);
     const before = clip((read.body as { data?: unknown }).data);
+    const raw = ((read.body as { data?: unknown }).data ?? {}) as Record<string, unknown>;
     if (placed.do === 'row.delete') {
       const tried = await through('row.delete.try', row);
       if (tried.status !== 200) return refusedBy(tried);
@@ -456,16 +482,28 @@ async function checkOne(input: CheckOneInput): Promise<{ checked: CheckedAction;
     // Everything the change would leave different, not only the columns the model named:
     // a figure a rule works out moves with them, and the person is shown that too.
     const moved = Object.keys(after).filter((column) => !same(before[column], after[column]));
-    if (moved.length === 0) return { checked: { ...placed, refused: { code: 'NO_CHANGE', message: 'The row already holds these values.' } } };
-    const named = Object.keys(placed.values).filter((column) => column in before).slice(0, PROPOSAL_SEEN_MAX);
+    // A column this person is not shown in clear reads the same before and after (its mask), so
+    // a change to it cannot be SEEN in the two rows. It is still a change they asked for: it is
+    // shown as what they read now and the value they gave, which is theirs to know.
+    const unseen = Object.keys(placed.values).filter((column) => column in after && !moved.includes(column) && !loose(after[column], placed.values[column]));
+    if (moved.length === 0 && unseen.length === 0) return { checked: { ...placed, refused: { code: 'NO_CHANGE', message: 'The row already holds these values.' } } };
+    // What the row was seen to hold travels with the write only for a column they read in clear:
+    // a mask is not what the row holds, and sent as "seen" it would refuse every such change.
+    // …and only a plain value, whole: the guard compares it with the row itself, so a long text
+    // cut short for the card, or a list, would never match.
+    const named = Object.keys(placed.values)
+      .filter((column) => column in raw && !unseen.includes(column) && isPlain(raw[column]))
+      .slice(0, PROPOSAL_SEEN_MAX);
+    const shownAfter = (column: string): unknown => (unseen.includes(column) ? clipCell(placed.values[column]) : (after[column] ?? null));
+    const columns = [...moved, ...unseen];
     return {
       checked: {
         ...placed,
-        seen: Object.fromEntries(named.map((column) => [column, before[column]])),
+        seen: Object.fromEntries(named.map((column) => [column, raw[column]])),
         preview: {
           kind: 'change',
-          before: Object.fromEntries(moved.map((column) => [column, before[column] ?? null])),
-          after: Object.fromEntries(moved.map((column) => [column, after[column] ?? null])),
+          before: Object.fromEntries(columns.map((column) => [column, before[column] ?? null])),
+          after: Object.fromEntries(columns.map((column) => [column, shownAfter(column)])),
         },
       },
     };
@@ -516,6 +554,10 @@ export async function checkProposal(input: CheckProposalInput): Promise<{ propos
     if (one.stop !== undefined) stopped = one.stop;
   }
 
+  // Cut short by "too many requests": nothing is stored, so the same check can be made again
+  // in a moment. Stored, the rows it never reached would read as refused for good.
+  if (stopped !== null) throw new AppError(429, 'RATE_LIMITED', 'Too many requests at once. Check this again in a moment.', { reason: 'check-again' });
+
   return {
     proposal: {
       state: 'open',
@@ -539,7 +581,10 @@ function throughFor(input: Pick<CheckProposalInput, 'door' | 'request' | 'sessio
 
 /** What the confirm needs of the turn's store: three writes, each one statement. */
 export interface ProposalStore {
+  /** Written only while no confirm has taken the proposal. */
   recordAnswer: (turnId: string, answer: Record<string, unknown>) => Promise<boolean>;
+  /** Written only by the confirm that holds it, until it ends. */
+  recordProposalProgress: (turnId: string, answer: Record<string, unknown>) => Promise<boolean>;
   claimProposal: (turnId: string, at: number) => Promise<boolean>;
   finishProposal: (turnId: string, answer: Record<string, unknown>, at: number) => Promise<boolean>;
 }
@@ -581,7 +626,14 @@ function conflict(reason: 'proposal-changed' | 'proposal-spent', message: string
  */
 export async function applyProposal(input: ApplyProposalInput): Promise<{ proposal: StoredProposal; handOver: ProposalHandOver }> {
   const { now, store, turnId } = input;
-  const keep = (proposal: StoredProposal): Promise<boolean> => store.recordAnswer(turnId, { ...input.answer, proposal });
+  // Before the claim: written only while no confirm has taken the proposal. Refused, another
+  // request confirmed it meanwhile, and what THIS one knows of it is the older copy.
+  const keep = async (proposal: StoredProposal): Promise<void> => {
+    if (!(await store.recordAnswer(turnId, { ...input.answer, proposal }))) throw conflict('proposal-spent', 'That proposal was already confirmed.', proposal);
+  };
+  // After it: what the run has done so far. Best effort, so a store that hiccups mid-run costs
+  // a line of progress and never the run.
+  const progress = (proposal: StoredProposal): Promise<boolean> => store.recordProposalProgress(turnId, { ...input.answer, proposal }).catch(() => false);
 
   if (input.proposal.state === 'unchecked') throw new ValidationFailedError('That proposal has not been checked yet.', { turnId });
   const lived = await checkProposal(input);
@@ -619,8 +671,12 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
   for (const index of picked) {
     const shown = actions[index]!;
     const { preview: _preview, refused: _refused, seen: _seen, ...asked } = shown;
-    // A new row has nothing to have moved since; the write runs every check the trial ran.
-    if (shown.do === 'row.create' && abilities.create) continue;
+    // A new row has nothing to have moved since: it is placed again (the page may be gone, or
+    // no longer theirs), and the write runs every check the trial ran.
+    if (shown.do === 'row.create' && abilities.create) {
+      const at = await place(shown);
+      if (at.ok && at.connectionId === shown.connectionId && at.table === shown.table) continue;
+    }
     // A change whose row still reads as the preview said needs no second trial: one read, not two requests.
     const still = shown.do === 'row.change' && abilities.change && shown.preview?.kind === 'change' ? await place(shown) : null;
     if (shown.do === 'row.change' && shown.preview?.kind === 'change' && still !== null && still.ok && still.connectionId === shown.connectionId && still.table === shown.table) {
@@ -650,83 +706,89 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
 
   const outcome: ProposalOutcome = { done: [], failed: [], notTried: [] };
   const handOver: ProposalHandOver = { undo: [], once: [] };
-  const running = (): StoredProposal => ({ state: 'applying', title: proposal.title, actions: bare(proposal.actions), madeAt: proposal.madeAt, picked, outcome });
-  await keep(running());
+  const running = (): StoredProposal => ({ state: 'applying', title: proposal.title, actions: spent(proposal.actions), madeAt: proposal.madeAt, picked, outcome });
+  await progress(running());
   let stopped = false;
-  for (const index of picked) {
-    if (stopped) {
-      outcome.notTried.push(index);
-      continue;
-    }
-    const action = proposal.actions[index]!;
-    try {
-      if (action.do === 'doc.save') {
-        // The page's own save, as the card's button runs it; it remembers the turn, so it saves once.
-        const saved = input.saveDraft === undefined ? null : await input.saveDraft();
-        if (saved === null) outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
-        else outcome.done.push({ index, id: saved.id });
-        await keep(running());
+  try {
+    for (const index of picked) {
+      if (stopped) {
+        outcome.notTried.push(index);
         continue;
       }
-      let reply: DoorReply | null = null;
-      if (action.do === 'doc.change' || action.do === 'doc.delete') {
-        const shown = action.preview;
-        if (shown?.kind === 'doc.delete') reply = await through(`doc.delete.${shown.what}`, { id: shown.id });
-        if (shown?.kind === 'doc.change' && input.artefact !== undefined && input.artefact !== null) {
-          const found = await documentOf(input.meta, shown.what, shown.id);
-          if (found !== null) reply = await through(`doc.change.${shown.what}`, { id: found.id }, changeBody(shown.what, found.keep, input.artefact));
-        }
-        if (reply !== null && reply.status >= 200 && reply.status < 300) {
-          outcome.done.push({ index, id: shown?.kind === 'doc.change' || shown?.kind === 'doc.delete' ? shown.id : null });
-          await keep(running());
+      const action = proposal.actions[index]!;
+    try {
+        if (action.do === 'doc.save') {
+          // The page's own save, as the card's button runs it; it remembers the turn, so it saves once.
+          const saved = input.saveDraft === undefined ? null : await input.saveDraft();
+          if (saved === null) outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
+          else outcome.done.push({ index, id: saved.id });
+          await progress(running());
           continue;
         }
-      } else if (action.do === 'send.template') {
-        reply = await through('send.template', { id: action.templateId }, { audience: { kind: 'users', roleIds: action.roles } });
-        if (reply.status >= 200 && reply.status < 300) {
-          outcome.done.push({ index, id: action.templateId });
-          await keep(running());
-          continue;
+        let reply: DoorReply | null = null;
+        if (action.do === 'doc.change' || action.do === 'doc.delete') {
+          const shown = action.preview;
+          if (shown?.kind === 'doc.delete') reply = await through(`doc.delete.${shown.what}`, { id: shown.id });
+          if (shown?.kind === 'doc.change' && input.artefact !== undefined && input.artefact !== null) {
+            const found = await documentOf(input.meta, shown.what, shown.id);
+            if (found !== null) reply = await through(`doc.change.${shown.what}`, { id: found.id }, changeBody(shown.what, found.keep, input.artefact));
+          }
+          if (reply !== null && reply.status >= 200 && reply.status < 300) {
+            outcome.done.push({ index, id: shown?.kind === 'doc.change' || shown?.kind === 'doc.delete' ? shown.id : null });
+            await progress(running());
+            continue;
+          }
+        } else if (action.do === 'send.template') {
+          reply = await through('send.template', { id: action.templateId }, { audience: { kind: 'users', roleIds: action.roles } });
+          if (reply.status >= 200 && reply.status < 300) {
+            outcome.done.push({ index, id: action.templateId });
+            await progress(running());
+            continue;
+          }
+        } else if (action.do === 'send.document') {
+          reply = null;
+        } else {
+          const where = { connectionId: (action as { connectionId: string }).connectionId, table: (action as { table: string }).table };
+          reply =
+            action.do === 'row.create'
+              ? await through('row.create', where, { values: action.values })
+              : action.do === 'row.change'
+                ? await through('row.change', { ...where, recordId: action.id }, { values: action.values, ...(action.seen === undefined || Object.keys(action.seen).length === 0 ? {} : { seen: action.seen }) })
+                : action.do === 'row.delete'
+                  ? // "Yes, with what refers to it" is said only for a row whose references the person was shown.
+                    await through(action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete', { ...where, recordId: action.id })
+                  : null;
         }
-      } else if (action.do === 'send.document') {
-        reply = null;
-      } else {
-        const where = { connectionId: (action as { connectionId: string }).connectionId, table: (action as { table: string }).table };
-        reply =
-          action.do === 'row.create'
-            ? await through('row.create', where, { values: action.values })
-            : action.do === 'row.change'
-              ? await through('row.change', { ...where, recordId: action.id }, { values: action.values, ...(action.seen === undefined || Object.keys(action.seen).length === 0 ? {} : { seen: action.seen }) })
-              : action.do === 'row.delete'
-                ? // "Yes, with what refers to it" is said only for a row whose references the person was shown.
-                  await through(action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete', { ...where, recordId: action.id })
-                : null;
+        if (reply === null) {
+          outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
+        } else if (reply.status === 200 || reply.status === 201) {
+          const body = reply.body as { data?: Record<string, unknown> | null; undoToken?: unknown; once?: unknown };
+          const key = action.do === 'row.change' || action.do === 'row.delete' ? action.id : action.do !== 'row.create' || input.keyColumn === undefined ? undefined : body.data?.[input.keyColumn];
+          outcome.done.push({ index, id: key === undefined || key === null ? null : String(key) });
+          if (typeof body.undoToken === 'string' && body.undoToken !== '') handOver.undo.push({ index, token: body.undoToken });
+          if (Array.isArray(body.once)) handOver.once.push(...(body.once as unknown[]));
+        } else {
+          const refused = refusalOf(reply);
+          outcome.failed.push({ index, code: refused.code, message: refused.message });
+          // The person's own request budget is spent: the rest are left, and said so.
+          if (reply.status === 429) stopped = true;
+        }
+      } catch (error) {
+        // Whatever one action throws is that action's failure: the proposal is taken, and a
+        // run that stopped here would leave it "working" until the next start.
+        const code = typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : 'FAILED';
+        outcome.failed.push({ index, code, message: error instanceof Error ? error.message : 'This could not be done.' });
       }
-      if (reply === null) {
-        outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
-      } else if (reply.status === 200 || reply.status === 201) {
-        const body = reply.body as { data?: Record<string, unknown> | null; undoToken?: unknown; once?: unknown };
-        const key = action.do === 'row.change' || action.do === 'row.delete' ? action.id : action.do !== 'row.create' || input.keyColumn === undefined ? undefined : body.data?.[input.keyColumn];
-        outcome.done.push({ index, id: key === undefined || key === null ? null : String(key) });
-        if (typeof body.undoToken === 'string' && body.undoToken !== '') handOver.undo.push({ index, token: body.undoToken });
-        if (Array.isArray(body.once)) handOver.once.push(...(body.once as unknown[]));
-      } else {
-        const refused = refusalOf(reply);
-        outcome.failed.push({ index, code: refused.code, message: refused.message });
-        // The person's own request budget is spent: the rest are left, and said so.
-        if (reply.status === 429) stopped = true;
-      }
-    } catch (error) {
-      // Whatever one action throws is that action's failure: the proposal is taken, and a
-      // run that stopped here would leave it "working" until the next start.
-      const code = typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : 'FAILED';
-      outcome.failed.push({ index, code, message: error instanceof Error ? error.message : 'This could not be done.' });
+      await progress(running());
     }
-    await keep(running());
+  } finally {
+    // Whatever happened above, the proposal that was taken is ended: nobody is left looking at
+    // "working". What was not reached is said to be not tried.
+    const settled = new Set([...outcome.done.map((entry) => entry.index), ...outcome.failed.map((entry) => entry.index), ...outcome.notTried]);
+    for (const index of picked) if (!settled.has(index)) outcome.notTried.push(index);
+    await store.finishProposal(turnId, { ...input.answer, proposal: { ...running(), state: 'applied', appliedAt: now } }, now).catch(() => false);
   }
-  const applied: StoredProposal = { ...running(), state: 'applied', appliedAt: now };
-  await store.finishProposal(turnId, { ...input.answer, proposal: applied }, now);
-  return { proposal: applied, handOver };
+  return { proposal: { ...running(), state: 'applied', appliedAt: now }, handOver };
 }
 
 /**
@@ -745,13 +807,22 @@ export function interruptedProposal(proposal: StoredProposal): StoredProposal {
   };
 }
 
-/** At start: every proposal a confirm took and never finished is ended as interrupted. */
+/** Longer than any confirm lasts: a claim this old and not ended belongs to a process that is gone. */
+export const PROPOSAL_ORPHAN_MS = 10 * 60_000;
+
+/**
+ * Every proposal a confirm took, at least `olderThan` ago, and never ended is
+ * ended as interrupted. With an age, so a server that starts beside another
+ * (a rolling deploy) leaves the other's running confirm alone; the periodic
+ * sweep calls it too, so one left by a crash is ended without a restart.
+ */
 export async function endInterruptedProposals(
-  store: Pick<ProposalStore, 'finishProposal'> & { listUnfinishedProposals: () => Promise<{ id: string; answer: Record<string, unknown> | null }[]> },
+  store: Pick<ProposalStore, 'finishProposal'> & { listUnfinishedProposals: (claimedBefore: number) => Promise<{ id: string; answer: Record<string, unknown> | null }[]> },
   now: number,
+  olderThan: number = PROPOSAL_ORPHAN_MS,
 ): Promise<number> {
   let ended = 0;
-  for (const turn of await store.listUnfinishedProposals()) {
+  for (const turn of await store.listUnfinishedProposals(now - olderThan)) {
     const stored = storedProposalOf(turn.answer);
     // A proposal that no longer reads has nothing to say; the turn is only marked as ended.
     if (stored === null) {

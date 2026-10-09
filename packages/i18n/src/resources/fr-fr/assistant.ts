@@ -459,6 +459,7 @@ export default {
     "delete": {
       "reference": "{count} dans {table}",
       "references": "D’autres lignes y font référence : {list}. Elles partent ou changent avec elle, comme pour la suppression sur la page."
-    }
+    },
+    "noneAble": "Rien de cela ne peut être fait"
   }
 } as const;

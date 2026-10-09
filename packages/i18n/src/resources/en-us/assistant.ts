@@ -459,6 +459,7 @@ export default {
     "delete": {
       "reference": "{count} in {table}",
       "references": "Other rows refer to this: {list}. They go or change with it, as on the page’s own delete."
-    }
+    },
+    "noneAble": "None of this can be done"
   }
 } as const;

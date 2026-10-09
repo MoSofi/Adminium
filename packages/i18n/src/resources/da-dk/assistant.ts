@@ -459,6 +459,7 @@ export default {
     "delete": {
       "reference": "{count} i {table}",
       "references": "Andre rækker henviser til denne: {list}. De forsvinder eller ændres med den, som ved sidens egen sletning."
-    }
+    },
+    "noneAble": "Intet af dette kan lade sig gøre"
   }
 } as const;

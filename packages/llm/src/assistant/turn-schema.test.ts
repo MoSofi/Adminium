@@ -8,6 +8,7 @@ import {
   ASSISTANT_MAX_ARTEFACT_ERRORS,
   ASSISTANT_NO_PROPOSE_MESSAGE,
   ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE,
+  ASSISTANT_SEND_ALONE_MESSAGE,
   ASSISTANT_SCHEMA_VERSION,
   ASSISTANT_STEP_ICON_FALLBACK,
   assistantArtefactErrorsMessage,
@@ -387,5 +388,13 @@ describe('a proposal', () => {
     expect(assistantTurnSchemaFor({ document: false, propose: ['row.change', 'row.create'] })).toBe(assistantTurnSchemaFor(rows));
     expect(assistantTurnSchemaFor({ document: true })).toBe(assistantTurnV1);
   });
+  it('proposes a send by itself, never beside another action', () => {
+    const variant = { document: false, propose: ['send.template', 'row.change'] } as const;
+    const send = { do: 'send.template', templateId: 't1', roles: ['Staff'] };
+    expect(parseAssistantTurn(reply({ propose: { title: 'Send', actions: [send] } }), undefined, variant).ok).toBe(true);
+    for (const actions of [[send, send], [send, change], [change, send]]) {
+      const parsed = parseAssistantTurn(reply({ propose: { title: 'x', actions } }), undefined, variant);
+      expect(parsed).toMatchObject({ ok: false, errors: [{ path: 'propose.actions', message: ASSISTANT_SEND_ALONE_MESSAGE }] });
+    }
+  });
 });
-
