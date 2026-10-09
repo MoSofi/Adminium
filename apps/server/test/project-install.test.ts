@@ -104,10 +104,7 @@ describe('adminium install --check', () => {
     expect(await check()).toEqual({ code: 0, out: expect.stringContaining('in place') as string });
   });
 
-  it('is not listed in the help, and refuses a folder that is no project', async () => {
-    const io = fakeIo();
-    await runCli(['--help'], { io, deps: fakeDeps({ cwd: root, env: {} }) });
-    expect(io.stdout()).not.toMatch(/^\s+install\s/m);
+  it('refuses a folder that is no project', async () => {
     rmSync(join(root, 'adminium.config.mjs'));
     const refused = fakeIo();
     expect(await runCli(['install', '--check'], { io: refused, deps: fakeDeps({ cwd: root, env: {} }) })).not.toBe(0);

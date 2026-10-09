@@ -154,6 +154,7 @@ describe('command registry', () => {
       'new',
       'dev',
       'design',
+      'install',
       'build',
       'start',
       'check',

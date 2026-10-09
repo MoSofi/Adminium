@@ -283,8 +283,7 @@ install that did not finish, packages installed on another kind of computer, or 
 packages that changed since), and exits `0` when everything is in place and `3` when it is not.
 
 You rarely run this yourself: on a terminal, your package manager does the same job. The
-Adminium desktop app runs it before it opens a project, and the command is left out of
-`adminium --help` for that reason.
+Adminium desktop app runs it before it opens a project.
 
 ## `build`
 

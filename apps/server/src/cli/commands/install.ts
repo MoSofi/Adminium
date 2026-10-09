@@ -2,8 +2,8 @@
 /**
  * `adminium install` — install the project's packages, whole.
  *
- * Hidden: on a terminal a person runs their package manager themselves. It is
- * the desktop app's way to make a folder ready before it starts that folder's
+ * On a terminal a person's own package manager does the same job; this is the
+ * desktop app's way to make a folder ready before it starts that folder's
  * server, with the npm the app carries, and to learn whether that is needed
  * at all (`--check`).
  */
@@ -17,7 +17,6 @@ export const installCommand: Command = {
   name: 'install',
   summary: 'Install the project’s packages',
   usage: 'adminium install [--check]',
-  hidden: true,
   describe:
     'Installs the packages the project in this folder lists, from its lockfile when it\n' +
     'has one, with no install scripts, and marks the install as finished.\n' +
