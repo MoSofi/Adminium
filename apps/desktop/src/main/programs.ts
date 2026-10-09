@@ -26,6 +26,7 @@ export interface DesktopProgramsValue {
   npmUserConfig: string;
   npmGlobalConfig: string;
   npmCache: string;
+  starter: string | null;
 }
 
 export interface ProvideProgramsInput {
@@ -37,6 +38,8 @@ export interface ProvideProgramsInput {
   userDataDir: string;
   /** A git that works here, or `null`. */
   git: string | null;
+  /** The folder of the lockfile a new project starts with, when this build carries one. */
+  starterDir?: string | null | undefined;
   platform: NodeJS.Platform;
 }
 
@@ -131,6 +134,8 @@ export function provideDesktopPrograms(input: ProvideProgramsInput): DesktopProg
     npmUserConfig: join(npmHome, 'user.npmrc'),
     npmGlobalConfig: join(npmHome, 'global.npmrc'),
     npmCache: join(npmHome, 'cache'),
+    // Named only when it is really there: a build made outside a release carries none.
+    starter: input.starterDir != null && existsSync(join(input.starterDir, 'package-lock.json')) ? input.starterDir : null,
   };
   mkdirSync(shims, { recursive: true });
   mkdirSync(value.npmCache, { recursive: true });

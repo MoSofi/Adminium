@@ -42,6 +42,8 @@ export interface DesktopPrograms {
   npmGlobalConfig: string;
   /** npm's cache, in the app's own folder. */
   npmCache: string;
+  /** The folder of the lockfile a new project starts with (`starter-lock.ts`), or `null`: this build carries none. */
+  starter: string | null;
 }
 
 /** What it takes to start a program: the file, its arguments, and what to add to the child's environment. */
@@ -84,6 +86,7 @@ export function desktopPrograms(env: Readonly<Record<string, string | undefined>
     npmUserConfig: path('npmUserConfig'),
     npmGlobalConfig: path('npmGlobalConfig'),
     npmCache: path('npmCache'),
+    starter: value['starter'] === undefined || value['starter'] === null ? null : path('starter'),
   };
 }
 

@@ -2123,6 +2123,8 @@ export function electronBootDeps(): DesktopBootDeps {
           npmDir: carriedNpmDir(app.isPackaged, process.resourcesPath, dirname(fileURLToPath(import.meta.url))),
           userDataDir,
           git: null,
+          // Made by the release (`scripts/release/starter-lockfile.mjs`); a build without it installs the ordinary way.
+          starterDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'starter'),
           platform: process.platform,
         }),
       ),

@@ -36,7 +36,9 @@ import {
   type PackageManager,
 } from '../../project/package-manager.js';
 import { writeInstallStamp } from '../../project/install-stamp.js';
-import { gitProgram, namedPackageManager, packageManagerProgram } from '../../project/programs.js';
+import { wholeInstallArgs } from '../../project/install.js';
+import { desktopPrograms, gitProgram, namedPackageManager, packageManagerProgram } from '../../project/programs.js';
+import { addScreenPackagesTo, applyStarterLock } from '../../project/starter-lock.js';
 import { createSampleDatabase } from '../../project/sample.js';
 import { scaffoldProject } from '../../project/scaffold.js';
 import { APP_VERSION } from '../../version.js';
@@ -382,7 +384,16 @@ export const newCommand: Command = {
 
     let installed: boolean | null = null;
     if (!boolFlag(values['no-install'])) {
-      const { command, args } = installCommand(packageManager);
+      // Inside the desktop app a new project is one the Designer will build screens in: what those need is listed
+      // now, and the lockfile the app carries is laid in, so this first install is the only one and installs exactly
+      // what the release was tried with.
+      const inApp = desktopPrograms(deps.env) !== null;
+      if (inApp) {
+        addScreenPackagesTo(root, APP_VERSION);
+        if (applyStarterLock(root, deps.env)) io.out('Installing exactly what this version of Adminium was tried with.');
+      }
+      const { command } = installCommand(packageManager);
+      const args = inApp ? wholeInstallArgs(packageManager, root) : installCommand(packageManager).args;
       const launch = program.launch(args);
       io.out(`Installing dependencies with ${command}…`);
       installed = run(launch.command, launch.args, { cwd: root, inherit: true, ...(Object.keys(launch.env).length === 0 ? {} : { env: launch.env }) }).status === 0;

@@ -30,6 +30,7 @@ const APP = {
   npmUserConfig: '/Users/a/Library/Application Support/Adminium/npm/user.npmrc',
   npmGlobalConfig: '/Users/a/Library/Application Support/Adminium/npm/global.npmrc',
   npmCache: '/Users/a/Library/Application Support/Adminium/npm/cache',
+  starter: null as string | null,
 };
 const desktop = (over: Record<string, unknown> = {}): Record<string, string> => ({ [DESKTOP_PROGRAMS_ENV]: JSON.stringify({ ...APP, ...over }) });
 const TERMINAL: Record<string, string> = {};
@@ -51,6 +52,10 @@ describe('desktopPrograms', () => {
   it('reads what the app wrote', () => {
     expect(desktopPrograms(desktop())).toEqual(APP);
     expect(desktopPrograms(desktop({ git: null }))?.git).toBeNull();
+    // The starter's lockfile is carried by a release build, and by no other.
+    expect(desktopPrograms(desktop({ starter: '/Applications/Adminium.app/Contents/Resources/starter' }))?.starter).toBe('/Applications/Adminium.app/Contents/Resources/starter');
+    expect(desktopPrograms(desktop({ starter: undefined }))?.starter).toBeNull();
+    expect(() => desktopPrograms(desktop({ starter: 'starter' }))).toThrow(/"starter" must be an absolute path/);
   });
 
   it.each([

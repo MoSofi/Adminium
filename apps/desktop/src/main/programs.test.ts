@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -30,6 +30,7 @@ describe('provideDesktopPrograms', () => {
       npmUserConfig: join(userData, 'programs', 'npm', 'user.npmrc'),
       npmGlobalConfig: join(userData, 'programs', 'npm', 'global.npmrc'),
       npmCache: join(userData, 'programs', 'npm', 'cache'),
+      starter: null,
     });
     expect(readdirSync(value.shims).sort()).toEqual(['node', 'npm', 'npx']);
     for (const name of ['node', 'npm', 'npx']) expect(statSync(join(value.shims, name)).mode & 0o111, name).not.toBe(0);
@@ -119,5 +120,17 @@ describe('carriedNpmDir', () => {
     const dir = carriedNpmDir(false, '', join(import.meta.dirname, '..', '..', 'out', 'main'));
     expect(JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))).toMatchObject({ name: 'npm', version: '10.9.8' });
     expect(readdirSync(join(dir, 'bin'))).toEqual(expect.arrayContaining(['npm-cli.js', 'npx-cli.js']));
+  });
+});
+
+describe('the starter’s lockfile', () => {
+  it('is named only when this build really carries one', () => {
+    const base = { binary: '/app/Adminium', npmDir: '/app/npm', userDataDir: userData, git: null, platform: 'darwin' as const };
+    const dir = join(userData, 'starter');
+    expect(provideDesktopPrograms({ ...base, starterDir: dir }).starter).toBeNull();
+    mkdirSync(dir);
+    writeFileSync(join(dir, 'package-lock.json'), '{}');
+    expect(provideDesktopPrograms({ ...base, starterDir: dir }).starter).toBe(dir);
+    expect(provideDesktopPrograms({ ...base, starterDir: null }).starter).toBeNull();
   });
 });
