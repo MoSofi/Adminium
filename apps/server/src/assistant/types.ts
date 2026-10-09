@@ -114,22 +114,18 @@ export interface AssistantPageFacts {
   prompt: string;
 }
 
-/** Every fact a page's copy can name. All optional — each page measures its own. */
-export interface AssistantFactValues {
-  templates?: number;
-  campaigns?: number;
-  invoices?: number;
-  reports?: number;
-  rules?: number;
-  /** Tables the acting person may read across every connection. */
-  tables?: number;
-  /** The one connection worth naming, when there is one. */
-  connection?: string;
-  /** What a template's number looks like before one is minted. */
-  pattern?: string;
-  /** Whether this session may save on this page. */
-  write?: boolean;
-}
+/**
+ * The facts a page's copy can name: an OPEN list of numbers, names and
+ * yes/no answers, keyed by what each page measures (`templates`, `rules`,
+ * `rows`, …). Open on purpose: when it was a fixed list, a new page's count
+ * had to be added in three places, and a place that was missed drew the raw
+ * placeholder in the header. The dashboard reads the keys its sentence names
+ * and ignores the rest.
+ */
+export type AssistantFactValues = Record<string, string | number | boolean>;
+
+/** A fact's key: an identifier, so it can be a placeholder in a translated sentence. */
+export const ASSISTANT_FACT_KEY = /^[a-z][A-Za-z0-9]{0,31}$/;
 
 /** Why an artefact was refused, in the shape the correction message takes. */
 export interface AssistantArtefactRejection {

@@ -132,6 +132,13 @@ jobs:
       - name: Check for citations of documents a reader cannot open
         run: pnpm run check-private-citations
 
+      # The pages the assistant can be opened from are listed in two packages
+      # and in the dashboard, by hand, because the three may not import one
+      # another. A page added to two of them compiles and is refused by the
+      # third at run time. Root-level and uncached, like the gate above.
+      - name: Check the assistant's pages are one list in three places
+        run: pnpm run check-assistant-contexts
+
       # Tailwind emits NOTHING for a utility whose token is undefined — no
       # warning, no error — so the element falls back to the CSS initial value
       # and ships looking deliberate. On 2026-09-10 that was thirty call sites

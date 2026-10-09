@@ -69,17 +69,9 @@ export const assistantFactsView = z.object({
    * never a sentence. A sentence composed here would be English on the wire,
    * and no locale can translate that.
    */
-  values: z.object({
-    templates: z.number().optional(),
-    campaigns: z.number().optional(),
-    invoices: z.number().optional(),
-    reports: z.number().optional(),
-    rules: z.number().optional(),
-    tables: z.number().optional(),
-    connection: z.string().optional(),
-    pattern: z.string().optional(),
-    write: z.boolean().optional(),
-  }),
+  values: z
+    .record(z.string().regex(/^[a-z][A-Za-z0-9]{0,31}$/), z.union([z.string().max(200), z.number(), z.boolean()]))
+    .refine((values) => Object.keys(values).length <= 24, { message: 'A page names at most 24 facts.' }),
   scope: z.object({ primary: z.string(), extra: z.number() }),
 });
 

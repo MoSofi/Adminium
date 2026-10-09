@@ -98,6 +98,14 @@ const STEPS = [
     tier: 'quick',
   },
   {
+    // In `quick`: three files read as text. From the root and uncached, because it
+    // reads two packages and the dashboard, which may not import one another.
+    id: 'check-assistant-contexts',
+    cmd: 'pnpm run check-assistant-contexts',
+    why: 'the pages the assistant opens from are the same list in the three places that keep one',
+    tier: 'quick',
+  },
+  {
     // In `quick` because it costs under a second and catches something no other
     // gate here can see: tsc and eslint do not read the inside of a string, so
     // an undefined Tailwind utility compiles to nothing and ships looking

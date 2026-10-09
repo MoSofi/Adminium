@@ -74,6 +74,12 @@ export interface AssistantFacts {
     connection?: string;
     pattern?: string;
     write?: boolean;
+    /**
+     * And whatever else a page measures. The list is open on the server: a
+     * new page's fact arrives here without this file changing, and the copy
+     * that names it reads it by key.
+     */
+    [fact: string]: string | number | boolean | undefined;
   };
   /** The scope chip: the page's own collection, plus how much else is readable. */
   scope: { primary: string; extra: number };
