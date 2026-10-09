@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The assistant on a data page, on every engine, as the people who use it.
+ *
+ * - Which table a page shows is the PAGE's, read by the server after the
+ *   page's own view check. The request names a page, never a table.
+ * - "These rows" is the page's own selection, open record or filters,
+ *   applied by the server as a predicate a tool call can narrow and never
+ *   widen, and only on the page's own table.
+ * - A row read says how many rows came back of how many there are.
+ * - The page drafts nothing: its prompt has no document in it.
+ */
+import { pagesRepo } from '@adminium/meta';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { dataPageOf } from '../src/assistant/data-page.js';
+import type { TurnSetup } from '../src/assistant/turn-setup.js';
+import { legs, person, stack, turnAs, type Stack } from './assistant-lodge.helpers.js';
+
+for (const [dialect, available] of legs) {
+  describe.skipIf(!available)(`the assistant on a data page — ${dialect}`, () => {
+    let s: Stack;
+    let pageId: string;
+    let night: { cookie: string; id: string };
+    let hk: { cookie: string; id: string };
+    let reader: { cookie: string; id: string };
+
+    const run = (setup: TurnSetup, tool: string, args: Record<string, unknown>) => setup.execute({ id: 'c1', tool, args: { connectionId: s.connectionId, ...args } });
+    /** A turn on the app's page; `page: null` is a turn that names no page at all. */
+    const on = (userId: string, view: Record<string, unknown> = {}, page: string | null = pageId) =>
+      turnAs(s, userId, 'data', { ...(page === null ? {} : { pageId: page }), view });
+    const rowsOf = (out: { result?: unknown }) => (out.result as { rows: Record<string, unknown>[]; returned: number; total: number | null }).rows;
+    const idsOf = (out: { result?: unknown }) => rowsOf(out).map((row) => Number(row.id)).sort((a, b) => a - b);
+
+    beforeAll(async () => {
+      s = await stack(dialect);
+      await s.run(`INSERT INTO lodge_rooms (number) VALUES ('101')`);
+      const stays: [string, string, string, number][] = [
+        ['2026-11-01', 'Ana', 'booked', 100],
+        ['2026-11-02', 'Ben', 'in_house', 200],
+        ['2026-11-03', 'Cy', 'booked', 300],
+        ['2026-11-04', 'Di', 'departed', 400],
+        ['2026-11-05', 'Eli', 'booked', 500],
+      ];
+      for (const [arrive, guest, status, total] of stays) {
+        await s.run(`INSERT INTO lodge_stays (room_id, arrive, depart, guest_name, total, status) VALUES (1, '${arrive}', '2026-12-01', '${guest}', ${String(total)}, '${status}')`);
+      }
+      const page = (await pagesRepo(s.meta).listAll()).find((row) => row.title === 'Stays');
+      expect(page, 'the app`s page').toBeDefined();
+      pageId = page!.id;
+      night = await person(s, 'night@lodge.dev', ['night']);
+      hk = await person(s, 'hk@lodge.dev', ['housekeeping']);
+      // Reads the table and holds no grant on the page.
+      reader = await person(s, 'reader@lodge.dev', [], [`table:${s.connectionId}:${s.table.stays}:read`]);
+    }, 180_000);
+    afterAll(async () => s?.close());
+
+    it('knows the page`s table from the page, after the page`s own view check', async () => {
+      const setup = await on(night.id);
+      expect(await dataPageOf(setup.deps)).toMatchObject({ id: pageId, title: 'Stays', kind: 'page-crud', table: s.table.stays, connectionId: s.connectionId });
+      expect(setup.system).toContain(`the page "Stays", which shows the table ${s.table.stays}`);
+      expect(setup.facts).toMatchObject({ page: 'Stays', table: s.table.stays });
+
+      // Someone who may not view the page is told nothing of it, though they read its table.
+      const outsider = await on(reader.id);
+      expect(await dataPageOf(outsider.deps)).toBeNull();
+      expect(outsider.system).not.toContain('"Stays"');
+      expect(outsider.facts).not.toHaveProperty('table');
+      // A page that is not there, and no page at all.
+      expect(await dataPageOf((await on(night.id, {}, 'page_does_not_exist')).deps)).toBeNull();
+      expect(await dataPageOf((await on(night.id, {}, null)).deps)).toBeNull();
+    });
+
+    it('drafts nothing: the prompt has no document in it and the contract no result', async () => {
+      const setup = await on(night.id);
+      expect(setup.adapter.document).toBeUndefined();
+      expect(setup.system).not.toContain('== The document format ==');
+      expect(setup.system).not.toContain('"result"');
+      expect(setup.system).toContain('This page has no document');
+      expect(setup.specs.map((spec) => spec.name)).toEqual(['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record']);
+    });
+
+    it('holds "the rows shown" to the grid`s own filter, which a call can narrow and never widen', async () => {
+      const where = JSON.stringify({ column: 'status', op: 'eq', value: 'booked' });
+      const setup = await on(night.id, { where });
+      const shown = await run(setup, 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(shown.error, JSON.stringify(shown.error)).toBeUndefined();
+      expect(idsOf(shown)).toEqual([1, 3, 5]);
+      expect(shown.result).toMatchObject({ returned: 3, total: 3, scope: 'page' });
+      expect(shown.read).toMatchObject({ tool: 'read_rows', returned: 3, total: 3, scope: 'page' });
+
+      // Narrowed by the call's own filter.
+      const narrowed = await run(setup, 'read_rows', { table: s.table.stays, scope: 'page', where: { column: 'total', op: 'gte', value: 300 } });
+      expect(idsOf(narrowed)).toEqual([3, 5]);
+      // An "or" that would reach every row reaches only the shown ones.
+      const widened = await run(setup, 'read_rows', { table: s.table.stays, scope: 'page', where: { or: [{ column: 'status', op: 'eq', value: 'departed' }, { column: 'total', op: 'gte', value: 0 }] } });
+      expect(idsOf(widened)).toEqual([1, 3, 5]);
+      // Without the scope the call reads the table, as before.
+      expect(idsOf(await run(setup, 'read_rows', { table: s.table.stays }))).toEqual([1, 2, 3, 4, 5]);
+      // The prompt says the grid shows a part.
+      expect(setup.system).toContain('The grid shows a part of the table: filters');
+    });
+
+    it('holds a total to the same rows', async () => {
+      const [schema, name] = s.table.stays.split('.') as [string, string];
+      const descriptor = { shape: 'single-metric', source: { schema, name }, aggregations: [{ fn: 'sum', column: 'total', alias: 'money' }] };
+      const setup = await on(night.id, { where: JSON.stringify({ column: 'status', op: 'eq', value: 'booked' }) });
+      const all = await run(setup, 'aggregate', { descriptor });
+      const shown = await run(setup, 'aggregate', { descriptor, scope: 'page' });
+      expect(shown.error, JSON.stringify(shown.error)).toBeUndefined();
+      expect(JSON.stringify(all.result)).toContain('1500');
+      expect(JSON.stringify(shown.result)).toContain('900');
+      expect(JSON.stringify(shown.result)).not.toContain('1500');
+      // The call's own condition is kept beside the page's.
+      const both = await run(setup, 'aggregate', { descriptor: { ...descriptor, filters: [{ column: 'total', op: 'gte', value: 300 }] }, scope: 'page' });
+      expect(JSON.stringify(both.result)).toContain('800');
+      // A text search cannot be applied to a total: said, not answered over every row.
+      const searching = await on(night.id, { q: 'Ana' });
+      const refused = await run(searching, 'aggregate', { descriptor, scope: 'page' });
+      expect(refused.error?.code).toBe('SCOPE_HAS_SEARCH');
+      expect(refused.result).toBeUndefined();
+    });
+
+    it('means the rows that are ticked, or the record that is open', async () => {
+      const setup = await on(night.id, { selectedIds: ['2', '4'], recordId: '5', where: JSON.stringify({ column: 'status', op: 'eq', value: 'booked' }) });
+      expect(idsOf(await run(setup, 'read_rows', { table: s.table.stays, scope: 'selection' }))).toEqual([2, 4]);
+      expect(idsOf(await run(setup, 'read_rows', { table: s.table.stays, scope: 'record' }))).toEqual([5]);
+      expect(setup.system).toContain('2 rows selected');
+      expect(setup.system).toContain('they most likely mean scope "selection"');
+      expect(setup.facts).toMatchObject({ selected: 2 });
+      // Nothing ticked, nothing open: said, not guessed.
+      const bare = await on(night.id);
+      expect((await run(bare, 'read_rows', { table: s.table.stays, scope: 'selection' })).error?.code).toBe('NOTHING_SELECTED');
+      expect((await run(bare, 'read_rows', { table: s.table.stays, scope: 'record' })).error?.code).toBe('NO_OPEN_RECORD');
+      expect((await run(bare, 'read_rows', { table: s.table.stays, scope: 'everything' })).error?.code).toBe('BAD_ARGS');
+    });
+
+    it('is about the page`s own table only, and only where there is a page', async () => {
+      const setup = await on(night.id, { where: JSON.stringify({ column: 'status', op: 'eq', value: 'booked' }) });
+      // The owner reads rooms; the scope still says nothing about them.
+      const owner = await on((await person(s, `o-${dialect}@lodge.dev`, [], [`table:${s.connectionId}:${s.table.rooms}:read`, `page:${pageId}:view`])).id, {});
+      expect((await run(owner, 'read_rows', { table: s.table.rooms, scope: 'page' })).error?.code).toBe('SCOPE_OTHER_TABLE');
+      // No page the person may view: no scope.
+      expect((await run(await on(reader.id), 'read_rows', { table: s.table.stays, scope: 'page' })).error?.code).toBe('NO_PAGE_SCOPE');
+      expect(setup.system).toContain(s.table.stays);
+    });
+
+    it('refuses a page filter over a column the role is not shown, and one it cannot read at all', async () => {
+      // Housekeeping is not shown `total`: a filter on it cannot have come from their grid.
+      const hidden = await on(hk.id, { where: JSON.stringify({ column: 'total', op: 'gte', value: 300 }) });
+      const out = await run(hidden, 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(out.error?.code).toBe('COLUMN_FORBIDDEN');
+      expect(out.result).toBeUndefined();
+      // Not a filter at all: "the rows shown" is then not known, and every row is not read in its place.
+      const broken = await on(night.id, { where: '{not json' });
+      const refused = await run(broken, 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(refused.error?.code).toBe('PAGE_VIEW_UNREADABLE');
+      expect(refused.result).toBeUndefined();
+    });
+
+    it('says how many rows came back of how many there are, and reads on from an offset', async () => {
+      const setup = await on(night.id);
+      const first = await run(setup, 'read_rows', { table: s.table.stays, limit: 2, sort: 'id.asc' });
+      expect(first.result).toMatchObject({ returned: 2, total: 5 });
+      expect(idsOf(first)).toEqual([1, 2]);
+      const next = await run(setup, 'read_rows', { table: s.table.stays, limit: 2, offset: 2, sort: 'id.asc' });
+      expect(next.result).toMatchObject({ returned: 2, total: 5, offset: 2 });
+      expect(idsOf(next)).toEqual([3, 4]);
+      expect(first.read).toMatchObject({ returned: 2, total: 5 });
+    });
+  });
+}

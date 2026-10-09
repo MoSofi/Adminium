@@ -58,6 +58,22 @@ export interface AssistantToolOutcome {
   error?: AssistantToolFailure;
   /** `<connection name>.<table>` this call read — appended to the turn's sources, which a person reads. */
   tables?: string[];
+  /**
+   * What a ROW read really covered: how many rows came back of how many
+   * there are, and whether it was held to the page's own rows. The line
+   * under an answer ("from orders; read 50 of 830") is built from these by
+   * the server, never from what the model says it read.
+   */
+  read?: AssistantRead;
+}
+
+/** One read of rows, as it happened. */
+export interface AssistantRead {
+  table: string;
+  tool: string;
+  returned?: number | undefined;
+  total?: number | null | undefined;
+  scope?: string | undefined;
 }
 
 export interface AssistantTool {

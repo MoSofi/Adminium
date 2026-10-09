@@ -274,5 +274,25 @@
   },
   "budget": {
     "usedUp": "Dagens kvote er brugt op. Den starter igen kl. {time}."
+  },
+  "data": {
+    "page": "Denne side",
+    "blurb": "Kender denne side: {table} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "blurbNoTable": "Kender denne side · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "greeting": "Jeg kan læse, hvad denne side viser, og de andre tabeller, din rolle må læse.",
+    "greetingSub": "Spørg om rækkerne her. Jeg svarer i ord, med tallene, og siger, hvilke tabeller jeg har læst.",
+    "placeholder": "Spørg om disse data…",
+    "chip1": "Hvor mange rækker vises her?",
+    "chip2": "Opsummer, hvad denne side viser",
+    "chip3": "Hvad er ændret senest?",
+    "workTitle": "Data læst",
+    "scopePrimary": "denne side",
+    "readPage": "{page} · {table} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "readPageNoTable": "{tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "confirm": {
+      "title": "Intet at gemme her",
+      "body": "{name} udarbejder ikke noget på denne side.",
+      "button": "Luk"
+    }
   }
 }

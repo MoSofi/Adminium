@@ -274,5 +274,25 @@
   },
   "budget": {
     "usedUp": "Dnešní příděl je vyčerpán. Znovu začne v {time}."
+  },
+  "data": {
+    "page": "Tato stránka",
+    "blurb": "Zná tuto stránku: {table} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "blurbNoTable": "Zná tuto stránku · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "greeting": "Umím přečíst, co tato stránka zobrazuje, a další tabulky, které smí číst vaše role.",
+    "greetingSub": "Zeptejte se na zdejší řádky. Odpovím slovy, s čísly, a řeknu, které tabulky jsem četl.",
+    "placeholder": "Zeptejte se na tato data…",
+    "chip1": "Kolik řádků se tu zobrazuje?",
+    "chip2": "Shrň, co tato stránka zobrazuje",
+    "chip3": "Co se změnilo naposledy?",
+    "workTitle": "Data přečtena",
+    "scopePrimary": "tato stránka",
+    "readPage": "{page} · {table} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "readPageNoTable": "{tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "confirm": {
+      "title": "Tady není co uložit",
+      "body": "Asistent {name} na této stránce nic nenavrhuje.",
+      "button": "Zavřít"
+    }
   }
 }

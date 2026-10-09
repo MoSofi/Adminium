@@ -284,5 +284,25 @@ export default {
   },
   "budget": {
     "usedUp": "Today’s allowance is used up. It starts again at {time}."
+  },
+  "data": {
+    "page": "This page",
+    "blurb": "Knows this page: {table} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "blurbNoTable": "Knows this page · {tables, plural, one {# readable table} other {# readable tables}}",
+    "greeting": "I can read what this page shows, and the other tables your role can read.",
+    "greetingSub": "Ask about the rows here. I answer in words, with the figures, and say which tables I read.",
+    "placeholder": "Ask about this data…",
+    "chip1": "How many rows are shown here?",
+    "chip2": "Summarise what this page shows",
+    "chip3": "What changed most recently?",
+    "workTitle": "Read the data",
+    "scopePrimary": "this page",
+    "readPage": "{page} · {table} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "readPageNoTable": "{tables, plural, one {# readable table} other {# readable tables}}",
+    "confirm": {
+      "title": "Nothing to save here",
+      "body": "{name} drafts nothing on this page.",
+      "button": "Close"
+    }
   }
 } as const;

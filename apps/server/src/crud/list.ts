@@ -169,6 +169,16 @@ export interface RunListOptions {
    */
   mandatory?: RecordFilter | undefined;
   /**
+   * Count the rows under {@link mandatory} too. Off unless asked: on the
+   * anonymous surface every list carries a mandatory predicate, and an exact
+   * count there is a free way to make the database work (see the note where
+   * the count is taken). A caller that reads AS A SIGNED-IN PERSON, inside
+   * their rate budget, may ask: the assistant does, because "these are 50 of
+   * 830 rows" is the sentence that keeps a partial read from passing for a
+   * whole one.
+   */
+  countMandatory?: boolean | undefined;
+  /**
    * The COMPLETE column set to return, replacing both `params.select` and the
    * default (a / a′).
    *
@@ -393,7 +403,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
      * cost actually is, so a future caller that does pass one cannot buy the
      * COUNT by asking for an estimate.
      */
-    if (total === null && mandatory !== undefined) {
+    if (total === null && mandatory !== undefined && opts.countMandatory !== true) {
       total = null;
     } else if (total === null) {
       const countRow = await applyFilters(db.selectFrom(table.id) as unknown as Qb)

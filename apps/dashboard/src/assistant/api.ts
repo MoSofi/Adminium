@@ -19,7 +19,7 @@ import { api } from '../app/api.js';
 const BASE = '/api/v1/assistant';
 
 /** The four pages the assistant can be opened from. */
-export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation';
+export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation' | 'data';
 
 /** Why the modal cannot work, when it cannot. */
 export type AssistantUnavailableReason = 'no-provider' | 'network-disabled' | 'forbidden';
@@ -45,6 +45,22 @@ export interface AssistantHostRef {
   documentId?: string;
   tab?: string;
   connectionIds: string[];
+  /** A data page: which page. The server reads the page's table from the page. */
+  pageId?: string;
+  /** What that page is showing: what "these" means in a question. */
+  view?: AssistantPageView;
+}
+
+/** A data page's state, in the list route's own spellings. */
+export interface AssistantPageView {
+  q?: string;
+  order?: string;
+  /** The filter the grid sent, as JSON text, link filters already resolved into it. */
+  where?: string;
+  /** The rows the person ticked, by key. */
+  selectedIds?: string[];
+  /** The record the person has open, by key. */
+  recordId?: string;
 }
 
 export interface AssistantSessionView {

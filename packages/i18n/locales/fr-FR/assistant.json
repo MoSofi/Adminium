@@ -274,5 +274,25 @@
   },
   "budget": {
     "usedUp": "Le quota du jour est épuisé. Il repart à {time}."
+  },
+  "data": {
+    "page": "Cette page",
+    "blurb": "Connaît cette page : {table} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "blurbNoTable": "Connaît cette page · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "greeting": "Je peux lire ce que cette page affiche, ainsi que les autres tables que votre rôle peut lire.",
+    "greetingSub": "Posez une question sur les lignes affichées. Je réponds en mots, avec les chiffres, et j’indique les tables que j’ai lues.",
+    "placeholder": "Posez une question sur ces données…",
+    "chip1": "Combien de lignes sont affichées ici ?",
+    "chip2": "Résume ce que cette page affiche",
+    "chip3": "Qu’est-ce qui a changé le plus récemment ?",
+    "workTitle": "Données lues",
+    "scopePrimary": "cette page",
+    "readPage": "{page} · {table} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "readPageNoTable": "{tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "confirm": {
+      "title": "Rien à enregistrer ici",
+      "body": "{name} ne rédige rien sur cette page.",
+      "button": "Fermer"
+    }
   }
 }

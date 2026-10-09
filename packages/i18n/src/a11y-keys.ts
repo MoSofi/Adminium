@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2775 entries. */
+/** `namespace:key` — 2780 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -48,6 +48,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:close',
   'assistant:composer.send',
   'assistant:composer.working',
+  'assistant:data.chip1',
+  'assistant:data.chip2',
+  'assistant:data.chip3',
+  'assistant:data.confirm.title',
+  'assistant:data.placeholder',
   'assistant:details.checks',
   'assistant:details.figures',
   'assistant:details.format',

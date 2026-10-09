@@ -18,11 +18,25 @@
 import { assistantContextSchema, assistantTurnStatusSchema } from '@adminium/meta';
 import { z } from 'zod';
 
+import { MAX_IN_VALUES, MAX_WHERE_BYTES } from '../../crud/filters.js';
+
 /** The page a session was opened from, and what it was showing. */
 export const assistantHostBody = z.object({
   documentId: z.string().max(64).optional(),
   tab: z.string().max(40).optional(),
   connectionIds: z.array(z.string().max(64)).max(20).default([]),
+  /** A data page: which page. Its table is read from the page, by the server. */
+  pageId: z.string().max(64).optional(),
+  /** What that page is showing, in the list route's own spellings. Bounded as that route bounds them. */
+  view: z
+    .object({
+      q: z.string().max(200).optional(),
+      order: z.string().max(200).optional(),
+      where: z.string().max(MAX_WHERE_BYTES).optional(),
+      selectedIds: z.array(z.string().max(200)).max(MAX_IN_VALUES).optional(),
+      recordId: z.string().max(200).optional(),
+    })
+    .optional(),
 });
 
 export const assistantAvailabilityQuery = z.object({

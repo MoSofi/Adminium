@@ -284,5 +284,25 @@ export default {
   },
   "budget": {
     "usedUp": "Das heutige Kontingent ist aufgebraucht. Es beginnt um {time} neu."
+  },
+  "data": {
+    "page": "Diese Seite",
+    "blurb": "Kennt diese Seite: {table} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "blurbNoTable": "Kennt diese Seite · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "greeting": "Ich kann lesen, was diese Seite zeigt, und die anderen Tabellen, die Ihre Rolle lesen darf.",
+    "greetingSub": "Fragen Sie nach den Zeilen hier. Ich antworte in Worten, mit den Zahlen, und sage, welche Tabellen ich gelesen habe.",
+    "placeholder": "Fragen Sie nach diesen Daten …",
+    "chip1": "Wie viele Zeilen werden hier angezeigt?",
+    "chip2": "Fasse zusammen, was diese Seite zeigt",
+    "chip3": "Was hat sich zuletzt geändert?",
+    "workTitle": "Daten gelesen",
+    "scopePrimary": "diese Seite",
+    "readPage": "{page} · {table} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "readPageNoTable": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "confirm": {
+      "title": "Hier gibt es nichts zu speichern",
+      "body": "{name} entwirft auf dieser Seite nichts.",
+      "button": "Schließen"
+    }
   }
 } as const;

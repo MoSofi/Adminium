@@ -2529,7 +2529,7 @@ export const manifestDocSchema = z
  * depend on that package, and the value here is a stored enum whose job is to
  * keep round-tripping whatever an older server wrote.
  */
-export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation']);
+export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation', 'data']);
 export type AssistantContextKey = z.infer<typeof assistantContextSchema>;
 
 /** `open` while a modal holds it; `closed` once the operator leaves or the sweep gives up. */
@@ -2602,6 +2602,26 @@ export const assistantHostSchema = z.object({
   documentId: z.string().optional(),
   tab: z.string().optional(),
   connectionIds: z.array(z.string()).default([]),
+  /**
+   * A data page: which page. The table is the PAGE's and is read from it by
+   * the server; nothing here names one.
+   */
+  pageId: z.string().optional(),
+  /**
+   * What that page is showing, in the list route's own spellings (`q`,
+   * `order`, `where` as the JSON text the grid sent, link filters already
+   * resolved into it), the rows the person ticked and the record they have
+   * open. This is what "these" means in a question.
+   */
+  view: z
+    .object({
+      q: z.string().optional(),
+      order: z.string().optional(),
+      where: z.string().optional(),
+      selectedIds: z.array(z.string()).optional(),
+      recordId: z.string().optional(),
+    })
+    .optional(),
 });
 export type AssistantHost = z.infer<typeof assistantHostSchema>;
 

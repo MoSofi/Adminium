@@ -274,5 +274,25 @@
   },
   "budget": {
     "usedUp": "今天的额度已用完。将于 {time} 重新开始。"
+  },
+  "data": {
+    "page": "此页面",
+    "blurb": "了解此页面：{table} · {tables, plural, other {# 张可读的表}}",
+    "blurbNoTable": "了解此页面 · {tables, plural, other {# 张可读的表}}",
+    "greeting": "我可以读取此页面显示的内容，以及你的角色可以读取的其他表。",
+    "greetingSub": "可以问这里的行。我用文字回答，附上数字，并说明读了哪些表。",
+    "placeholder": "就这些数据提问…",
+    "chip1": "这里显示了多少行？",
+    "chip2": "总结此页面显示的内容",
+    "chip3": "最近有什么变化？",
+    "workTitle": "已读取数据",
+    "scopePrimary": "此页面",
+    "readPage": "{page} · {table} · {tables, plural, other {# 张可读的表}}",
+    "readPageNoTable": "{tables, plural, other {# 张可读的表}}",
+    "confirm": {
+      "title": "这里没有可保存的内容",
+      "body": "{name} 在此页面不起草任何内容。",
+      "button": "关闭"
+    }
   }
 }

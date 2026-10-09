@@ -284,5 +284,25 @@ export default {
   },
   "budget": {
     "usedUp": "今天的額度已用完。將於 {time} 重新開始。"
+  },
+  "data": {
+    "page": "此頁面",
+    "blurb": "了解此頁面：{table} · {tables, plural, other {# 張可讀的資料表}}",
+    "blurbNoTable": "了解此頁面 · {tables, plural, other {# 張可讀的資料表}}",
+    "greeting": "我可以讀取此頁面顯示的內容，以及你的角色可以讀取的其他資料表。",
+    "greetingSub": "可以問這裡的資料列。我用文字回答，附上數字，並說明讀了哪些資料表。",
+    "placeholder": "就這些資料提問…",
+    "chip1": "這裡顯示了多少列？",
+    "chip2": "總結此頁面顯示的內容",
+    "chip3": "最近有什麼變化？",
+    "workTitle": "已讀取資料",
+    "scopePrimary": "此頁面",
+    "readPage": "{page} · {table} · {tables, plural, other {# 張可讀的資料表}}",
+    "readPageNoTable": "{tables, plural, other {# 張可讀的資料表}}",
+    "confirm": {
+      "title": "這裡沒有可儲存的內容",
+      "body": "{name} 在此頁面不起草任何內容。",
+      "button": "關閉"
+    }
   }
 } as const;

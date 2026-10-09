@@ -395,6 +395,70 @@
     "status": "mt",
     "srcHash": "77dfd2135f4d"
   },
+  "assistant.data.blurb": {
+    "status": "mt",
+    "srcHash": "0bc0e5cefbab"
+  },
+  "assistant.data.blurbNoTable": {
+    "status": "mt",
+    "srcHash": "4edf40a5c97c"
+  },
+  "assistant.data.chip1": {
+    "status": "mt",
+    "srcHash": "482b49f63387"
+  },
+  "assistant.data.chip2": {
+    "status": "mt",
+    "srcHash": "a9befac850f6"
+  },
+  "assistant.data.chip3": {
+    "status": "mt",
+    "srcHash": "813466a95516"
+  },
+  "assistant.data.confirm.body": {
+    "status": "mt",
+    "srcHash": "b04d417c0c6b"
+  },
+  "assistant.data.confirm.button": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "assistant.data.confirm.title": {
+    "status": "mt",
+    "srcHash": "baca27f3d741"
+  },
+  "assistant.data.greeting": {
+    "status": "mt",
+    "srcHash": "a49a34e10a47"
+  },
+  "assistant.data.greetingSub": {
+    "status": "mt",
+    "srcHash": "024ddc10e663"
+  },
+  "assistant.data.page": {
+    "status": "mt",
+    "srcHash": "da05037a4341"
+  },
+  "assistant.data.placeholder": {
+    "status": "mt",
+    "srcHash": "c78005662d62"
+  },
+  "assistant.data.readPage": {
+    "status": "mt",
+    "srcHash": "feee7bf38b89"
+  },
+  "assistant.data.readPageNoTable": {
+    "status": "mt",
+    "srcHash": "3579131827c9"
+  },
+  "assistant.data.scopePrimary": {
+    "status": "mt",
+    "srcHash": "66d30f0dbbb2"
+  },
+  "assistant.data.workTitle": {
+    "status": "mt",
+    "srcHash": "d4770805eaeb"
+  },
   "assistant.details.checks": {
     "status": "mt",
     "srcHash": "5098dd1999a4"
