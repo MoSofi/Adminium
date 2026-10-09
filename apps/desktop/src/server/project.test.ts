@@ -161,6 +161,8 @@ describe('runProjectEntry', () => {
     // While a project is built the token opens design mode's one door and no other.
     expect(given.env).not.toHaveProperty('ADMINIUM_BOOT_TOKEN');
     expect(given.env).toMatchObject({ ADMINIUM_RUNTIME: 'desktop', LANG: 'C' });
+    // The same object the child was started with: the project's .env fills it, and its config reads it from there.
+    expect(given.env).toBe(env);
     expect(posted).toEqual([{ type: 'ready', port: 4700, host: '127.0.0.1', migrations: { applied: 0, version: expect.any(String) as string } }]);
   });
 

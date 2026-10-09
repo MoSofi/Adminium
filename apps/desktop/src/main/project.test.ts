@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:net';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { E2E_PROJECT_ENV, firstFreePort, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
+import { E2E_PORT_ENV, E2E_PROJECT_ENV, PROJECT_PORTS, firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 
 const open: Server[] = [];
 afterEach(async () => {
@@ -61,6 +61,18 @@ describe('seamProject (the test seam)', () => {
         },
       }),
     ).toBeUndefined();
+  });
+});
+
+describe('projectPortRange', () => {
+  it('is the product’s range, which a packaged app always uses', () => {
+    expect(projectPortRange({}, false)).toEqual(PROJECT_PORTS);
+    expect(projectPortRange({ [E2E_PORT_ENV]: '9480' }, true)).toEqual(PROJECT_PORTS);
+  });
+
+  it('starts where an unpackaged test run says, twenty ports wide', () => {
+    expect(projectPortRange({ [E2E_PORT_ENV]: '9480' }, false)).toEqual({ first: 9480, last: 9499 });
+    for (const odd of ['', 'x', '80', '70000', '94.5']) expect(projectPortRange({ [E2E_PORT_ENV]: odd }, false)).toEqual(PROJECT_PORTS);
   });
 });
 

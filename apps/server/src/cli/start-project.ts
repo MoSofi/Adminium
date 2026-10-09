@@ -34,7 +34,16 @@ export interface StartProjectOptions {
    * it and opens that address itself. Left out: no such link.
    */
   token?: string;
-  /** The environment the project's `.env` fills in. Default: this process's. */
+  /**
+   * The environment the project's `.env` fills in. Default: this process's.
+   *
+   * It is filled IN PLACE, as a terminal's is. Pass `process.env` itself (the
+   * default) for a project that is really served: `adminium.config.ts` reads
+   * its values with `env('DATABASE_URL')`, which is this process's
+   * environment, so a copy would start a project whose config never saw its
+   * own `.env`. The two names that say which folder and which mode are
+   * removed from it: this call decides both.
+   */
   env?: Record<string, string | undefined>;
   logLevel?: string;
   /** Design mode's owner and link. Default: make the project's owner when it has none; no link. */
@@ -91,7 +100,7 @@ function real(path: string): string {
 }
 
 export async function startProject(opts: StartProjectOptions): Promise<StartedProject> {
-  const env = { ...(opts.env ?? process.env) };
+  const env = opts.env ?? process.env;
   // The folder that was picked, never one named by the environment or found above it.
   delete env.ADMINIUM_PROJECT_DIR;
   // The mode is what this call says, never what was inherited.

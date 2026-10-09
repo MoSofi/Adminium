@@ -84,7 +84,7 @@ import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } f
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { createDesktopLogging } from './logging.js';
-import { firstFreePort, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
+import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import {
   createServerManager,
   type CreateServerManagerOptions,
@@ -2096,7 +2096,10 @@ export function electronBootDeps(): DesktopBootDeps {
     // A project folder (plan 66). Until the app's own first screens exist, the
     // only way in is the test seam, which a packaged app does not read.
     openProject: openedProject,
-    pickProjectPort: () => firstFreePort(),
+    pickProjectPort: () => {
+      const range = projectPortRange(process.env, app.isPackaged);
+      return firstFreePort(range.first, range.last);
+    },
     // Absolute even though this build bundles no apps: the server's default is
     // `./apps-bundle`, which a project's child would look for inside the opened folder.
     bundledAppsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'apps-bundle'),

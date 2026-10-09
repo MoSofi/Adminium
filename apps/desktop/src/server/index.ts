@@ -381,7 +381,8 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
     host = project.host;
     started = await stage('project', async () => {
       chdir(project.root);
-      const env: NodeJS.ProcessEnv = { ...processEnv };
+      // The environment itself, not a copy: the project's `.env` fills it in place, and its config reads it from there.
+      const env = processEnv;
       // While a project is built the token is design mode's one-use link, and no other door takes it.
       if (project.mode === 'design') delete env.ADMINIUM_BOOT_TOKEN;
       return start({

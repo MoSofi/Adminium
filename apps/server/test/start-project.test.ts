@@ -130,6 +130,18 @@ describe('startProject', () => {
     expect(live.refused).toEqual([]);
   });
 
+  it('fills the environment it is given in place, so the project’s config reads its own .env', { timeout: 120_000 }, async () => {
+    const port = await anyPort();
+    writeFileSync(join(root, '.env'), `ADMINIUM_SECRET=${TEST_SECRET}\nP66_T12_FROM_DOTENV=yes\n`);
+    const given: Record<string, string | undefined> = { ...env(), ADMINIUM_PROJECT_DIR: '/elsewhere', ADMINIUM_PROJECT_MODE: 'dev' };
+    live = await startProject({ root, port, mode: 'serve', io: fakeIo(), env: given });
+    expect(given.P66_T12_FROM_DOTENV).toBe('yes');
+    // Which folder and which mode are this call's to say.
+    expect(given).not.toHaveProperty('ADMINIUM_PROJECT_DIR');
+    expect(given).not.toHaveProperty('ADMINIUM_PROJECT_MODE');
+    expect(JSON.parse(readFileSync(runningFile(root), 'utf8'))).toMatchObject({ mode: 'start' });
+  });
+
   it('refuses a folder that is not the project itself, even inside one', async () => {
     const inner = join(root, 'apps');
     mkdirSync(inner);

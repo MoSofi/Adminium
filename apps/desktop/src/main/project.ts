@@ -72,6 +72,17 @@ export function seamProject(
   return CONFIG_FILES.some((file) => fs.exists(join(root, file))) ? { root } : undefined;
 }
 
+/** With the seam only: the first port to try, so a test run stays inside the ports it was given. */
+export const E2E_PORT_ENV = 'ADMINIUM_DESKTOP_E2E_PORT';
+
+/** The port range a project's server is picked from: the product's, unless an unpackaged test run names its own start. */
+export function projectPortRange(env: NodeJS.ProcessEnv, isPackaged: boolean): { first: number; last: number } {
+  if (isPackaged) return PROJECT_PORTS;
+  const first = Number(env[E2E_PORT_ENV] ?? '');
+  if (!Number.isInteger(first) || first < 1024 || first > 65000) return PROJECT_PORTS;
+  return { first, last: first + 19 };
+}
+
 /** A native question's words. English here; the app's own pages bring the other languages (66-T15). */
 export interface StopBusyWords {
   title: string;
