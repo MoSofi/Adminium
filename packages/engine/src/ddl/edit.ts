@@ -268,6 +268,13 @@ export const alterColumnSchema = z.strictObject({
 });
 export type AlterColumn = z.infer<typeof alterColumnSchema>;
 
+/**
+ * The most columns one edit adds, or changes: an app's update adds every
+ * column its new version brings in one edit, and a release that takes an app
+ * onto two add-ons brought fifty-one.
+ */
+export const EDIT_COLUMNS_MAX = 400;
+
 export const schemaEditSchema = z.strictObject({
   /** What the client was looking at; the apply re-checks it (D2). */
   baseSnapshotId: z.string().min(1),
@@ -289,9 +296,9 @@ export const schemaEditSchema = z.strictObject({
     .default({ tables: [], columns: [] }),
   upsertTables: z.array(desiredTableSchema).default([]),
   /** Additive column edits on existing tables — see {@link addColumnSchema}. */
-  addColumns: z.array(addColumnSchema).max(50).default([]),
+  addColumns: z.array(addColumnSchema).max(EDIT_COLUMNS_MAX).default([]),
   /** Safe changes to existing columns — see {@link alterColumnSchema}. */
-  alterColumns: z.array(alterColumnSchema).max(50).default([]),
+  alterColumns: z.array(alterColumnSchema).max(EDIT_COLUMNS_MAX).default([]),
   /**
    * Rules that no two rows hold the same values in several columns together
    * (one waitlist entry per show per address), on existing tables, each by

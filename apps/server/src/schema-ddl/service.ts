@@ -81,6 +81,13 @@ export interface PlanServiceInput {
    */
   ceilingDoor?: PreflightInput['ceilingDoor'];
   privileges?: PreflightInput['privileges'];
+  /**
+   * The names are an installed package's own (an app's update, an add-on's): a
+   * word the engine reserves is taken, as the package's first install took it —
+   * every statement quotes its names. A person naming a column in Studio is
+   * still told, because there the name is theirs to pick better.
+   */
+  packageNames?: boolean | undefined;
 }
 
 export interface PlannedStep extends DdlStep {
@@ -127,7 +134,7 @@ async function planWithRelations(
     actual: input.actual.tables,
     relations: input.actual.relations,
     metaSharesDatabase: input.metaSharesDatabase,
-    isReserved: isReservedWord,
+    isReserved: input.packageNames === true ? () => false : isReservedWord,
     isWidening: (from, to) => isWideningChange(from, to),
   });
   if (issues.length > 0) {

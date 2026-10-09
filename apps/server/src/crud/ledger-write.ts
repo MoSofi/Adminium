@@ -751,7 +751,8 @@ export function createLedgerWriter(kit: LedgerKit) {
     const ledgers = kit.ledgers!;
     const refOf = (table: ResolvedTable): string => ledgers.refOf(target.view.connectionId, table.id);
     if (call.role === 'source') {
-      return { source: { table: target.table, ref: refOf(target.table), row, key: keyText(target.table, row) }, lines: [{ key: '', ref: '', table: target.table, row, parent: null }] };
+      // A row that is its own line is left out by its rule as any line is (`unlessSet`, `only`): nothing is handed over for it.
+      return { source: { table: target.table, ref: refOf(target.table), row, key: keyText(target.table, row) }, lines: lineTaken(call.posting, row) ? [{ key: '', ref: '', table: target.table, row, parent: null }] : [] };
     }
     const link = call.link!;
     if (call.role === 'parent') {

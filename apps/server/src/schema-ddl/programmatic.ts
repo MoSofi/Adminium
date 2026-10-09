@@ -73,6 +73,7 @@ async function inputFor(
     privileges: { db: handle.db, dialect: handle.dialect },
     countRows: (tableId: string) => countTableRows(handle, tableId),
     ceilingDoor: { superAdmin, acknowledged: named },
+    packageNames: true,
   };
 }
 
