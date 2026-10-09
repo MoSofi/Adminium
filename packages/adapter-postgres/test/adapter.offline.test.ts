@@ -320,6 +320,20 @@ describe('test() and probeCapabilities()', () => {
     expect(probe.currentRole).toEqual({ name: 'app', readOnly: false });
   });
 
+  it('asks the catalog twice for the role`s rights on each table, and reads the two answers together', async () => {
+    const adapter = await connected('introspect');
+    respond = (sql) =>
+      sql.includes('has_column_privilege')
+        ? { rows: [{ schema_name: 'public', table_name: 'customers', column_name: 'name', can_insert: true, can_update: false }] }
+        : sql.includes('has_table_privilege')
+          ? { rows: [{ schema_name: 'public', table_name: 'customers', can_insert: false, can_update: false, can_delete: false, can_insert_some: true, can_update_some: false }] }
+          : probeOnly(sql);
+
+    expect(await adapter.probeTablePrivileges()).toEqual({
+      'public.customers': { insert: true, update: false, delete: false, columns: { name: { insert: true, update: false } } },
+    });
+  });
+
   it('reports a read-only standby as neither writable nor DDL-capable', async () => {
     const adapter = await connected('introspect');
     respond = () => ({ rows: [{ ...PROBE_ROW, in_recovery: true, can_create: false }] });

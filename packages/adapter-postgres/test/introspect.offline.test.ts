@@ -20,6 +20,7 @@ import { AdapterError, parseDatabaseModel } from '@adminium/engine/adapter';
 
 import {
   interpretProbe,
+  interpretTablePrivileges,
   introspectPostgres,
   POSTGRES_CAPABILITIES,
   type CatalogRow,
@@ -1497,5 +1498,59 @@ describe('introspectPostgres — degrades malformed catalog rows', () => {
     // Both survive the sort — a comparator returning nonzero for equal keys
     // would be free to drop or duplicate one.
     expect(model.tables[0]!.indexes.map((i) => i.method)).toEqual(['btree', 'hash']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The role's rights on each table
+// ---------------------------------------------------------------------------
+
+describe('interpretTablePrivileges — what the role may write, from the two catalog answers', () => {
+  it('reads a table the role may write whole, one it may only read, and psql`s "t" as yes', () => {
+    const map = interpretTablePrivileges(
+      [
+        { schema_name: 'public', table_name: 'orders', can_insert: true, can_update: true, can_delete: true, can_insert_some: true, can_update_some: true },
+        { schema_name: 'public', table_name: 'audit', can_insert: false, can_update: false, can_delete: false, can_insert_some: false, can_update_some: false },
+        // The psql executor hands booleans back as text.
+        { schema_name: 'shop', table_name: 'notes', can_insert: 't', can_update: 'f', can_delete: 'f', can_insert_some: 't', can_update_some: 'f' },
+      ],
+      [],
+    );
+    expect(map).toEqual({
+      'public.orders': { insert: true, update: true, delete: true },
+      'public.audit': { insert: false, update: false, delete: false },
+      'shop.notes': { insert: true, update: false, delete: false },
+    });
+    // No column answers: no table carries a `columns` map.
+    expect(Object.values(map).every((table) => table.columns === undefined)).toBe(true);
+  });
+
+  it('calls a table writable when only some columns are, and says which', () => {
+    const map = interpretTablePrivileges(
+      [{ schema_name: 'public', table_name: 'customers', can_insert: false, can_update: false, can_delete: false, can_insert_some: true, can_update_some: true }],
+      [
+        { schema_name: 'public', table_name: 'customers', column_name: 'name', can_insert: true, can_update: true },
+        { schema_name: 'public', table_name: 'customers', column_name: 'email', can_insert: true, can_update: false },
+        { schema_name: 'public', table_name: 'customers', column_name: 'credit', can_insert: false, can_update: false },
+      ],
+    );
+    expect(map['public.customers']).toEqual({
+      insert: true,
+      update: true,
+      delete: false,
+      columns: {
+        name: { insert: true, update: true },
+        email: { insert: true, update: false },
+        credit: { insert: false, update: false },
+      },
+    });
+  });
+
+  it('leaves out a column whose table the first answer did not name', () => {
+    const map = interpretTablePrivileges(
+      [{ schema_name: 'public', table_name: 'orders', can_insert: true, can_update: true, can_delete: true, can_insert_some: true, can_update_some: true }],
+      [{ schema_name: 'public', table_name: 'dropped_meanwhile', column_name: 'id', can_insert: true, can_update: true }],
+    );
+    expect(map).toEqual({ 'public.orders': { insert: true, update: true, delete: true } });
   });
 });
