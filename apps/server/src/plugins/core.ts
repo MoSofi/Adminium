@@ -230,6 +230,13 @@ export const RATE_BUCKETS = {
   'data-io': { max: 10, timeWindowMs: 3_600_000, keyBy: 'principal' },
   llm: { max: 20, timeWindowMs: 3_600_000, keyBy: 'principal' },
   /*
+   * Opening a conversation with the assistant and asking it something. Each
+   * question is a job that calls a paid model several times, so it does not
+   * share `api`'s 300 a minute with the grid. Thirty a minute is far more
+   * than a person types; what bounds the COST is the daily allowance.
+   */
+  assistant: { max: 30, timeWindowMs: 60_000, keyBy: 'principal' },
+  /*
    * Adminium Designer: a building session is many small calls (turns, stops,
    * answers, the catch-up read after every reconnect). Its own bucket,
    * declared on every Designer route, so no address pattern can take it away
@@ -363,7 +370,7 @@ const AUTO_BUCKETS: readonly {
   { methods: ['POST'], pattern: /\/(?:exports|imports)$/, bucket: 'data-io' },
   {
     methods: ['POST'],
-    pattern: /\/(?:llm\/config\/test|llm\/runs|llm\/runs\/:id\/execute)$/,
+    pattern: /\/(?:llm\/config\/test|llm\/config\/assistant-test|llm\/runs|llm\/runs\/:id\/execute)$/,
     bucket: 'llm',
   },
   { methods: ['GET'], pattern: /\/llm\/models$/, bucket: 'llm' },

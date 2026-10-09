@@ -91,29 +91,32 @@ async function setPrefs(page: Page, prefs: { theme: string | null; locale: strin
   expect(reply.ok(), `prefs → ${String(reply.status())}`).toBe(true);
 }
 
-const modal = (page: Page) =>
-  page.getByRole('dialog').filter({ has: page.getByTestId('assistant-thread') });
+const modal = (page: Page) => page.getByTestId('assistant-dock');
 
 /**
- * The two dialogs, as axe `include` selectors.
- *
- * `:has()` rather than the test id alone, because the handle is on the BODY
- * and a dialog's heading and buttons are siblings of it — including the body
- * analysed two rules and nothing else, which the `passes.length` floor caught
- * the first time this file ran.
+ * The panel and its confirm, as axe `include` selectors. The panel is found
+ * by its own handle: it is a landmark beside the page, and a dialog only
+ * where it lies over the page.
  */
-const DIALOG = '[role="dialog"]:has([data-testid="assistant-thread"])';
+const DIALOG = '[data-testid="assistant-dock"]';
 const CONFIRM = '[role="dialog"]:has([data-testid="assistant-confirm"])';
 
+/** Open the panel on a conversation of this run's own: the conversation is the person's and outlives a run. */
 async function openAssistant(page: Page): Promise<void> {
-  await page.getByTestId('ask-assistant').click();
+  if (!(await modal(page).isVisible())) await page.getByTestId('ask-assistant').click();
   await expect(modal(page)).toBeVisible({ timeout: 20_000 });
+  await expect(modal(page).getByTestId('assistant-looking-at')).not.toHaveText(/…$/, { timeout: 20_000 });
+  const fresh = modal(page).getByTestId('assistant-new');
+  if (await fresh.isEnabled()) await fresh.click();
 }
 
 /** Ids this spec created, removed in `afterAll` whatever happened. */
 const made: string[] = [];
 
 test.describe('the page assistant under axe', () => {
+  // Beside the page, as on a wide window: 390 px is set where the sheet is swept.
+  test.use({ viewport: { width: 1440, height: 940 } });
+
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async ({ browser }) => {
@@ -181,12 +184,12 @@ test.describe('the page assistant under axe', () => {
       await page.setViewportSize({ width: 1440, height: 940 });
 
       // --- the unavailable bar ----------------------------------------------------
-      await page.keyboard.press('Escape');
       await clearProvider(page);
       try {
         await page.reload();
         await expect(page.getByTestId('email-manager')).toBeVisible();
-        await openAssistant(page);
+        // The panel is found as it was left: open.
+        await expect(modal(page)).toBeVisible({ timeout: 20_000 });
         await expect(modal(page).getByTestId('assistant-unavailable')).toBeVisible({ timeout: 20_000 });
         await sweep(page, `${combo.theme}/${combo.locale} unavailable`, tally, testInfo, DIALOG);
       } finally {

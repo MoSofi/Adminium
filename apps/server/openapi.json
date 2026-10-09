@@ -107920,7 +107920,9 @@
                 "invoice-template",
                 "invoices",
                 "report",
-                "automation"
+                "automation",
+                "data",
+                "general"
               ]
             },
             "in": "query",
@@ -107985,6 +107987,30 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "budget": {
+                      "type": "object",
+                      "properties": {
+                        "limit": {
+                          "type": "number"
+                        },
+                        "used": {
+                          "type": "number"
+                        },
+                        "resetsAt": {
+                          "type": "number"
+                        },
+                        "left": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "used",
+                        "resetsAt",
+                        "left"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -107995,7 +108021,8 @@
                     "canWrite",
                     "canConfigure",
                     "provider",
-                    "model"
+                    "model",
+                    "budget"
                   ],
                   "additionalProperties": false
                 }
@@ -108021,7 +108048,9 @@
                       "invoice-template",
                       "invoices",
                       "report",
-                      "automation"
+                      "automation",
+                      "data",
+                      "general"
                     ]
                   },
                   "host": {
@@ -108043,6 +108072,47 @@
                           "type": "string",
                           "maxLength": 64
                         }
+                      },
+                      "pageId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "view": {
+                        "type": "object",
+                        "properties": {
+                          "q": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "order": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "where": {
+                            "type": "string",
+                            "maxLength": 10205
+                          },
+                          "selectedIds": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 200
+                            }
+                          },
+                          "recordId": {
+                            "type": "string",
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "app": {
+                        "type": "string",
+                        "maxLength": 64
                       }
                     }
                   },
@@ -108052,6 +108122,13 @@
                       "type": "string"
                     },
                     "additionalProperties": {}
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "modal",
+                      "panel"
+                    ]
                   }
                 },
                 "required": [
@@ -108063,7 +108140,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -108083,7 +108160,9 @@
                             "invoice-template",
                             "invoices",
                             "report",
-                            "automation"
+                            "automation",
+                            "data",
+                            "general"
                           ]
                         },
                         "status": {
@@ -108121,6 +108200,13 @@
                         },
                         "createdAt": {
                           "type": "number"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "modal",
+                            "panel"
+                          ]
                         }
                       },
                       "required": [
@@ -108131,7 +108217,8 @@
                         "model",
                         "tokensIn",
                         "tokensOut",
-                        "createdAt"
+                        "createdAt",
+                        "kind"
                       ],
                       "additionalProperties": false
                     },
@@ -108140,36 +108227,167 @@
                       "properties": {
                         "values": {
                           "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^[a-z][A-Za-z0-9]{0,31}$"
+                          },
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        },
+                        "scope": {
+                          "type": "object",
                           "properties": {
-                            "templates": {
-                              "type": "number"
-                            },
-                            "campaigns": {
-                              "type": "number"
-                            },
-                            "invoices": {
-                              "type": "number"
-                            },
-                            "reports": {
-                              "type": "number"
-                            },
-                            "rules": {
-                              "type": "number"
-                            },
-                            "tables": {
-                              "type": "number"
-                            },
-                            "connection": {
+                            "primary": {
                               "type": "string"
                             },
-                            "pattern": {
-                              "type": "string"
-                            },
-                            "write": {
-                              "type": "boolean"
+                            "extra": {
+                              "type": "number"
                             }
                           },
+                          "required": [
+                            "primary",
+                            "extra"
+                          ],
                           "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "values",
+                        "scope"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "nextTurnTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "session",
+                    "facts",
+                    "nextTurnTokens"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "context": {
+                          "type": "string",
+                          "enum": [
+                            "email",
+                            "invoice-template",
+                            "invoices",
+                            "report",
+                            "automation",
+                            "data",
+                            "general"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "provider": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "model": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tokensIn": {
+                          "type": "number"
+                        },
+                        "tokensOut": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "modal",
+                            "panel"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "context",
+                        "status",
+                        "provider",
+                        "model",
+                        "tokensIn",
+                        "tokensOut",
+                        "createdAt",
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "facts": {
+                      "type": "object",
+                      "properties": {
+                        "values": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^[a-z][A-Za-z0-9]{0,31}$"
+                          },
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
                         },
                         "scope": {
                           "type": "object",
@@ -108211,6 +108429,601 @@
         }
       }
     },
+    "/api/v1/assistant/sessions/current": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "context": {
+                              "type": "string",
+                              "enum": [
+                                "email",
+                                "invoice-template",
+                                "invoices",
+                                "report",
+                                "automation",
+                                "data",
+                                "general"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "open",
+                                "closed"
+                              ]
+                            },
+                            "provider": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "model": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "tokensIn": {
+                              "type": "number"
+                            },
+                            "tokensOut": {
+                              "type": "number"
+                            },
+                            "createdAt": {
+                              "type": "number"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "modal",
+                                "panel"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "context",
+                            "status",
+                            "provider",
+                            "model",
+                            "tokensIn",
+                            "tokensOut",
+                            "createdAt",
+                            "kind"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "turns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "sessionId": {
+                            "type": "string"
+                          },
+                          "seq": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "running",
+                              "awaiting_picks",
+                              "done",
+                              "failed",
+                              "cancelled"
+                            ]
+                          },
+                          "jobId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "askText": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "say": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string"
+                                },
+                                "icon": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "detail": {
+                                  "type": "string"
+                                },
+                                "tables": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "facts": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "icon",
+                                "label",
+                                "detail",
+                                "tables"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "ask": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "result": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "error": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "tokensIn": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "tokensOut": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "finishedAt": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "context": {
+                            "type": "string",
+                            "enum": [
+                              "email",
+                              "invoice-template",
+                              "invoices",
+                              "report",
+                              "automation",
+                              "data",
+                              "general"
+                            ]
+                          },
+                          "answer": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "on": {
+                            "type": "object",
+                            "properties": {
+                              "pageId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "documentId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "scope": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "selection",
+                                          "record",
+                                          "page"
+                                        ]
+                                      },
+                                      "count": {
+                                        "anyOf": [
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "gone": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "pageId",
+                              "documentId",
+                              "title",
+                              "scope",
+                              "gone"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sessionId",
+                          "seq",
+                          "status",
+                          "jobId",
+                          "askText",
+                          "say",
+                          "steps",
+                          "ask",
+                          "result",
+                          "error",
+                          "tokensIn",
+                          "tokensOut",
+                          "createdAt",
+                          "finishedAt",
+                          "context",
+                          "answer",
+                          "on"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "earlier": {
+                      "type": "number"
+                    },
+                    "aged": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "session",
+                    "turns",
+                    "earlier",
+                    "aged"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/facts": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "context": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "invoice-template",
+                      "invoices",
+                      "report",
+                      "automation",
+                      "data",
+                      "general"
+                    ]
+                  },
+                  "host": {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "tab": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "connectionIds": {
+                        "default": [],
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 64
+                        }
+                      },
+                      "pageId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "view": {
+                        "type": "object",
+                        "properties": {
+                          "q": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "order": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "where": {
+                            "type": "string",
+                            "maxLength": 10205
+                          },
+                          "selectedIds": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 200
+                            }
+                          },
+                          "recordId": {
+                            "type": "string",
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "app": {
+                        "type": "string",
+                        "maxLength": 64
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "context",
+                  "host"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "facts": {
+                      "type": "object",
+                      "properties": {
+                        "values": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^[a-z][A-Za-z0-9]{0,31}$"
+                          },
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        },
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "primary": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "primary",
+                            "extra"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "values",
+                        "scope"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "nextTurnTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "facts",
+                    "nextTurnTokens"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assistant/sessions/{id}/turns": {
       "post": {
         "requestBody": {
@@ -108235,6 +109048,88 @@
                       "type": "string",
                       "maxLength": 24
                     }
+                  },
+                  "context": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "invoice-template",
+                      "invoices",
+                      "report",
+                      "automation",
+                      "data",
+                      "general"
+                    ]
+                  },
+                  "host": {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "tab": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "connectionIds": {
+                        "default": [],
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 64
+                        }
+                      },
+                      "pageId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "view": {
+                        "type": "object",
+                        "properties": {
+                          "q": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "order": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "where": {
+                            "type": "string",
+                            "maxLength": 10205
+                          },
+                          "selectedIds": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 200
+                            }
+                          },
+                          "recordId": {
+                            "type": "string",
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "app": {
+                        "type": "string",
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "draft": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
                   }
                 }
               }
@@ -108445,6 +109340,113 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "context": {
+                          "type": "string",
+                          "enum": [
+                            "email",
+                            "invoice-template",
+                            "invoices",
+                            "report",
+                            "automation",
+                            "data",
+                            "general"
+                          ]
+                        },
+                        "answer": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "on": {
+                          "type": "object",
+                          "properties": {
+                            "pageId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "documentId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "title": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "scope": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "selection",
+                                        "record",
+                                        "page"
+                                      ]
+                                    },
+                                    "count": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "count"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "gone": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "pageId",
+                            "documentId",
+                            "title",
+                            "scope",
+                            "gone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -108462,7 +109464,10 @@
                         "tokensIn",
                         "tokensOut",
                         "createdAt",
-                        "finishedAt"
+                        "finishedAt",
+                        "context",
+                        "answer",
+                        "on"
                       ],
                       "additionalProperties": false
                     },
@@ -108699,6 +109704,113 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "context": {
+                      "type": "string",
+                      "enum": [
+                        "email",
+                        "invoice-template",
+                        "invoices",
+                        "report",
+                        "automation",
+                        "data",
+                        "general"
+                      ]
+                    },
+                    "answer": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "on": {
+                      "type": "object",
+                      "properties": {
+                        "pageId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "documentId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "title": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "scope": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "selection",
+                                    "record",
+                                    "page"
+                                  ]
+                                },
+                                "count": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "count"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gone": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "pageId",
+                        "documentId",
+                        "title",
+                        "scope",
+                        "gone"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -108716,7 +109828,10 @@
                     "tokensIn",
                     "tokensOut",
                     "createdAt",
-                    "finishedAt"
+                    "finishedAt",
+                    "context",
+                    "answer",
+                    "on"
                   ],
                   "additionalProperties": false
                 }
@@ -108773,6 +109888,30 @@
                       "test-send",
                       "sample",
                       "language.add"
+                    ]
+                  },
+                  "on": {
+                    "type": "object",
+                    "properties": {
+                      "context": {
+                        "type": "string",
+                        "enum": [
+                          "email",
+                          "invoice-template",
+                          "invoices",
+                          "report",
+                          "automation",
+                          "data",
+                          "general"
+                        ]
+                      },
+                      "documentId": {
+                        "type": "string",
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "context"
                     ]
                   },
                   "open": {
@@ -108892,6 +110031,204 @@
                     "echo",
                     "created",
                     "sample"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/settings": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dailyTokens": {
+                      "type": "number"
+                    },
+                    "today": {
+                      "type": "object",
+                      "properties": {
+                        "day": {
+                          "type": "string"
+                        },
+                        "resetsAt": {
+                          "type": "number"
+                        },
+                        "people": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "userId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tokens": {
+                                "type": "number"
+                              },
+                              "turns": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "userId",
+                              "name",
+                              "tokens",
+                              "turns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "day",
+                        "resetsAt",
+                        "people"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "dailyTokens",
+                    "today",
+                    "roles"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dailyTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  }
+                },
+                "required": [
+                  "dailyTokens"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dailyTokens": {
+                      "type": "number"
+                    },
+                    "today": {
+                      "type": "object",
+                      "properties": {
+                        "day": {
+                          "type": "string"
+                        },
+                        "resetsAt": {
+                          "type": "number"
+                        },
+                        "people": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "userId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tokens": {
+                                "type": "number"
+                              },
+                              "turns": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "userId",
+                              "name",
+                              "tokens",
+                              "turns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "day",
+                        "resetsAt",
+                        "people"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "dailyTokens",
+                    "today",
+                    "roles"
                   ],
                   "additionalProperties": false
                 }
@@ -109598,6 +110935,78 @@
                     "model",
                     "latencyMs",
                     "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/config/assistant-test": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "model": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "rounds": {
+                      "type": "number"
+                    },
+                    "latencyMs": {
+                      "type": "number"
+                    },
+                    "failure": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "format",
+                            "no-tool",
+                            "wrong-value",
+                            "provider"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "model",
+                    "rounds",
+                    "latencyMs",
+                    "failure",
+                    "message"
                   ],
                   "additionalProperties": false
                 }

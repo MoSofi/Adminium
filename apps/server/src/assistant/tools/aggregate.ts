@@ -24,6 +24,7 @@ import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js
 import { shapeRows, toNumber } from '../../widget-data/shapers.js';
 import type { AssistantTool, AssistantToolOutcome } from '../types.js';
 import { ROW_LIMIT_MAX } from './rows.js';
+import { dataPageOf, SCOPE_ARG, scopeArg, scopeFilter } from '../data-page.js';
 import { tableLabel, viewOrError } from './schema.js';
 
 /**
@@ -57,7 +58,7 @@ const DESCRIPTOR_FIELDS = [
   '- `source`: an OBJECT `{ "schema": …, "name": … }` — a table id `main.orders` from describe_schema is `{ "schema": "main", "name": "orders" }`. Never a string.',
   '- `aggregations`: up to 8 of `{ "fn", "column", "alias" }`. `fn` is one of count, sum, avg, min, max, count_distinct; `column` is omitted for a plain count; `alias` is required and is an identifier like `order_count` (letters, digits, underscores — no spaces).',
   '- `groupBy`: up to 2 column names. `bucket`: `{ "column", "unit" }` with unit hour, day, week, month, quarter or year.',
-  '- `filters`: `{ "column", "op", "value" }` with op eq, neq, gt, gte, lt, lte, in, like, is_null, not_null or between.',
+  '- `filters`: an ARRAY of `{ "column", "op", "value" }` (all of them must hold), with op eq, neq, gt, gte, lt, lte, in, like, is_null, not_null or between. One condition is still an array: `[{ … }]`.',
   '- `orderBy`: `{ "column", "dir" }` with dir asc or desc; `column` may be an alias. `limit`: how many groups.',
   'Examples:',
   ...AGGREGATE_EXAMPLES.map((example) => JSON.stringify(example)),
@@ -74,6 +75,7 @@ export const aggregateTool: AssistantTool = {
         type: 'object',
         description: DESCRIPTOR_FIELDS,
       },
+      scope: SCOPE_ARG,
     },
     required: ['connectionId', 'descriptor'],
     additionalProperties: false,
@@ -125,12 +127,39 @@ export const aggregateTool: AssistantTool = {
       };
     }
 
+    // "These rows", when the call asks for them: the page's own selection, open record or
+    // filters, put in front of the descriptor's own conditions. The server applies it.
+    const wanted = scopeArg(args.scope);
+    if (wanted === 'invalid') return { error: { code: 'BAD_ARGS', message: '`scope` is one of "selection", "record" or "page".' } };
+    let scoped = descriptor;
+    if (wanted !== null) {
+      const scope = scopeFilter(await dataPageOf(deps), wanted, connectionId, view.table(tableId));
+      if (!scope.ok) return { error: { code: scope.code, message: scope.message } };
+      if (scope.q !== undefined) {
+        // A total over "what the grid shows" cannot honour a text search: answering over every
+        // row would be answering another question, so it is said instead.
+        return {
+          error: {
+            code: 'SCOPE_HAS_SEARCH',
+            message: 'The page is showing a text search, which a total cannot apply. Read the rows with read_rows and scope "page" instead, or say that the figure would be over every row.',
+          },
+        };
+      }
+      if (scope.mandatory !== undefined) {
+        const widened = queryDescriptorSchema.safeParse({ ...descriptor, filters: [scope.mandatory, ...(descriptor.filters ?? [])] });
+        if (!widened.success) {
+          return { error: { code: 'SCOPE_NOT_APPLICABLE', message: 'The page\'s filter cannot be applied to a total. Read the rows with read_rows and scope "page" instead.' } };
+        }
+        scoped = { ...widened.data, limit: descriptor.limit };
+      }
+    }
+
     const { db, dialect } = await deps.manager.data(connectionId);
     try {
       const compiled = compileWidgetQuery({
         db,
         view,
-        descriptor,
+        descriptor: scoped,
         // Always masked, like every other read that leaves the instance. The
         // compiler answers COLUMN_FORBIDDEN for a descriptor that aggregates a
         // masked column, which is the refusal this argument buys.
@@ -147,8 +176,9 @@ export const aggregateTool: AssistantTool = {
       }
       const shaped = shapeRows({ compiled, rows, priorRows, total, canReadPii: false, connectionId });
       return {
-        result: { table: tableId, shape: compiled.shape, data: shaped },
+        result: { table: tableId, shape: compiled.shape, data: shaped, ...(wanted === null ? {} : { scope: wanted }) },
         tables: [tableLabel(found.name, tableId)],
+        read: { table: tableLabel(found.name, tableId), tool: 'aggregate', ...(wanted === null ? {} : { scope: wanted }) },
       };
     } catch (error) {
       return { error: refusal(error, 'The database refused that query.') };

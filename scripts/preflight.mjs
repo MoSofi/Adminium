@@ -98,6 +98,21 @@ const STEPS = [
     tier: 'quick',
   },
   {
+    // In `quick`: three files read as text. From the root and uncached, because it
+    // reads two packages and the dashboard, which may not import one another.
+    id: 'check-assistant-contexts',
+    cmd: 'pnpm run check-assistant-contexts',
+    why: 'the pages the assistant opens from are the same list in the three places that keep one',
+    tier: 'quick',
+  },
+  {
+    // In `quick`: three files read as text, from the root and uncached, for the same reason.
+    id: 'check-assistant-places',
+    cmd: 'pnpm run check-assistant-places',
+    why: 'every screen the assistant may point a person to is a route of the dashboard, behind the guard listed',
+    tier: 'quick',
+  },
+  {
     // In `quick` because it costs under a second and catches something no other
     // gate here can see: tsc and eslint do not read the inside of a string, so
     // an undefined Tailwind utility compiles to nothing and ships looking
@@ -163,6 +178,14 @@ const STEPS = [
     id: 'cross-package-dist-tests',
     cmd: 'pnpm run cross-package-dist-tests-check',
     why: 'the same, for the six that need a built workspace package',
+    tier: 'full',
+  },
+  {
+    // After the build: it parses every scripted reply with the built reply contract. A script
+    // that stopped being a valid reply would otherwise make an e2e spec pass for the wrong reason.
+    id: 'check-assistant-script',
+    cmd: 'pnpm run check-assistant-script',
+    why: 'every reply the scripted model gives the e2e specs is a valid reply under the real contract',
     tier: 'full',
   },
   { id: 'check-offline-assets', cmd: 'pnpm run check-offline-assets', why: 'no remote URL in the shipped bundles outside the reviewed allowlist', tier: 'full' },

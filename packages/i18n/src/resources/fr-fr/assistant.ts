@@ -139,7 +139,12 @@ export default {
     "generic": "Cela n’a pas fonctionné. Reposez la question.",
     "smtp": "L’e-mail n’est pas encore configuré. Ouvrez les paramètres d’e-mail pour ajouter un relais.",
     "tooLong": "Cette conversation est trop longue pour le modèle — démarrez une nouvelle session.",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "modelFormat": "Ce modèle ne répond pas de la manière dont {name} a besoin. Choisissez un autre modèle dans Paramètres → IA.",
+    "modelFormatAsk": "Ce modèle ne répond pas de la manière dont {name} a besoin. Demandez à un administrateur de choisir un autre modèle.",
+    "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question.",
+    "busy": "Votre dernière question est encore en cours. Attendez-la ou arrêtez-la d’abord.",
+    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé."
   },
   "invoiceTemplate": {
     "action1": "Voir un autre échantillon",
@@ -276,5 +281,79 @@ export default {
     "network": "Les fonctions réseau sortantes sont désactivées sur cette instance.",
     "noProvider": "Aucun fournisseur d’IA n’est encore configuré.",
     "settings": "Ouvrir Paramètres → IA"
+  },
+  "budget": {
+    "usedUp": "Le quota du jour est épuisé. Il repart à {time}."
+  },
+  "data": {
+    "page": "Cette page",
+    "blurb": "Connaît cette page : {table} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "blurbNoTable": "Connaît cette page · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "greeting": "Je peux lire ce que cette page affiche, ainsi que les autres tables que votre rôle peut lire.",
+    "greetingSub": "Posez une question sur les lignes affichées. Je réponds en mots, avec les chiffres, et j’indique les tables que j’ai lues.",
+    "placeholder": "Posez une question sur ces données…",
+    "chip1": "Combien de lignes sont affichées ici ?",
+    "chip2": "Résume ce que cette page affiche",
+    "chip3": "Qu’est-ce qui a changé le plus récemment ?",
+    "workTitle": "Données lues",
+    "scopePrimary": "cette page",
+    "readPage": "{page} · {table} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "readPageNoTable": "{tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "confirm": {
+      "title": "Rien à enregistrer ici",
+      "body": "{name} ne rédige rien sur cette page.",
+      "button": "Fermer"
+    }
+  },
+  "general": {
+    "page": "Cet espace de travail",
+    "blurb": "Connaît cet espace de travail · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "greeting": "Je peux lire les tables que votre rôle peut lire et vous dire où les choses se font.",
+    "greetingSub": "Posez une question sur vos données ou sur l’endroit où modifier quelque chose. Je réponds en mots, avec un lien vers l’endroit.",
+    "placeholder": "Posez une question sur cet espace de travail…",
+    "chip1": "Où inviter un collègue ?",
+    "chip2": "Que puis-je voir dans cet espace de travail ?",
+    "chip3": "Quelle table contient le plus de lignes ?",
+    "workTitle": "Recherche effectuée",
+    "scopePrimary": "espace de travail",
+    "readPage": "{tables, plural, one {# table lisible} other {# tables lisibles}}"
+  },
+  "answer": {
+    "from": "Source :",
+    "part": "{returned, number} lignes lues sur {total, number} dans {table}.",
+    "nothingRead": "Rien n’a été lu pour cette réponse.",
+    "readAgain": "Relire",
+    "readAgainAsk": "{question} Lis les données pour répondre.",
+    "forgot": "{name} n’a plus {count, plural, one {le premier message} other {les # premiers messages}} en tête."
+  },
+  "suggestion": {
+    "open": "Ouvrir",
+    "openLabel": "Ouvrir {addOn} dans Modules",
+    "askAdmin": "Demandez à un administrateur de l’installer."
+  },
+  "panel": {
+    "loading": "Chargement de la conversation…",
+    "recordOpen": "{page} · {record} ouvert",
+    "rowsShown": "{page} · {rows, plural, one {# ligne affichée} other {# lignes affichées}}",
+    "new": "Nouvelle conversation",
+    "earlier": "{count, plural, one {# message antérieur n’est pas affiché} other {# messages antérieurs ne sont pas affichés}}.",
+    "onPage": "sur {page}",
+    "closedElsewhere": "Cette conversation a été fermée dans une autre fenêtre.",
+    "stillWorking": "{name} travaille encore sur votre dernière question.",
+    "stop": "Arrêter",
+    "pageDialog": "Fermez ce qui est ouvert sur la page pour utiliser {name}.",
+    "aged": "Votre conversation précédente a été fermée en raison de son ancienneté."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# sélectionnée} other {# sélectionnées}}",
+    "record": "L’enregistrement ouvert",
+    "filtered": "{rows, plural, one {# ligne filtrée} other {# lignes filtrées}}",
+    "filteredUnknown": "Lignes filtrées",
+    "remove": "Demander sans « {label} »"
+  },
+  "parked": {
+    "madeOn": "Créé sur {page}.",
+    "open": "Ouvrir {page} pour utiliser ce brouillon",
+    "deleted": "Le document de ce brouillon a été supprimé."
   }
 } as const;

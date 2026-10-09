@@ -52,6 +52,7 @@ import { useManifestBulkActions } from './ManifestBulkAction.js';
 import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
 import { linkPiecesOf, searchWithout, useLinkFilters, usePageSearch, withLinkWhere } from './linkFilters.js';
+import { listViewOf, rememberListView } from './listView.js';
 import type { FormChildFactReply } from '../api/pages.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
@@ -204,13 +205,23 @@ export function PageCrudBinding({
   const restoredState = useRef(lastGridState.get(page.id) ?? null).current;
   const initializedRef = useRef(restoredState !== null);
 
+  // The same state again as React state, for the one reader that has to follow it: what the
+  // page tells the assistant it is showing. Set only when it differs, so a grid that reports
+  // an unchanged state costs no render.
+  const [shownState, setShownState] = useState<PageCrudGridState>(restoredState ?? BASE_GRID_STATE);
+  const [tickedIds, setTickedIds] = useState<readonly string[]>([]);
+  const [shownRows, setShownRows] = useState<number | null>(null);
   const captureGridState = useCallback(
     (state: PageCrudGridState) => {
       gridStateRef.current = state;
       lastGridState.set(page.id, state);
+      setShownState((current) => (JSON.stringify(current) === JSON.stringify(state) ? current : state));
     },
     [page.id],
   );
+  const captureSelection = useCallback((ids: readonly string[]) => {
+    setTickedIds((current) => (current.length === ids.length && current.every((id, index) => id === ids[index]) ? current : ids));
+  }, []);
 
   const applyView = useCallback((view: SavedView | null) => {
     initializedRef.current = true;
@@ -306,6 +317,14 @@ export function PageCrudBinding({
   const link = useLinkFilters(page.source.connectionId, page.source.table ?? crud?.table ?? null, pieces);
   const linkWhere = pieces.length === 0 ? null : (link.data?.where ?? null);
   const linkedCrud = useMemo(() => (crud === null ? null : withLinkWhere(crud, linkWhere)), [crud, linkWhere]);
+  // What "these" means to the assistant right now: the rows this grid is showing.
+  const assistantView = useMemo(
+    () => listViewOf({ search: shownState.search, sort: shownState.sort, filters: shownState.filters, linkWhere, selectedIds: tickedIds }),
+    [shownState, linkWhere, tickedIds],
+  );
+  useEffect(() => {
+    rememberListView(page.id, assistantView);
+  }, [page.id, assistantView]);
   const dropLinkFilter = useCallback(
     (index: number | 'all') => {
       replaceSearch(searchWithout(search, index));
@@ -427,7 +446,7 @@ export function PageCrudBinding({
       {/* The topbar title is the nav label an admin chose ("Support tickets");
           this says which table the page is actually a projection of. A database
           identifier, so it carries no translatable string. */}
-      <PageActions subtitle={sourceTable} />
+      <PageActions subtitle={sourceTable} assistantView={assistantView} assistantShown={{ rows: shownRows }} />
       {/* The page gutter and the `--container-wide` column come from the
           `PageSurface` PageRenderer wraps every template in (see
           pages/surfaceDefaults.ts) — without them the card's border, radius and
@@ -480,6 +499,8 @@ export function PageCrudBinding({
         initialFilters={viewProps.initialFilters}
         {...(viewProps.pageSize === undefined ? {} : { pageSize: viewProps.pageSize })}
         onGridStateChange={captureGridState}
+        onSelectionChange={captureSelection}
+        onTotalChange={setShownRows}
         toolbarAccessory={
           <ViewSwitcher
             views={views}

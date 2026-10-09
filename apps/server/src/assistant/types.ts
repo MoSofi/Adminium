@@ -43,6 +43,22 @@ export interface AssistantToolDeps {
   t: I18nInstance['t'];
   context: AssistantContextKey;
   host: AssistantHost;
+  /**
+   * The add-ons this server has and could have, one line each. Absent in a
+   * harness with no add-on store: the tool that lists them then says the
+   * list is not available, and nothing is suggested.
+   */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+}
+
+/** One add-on as the assistant is told of it. */
+export interface AssistantAddOn {
+  key: string;
+  name: string;
+  /** One line on what it adds. */
+  line: string;
+  /** `installed` here; `available` in this server's store; `listed` only in the catalogue. */
+  state: 'installed' | 'available' | 'listed';
 }
 
 /** A tool failure the model can recover from. */
@@ -58,6 +74,28 @@ export interface AssistantToolOutcome {
   error?: AssistantToolFailure;
   /** `<connection name>.<table>` this call read — appended to the turn's sources, which a person reads. */
   tables?: string[];
+  /**
+   * What a ROW read really covered: how many rows came back of how many
+   * there are, and whether it was held to the page's own rows. The line
+   * under an answer ("from orders; read 50 of 830") is built from these by
+   * the server, never from what the model says it read.
+   */
+  read?: AssistantRead;
+}
+
+/** One read of rows, as it happened. */
+export interface AssistantRead {
+  table: string;
+  tool: string;
+  returned?: number | undefined;
+  total?: number | null | undefined;
+  scope?: string | undefined;
+  /**
+   * The rows were asked for in an order. The first few of an ORDERED read are
+   * a whole answer to "the top five"; the first few of an unordered one are a
+   * part of the table, and the person is told so.
+   */
+  sorted?: boolean | undefined;
 }
 
 export interface AssistantTool {
@@ -114,22 +152,18 @@ export interface AssistantPageFacts {
   prompt: string;
 }
 
-/** Every fact a page's copy can name. All optional — each page measures its own. */
-export interface AssistantFactValues {
-  templates?: number;
-  campaigns?: number;
-  invoices?: number;
-  reports?: number;
-  rules?: number;
-  /** Tables the acting person may read across every connection. */
-  tables?: number;
-  /** The one connection worth naming, when there is one. */
-  connection?: string;
-  /** What a template's number looks like before one is minted. */
-  pattern?: string;
-  /** Whether this session may save on this page. */
-  write?: boolean;
-}
+/**
+ * The facts a page's copy can name: an OPEN list of numbers, names and
+ * yes/no answers, keyed by what each page measures (`templates`, `rules`,
+ * `rows`, …). Open on purpose: when it was a fixed list, a new page's count
+ * had to be added in three places, and a place that was missed drew the raw
+ * placeholder in the header. The dashboard reads the keys its sentence names
+ * and ignores the rest.
+ */
+export type AssistantFactValues = Record<string, string | number | boolean>;
+
+/** A fact's key: an identifier, so it can be a placeholder in a translated sentence. */
+export const ASSISTANT_FACT_KEY = /^[a-z][A-Za-z0-9]{0,31}$/;
 
 /** Why an artefact was refused, in the shape the correction message takes. */
 export interface AssistantArtefactRejection {
@@ -143,18 +177,13 @@ export type AssistantArtefactCheck =
   | { ok: false; errors: AssistantArtefactRejection[] };
 
 /**
- * One host page, as the runner sees it. Everything that differs between the
- * four pages lives behind this and nothing else in the runner branches on the
- * context.
+ * What a page DRAFTS: its format, its worked examples, its own validator and
+ * what a diff compares. A page that drafts nothing (a data page, the general
+ * assistant) has none of this, and says so by leaving
+ * {@link AssistantContextAdapter.document} out — the prompt then has no
+ * document sections and the reply contract no `result`.
  */
-export interface AssistantContextAdapter {
-  key: AssistantContextKey;
-  /** The page's name in the prompt's first line. English; the model answers in the operator's locale. */
-  pageLabel: string;
-  /** Which tools this page offers, in catalogue order. Row tools are filtered out elsewhere. */
-  toolNames: readonly string[];
-  /** What is true of the page right now. */
-  pageFacts: (deps: AssistantToolDeps) => Promise<AssistantPageFacts>;
+export interface AssistantDocument {
   /** The document format, rendered for the prompt. */
   formatSpec: () => string;
   /** Worked examples in that format — the page's own starters, rendered. */
@@ -184,6 +213,23 @@ export interface AssistantContextAdapter {
    * silently recomputed by somebody else's reach.
    */
   resample?: (artefact: Record<string, unknown>, deps: AssistantToolDeps) => Promise<AssistantResample>;
+}
+
+/**
+ * One host page, as the runner sees it. Everything that differs between the
+ * pages lives behind this and nothing else in the runner branches on the
+ * context.
+ */
+export interface AssistantContextAdapter {
+  key: AssistantContextKey;
+  /** The page's name in the prompt's first line. English; the model answers in the operator's locale. */
+  pageLabel: string;
+  /** Which tools this page offers, in catalogue order. Row tools are filtered out elsewhere. */
+  toolNames: readonly string[];
+  /** What is true of the page right now. */
+  pageFacts: (deps: AssistantToolDeps) => Promise<AssistantPageFacts>;
+  /** What the page drafts. Absent on a page that drafts nothing. */
+  document?: AssistantDocument;
 }
 
 /** What a re-run came back with. */

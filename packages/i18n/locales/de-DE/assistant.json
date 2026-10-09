@@ -129,7 +129,12 @@
     "generic": "Das hat nicht geklappt. Frag es noch einmal.",
     "smtp": "E-Mail ist noch nicht eingerichtet. Öffne die E-Mail-Einstellungen, um ein Relay hinzuzufügen.",
     "tooLong": "Dieses Gespräch ist zu lang für das Modell — starte eine neue Sitzung.",
-    "tryAgain": "Erneut versuchen"
+    "tryAgain": "Erneut versuchen",
+    "modelFormat": "Dieses Modell antwortet nicht so, wie {name} es braucht. Wählen Sie unter Einstellungen → KI ein anderes Modell.",
+    "modelFormatAsk": "Dieses Modell antwortet nicht so, wie {name} es braucht. Bitten Sie einen Administrator, ein anderes Modell zu wählen.",
+    "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal.",
+    "busy": "Ihre letzte Frage wird noch bearbeitet. Warten Sie darauf oder halten Sie sie zuerst an.",
+    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht."
   },
   "invoiceTemplate": {
     "action1": "Anderes Beispiel ansehen",
@@ -266,5 +271,79 @@
     "network": "Ausgehende Netzwerkfunktionen sind auf dieser Instanz deaktiviert.",
     "noProvider": "Es ist noch kein KI-Anbieter konfiguriert.",
     "settings": "Einstellungen → KI öffnen"
+  },
+  "budget": {
+    "usedUp": "Das heutige Kontingent ist aufgebraucht. Es beginnt um {time} neu."
+  },
+  "data": {
+    "page": "Diese Seite",
+    "blurb": "Kennt diese Seite: {table} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "blurbNoTable": "Kennt diese Seite · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "greeting": "Ich kann lesen, was diese Seite zeigt, und die anderen Tabellen, die Ihre Rolle lesen darf.",
+    "greetingSub": "Fragen Sie nach den Zeilen hier. Ich antworte in Worten, mit den Zahlen, und sage, welche Tabellen ich gelesen habe.",
+    "placeholder": "Fragen Sie nach diesen Daten …",
+    "chip1": "Wie viele Zeilen werden hier angezeigt?",
+    "chip2": "Fasse zusammen, was diese Seite zeigt",
+    "chip3": "Was hat sich zuletzt geändert?",
+    "workTitle": "Daten gelesen",
+    "scopePrimary": "diese Seite",
+    "readPage": "{page} · {table} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "readPageNoTable": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "confirm": {
+      "title": "Hier gibt es nichts zu speichern",
+      "body": "{name} entwirft auf dieser Seite nichts.",
+      "button": "Schließen"
+    }
+  },
+  "general": {
+    "page": "Dieser Arbeitsbereich",
+    "blurb": "Kennt diesen Arbeitsbereich · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "greeting": "Ich kann die Tabellen lesen, die Ihre Rolle lesen darf, und Ihnen sagen, wo etwas erledigt wird.",
+    "greetingSub": "Fragen Sie nach Ihren Daten oder danach, wo sich etwas ändern lässt. Ich antworte in Worten und verlinke die Stelle.",
+    "placeholder": "Fragen Sie nach diesem Arbeitsbereich …",
+    "chip1": "Wo lade ich eine Kollegin oder einen Kollegen ein?",
+    "chip2": "Was kann ich in diesem Arbeitsbereich sehen?",
+    "chip3": "Welche Tabelle hat die meisten Zeilen?",
+    "workTitle": "Nachgeschlagen",
+    "scopePrimary": "Arbeitsbereich",
+    "readPage": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}"
+  },
+  "answer": {
+    "from": "Aus:",
+    "part": "{returned, number} von {total, number} Zeilen aus {table} gelesen.",
+    "nothingRead": "Für diese Antwort wurde nichts gelesen.",
+    "readAgain": "Erneut lesen",
+    "readAgainAsk": "{question} Lies die Daten, um zu antworten.",
+    "forgot": "{name} hat {count, plural, one {die erste Nachricht} other {die ersten # Nachrichten}} nicht mehr im Blick."
+  },
+  "suggestion": {
+    "open": "Öffnen",
+    "openLabel": "{addOn} unter Add-ons öffnen",
+    "askAdmin": "Bitten Sie eine Administratorin oder einen Administrator, dies zu installieren."
+  },
+  "panel": {
+    "loading": "Unterhaltung wird geladen …",
+    "recordOpen": "{page} · {record} geöffnet",
+    "rowsShown": "{page} · {rows, plural, one {# Zeile angezeigt} other {# Zeilen angezeigt}}",
+    "new": "Neue Unterhaltung",
+    "earlier": "{count, plural, one {# frühere Nachricht wird} other {# frühere Nachrichten werden}} nicht angezeigt.",
+    "onPage": "auf {page}",
+    "closedElsewhere": "Diese Unterhaltung wurde in einem anderen Fenster geschlossen.",
+    "stillWorking": "{name} arbeitet noch an Ihrer letzten Frage.",
+    "stop": "Stopp",
+    "pageDialog": "Schließen Sie, was auf der Seite geöffnet ist, um {name} zu verwenden.",
+    "aged": "Ihre frühere Unterhaltung wurde wegen ihres Alters geschlossen."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# ausgewählt} other {# ausgewählt}}",
+    "record": "Der geöffnete Datensatz",
+    "filtered": "{rows, plural, one {# gefilterte Zeile} other {# gefilterte Zeilen}}",
+    "filteredUnknown": "Gefilterte Zeilen",
+    "remove": "Ohne „{label}“ fragen"
+  },
+  "parked": {
+    "madeOn": "Erstellt auf {page}.",
+    "open": "{page} öffnen, um diesen Entwurf zu verwenden",
+    "deleted": "Das Dokument dieses Entwurfs wurde gelöscht."
   }
 }

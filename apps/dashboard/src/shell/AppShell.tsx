@@ -29,6 +29,7 @@ import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { PageActionsProvider } from './PageActionsProvider.js';
+import { AssistantBubble } from './AssistantBubble.js';
 /* Lazy: a `?`-triggered help modal is never on the first-paint path, and the
    entry-chunk ratchet (scripts/check-entry-budget.mjs) is the right place to
    pay for that. Rendered only once opened, so no Suspense fallback is needed —
@@ -336,6 +337,9 @@ export function AppShell() {
             </Suspense>
           </main>
         </div>
+        {/* After the page column, inside the provider: the panel reads the page from the same
+            channel the top bar's Ask button does. Docked, it is this row's third column. */}
+        <AssistantBubble bootstrap={bootstrap} />
       </PageActionsProvider>
 
       {paletteMounted ? (

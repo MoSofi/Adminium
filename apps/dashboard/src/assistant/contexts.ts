@@ -56,6 +56,8 @@ export interface AssistantFactValues {
   pattern?: string;
   /** `true` when this session may save on this page — the blurb says so plainly. */
   write?: boolean;
+  /** And whatever else a page measures (a data page: its own title and table). */
+  [fact: string]: string | number | boolean | undefined;
 }
 
 export interface AssistantCopy {
@@ -246,6 +248,59 @@ export function contextCopy(
           { id: 'save', label: t('assistant:automation.action2', 'Save rule (switched off)'), icon: 'save', primary: true, writes: true },
         ],
       };
+    case 'data': {
+      // A page bound to a table. The page's own title is a NAME (data, not a message key); a page
+      // whose widgets read several tables has no table to name.
+      const page = typeof values.page === 'string' && values.page !== '' ? values.page : t('assistant:data.page', 'This page');
+      const table = typeof values.table === 'string' ? values.table : '';
+      return {
+        page,
+        pageIcon: 'table-2',
+        blurb:
+          table === ''
+            ? t('assistant:data.blurbNoTable', 'Knows this page · {tables, plural, one {# readable table} other {# readable tables}}', args)
+            : t('assistant:data.blurb', 'Knows this page: {table} · {tables, plural, one {# readable table} other {# readable tables}}', args),
+        greeting: t('assistant:data.greeting', 'I can read what this page shows, and the other tables your role can read.', args),
+        greetingSub: t(
+          'assistant:data.greetingSub',
+          'Ask about the rows here. I answer in words, with the figures, and say which tables I read.',
+          args,
+        ),
+        placeholder: t('assistant:data.placeholder', 'Ask about this data…'),
+        suggestions: [
+          { icon: 'calculator', label: t('assistant:data.chip1', 'How many rows are shown here?') },
+          { icon: 'search', label: t('assistant:data.chip2', 'Summarise what this page shows') },
+          { icon: 'clock', label: t('assistant:data.chip3', 'What changed most recently?') },
+        ],
+        workTitle: t('assistant:data.workTitle', 'Read the data'),
+        scopePrimary: table === '' ? t('assistant:data.scopePrimary', 'this page') : table,
+        // Nothing to save, send or open: this page drafts nothing.
+        actions: [],
+      };
+    }
+    case 'general':
+      // Every screen with no context of its own. It knows the workspace, not what is on the screen.
+      return {
+        page: t('assistant:general.page', 'This workspace'),
+        pageIcon: 'compass',
+        blurb: t('assistant:general.blurb', 'Knows this workspace · {tables, plural, one {# readable table} other {# readable tables}}', args),
+        greeting: t('assistant:general.greeting', 'I can read the tables your role can read, and tell you where things are done.', args),
+        greetingSub: t(
+          'assistant:general.greetingSub',
+          'Ask about your data, or where to change something. I answer in words and link to the place.',
+          args,
+        ),
+        placeholder: t('assistant:general.placeholder', 'Ask about this workspace…'),
+        suggestions: [
+          { icon: 'compass', label: t('assistant:general.chip1', 'Where do I invite a colleague?') },
+          { icon: 'search', label: t('assistant:general.chip2', 'What can I see in this workspace?') },
+          { icon: 'calculator', label: t('assistant:general.chip3', 'Which table has the most rows?') },
+        ],
+        workTitle: t('assistant:general.workTitle', 'Looked it up'),
+        scopePrimary: t('assistant:general.scopePrimary', 'workspace'),
+        // Nothing to save, send or open: it drafts nothing.
+        actions: [],
+      };
   }
 }
 
@@ -353,6 +408,16 @@ export function confirmCopy(
           ? t('assistant:automation.confirm.bodyOpen', '{name} will add “{title}” to Automation rules, switched off, and open it in the builder.', args)
           : t('assistant:automation.confirm.body', '{name} will add “{title}” to Automation rules, switched off. Nothing runs until you switch it on.', args),
         button: t('assistant:automation.confirm.button', 'Save switched off'),
+        auditKey,
+        icon: 'save',
+      };
+    case 'data':
+    case 'general':
+      // Never drawn: neither has an action that writes. Said plainly in case it ever is.
+      return {
+        title: t('assistant:data.confirm.title', 'Nothing to save here'),
+        body: t('assistant:data.confirm.body', '{name} drafts nothing on this page.', args),
+        button: t('assistant:data.confirm.button', 'Close'),
         auditKey,
         icon: 'save',
       };
@@ -550,6 +615,19 @@ export function pageReadStep(
           'Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}',
           args,
         ),
+      };
+    case 'general':
+      return {
+        label,
+        detail: t('assistant:general.readPage', '{tables, plural, one {# readable table} other {# readable tables}}', args),
+      };
+    case 'data':
+      return {
+        label,
+        detail:
+          typeof facts.table === 'string' && facts.table !== ''
+            ? t('assistant:data.readPage', '{page} · {table} · {tables, plural, one {# readable table} other {# readable tables}}', args)
+            : t('assistant:data.readPageNoTable', '{tables, plural, one {# readable table} other {# readable tables}}', args),
       };
   }
 }

@@ -139,7 +139,12 @@ export default {
     "generic": "这次没成功，请再问一次。",
     "smtp": "尚未配置邮件。请在邮件设置中添加一个中继。",
     "tooLong": "这段对话超出了模型的上下文 — 请开始新的会话。",
-    "tryAgain": "重试"
+    "tryAgain": "重试",
+    "modelFormat": "此模型的回答方式不是 {name} 需要的。请在“设置 → AI”中换一个模型。",
+    "modelFormatAsk": "此模型的回答方式不是 {name} 需要的。请让管理员换一个模型。",
+    "setup": "刚才无法读取此页面。请再问一次。",
+    "busy": "你的上一个问题还在处理中。请等待它完成，或先停止它。",
+    "budget": "处理到一半停下了：今天的额度已用完。"
   },
   "invoiceTemplate": {
     "action1": "换一个示例预览",
@@ -276,5 +281,79 @@ export default {
     "network": "本实例已关闭对外网络功能。",
     "noProvider": "尚未配置 AI 服务商。",
     "settings": "打开 设置 → AI"
+  },
+  "budget": {
+    "usedUp": "今天的额度已用完。将于 {time} 重新开始。"
+  },
+  "data": {
+    "page": "此页面",
+    "blurb": "了解此页面：{table} · {tables, plural, other {# 张可读的表}}",
+    "blurbNoTable": "了解此页面 · {tables, plural, other {# 张可读的表}}",
+    "greeting": "我可以读取此页面显示的内容，以及你的角色可以读取的其他表。",
+    "greetingSub": "可以问这里的行。我用文字回答，附上数字，并说明读了哪些表。",
+    "placeholder": "就这些数据提问…",
+    "chip1": "这里显示了多少行？",
+    "chip2": "总结此页面显示的内容",
+    "chip3": "最近有什么变化？",
+    "workTitle": "已读取数据",
+    "scopePrimary": "此页面",
+    "readPage": "{page} · {table} · {tables, plural, other {# 张可读的表}}",
+    "readPageNoTable": "{tables, plural, other {# 张可读的表}}",
+    "confirm": {
+      "title": "这里没有可保存的内容",
+      "body": "{name} 在此页面不起草任何内容。",
+      "button": "关闭"
+    }
+  },
+  "general": {
+    "page": "此工作区",
+    "blurb": "了解此工作区 · {tables, plural, other {# 张可读的表}}",
+    "greeting": "我可以读取您的角色有权读取的表，并告诉您在哪里完成各项操作。",
+    "greetingSub": "可以询问您的数据，或在哪里更改某项内容。我会用文字回答，并附上该位置的链接。",
+    "placeholder": "询问此工作区…",
+    "chip1": "在哪里邀请同事？",
+    "chip2": "我在此工作区能看到什么？",
+    "chip3": "哪个表的行数最多？",
+    "workTitle": "已查找",
+    "scopePrimary": "工作区",
+    "readPage": "{tables, plural, other {# 张可读的表}}"
+  },
+  "answer": {
+    "from": "来源：",
+    "part": "已读取 {table} 的 {total, number} 行中的 {returned, number} 行。",
+    "nothingRead": "此回答未读取任何数据。",
+    "readAgain": "重新读取",
+    "readAgainAsk": "{question} 请读取数据后再回答。",
+    "forgot": "{name} 已不再记得最早的 {count, plural, other {# 条消息}}。"
+  },
+  "suggestion": {
+    "open": "打开",
+    "openLabel": "在 Add-ons 中打开 {addOn}",
+    "askAdmin": "请让管理员安装此项。"
+  },
+  "panel": {
+    "loading": "正在加载对话…",
+    "recordOpen": "{page} · 已打开 {record}",
+    "rowsShown": "{page} · {rows, plural, other {显示 # 行}}",
+    "new": "新对话",
+    "earlier": "{count, plural, other {有 # 条更早的消息未显示}}。",
+    "onPage": "在 {page}",
+    "closedElsewhere": "此对话已在另一个窗口中关闭。",
+    "stillWorking": "{name} 仍在处理您的上一个问题。",
+    "stop": "停止",
+    "pageDialog": "请先关闭页面上打开的内容，再使用 {name}。",
+    "aged": "您之前的对话因时间过久已关闭。"
+  },
+  "chip": {
+    "selected": "{count, plural, other {已选 # 项}}",
+    "record": "已打开的记录",
+    "filtered": "{rows, plural, other {# 行已筛选}}",
+    "filteredUnknown": "已筛选的行",
+    "remove": "不带“{label}”提问"
+  },
+  "parked": {
+    "madeOn": "创建于 {page}。",
+    "open": "打开 {page} 以使用此草稿",
+    "deleted": "此草稿的文档已被删除。"
   }
 } as const;

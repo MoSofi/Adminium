@@ -19,7 +19,7 @@ import { api } from '../app/api.js';
 const BASE = '/api/v1/assistant';
 
 /** The four pages the assistant can be opened from. */
-export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation';
+export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation' | 'data' | 'general';
 
 /** Why the modal cannot work, when it cannot. */
 export type AssistantUnavailableReason = 'no-provider' | 'network-disabled' | 'forbidden';
@@ -37,12 +37,33 @@ export interface AssistantAvailability {
   canConfigure: boolean;
   provider: string | null;
   model: string | null;
+  /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
+  budget: { limit: number; used: number; resetsAt: number; left: boolean };
 }
 
 export interface AssistantHostRef {
   documentId?: string;
   tab?: string;
   connectionIds: string[];
+  /** A data page: which page. The server reads the page's table from the page. */
+  pageId?: string;
+  /** What that page is showing: what "these" means in a question. */
+  view?: AssistantPageView;
+  /** A screen with no context of its own: the router's route id, and the app's key over a framed staff side. */
+  route?: string;
+  app?: string;
+}
+
+/** A data page's state, in the list route's own spellings. */
+export interface AssistantPageView {
+  q?: string;
+  order?: string;
+  /** The filter the grid sent, as JSON text, link filters already resolved into it. */
+  where?: string;
+  /** The rows the person ticked, by key. */
+  selectedIds?: string[];
+  /** The record the person has open, by key. */
+  recordId?: string;
 }
 
 export interface AssistantSessionView {
@@ -74,6 +95,12 @@ export interface AssistantFacts {
     connection?: string;
     pattern?: string;
     write?: boolean;
+    /**
+     * And whatever else a page measures. The list is open on the server: a
+     * new page's fact arrives here without this file changing, and the copy
+     * that names it reads it by key.
+     */
+    [fact: string]: string | number | boolean | undefined;
   };
   /** The scope chip: the page's own collection, plus how much else is readable. */
   scope: { primary: string; extra: number };
@@ -128,6 +155,35 @@ export interface AssistantTurnView {
   tokensOut: number | null;
   createdAt: number;
   finishedAt: number | null;
+  /** The page the question was asked on. */
+  context: AssistantContext;
+  /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
+  answer: Record<string, unknown> | null;
+  /** Where it was asked, beyond the context: the data page (with its title now) or the open document. */
+  on?: {
+    pageId: string | null;
+    documentId: string | null;
+    title: string | null;
+    scope?: { kind: 'selection' | 'record' | 'page'; count: number | null } | null;
+    /** It drafted for a document that has been deleted since. */
+    gone?: boolean;
+  };
+}
+
+/** `GET /assistant/sessions/current`: the person's open conversation, or none. */
+export interface AssistantCurrentReply {
+  session: AssistantSessionView | null;
+  turns: AssistantTurnView[];
+  /** Earlier turns the conversation holds that are not in `turns`. */
+  earlier: number;
+  /** No conversation because the last one was closed for its age, lately. */
+  aged?: boolean;
+}
+
+/** `POST /assistant/facts`: what the header says of one page. */
+export interface AssistantFactsReply {
+  facts: AssistantFacts;
+  nextTurnTokens: number;
 }
 
 export interface AssistantTurnReply {
@@ -144,6 +200,8 @@ export type AssistantActionKind = 'save' | 'test-send' | 'sample' | 'language.ad
 
 export interface AssistantActionBody {
   action: AssistantActionKind;
+  /** The page the person is on when they press: a draft is usable only where it was made. */
+  on?: { context: AssistantContext; documentId?: string };
   open?: boolean;
   name?: string;
   locale?: string;
@@ -232,6 +290,8 @@ export interface AssistantResult {
   workTitle: string | null;
   basedOn: string | null;
   /** The drafted document, in the host page's own format. */
+  /** Served without its document (an older turn): read the turn whole before using it. */
+  light: boolean;
   artefact: Record<string, unknown>;
   warning: string | null;
   /** The page's own rows. */
@@ -257,7 +317,10 @@ function savedOf(raw: unknown): { id: string; kind: string; name: string } | nul
 /** Narrow a stored `result`; anything unreadable means "no draft to show". */
 export function readResult(raw: Record<string, unknown> | null): AssistantResult | null {
   if (raw === null) return null;
-  const artefact = record(raw.artefact);
+  // An older turn of a long conversation is served LIGHT: its card's words without its document.
+  // It is still a draft, drawn by its title; to use it the turn is read whole.
+  const light = raw.light === true;
+  const artefact = record(raw.artefact) ?? (light ? {} : null);
   if (artefact === null) return null;
   const diff = record(raw.diff);
   const lines = Array.isArray(diff?.lines) ? diff.lines : [];
@@ -266,6 +329,7 @@ export function readResult(raw: Record<string, unknown> | null): AssistantResult
     meta: str(raw.meta),
     workTitle: typeof raw.workTitle === 'string' ? raw.workTitle : null,
     basedOn: typeof raw.basedOn === 'string' ? raw.basedOn : null,
+    light,
     artefact,
     warning: typeof raw.warning === 'string' && raw.warning !== '' ? raw.warning : null,
     details: (Array.isArray(raw.details) ? raw.details : [])
@@ -310,6 +374,58 @@ function signOf(value: unknown): '+' | '-' | ' ' {
   return value === '+' || value === '-' ? value : ' ';
 }
 
+/** One table a turn read, as the server recorded it. */
+export interface AssistantAnswerRead {
+  table: string;
+  returned: number | null;
+  total: number | null;
+  /** The rows were asked for in an order: the first few are "the top few", not a part. */
+  sorted: boolean;
+}
+
+/** An add-on the answer points at, in this server's own words for it. */
+export interface AssistantSuggestion {
+  key: string;
+  name: string;
+  line: string;
+  /** Whether THIS person may install it: the card offers the way in only then. */
+  mayInstall: boolean;
+}
+
+/** What a turn ended with besides its words and its draft. */
+export interface AssistantAnswer {
+  /** The tables its tools read, each once, as `connection.schema.table`. */
+  sources: string[];
+  reads: AssistantAnswerRead[];
+  /** Earlier messages the model was not sent at all. */
+  forgot: number;
+  /** What the person might ask next, after an answer in words. */
+  followups: string[];
+  suggest: AssistantSuggestion[];
+}
+
+const strings = (raw: unknown): string[] => (Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string' && entry !== '') : []);
+const count = (raw: unknown): number | null => (typeof raw === 'number' && Number.isFinite(raw) ? raw : null);
+
+/** Narrow a stored `answer`. A turn from before answers had one reads as `null`: nothing is claimed about it. */
+export function readAnswer(raw: Record<string, unknown> | null | undefined): AssistantAnswer | null {
+  // `undefined` is a server from before turns had the field.
+  if (raw === null || raw === undefined) return null;
+  const reads: AssistantAnswerRead[] = [];
+  for (const entry of Array.isArray(raw.reads) ? raw.reads : []) {
+    const read = record(entry);
+    if (read === null || typeof read.table !== 'string') continue;
+    reads.push({ table: read.table, returned: count(read.returned), total: count(read.total), sorted: read.sorted === true });
+  }
+  const suggest: AssistantSuggestion[] = [];
+  for (const entry of Array.isArray(raw.suggest) ? raw.suggest : []) {
+    const card = record(entry);
+    if (card === null || typeof card.key !== 'string' || typeof card.name !== 'string') continue;
+    suggest.push({ key: card.key, name: card.name, line: typeof card.line === 'string' ? card.line : '', mayInstall: card.mayInstall === true });
+  }
+  return { sources: strings(raw.sources), reads, forgot: count(raw.forgot) ?? 0, followups: strings(raw.followups), suggest };
+}
+
 /**
  * Why a turn failed, as one sentence.
  *
@@ -329,6 +445,30 @@ export function readErrorMessage(raw: Record<string, unknown> | null): string | 
   return null;
 }
 
+/**
+ * The failures this app words itself, by the KIND the server reports. Each is
+ * advice to a person, so each is a message key and not the server's English.
+ */
+export type AssistantErrorKind = 'too-long' | 'model-format' | 'setup' | 'budget';
+
+export function readErrorKind(raw: Record<string, unknown> | null): AssistantErrorKind | null {
+  const kind = raw === null ? null : raw.kind;
+  return kind === 'too-long' || kind === 'model-format' || kind === 'setup' || kind === 'budget' ? kind : null;
+}
+
+/**
+ * When a used-up day starts again, read from wherever the server said so: a
+ * failed turn's error, the mark beside the answer that used the last of the
+ * day, or the refusal of a new question. `null` when none of them says it.
+ */
+export function readResetsAt(raw: unknown): number | null {
+  const source = record(raw);
+  if (source === null) return null;
+  const nested = record(source.budget);
+  const value = nested === null ? source.resetsAt : nested.resetsAt;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 /** True when the turn failed because the conversation no longer fits the model. */
 export function isTooLong(raw: Record<string, unknown> | null): boolean {
   return raw !== null && raw.kind === 'too-long';
@@ -343,9 +483,23 @@ function sessionPath(id: string): string {
 export const assistantApi = {
   availability: (context: AssistantContext) =>
     api.get<AssistantAvailability>(`${BASE}/availability?context=${encodeURIComponent(context)}`),
-  openSession: (body: { context: AssistantContext; host: AssistantHostRef; draft?: unknown }) =>
+  openSession: (body: { context: AssistantContext; host: AssistantHostRef; draft?: unknown; kind?: 'modal' | 'panel' }) =>
     api.post<AssistantSessionReply>(`${BASE}/sessions`, body),
-  createTurn: (sessionId: string, body: { text?: string; picks?: Record<string, string> }) =>
+  /** The person's one open panel conversation, with its last turns; `session: null` when there is none. */
+  currentSession: () => api.get<AssistantCurrentReply>(`${BASE}/sessions/current`),
+  /** What the assistant would be told of a page, without asking it anything. */
+  pageFacts: (body: { context: AssistantContext; host: AssistantHostRef }) => api.post<AssistantFactsReply>(`${BASE}/facts`, body),
+  createTurn: (
+    sessionId: string,
+    body: {
+      text?: string;
+      picks?: Record<string, string>;
+      /** The page the question is asked on, when it is not the one the session was opened on. */
+      context?: AssistantContext;
+      host?: AssistantHostRef;
+      draft?: unknown;
+    },
+  ) =>
     api.post<AssistantTurnReply>(`${sessionPath(sessionId)}/turns`, body),
   turn: (sessionId: string, turnId: string) =>
     api.get<AssistantTurnView>(`${sessionPath(sessionId)}/turns/${encodeURIComponent(turnId)}`),

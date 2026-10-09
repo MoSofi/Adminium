@@ -17,12 +17,13 @@ import {
   type ProviderClient,
   type ProviderConfig,
   type ProviderId,
+  nativeToolCallNames,
 } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
 export interface OpenAiChatResponse {
-  choices?: { message?: { content?: string | null } }[];
+  choices?: { message?: { content?: string | null; tool_calls?: { function?: { name?: unknown } }[] } }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
@@ -43,10 +44,17 @@ export function buildOpenAiChatBody(req: CompleteRequest): Record<string, unknow
 export function parseOpenAiChatResponse(json: OpenAiChatResponse, provider: ProviderId): CompleteResult {
   const text = json.choices?.[0]?.message?.content;
   if (typeof text !== 'string' || text.length === 0) {
+    // A model that answers a request for JSON with a call in its own tool
+    // format and no text: named, so a caller can ask again and say what was wrong.
+    const toolCalls = nativeToolCallNames(json.choices?.[0]?.message?.tool_calls);
     throw new ProviderError({
       provider,
       code: 'empty_response',
-      message: `${provider}: response contained no message content`,
+      message:
+        toolCalls.length > 0
+          ? `${provider}: the model answered with its own tool call (${toolCalls.join(', ')}) and no text`
+          : `${provider}: response contained no message content`,
+      toolCalls,
     });
   }
   return toCompleteResult(text, json.usage?.prompt_tokens, json.usage?.completion_tokens);

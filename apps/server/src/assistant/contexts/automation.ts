@@ -24,11 +24,12 @@ import {
 import { z } from 'zod';
 
 import { RULE_EMAIL_VARS, templatePlaceholders } from '../../automations/actions/email.js';
-import { firstIncompleteNode, flattenNodes, resolveRule } from '../../automations/validate.js';
+import { firstIncompleteNode, flattenNodes, requiredGrants, resolveRule } from '../../automations/validate.js';
+import { readViewForUser } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
-import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantToolDeps } from '../types.js';
+import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDocument, AssistantToolDeps } from '../types.js';
 import { clip, jsonSchemaOf } from './format.js';
 
 const artefactSchema = z.object({
@@ -142,40 +143,8 @@ const EXAMPLE = {
   },
 };
 
-export const automationContext: AssistantContextAdapter = {
-  key: 'automation',
-  pageLabel: 'Automation rules',
-  toolNames: ['workspace_settings', 'list_connections', 'describe_schema', 'read_rows', 'sample_record'],
-
-  async pageFacts(deps) {
-    // The rules' names are the page's own: only someone who may open that page is told them.
-    const rules = (await deps.can(PERMISSIONS.automationsManage)) ? await automationsRepo(deps.meta).list() : [];
-    const templates = await liveTemplateKeys(deps);
-    const connections = await readableConnections(deps);
-    const summary = tablesSummary(connections);
-    const named = summary.connections === 1 ? (connections.find((entry) => entry.tables.length > 0)?.name ?? '') : '';
-    return {
-      values: {
-        rules: rules.length,
-        templates: templates.length,
-        tables: summary.tables,
-        ...(named === '' ? {} : { connection: named }),
-      },
-      scope: { primary: 'automations', extra: summary.tables },
-      prompt: [
-        `This page holds ${countLabel(rules.length, 'rule', 'rules')}: ${documentNamesSection(rules.map((rule) => `${rule.name} (${rule.enabled ? 'on' : 'off'})`))}.`,
-        '',
-        'Live email templates an email step may name, as `key — name — the placeholders it reads`:',
-        templates.length === 0 ? 'none — an email step cannot be completed until one exists; say so.' : templates.map(templateLine).join('\n'),
-        `An email step fills a placeholder only from: ${RULE_EMAIL_VARS.map((name) => `{{${name}}}`).join(' ')}, a column of the triggering record ({{record.<column>}} or the bare {{<column>}}), and the step's own \`vars\` (placeholder name → a text that may carry {{record.<column>}}).`,
-        'Name only a template whose every placeholder is filled that way. Fill one the record does not have through `vars` when a column holds the value under another name. Never name an app\'s own template. When a placeholder cannot be filled, say which one in your reply.',
-        '',
-        'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
-      ].join('\n'),
-    };
-  },
-
+/** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
+const automationDocument: AssistantDocument = {
   formatSpec() {
     return [
       'A rule is `{ name, description, trigger, graph }`.',
@@ -216,7 +185,9 @@ export const automationContext: AssistantContextAdapter = {
     const graph = withoutSealedSecrets(parsed.data.graph);
     const connectionId = connectionOf(trigger);
     try {
-      const view = connectionId === null ? null : await loadSnapshotView(deps.meta, connectionId);
+      // As its author reads the table: a rule cannot name a column their role is not shown.
+      const whole = connectionId === null ? null : await loadSnapshotView(deps.meta, connectionId);
+      const view = whole === null || deps.userId === null ? whole : await readViewForUser(deps.meta, deps.userId, whole);
       resolveRule(trigger, graph, {
         view,
         templateKeys: new Set((await liveTemplateKeys(deps)).map((row) => row.key)),
@@ -228,16 +199,14 @@ export const automationContext: AssistantContextAdapter = {
         errors: [{ path: 'graph', code: 'RULE_INVALID', message: error instanceof Error ? error.message : String(error) }],
       };
     }
-    // The author's own reach: a rule may not use a table its author cannot read.
-    if (connectionId !== null) {
-      const canRead = await deps.canReadTable(connectionId);
-      const subject = trigger.kind === 'record' ? trigger.table : (trigger.forEach?.table ?? null);
-      if (subject !== null && !(await canRead(subject))) {
-        return {
-          ok: false,
-          errors: [{ path: 'trigger.table', code: 'TABLE_FORBIDDEN', message: `You do not have read access to ${subject}, so a rule cannot use it.` }],
-        };
-      }
+    // The author's own reach, as the page's own save asks it: read on what the rule watches,
+    // create and update on what its steps write.
+    for (const { permission, table } of requiredGrants(trigger, graph, connectionId)) {
+      if (await deps.can(permission)) continue;
+      return {
+        ok: false,
+        errors: [{ path: 'graph', code: 'TABLE_FORBIDDEN', message: `You do not have access to ${table}, so a rule cannot use it.` }],
+      };
     }
     const incomplete = firstIncompleteNode(graph);
     return {
@@ -266,4 +235,41 @@ export const automationContext: AssistantContextAdapter = {
   details() {
     return [];
   },
+};
+
+export const automationContext: AssistantContextAdapter = {
+  key: 'automation',
+  pageLabel: 'Automation rules',
+  toolNames: ['workspace_settings', 'list_connections', 'describe_schema', 'read_rows', 'sample_record'],
+
+  async pageFacts(deps) {
+    // The rules' names are the page's own: only someone who may open that page is told them.
+    const rules = (await deps.can(PERMISSIONS.automationsManage)) ? await automationsRepo(deps.meta).list() : [];
+    const templates = await liveTemplateKeys(deps);
+    const connections = await readableConnections(deps);
+    const summary = tablesSummary(connections);
+    const named = summary.connections === 1 ? (connections.find((entry) => entry.tables.length > 0)?.name ?? '') : '';
+    return {
+      values: {
+        rules: rules.length,
+        templates: templates.length,
+        tables: summary.tables,
+        ...(named === '' ? {} : { connection: named }),
+      },
+      scope: { primary: 'automations', extra: summary.tables },
+      prompt: [
+        `This page holds ${countLabel(rules.length, 'rule', 'rules')}: ${documentNamesSection(rules.map((rule) => `${rule.name} (${rule.enabled ? 'on' : 'off'})`))}.`,
+        '',
+        'Live email templates an email step may name, as `key — name — the placeholders it reads`:',
+        templates.length === 0 ? 'none — an email step cannot be completed until one exists; say so.' : templates.map(templateLine).join('\n'),
+        `An email step fills a placeholder only from: ${RULE_EMAIL_VARS.map((name) => `{{${name}}}`).join(' ')}, a column of the triggering record ({{record.<column>}} or the bare {{<column>}}), and the step's own \`vars\` (placeholder name → a text that may carry {{record.<column>}}).`,
+        'Name only a template whose every placeholder is filled that way. Fill one the record does not have through `vars` when a column holds the value under another name. Never name an app\'s own template. When a placeholder cannot be filled, say which one in your reply.',
+        '',
+        'Connected databases and the tables this person may read:',
+        connectionsSection(connections),
+      ].join('\n'),
+    };
+  },
+
+  document: automationDocument,
 };

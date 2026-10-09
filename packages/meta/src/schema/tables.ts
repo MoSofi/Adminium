@@ -1407,9 +1407,21 @@ export interface AdminiumAssistantSessionsTable {
   createdAt: Ts;
   updatedAt: Ts;
   closedAt: Ts | null;
+  /** `modal` (one window, closed with it) or `panel` (the conversation that stays open across pages) (0052). The column's default is `modal`. */
+  kind: ColumnType<string, string | undefined, string>;
 }
 
 /** One exchange inside a session: what was asked, what ran, what came back. */
+/** What a person has used of the assistant on one UTC day (0053). Added to, never rewritten. */
+export interface AdminiumAssistantUseTable {
+  userId: Id;
+  /** The UTC day, `YYYY-MM-DD`. */
+  day: string;
+  tokens: ColumnType<number, number | undefined, number>;
+  turns: ColumnType<number, number | undefined, number>;
+  voiceSeconds: ColumnType<number, number | undefined, number>;
+}
+
 export interface AdminiumAssistantTurnsTable {
   id: Id;
   sessionId: Id;
@@ -1433,6 +1445,14 @@ export interface AdminiumAssistantTurnsTable {
   durationMs: number | null;
   createdAt: Ts;
   finishedAt: Ts | null;
+  /** The page this turn was asked on; NULL means the session's (0052). */
+  context: string | null;
+  /** What that page was showing; NULL means the session's (0052). */
+  host: JsonColumn | null;
+  /** The editor's unsaved document when the question was asked (0052). */
+  draft: JsonColumn | null;
+  /** What the turn ended with besides its words and its draft: what was read, what was suggested (0052). */
+  answer: JsonColumn | null;
 }
 
 /** The full meta-store database — every adminium_* table (BRIEF). */
@@ -1498,6 +1518,7 @@ export interface MetaDB {
   adminium_option_lists: AdminiumOptionListsTable;
   adminium_assistant_sessions: AdminiumAssistantSessionsTable;
   adminium_assistant_turns: AdminiumAssistantTurnsTable;
+  adminium_assistant_use: AdminiumAssistantUseTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1563,4 +1584,5 @@ export const META_TABLE_NAMES = [
   'adminium_option_lists',
   'adminium_assistant_sessions',
   'adminium_assistant_turns',
+  'adminium_assistant_use',
 ] as const satisfies readonly (keyof MetaDB)[];

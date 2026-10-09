@@ -31,7 +31,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import { contextAdapter } from './contexts/index.js';
 import { appNameOf } from './page-facts.js';
 import { ROWS_UNAVAILABLE_NOTE, toolsFor } from './tools/catalogue.js';
-import type { AssistantContextAdapter, AssistantFactValues, AssistantToolDeps, AssistantToolOutcome, CanReadTable } from './types.js';
+import type { AssistantAddOn, AssistantContextAdapter, AssistantFactValues, AssistantToolDeps, AssistantToolOutcome, CanReadTable } from './types.js';
 
 export interface TurnSetupInput {
   meta: MetaDb;
@@ -42,6 +42,8 @@ export interface TurnSetupInput {
   userId: string | null;
   /** Answers a system permission for that person. */
   can: (permission: string) => Promise<boolean>;
+  /** The add-ons this server has and could have; see {@link AssistantToolDeps.addOns}. */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
 }
 
 export interface TurnSetup {
@@ -100,6 +102,7 @@ export async function toolDepsFor(input: TurnSetupInput): Promise<AssistantToolD
     t,
     context: input.context,
     host: input.host,
+    ...(input.addOns === undefined ? {} : { addOns: input.addOns }),
   };
 }
 
@@ -128,8 +131,7 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
     pageLabel: adapter.pageLabel,
     localeName: localeName(locale),
     pageFacts: facts.prompt,
-    formatSpec: adapter.formatSpec(),
-    examples: adapter.examples(deps),
+    document: adapter.document === undefined ? null : { formatSpec: adapter.document.formatSpec(), examples: adapter.document.examples(deps) },
     tools: specs,
     rowsUnavailable: rowData ? null : ROWS_UNAVAILABLE_NOTE,
   });

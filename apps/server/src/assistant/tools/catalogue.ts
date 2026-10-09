@@ -12,11 +12,13 @@
  * at all is the workspace's row-data setting.
  */
 
+import { listAddOnsTool } from './add-ons.js';
 import { aggregateTool } from './aggregate.js';
 import { listDocumentsTool, listStartersTool, readDocumentTool } from './documents.js';
 import { readRowsTool, sampleRecordTool } from './rows.js';
 import { describeSchemaTool, listConnectionsTool } from './schema.js';
 import { emailVariablesTool, workspaceSettingsTool } from './settings.js';
+import { whereIsTool } from './where.js';
 import type { AssistantTool } from '../types.js';
 
 /** Every tool, by name. */
@@ -33,6 +35,8 @@ export const ASSISTANT_TOOLS: Readonly<Record<string, AssistantTool>> = Object.f
       readRowsTool,
       aggregateTool,
       sampleRecordTool,
+      listAddOnsTool,
+      whereIsTool,
     ].map((tool) => [tool.name, tool]),
   ),
 );

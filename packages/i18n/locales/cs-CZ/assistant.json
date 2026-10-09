@@ -129,7 +129,12 @@
     "generic": "Tohle nevyšlo. Zkus se zeptat znovu.",
     "smtp": "E-mail zatím není nastavený. Otevřete nastavení e-mailu a přidejte relay.",
     "tooLong": "Tahle konverzace je pro model příliš dlouhá — začni novou relaci.",
-    "tryAgain": "Zkusit znovu"
+    "tryAgain": "Zkusit znovu",
+    "modelFormat": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Vyberte jiný model v Nastavení → AI.",
+    "modelFormatAsk": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Požádejte správce, aby vybral jiný model.",
+    "setup": "Tuto stránku se teď nepodařilo přečíst. Zeptejte se znovu.",
+    "busy": "Na vaší poslední otázce se ještě pracuje. Počkejte na ni, nebo ji nejdřív zastavte.",
+    "budget": "Zastavilo se to v půli: dnešní příděl je vyčerpán."
   },
   "invoiceTemplate": {
     "action1": "Zobrazit jinou ukázku",
@@ -266,5 +271,79 @@
     "network": "Odchozí síťové funkce jsou na této instanci vypnuté.",
     "noProvider": "Zatím není nastavený žádný poskytovatel AI.",
     "settings": "Otevřít Nastavení → AI"
+  },
+  "budget": {
+    "usedUp": "Dnešní příděl je vyčerpán. Znovu začne v {time}."
+  },
+  "data": {
+    "page": "Tato stránka",
+    "blurb": "Zná tuto stránku: {table} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "blurbNoTable": "Zná tuto stránku · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "greeting": "Umím přečíst, co tato stránka zobrazuje, a další tabulky, které smí číst vaše role.",
+    "greetingSub": "Zeptejte se na zdejší řádky. Odpovím slovy, s čísly, a řeknu, které tabulky jsem četl.",
+    "placeholder": "Zeptejte se na tato data…",
+    "chip1": "Kolik řádků se tu zobrazuje?",
+    "chip2": "Shrň, co tato stránka zobrazuje",
+    "chip3": "Co se změnilo naposledy?",
+    "workTitle": "Data přečtena",
+    "scopePrimary": "tato stránka",
+    "readPage": "{page} · {table} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "readPageNoTable": "{tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "confirm": {
+      "title": "Tady není co uložit",
+      "body": "Asistent {name} na této stránce nic nenavrhuje.",
+      "button": "Zavřít"
+    }
+  },
+  "general": {
+    "page": "Tento pracovní prostor",
+    "blurb": "Zná tento pracovní prostor · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "greeting": "Mohu číst tabulky, které smí číst vaše role, a říct vám, kde se co dělá.",
+    "greetingSub": "Zeptejte se na svá data nebo na to, kde něco změnit. Odpovím slovy a přidám odkaz na dané místo.",
+    "placeholder": "Zeptejte se na tento pracovní prostor…",
+    "chip1": "Kde pozvu kolegu?",
+    "chip2": "Co v tomto pracovním prostoru uvidím?",
+    "chip3": "Která tabulka má nejvíce řádků?",
+    "workTitle": "Vyhledáno",
+    "scopePrimary": "pracovní prostor",
+    "readPage": "{tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}"
+  },
+  "answer": {
+    "from": "Zdroj:",
+    "part": "Přečteno {returned, number} z {total, number} řádků tabulky {table}.",
+    "nothingRead": "Pro tuto odpověď nebylo nic přečteno.",
+    "readAgain": "Přečíst znovu",
+    "readAgainAsk": "{question} Pro odpověď přečti data.",
+    "forgot": "{name} už nemá na paměti {count, plural, one {první zprávu} few {první # zprávy} many {prvních # zprávy} other {prvních # zpráv}}."
+  },
+  "suggestion": {
+    "open": "Otevřít",
+    "openLabel": "Otevřít {addOn} v části Add-ons",
+    "askAdmin": "Požádejte správce, aby to nainstaloval."
+  },
+  "panel": {
+    "loading": "Načítání konverzace…",
+    "recordOpen": "{page} · otevřeno: {record}",
+    "rowsShown": "{page} · {rows, plural, one {zobrazen # řádek} few {zobrazeny # řádky} many {zobrazeno # řádku} other {zobrazeno # řádků}}",
+    "new": "Nová konverzace",
+    "earlier": "{count, plural, one {# starší zpráva není zobrazena} few {# starší zprávy nejsou zobrazeny} many {# starší zprávy není zobrazeno} other {# starších zpráv není zobrazeno}}.",
+    "onPage": "na stránce {page}",
+    "closedElsewhere": "Tato konverzace byla zavřena v jiném okně.",
+    "stillWorking": "{name} stále pracuje na vaší poslední otázce.",
+    "stop": "Zastavit",
+    "pageDialog": "Chcete-li použít {name}, zavřete to, co je na stránce otevřené.",
+    "aged": "Vaše dřívější konverzace byla kvůli svému stáří zavřena."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# vybraný} few {# vybrané} many {# vybraného} other {# vybraných}}",
+    "record": "Otevřený záznam",
+    "filtered": "{rows, plural, one {# filtrovaný řádek} few {# filtrované řádky} many {# filtrovaného řádku} other {# filtrovaných řádků}}",
+    "filteredUnknown": "Filtrované řádky",
+    "remove": "Zeptat se bez „{label}“"
+  },
+  "parked": {
+    "madeOn": "Vytvořeno na stránce {page}.",
+    "open": "Otevřít {page} a použít tento koncept",
+    "deleted": "Dokument tohoto konceptu byl smazán."
   }
 }

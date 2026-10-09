@@ -2291,6 +2291,34 @@ export default {
       "switchOn": "Switch it on",
       "open": "Open the Designer",
       "failed": "The switch could not be changed."
+    },
+    "assistantTest": {
+      "button": "Test {name} with this model",
+      "running": "Asking the model to use one of {name}’s tools…",
+      "ok": "This model can run {name}. {rounds, plural, one {# round} other {# rounds}}, {latency} ms.",
+      "format": "This model answers, but not in the way {name} needs. Choose another model.",
+      "noTool": "This model answered without using the tool it was given. {name} would guess instead of reading your data. Choose another model.",
+      "wrongValue": "This model used the tool and then reported something else. Choose another model.",
+      "provider": "The model did not answer: {message}",
+      "error": "The test could not be run. Try again."
+    },
+    "allowance": {
+      "title": "Daily allowance",
+      "subtitle": "How much of {name} one person may use in a day.",
+      "field": "Tokens a person may use in a day",
+      "hint": "0 means no limit. A day is counted in UTC, so it starts again for everyone at the same moment: {time} your time.",
+      "save": "Save",
+      "saved": "Allowance saved",
+      "saveFailed": "Could not save the allowance. Try again.",
+      "today": "Today",
+      "person": "Person",
+      "questions": "Questions",
+      "tokens": "Tokens",
+      "empty": "Nobody has used {name} today.",
+      "atLimit": "At the limit",
+      "roles": "Roles that may use {name}",
+      "rolesHint": "Set in each role’s permissions.",
+      "rolesNone": "Only Super Admin may use {name}."
     }
   },
   "settingsHub": {

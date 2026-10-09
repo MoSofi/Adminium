@@ -1763,5 +1763,12 @@ export default {
       "report": "Sestava bez názvu",
       "template": "Šablona bez názvu"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "Zeptat se {name}",
+      "working": "{name} pracuje",
+      "unread": "1 nepřečtená odpověď"
+    }
   }
 } as const;

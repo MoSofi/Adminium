@@ -2281,6 +2281,34 @@
       "switchOn": "Einschalten",
       "open": "Designer öffnen",
       "failed": "Der Schalter konnte nicht geändert werden."
+    },
+    "assistantTest": {
+      "button": "{name} mit diesem Modell testen",
+      "running": "Das Modell wird gebeten, eines von {name}s Werkzeugen zu benutzen …",
+      "ok": "Dieses Modell kann {name} ausführen. {rounds, plural, one {# Runde} other {# Runden}}, {latency} ms.",
+      "format": "Dieses Modell antwortet, aber nicht so, wie {name} es braucht. Wählen Sie ein anderes Modell.",
+      "noTool": "Dieses Modell hat geantwortet, ohne das bereitgestellte Werkzeug zu benutzen. {name} würde raten, statt Ihre Daten zu lesen. Wählen Sie ein anderes Modell.",
+      "wrongValue": "Dieses Modell hat das Werkzeug benutzt und dann etwas anderes gemeldet. Wählen Sie ein anderes Modell.",
+      "provider": "Das Modell hat nicht geantwortet: {message}",
+      "error": "Der Test konnte nicht ausgeführt werden. Versuchen Sie es erneut."
+    },
+    "allowance": {
+      "title": "Tageskontingent",
+      "subtitle": "Wie viel eine Person an einem Tag von {name} nutzen darf.",
+      "field": "Tokens, die eine Person an einem Tag nutzen darf",
+      "hint": "0 bedeutet kein Limit. Ein Tag wird in UTC gezählt und beginnt daher für alle im selben Moment neu: {time} Ihrer Zeit.",
+      "save": "Speichern",
+      "saved": "Kontingent gespeichert",
+      "saveFailed": "Das Kontingent konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+      "today": "Heute",
+      "person": "Person",
+      "questions": "Fragen",
+      "tokens": "Tokens",
+      "empty": "Heute hat niemand {name} genutzt.",
+      "atLimit": "Am Limit",
+      "roles": "Rollen, die {name} nutzen dürfen",
+      "rolesHint": "Wird in den Berechtigungen jeder Rolle festgelegt.",
+      "rolesNone": "Nur Super Admin darf {name} nutzen."
     }
   },
   "settingsHub": {

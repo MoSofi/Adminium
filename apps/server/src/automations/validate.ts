@@ -32,7 +32,7 @@ import { yesNo } from './yes-no.js';
 import { isRelativeAutomationOp } from '@adminium/meta';
 
 import { ValidationFailedError } from '../errors.js';
-import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
 import { isDateColumn } from './relative-time.js';
@@ -133,6 +133,21 @@ function tableOrThrow(ctx: ResolveContext, id: string, where: string): ResolvedT
   }
 }
 
+/**
+ * A column a rule READS (a condition, the column it watches, an address), as
+ * the view it is checked in knows it. In a person's own view (`readAs`) a
+ * column their role is not shown is refused by name and nothing of it is
+ * told; in the whole view no column is unreadable and this is a plain lookup.
+ * `undefined` means the table has no such column.
+ */
+function readColumn(table: ResolvedTable, name: string, where: string): ResolvedColumn | undefined {
+  const column = table.columns.get(name);
+  if (column?.unreadable === true) {
+    throw new ValidationFailedError(`${where}: ${name} is not a column your role is shown, so a rule of yours cannot read it.`, { column: name, reason: 'read-limit' });
+  }
+  return column;
+}
+
 function checkCondition(
   condition: AutomationCondition,
   table: ResolvedTable,
@@ -141,14 +156,14 @@ function checkCondition(
 ): void {
   if ('count' in condition.left) {
     const counted = tableOrThrow(ctx, condition.left.count.table, where);
-    const match = counted.columns.get(condition.left.count.matchColumn);
+    const match = readColumn(counted, condition.left.count.matchColumn, where);
     if (condition.left.count.matchColumn !== '' && match === undefined) {
       throw new ValidationFailedError(
         `${where}: ${counted.id} has no column ${condition.left.count.matchColumn}.`,
         {},
       );
     }
-    const equals = table.columns.get(condition.left.count.equalsField);
+    const equals = readColumn(table, condition.left.count.equalsField, where);
     if (condition.left.count.equalsField !== '' && equals === undefined) {
       throw new ValidationFailedError(
         `${where}: ${table.id} has no column ${condition.left.count.equalsField}.`,
@@ -160,7 +175,7 @@ function checkCondition(
   }
   const name = condition.left.field;
   if (name === '') return; // unfinished, which a draft may be
-  const column = table.columns.get(name);
+  const column = readColumn(table, name, where);
   if (column === undefined) {
     throw new ValidationFailedError(`${where}: ${table.id} has no column ${name}.`, { column: name });
   }
@@ -202,7 +217,7 @@ function checkAction(
             {},
           );
         }
-        if (!table.columns.has(action.to.column)) {
+        if (readColumn(table, action.to.column, where) === undefined) {
           throw new ValidationFailedError(`${where}: ${table.id} has no column ${action.to.column}.`, {});
         }
       }
@@ -332,7 +347,7 @@ export function resolveRule(
   if (trigger.kind === 'record') {
     table = tableOrThrow(ctx, trigger.table, 'The trigger');
     if (trigger.changedColumn != null && trigger.changedColumn !== '') {
-      if (!table.columns.has(trigger.changedColumn)) {
+      if (readColumn(table, trigger.changedColumn, 'The trigger') === undefined) {
         throw new ValidationFailedError(
           `The trigger: ${table.id} has no column ${trigger.changedColumn}.`,
           { column: trigger.changedColumn },

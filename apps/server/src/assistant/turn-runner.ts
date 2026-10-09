@@ -50,7 +50,7 @@ import {
 } from '@adminium/llm';
 
 import { buildRepairMessage, DEFAULT_MAX_REPAIRS, type RunFailureError } from '../llm/direct-runner.js';
-import type { AssistantContextAdapter, AssistantToolOutcome } from './types.js';
+import type { AssistantDocument, AssistantRead, AssistantToolOutcome } from './types.js';
 
 /** A message as it goes to the provider and as the transcript stores it. */
 export interface TurnMessage {
@@ -90,7 +90,13 @@ export interface TurnRunInput {
   pageFacts?: Record<string, string | number | boolean> | undefined;
   /** Earlier turns' messages, then this turn's opening message. */
   messages: readonly TurnMessage[];
-  context: AssistantContextAdapter;
+  /**
+   * What the page drafts: how a draft is projected for the diff and which
+   * rows its details tab carries. `undefined` on a page that drafts nothing —
+   * a reply is then checked against the contract that has no `result`, and
+   * one that drafts anyway costs a repair like any other unreadable reply.
+   */
+  document?: Pick<AssistantDocument, 'projectForDiff' | 'details'> | undefined;
   /** Runs one tool call. Answers a failure as data; never throws for the model's mistakes. */
   execute: (call: { id: string; tool: string; args: Record<string, unknown> }) => Promise<AssistantToolOutcome>;
   /** Resolve the lines a `basedOn` document projects to, for the diff. */
@@ -107,6 +113,24 @@ export interface TurnRunInput {
   onStep?:
     | ((event: AssistantStepEvent, percent: number, steps: readonly TurnStep[]) => void | Promise<void>)
     | undefined;
+  /**
+   * Asked before every provider round: may another be asked for? `false` ends
+   * the turn as `reason: 'budget'`. The caller holds the day's allowance; the
+   * runner only knows that there is something to ask.
+   */
+  mayContinue?: (() => Promise<boolean>) | undefined;
+  /**
+   * Told what each provider round cost, as soon as it is known, so what a
+   * person has used is counted while the turn is still spending.
+   */
+  onRound?:
+    | ((round: {
+        system: string;
+        messages: readonly TurnMessage[];
+        reply: string;
+        usage?: { inputTokens: number; outputTokens: number } | undefined;
+      }) => Promise<void>)
+    | undefined;
   /** Cooperative cancellation, checked at every round boundary. */
   signal?: AbortSignal | undefined;
   /** Repairs per round; the same budget the enrichment path uses. */
@@ -118,11 +142,17 @@ export type TurnOutcome =
   | {
       status: 'done';
       say: string;
+      /** Add-on keys the reply pointed at, as the model wrote them: unchecked. */
+      suggest: string[];
+      /** What the person might ask next, after an answer in words. Empty beside a draft, which carries its own. */
+      followups: string[];
       /** Present when the model produced a draft. */
       result: TurnResult | null;
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
+      /** Every read of rows this turn made, as it happened: what came back of how much. */
+      reads: AssistantRead[];
       tokensIn: number;
       tokensOut: number;
     }
@@ -133,19 +163,31 @@ export type TurnOutcome =
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
+      /** Every read of rows this turn made, as it happened: what came back of how much. */
+      reads: AssistantRead[];
       tokensIn: number;
       tokensOut: number;
     }
   | {
       status: 'failed';
       errors: RunFailureError[];
+      /**
+       * `model-format` when the turn ended because the model kept answering
+       * in a way the reply contract cannot read (unreadable, empty, or in
+       * its own tool format) after every repair it is allowed. It is the
+       * MODEL that cannot do this, not this request: the person is told to
+       * choose another, not to try again.
+       */
+      reason?: 'model-format' | 'budget';
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
+      /** Every read of rows this turn made, as it happened: what came back of how much. */
+      reads: AssistantRead[];
       tokensIn: number;
       tokensOut: number;
     }
-  | { status: 'cancelled'; steps: TurnStep[]; messages: TurnMessage[]; sources: string[]; tokensIn: number; tokensOut: number };
+  | { status: 'cancelled'; steps: TurnStep[]; messages: TurnMessage[]; sources: string[]; reads: AssistantRead[]; tokensIn: number; tokensOut: number };
 
 /** The drafted document and everything the result card shows beside it. */
 export interface TurnResult {
@@ -190,15 +232,30 @@ const ROUND_CAP_ERROR: LlmValidationError = {
   message: `The assistant took more than ${String(ASSISTANT_MAX_ROUNDS)} rounds without reaching an answer.`,
 };
 
+/** The stand-in error of a turn stopped by the day's allowance; the job words it from what it knows. */
+const BUDGET_ERROR: LlmValidationError = {
+  code: 'LLM_SCHEMA_INVALID',
+  severity: 'fatal',
+  path: '',
+  message: 'Today\'s allowance for the assistant is used up.',
+};
+
 export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome> {
   const maxRepairs = input.maxRepairs ?? DEFAULT_MAX_REPAIRS;
   const messages: TurnMessage[] = input.messages.map((message) => ({ ...message }));
 
   const steps: TurnStep[] = [];
   const sources: string[] = [];
+  // What each row read really covered. The line under an answer is built from these, by the
+  // server: never from what the model says it read.
+  const reads: AssistantRead[] = [];
   const usage = { tokensIn: 0, tokensOut: 0 };
   let callsUsed = 0;
-  let repairs = 0;
+  // Two budgets, because they are two different mistakes: a reply the contract cannot READ
+  // (unparseable, empty, the model's own tool format), and a draft the page cannot USE. Sharing
+  // one let a model that stumbled on the format twice have no repair left for its first draft.
+  let formatRepairs = 0;
+  let draftRepairs = 0;
 
   // The page-read step, before the first provider call. It is published
   // `done`: the read already happened — `pageFacts` is what built the prompt
@@ -224,22 +281,26 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     steps,
     messages,
     sources,
+    reads,
     tokensIn: usage.tokensIn,
     tokensOut: usage.tokensOut,
   });
 
-  const failed = (errors: RunFailureError[]): TurnOutcome => ({
+  const failed = (errors: RunFailureError[], reason?: 'model-format' | 'budget'): TurnOutcome => ({
     status: 'failed',
     errors,
+    ...(reason === undefined ? {} : { reason }),
     steps,
     messages,
     sources,
+    reads,
     tokensIn: usage.tokensIn,
     tokensOut: usage.tokensOut,
   });
 
   for (let round = 0; round < ASSISTANT_MAX_ROUNDS; round += 1) {
     if (input.signal?.aborted ?? false) return stopped();
+    if (input.mayContinue !== undefined && !(await input.mayContinue())) return failed([BUDGET_ERROR], 'budget');
     if (round > 0 && round === ASSISTANT_MAX_ROUNDS - 1) messages.push({ role: 'user', content: LAST_ROUND_MESSAGE });
 
     let reply: { text: string; usage?: { inputTokens: number; outputTokens: number } };
@@ -254,16 +315,30 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         temperature: 0,
       });
     } catch (error) {
+      // An EMPTY reply is the model's doing, not the wire's: some answer a request for JSON with
+      // a call in their own tool format and no text. It is sent back like any reply that cannot
+      // be read, with a line that says what was wrong.
+      if (error instanceof ProviderError && error.code === 'empty_response') {
+        if (formatRepairs >= maxRepairs) return failed([providerFailure(error, input.provider)], 'model-format');
+        formatRepairs += 1;
+        // Its empty turn is kept in the record as a word: a provider refuses a message with no text in it.
+        messages.push({ role: 'assistant', content: EMPTY_REPLY_PLACEHOLDER });
+        messages.push({ role: 'user', content: emptyReplyMessage(error.toolCalls ?? []) });
+        continue;
+      }
       // A transport or config failure is not something a re-prompt can fix.
       return failed([providerFailure(error, input.provider)]);
     }
     usage.tokensIn += reply.usage?.inputTokens ?? 0;
     usage.tokensOut += reply.usage?.outputTokens ?? 0;
+    await input.onRound?.({ system: input.system, messages, reply: reply.text, usage: reply.usage });
 
-    const parsed = parseAssistantTurn(reply.text);
+    const parsed = parseAssistantTurn(reply.text, undefined, { document: input.document !== undefined });
     if (!parsed.ok) {
-      if (repairs >= maxRepairs) return failed([...parsed.errors]);
-      repairs += 1;
+      // A model that DECLINED said so in the contract's own way: that is an answer, not a format it cannot follow.
+      const declined = parsed.errors.some((error) => error.code === 'LLM_MODEL_DECLINED');
+      if (formatRepairs >= maxRepairs) return failed([...parsed.errors], declined ? undefined : 'model-format');
+      formatRepairs += 1;
       messages.push({ role: 'assistant', content: reply.text });
       messages.push({ role: 'user', content: buildRepairMessage(parsed.errors) });
       continue;
@@ -281,6 +356,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         steps,
         messages,
         sources,
+        reads,
         tokensIn: usage.tokensIn,
         tokensOut: usage.tokensOut,
       };
@@ -315,6 +391,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         await publish(input, step, round, null, steps);
 
         const outcome = await input.execute({ id: call.id, tool: call.tool, args: call.args });
+        if (outcome.read !== undefined) reads.push(outcome.read);
         if (outcome.tables !== undefined) {
           for (const table of outcome.tables) {
             step.tables.push(table);
@@ -346,7 +423,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         // repair, the same as an unreadable reply, because it is the same
         // kind of mistake: the model produced something this instance cannot
         // use.
-        if (repairs >= maxRepairs) {
+        if (draftRepairs >= maxRepairs) {
           return failed(
             accepted.errors.map((error) => ({
               code: 'LLM_SCHEMA_INVALID' as const,
@@ -356,7 +433,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
             })),
           );
         }
-        repairs += 1;
+        draftRepairs += 1;
         messages.push({ role: 'assistant', content: reply.text });
         messages.push({ role: 'user', content: assistantArtefactErrorsMessage(accepted.errors) });
         continue;
@@ -365,7 +442,8 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       messages.push({ role: 'assistant', content: reply.text });
       const artefact = accepted.artefact;
       const basedOn = result.basedOn ?? null;
-      const draftLines = input.context.projectForDiff(artefact);
+      // A `result` only parses on a page that has a document, so this is never the empty case.
+      const draftLines = input.document?.projectForDiff(artefact) ?? [];
       const baseLines = basedOn === null ? null : ((await input.baseLines?.(basedOn)) ?? null);
       // No base means a new document, and every line of it is an addition —
       // which is what the card says above the lines.
@@ -374,6 +452,8 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       return {
         status: 'done',
         say: turn.say,
+        suggest: [...(turn.suggest ?? [])],
+        followups: [],
         result: {
           title: result.title,
           meta: result.meta,
@@ -384,7 +464,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
           // The page's own rows first, then whatever the model added. The
           // page's are KINDS the dashboard words; the model's are its own
           // label/value pairs and are shown as it wrote them.
-          details: input.context.details(artefact),
+          details: input.document?.details(artefact) ?? [],
           modelDetails: [...(result.details ?? [])],
           checks: [...(result.checks ?? [])],
           followups: [...(result.followups ?? [])],
@@ -400,26 +480,62 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
         steps,
         messages,
         sources,
+        reads,
         tokensIn: usage.tokensIn,
         tokensOut: usage.tokensOut,
       };
     }
 
-    // A plain answer: no move, just words.
+    // A plain answer: no move, just words. With no words either it is nothing at all, and the
+    // person would be shown an empty bubble as if it were an answer: asked again, like any reply
+    // that cannot be read.
+    if (turn.say.trim() === '') {
+      if (formatRepairs >= maxRepairs) return failed([{ code: 'LLM_SCHEMA_INVALID', severity: 'fatal', path: 'say', message: NOTHING_SAID_MESSAGE }], 'model-format');
+      formatRepairs += 1;
+      messages.push({ role: 'assistant', content: reply.text });
+      messages.push({ role: 'user', content: buildRepairMessage([{ code: 'LLM_SCHEMA_INVALID', severity: 'fatal', path: 'say', message: NOTHING_SAID_MESSAGE }]) });
+      continue;
+    }
     messages.push({ role: 'assistant', content: reply.text });
     return {
       status: 'done',
       say: turn.say,
+      suggest: [...(turn.suggest ?? [])],
+      followups: [...(turn.followups ?? [])],
       result: null,
       steps,
       messages,
       sources,
+    reads,
       tokensIn: usage.tokensIn,
       tokensOut: usage.tokensOut,
     };
   }
 
   return failed([ROUND_CAP_ERROR]);
+}
+
+/** Said to a model that made no move and wrote nothing. */
+const NOTHING_SAID_MESSAGE = 'Your reply made no move and "say" is empty. Answer the person in "say", or use "calls" or "ask".';
+
+/** What stands in the transcript for a reply that had no text. */
+export const EMPTY_REPLY_PLACEHOLDER = '(no text)';
+
+/**
+ * Said to a model whose reply had no text. When it used its own tool format,
+ * the names are given back, so it can see the call it made is the mistake:
+ * here a tool is asked for INSIDE the JSON reply, under `calls`.
+ */
+export function emptyReplyMessage(toolCalls: readonly string[]): string {
+  const what =
+    toolCalls.length > 0
+      ? `Your reply had no text: you called ${toolCalls.map((name) => JSON.stringify(name)).join(', ')} in your own tool format, which does nothing here.`
+      : 'Your reply was empty.';
+  return [
+    what,
+    'Reply with ONE JSON object matching the turn schema, and nothing else.',
+    'To read data, name one of the tools listed above in "calls" INSIDE that object.',
+  ].join('\n');
 }
 
 /** Publish one step row's state on the job channel. */

@@ -32,7 +32,7 @@ export const ASSISTANT_SCHEMA_VERSION = 'adminium.assistant/v1';
 export const SUPPORTED_ASSISTANT_VERSIONS: readonly string[] = [ASSISTANT_SCHEMA_VERSION];
 
 /** The pages the assistant can be opened from. The context is the HOST's, never the model's. */
-export const ASSISTANT_CONTEXTS = ['email', 'invoice-template', 'invoices', 'report', 'automation'] as const;
+export const ASSISTANT_CONTEXTS = ['email', 'invoice-template', 'invoices', 'report', 'automation', 'data', 'general'] as const;
 export type AssistantContext = (typeof ASSISTANT_CONTEXTS)[number];
 export const assistantContextSchema = z.enum(ASSISTANT_CONTEXTS);
 
@@ -53,6 +53,10 @@ export const ASSISTANT_MAX_CALLS_PER_TURN = 12;
 export const ASSISTANT_MAX_ROUNDS = ASSISTANT_MAX_CALLS_PER_TURN + 2;
 /** Tool calls one reply may request. */
 export const ASSISTANT_MAX_CALLS_PER_REPLY = 8;
+/** Add-ons one reply may point the person at. */
+export const ASSISTANT_MAX_SUGGESTIONS = 3;
+/** The longest add-on key a reply may name. */
+export const ASSISTANT_SUGGEST_KEY_MAX = 80;
 /** Rows one `read_rows` / `aggregate` call may return. */
 export const ASSISTANT_MAX_ROWS_PER_CALL = 50;
 
@@ -166,18 +170,79 @@ export type AssistantResult = z.infer<typeof assistantResultSchema>;
 
 const ONE_MOVE_MESSAGE = 'Use at most one of calls, ask and result in a single reply.';
 
-export const assistantTurnV1 = z
-  .object({
-    schema_version: z.literal(ASSISTANT_SCHEMA_VERSION),
-    say: z.string().max(2000),
-    calls: z.array(assistantToolCallSchema).min(1).max(ASSISTANT_MAX_CALLS_PER_REPLY).optional(),
-    ask: assistantAskSchema.optional(),
-    result: assistantResultSchema.optional(),
-  })
-  .refine((turn) => [turn.calls, turn.ask, turn.result].filter((move) => move !== undefined).length <= 1, {
-    message: ONE_MOVE_MESSAGE,
-  });
+/**
+ * The reply's fields, with no rule across them yet.
+ *
+ * Kept apart from {@link assistantTurnV1} because a page that drafts nothing
+ * is shown, and checked against, a contract WITHOUT `result`, and zod refuses
+ * to `omit()` from an object that already carries a refinement. Each variant
+ * is built from this and given its own rule.
+ */
+const assistantTurnFields = z.object({
+  schema_version: z.literal(ASSISTANT_SCHEMA_VERSION),
+  say: z.string().max(2000),
+  calls: z.array(assistantToolCallSchema).min(1).max(ASSISTANT_MAX_CALLS_PER_REPLY).optional(),
+  ask: assistantAskSchema.optional(),
+  result: assistantResultSchema.optional(),
+  /**
+   * Not a move: add-ons that would give what was asked. KEYS only; the server
+   * checks each against its own list and draws the card from that list, so a
+   * name or a promise the model writes never reaches the person.
+   */
+  suggest: z
+    .array(z.string().min(1).max(ASSISTANT_SUGGEST_KEY_MAX))
+    .max(ASSISTANT_MAX_SUGGESTIONS)
+    .optional()
+    .describe('Keys from list_add_ons of add-ons that are NOT installed and would give what the person asked for. Only when relevant; three at most.'),
+  /**
+   * Not a move: what the person might ask next, after an answer in words.
+   * Drawn as buttons under the answer; a click sends the text as THEIR next
+   * message, so each is written as their question. A draft carries its own
+   * (`result.followups`).
+   */
+  followups: z
+    .array(z.string().min(1).max(80))
+    .max(3)
+    .optional()
+    .describe('With an answer in words only: up to 3 questions the person might ask next, shown as buttons. A click sends the text to you as their next message, so write each as THEIR question to you ("Who comes next?"), never as yours to them. Only ones you can answer with your tools.'),
+});
+
+export const assistantTurnV1 = assistantTurnFields.refine(
+  (turn) => [turn.calls, turn.ask, turn.result].filter((move) => move !== undefined).length <= 1,
+  { message: ONE_MOVE_MESSAGE },
+);
 export type AssistantTurnV1 = z.infer<typeof assistantTurnV1>;
+
+const ONE_MOVE_PLAIN_MESSAGE = 'Use at most one of calls and ask in a single reply.';
+
+/**
+ * The reply on a page that has no document: the same contract without
+ * `result`. {@link parseAssistantTurn} refuses that one key by name on such a
+ * page: left to this shape it would be dropped, and the draft read as a plain
+ * answer with nothing in it.
+ */
+export const assistantTurnPlainV1 = assistantTurnFields
+  .omit({ result: true })
+  .refine((turn) => [turn.calls, turn.ask].filter((move) => move !== undefined).length <= 1, {
+    message: ONE_MOVE_PLAIN_MESSAGE,
+  });
+
+/** Which contract a page's replies are shown and checked against. */
+export interface AssistantTurnVariant {
+  /** Whether the page has a document, and so whether a reply may carry `result`. */
+  document: boolean;
+}
+
+/** The variant every page had before a page could be without a document. */
+export const ASSISTANT_DOCUMENT_VARIANT: AssistantTurnVariant = Object.freeze({ document: true });
+
+/** The zod schema one variant's replies are checked against. */
+export function assistantTurnSchemaFor(variant: AssistantTurnVariant): z.ZodType {
+  return variant.document ? assistantTurnV1 : assistantTurnPlainV1;
+}
+
+/** Said back to a model that drafted on a page with nothing to draft. */
+export const ASSISTANT_NO_DOCUMENT_MESSAGE = 'This page has no document, so "result" is not a move here. Answer in "say".';
 
 /** Which move a valid reply made. */
 export type AssistantMove = 'calls' | 'ask' | 'result' | 'answer';
@@ -210,6 +275,8 @@ const VERSION_HINT = `Reply with "schema_version": "${ASSISTANT_SCHEMA_VERSION}"
 export function parseAssistantTurn(
   rawText: string,
   supportedVersions: readonly string[] = SUPPORTED_ASSISTANT_VERSIONS,
+  /** The contract the model was shown; a reply is checked against that one and no other. */
+  variant: AssistantTurnVariant = ASSISTANT_DOCUMENT_VARIANT,
 ): AssistantTurnParse {
   const extracted = extractJsonObject(rawText);
   if (!extracted.ok) return { ok: false, errors: [extracted.error] };
@@ -244,7 +311,13 @@ export function parseAssistantTurn(
     };
   }
 
-  const checked = assistantTurnV1.safeParse(parsed);
+  // Refused by name, before the shape: left to the shape, an unknown key is
+  // dropped and the draft would read as a plain answer with nothing in it.
+  if (!variant.document && record.result !== undefined && record.result !== null) {
+    return { ok: false, errors: [makeError('LLM_SCHEMA_INVALID', 'result', ASSISTANT_NO_DOCUMENT_MESSAGE)] };
+  }
+
+  const checked = (variant.document ? assistantTurnV1 : assistantTurnPlainV1).safeParse(parsed);
   if (!checked.success) {
     return {
       ok: false,

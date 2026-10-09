@@ -129,7 +129,12 @@
     "generic": "That did not work. Try asking again.",
     "smtp": "Email is not configured yet. Open Email settings to add a relay.",
     "tooLong": "This conversation is too long for the model — start a new session.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "modelFormat": "This model does not answer in the way {name} needs. Choose another model in Settings → AI.",
+    "modelFormatAsk": "This model does not answer in the way {name} needs. Ask an administrator to choose another model.",
+    "setup": "This page could not be read just now. Try asking again.",
+    "busy": "Your last question is still being worked on. Wait for it, or stop it first.",
+    "budget": "This stopped part way: today’s allowance is used up."
   },
   "invoiceTemplate": {
     "action1": "Preview another sample",
@@ -266,5 +271,79 @@
     "network": "Outbound network features are off on this instance.",
     "noProvider": "No AI provider is configured yet.",
     "settings": "Open Settings → AI"
+  },
+  "budget": {
+    "usedUp": "Today’s allowance is used up. It starts again at {time}."
+  },
+  "data": {
+    "page": "This page",
+    "blurb": "Knows this page: {table} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "blurbNoTable": "Knows this page · {tables, plural, one {# readable table} other {# readable tables}}",
+    "greeting": "I can read what this page shows, and the other tables your role can read.",
+    "greetingSub": "Ask about the rows here. I answer in words, with the figures, and say which tables I read.",
+    "placeholder": "Ask about this data…",
+    "chip1": "How many rows are shown here?",
+    "chip2": "Summarise what this page shows",
+    "chip3": "What changed most recently?",
+    "workTitle": "Read the data",
+    "scopePrimary": "this page",
+    "readPage": "{page} · {table} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "readPageNoTable": "{tables, plural, one {# readable table} other {# readable tables}}",
+    "confirm": {
+      "title": "Nothing to save here",
+      "body": "{name} drafts nothing on this page.",
+      "button": "Close"
+    }
+  },
+  "general": {
+    "page": "This workspace",
+    "blurb": "Knows this workspace · {tables, plural, one {# readable table} other {# readable tables}}",
+    "greeting": "I can read the tables your role can read, and tell you where things are done.",
+    "greetingSub": "Ask about your data, or where to change something. I answer in words and link to the place.",
+    "placeholder": "Ask about this workspace…",
+    "chip1": "Where do I invite a colleague?",
+    "chip2": "What can I see in this workspace?",
+    "chip3": "Which table has the most rows?",
+    "workTitle": "Looked it up",
+    "scopePrimary": "workspace",
+    "readPage": "{tables, plural, one {# readable table} other {# readable tables}}"
+  },
+  "answer": {
+    "from": "From:",
+    "part": "Read {returned, number} of {total, number} rows of {table}.",
+    "nothingRead": "Nothing was read for this answer.",
+    "readAgain": "Read again",
+    "readAgainAsk": "{question} Read the data to answer.",
+    "forgot": "{name} no longer has the first {count, plural, one {message} other {# messages}} in mind."
+  },
+  "suggestion": {
+    "open": "Open",
+    "openLabel": "Open {addOn} in Add-ons",
+    "askAdmin": "Ask an administrator to install this."
+  },
+  "panel": {
+    "loading": "Loading conversation…",
+    "recordOpen": "{page} · {record} open",
+    "rowsShown": "{page} · {rows, plural, one {# row shown} other {# rows shown}}",
+    "new": "New conversation",
+    "earlier": "{count, plural, one {# earlier message is} other {# earlier messages are}} not shown.",
+    "onPage": "on {page}",
+    "closedElsewhere": "This conversation was closed in another window.",
+    "stillWorking": "{name} is still working on your last question.",
+    "stop": "Stop",
+    "pageDialog": "Close what is open on the page to use {name}.",
+    "aged": "Your earlier conversation was closed because of its age."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "record": "The open record",
+    "filtered": "{rows, plural, one {# filtered row} other {# filtered rows}}",
+    "filteredUnknown": "Filtered rows",
+    "remove": "Ask without “{label}”"
+  },
+  "parked": {
+    "madeOn": "Made on {page}.",
+    "open": "Open {page} to use this draft",
+    "deleted": "This draft’s document was deleted."
   }
 }

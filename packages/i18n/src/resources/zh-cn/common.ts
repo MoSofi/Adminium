@@ -1763,5 +1763,12 @@ export default {
       "report": "未命名报告",
       "template": "未命名模板"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "询问 {name}",
+      "working": "{name} 正在处理",
+      "unread": "1 条未读回答"
+    }
   }
 } as const;

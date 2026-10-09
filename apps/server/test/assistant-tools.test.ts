@@ -568,7 +568,7 @@ describe('the prompt each page builds', () => {
 describe('what each page will accept as a draft', () => {
   it('refuses an email block kind the page does not have, naming it', async () => {
     const email = await setup({ context: 'email', user: 'admin' });
-    const outcome = await email.adapter.acceptArtefact(
+    const outcome = await email.adapter.document!.acceptArtefact(
       {
         kind: 'template',
         name: 'Broken',
@@ -584,7 +584,7 @@ describe('what each page will accept as a draft', () => {
 
   it('accepts an email document the page`s own save would accept', async () => {
     const email = await setup({ context: 'email', user: 'admin' });
-    const outcome = await email.adapter.acceptArtefact(
+    const outcome = await email.adapter.document!.acceptArtefact(
       {
         kind: 'template',
         name: 'Welcome',
@@ -602,7 +602,7 @@ describe('what each page will accept as a draft', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     // And the diff it projects reads as the document, not as JSON.
-    const lines = email.adapter.projectForDiff(outcome.artefact);
+    const lines = email.adapter.document!.projectForDiff(outcome.artefact);
     expect(lines[0]).toBe('subject: Welcome aboard');
     expect(lines).toContain('  email.heading: Welcome');
   });
@@ -611,21 +611,21 @@ describe('what each page will accept as a draft', () => {
     const template = await makeInvoiceTemplate('Consulting');
     const invoices = await setup({ context: 'invoices', user: 'admin' });
 
-    const unknown = await invoices.adapter.acceptArtefact(
+    const unknown = await invoices.adapter.document!.acceptArtefact(
       { basedOn: 'inv_nothing', name: 'March', body: {} },
       invoices.deps,
     );
     expect(unknown.ok).toBe(false);
     if (!unknown.ok) expect(unknown.errors[0]?.code).toBe('TEMPLATE_NOT_FOUND');
 
-    const numbered = await invoices.adapter.acceptArtefact(
+    const numbered = await invoices.adapter.document!.acceptArtefact(
       { basedOn: template.id, name: 'March', body: { number: 'INV-2001' } },
       invoices.deps,
     );
     expect(numbered.ok).toBe(false);
     if (!numbered.ok) expect(numbered.errors[0]?.code).toBe('NUMBER_NOT_YOURS');
 
-    const good = await invoices.adapter.acceptArtefact(
+    const good = await invoices.adapter.document!.acceptArtefact(
       {
         basedOn: template.id,
         name: 'March',
@@ -639,7 +639,7 @@ describe('what each page will accept as a draft', () => {
   it('keeps a report`s figures with the descriptors that produced them, and saves it as a draft', async () => {
     const report = await setup({ context: 'report', user: 'admin' });
     const descriptor = ordersByStatus();
-    const outcome = await report.adapter.acceptArtefact(
+    const outcome = await report.adapter.document!.acceptArtefact(
       {
         name: 'Order mix',
         body: {
@@ -675,14 +675,14 @@ describe('what each page will accept as a draft', () => {
 
     // Rows are KINDS with their numbers, never sentences: the dashboard words
     // them, because English on the wire cannot be translated.
-    const details = report.adapter.details(outcome.artefact);
+    const details = report.adapter.document!.details(outcome.artefact);
     expect(details.find((row) => row.kind === 'sourcesChosen')?.args.sources).toContain('counts every order');
     expect(details.map((row) => row.kind)).toContain('notPublished');
   });
 
   it('refuses a report source that names a block the report does not have', async () => {
     const report = await setup({ context: 'report', user: 'admin' });
-    const outcome = await report.adapter.acceptArtefact(
+    const outcome = await report.adapter.document!.acceptArtefact(
       {
         name: 'Orphan',
         body: { reportTitle: 'Orphan', blocks: [{ id: 'b1', block: 'text', title: '', w: 'full', show: true, text: 'x' }] },
@@ -709,12 +709,12 @@ describe('what each page will accept as a draft', () => {
 describe('the report format spec', () => {
   it('names the field the acceptor reads, and the acceptor keeps the block', async () => {
     const report = await setup({ context: 'report', user: 'admin' });
-    const spec = report.adapter.formatSpec();
+    const spec = report.adapter.document!.formatSpec();
     expect(spec).toContain('kind: <kind>');
     expect(spec).not.toContain('block: <kind>');
 
     // The other half: a block written the way the spec describes survives.
-    const outcome = await report.adapter.acceptArtefact(
+    const outcome = await report.adapter.document!.acceptArtefact(
       {
         name: 'Charted',
         body: {
@@ -744,28 +744,28 @@ describe('the report format spec', () => {
 describe('the invoice format spec', () => {
   it('names the wrapper, and its worked example is a draft the template page accepts', async () => {
     const builder = await setup({ context: 'invoice-template', user: 'admin' });
-    expect(builder.adapter.formatSpec()).toContain('`{ name, body }`');
+    expect(builder.adapter.document!.formatSpec()).toContain('`{ name, body }`');
 
-    const examples = builder.adapter.examples(builder.deps);
+    const examples = builder.adapter.document!.examples(builder.deps);
     expect(examples).toHaveLength(1);
     const example = JSON.parse(examples[0] ?? '') as Record<string, unknown>;
     expect(Object.keys(example)).toEqual(['name', 'body']);
-    const outcome = await builder.adapter.acceptArtefact(example, builder.deps);
+    const outcome = await builder.adapter.document!.acceptArtefact(example, builder.deps);
     expect(outcome.ok).toBe(true);
   });
 
   it('shows an invoice built on a template, with its number left for the row to mint', async () => {
     const manager = await setup({ context: 'invoices', user: 'admin' });
-    expect(manager.adapter.formatSpec()).toContain('`{ basedOn, name, body }`');
+    expect(manager.adapter.document!.formatSpec()).toContain('`{ basedOn, name, body }`');
 
-    const example = JSON.parse(manager.adapter.examples(manager.deps)[0] ?? '') as {
+    const example = JSON.parse(manager.adapter.document!.examples(manager.deps)[0] ?? '') as {
       basedOn: string;
       body: { number: string };
     };
     expect(Object.keys(example)).toEqual(['basedOn', 'name', 'body']);
     expect(example.body.number).toBe('');
     // The id is the model's to look up — the example must not look like one.
-    const outcome = await manager.adapter.acceptArtefact(example, manager.deps);
+    const outcome = await manager.adapter.document!.acceptArtefact(example, manager.deps);
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.errors[0]?.code).toBe('TEMPLATE_NOT_FOUND');
@@ -800,7 +800,7 @@ describe('re-running a report’s sources', () => {
   it('writes today’s answer into the block the descriptor filled', async () => {
     const report = await setup({ context: 'report', user: 'admin' });
     const artefact = draftedReport(ordersByStatus());
-    const run = await report.adapter.resample?.(artefact, report.deps);
+    const run = await report.adapter.document!.resample?.(artefact, report.deps);
 
     expect(run?.refreshed).toBe(1);
     expect(run?.refused).toEqual([]);
@@ -816,7 +816,7 @@ describe('re-running a report’s sources', () => {
     const report = await setup({ context: 'report', user: 'admin' });
     const artefact = draftedReport(ordersByStatus());
     const before = JSON.stringify(artefact);
-    await report.adapter.resample?.(artefact, report.deps);
+    await report.adapter.document!.resample?.(artefact, report.deps);
     expect(JSON.stringify(artefact)).toBe(before);
   });
 
@@ -824,14 +824,14 @@ describe('re-running a report’s sources', () => {
     const report = await setup({ context: 'report', user: 'admin' });
     const metric = { shape: 'single-metric', source: { schema: 'main', name: 'orders' }, aggregations: [{ fn: 'count', alias: 'n' }] };
 
-    const kpi = await report.adapter.resample?.(draftedReport(metric, 'b2'), report.deps);
+    const kpi = await report.adapter.document!.resample?.(draftedReport(metric, 'b2'), report.deps);
     expect(kpi?.refreshed).toBe(1);
     const filled = (kpi?.artefact.body as { blocks: Record<string, unknown>[] }).blocks[1];
     expect((filled?.kpis as { value: string }[])[0]?.value).not.toBe('999');
 
     // A bar cannot show one number. Nothing is written and nothing is
     // claimed: the block keeps the figure it was drafted with.
-    const mismatch = await report.adapter.resample?.(draftedReport(metric, 'b1'), report.deps);
+    const mismatch = await report.adapter.document!.resample?.(draftedReport(metric, 'b1'), report.deps);
     expect(mismatch?.refreshed).toBe(0);
     const untouched = (mismatch?.artefact.body as { blocks: Record<string, unknown>[] }).blocks[0];
     expect((untouched?.series as { value: string }[])[0]?.value).toBe('999');
@@ -848,7 +848,7 @@ describe('re-running a report’s sources', () => {
       groupBy: ['country'],
       aggregations: [{ fn: 'count', alias: 'n' }],
     };
-    const run = await report.adapter.resample?.(draftedReport(forbidden), report.deps);
+    const run = await report.adapter.document!.resample?.(draftedReport(forbidden), report.deps);
 
     expect(run?.refreshed).toBe(0);
     expect(run?.refused).toHaveLength(1);
@@ -863,7 +863,7 @@ describe('re-running a report’s sources', () => {
     const report = await setup({ context: 'report', user: 'admin' });
     const artefact = draftedReport(ordersByStatus());
     (artefact.sources as { descriptor: Record<string, unknown> }[])[0]!.descriptor = ordersByStatus();
-    const run = await report.adapter.resample?.(artefact, report.deps);
+    const run = await report.adapter.document!.resample?.(artefact, report.deps);
     expect(run?.refreshed).toBe(0);
     expect(run?.refused[0]?.message).toContain('no connection');
   });
@@ -875,11 +875,11 @@ describe('re-running a report’s sources', () => {
     // itself, and a second look at it is the same look.
     for (const context of ['email', 'invoices'] as const) {
       const page = await setup({ context, user: 'admin' });
-      expect(page.adapter.resample, context).toBeUndefined();
+      expect(page.adapter.document!.resample, context).toBeUndefined();
     }
     for (const context of ['report', 'invoice-template'] as const) {
       const page = await setup({ context, user: 'admin' });
-      expect(page.adapter.resample, context).toBeTypeOf('function');
+      expect(page.adapter.document!.resample, context).toBeTypeOf('function');
     }
   });
 });
@@ -918,7 +918,7 @@ describe('re-sampling an invoice template', () => {
       summary: { number: 'INV-9001', customerName: 'Northwind Traders', title: 'Invoice', logoText: '', logoIcon: 'receipt', accent: '#4f46e5', currency: '$', cents: true, totalMinor: 10_000, itemCount: 1 },
     });
     try {
-      const run = await page.adapter.resample?.(draftedTemplate(), page.deps);
+      const run = await page.adapter.document!.resample?.(draftedTemplate(), page.deps);
       expect(run?.refreshed).toBe(1);
       expect(run?.refused).toEqual([]);
       const body = run?.artefact.body as Record<string, unknown>;
@@ -939,7 +939,7 @@ describe('re-sampling an invoice template', () => {
     const page = await setup({ context: 'invoice-template', user: 'admin' });
     const rows = await invoiceDocumentsRepo(t.meta).list({ kind: 'invoice' });
     if (rows.length > 0) return; // another case left one behind; its own assertions cover it
-    const run = await page.adapter.resample?.(draftedTemplate(), page.deps);
+    const run = await page.adapter.document!.resample?.(draftedTemplate(), page.deps);
     expect(run?.refreshed).toBe(0);
     expect(run?.refused[0]?.message).toContain('no invoice in this workspace');
   });
