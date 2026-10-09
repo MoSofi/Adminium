@@ -100,6 +100,8 @@ describe('ToastStack', () => {
     );
     const region = screen.getByRole('region', { name: 'Notifications' });
     expect(region.classList.contains('end-4')).toBe(true);
-    expect(region.classList.contains('bottom-4')).toBe(true);
+    // 16 px from the bottom, plus whatever else claims that corner says it needs (`--toast-lift`,
+    // nothing when unset): the stack and the assistant's bubble never stand on each other.
+    expect(region.classList.contains('bottom-[calc(1rem+var(--toast-lift,0px))]')).toBe(true);
   });
 });
