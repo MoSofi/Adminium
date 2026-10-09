@@ -21,6 +21,12 @@
  *    read by someone before it ships. Without that half, this gate stayed
  *    green while "no request, ever" stopped being true of the app.
  *
+ * One request is the app's own and is neither: git, fetched from its
+ * publisher's releases on GitHub when a person with none says yes
+ * (apps/desktop/src/main/git.ts). `github.com` was already on the list below
+ * for the links the About screen opens; that one address is also dialled, once,
+ * on a yes, and the file it sends must match a hash written in the app.
+ *
  * What follows was written for the first half and holds for both. The offline smoke test proves that for the paths it
  * walks; this gate covers what a smoke test structurally cannot — a remote asset
  * on a page nobody clicked during the run. A `<link>` to Google Fonts on the login

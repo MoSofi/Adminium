@@ -118,6 +118,7 @@ import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
+import { gitProgram } from './project/programs.js';
 import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
@@ -2109,7 +2110,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const permissionsOf = (userId: string) => resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId });
         // The skills, read once: the same files a coding agent reads.
         const designerSkills = createSkills();
-        const designerVersions = createVersions(root);
+        // The git this host found: by name on a terminal; in the desktop app the path it looked up, or none at all.
+        const designerVersions = createVersions(root, { git: gitProgram() });
         const designerService = appService;
         /*
          * An add-on from inside a turn: the page's download job and the page's

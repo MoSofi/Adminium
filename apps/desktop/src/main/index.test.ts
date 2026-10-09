@@ -1461,7 +1461,8 @@ describe('createDesktopApp opening a project folder', () => {
       pickProjectPort: () => Promise.resolve(4700),
       bundledAppsDir: '/app/apps-bundle',
       projectEnv: { PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' },
-      projectPrograms: () => '{"binary":"/app/Adminium"}',
+      // Looked up before the fork, and it may take a moment (git is looked for): the boot waits for it.
+      projectPrograms: () => Promise.resolve('{"binary":"/app/Adminium"}'),
       confirmStopBusy: (busy) => {
         confirmed.push(busy.kind);
         return Promise.resolve(over.confirm ?? true);

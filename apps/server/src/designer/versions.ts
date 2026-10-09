@@ -58,8 +58,12 @@ export class VersionsError extends Error {
   override readonly name = 'VersionsError';
 }
 
-export function createVersions(root: string, opts: { git?: string } = {}): Versions {
+export function createVersions(root: string, opts: { git?: string | null } = {}): Versions {
+  // `null`: the host looked and found no git (the desktop app). Versions are off, and NOTHING is started to find
+  // out: on a Mac with no developer tools the `git` on the PATH is Apple's stand-in, and starting it raises the
+  // system's install dialog.
   const gitBinary = opts.git ?? 'git';
+  const none = opts.git === null;
   const gitDir = join(root, DESIGNER_DIR, 'versions.git');
   let known: boolean | null = null;
 
@@ -168,6 +172,7 @@ export function createVersions(root: string, opts: { git?: string } = {}): Versi
   return {
     async available() {
       if (known !== null) return known;
+      if (none) return (known = false);
       known = await new Promise<boolean>((resolve) => {
         execFile(gitBinary, ['--version'], { timeout: 5000 }, (error) => resolve(error === null));
       });

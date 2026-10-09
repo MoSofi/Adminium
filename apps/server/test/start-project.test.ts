@@ -195,3 +195,17 @@ describe('.adminium/running.json', () => {
     }
   });
 });
+
+describe('versions with no git at all', () => {
+  it('are off without anything being started to find out', async () => {
+    const { createVersions } = await import('../src/designer/versions.js');
+    // A git that would hang or raise a dialog if it were started: it must not be.
+    const off = createVersions(tmpdir(), { git: null });
+    const started = Date.now();
+    expect(await off.available()).toBe(false);
+    expect(Date.now() - started).toBeLessThan(200);
+    expect(await off.commit({ id: 'ds_x', appKey: 'a' } as never)).toBeNull();
+    // A path that is not git is "not available", as before.
+    expect(await createVersions(tmpdir(), { git: join(tmpdir(), 'no-such-git') }).available()).toBe(false);
+  });
+});

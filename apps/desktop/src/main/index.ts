@@ -21,7 +21,7 @@
  * the real shell.
  */
 
-import { constants } from 'node:fs';
+import { constants, existsSync } from 'node:fs';
 import { access, mkdir, readFile, readdir, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
@@ -83,6 +83,7 @@ import {
 import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
+import { findGit, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
@@ -557,7 +558,7 @@ export interface DesktopBootDeps {
    * Makes this launch's stand-ins and says where the app's own programs are
    * (`ADMINIUM_DESKTOP_PROGRAMS`, JSON). Called once per project boot.
    */
-  projectPrograms?: (() => string) | undefined;
+  projectPrograms?: (() => string | Promise<string>) | undefined;
   /**
    * The environment a project's server starts from, before main's own block
    * is laid over it (and the stripped names are taken out). A terminal's
@@ -1043,6 +1044,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         runtime = { dataDir: project.root, firstRun: false, secretStorage: 'plain', serverPort: -1 };
         // Its own cookie jar: the classic workspace's session and a project's never meet.
         windows.useProjectSession?.(project.root);
+        // Where the app's own Node and npm are, and the git it found: looked for now, before the fork.
+        const programs = deps.projectPrograms === undefined ? undefined : await deps.projectPrograms();
         const projectManager = deps.createServerManager({
           entry: deps.serverEntry,
           createBootToken: deps.createBootToken,
@@ -1055,7 +1058,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             mode: 'design',
             pickPort,
             ...(deps.bundledAppsDir === undefined ? {} : { bundledAppsDir: deps.bundledAppsDir }),
-            ...(deps.projectPrograms === undefined ? {} : { programs: deps.projectPrograms() }),
+            ...(programs === undefined ? {} : { programs }),
           },
         });
         manager = projectManager;
@@ -2114,20 +2117,26 @@ export function electronBootDeps(): DesktopBootDeps {
     openProject: openedProject,
     projectEnv: process.env,
     // The app's own Node (this program, asked to be Node), the npm it carries, and the stand-ins, made now from
-    // THIS launch's path. git is not looked for yet: versions find it on the PATH as before.
-    projectPrograms: () =>
-      JSON.stringify(
+    // THIS launch's path; and a git that really works here, or none (versions are then off, and never Apple's
+    // stand-in started "to see").
+    projectPrograms: async () => {
+      const cleared = removeUnfinishedGit(userDataDir);
+      if (cleared.length > 0) mainLog(`[git] removed a download that was cut short: ${cleared.join(', ')}`);
+      const git = await findGit({ platform: process.platform, arch: process.arch, env: process.env, userDataDir, exists: existsSync, run: runProgram });
+      mainLog(git === null ? '[git] none found: versions are off' : `[git] ${git.path} (${git.from})`);
+      return JSON.stringify(
         provideDesktopPrograms({
           binary: process.execPath,
           // Packaged: beside the archive, as real files. From the sources: this package's own dependency.
           npmDir: carriedNpmDir(app.isPackaged, process.resourcesPath, dirname(fileURLToPath(import.meta.url))),
           userDataDir,
-          git: null,
+          git: git?.path ?? null,
           // Made by the release (`scripts/release/starter-lockfile.mjs`); a build without it installs the ordinary way.
           starterDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'starter'),
           platform: process.platform,
         }),
-      ),
+      );
+    },
     pickProjectPort: () => {
       const range = projectPortRange(process.env, app.isPackaged);
       return firstFreePort(range.first, range.last);
