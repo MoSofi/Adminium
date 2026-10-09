@@ -34,7 +34,7 @@ export const AI_ENV_NAMES = [
 ] as const;
 export type AiEnvName = (typeof AI_ENV_NAMES)[number];
 
-const KEPT_OUT_OF_THE_ENVIRONMENT: readonly string[] = AI_ENV_NAMES;
+export const KEPT_OUT_OF_THE_ENVIRONMENT: readonly string[] = AI_ENV_NAMES;
 
 /** The variables in `<root>/.env`, or null when there is no such file. */
 export function readDotEnv(root: string): Record<string, string> | null {

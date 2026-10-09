@@ -254,7 +254,7 @@ export {
 // The `adminium` CLI. `runCli` returns an exit code and never touches
 // `process` — `src/cli/index.ts` is the only module that exits.
 export { COMMANDS, findCommand, runCli, type RunCliOptions } from './cli/run.js';
-export { startProject, type StartProjectOptions, type StartedProject } from './cli/start-project.js';
+export { HOST_DECIDED_ENV, startProject, type StartProjectOptions, type StartedProject } from './cli/start-project.js';
 export type { StartBusy } from './cli/commands/start.js';
 export { readRunning, runningMessage, type RunningMark } from './project/running.js';
 export {

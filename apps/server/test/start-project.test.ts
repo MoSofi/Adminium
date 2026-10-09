@@ -13,7 +13,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { startProject, type StartedProject } from '../src/cli/start-project.js';
+import { HOST_DECIDED_ENV, startProject, type StartedProject } from '../src/cli/start-project.js';
 import { markRunning, readRunning, refuseIfRunning, runningFile, runningMessage } from '../src/project/running.js';
 import { fakeIo, TEST_SECRET } from './cli-helpers.js';
 
@@ -104,6 +104,30 @@ describe('startProject', () => {
     expect(await statusAs(port, `localhost:${String(port)}`)).toBe(200);
     expect(await statusAs(port, `evil.test:${String(port)}`)).toBe(421);
     expect(live.busy()).toBeNull();
+  });
+
+  it('does not obey a folder that names what the host decides', { timeout: 120_000 }, async () => {
+    const port = await anyPort();
+    const elsewhere = await anyPort();
+    writeFileSync(
+      join(root, '.env'),
+      [`ADMINIUM_SECRET=${TEST_SECRET}`, 'HOST=0.0.0.0', `PORT=${String(elsewhere)}`, 'ADMINIUM_TRUST_PROXY=true', 'ADMINIUM_DESIGNER=live', 'ADMINIUM_STATIC_ROOT=/tmp/nowhere', 'NODE_OPTIONS=--require ./evil.cjs', 'ADMINIUM_LOG_LEVEL=error', ''].join('\n'),
+    );
+    const io = fakeIo();
+    // The host leaves the trust and Designer names unset on purpose: the file must not fill them.
+    live = await startProject({ root, port, mode: 'serve', io, env: { ...env(), ADMINIUM_RUNTIME: 'desktop' }, refuse: HOST_DECIDED_ENV });
+    expect(live.port).toBe(port);
+    expect(live.url).toBe(`http://127.0.0.1:${String(port)}`);
+    expect(await listening(elsewhere)).toBe(false);
+    expect(live.refused).toEqual(['ADMINIUM_DESIGNER', 'ADMINIUM_STATIC_ROOT', 'ADMINIUM_TRUST_PROXY', 'HOST', 'NODE_OPTIONS', 'PORT']);
+    expect(io.stderr()).toContain("Ignored from this project's .env and config");
+  });
+
+  it('obeys the same file on a terminal, where the folder and the person are one', { timeout: 120_000 }, async () => {
+    const port = await anyPort();
+    writeFileSync(join(root, '.env'), `ADMINIUM_SECRET=${TEST_SECRET}\nADMINIUM_TRUST_PROXY=true\n`);
+    live = await startProject({ root, port, mode: 'serve', io: fakeIo(), env: env() });
+    expect(live.refused).toEqual([]);
   });
 
   it('refuses a folder that is not the project itself, even inside one', async () => {

@@ -32,11 +32,48 @@ export interface StartProjectOptions {
   logLevel?: string;
   /** Design mode's owner and link. Default: make the project's owner when it has none; no link. */
   design?: DesignStart;
+  /**
+   * Names the folder's `.env` and config may not set. A host that opens other
+   * people's folders passes {@link HOST_DECIDED_ENV}; the default is none.
+   */
+  refuse?: readonly string[];
   /** Test seam. */
   deps?: Partial<CliDeps>;
 }
 
 export type StartedProject = StartedUp;
+
+/**
+ * What a host that opens folders it did not make must decide itself: where the
+ * server listens, what it trusts, what it runs and where its own files are. A
+ * folder's `.env` that names one of these is not obeyed (and is told so).
+ *
+ * `NODE_OPTIONS`, `PATH` and `ELECTRON_RUN_AS_NODE` are here because the
+ * environment the file fills is handed on to every program the server starts.
+ */
+export const HOST_DECIDED_ENV: readonly string[] = [
+  'HOST',
+  'PORT',
+  'ADMINIUM_HOST',
+  'ADMINIUM_PORT',
+  'ADMINIUM_RUNTIME',
+  'ADMINIUM_BOOT_TOKEN',
+  'ADMINIUM_STATIC_ROOT',
+  'ADMINIUM_BUNDLED_ADD_ONS',
+  'ADMINIUM_BUNDLED_APPS',
+  'ADMINIUM_DEMO_SEED_SCRIPT',
+  'ADMINIUM_TRUST_PROXY',
+  'ADMINIUM_TRUSTED_PROXIES',
+  'ADMINIUM_DESIGNER',
+  'ADMINIUM_PROJECT_MODE',
+  'ADMINIUM_PROJECT_DIR',
+  'ADMINIUM_DESKTOP_PROJECT',
+  'ADMINIUM_DESKTOP_PROGRAMS',
+  'ADMINIUM_DESKTOP_SINGLE_USER',
+  'NODE_OPTIONS',
+  'PATH',
+  'ELECTRON_RUN_AS_NODE',
+];
 
 function real(path: string): string {
   try {
@@ -59,7 +96,7 @@ export async function startProject(opts: StartProjectOptions): Promise<StartedPr
   const deps: CliDeps = { ...defaultCliDeps(), ...opts.deps, env, cwd: located.root };
   return startUp(
     { io: opts.io, deps },
-    { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn' },
+    { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse },
     opts.mode === 'design' ? (opts.design ?? localOwnerStart(opts.io, null)) : undefined,
   );
 }

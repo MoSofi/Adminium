@@ -180,6 +180,8 @@ export interface StartFlags {
   logLevel?: string | undefined;
   staticRoot?: string | undefined;
   skipMigrate?: boolean | undefined;
+  /** Names the project's `.env` and config may not set (`prepareProject`'s `refuse`). */
+  refuse?: readonly string[] | undefined;
 }
 
 /**
@@ -210,6 +212,8 @@ export interface StartedUp {
   /** Design mode's one-use token, when one was minted. */
   token: string | null;
   bridgePairingCode: string | null;
+  /** Names from the project's `.env` or config that were ignored (`StartFlags.refuse`). */
+  refused: string[];
   /** Ends the server, then the stores, and resolves when both are gone. */
   close(): Promise<void>;
   /** What has the project's folder right now (a turn, a save, a restore…), or `null`. */
@@ -252,7 +256,10 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     // Before the folder's code is built or run: a second server on one folder would write the same database.
     const located = findProject(deps.cwd, deps.env);
     if (located !== null) refuseIfRunning(located.root);
-    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev' });
+    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev', ...(flags.refuse === undefined ? {} : { refuse: flags.refuse }) });
+    if (project !== null && project.refused.length > 0) {
+      io.err(`Ignored from this project's .env and config (the app decides these itself): ${project.refused.join(', ')}`);
+    }
     if (project !== null) {
       const built = project.from === 'new-build' ? ' (built it first)' : project.appsRebuilt === true ? ` (built its apps' screens again, for ${projectMode === 'dev' ? 'development' : 'a server'})` : '';
       io.out(`Project: ${project.project.root}${built}`);
@@ -457,6 +464,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       port: env.PORT,
       token: prepared?.token ?? null,
       bridgePairingCode: server.bridgePairingCode,
+      refused: project?.refused ?? [],
       async close() {
         try {
           await relocationHost.close();
