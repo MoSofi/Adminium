@@ -84,6 +84,7 @@ import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } f
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { createDesktopLogging } from './logging.js';
+import { provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import {
   createServerManager,
@@ -552,6 +553,11 @@ export interface DesktopBootDeps {
   pickProjectPort?: ((mode: 'design' | 'serve') => Promise<number>) | undefined;
   /** The app's own bundled apps, as an absolute path. */
   bundledAppsDir?: string | undefined;
+  /**
+   * Makes this launch's stand-ins and says where the app's own programs are
+   * (`ADMINIUM_DESKTOP_PROGRAMS`, JSON). Called once per project boot.
+   */
+  projectPrograms?: (() => string) | undefined;
   /**
    * The environment a project's server starts from, before main's own block
    * is laid over it (and the stripped names are taken out). A terminal's
@@ -1049,6 +1055,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             mode: 'design',
             pickPort,
             ...(deps.bundledAppsDir === undefined ? {} : { bundledAppsDir: deps.bundledAppsDir }),
+            ...(deps.projectPrograms === undefined ? {} : { programs: deps.projectPrograms() }),
           },
         });
         manager = projectManager;
@@ -2106,6 +2113,18 @@ export function electronBootDeps(): DesktopBootDeps {
     // only way in is the test seam, which a packaged app does not read.
     openProject: openedProject,
     projectEnv: process.env,
+    // The app's own Node (this program, asked to be Node), the npm it carries, and the stand-ins, made now from
+    // THIS launch's path. git is not looked for yet: versions find it on the PATH as before.
+    projectPrograms: () =>
+      JSON.stringify(
+        provideDesktopPrograms({
+          binary: process.execPath,
+          npmDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'npm'),
+          userDataDir,
+          git: null,
+          platform: process.platform,
+        }),
+      ),
     pickProjectPort: () => {
       const range = projectPortRange(process.env, app.isPackaged);
       return firstFreePort(range.first, range.last);

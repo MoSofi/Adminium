@@ -68,6 +68,12 @@ describe('buildProjectServerEnv', () => {
     expect(env).toMatchObject({ ADMINIUM_STATIC_ROOT: '/app/out/dashboard', ADMINIUM_BUNDLED_ADD_ONS: '/app/add-ons', ADMINIUM_BUNDLED_APPS: '/app/apps-bundle', ADMINIUM_LOG_LEVEL: 'info' });
   });
 
+  it('says where the app’s own programs are, and lets nothing inherited say it instead', () => {
+    expect(block()).not.toHaveProperty('ADMINIUM_DESKTOP_PROGRAMS');
+    expect(block({ inherit: { ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"/tmp/evil"}' } })).not.toHaveProperty('ADMINIUM_DESKTOP_PROGRAMS');
+    expect(block({ programs: '{"binary":"/app"}', inherit: { ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"/tmp/evil"}' } }).ADMINIUM_DESKTOP_PROGRAMS).toBe('{"binary":"/app"}');
+  });
+
   it('refuses a relative folder, a port that was not picked and a token of the wrong size', () => {
     expect(() => block({ root: 'juniper' })).toThrow(/absolute path/);
     expect(() => block({ port: 0 })).toThrow(/picked before the fork/);

@@ -257,6 +257,7 @@ export { COMMANDS, findCommand, runCli, type RunCliOptions } from './cli/run.js'
 export { HOST_DECIDED_ENV, startProject, type StartProjectOptions, type StartedProject } from './cli/start-project.js';
 export type { StartBusy } from './cli/commands/start.js';
 export { readRunning, runningMessage, type RunningMark } from './project/running.js';
+export { DESKTOP_PROGRAMS_ENV, desktopPrograms, type DesktopPrograms } from './project/programs.js';
 export {
   defaultCliDeps,
   displayUrl,

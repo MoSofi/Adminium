@@ -229,6 +229,8 @@ export interface ProjectServerOptions {
   pickPort: (mode: DesktopProjectMode) => Promise<number>;
   /** The app's own bundled apps, as an absolute path. */
   bundledAppsDir?: string | undefined;
+  /** Where the app's own programs are (`ADMINIUM_DESKTOP_PROGRAMS`), made at this launch. */
+  programs?: string | undefined;
 }
 /** Lines of log attached to a failure. Enough for a stack, short enough to read. */
 export const CRASH_EXCERPT_LINES = 20;
@@ -649,6 +651,7 @@ class ServerManagerImpl implements ServerManager {
         ...(this.#opts.staticRoot === undefined ? {} : { staticRoot: this.#opts.staticRoot }),
         ...(this.#opts.bundledAddOnsDir === undefined ? {} : { bundledAddOnsDir: this.#opts.bundledAddOnsDir }),
         ...(project.bundledAppsDir === undefined ? {} : { bundledAppsDir: project.bundledAppsDir }),
+        ...(project.programs === undefined ? {} : { programs: project.programs }),
         ...(this.#opts.inheritEnv === undefined ? {} : { inherit: this.#opts.inheritEnv }),
         });
       });

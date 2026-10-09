@@ -1461,6 +1461,7 @@ describe('createDesktopApp opening a project folder', () => {
       pickProjectPort: () => Promise.resolve(4700),
       bundledAppsDir: '/app/apps-bundle',
       projectEnv: { PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' },
+      projectPrograms: () => '{"binary":"/app/Adminium"}',
       confirmStopBusy: (busy) => {
         confirmed.push(busy.kind);
         return Promise.resolve(over.confirm ?? true);
@@ -1477,7 +1478,7 @@ describe('createDesktopApp opening a project folder', () => {
     await createDesktopApp(p.deps).start();
 
     expect(p.opts).toHaveLength(1);
-    expect(p.opts[0]).toMatchObject({ project: { root: ROOT, mode: 'design', bundledAppsDir: '/app/apps-bundle' }, staticRoot: '/app/out/dashboard' });
+    expect(p.opts[0]).toMatchObject({ project: { root: ROOT, mode: 'design', bundledAppsDir: '/app/apps-bundle', programs: '{"binary":"/app/Adminium"}' }, staticRoot: '/app/out/dashboard' });
     for (const name of ['dataDir', 'secret', 'singleUser', 'host', 'port']) expect(p.opts[0]).not.toHaveProperty(name);
     // The person's environment, as a terminal's server has it (the manager strips what main decides).
     expect(p.opts[0]?.inheritEnv).toEqual({ PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' });
@@ -1569,7 +1570,7 @@ describe('createDesktopApp opening a project folder', () => {
   it('a build with none of the optional folders and no updater still opens the project', async () => {
     const p = projectHarness();
     const bare: DesktopBootDeps = { ...p.deps, createUpdateManager: () => null };
-    for (const name of ['staticRoot', 'bundledAddOnsDir', 'bundledAppsDir', 'projectEnv'] as const) Reflect.deleteProperty(bare, name);
+    for (const name of ['staticRoot', 'bundledAddOnsDir', 'bundledAppsDir', 'projectEnv', 'projectPrograms'] as const) Reflect.deleteProperty(bare, name);
     await createDesktopApp(bare).start();
     expect(p.opts[0]).not.toHaveProperty('staticRoot');
     expect(p.opts[0]).not.toHaveProperty('inheritEnv');

@@ -455,6 +455,11 @@ export interface BuildProjectServerEnvInput {
   staticRoot?: string | undefined;
   bundledAddOnsDir?: string | undefined;
   bundledAppsDir?: string | undefined;
+  /**
+   * Where the app's own programs are, as JSON (`main/programs.ts` makes it): the
+   * server starts Node, npm and git by this and by nothing on the PATH.
+   */
+  programs?: string | undefined;
   inherit?: NodeJS.ProcessEnv | undefined;
 }
 
@@ -496,6 +501,7 @@ export function buildProjectServerEnv(input: BuildProjectServerEnvInput): Record
   if (input.bundledAddOnsDir !== undefined) env.ADMINIUM_BUNDLED_ADD_ONS = input.bundledAddOnsDir;
   // Absolute, always: the server's default is `./apps-bundle`, which in this child would be looked for inside the opened folder.
   if (input.bundledAppsDir !== undefined) env.ADMINIUM_BUNDLED_APPS = input.bundledAppsDir;
+  if (input.programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = input.programs;
   return env;
 }
 

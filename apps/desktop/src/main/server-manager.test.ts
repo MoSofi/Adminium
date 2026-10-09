@@ -728,6 +728,7 @@ describe('ServerManager serving a project', () => {
         root: ROOT,
         mode: 'design',
         bundledAppsDir: '/app/apps-bundle',
+        programs: '{"binary":"/app/Adminium"}',
         pickPort: (mode) => {
           asked.push(mode);
           return Promise.resolve(ports.shift() ?? 4799);
@@ -758,6 +759,7 @@ describe('ServerManager serving a project', () => {
       ADMINIUM_PORT: '4700',
       ADMINIUM_HOST: '127.0.0.1',
       ADMINIUM_BUNDLED_APPS: '/app/apps-bundle',
+      ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"/app/Adminium"}',
       ADMINIUM_BOOT_TOKEN: TOKEN,
     });
     for (const name of ['ADMINIUM_SECRET', 'ADMINIUM_DATA_DIR', 'ADMINIUM_META_DSN', 'ADMINIUM_DESKTOP_SINGLE_USER']) expect(env).not.toHaveProperty(name);
@@ -846,6 +848,7 @@ describe('ServerManager serving a project', () => {
     void h.manager.start();
     await up(h, 0, 4700);
     expect(h.forkCalls[0]?.env).not.toHaveProperty('ADMINIUM_BUNDLED_APPS');
+    expect(h.forkCalls[0]?.env).not.toHaveProperty('ADMINIUM_DESKTOP_PROGRAMS');
     const late = h.manager.busy();
     h.clock.advance(BUSY_ANSWER_TIMEOUT_MS);
     await expect(late).resolves.toBeNull();
