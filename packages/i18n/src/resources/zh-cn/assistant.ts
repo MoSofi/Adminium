@@ -317,5 +317,18 @@ export default {
     "workTitle": "已查找",
     "scopePrimary": "工作区",
     "readPage": "{tables, plural, other {# 张可读的表}}"
+  },
+  "answer": {
+    "from": "来源：",
+    "part": "已读取 {table} 的 {total, number} 行中的 {returned, number} 行。",
+    "nothingRead": "此回答未读取任何数据。",
+    "readAgain": "重新读取",
+    "readAgainAsk": "{question} 请读取数据后再回答。",
+    "forgot": "{name} 已不再记得最早的 {count, plural, other {# 条消息}}。"
+  },
+  "suggestion": {
+    "open": "打开",
+    "openLabel": "在 Add-ons 中打开 {addOn}",
+    "askAdmin": "请让管理员安装此项。"
   }
 } as const;

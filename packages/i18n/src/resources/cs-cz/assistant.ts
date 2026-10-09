@@ -317,5 +317,18 @@ export default {
     "workTitle": "Vyhledáno",
     "scopePrimary": "pracovní prostor",
     "readPage": "{tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}"
+  },
+  "answer": {
+    "from": "Zdroj:",
+    "part": "Přečteno {returned, number} z {total, number} řádků tabulky {table}.",
+    "nothingRead": "Pro tuto odpověď nebylo nic přečteno.",
+    "readAgain": "Přečíst znovu",
+    "readAgainAsk": "{question} Pro odpověď přečti data.",
+    "forgot": "{name} už nemá na paměti {count, plural, one {první zprávu} few {první # zprávy} many {prvních # zprávy} other {prvních # zpráv}}."
+  },
+  "suggestion": {
+    "open": "Otevřít",
+    "openLabel": "Otevřít {addOn} v části Add-ons",
+    "askAdmin": "Požádejte správce, aby to nainstaloval."
   }
 } as const;

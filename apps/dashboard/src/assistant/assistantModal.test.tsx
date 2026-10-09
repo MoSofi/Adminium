@@ -800,3 +800,58 @@ describe('each page speaks for itself', () => {
     expect(chip.textContent).toContain('Warehouse · 12 tables');
   });
 });
+
+// ─── an answer in words, on a page of rows ───────────────────────────
+
+describe('an answer on a data page', () => {
+  const dataHost = { context: 'data' as const, host: { connectionIds: ['conn_1'], pageId: 'page_1' } };
+  const answered = (answer: Record<string, unknown>, over: Record<string, unknown> = {}) => ({
+    turn: turn({ askText: 'Who are our best customers?', say: 'Lena, Jonas and Mia.', result: null, context: 'data', answer, ...over }),
+    jobId: 'job_1',
+    nextTurnTokens: 900,
+  });
+  const asked = () => calls.filter((call) => call.method === 'POST' && call.url.endsWith('/turns')).map((call) => (call.body as { text: string }).text);
+
+  async function ask(reply: () => unknown) {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = reply;
+    const opened = await openModal({ host: dataHost });
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole('textbox'), 'Who are our best customers?{Enter}');
+    await screen.findByText('Lena, Jonas and Mia.');
+    return { ...opened, user };
+  }
+
+  it('has no bar about switching actions on: a page of rows has none', async () => {
+    await ask(() => answered({ sources: ['c.main.orders'], reads: [] }));
+    expect(screen.queryByRole('button', { name: 'Enable actions' })).toBeNull();
+  });
+
+  it('says which tables it came from, and offers what to ask next', async () => {
+    const { user } = await ask(() => answered({ sources: ['c.main.orders', 'c.main.customers'], reads: [], followups: ['Who comes next?'] }));
+    expect((await screen.findByTestId('assistant-answer-foot')).textContent).toContain('orders, customers');
+    await user.click(screen.getByRole('button', { name: 'Who comes next?' }));
+    await waitFor(() => expect(asked()).toEqual(['Who are our best customers?', 'Who comes next?']));
+  });
+
+  it('says when nothing was read, and asks again to have it read', async () => {
+    const { user } = await ask(() => answered({ sources: [], reads: [] }));
+    expect(await screen.findByText('Nothing was read for this answer.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Read again' }));
+    await waitFor(() => expect(asked().at(-1)).toBe('Who are our best customers? Read the data to answer.'));
+  });
+
+  it('draws an add-on the answer points at, with the way in only for who may install', async () => {
+    const card = { key: 'offers', name: 'Offers & gift cards', line: 'Codes and vouchers.' };
+    await ask(() => answered({ sources: [], reads: [], suggest: [{ ...card, mayInstall: false }] }));
+    expect(await screen.findByTestId('assistant-suggestion')).toBeTruthy();
+    expect(screen.getByText('Ask an administrator to install this.')).toBeTruthy();
+    expect(screen.queryByTestId('assistant-suggestion-open')).toBeNull();
+    // An answer about what the workspace offers is not one that should have read rows.
+    expect(screen.queryByText('Nothing was read for this answer.')).toBeNull();
+  });
+
+  it('says the oldest messages are no longer in mind, above the turn that lost them', async () => {
+    await ask(() => answered({ sources: ['c.main.orders'], reads: [], forgot: 4 }));
+    expect((await screen.findByTestId('assistant-forgot')).textContent).toContain('no longer has the first 4 messages in mind');
+  });
+});

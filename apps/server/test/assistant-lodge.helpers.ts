@@ -67,6 +67,8 @@ export const MANIFEST = {
           { ref: 'depart', type: 'date' },
           { ref: 'guest_name', type: 'text', maxLength: 80 },
           { ref: 'note', type: 'text', maxLength: 200, nullable: true },
+          // Personal: masked for whoever lacks the right to personal columns, and not searched for them.
+          { ref: 'phone', type: 'text', maxLength: 40, nullable: true, rules: { personal: true } },
           { ref: 'total', type: 'int', nullable: true },
           { ref: 'late_until', type: 'text', maxLength: 5, nullable: true },
           { ref: 'status', type: 'enum', enum: ['booked', 'in_house', 'departed'], default: 'booked' },

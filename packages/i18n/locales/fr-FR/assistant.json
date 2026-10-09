@@ -307,5 +307,18 @@
     "workTitle": "Recherche effectuée",
     "scopePrimary": "espace de travail",
     "readPage": "{tables, plural, one {# table lisible} other {# tables lisibles}}"
+  },
+  "answer": {
+    "from": "Source :",
+    "part": "{returned, number} lignes lues sur {total, number} dans {table}.",
+    "nothingRead": "Rien n’a été lu pour cette réponse.",
+    "readAgain": "Relire",
+    "readAgainAsk": "{question} Lis les données pour répondre.",
+    "forgot": "{name} n’a plus {count, plural, one {le premier message} other {les # premiers messages}} en tête."
+  },
+  "suggestion": {
+    "open": "Ouvrir",
+    "openLabel": "Ouvrir {addOn} dans Modules",
+    "askAdmin": "Demandez à un administrateur de l’installer."
   }
 }

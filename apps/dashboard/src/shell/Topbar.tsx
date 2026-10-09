@@ -53,6 +53,7 @@ import {
 import { notificationsApi, unreadCountQuery, type NotificationDto } from '../api/notifications.js';
 import { holdsSystemAction, type BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { PageAssistantButton } from './PageAssistantButton.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import {
   PageActionsSlot,
@@ -323,6 +324,8 @@ export function Topbar({
         {/* Page-owned controls lead the cluster, so the shell's own affordances
             keep a fixed position at the end of the bar as pages change. */}
         <PageActionsSlot />
+        {/* After the page's own controls: its Ask button, when the page said what it is. */}
+        <PageAssistantButton />
 
         {/* Read-only affordance: clicking (or `/`) opens the ⌘K palette.
             OUT OF THE TAB ORDER, and that is the fix for a keyboard trap

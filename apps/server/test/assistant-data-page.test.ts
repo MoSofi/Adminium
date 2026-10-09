@@ -105,6 +105,41 @@ for (const [dialect, available] of legs) {
       expect(setup.system).toContain('The grid shows a part of the table: filters');
     });
 
+    it('decides which rows are on screen as the person does: a search that matched through a personal column finds the same rows, and their values stay masked', async () => {
+      await s.run(`UPDATE lodge_stays SET phone = '555-0142' WHERE guest_name = 'Ana'`);
+      await s.run(`UPDATE lodge_stays SET phone = '555-0199' WHERE guest_name = 'Ben'`);
+      // The grid's own answer for a person, through the list route they are looking at.
+      const gridIds = async (who: { cookie: string }, q: string) => {
+        const res = await s.app.inject({ method: 'GET', url: `/api/v1/data/${s.connectionId}/${s.table.stays}?q=${q}&limit=50`, headers: { cookie: who.cookie } });
+        expect(res.statusCode, res.body).toBe(200);
+        return (res.json() as { data: { id: number }[] }).data.map((row) => Number(row.id)).sort((x, y) => x - y);
+      };
+      // Sees phone numbers in clear: their search finds a stay by one.
+      const desk = await person(s, 'desk@lodge.dev', ['night'], [`table:${s.connectionId}:${s.table.stays}:read_pii`]);
+      expect(await gridIds(desk, '0142')).toEqual([1]);
+      const shown = await run(await on(desk.id, { q: '0142' }), 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(shown.error, JSON.stringify(shown.error)).toBeUndefined();
+      expect(idsOf(shown)).toEqual([1]);
+      expect(shown.result).toMatchObject({ returned: 1, total: 1 });
+      // The row is theirs to ask about; the number still does not travel to the model.
+      expect(JSON.stringify(shown.result)).not.toContain('0142');
+
+      // Without that right the grid finds nothing by a phone number, and neither does the assistant.
+      expect(await gridIds(night, '0142')).toEqual([]);
+      const none = await run(await on(night.id, { q: '0142' }), 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(idsOf(none)).toEqual([]);
+      expect(none.result).toMatchObject({ returned: 0, total: 0 });
+
+      // A filter over a personal column is the same: the person's, when they may read it.
+      const where = JSON.stringify({ column: 'phone', op: 'eq', value: '555-0199' });
+      const filtered = await run(await on(desk.id, { where }), 'read_rows', { table: s.table.stays, scope: 'page' });
+      expect(filtered.error, JSON.stringify(filtered.error)).toBeUndefined();
+      expect(idsOf(filtered)).toEqual([2]);
+      // And the model's OWN filter over that column is still refused: it reads masked.
+      const own = await run(await on(desk.id), 'read_rows', { table: s.table.stays, where: { column: 'phone', op: 'eq', value: '555-0199' } });
+      expect(own.error).toBeDefined();
+    });
+
     it('holds a total to the same rows', async () => {
       const [schema, name] = s.table.stays.split('.') as [string, string];
       const descriptor = { shape: 'single-metric', source: { schema, name }, aggregations: [{ fn: 'sum', column: 'total', alias: 'money' }] };

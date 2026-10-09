@@ -317,5 +317,18 @@ export default {
     "workTitle": "Nachgeschlagen",
     "scopePrimary": "Arbeitsbereich",
     "readPage": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}"
+  },
+  "answer": {
+    "from": "Aus:",
+    "part": "{returned, number} von {total, number} Zeilen aus {table} gelesen.",
+    "nothingRead": "Für diese Antwort wurde nichts gelesen.",
+    "readAgain": "Erneut lesen",
+    "readAgainAsk": "{question} Lies die Daten, um zu antworten.",
+    "forgot": "{name} hat {count, plural, one {die erste Nachricht} other {die ersten # Nachrichten}} nicht mehr im Blick."
+  },
+  "suggestion": {
+    "open": "Öffnen",
+    "openLabel": "{addOn} unter Add-ons öffnen",
+    "askAdmin": "Bitten Sie eine Administratorin oder einen Administrator, dies zu installieren."
   }
 } as const;

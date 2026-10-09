@@ -144,6 +144,8 @@ export interface PageCrudProps {
   toolbarAccessory?: ReactNode | undefined;
   /** Notified whenever the saved-view-relevant query state changes. */
   onGridStateChange?: ((state: PageCrudGridState) => void) | undefined;
+  /** Notified with the keys of the ticked rows whenever the selection changes. */
+  onSelectionChange?: ((ids: readonly string[]) => void) | undefined;
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
@@ -308,6 +310,7 @@ export function PageCrud({
   initialSearch = '',
   toolbarAccessory,
   onGridStateChange,
+  onSelectionChange,
   canCreate = true,
   canUpdate = true,
   canDelete = true,
@@ -1120,6 +1123,9 @@ export function PageCrud({
     return rest.length === 0 ? columns : [...columns, ...withFactChoices(rest, columnFacts)];
   }, [columns, formColumns, columnFacts]);
   const selectedIds = useMemo(() => [...selected], [selected]);
+  useEffect(() => {
+    onSelectionChange?.(selectedIds);
+  }, [onSelectionChange, selectedIds]);
   const rangeStart = list.rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
   const rangeEnd = cursorStack.length * pageSize + list.rows.length;
   const numberFormat = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);

@@ -317,5 +317,18 @@ export default {
     "workTitle": "Looked it up",
     "scopePrimary": "workspace",
     "readPage": "{tables, plural, one {# readable table} other {# readable tables}}"
+  },
+  "answer": {
+    "from": "From:",
+    "part": "Read {returned, number} of {total, number} rows of {table}.",
+    "nothingRead": "Nothing was read for this answer.",
+    "readAgain": "Read again",
+    "readAgainAsk": "{question} Read the data to answer.",
+    "forgot": "{name} no longer has the first {count, plural, one {message} other {# messages}} in mind."
+  },
+  "suggestion": {
+    "open": "Open",
+    "openLabel": "Open {addOn} in Add-ons",
+    "askAdmin": "Ask an administrator to install this."
   }
 } as const;

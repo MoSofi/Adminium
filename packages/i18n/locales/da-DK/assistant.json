@@ -307,5 +307,18 @@
     "workTitle": "Slået op",
     "scopePrimary": "arbejdsområde",
     "readPage": "{tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}"
+  },
+  "answer": {
+    "from": "Fra:",
+    "part": "Læste {returned, number} af {total, number} rækker i {table}.",
+    "nothingRead": "Intet blev læst til dette svar.",
+    "readAgain": "Læs igen",
+    "readAgainAsk": "{question} Læs dataene for at svare.",
+    "forgot": "{name} har ikke længere {count, plural, one {den første besked} other {de første # beskeder}} i tankerne."
+  },
+  "suggestion": {
+    "open": "Åbn",
+    "openLabel": "Åbn {addOn} under Add-ons",
+    "askAdmin": "Bed en administrator om at installere dette."
   }
 }

@@ -317,5 +317,18 @@ export default {
     "workTitle": "تم البحث",
     "scopePrimary": "مساحة العمل",
     "readPage": "{tables, plural, zero {# جدول مقروء} one {جدول مقروء واحد} two {جدولان مقروءان} few {# جداول مقروءة} many {# جدولًا مقروءًا} other {# جدول مقروء}}"
+  },
+  "answer": {
+    "from": "المصدر:",
+    "part": "تمت قراءة {returned, number} من {total, number} صف في {table}.",
+    "nothingRead": "لم تتم قراءة أي شيء لهذه الإجابة.",
+    "readAgain": "اقرأ مرة أخرى",
+    "readAgainAsk": "{question} اقرأ البيانات للإجابة.",
+    "forgot": "لم يعد {name} يتذكر {count, plural, zero {أي رسالة} one {الرسالة الأولى} two {أول رسالتين} few {أول # رسائل} many {أول # رسالة} other {أول # رسالة}}."
+  },
+  "suggestion": {
+    "open": "فتح",
+    "openLabel": "فتح {addOn} في Add-ons",
+    "askAdmin": "اطلب من أحد المسؤولين تثبيت هذا."
   }
 } as const;

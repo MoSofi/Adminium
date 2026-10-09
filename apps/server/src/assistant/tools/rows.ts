@@ -35,7 +35,7 @@ import { measureSchema, type Measure } from '@adminium/engine/config';
 import { runList } from '../../crud/list.js';
 import { resolveMeasures } from '../../crud/measures.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
-import type { Row } from '../../crud/mask.js';
+import { UNMASK_PERMISSION, type Row } from '../../crud/mask.js';
 import type { AssistantTool, AssistantToolDeps, AssistantToolOutcome } from '../types.js';
 import { dataPageOf, SCOPE_ARG, scopeArg, scopeFilter } from '../data-page.js';
 import { tableLabel, viewOrError } from './schema.js';
@@ -255,11 +255,21 @@ export const readRowsTool: AssistantTool = {
           count: 'exact',
           ...(columns.length > 0 ? { select: columns.join(',') } : {}),
           ...whereParam(args.where),
-          ...(scope?.q === undefined ? {} : { q: scope.q }),
           ...(sort === undefined ? {} : { order: sort }),
         },
         // Counted too: what is read as a signed-in person says how much of it there is.
-        ...(scope?.mandatory === undefined ? {} : { mandatory: scope.mandatory, countMandatory: true }),
+        ...(scope?.mandatory === undefined ? {} : { mandatory: scope.mandatory }),
+        // WHICH rows are on the person's screen is decided as the person: their filter and their
+        // search, with their own right to personal columns. What is read of those rows is not.
+        ...(scope === null || scope === undefined
+          ? {}
+          : {
+              countMandatory: true,
+              mandatoryAs: {
+                canReadPii: (await deps.can(UNMASK_PERMISSION)) || (await deps.can(`table:${connectionId}:${tableId}:read_pii`)),
+                search: scope.q,
+              },
+            }),
         // Always false. See this file's header.
         canReadPii: false,
         dialect,
@@ -275,7 +285,7 @@ export const readRowsTool: AssistantTool = {
           ...(wanted === null ? {} : { scope: wanted }),
         },
         tables: [label],
-        read: { table: label, tool: 'read_rows', returned: listed.data.length, total, ...(wanted === null ? {} : { scope: wanted }) },
+        read: { table: label, tool: 'read_rows', returned: listed.data.length, total, ...(wanted === null ? {} : { scope: wanted }), ...(sort === undefined ? {} : { sorted: true }) },
       };
     } catch (error) {
       return { error: queryFailure(error) };

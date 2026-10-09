@@ -7,11 +7,11 @@
  * that both clear when the publishing page unmounts — the leak that would
  * otherwise show one page's controls on the next.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { PageActions, PageActionsProvider, PageActionsSlot, usePageSubtitle } from './PageActionsProvider.js';
+import { PageActions, PageActionsProvider, PageActionsSlot, usePageAssistant, usePageSubtitle } from './PageActionsProvider.js';
 
 /** Stands in for the Topbar: the slot plus a subtitle read from the channel. */
 function Header() {
@@ -80,5 +80,94 @@ describe('page actions channel', () => {
       </PageActions>,
     );
     expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
+  });
+});
+
+describe('what a page tells the assistant, through the same channel', () => {
+  let headerRenders = 0;
+  /** Stands in for the shell's Ask button: the one reader. */
+  function Reader() {
+    const page = usePageAssistant();
+    return <output data-testid="page-assistant">{page === null ? 'none' : JSON.stringify(page)}</output>;
+  }
+  function CountedHeader() {
+    headerRenders += 1;
+    usePageSubtitle();
+    return <header />;
+  }
+  function Frame({ children }: { children: ReactNode }) {
+    return (
+      <PageActionsProvider>
+        <CountedHeader />
+        <Reader />
+        <main>{children}</main>
+      </PageActionsProvider>
+    );
+  }
+  const shown = () => screen.getByTestId('page-assistant').textContent;
+  const base = { context: 'data', host: { connectionIds: ['c1'], pageId: 'page_1' } };
+
+  it('publishes the page, folds in what it is showing, and clears both when the page goes', async () => {
+    function Case({ step }: { step: 'none' | 'page' | 'view' | 'record' }) {
+      return (
+        <Frame>
+          {step === 'none' ? null : <PageActions assistant={{ ...base, host: { ...base.host } }} />}
+          {step === 'view' ? <PageActions assistantView={{ q: 'ada', order: 'name.asc', selectedIds: ['1', '2'] }} /> : null}
+          {step === 'record' ? <PageActions assistantView={{ recordId: '7' }} /> : null}
+        </Frame>
+      );
+    }
+    const { rerender } = render(<Case step="none" />);
+    expect(shown()).toBe('none');
+
+    rerender(<Case step="page" />);
+    await waitFor(() => expect(JSON.parse(shown()!)).toEqual(base));
+
+    rerender(<Case step="view" />);
+    await waitFor(() =>
+      expect(JSON.parse(shown()!)).toEqual({ context: 'data', host: { ...base.host, view: { q: 'ada', order: 'name.asc', selectedIds: ['1', '2'] } } }),
+    );
+
+    // Another view replaces the first whole: a record page says nothing of ticked rows.
+    rerender(<Case step="record" />);
+    await waitFor(() => expect(JSON.parse(shown()!).host.view).toEqual({ recordId: '7' }));
+
+    rerender(<Case step="none" />);
+    await waitFor(() => expect(shown()).toBe('none'));
+  });
+
+  it('a view with no page is nothing: only a page that said what it is has an assistant', async () => {
+    render(
+      <Frame>
+        <PageActions assistantView={{ q: 'ada' }} />
+      </Frame>,
+    );
+    await act(async () => undefined);
+    expect(shown()).toBe('none');
+  });
+
+  it('does not re-render the header when a grid changes what it shows', async () => {
+    function Case({ q }: { q: string }) {
+      return (
+        <Frame>
+          <PageActions assistant={base} assistantView={{ q }} />
+        </Frame>
+      );
+    }
+    const { rerender } = render(<Case q="a" />);
+    await waitFor(() => expect(shown()).toContain('"q":"a"'));
+    const before = headerRenders;
+    // The page renders again with an equal object: nothing is published at all.
+    rerender(<Case q="a" />);
+    // A different search: the reader follows, the header does not render for it.
+    rerender(<Case q="ab" />);
+    await waitFor(() => expect(shown()).toContain('"q":"ab"'));
+    // The frame itself re-rendered twice above (rerender), and that is all the header saw.
+    expect(headerRenders - before).toBeLessThanOrEqual(2);
+  });
+
+  it('reads as nothing outside a provider', () => {
+    render(<Reader />);
+    expect(shown()).toBe('none');
   });
 });

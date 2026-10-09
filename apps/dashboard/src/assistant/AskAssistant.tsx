@@ -106,6 +106,10 @@ export function AskAssistant({ host, slot }: AskAssistantProps) {
               setOpen(false);
               void navigate({ to: '/studio/settings/ai' });
             }}
+            onOpenAddOns={() => {
+              setOpen(false);
+              void navigate({ to: '/studio/add-ons' });
+            }}
           />
         </Suspense>
       ) : null}

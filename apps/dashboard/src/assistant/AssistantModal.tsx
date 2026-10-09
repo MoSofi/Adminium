@@ -38,12 +38,14 @@ import { AssistantBubble } from './parts/AssistantBubble.js';
 import { ChipList } from './parts/ChipList.js';
 import { Composer } from './parts/Composer.js';
 import { ConfirmDialog } from './parts/ConfirmDialog.js';
+import { AnswerFoot, ForgotDivider } from './parts/AnswerFoot.js';
 import { Echo } from './parts/Echo.js';
 import { Header } from './parts/Header.js';
 import { Idle } from './parts/Idle.js';
 import { ReadOnlyBar } from './parts/ReadOnlyBar.js';
 import { ResultCard, Warning } from './parts/ResultCard.js';
 import { StepsCard } from './parts/StepsCard.js';
+import { SuggestionCard } from './parts/SuggestionCard.js';
 import { AllowanceBar } from './parts/AllowanceBar.js';
 import { UnavailableBar } from './parts/UnavailableBar.js';
 import { UserBubble } from './parts/UserBubble.js';
@@ -55,6 +57,8 @@ export interface AssistantModalProps {
   onClose: () => void;
   /** Where *Open Settings → AI* goes; the host owns navigation. */
   onOpenSettings?: (() => void) | undefined;
+  /** Go to where add-ons are installed, for a suggestion's button. Absent: the button does nothing but close. */
+  onOpenAddOns?: ((key: string) => void) | undefined;
 }
 
 /** A write waiting for its confirm. */
@@ -66,7 +70,7 @@ interface PendingWrite {
   title: string;
 }
 
-export function AssistantModal({ host, open, onClose, onOpenSettings }: AssistantModalProps) {
+export function AssistantModal({ host, open, onClose, onOpenSettings, onOpenAddOns }: AssistantModalProps) {
   // Before anything reads a key. A host that renders the button has already
   // waited on this namespace, so it resolves without suspending; a caller
   // that has not (a story, a later host) suspends here instead of painting
@@ -234,7 +238,8 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
             closeModal();
           }}
         />
-      ) : enabled && canWrite ? null : (
+      ) : (enabled && canWrite) || copy.actions.length === 0 ? null : (
+        // A page that drafts nothing has no action to switch on: no bar about switching them on.
         <ReadOnlyBar
           name={session.name}
           canWrite={canWrite}
@@ -277,6 +282,13 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
                 context={host.context}
                 name={session.name}
                 canConfigure={session.availability?.canConfigure ?? false}
+                newest={index === session.turns.length - 1}
+                blocked={composerBlocked || session.working}
+                onAsk={submit}
+                onOpenAddOn={(key) => {
+                  onOpenAddOns?.(key);
+                  closeModal();
+                }}
                 picks={picks[turn.id] ?? {}}
                 onPick={(groupKey, optionKey) => {
                   setPicks((previous) => ({
@@ -389,7 +401,17 @@ interface TurnViewProps {
   name: string;
   /** Whether this person may choose the model: it decides what a model failure tells them to do. */
   canConfigure: boolean;
+  /** The last turn of the thread: only its answer offers what to ask next. */
+  newest: boolean;
+  /** Nothing can be asked right now (a turn is running, the day is used up). */
+  blocked: boolean;
+  /** Send a message as the person: a follow-up, or the same question to be read this time. */
+  onAsk: (text: string) => void;
+  onOpenAddOn: (key: string) => void;
 }
+
+/** The pages whose assistant answers from data: only there is "nothing was read" a thing to say. */
+const READING_CONTEXTS: ReadonlySet<AssistantContext> = new Set<AssistantContext>(['data', 'general']);
 
 /** One exchange: what was asked, what ran, and what came back. */
 /**
@@ -425,6 +447,10 @@ function TurnView({
   context,
   name,
   canConfigure,
+  newest,
+  blocked,
+  onAsk,
+  onOpenAddOn,
   picks,
   onPick,
   onGo,
@@ -437,8 +463,13 @@ function TurnView({
   // are the ones it stored.
   const steps = live && working ? liveSteps : turn.steps.map((step) => ({ ...step, note: null }));
   const failed = turn.status === 'failed';
+  // An answer in words, finished: the one shape that has a foot.
+  const answer =
+    turn.answer !== null && turn.status === 'done' && turn.ask === null && turn.result === null && turn.say !== null ? turn.answer : null;
+  const question = turn.askText;
   return (
     <>
+      {turn.answer !== null && turn.answer.forgot > 0 ? <ForgotDivider count={turn.answer.forgot} name={name} /> : null}
       <UserBubble text={turn.askText} pickedLabels={turn.pickedLabels} />
 
       {steps.length === 0 && !working ? null : (
@@ -455,6 +486,30 @@ function TurnView({
       {turn.ask === null && turn.result === null && turn.say !== null && !working ? (
         <AskCard say={turn.say} ask={null} picks={{}} onPick={() => undefined} onGo={() => undefined} />
       ) : null}
+
+      {answer === null
+        ? null
+        : answer.suggest.map((suggestion) => (
+            <AssistantBubble key={suggestion.key} spacer bare>
+              <SuggestionCard suggestion={suggestion} onOpen={onOpenAddOn} />
+            </AssistantBubble>
+          ))}
+      {answer === null ? null : (
+        <AnswerFoot
+          answer={answer}
+          // An answer that points at an add-on is about what the workspace offers, not about its rows.
+          reads={READING_CONTEXTS.has(context) && answer.suggest.length === 0}
+          disabled={blocked}
+          {...(question === null || !newest
+            ? {}
+            : {
+                onReadAgain: () => {
+                  onAsk(t('assistant:answer.readAgainAsk', '{question} Read the data to answer.', { question }));
+                },
+              })}
+          {...(newest ? { followups: answer.followups, onFollowup: onAsk } : {})}
+        />
+      )}
 
       {turn.ask === null ? null : (
         <AskCard

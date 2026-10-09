@@ -341,6 +341,58 @@ function signOf(value: unknown): '+' | '-' | ' ' {
   return value === '+' || value === '-' ? value : ' ';
 }
 
+/** One table a turn read, as the server recorded it. */
+export interface AssistantAnswerRead {
+  table: string;
+  returned: number | null;
+  total: number | null;
+  /** The rows were asked for in an order: the first few are "the top few", not a part. */
+  sorted: boolean;
+}
+
+/** An add-on the answer points at, in this server's own words for it. */
+export interface AssistantSuggestion {
+  key: string;
+  name: string;
+  line: string;
+  /** Whether THIS person may install it: the card offers the way in only then. */
+  mayInstall: boolean;
+}
+
+/** What a turn ended with besides its words and its draft. */
+export interface AssistantAnswer {
+  /** The tables its tools read, each once, as `connection.schema.table`. */
+  sources: string[];
+  reads: AssistantAnswerRead[];
+  /** Earlier messages the model was not sent at all. */
+  forgot: number;
+  /** What the person might ask next, after an answer in words. */
+  followups: string[];
+  suggest: AssistantSuggestion[];
+}
+
+const strings = (raw: unknown): string[] => (Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string' && entry !== '') : []);
+const count = (raw: unknown): number | null => (typeof raw === 'number' && Number.isFinite(raw) ? raw : null);
+
+/** Narrow a stored `answer`. A turn from before answers had one reads as `null`: nothing is claimed about it. */
+export function readAnswer(raw: Record<string, unknown> | null | undefined): AssistantAnswer | null {
+  // `undefined` is a server from before turns had the field.
+  if (raw === null || raw === undefined) return null;
+  const reads: AssistantAnswerRead[] = [];
+  for (const entry of Array.isArray(raw.reads) ? raw.reads : []) {
+    const read = record(entry);
+    if (read === null || typeof read.table !== 'string') continue;
+    reads.push({ table: read.table, returned: count(read.returned), total: count(read.total), sorted: read.sorted === true });
+  }
+  const suggest: AssistantSuggestion[] = [];
+  for (const entry of Array.isArray(raw.suggest) ? raw.suggest : []) {
+    const card = record(entry);
+    if (card === null || typeof card.key !== 'string' || typeof card.name !== 'string') continue;
+    suggest.push({ key: card.key, name: card.name, line: typeof card.line === 'string' ? card.line : '', mayInstall: card.mayInstall === true });
+  }
+  return { sources: strings(raw.sources), reads, forgot: count(raw.forgot) ?? 0, followups: strings(raw.followups), suggest };
+}
+
 /**
  * Why a turn failed, as one sentence.
  *

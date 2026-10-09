@@ -267,6 +267,30 @@
     "status": "mt",
     "srcHash": "c0ae8f6ea841"
   },
+  "assistant.answer.forgot": {
+    "status": "mt",
+    "srcHash": "bcec37a62836"
+  },
+  "assistant.answer.from": {
+    "status": "mt",
+    "srcHash": "c4d63e4c56f1"
+  },
+  "assistant.answer.nothingRead": {
+    "status": "mt",
+    "srcHash": "8bac628de80d"
+  },
+  "assistant.answer.part": {
+    "status": "mt",
+    "srcHash": "7431eda8c728"
+  },
+  "assistant.answer.readAgain": {
+    "status": "mt",
+    "srcHash": "c6c842b15a76"
+  },
+  "assistant.answer.readAgainAsk": {
+    "status": "mt",
+    "srcHash": "e35ff8ce9ffe"
+  },
   "assistant.ask.continue": {
     "status": "mt",
     "srcHash": "2e02623966f9"
@@ -1130,6 +1154,18 @@
   "assistant.steps.working": {
     "status": "mt",
     "srcHash": "9f56551bed5c"
+  },
+  "assistant.suggestion.askAdmin": {
+    "status": "mt",
+    "srcHash": "ed03e735a1bb"
+  },
+  "assistant.suggestion.open": {
+    "status": "mt",
+    "srcHash": "cf9b77061f7b"
+  },
+  "assistant.suggestion.openLabel": {
+    "status": "mt",
+    "srcHash": "719032cd097a"
   },
   "assistant.tabs.details": {
     "status": "mt",

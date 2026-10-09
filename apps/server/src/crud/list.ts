@@ -191,6 +191,17 @@ export interface RunListOptions {
    */
   mandatory?: RecordFilter | undefined;
   /**
+   * WHO the mandatory rows are decided as, when that is not who the values are
+   * shown as. The assistant reads "the rows on this person's screen": which
+   * rows those are is the PERSON'S own filter and search, decided with their
+   * own right to personal columns, or it is not their screen (a search that
+   * matched through an address found one row fewer for the assistant than the
+   * grid showed). What comes back is still masked by {@link canReadPii}.
+   * `search` is a quick search that is part of the same fixed row set.
+   * Absent: decided as {@link canReadPii}, as it always was.
+   */
+  mandatoryAs?: { canReadPii: boolean; search?: string | undefined } | undefined;
+  /**
    * Count the rows under {@link mandatory} too. Off unless asked: on the
    * anonymous surface every list carries a mandatory predicate, and an exact
    * count there is a free way to make the database work (see the note where
@@ -255,7 +266,7 @@ export interface RunListOptions {
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
-  const { db, view, table, params, canReadPii, dialect, mandatory, exposeColumns, searchColumns } = opts;
+  const { db, view, table, params, canReadPii, dialect, mandatory, mandatoryAs, exposeColumns, searchColumns } = opts;
   const lookups = opts.lookups ?? [];
   const measures = opts.measures ?? [];
   const derivedFields = opts.derivedFields ?? [];
@@ -299,7 +310,14 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   const applyFilters = (qb: Qb): Qb => {
     let out = qb;
     // FIRST, and outside every conditional below. Every later clause narrows.
-    if (mandatory !== undefined) out = out.where((eb) => compileFilter(eb as never, ctx, mandatory));
+    const fixed: CompileFilterContext = mandatoryAs === undefined ? ctx : { ...ctx, canReadPii: mandatoryAs.canReadPii };
+    if (mandatory !== undefined) out = out.where((eb) => compileFilter(eb as never, fixed, mandatory));
+    const fixedSearch = mandatoryAs?.search;
+    if (fixedSearch !== undefined && fixedSearch.length > 0) {
+      // Part of the fixed row set, so it narrows whatever else was asked. No searchable column
+      // matches NOTHING: the grid that sent this search showed no row either.
+      out = out.where((eb) => compileQuickSearch(eb as never, fixed, fixedSearch, undefined) ?? eb(eb.val(1), '=', 0));
+    }
     if (filter !== null) out = out.where((eb) => compileFilter(eb as never, ctx, filter));
     if (params.q !== undefined && params.q.length > 0) {
       out = out.where((eb) => {
@@ -429,7 +447,10 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // above the shared threshold; every refusal falls through to the exact
     // count this endpoint always ran.
     const unfiltered =
-      mandatory === undefined && filter === null && (params.q === undefined || params.q.length === 0);
+      mandatory === undefined &&
+      (mandatoryAs?.search ?? '') === '' &&
+      filter === null &&
+      (params.q === undefined || params.q.length === 0);
     if (params.count === 'estimated' && unfiltered) {
       total = await estimatedTotal(db, table, dialect);
     }

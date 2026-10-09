@@ -28,10 +28,12 @@ import {
   assistantApi,
   readAsk,
   isTooLong,
+  readAnswer,
   readErrorKind,
   readResetsAt,
   readErrorMessage,
   readResult,
+  type AssistantAnswer,
   type AssistantAsk,
   type AssistantErrorKind,
   type AssistantAvailability,
@@ -64,6 +66,8 @@ export interface ThreadTurn {
   errorKind: AssistantErrorKind | null;
   /** When today's allowance starts again, if this is the turn that used the last of it. */
   usedUpUntil: number | null;
+  /** What the turn read, forgot, offers next and points at; `null` on a turn that recorded none. */
+  answer: AssistantAnswer | null;
   jobId: string | null;
   /** What this turn cost, as the row reports it. */
   tokensIn: number;
@@ -122,6 +126,7 @@ function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): ThreadTu
     tooLong: isTooLong(view.error),
     errorKind: readErrorKind(view.error),
     usedUpUntil: readResetsAt(view.answer) ?? (readErrorKind(view.error) === 'budget' ? readResetsAt(view.error) : null),
+    answer: readAnswer(view.answer),
     jobId: view.jobId,
     tokensIn: view.tokensIn ?? 0,
     tokensOut: view.tokensOut ?? 0,

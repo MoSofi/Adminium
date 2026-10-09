@@ -317,5 +317,18 @@ export default {
     "workTitle": "已查詢",
     "scopePrimary": "工作區",
     "readPage": "{tables, plural, other {# 張可讀的資料表}}"
+  },
+  "answer": {
+    "from": "來源：",
+    "part": "已讀取 {table} 的 {total, number} 列中的 {returned, number} 列。",
+    "nothingRead": "此回答未讀取任何資料。",
+    "readAgain": "重新讀取",
+    "readAgainAsk": "{question} 請讀取資料後再回答。",
+    "forgot": "{name} 已不再記得最早的 {count, plural, other {# 則訊息}}。"
+  },
+  "suggestion": {
+    "open": "開啟",
+    "openLabel": "在 Add-ons 中開啟 {addOn}",
+    "askAdmin": "請讓管理員安裝此項。"
   }
 } as const;

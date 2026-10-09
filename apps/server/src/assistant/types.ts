@@ -90,6 +90,12 @@ export interface AssistantRead {
   returned?: number | undefined;
   total?: number | null | undefined;
   scope?: string | undefined;
+  /**
+   * The rows were asked for in an order. The first few of an ORDERED read are
+   * a whole answer to "the top five"; the first few of an unordered one are a
+   * part of the table, and the person is told so.
+   */
+  sorted?: boolean | undefined;
 }
 
 export interface AssistantTool {

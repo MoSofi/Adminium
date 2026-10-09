@@ -14,10 +14,12 @@ import { renderHook, act, cleanup, render, screen } from '@testing-library/react
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { RealtimeEvent } from '../app/ws.js';
-import { readResult } from './api.js';
+import { readAnswer, readResult } from './api.js';
 import { contextCopy, confirmCopy, echoText } from './contexts.js';
 import { ASSISTANT_ICONS, ASSISTANT_STEP_ICONS, assistantIcon, stepIcon } from './icons.js';
+import { AnswerFoot, ForgotDivider, partialReads, tableName } from './parts/AnswerFoot.js';
 import { DiffView } from './parts/DiffView.js';
+import { SuggestionCard } from './parts/SuggestionCard.js';
 import { StepsCard } from './parts/StepsCard.js';
 import { useTurnProgress } from './useTurnProgress.js';
 
@@ -306,5 +308,114 @@ describe('the glyphs', () => {
       reachable.add(confirmCopy(context, { name: 'Milo', title: 'Draft', open: false }).icon);
     }
     expect([...Object.keys(ASSISTANT_ICONS)].sort()).toEqual([...reachable].sort());
+  });
+});
+
+// ─── under an answer in words ──────────────────────────────────
+
+describe('what stands under an answer', () => {
+  const answer = (raw: Record<string, unknown>) => readAnswer({ sources: [], reads: [], truncated: false, ...raw })!;
+
+  it('reads a stored answer, and claims nothing about a turn that recorded none', () => {
+    expect(readAnswer(null)).toBeNull();
+    expect(readAnswer(undefined)).toBeNull();
+    expect(
+      readAnswer({
+        sources: ['c.main.orders', 7, ''],
+        reads: [{ table: 'c.main.orders', tool: 'read_rows', returned: 50, total: 830 }, { tool: 'aggregate' }, 'x'],
+        forgot: 4,
+        followups: ['Who comes next?', 3],
+        suggest: [{ key: 'offers', name: 'Offers', line: 'Codes.', mayInstall: true }, { key: 'nameless' }],
+      }),
+    ).toEqual({
+      sources: ['c.main.orders'],
+      reads: [{ table: 'c.main.orders', returned: 50, total: 830, sorted: false }],
+      forgot: 4,
+      followups: ['Who comes next?'],
+      suggest: [{ key: 'offers', name: 'Offers', line: 'Codes.', mayInstall: true }],
+    });
+  });
+
+  it('names a table as a person does', () => {
+    expect(tableName('northwind.main.orders')).toBe('orders');
+    expect(tableName('orders')).toBe('orders');
+  });
+
+  it('calls a read a part only when it was one: unordered, and short of the table', () => {
+    const reads = answer({
+      reads: [
+        { table: 'c.main.orders', returned: 50, total: 830 },
+        // The same table read further: one line, for the read that saw the most.
+        { table: 'c.main.orders', returned: 200, total: 830 },
+        // The top five of an ordered read is a whole answer to "the top five".
+        { table: 'c.main.customers', returned: 5, total: 214, sorted: true },
+        // All of it.
+        { table: 'c.main.items', returned: 12, total: 12 },
+        // A count: no rows came back to be a part of anything.
+        { table: 'c.main.invoices' },
+      ],
+    }).reads;
+    expect(partialReads(reads)).toEqual([{ table: 'c.main.orders', returned: 200, total: 830, sorted: false }]);
+  });
+
+  it('says where an answer came from, each table once', () => {
+    render(<AnswerFoot reads answer={answer({ sources: ['c.main.orders', 'c.main.customers', 'd.main.orders'] })} />);
+    const foot = screen.getByTestId('assistant-answer-foot');
+    expect(foot.textContent).toContain('From:');
+    expect(foot.textContent).toContain('orders, customers');
+    expect(foot.textContent).not.toContain('Nothing was read');
+  });
+
+  it('says a part was read, with both numbers and the table', () => {
+    render(<AnswerFoot reads answer={answer({ sources: ['c.main.orders'], reads: [{ table: 'c.main.orders', returned: 50, total: 830 }] })} />);
+    expect(screen.getByText('Read 50 of 830 rows of orders.')).toBeTruthy();
+  });
+
+  it('says nothing was read where the assistant reads data, and offers to have it read', () => {
+    const onReadAgain = vi.fn();
+    render(<AnswerFoot reads answer={answer({})} onReadAgain={onReadAgain} />);
+    expect(screen.getByText('Nothing was read for this answer.')).toBeTruthy();
+    screen.getByRole('button', { name: 'Read again' }).click();
+    expect(onReadAgain).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws nothing under an answer on a page that does not read data and has nothing to offer', () => {
+    const { container } = render(<AnswerFoot reads={false} answer={answer({})} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('offers what to ask next as the person`s own message', () => {
+    const onFollowup = vi.fn();
+    render(<AnswerFoot reads answer={answer({ sources: ['c.main.orders'] })} followups={['Who comes next?']} onFollowup={onFollowup} />);
+    screen.getByRole('button', { name: 'Who comes next?' }).click();
+    expect(onFollowup).toHaveBeenCalledWith('Who comes next?');
+  });
+
+  it('says how many of the first messages are no longer in mind, by the assistant`s name', () => {
+    render(<ForgotDivider count={4} name="Milo" />);
+    expect(screen.getByRole('note').textContent).toBe('Milo no longer has the first 4 messages in mind.');
+    cleanup();
+    render(<ForgotDivider count={1} name="Ada" />);
+    expect(screen.getByRole('note').textContent).toBe('Ada no longer has the first message in mind.');
+  });
+});
+
+describe('the suggestion card', () => {
+  const card = { key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers and gift cards.' };
+
+  it('offers the way in to a person who may install', () => {
+    const onOpen = vi.fn();
+    render(<SuggestionCard suggestion={{ ...card, mayInstall: true }} onOpen={onOpen} />);
+    expect(screen.getByText('Offers & gift cards')).toBeTruthy();
+    expect(screen.getByText('Discounts, codes, vouchers and gift cards.')).toBeTruthy();
+    screen.getByRole('button', { name: 'Open Offers & gift cards in Add-ons' }).click();
+    expect(onOpen).toHaveBeenCalledWith('offers');
+    expect(screen.queryByText('Ask an administrator to install this.')).toBeNull();
+  });
+
+  it('tells anyone else who can, and has no button', () => {
+    render(<SuggestionCard suggestion={{ ...card, mayInstall: false }} onOpen={vi.fn()} />);
+    expect(screen.getByText('Ask an administrator to install this.')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });
