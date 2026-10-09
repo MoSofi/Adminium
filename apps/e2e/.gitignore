@@ -5,3 +5,5 @@ playwright-report-desktop/
 .playwright/
 results.json
 results.xml
+test-results-pg/
+test-results-mysql/
