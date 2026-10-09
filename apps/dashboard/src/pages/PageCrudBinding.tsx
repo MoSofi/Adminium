@@ -210,6 +210,7 @@ export function PageCrudBinding({
   // an unchanged state costs no render.
   const [shownState, setShownState] = useState<PageCrudGridState>(restoredState ?? BASE_GRID_STATE);
   const [tickedIds, setTickedIds] = useState<readonly string[]>([]);
+  const [shownRows, setShownRows] = useState<number | null>(null);
   const captureGridState = useCallback(
     (state: PageCrudGridState) => {
       gridStateRef.current = state;
@@ -445,7 +446,7 @@ export function PageCrudBinding({
       {/* The topbar title is the nav label an admin chose ("Support tickets");
           this says which table the page is actually a projection of. A database
           identifier, so it carries no translatable string. */}
-      <PageActions subtitle={sourceTable} assistantView={assistantView} />
+      <PageActions subtitle={sourceTable} assistantView={assistantView} assistantShown={{ rows: shownRows }} />
       {/* The page gutter and the `--container-wide` column come from the
           `PageSurface` PageRenderer wraps every template in (see
           pages/surfaceDefaults.ts) — without them the card's border, radius and
@@ -499,6 +500,7 @@ export function PageCrudBinding({
         {...(viewProps.pageSize === undefined ? {} : { pageSize: viewProps.pageSize })}
         onGridStateChange={captureGridState}
         onSelectionChange={captureSelection}
+        onTotalChange={setShownRows}
         toolbarAccessory={
           <ViewSwitcher
             views={views}

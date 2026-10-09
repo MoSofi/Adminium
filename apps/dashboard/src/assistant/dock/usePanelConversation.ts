@@ -60,6 +60,8 @@ export interface PanelConversation {
   usedUpUntil: number | null;
   /** The conversation on screen was closed somewhere else: nothing more can be asked in it. */
   closedElsewhere: boolean;
+  /** There is no conversation because the last one was closed for its age, lately. */
+  aged: boolean;
   ask: (text: string, page: PanelPage) => void;
   answer: (turnId: string, picks: Record<string, string>, page: PanelPage) => void;
   stop: () => void;
@@ -83,6 +85,7 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
   const [usedUpUntil, setUsedUpUntil] = useState<number | null>(null);
   const [closedElsewhere, setClosedElsewhere] = useState(false);
   const [busyElsewhere, setBusyElsewhere] = useState(false);
+  const [aged, setAged] = useState(false);
 
   const sessionRef = useRef<string | null>(null);
   sessionRef.current = sessionId;
@@ -102,6 +105,7 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
         setSessionId(current.session?.id ?? null);
         setTurns(current.turns.map((view) => toThreadTurn(view, [])));
         setEarlier(current.earlier);
+        setAged(current.aged === true);
         setPhase(state.enabled ? 'ready' : 'unavailable');
       } catch (error) {
         if (cancelled) return;
@@ -113,7 +117,6 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
       cancelled = true;
     };
     // Once a panel: the page the person walks to changes the facts below, not who they are.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── the page the person is on: what the assistant would be told of it ─────
@@ -175,8 +178,9 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
         setSessionId(id);
       }
       const started = await assistantApi.createTurn(id, { ...body, ...where });
+      // The estimate under the field stays the page's (`pageFacts`): what this reply carries is
+      // the size of the next message alone, which says nothing of what a question here costs.
       setTurns((previous) => [...previous, toThreadTurn(started.turn, pickedLabels)]);
-      setNextTurnTokens(started.nextTurnTokens);
     } catch (error) {
       const reason = reasonOf(error);
       if (reason === 'budget') {
@@ -267,6 +271,8 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     problem,
     usedUpUntil: usedUpUntil ?? turns.reduce<number | null>((found, turn) => turn.usedUpUntil ?? found, null),
     closedElsewhere,
+    // Said until the person asks something: then there is a conversation again.
+    aged: aged && sessionId === null,
     ask,
     answer,
     stop,

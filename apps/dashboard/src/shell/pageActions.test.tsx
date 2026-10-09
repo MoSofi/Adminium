@@ -121,11 +121,11 @@ describe('what a page tells the assistant, through the same channel', () => {
     expect(shown()).toBe('none');
 
     rerender(<Case step="page" />);
-    await waitFor(() => expect(JSON.parse(shown()!)).toEqual(base));
+    await waitFor(() => expect(JSON.parse(shown()!)).toEqual({ ...base, shown: {} }));
 
     rerender(<Case step="view" />);
     await waitFor(() =>
-      expect(JSON.parse(shown()!)).toEqual({ context: 'data', host: { ...base.host, view: { q: 'ada', order: 'name.asc', selectedIds: ['1', '2'] } } }),
+      expect(JSON.parse(shown()!)).toEqual({ context: 'data', host: { ...base.host, view: { q: 'ada', order: 'name.asc', selectedIds: ['1', '2'] } }, shown: {} }),
     );
 
     // Another view replaces the first whole: a record page says nothing of ticked rows.
@@ -134,6 +134,23 @@ describe('what a page tells the assistant, through the same channel', () => {
 
     rerender(<Case step="none" />);
     await waitFor(() => expect(shown()).toBe('none'));
+  });
+
+  it('carries, for the person, what the frame calls the page and what its binding counts on it', async () => {
+    function Case({ rows }: { rows: number | null }) {
+      return (
+        <Frame>
+          <PageActions assistant={base} assistantShown={{ title: 'Customers' }} />
+          <PageActions assistantView={{ q: 'ada' }} assistantShown={{ rows }} />
+        </Frame>
+      );
+    }
+    const { rerender } = render(<Case rows={null} />);
+    await waitFor(() => expect(JSON.parse(shown()!).shown).toEqual({ title: 'Customers', rows: null }));
+    rerender(<Case rows={214} />);
+    await waitFor(() => expect(JSON.parse(shown()!).shown).toEqual({ title: 'Customers', rows: 214 }));
+    // None of it is in what is sent to the server.
+    expect(JSON.stringify(JSON.parse(shown()!).host)).not.toContain('214');
   });
 
   it('a view with no page is nothing: only a page that said what it is has an assistant', async () => {

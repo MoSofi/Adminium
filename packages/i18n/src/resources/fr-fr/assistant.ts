@@ -330,5 +330,30 @@ export default {
     "open": "Ouvrir",
     "openLabel": "Ouvrir {addOn} dans Modules",
     "askAdmin": "Demandez à un administrateur de l’installer."
+  },
+  "panel": {
+    "loading": "Chargement de la conversation…",
+    "recordOpen": "{page} · {record} ouvert",
+    "rowsShown": "{page} · {rows, plural, one {# ligne affichée} other {# lignes affichées}}",
+    "new": "Nouvelle conversation",
+    "earlier": "{count, plural, one {# message antérieur n’est pas affiché} other {# messages antérieurs ne sont pas affichés}}.",
+    "onPage": "sur {page}",
+    "closedElsewhere": "Cette conversation a été fermée dans une autre fenêtre.",
+    "stillWorking": "{name} travaille encore sur votre dernière question.",
+    "stop": "Arrêter",
+    "pageDialog": "Fermez ce qui est ouvert sur la page pour utiliser {name}.",
+    "aged": "Votre conversation précédente a été fermée en raison de son ancienneté."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# sélectionnée} other {# sélectionnées}}",
+    "record": "L’enregistrement ouvert",
+    "filtered": "{rows, plural, one {# ligne filtrée} other {# lignes filtrées}}",
+    "filteredUnknown": "Lignes filtrées",
+    "remove": "Demander sans « {label} »"
+  },
+  "parked": {
+    "madeOn": "Créé sur {page}.",
+    "open": "Ouvrir {page} pour utiliser ce brouillon",
+    "deleted": "Le document de ce brouillon a été supprimé."
   }
 } as const;

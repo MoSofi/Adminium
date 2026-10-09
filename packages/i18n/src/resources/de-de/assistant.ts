@@ -330,5 +330,30 @@ export default {
     "open": "Öffnen",
     "openLabel": "{addOn} unter Add-ons öffnen",
     "askAdmin": "Bitten Sie eine Administratorin oder einen Administrator, dies zu installieren."
+  },
+  "panel": {
+    "loading": "Unterhaltung wird geladen …",
+    "recordOpen": "{page} · {record} geöffnet",
+    "rowsShown": "{page} · {rows, plural, one {# Zeile angezeigt} other {# Zeilen angezeigt}}",
+    "new": "Neue Unterhaltung",
+    "earlier": "{count, plural, one {# frühere Nachricht wird} other {# frühere Nachrichten werden}} nicht angezeigt.",
+    "onPage": "auf {page}",
+    "closedElsewhere": "Diese Unterhaltung wurde in einem anderen Fenster geschlossen.",
+    "stillWorking": "{name} arbeitet noch an Ihrer letzten Frage.",
+    "stop": "Stopp",
+    "pageDialog": "Schließen Sie, was auf der Seite geöffnet ist, um {name} zu verwenden.",
+    "aged": "Ihre frühere Unterhaltung wurde wegen ihres Alters geschlossen."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# ausgewählt} other {# ausgewählt}}",
+    "record": "Der geöffnete Datensatz",
+    "filtered": "{rows, plural, one {# gefilterte Zeile} other {# gefilterte Zeilen}}",
+    "filteredUnknown": "Gefilterte Zeilen",
+    "remove": "Ohne „{label}“ fragen"
+  },
+  "parked": {
+    "madeOn": "Erstellt auf {page}.",
+    "open": "{page} öffnen, um diesen Entwurf zu verwenden",
+    "deleted": "Das Dokument dieses Entwurfs wurde gelöscht."
   }
 } as const;

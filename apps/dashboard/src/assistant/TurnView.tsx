@@ -43,6 +43,9 @@ export interface TurnViewProps {
   /** Send a message as the person: a follow-up, or the same question to be read this time. */
   onAsk: (text: string) => void;
   onOpenAddOn: (key: string) => void;
+  /** Where it was asked and what "these" meant, in the panel's thread; absent in a window that is one page's. */
+  askedOn?: string | undefined;
+  askedScope?: string | undefined;
 }
 
 /** The pages whose assistant answers from data: only there is "nothing was read" a thing to say. */
@@ -86,6 +89,8 @@ export function TurnView({
   blocked,
   onAsk,
   onOpenAddOn,
+  askedOn,
+  askedScope,
   picks,
   onPick,
   onGo,
@@ -105,7 +110,7 @@ export function TurnView({
   return (
     <>
       {turn.answer !== null && turn.answer.forgot > 0 ? <ForgotDivider count={turn.answer.forgot} name={name} /> : null}
-      <UserBubble text={turn.askText} pickedLabels={turn.pickedLabels} />
+      <UserBubble text={turn.askText} pickedLabels={turn.pickedLabels} askedOn={askedOn} scope={askedScope} />
 
       {steps.length === 0 && !working ? null : (
         <AssistantBubble>

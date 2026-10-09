@@ -403,6 +403,26 @@
     "status": "mt",
     "srcHash": "1891cdd96293"
   },
+  "assistant.chip.filtered": {
+    "status": "mt",
+    "srcHash": "50e2b54ffe1b"
+  },
+  "assistant.chip.filteredUnknown": {
+    "status": "mt",
+    "srcHash": "f574f14db439"
+  },
+  "assistant.chip.record": {
+    "status": "mt",
+    "srcHash": "b9b4613f0cf0"
+  },
+  "assistant.chip.remove": {
+    "status": "mt",
+    "srcHash": "bf6d919dfa74"
+  },
+  "assistant.chip.selected": {
+    "status": "mt",
+    "srcHash": "782900873224"
+  },
   "assistant.close": {
     "status": "mt",
     "srcHash": "bbfa773e5a63"
@@ -994,6 +1014,62 @@
   "assistant.invoices.workTitle": {
     "status": "mt",
     "srcHash": "e5021a523d0c"
+  },
+  "assistant.panel.aged": {
+    "status": "mt",
+    "srcHash": "0dc491cf5e3e"
+  },
+  "assistant.panel.closedElsewhere": {
+    "status": "mt",
+    "srcHash": "102f496a0093"
+  },
+  "assistant.panel.earlier": {
+    "status": "mt",
+    "srcHash": "56fa35e1e2bf"
+  },
+  "assistant.panel.loading": {
+    "status": "mt",
+    "srcHash": "6a8bebbfd2f0"
+  },
+  "assistant.panel.new": {
+    "status": "mt",
+    "srcHash": "7f031b1a1a17"
+  },
+  "assistant.panel.onPage": {
+    "status": "mt",
+    "srcHash": "0e1acdb9ea4d"
+  },
+  "assistant.panel.pageDialog": {
+    "status": "mt",
+    "srcHash": "879bdadee2d0"
+  },
+  "assistant.panel.recordOpen": {
+    "status": "mt",
+    "srcHash": "6b0dc785ad95"
+  },
+  "assistant.panel.rowsShown": {
+    "status": "mt",
+    "srcHash": "e3c6bf6f03a1"
+  },
+  "assistant.panel.stillWorking": {
+    "status": "mt",
+    "srcHash": "eb191f076357"
+  },
+  "assistant.panel.stop": {
+    "status": "src",
+    "srcHash": "9e253470c876"
+  },
+  "assistant.parked.deleted": {
+    "status": "mt",
+    "srcHash": "4f02184c9b7b"
+  },
+  "assistant.parked.madeOn": {
+    "status": "mt",
+    "srcHash": "d864f7ba6041"
+  },
+  "assistant.parked.open": {
+    "status": "mt",
+    "srcHash": "625869d60265"
   },
   "assistant.readOnly.enable": {
     "status": "mt",
@@ -6566,6 +6642,18 @@
   "common.setup.title": {
     "srcHash": "5083f7d9e6f4",
     "status": "mt"
+  },
+  "common.shell.assistant.open": {
+    "status": "mt",
+    "srcHash": "23b48bef02ad"
+  },
+  "common.shell.assistant.unread": {
+    "status": "mt",
+    "srcHash": "87b58cd344dc"
+  },
+  "common.shell.assistant.working": {
+    "status": "mt",
+    "srcHash": "210b3ef504bf"
   },
   "common.shortcuts.close": {
     "srcHash": "bbfa773e5a63",

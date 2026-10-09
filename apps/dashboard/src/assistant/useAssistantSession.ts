@@ -71,7 +71,7 @@ export interface ThreadTurn {
   answer: AssistantAnswer | null;
   /** The page it was asked on. */
   context: AssistantContext;
-  on: { pageId: string | null; documentId: string | null; title: string | null };
+  on: { pageId: string | null; documentId: string | null; title: string | null; scope: { kind: 'selection' | 'record' | 'page'; count: number | null } | null };
   jobId: string | null;
   /** What this turn cost, as the row reports it. */
   tokensIn: number;
@@ -132,7 +132,7 @@ export function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): T
     usedUpUntil: readResetsAt(view.answer) ?? (readErrorKind(view.error) === 'budget' ? readResetsAt(view.error) : null),
     answer: readAnswer(view.answer),
     context: view.context,
-    on: view.on ?? { pageId: null, documentId: null, title: null },
+    on: { pageId: view.on?.pageId ?? null, documentId: view.on?.documentId ?? null, title: view.on?.title ?? null, scope: view.on?.scope ?? null },
     jobId: view.jobId,
     tokensIn: view.tokensIn ?? 0,
     tokensOut: view.tokensOut ?? 0,

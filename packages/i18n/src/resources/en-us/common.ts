@@ -1230,5 +1230,12 @@ export default {
       "report": "Untitled report",
       "template": "Untitled template"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "Ask {name}",
+      "working": "{name} is working",
+      "unread": "1 unread answer"
+    }
   }
 } as const;

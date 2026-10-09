@@ -330,5 +330,30 @@ export default {
     "open": "Åbn",
     "openLabel": "Åbn {addOn} under Add-ons",
     "askAdmin": "Bed en administrator om at installere dette."
+  },
+  "panel": {
+    "loading": "Indlæser samtale…",
+    "recordOpen": "{page} · {record} åben",
+    "rowsShown": "{page} · {rows, plural, one {# række vist} other {# rækker vist}}",
+    "new": "Ny samtale",
+    "earlier": "{count, plural, one {# tidligere besked vises} other {# tidligere beskeder vises}} ikke.",
+    "onPage": "på {page}",
+    "closedElsewhere": "Denne samtale blev lukket i et andet vindue.",
+    "stillWorking": "{name} arbejder stadig på dit seneste spørgsmål.",
+    "stop": "Stop",
+    "pageDialog": "Luk det, der er åbent på siden, for at bruge {name}.",
+    "aged": "Din tidligere samtale blev lukket på grund af dens alder."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# valgt} other {# valgt}}",
+    "record": "Den åbne post",
+    "filtered": "{rows, plural, one {# filtreret række} other {# filtrerede rækker}}",
+    "filteredUnknown": "Filtrerede rækker",
+    "remove": "Spørg uden “{label}”"
+  },
+  "parked": {
+    "madeOn": "Lavet på {page}.",
+    "open": "Åbn {page} for at bruge denne kladde",
+    "deleted": "Denne kladdes dokument blev slettet."
   }
 } as const;

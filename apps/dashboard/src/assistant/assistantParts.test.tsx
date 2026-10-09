@@ -353,6 +353,8 @@ describe('what stands under an answer', () => {
         { table: 'c.main.items', returned: 12, total: 12 },
         // A count: no rows came back to be a part of anything.
         { table: 'c.main.invoices' },
+        // One row of many: read to learn the count that comes with it, not to conclude from the row.
+        { table: 'c.main.shippers', returned: 1, total: 12 },
       ],
     }).reads;
     expect(partialReads(reads)).toEqual([{ table: 'c.main.orders', returned: 200, total: 830, sorted: false }]);

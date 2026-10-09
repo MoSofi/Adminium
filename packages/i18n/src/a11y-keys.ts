@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2785 entries. */
+/** `namespace:key` — 2793 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -45,6 +45,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:automation.placeholder',
   'assistant:button',
   'assistant:buttonTitle',
+  'assistant:chip.filtered',
+  'assistant:chip.filteredUnknown',
+  'assistant:chip.record',
+  'assistant:chip.remove',
+  'assistant:chip.selected',
   'assistant:close',
   'assistant:composer.send',
   'assistant:composer.working',
@@ -92,6 +97,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:invoices.chip3',
   'assistant:invoices.confirm.title',
   'assistant:invoices.placeholder',
+  'assistant:panel.new',
+  'assistant:panel.stop',
   'assistant:readOnly.lockedTitle',
   'assistant:readOnly.noWriteTitle',
   'assistant:report.action1',
@@ -613,6 +620,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:settings.translations.valueLabel',
   'common:setup.consent.telemetry.title',
   'common:setup.consent.updates.title',
+  'common:shell.assistant.open',
   'common:shortcuts.close',
   'common:shortcuts.dismiss',
   'common:shortcuts.palette',

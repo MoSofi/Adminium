@@ -330,5 +330,30 @@ export default {
     "open": "Open",
     "openLabel": "Open {addOn} in Add-ons",
     "askAdmin": "Ask an administrator to install this."
+  },
+  "panel": {
+    "loading": "Loading conversation…",
+    "recordOpen": "{page} · {record} open",
+    "rowsShown": "{page} · {rows, plural, one {# row shown} other {# rows shown}}",
+    "new": "New conversation",
+    "earlier": "{count, plural, one {# earlier message is} other {# earlier messages are}} not shown.",
+    "onPage": "on {page}",
+    "closedElsewhere": "This conversation was closed in another window.",
+    "stillWorking": "{name} is still working on your last question.",
+    "stop": "Stop",
+    "pageDialog": "Close what is open on the page to use {name}.",
+    "aged": "Your earlier conversation was closed because of its age."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "record": "The open record",
+    "filtered": "{rows, plural, one {# filtered row} other {# filtered rows}}",
+    "filteredUnknown": "Filtered rows",
+    "remove": "Ask without “{label}”"
+  },
+  "parked": {
+    "madeOn": "Made on {page}.",
+    "open": "Open {page} to use this draft",
+    "deleted": "This draft’s document was deleted."
   }
 } as const;

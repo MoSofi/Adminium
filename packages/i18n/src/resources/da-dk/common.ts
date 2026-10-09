@@ -1763,5 +1763,12 @@ export default {
       "report": "Unavngiven rapport",
       "template": "Unavngiven skabelon"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "Spørg {name}",
+      "working": "{name} arbejder",
+      "unread": "1 ulæst svar"
+    }
   }
 } as const;

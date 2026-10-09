@@ -1763,5 +1763,12 @@ export default {
       "report": "Unbenannter Bericht",
       "template": "Unbenannte Vorlage"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "{name} fragen",
+      "working": "{name} arbeitet",
+      "unread": "1 ungelesene Antwort"
+    }
   }
 } as const;

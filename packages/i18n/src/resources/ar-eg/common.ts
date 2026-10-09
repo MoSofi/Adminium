@@ -1763,5 +1763,12 @@ export default {
       "report": "تقرير بلا عنوان",
       "template": "قالب بلا عنوان"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "اسأل {name}",
+      "working": "{name} يعمل",
+      "unread": "إجابة واحدة غير مقروءة"
+    }
   }
 } as const;

@@ -8,10 +8,10 @@
  * while the panel is open.
  */
 import { Sparkles } from 'lucide-react';
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 
 import { assistantAllowed, assistantName, type BootstrapData } from '../app/bootstrap.js';
-import { initDock, setDockOpen, useDockOpen, useDockSignal } from '../assistant/dock/dockStore.js';
+import { initDock, setDockOpen, useDockOpen, useDockSignal, type DockSignal } from '../assistant/dock/dockStore.js';
 import { t } from '../i18n/t.js';
 
 const AssistantDock = lazy(async () => ({ default: (await import('../assistant/dock/AssistantDock.js')).AssistantDock }));
@@ -39,15 +39,31 @@ export function AssistantBubble({ bootstrap }: { bootstrap: BootstrapData }) {
     };
   }, [shown]);
 
+  // Loaded on the first open and kept: closed, it draws nothing and still follows a question
+  // that is being answered, which is what the bubble's ring and dot are told by.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (open) setLoaded(true);
+  }, [open]);
+
   if (!allowed) return null;
-  if (open) {
-    return (
-      <Suspense fallback={null}>
-        <AssistantDock bootstrap={bootstrap} />
-      </Suspense>
-    );
-  }
   const name = assistantName(bootstrap);
+  const dock =
+    loaded || open ? (
+      <Suspense fallback={null}>
+        <AssistantDock visible={open} />
+      </Suspense>
+    ) : null;
+  if (open) return dock;
+  return (
+    <>
+      {dock}
+      <AssistantBubbleButton name={name} signal={signal} />
+    </>
+  );
+}
+
+function AssistantBubbleButton({ name, signal }: { name: string; signal: DockSignal }) {
   return (
     <button
       type="button"

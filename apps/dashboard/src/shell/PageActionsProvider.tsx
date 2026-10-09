@@ -49,10 +49,25 @@ export interface PageAssistantView {
   recordId?: string;
 }
 
+/**
+ * The same, for the person: what the panel's header and its chip say of the
+ * page. Never sent to the server: a count on screen is not a fact the
+ * assistant should be told, it reads its own.
+ */
+export interface PageAssistantShown {
+  /** The page's name. */
+  title?: string;
+  /** How many rows the grid counts under its search and filters; null while it does not know. */
+  rows?: number | null;
+  /** The open record, as the page calls it ("Order #1042"). */
+  record?: string;
+}
+
 /** The page as the assistant is handed it: the context, with what the page is showing folded in. */
 export interface PublishedPageAssistant {
   context: string;
   host: PageAssistantContext['host'] & { view?: PageAssistantView };
+  shown: PageAssistantShown;
 }
 
 /**
@@ -69,15 +84,21 @@ interface AssistantStore {
   subscribe: (listener: () => void) => () => void;
   setBase: (base: PageAssistantContext | null) => void;
   setView: (view: PageAssistantView | null) => void;
+  setShown: (key: 'page' | 'view', shown: PageAssistantShown | null) => void;
 }
 
 function createAssistantStore(): AssistantStore {
   let base: PageAssistantContext | null = null;
   let view: PageAssistantView | null = null;
   let merged: PublishedPageAssistant | null = null;
+  // Two publishers, as for the context: the frame names the page, its binding counts what is on it.
+  const shown: Record<'page' | 'view', PageAssistantShown | null> = { page: null, view: null };
   const listeners = new Set<() => void>();
   const publish = () => {
-    merged = base === null ? null : { context: base.context, host: view === null ? base.host : { ...base.host, view } };
+    merged =
+      base === null
+        ? null
+        : { context: base.context, host: view === null ? base.host : { ...base.host, view }, shown: { ...shown.page, ...shown.view } };
     for (const listener of listeners) listener();
   };
   return {
@@ -92,6 +113,10 @@ function createAssistantStore(): AssistantStore {
     },
     setView: (next) => {
       view = next;
+      publish();
+    },
+    setShown: (key, next) => {
+      shown[key] = next;
       publish();
     },
   };
@@ -241,6 +266,8 @@ export interface PageActionsProps {
    * is, its binding knows what is on screen.
    */
   assistantView?: PageAssistantView | undefined;
+  /** What the panel says of the page, for the person; published beside whichever of the two above this publisher sends. */
+  assistantShown?: PageAssistantShown | undefined;
   /** Topbar h1 for this screen. Overrides the shell's path-derived title. */
   title?: string | undefined;
   /** Secondary line under the topbar h1 — page context, not a restatement of the title. */
@@ -280,6 +307,7 @@ export interface PageActionsProps {
 export function PageActions({
   assistant,
   assistantView,
+  assistantShown,
   title,
   subtitle,
   documentTitle,
@@ -337,6 +365,15 @@ export function PageActions({
     assistantStore.setView(JSON.parse(viewKey) as PageAssistantView);
     return () => assistantStore.setView(null);
   }, [assistantStore, viewKey]);
+
+  // The frame's words go in the frame's slot and a binding's in the binding's, so neither clears the other.
+  const shownSlot = assistant !== undefined ? 'page' : 'view';
+  const shownKey = assistantShown === undefined ? null : JSON.stringify(assistantShown);
+  useEffect(() => {
+    if (assistantStore === undefined || shownKey === null) return;
+    assistantStore.setShown(shownSlot, JSON.parse(shownKey) as PageAssistantShown);
+    return () => assistantStore.setShown(shownSlot, null);
+  }, [assistantStore, shownKey, shownSlot]);
 
   if (channel === null) return null;
   return (

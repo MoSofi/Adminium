@@ -64,12 +64,12 @@ describe('TemplateMount', () => {
 
 describe('what a page tells the assistant about itself', () => {
   /** The shell's two readers: the published context as text, and the Ask button drawn from it. */
-  function Shell({ children }: { children: ReactNode }) {
+  function Shell({ children, bootstrap = makeBootstrap() }: { children: ReactNode; bootstrap?: ReturnType<typeof makeBootstrap> }) {
     return (
       <PageActionsProvider>
         <header>
           <Published />
-          <PageAssistantButton />
+          <PageAssistantButton bootstrap={bootstrap} />
         </header>
         {children}
       </PageActionsProvider>
@@ -81,20 +81,21 @@ describe('what a page tells the assistant about itself', () => {
   }
   const published = () => {
     const text = screen.getByTestId('published').textContent ?? 'none';
-    return text === 'none' ? null : (JSON.parse(text) as { context: string; host: Record<string, unknown> });
+    return text === 'none' ? null : (JSON.parse(text) as { context: string; host: Record<string, unknown>; shown: Record<string, unknown> });
   };
   const allowed = () => makeBootstrap({ assistant: { allowed: true, name: 'Milo' } } as never);
 
   it('says which page it is, by the page and never by a table, and the shell draws its Ask button', async () => {
     resolvePageTemplate.mockResolvedValue(() => <p>the template</p>);
     renderInRouter(
-      <Shell>
+      <Shell bootstrap={allowed()}>
         <TemplateMount page={makeCrudEnvelope()} slug="customers" />
       </Shell>,
       allowed(),
     );
     await screen.findByText('the template');
-    await waitFor(() => expect(published()).toEqual({ context: 'data', host: { connectionIds: ['conn_1'], pageId: 'page_customers' } }));
+    await waitFor(() => expect(published()).toMatchObject({ context: 'data', host: { connectionIds: ['conn_1'], pageId: 'page_customers' } }));
+    expect(published()?.host).toEqual({ connectionIds: ['conn_1'], pageId: 'page_customers' });
     expect(JSON.stringify(published())).not.toContain('public.customers');
     expect(await screen.findByTestId('ask-assistant')).toBeTruthy();
   });
@@ -103,13 +104,15 @@ describe('what a page tells the assistant about itself', () => {
     rememberListView('page_customers', { q: 'ada', order: 'name.asc' });
     resolvePageTemplate.mockResolvedValue(() => <p>the record</p>);
     renderInRouter(
-      <Shell>
+      <Shell bootstrap={allowed()}>
         <TemplateMount page={makeCrudEnvelope()} slug="customers" recordId="42" />
       </Shell>,
       allowed(),
     );
     await screen.findByText('the record');
     await waitFor(() => expect(published()?.host.view).toEqual({ q: 'ada', order: 'name.asc', recordId: '42' }));
+    // And, for the person, what the panel calls the page and the record open on it.
+    expect(published()?.shown).toEqual({ title: 'Customers', record: 'Customers #42' });
   });
 
   it.each(['page-files', 'page-settings', 'page-builder', 'project-page', 'page-log-viewer'])(
@@ -117,7 +120,7 @@ describe('what a page tells the assistant about itself', () => {
     async (template) => {
       resolvePageTemplate.mockResolvedValue(() => <p>the template</p>);
       renderInRouter(
-        <Shell>
+        <Shell bootstrap={allowed()}>
           <TemplateMount page={makeCrudEnvelope({ template })} slug="customers" />
         </Shell>,
         allowed(),

@@ -259,6 +259,9 @@ export function TemplateMount({
   const currency =
     navBootstrap === undefined ? null : (findPageBySlug(navBootstrap, slug)?.currency ?? null);
 
+  const assistantTitle =
+    (navBootstrap === undefined ? undefined : findPageBySlug(navBootstrap, slug)?.fallback) ?? page.title.fallback;
+
   // The ONE gutter for `/p/<slug>`: the template's default from
   // `surfaceDefaults`, overridden by the page's stored `padding` when an admin
   // set one. Applied here rather than in each of the fifteen bindings so the
@@ -323,6 +326,12 @@ export function TemplateMount({
         <PageActions
           assistant={{ context: 'data', host: { connectionIds: page.source.connectionId === null ? [] : [page.source.connectionId], pageId: page.id } }}
           {...(recordId === undefined ? {} : { assistantView: { ...rememberedListView(page.id), recordId } })}
+          // For the person, not the model: what the panel's header and its chip call this page and
+          // the record open on it. The key is the one thing every record has to be called by.
+          assistantShown={{
+            title: assistantTitle,
+            ...(recordId === undefined ? {} : { record: `${tableLabelSingular ?? assistantTitle} #${recordId}` }),
+          }}
         />
       )}
       <PageSurface padding={padding} width={width} fill={surface.fill}>

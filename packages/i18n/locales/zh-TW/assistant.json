@@ -320,5 +320,30 @@
     "open": "開啟",
     "openLabel": "在 Add-ons 中開啟 {addOn}",
     "askAdmin": "請讓管理員安裝此項。"
+  },
+  "panel": {
+    "loading": "正在載入對話…",
+    "recordOpen": "{page} · 已開啟 {record}",
+    "rowsShown": "{page} · {rows, plural, other {顯示 # 列}}",
+    "new": "新對話",
+    "earlier": "{count, plural, other {有 # 則較早的訊息未顯示}}。",
+    "onPage": "在 {page}",
+    "closedElsewhere": "此對話已在另一個視窗中關閉。",
+    "stillWorking": "{name} 仍在處理您的上一個問題。",
+    "stop": "停止",
+    "pageDialog": "請先關閉頁面上開啟的內容，再使用 {name}。",
+    "aged": "您先前的對話因時間過久已關閉。"
+  },
+  "chip": {
+    "selected": "{count, plural, other {已選 # 項}}",
+    "record": "已開啟的紀錄",
+    "filtered": "{rows, plural, other {# 列已篩選}}",
+    "filteredUnknown": "已篩選的列",
+    "remove": "不含「{label}」提問"
+  },
+  "parked": {
+    "madeOn": "建立於 {page}。",
+    "open": "開啟 {page} 以使用此草稿",
+    "deleted": "此草稿的文件已被刪除。"
   }
 }

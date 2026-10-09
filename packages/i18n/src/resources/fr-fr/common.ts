@@ -1763,5 +1763,12 @@ export default {
       "report": "Rapport sans titre",
       "template": "Modèle sans titre"
     }
+  },
+  "shell": {
+    "assistant": {
+      "open": "Demander à {name}",
+      "working": "{name} travaille",
+      "unread": "1 réponse non lue"
+    }
   }
 } as const;

@@ -34,6 +34,9 @@ export function partialReads(reads: readonly AssistantAnswerRead[]): AssistantAn
   const worst = new Map<string, AssistantAnswerRead>();
   for (const read of reads) {
     if (read.sorted || read.returned === null || read.total === null || read.returned >= read.total) continue;
+    // One row or none, of many: a read made to learn HOW MANY there are (the count comes with
+    // it), or to see what a row looks like. Nothing about "the rows" is concluded from it.
+    if (read.returned <= 1) continue;
     const seen = worst.get(read.table);
     // One line a table: the read that saw the most of it.
     if (seen === undefined || (seen.returned ?? 0) < read.returned) worst.set(read.table, read);

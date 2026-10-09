@@ -160,7 +160,7 @@ export interface AssistantTurnView {
   /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
   answer: Record<string, unknown> | null;
   /** Where it was asked, beyond the context: the data page (with its title now) or the open document. */
-  on?: { pageId: string | null; documentId: string | null; title: string | null };
+  on?: { pageId: string | null; documentId: string | null; title: string | null; scope?: { kind: 'selection' | 'record' | 'page'; count: number | null } | null };
 }
 
 /** `GET /assistant/sessions/current`: the person's open conversation, or none. */
@@ -169,6 +169,8 @@ export interface AssistantCurrentReply {
   turns: AssistantTurnView[];
   /** Earlier turns the conversation holds that are not in `turns`. */
   earlier: number;
+  /** No conversation because the last one was closed for its age, lately. */
+  aged?: boolean;
 }
 
 /** `POST /assistant/facts`: what the header says of one page. */

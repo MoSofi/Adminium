@@ -146,6 +146,8 @@ export interface PageCrudProps {
   onGridStateChange?: ((state: PageCrudGridState) => void) | undefined;
   /** Notified with the keys of the ticked rows whenever the selection changes. */
   onSelectionChange?: ((ids: readonly string[]) => void) | undefined;
+  /** Notified with how many rows the list counts under its search and filters (null while it does not know). */
+  onTotalChange?: ((total: number | null) => void) | undefined;
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
@@ -311,6 +313,7 @@ export function PageCrud({
   toolbarAccessory,
   onGridStateChange,
   onSelectionChange,
+  onTotalChange,
   canCreate = true,
   canUpdate = true,
   canDelete = true,
@@ -1126,6 +1129,9 @@ export function PageCrud({
   useEffect(() => {
     onSelectionChange?.(selectedIds);
   }, [onSelectionChange, selectedIds]);
+  useEffect(() => {
+    onTotalChange?.(total);
+  }, [onTotalChange, total]);
   const rangeStart = list.rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
   const rangeEnd = cursorStack.length * pageSize + list.rows.length;
   const numberFormat = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);

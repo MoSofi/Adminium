@@ -320,5 +320,30 @@
     "open": "打开",
     "openLabel": "在 Add-ons 中打开 {addOn}",
     "askAdmin": "请让管理员安装此项。"
+  },
+  "panel": {
+    "loading": "正在加载对话…",
+    "recordOpen": "{page} · 已打开 {record}",
+    "rowsShown": "{page} · {rows, plural, other {显示 # 行}}",
+    "new": "新对话",
+    "earlier": "{count, plural, other {有 # 条更早的消息未显示}}。",
+    "onPage": "在 {page}",
+    "closedElsewhere": "此对话已在另一个窗口中关闭。",
+    "stillWorking": "{name} 仍在处理您的上一个问题。",
+    "stop": "停止",
+    "pageDialog": "请先关闭页面上打开的内容，再使用 {name}。",
+    "aged": "您之前的对话因时间过久已关闭。"
+  },
+  "chip": {
+    "selected": "{count, plural, other {已选 # 项}}",
+    "record": "已打开的记录",
+    "filtered": "{rows, plural, other {# 行已筛选}}",
+    "filteredUnknown": "已筛选的行",
+    "remove": "不带“{label}”提问"
+  },
+  "parked": {
+    "madeOn": "创建于 {page}。",
+    "open": "打开 {page} 以使用此草稿",
+    "deleted": "此草稿的文档已被删除。"
   }
 }

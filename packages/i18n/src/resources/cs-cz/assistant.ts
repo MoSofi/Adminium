@@ -330,5 +330,30 @@ export default {
     "open": "Otevřít",
     "openLabel": "Otevřít {addOn} v části Add-ons",
     "askAdmin": "Požádejte správce, aby to nainstaloval."
+  },
+  "panel": {
+    "loading": "Načítání konverzace…",
+    "recordOpen": "{page} · otevřeno: {record}",
+    "rowsShown": "{page} · {rows, plural, one {zobrazen # řádek} few {zobrazeny # řádky} many {zobrazeno # řádku} other {zobrazeno # řádků}}",
+    "new": "Nová konverzace",
+    "earlier": "{count, plural, one {# starší zpráva není zobrazena} few {# starší zprávy nejsou zobrazeny} many {# starší zprávy není zobrazeno} other {# starších zpráv není zobrazeno}}.",
+    "onPage": "na stránce {page}",
+    "closedElsewhere": "Tato konverzace byla zavřena v jiném okně.",
+    "stillWorking": "{name} stále pracuje na vaší poslední otázce.",
+    "stop": "Zastavit",
+    "pageDialog": "Chcete-li použít {name}, zavřete to, co je na stránce otevřené.",
+    "aged": "Vaše dřívější konverzace byla kvůli svému stáří zavřena."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# vybraný} few {# vybrané} many {# vybraného} other {# vybraných}}",
+    "record": "Otevřený záznam",
+    "filtered": "{rows, plural, one {# filtrovaný řádek} few {# filtrované řádky} many {# filtrovaného řádku} other {# filtrovaných řádků}}",
+    "filteredUnknown": "Filtrované řádky",
+    "remove": "Zeptat se bez „{label}“"
+  },
+  "parked": {
+    "madeOn": "Vytvořeno na stránce {page}.",
+    "open": "Otevřít {page} a použít tento koncept",
+    "deleted": "Dokument tohoto konceptu byl smazán."
   }
 } as const;
