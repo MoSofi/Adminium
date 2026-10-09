@@ -37,6 +37,8 @@ export interface AssistantAvailability {
   canConfigure: boolean;
   provider: string | null;
   model: string | null;
+  /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
+  budget: { limit: number; used: number; resetsAt: number; left: boolean };
 }
 
 export interface AssistantHostRef {

@@ -405,6 +405,39 @@ export function assistantSessionsRepo(meta: MetaDb) {
     },
 
     /**
+     * The turn a PERSON has under way, in any of their conversations, or
+     * `null`. One at a time a person: what a day's allowance is held against
+     * is counted as it is spent, and several turns opened at once would each
+     * pass the same check.
+     */
+    async liveTurnOf(userId: string): Promise<{ id: string; sessionId: string } | null> {
+      const row = await db
+        .selectFrom('adminium_assistant_turns as turn')
+        .innerJoin('adminium_assistant_sessions as session', 'session.id', 'turn.sessionId')
+        .select(['turn.id as id', 'turn.sessionId as sessionId'])
+        .where('session.createdBy', '=', userId)
+        .where('turn.status', 'in', ['queued', 'running'])
+        .orderBy('turn.createdAt', 'desc')
+        .executeTakeFirst();
+      return row === undefined ? null : { id: row.id, sessionId: row.sessionId };
+    },
+
+    /**
+     * End every turn left `running`: at boot, with one process, nothing is
+     * running them. Without this a person is told "still working" until the
+     * job's stale lock lapses, minutes later. Queued turns are left: their
+     * job is still in the queue and will run them.
+     */
+    async failRunningTurns(error: Record<string, unknown>, at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ status: 'failed', error: packChecked('error', assistantErrorSchema, error), finishedAt: at })
+        .where('status', '=', 'running')
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
+    },
+
+    /**
      * Move a turn's status, optionally only from the one it is expected to be
      * in, so the job can claim a queued turn atomically. Answers whether a row
      * changed.

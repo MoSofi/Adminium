@@ -49,6 +49,14 @@ export const assistantAvailabilityReply = z.object({
   canConfigure: z.boolean(),
   provider: z.string().nullable(),
   model: z.string().nullable(),
+  /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
+  budget: z.object({
+    limit: z.number(),
+    used: z.number(),
+    /** The instant the day's use starts again from nothing (epoch ms). */
+    resetsAt: z.number(),
+    left: z.boolean(),
+  }),
 });
 
 export const assistantSessionView = z.object({

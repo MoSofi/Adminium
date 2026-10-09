@@ -26,6 +26,7 @@ import { z } from 'zod';
 
 import { runAssistantTurn } from '../assistant/turn-runner.js';
 import { fitsContextWindow, setUpTurn } from '../assistant/turn-setup.js';
+import { readAllowance, roundTokens, spend } from '../assistant/allowance.js';
 import { loadTurn, ownTranscript } from '../assistant/sessions.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { isProviderRunError, type RunFailureError } from '../llm/direct-runner.js';
@@ -55,6 +56,9 @@ export interface AssistantTurnDeps {
 
 /** The output budget a turn asks for. A drafted document is a few thousand tokens. */
 export const ASSISTANT_MAX_OUTPUT_TOKENS = 8000;
+
+/** The English of a turn stopped by the day's allowance, for a reader with no words of its own for it. */
+export const BUDGET_MESSAGE = 'Today\'s allowance for the assistant is used up.';
 
 /** The English of a `model-format` failure, for a reader that has no words of its own for it. */
 export const MODEL_FORMAT_MESSAGE = 'This model does not answer in the way the assistant needs. Choose another model.';
@@ -121,6 +125,8 @@ export async function executeAssistantTurn(
   }
 
   const startedAt = now();
+  // One question of the day, counted when its run begins.
+  await spend(deps.meta, payload.userId ?? session.createdBy ?? null, { turns: 1 }, startedAt);
   const userId = payload.userId ?? session.createdBy;
   const finish = async (patch: Parameters<typeof repo.finishTurn>[1]): Promise<void> => {
     // Only while this run still holds the turn: one the person stopped meanwhile stays stopped.
@@ -208,6 +214,12 @@ export async function executeAssistantTurn(
       // what the other screens are already showing rather than nothing.
       await repo.recordSteps(turn.id, steps);
     },
+    // The day's allowance, held as it is spent: each round is counted when it returns, and the
+    // next is not asked for once the day's number is reached.
+    mayContinue: async () => (await readAllowance(deps.meta, userId ?? null, now())).left,
+    onRound: async (round) => {
+      await spend(deps.meta, userId ?? null, { tokens: roundTokens(round) }, now());
+    },
     signal: ctx.signal,
     now,
   });
@@ -217,6 +229,10 @@ export async function executeAssistantTurn(
   if (outcome.tokensIn > 0 || outcome.tokensOut > 0) {
     await repo.addUsage(session.id, { tokensIn: outcome.tokensIn, tokensOut: outcome.tokensOut }, now());
   }
+
+  // A turn that used the last of the day says so beside its answer.
+  const after = await readAllowance(deps.meta, userId ?? null, now());
+  const usedUp = after.left ? {} : { answer: { budget: { limit: after.limit, used: after.used, resetsAt: after.resetsAt } } };
 
   const common = {
     // The turn's own messages: the conversation before it is in the rows before it.
@@ -228,6 +244,16 @@ export async function executeAssistantTurn(
 
   if (outcome.status === 'awaiting_picks') {
     await finish({ ...common, status: 'awaiting_picks', say: outcome.say, ask: outcome.ask as unknown as Record<string, unknown> });
+    return;
+  }
+  if (outcome.status === 'failed' && outcome.reason === 'budget') {
+    const allowance = await readAllowance(deps.meta, userId ?? null, now());
+    await finish({
+      ...common,
+      status: 'failed',
+      // A KIND with the numbers: the dashboard says when it starts again, in the person's own time.
+      error: { kind: 'budget', limit: allowance.limit, used: allowance.used, resetsAt: allowance.resetsAt, message: BUDGET_MESSAGE },
+    });
     return;
   }
   if (outcome.status === 'failed') {
@@ -248,6 +274,7 @@ export async function executeAssistantTurn(
   }
   await finish({
     ...common,
+    ...usedUp,
     status: 'done',
     say: outcome.say,
     result: outcome.result === null ? null : (outcome.result as unknown as Record<string, unknown>),

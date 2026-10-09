@@ -60,6 +60,7 @@ import {
   type EnqueueJobInput,
   type InstalledManifest,
   snapshotsRepo,
+  assistantSessionsRepo,
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
@@ -196,6 +197,7 @@ import {
 import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
 import { sweepAssistantSessions } from './assistant/retention.js';
+import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
@@ -2385,6 +2387,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(apiKeysRoutes);
       await api.register(auditRoutes);
       if (llm !== null) {
+        // A turn left `running` by a process that is gone: with one process, nothing is running
+        // it now. Ended here, or its person is told "still working" until the job's lock lapses.
+        await assistantSessionsRepo(meta).failRunningTurns({ ...INTERRUPTED_ERROR }, Date.now());
         await api.register(
           assistantRoutes({
             meta,

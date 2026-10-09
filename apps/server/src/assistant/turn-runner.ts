@@ -113,6 +113,24 @@ export interface TurnRunInput {
   onStep?:
     | ((event: AssistantStepEvent, percent: number, steps: readonly TurnStep[]) => void | Promise<void>)
     | undefined;
+  /**
+   * Asked before every provider round: may another be asked for? `false` ends
+   * the turn as `reason: 'budget'`. The caller holds the day's allowance; the
+   * runner only knows that there is something to ask.
+   */
+  mayContinue?: (() => Promise<boolean>) | undefined;
+  /**
+   * Told what each provider round cost, as soon as it is known, so what a
+   * person has used is counted while the turn is still spending.
+   */
+  onRound?:
+    | ((round: {
+        system: string;
+        messages: readonly TurnMessage[];
+        reply: string;
+        usage?: { inputTokens: number; outputTokens: number } | undefined;
+      }) => Promise<void>)
+    | undefined;
   /** Cooperative cancellation, checked at every round boundary. */
   signal?: AbortSignal | undefined;
   /** Repairs per round; the same budget the enrichment path uses. */
@@ -152,7 +170,7 @@ export type TurnOutcome =
        * MODEL that cannot do this, not this request: the person is told to
        * choose another, not to try again.
        */
-      reason?: 'model-format';
+      reason?: 'model-format' | 'budget';
       steps: TurnStep[];
       messages: TurnMessage[];
       sources: string[];
@@ -204,6 +222,14 @@ const ROUND_CAP_ERROR: LlmValidationError = {
   message: `The assistant took more than ${String(ASSISTANT_MAX_ROUNDS)} rounds without reaching an answer.`,
 };
 
+/** The stand-in error of a turn stopped by the day's allowance; the job words it from what it knows. */
+const BUDGET_ERROR: LlmValidationError = {
+  code: 'LLM_SCHEMA_INVALID',
+  severity: 'fatal',
+  path: '',
+  message: 'Today\'s allowance for the assistant is used up.',
+};
+
 export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome> {
   const maxRepairs = input.maxRepairs ?? DEFAULT_MAX_REPAIRS;
   const messages: TurnMessage[] = input.messages.map((message) => ({ ...message }));
@@ -246,7 +272,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     tokensOut: usage.tokensOut,
   });
 
-  const failed = (errors: RunFailureError[], reason?: 'model-format'): TurnOutcome => ({
+  const failed = (errors: RunFailureError[], reason?: 'model-format' | 'budget'): TurnOutcome => ({
     status: 'failed',
     errors,
     ...(reason === undefined ? {} : { reason }),
@@ -259,6 +285,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
 
   for (let round = 0; round < ASSISTANT_MAX_ROUNDS; round += 1) {
     if (input.signal?.aborted ?? false) return stopped();
+    if (input.mayContinue !== undefined && !(await input.mayContinue())) return failed([BUDGET_ERROR], 'budget');
     if (round > 0 && round === ASSISTANT_MAX_ROUNDS - 1) messages.push({ role: 'user', content: LAST_ROUND_MESSAGE });
 
     let reply: { text: string; usage?: { inputTokens: number; outputTokens: number } };
@@ -289,6 +316,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
     }
     usage.tokensIn += reply.usage?.inputTokens ?? 0;
     usage.tokensOut += reply.usage?.outputTokens ?? 0;
+    await input.onRound?.({ system: input.system, messages, reply: reply.text, usage: reply.usage });
 
     const parsed = parseAssistantTurn(reply.text, undefined, { document: input.document !== undefined });
     if (!parsed.ok) {

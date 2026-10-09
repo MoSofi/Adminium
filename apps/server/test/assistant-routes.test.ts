@@ -19,7 +19,7 @@
 
 import BetterSqlite3 from 'better-sqlite3';
 import { SqliteDialect } from 'kysely';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AdapterRegistry,
@@ -32,6 +32,9 @@ import {
 import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
 import {
   assistantSessionsRepo,
+  assistantUseDay,
+  assistantUseRepo,
+  assistantUseResetsAt,
   emailTemplatesRepo,
   permissionsRepo,
   rolesRepo,
@@ -187,6 +190,23 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await t.app.close();
+});
+
+// Each test stands alone: a question one of them left unanswered is not "still under way" for the
+// next (a person asks one question at a time, in whichever conversation), and a day's use is its own.
+beforeEach(async () => {
+  await t.meta.db.updateTable('adminium_assistant_turns').set({ status: 'cancelled' }).where('status', 'in', ['queued', 'running']).execute();
+  await t.meta.db.deleteFrom('adminium_assistant_use').execute();
+  // …and a minute's worth of questions is each test's own: every test here asks as the same
+  // two people, and together they ask more than one person may in a minute. The limiter reads
+  // the wall clock, so the wall clock is what moves (only `Date`; timers are left real).
+  vi.setSystemTime(Date.now() + 61_000);
+});
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
+});
+afterAll(() => {
+  vi.useRealTimers();
 });
 
 describe('who may knock', () => {
@@ -1011,5 +1031,156 @@ describe('a question asked on another page than the one the conversation began o
     // An email template, on the page that drafts emails. The report builder would have made a report of it.
     expect(created.kind).toBe('template');
     expect((await emailTemplatesRepo(t.meta).findById(created.id))?.name).toBe('Walked welcome');
+  });
+});
+
+describe('the daily allowance', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+  const DAY = assistantUseDay(AT);
+  let who: string;
+
+  beforeEach(async () => {
+    who = t.users.admin.id;
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
+    await t.meta.db.deleteFrom('adminium_assistant_use').execute();
+    // No turn of an earlier test may still be "under way" for this person.
+    await t.meta.db.updateTable('adminium_assistant_turns').set({ status: 'cancelled' }).where('status', 'in', ['queued', 'running']).execute();
+  });
+
+  async function ask(text = 'How many?') {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const res = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text } });
+    return { sessionId, res, turnId: res.statusCode === 202 ? (res.json() as { turn: { id: string } }).turn.id : '' };
+  }
+  const call = (id: string) => ({ id, tool: 'list_documents', args: {}, step: { icon: 'search', label: 'Look', detail: '' } });
+
+  it('counts every round as it returns, by what the provider reports', async () => {
+    const { turnId } = await ask();
+    await runTurn(
+      turnId,
+      [
+        { text: reply({ calls: [call('c1')] }), usage: { inputTokens: 1000, outputTokens: 100 } },
+        { text: reply({ calls: [call('c2')] }), usage: { inputTokens: 2000, outputTokens: 200 } },
+        { text: plain('Twelve.'), usage: { inputTokens: 3000, outputTokens: 300 } },
+      ],
+      who,
+    );
+    expect(await assistantUseRepo(t.meta).get(who, DAY)).toMatchObject({ tokens: 6600, turns: 1 });
+  });
+
+  it('estimates what a provider does not report, so an unmetered model still spends', async () => {
+    const { turnId } = await ask();
+    await runTurn(turnId, [{ text: plain('Twelve.') }], who);
+    const use = await assistantUseRepo(t.meta).get(who, DAY);
+    // The whole prompt went out: thousands of tokens, not zero.
+    expect(use.tokens).toBeGreaterThan(1000);
+    // The turn's own row still says what the provider said, which is nothing.
+    expect((await assistantSessionsRepo(t.meta).findTurn(turnId))?.tokensIn ?? 0).toBe(0);
+  });
+
+  it('asks for no further round once the day is used, and says when it starts again', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 5000, { updatedBy: null });
+    const { turnId } = await ask();
+    const scripted = await runTurn(
+      turnId,
+      [
+        { text: reply({ calls: [call('c1')] }), usage: { inputTokens: 6000, outputTokens: 100 } },
+        { text: plain('never reached') },
+      ],
+      who,
+    );
+    // The round that crossed the line was the last one asked for.
+    expect(scripted.calls).toHaveLength(1);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('failed');
+    expect(turn?.error).toMatchObject({ kind: 'budget', limit: 5000, used: 6100, resetsAt: assistantUseResetsAt(AT) });
+  });
+
+  it('lets the answer that used the last of the day through, and marks it', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 5000, { updatedBy: null });
+    const { turnId } = await ask();
+    await runTurn(turnId, [{ text: plain('Twelve.'), usage: { inputTokens: 6000, outputTokens: 10 } }], who);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn).toMatchObject({ status: 'done', say: 'Twelve.' });
+    expect(turn?.answer).toMatchObject({ budget: { limit: 5000, used: 6010 } });
+  });
+
+  it('refuses a new question on a used-up day, tells the page so, and takes the next day`s', async () => {
+    // The routes read the server's own clock (the job in these tests is handed a fixed one).
+    const today = assistantUseDay(Date.now());
+    const resetsAt = assistantUseResetsAt(Date.now());
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 5000, { updatedBy: null });
+    await assistantUseRepo(t.meta).add(who, today, { tokens: 5000 });
+    const { res } = await ask();
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.details).toMatchObject({ reason: 'budget', limit: 5000, used: 5000, resetsAt });
+    const state = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability', headers: asUser(t.users.admin) });
+    expect(state.json().budget).toEqual({ limit: 5000, used: 5000, resetsAt, left: false });
+    // Yesterday's use is yesterday's.
+    await t.meta.db.deleteFrom('adminium_assistant_use').execute();
+    await assistantUseRepo(t.meta).add(who, assistantUseDay(Date.now() - 86_400_000), { tokens: 999_999 });
+    expect((await ask()).res.statusCode).toBe(202);
+  });
+
+  it('has no limit at 0', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 0, { updatedBy: null });
+    await assistantUseRepo(t.meta).add(who, assistantUseDay(Date.now()), { tokens: 900_000_000 });
+    const { res } = await ask();
+    expect(res.statusCode).toBe(202);
+    const state = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability', headers: asUser(t.users.admin) });
+    expect(state.json().budget).toMatchObject({ limit: 0, left: true });
+  });
+
+  it('takes one question at a time from a person, whichever conversation it is asked in', async () => {
+    const first = await ask('first');
+    expect(first.res.statusCode).toBe(202);
+    // A second window, a second conversation, while the first question is still queued.
+    const second = await ask('second');
+    expect(second.res.statusCode).toBe(409);
+    expect(second.res.json().error.details).toMatchObject({ reason: 'busy', turnId: first.turnId, sessionId: first.sessionId });
+    // Somebody else is not held up by it.
+    const editorRole = await rolesRepo(t.meta).findBySlug('editor');
+    await permissionsRepo(t.meta).grant(editorRole!.id, 'system', 'assistant.use', { allowed: true });
+    const theirs = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.editor), payload: { context: 'email', host: { connectionIds: [] } } });
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${(theirs.json() as { session: { id: string } }).session.id}/turns`,
+      headers: asUser(t.users.editor),
+      payload: { text: 'mine' },
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    // And when the first has ended, the person may ask again.
+    await runTurn(first.turnId, [{ text: plain('Done.') }], who);
+    expect((await ask('third')).res.statusCode).toBe(202);
+  });
+
+  it('takes thirty questions a minute from a person, on a budget of its own', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const post = () => t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'again' } });
+    // Opening the conversation was the first of the minute.
+    for (let asked = 1; asked < 30; asked += 1) {
+      const res = await post();
+      expect(res.statusCode, `question ${String(asked)}: ${res.body}`).toBe(202);
+      await t.meta.db.updateTable('adminium_assistant_turns').set({ status: 'cancelled' }).where('status', '=', 'queued').execute();
+    }
+    const over = await post();
+    expect(over.statusCode, over.body).toBe(429);
+    expect(over.json().error.details).toMatchObject({ bucket: 'assistant', limit: 30 });
+    // The grid's own budget is untouched by it.
+    const elsewhere = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability', headers: asUser(t.users.admin) });
+    expect(elsewhere.statusCode).toBe(200);
+  });
+
+  it('ends what a gone process left running, and leaves what is still queued to its job', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const queued = await ask('queued');
+    const session = await repo.create({ context: 'email', host: { connectionIds: [] }, createdBy: t.users.editor.id }, AT);
+    const running = await repo.createTurn({ sessionId: session.id, askText: 'running' }, AT);
+    await repo.setTurnStatus(running.id, 'running');
+    expect(await repo.failRunningTurns({ ...INTERRUPTED_ERROR }, AT)).toBe(1);
+    expect(await repo.findTurn(running.id)).toMatchObject({ status: 'failed', error: { kind: 'interrupted' } });
+    expect((await repo.findTurn(queued.turnId))?.status).toBe('queued');
   });
 });

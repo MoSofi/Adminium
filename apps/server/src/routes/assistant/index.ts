@@ -44,6 +44,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
+import { readAllowance } from '../../assistant/allowance.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
@@ -215,6 +216,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           canConfigure: await request.can(PERMISSIONS.llmRun),
           provider: state.provider,
           model: state.model,
+          budget: await readAllowance(meta, requireUserId(request), app.rbac.now()),
         };
       },
     );
@@ -223,7 +225,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       '/assistant/sessions',
       {
         preHandler: guard,
-        config: { audit: auditExempt('opening a modal changes nothing; the session row IS the record') },
+        config: { audit: auditExempt('opening a modal changes nothing; the session row IS the record'), rateLimitBucket: 'assistant' },
         schema: { body: assistantSessionCreateBody, response: { 201: assistantSessionCreateReply } },
       },
       async (request, reply) => {
@@ -271,6 +273,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         preHandler: guard,
         config: {
           audit: auditExempt('a transcript row is the record; a turn reads and changes no state'),
+          rateLimitBucket: 'assistant',
         },
         schema: {
           params: assistantSessionParams,
@@ -289,6 +292,27 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (await sessions.hasLiveTurn(session.id)) {
           throw new ConflictError('The assistant is still working on the last question.', 'CONFLICT', {
             sessionId: session.id,
+            reason: 'busy',
+          });
+        }
+        // …and one at a time a PERSON, whichever conversation it is in: what the day's
+        // allowance is held against is counted as it is spent, and turns opened at once
+        // in several windows would each pass the same check.
+        const live = await sessions.liveTurnOf(userId);
+        if (live !== null) {
+          throw new ConflictError('The assistant is still working on your last question.', 'CONFLICT', {
+            sessionId: live.sessionId,
+            turnId: live.id,
+            reason: 'busy',
+          });
+        }
+        const allowance = await readAllowance(meta, userId, app.rbac.now());
+        if (!allowance.left) {
+          throw new ConflictError('Today\'s allowance for the assistant is used up.', 'CONFLICT', {
+            reason: 'budget',
+            limit: allowance.limit,
+            used: allowance.used,
+            resetsAt: allowance.resetsAt,
           });
         }
 

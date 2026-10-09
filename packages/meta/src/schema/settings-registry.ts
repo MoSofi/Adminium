@@ -424,6 +424,13 @@ export const SETTINGS_REGISTRY = {
    * a bundle somebody else exported must never be what switches it on.
    */
   'assistant.rowData': def(z.boolean(), true, 'Let the page assistant read masked rows from a connection'),
+  /*
+   * How much of the assistant one person may use in a day, in tokens (what a
+   * provider bills by), counted over the UTC day. 0 means no limit. The
+   * default is about 25 of the largest turns measured, and many more plain
+   * questions. Portable: it is a number an operator chose.
+   */
+  'assistant.dailyTokens': def(z.number().int().min(0).max(1_000_000_000), 500_000, 'Tokens a person may use with the page assistant in a UTC day (0 = no limit)', P),
   'retention.assistantSessionsDays': def(z.number().int().min(1), 30, 'Closed assistant session retention in days', P),
   // ── Adminium Designer ─────────────────────────────────────────────────────
   //
