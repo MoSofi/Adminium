@@ -3,7 +3,7 @@
  * A project's hooks and actions inside a composed server: a hook's rejection
  * on a single edit, a bulk edit, a delete, the public API and a CSV import;
  * after hooks writing through `db`; actions with their permissions and audit;
- * the Studio overview; a reload in dev; and no project code on the desktop.
+ * the Studio overview; a reload in dev; and the same for a project the desktop app opened.
  *
  * The bundles are written by hand, as `adminium build` would leave them, so
  * this needs no esbuild.
@@ -616,18 +616,12 @@ describe('where project code runs', () => {
     expect(listed.json().data).toEqual([]);
   });
 
-  it('never loads it on the desktop app', async () => {
-    const { install: one, app, cookie } = await serve({ env: { ADMINIUM_RUNTIME: 'desktop' } });
+  // Plan 66 (P12): the desktop app opens a project folder and serves it as a terminal does. Its classic
+  // workspace passes no project at all, which is what keeps project code out of it.
+  it('loads it for a project the desktop app opened', async () => {
+    const { app, cookie } = await serve({ env: { ADMINIUM_RUNTIME: 'desktop' } });
     const overview = await app.inject({ method: 'GET', url: '/api/v1/project/overview', headers: { cookie } });
-    expect(overview.json().data).toMatchObject({ codeEnabled: false, hooks: [], actions: [], problems: [] });
-    const listed = await app.inject({ method: 'GET', url: '/api/v1/project/actions', headers: { cookie } });
-    expect(listed.json().data).toEqual([]);
-    const res = await app.inject({
-      method: 'PATCH',
-      url: `/api/v1/data/${one.mainId}/main.orders/3`,
-      headers: { cookie },
-      payload: { values: { status: 'paid' } },
-    });
-    expect(res.statusCode).toBe(200);
+    expect(overview.json().data).toMatchObject({ codeEnabled: true });
+    expect((overview.json().data as { hooks: unknown[] }).hooks.length).toBeGreaterThan(0);
   });
 });

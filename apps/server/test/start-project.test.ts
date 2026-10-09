@@ -84,6 +84,11 @@ describe('startProject', () => {
     live = await startProject({ root, port: again, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop' } });
     expect((await fetch(`${live.url}/api/v1/healthz`)).status).toBe(200);
     expect(JSON.parse(readFileSync(runningFile(root), 'utf8'))).toMatchObject({ by: 'desktop', port: again });
+    // A project in the desktop app has none of the classic workspace's own routes: they act on another instance.
+    for (const path of ['/api/v1/desktop/lan-share', '/api/v1/desktop/local-database', '/api/v1/desktop/backup']) {
+      const res = await fetch(`${live.url}${path}`, { method: path.endsWith('lan-share') ? 'GET' : 'POST' });
+      expect(res.status, path).toBe(404);
+    }
   });
 
   it('design mode: this machine only, the owner made, the Designer answering, nothing busy', { timeout: 120_000 }, async () => {

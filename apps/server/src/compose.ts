@@ -574,7 +574,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * and its build's, never a package in the store, so every reader of an
    * app's files asks this one object which of the two holds a key.
    */
-  const projectRoot = opts.project === undefined || env.ADMINIUM_RUNTIME === 'desktop' ? null : opts.project.root;
+  // The desktop app's classic workspace passes no project; a project it opens is served as a terminal serves it.
+  const projectRoot = opts.project === undefined ? null : opts.project.root;
   const appsBuild = projectRoot === null ? null : createAppsBuildReader(projectRoot);
   const appFiles = createAppFiles({
     store: appStore,
@@ -905,7 +906,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     }
   };
   const projectCode =
-    opts.project === undefined || env.ADMINIUM_RUNTIME === 'desktop'
+    opts.project === undefined
       ? null
       : createProjectCodeRuntime({
           root: opts.project.root,
@@ -1448,6 +1449,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * The mirror runs first so the route's own policy gate reads THIS boot's
    * answer rather than the last one's.
    */
+  /*
+   * The desktop app's classic workspace, as against a project folder it opened.
+   * The share panel, the local and demo databases, and backup and restore act
+   * on the classic workspace's own data folder and its `config.json`; with a
+   * project open they would act on the wrong instance (a restore would unpack
+   * over a folder nobody is looking at), so a project's server has none of them.
+   * Sharing a project and exporting it are the app's own, in its main process.
+   */
+  const desktopClassic = env.ADMINIUM_RUNTIME === 'desktop' && opts.project === undefined;
   const desktopSession =
     env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_BOOT_TOKEN !== undefined
       ? { bootToken: env.ADMINIUM_BOOT_TOKEN }
@@ -1466,7 +1476,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * loopback-only one, where the honest answer `active: false` is what tells the
    * panel that a toggle the user flipped has not taken effect.
    */
-  const desktopLan = env.ADMINIUM_RUNTIME === 'desktop';
+  const desktopLan = desktopClassic;
 
   /**
    * The two server-side source cards — "Create a new local database" (card
@@ -1487,7 +1497,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * route would be an unreachable surface and the wizard hides the card instead
    * of offering a demo it cannot seed.
    */
-  const desktopLocalDb = env.ADMINIUM_RUNTIME === 'desktop';
+  const desktopLocalDb = desktopClassic;
   // `demoSeedScriptPath` rather than the condition inline: `/system/info`'s
   // `desktopDemo` flag reports whether this route exists, and the wizard gates
   // its fourth source card on that answer. Two spellings of one condition is a
@@ -1511,7 +1521,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * meta store", and asking the caller to repeat it would let the two drift —
    * the backup would snapshot a file the server is not using.
    */
-  const desktopBackup = env.ADMINIUM_RUNTIME === 'desktop';
+  const desktopBackup = desktopClassic;
 
   /**
    * The capability grant table, behind gate 1 of
