@@ -44,7 +44,9 @@ import {
   usersRepo,
 } from '@adminium/meta';
 
+import { documentColumns, isBuiltinEmailKey, normalizeDocument } from '../src/email/document.js';
 import { executeAssistantTurn, INTERRUPTED_ERROR } from '../src/jobs/assistant-turn.js';
+import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
 import { sweepAssistantSessions } from '../src/assistant/retention.js';
 import { assistantRoutes } from '../src/routes/assistant/index.js';
 import { readLlmConfig, writeLlmConfig } from '../src/routes/llm/config-service.js';
@@ -190,6 +192,8 @@ beforeAll(async () => {
 }, 60_000);
 
 beforeEach(async () => {
+  // A workspace that was in use before the switches: its assistant saves drafts, and nothing more.
+  await settingsRepo(t.meta).set('assistant.abilities', { create: true, change: false, send: false, delete: false });
   await settingsRepo(t.meta).set('llm.provider', 'anthropic');
 });
 
@@ -600,6 +604,22 @@ describe('a button on the result card', () => {
     );
     return { sessionId, turnId };
   }
+
+  it('saves nothing, and adds no language, while Create is switched off; a test mail and a re-run are not held by it', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', { create: false, change: true, send: true, delete: true });
+    const { sessionId, turnId } = await draftedTurn('admin');
+    const act = (payload: Record<string, unknown>) =>
+      t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/actions`, headers: asUser(t.users.admin), payload });
+    for (const payload of [{ action: 'save' }, { action: 'language.add', locale: 'de_DE' }]) {
+      const res = await act(payload);
+      expect(res.statusCode, res.body).toBe(403);
+      expect(res.json()).toMatchObject({ error: { details: { reason: 'assistant-switched-off', ability: 'create' } } });
+    }
+    expect((await emailTemplatesRepo(t.meta).list()).some((row) => row.name === 'Route welcome')).toBe(false);
+    // Not the switch's: whatever it answers, it is not refused for being switched off.
+    const mail = await act({ action: 'test-send' });
+    expect(mail.body).not.toContain('assistant-switched-off');
+  });
 
   it('saves the draft through the page`s own create, and says what it made', async () => {
     const { sessionId, turnId } = await draftedTurn('admin');
@@ -1503,6 +1523,7 @@ describe('what an owner sets, and what was used today', () => {
   });
 
   it('starts with the assistant only reading, and switches one thing on at a time, on record', async () => {
+    await t.meta.db.deleteFrom('adminium_settings').where('key', '=', 'assistant.abilities').execute();
     const OFF = { create: false, change: false, send: false, delete: false };
     const put = (payload: unknown, as = t.users.admin) => t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(as), payload: payload as never });
     const get = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
@@ -1674,6 +1695,106 @@ describe('the conversation that stays open across pages', () => {
     expect((res.json() as { facts: { values: Record<string, unknown>; scope: unknown } }).facts.values).toHaveProperty('reports');
     const refused = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/facts', headers: asUser(t.users.viewer), payload: { context: 'report', host: { connectionIds: [] } } });
     expect(refused.statusCode).toBe(403);
+  });
+});
+
+describe('a document the assistant proposes to save, to save over, or to delete', () => {
+  const ALL = { create: true, change: true, send: false, delete: true };
+  const artefact = (subject: string) => ({ kind: 'template', name: 'Proposed welcome', locale: 'en_US', document: { subject, blocks: [{ block: 'email.heading', data: { text: 'Hi' } }] } });
+  const draft = (subject: string) => ({ title: 'Welcome email', meta: '', artefact: artefact(subject) });
+
+  /** A turn on the email page, run through the real job with the model's reply scripted. */
+  async function turnWith(user: 'admin' | 'editor', move: Record<string, unknown>, documentId?: string) {
+    const host = { connectionIds: [], ...(documentId === undefined ? {} : { documentId }) };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users[user]), payload: { context: 'email', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users[user]), payload: { text: 'Do it', context: 'email', host } });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const scripted = makeScriptedClient([{ text: reply(move) }]);
+    await executeAssistantTurn({ turnId, userId: t.users[user].id }, jobContext(), {
+      meta: t.meta,
+      manager: t.manager,
+      resolveClient: () => Promise.resolve({ client: scripted.client, provider: 'anthropic', model: 'm', baseUrl: null }),
+      can: async (userId, permission) => (userId === null ? false : permissionSetAllows(await resolvePermissionSet(t.meta, { kind: 'user', id: userId, label: userId }), permission)),
+      now: () => Date.now(),
+    });
+    const stored = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    return { sessionId, turnId, status: stored?.status, system: scripted.calls[0]?.system ?? '' };
+  }
+  type Shown = { state: string; hash?: string; actions?: { do: string; id?: string; preview?: Record<string, unknown>; refused?: { code: string } }[]; outcome?: { done: { index: number; id: string | null }[]; failed: { index: number; code: string }[] } };
+  const act = async (user: 'admin' | 'editor', made: { sessionId: string; turnId: string }, payload: Record<string, unknown>) => {
+    const res = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${made.sessionId}/turns/${made.turnId}/actions`, headers: asUser(t.users[user]), payload });
+    const json = res.json() as { proposal?: Shown; error?: { details?: { proposal?: Shown; reason?: string } } };
+    return { status: res.statusCode, body: res.body, proposal: (json.proposal ?? json.error?.details?.proposal) as Shown };
+  };
+  const template = (name: string) =>
+    emailTemplatesRepo(t.meta).create({ kind: 'template', key: `proposed-${name.toLowerCase()}-${String(Date.now())}`, locale: 'en_US', name, category: 'lifecycle', starter: null, enabled: true, createdBy: t.users.admin.id, ...documentColumns(normalizeDocument({ subject: 'Old subject', blocks: [] } as never)) });
+
+  it('saves the draft as a new document when the person confirms, once', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const made = await turnWith('admin', { result: draft('Welcome aboard'), propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } });
+    expect(made.status).toBe('done');
+    expect(made.system).toContain('- doc.save: save the draft in "result" of this same reply as a new document.');
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal, shown.body).toMatchObject({ state: 'open', actions: [{ do: 'doc.save', preview: { kind: 'doc.save', what: 'email', name: 'Proposed welcome' } }] });
+    const before = (await emailTemplatesRepo(t.meta).list()).filter((row) => row.name === 'Proposed welcome').length;
+    const done = await act('admin', made, { action: 'apply', hash: shown.proposal.hash });
+    expect(done.status, done.body).toBe(200);
+    const id = done.proposal.outcome!.done[0]!.id!;
+    expect((await emailTemplatesRepo(t.meta).findById(id))?.name).toBe('Proposed welcome');
+    expect((await act('admin', made, { action: 'apply', hash: shown.proposal.hash })).status).toBe(409);
+    expect((await emailTemplatesRepo(t.meta).list()).filter((row) => row.name === 'Proposed welcome').length).toBe(before + 1);
+  });
+
+  it('offers nothing to someone who may not save on the page, and nothing while the switches are off', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const editor = await turnWith('editor', { result: draft('x'), propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } });
+    expect(editor.system).toContain('You cannot change anything here; say so if asked.');
+    expect(editor.status).toBe('failed');
+    await settingsRepo(t.meta).set('assistant.abilities', { create: false, change: false, send: false, delete: false });
+    const off = await turnWith('admin', { result: draft('x'), propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } });
+    expect(off.system).toContain('You cannot change anything here; say so if asked.');
+    expect(off.status).toBe('failed');
+  });
+
+  it('saves the draft over the document that is open, and over no other', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const open = await template('Open');
+    const other = await template('Other');
+    // The model names another document: there is nowhere in the action to say so.
+    const made = await turnWith('admin', { result: draft('New subject'), propose: { title: 'Save over it', actions: [{ do: 'doc.change', id: other.id }] } }, open.id);
+    expect(made.status).toBe('done');
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal.actions![0], shown.body).toMatchObject({ do: 'doc.change', preview: { kind: 'doc.change', what: 'email', id: open.id, name: 'Open' } });
+    expect(shown.proposal.actions![0]).not.toHaveProperty('id');
+    // The save itself goes through the page's own route as the signed-in person: tried on a whole server elsewhere.
+    expect((await emailTemplatesRepo(t.meta).findById(other.id))?.subject).toBe('Old subject');
+
+    // With no document open there is nothing to save over, and it is not offered.
+    const none = await turnWith('admin', { result: draft('x'), propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } });
+    expect(none.system).not.toContain('- doc.change:');
+    expect(none.status).toBe('failed');
+  });
+
+  it('shows a document`s name before it is deleted, by the id the server finds, and refuses another kind or one that is not there', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const gone = await template('Goes');
+    const made = await turnWith('admin', { propose: { title: 'Tidy up', actions: [{ do: 'doc.delete', kind: 'email', id: gone.id }, { do: 'doc.delete', kind: 'report', id: gone.id }, { do: 'doc.delete', kind: 'email', id: 'emt_nothing' }, { do: 'doc.delete', kind: 'email', id: '../../roles' }] } });
+    expect(made.status).toBe('done');
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal.actions!.map((action) => action.refused?.code ?? action.preview?.name), shown.body).toEqual(['Goes', 'NOT_OFFERED', 'NOT_FOUND', 'NOT_FOUND']);
+    expect(await emailTemplatesRepo(t.meta).findById(gone.id)).not.toBeNull();
+  });
+
+  it('refuses to save over a built-in mail', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const builtIn = (await emailTemplatesRepo(t.meta).list()).find((row) => isBuiltinEmailKey(row.key));
+    if (builtIn === undefined) return;
+    const made = await turnWith('admin', { result: draft('Hijacked'), propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } }, builtIn.id);
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal.actions![0]!.refused, shown.body).toMatchObject({ code: 'BUILT_IN' });
+    expect((await act('admin', made, { action: 'apply', hash: shown.proposal.hash })).status).toBe(422);
   });
 });
 

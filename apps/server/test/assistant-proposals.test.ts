@@ -14,12 +14,13 @@
  * - A proposal is let go when the conversation moves on or its time passes.
  */
 import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
-import { assistantSessionsRepo, auditRepo, pagesRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { assistantSessionsRepo, auditRepo, emailTemplatesRepo, pagesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { DOOR_HEADER, DOOR_ROUTES, doorPath, DoorRefusedError, isSafeSegment } from '../src/assistant/door.js';
 import { endInterruptedProposals, storedProposalOf } from '../src/assistant/proposals.js';
+import { documentColumns, normalizeDocument } from '../src/email/document.js';
 import { executeAssistantTurn } from '../src/jobs/assistant-turn.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
@@ -41,9 +42,9 @@ for (const [dialect, available] of legs) {
     const reply = (extra: Record<string, unknown>) => ({ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Here is what I would do.', ...extra }) });
 
     /** One whole turn through the job, with the model's replies scripted. */
-    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string, context: 'data' | 'general' = 'data') => {
+    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string, context: 'data' | 'general' | 'email' = 'data', documentId?: string) => {
       const repo = assistantSessionsRepo(s.meta);
-      const session = inSession === undefined ? await repo.create({ context, host: { connectionIds: [s.connectionId], ...(context === 'data' ? { pageId } : {}) }, createdBy: userId }) : (await repo.findSession(inSession))!;
+      const session = inSession === undefined ? await repo.create({ context, host: { connectionIds: [s.connectionId], ...(context === 'data' ? { pageId } : {}), ...(documentId === undefined ? {} : { documentId }) }, createdBy: userId }) : (await repo.findSession(inSession))!;
       const created = await repo.createTurn({ sessionId: session.id, askText: 'Move Ana to in house.' });
       await repo.setTurnStatus(created.id, 'queued', { jobId: 'job_test' });
       const scripted = makeScriptedClient(replies);
@@ -637,6 +638,50 @@ for (const [dialect, available] of legs) {
       await s.run(`DELETE FROM lodge_stays WHERE guest_name IN ('Eve', 'Fay')`);
     });
 
+    // ── a workspace document, through its own page's route ───────────────────
+
+    it('saves a draft over the open template and deletes one, as the person, by the pages` own routes, marked in the audit', async () => {
+      await switches({ create: true, change: true, delete: true });
+      const ownerCookie = await signIn(s.app, 'owner@lodge.dev');
+      const owner = { cookie: ownerCookie, id: (await usersRepo(s.meta).findByEmail('owner@lodge.dev'))!.id };
+      const templates = emailTemplatesRepo(s.meta);
+      const make = (name: string) =>
+        templates.create({ kind: 'template', key: `p64-${name.toLowerCase()}-${dialect}`, locale: 'en_US', name, category: 'lifecycle', starter: null, enabled: true, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Old subject', blocks: [] } as never)) });
+      const open = await make('Open');
+      const gone = await make('Goes');
+      const draft = { title: 'Welcome', meta: '', artefact: { kind: 'template', name: 'Renamed by the model', locale: 'en_US', document: { subject: 'New subject', blocks: [{ block: 'email.heading', data: { text: 'Hi' } }] } } };
+
+      const change = await turn(owner.id, [reply({ result: draft, propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } })], Date.now(), undefined, 'email', open.id);
+      expect(change.stored.status, JSON.stringify(change.stored.error)).toBe('done');
+      const shown = await check(owner, change);
+      expect(shown.proposal.actions![0], shown.body).toMatchObject({ preview: { kind: 'doc.change', what: 'email', id: open.id, name: 'Open' } });
+      const done = await apply(owner, change, shown.proposal.hash);
+      expect(done.proposal.outcome, done.body).toMatchObject({ done: [{ index: 0, id: open.id }], failed: [] });
+      // The draft's content; the document's own name and whether it is live are kept.
+      expect(await templates.findById(open.id)).toMatchObject({ subject: 'New subject', name: 'Open', enabled: true });
+      const [saved] = await auditRepo(s.meta).list({ actorId: owner.id, category: 'settings', limit: 1 });
+      expect((saved!.changes as { via?: unknown }).via).toEqual({ assistant: { sessionId: change.sessionId, turnId: change.stored.id } });
+
+      const remove = await turn(owner.id, [reply({ propose: { title: 'Tidy up', actions: [{ do: 'doc.delete', kind: 'email', id: gone.id }] } })], Date.now(), undefined, 'email');
+      const asked = await check(owner, remove);
+      expect(asked.proposal.actions![0], asked.body).toMatchObject({ preview: { kind: 'doc.delete', what: 'email', id: gone.id, name: 'Goes' } });
+      expect(await templates.findById(gone.id)).not.toBeNull();
+      const removed = await apply(owner, remove, asked.proposal.hash);
+      expect(removed.proposal.outcome, removed.body).toMatchObject({ done: [{ index: 0, id: gone.id }], failed: [] });
+      expect(await templates.findById(gone.id)).toBeNull();
+      const [deleted] = await auditRepo(s.meta).list({ actorId: owner.id, category: 'settings', limit: 1 });
+      expect(deleted).toMatchObject({ action: 'email-template.delete' });
+      expect((deleted!.changes as { via?: unknown }).via).toEqual({ assistant: { sessionId: remove.sessionId, turnId: remove.stored.id } });
+
+      // Deleted between the check and the confirm: the confirm shows that, and writes nothing.
+      const late = await turn(owner.id, [reply({ propose: { title: 'Tidy up', actions: [{ do: 'doc.delete', kind: 'email', id: open.id }] } })], Date.now(), undefined, 'email');
+      const lateShown = await check(owner, late);
+      await templates.removeById(open.id);
+      const missed = await apply(owner, late, lateShown.proposal.hash);
+      expect(missed).toMatchObject({ status: 409, reason: 'proposal-changed' });
+      expect(missed.proposal.actions![0]!.refused).toMatchObject({ code: 'NOT_FOUND' });
+    });
+
     // ── the door ─────────────────────────────────────────────────────────────
 
     it('refuses the door`s header from outside, whatever it carries', async () => {
@@ -653,7 +698,8 @@ for (const [dialect, available] of legs) {
       const never = ['roles', 'users', 'permissions', 'api-keys', 'settings', 'llm', 'assistant', 'connections', 'schema', 'apps', 'add-ons', 'project', 'designer', 'auth', 'setup', 'system'];
       for (const [key, route] of Object.entries(DOOR_ROUTES)) {
         expect(s.app.hasRoute({ method: route.method, url: route.url }), key).toBe(true);
-        expect(route.url.startsWith('/api/v1/data/:connectionId/:table'), key).toBe(true);
+        // A row of the person's data, or one of the three kinds of workspace document by its id. Nothing else.
+        expect(/^\/api\/v1\/(data\/:connectionId\/:table(\/:recordId)?(\/dry-run)?|(email-templates|report-documents|automations)\/:id)$/.test(route.url), `${key}: ${route.url}`).toBe(true);
         for (const prefix of never) expect(route.url.startsWith(`/api/v1/${prefix}`), `${key} under ${prefix}`).toBe(false);
       }
     });

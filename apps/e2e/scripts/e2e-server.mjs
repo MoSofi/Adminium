@@ -330,6 +330,15 @@ try {
     await settingsRepo(runtime.metaStore.meta).set(key, false, { updatedBy: null, at: Date.now() });
   }
 
+  // The assistant as on a workspace that was in use before its switches: it saves its drafts as
+  // new documents and does nothing else. A new install starts with all four off; the specs that
+  // try the other three switch them on themselves.
+  await settingsRepo(runtime.metaStore.meta).set(
+    'assistant.abilities',
+    { create: true, change: false, send: false, delete: false },
+    { updatedBy: null, at: Date.now() },
+  );
+
   // LOCAL SANDBOX ONLY: an AI provider from the environment, so a restart (which
   // reseeds) does not lose it. Unset in every test run — the specs configure
   // and clear the scripted provider themselves.

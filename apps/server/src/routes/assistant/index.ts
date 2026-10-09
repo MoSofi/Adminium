@@ -650,6 +650,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             proposal: stored,
             newest: tail.turns.at(-1)?.id === turn.id,
             now: app.rbac.now(),
+            artefact: asRecord(asRecord(turn.result)?.artefact),
           };
           const answer = asRecord(turn.answer) ?? {};
           if (request.body.action === 'check') {
@@ -667,6 +668,26 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             hash: request.body.hash,
             pick: request.body.pick,
             keyColumn: await keyColumnOf(toolDeps),
+            // The same save the draft card's button runs, by the page the draft was made on.
+            saveDraft: async () => {
+              const artefact = asRecord(asRecord(turn.result)?.artefact);
+              if (artefact === null) return null;
+              const principal = (request as unknown as { user?: { name?: string; email?: string } }).user;
+              const saved = await runAssistantAction({
+                meta,
+                action: 'save',
+                context: turn.context ?? session.context,
+                artefact,
+                sessionId: session.id,
+                turnId: turn.id,
+                actor: { kind: 'user', id: userId, label: principal?.name ?? principal?.email ?? userId },
+                can: (permission) => request.can(permission),
+                ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+                logger: request.log,
+                now: () => app.rbac.now(),
+              });
+              return saved.created === undefined ? null : { id: saved.created.id };
+            },
           });
           return { proposal: proposalView(applied.proposal), undo: applied.handOver.undo, once: applied.handOver.once };
         }
@@ -687,6 +708,15 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           }
         }
 
+        // Saving a draft as a document, and adding a language of one, are the assistant creating
+        // something: both stand under the workspace's Create switch. A test mail to oneself and a
+        // re-run of the sample write nothing and stay outside it.
+        if (request.body.action === 'save' || request.body.action === 'language.add') {
+          const abilities = await settingsRepo(meta).get('assistant.abilities');
+          if (!abilities.create) {
+            throw new ForbiddenError('Saving is switched off for the assistant in this workspace.', 'FORBIDDEN', { reason: 'assistant-switched-off', ability: 'create' });
+          }
+        }
         const principal = (request as unknown as { user?: { id?: string; name?: string; email?: string } }).user;
         // A RE-RUN reads the database, so it needs the same dependency bundle
         // a turn's tools read through — the acting person's grants, resolved

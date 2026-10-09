@@ -14,6 +14,7 @@
 import type { AssistantActionKind } from '@adminium/llm';
 import { settingsRepo } from '@adminium/meta';
 
+import { PERMISSIONS } from '../rbac/permissions.js';
 import { dataPageOf } from './data-page.js';
 import type { AssistantToolDeps } from './types.js';
 
@@ -47,7 +48,25 @@ export async function proposableKindsFor(deps: AssistantToolDeps): Promise<Propo
       ? none
       : { kinds, maxActions, where: 'Rows can be proposed on a table you have read with describe_schema, by its connectionId and table id. Whether this person may write it is checked before they are shown anything.' };
   }
-  if (deps.context !== 'data') return none;
+  if (deps.context !== 'data') {
+    // An editor page: its own document, under the same switches, for someone who may save there.
+    const manage = deps.context === 'automation' ? PERMISSIONS.automationsManage : PERMISSIONS.settingsManage;
+    if (!(await deps.can(manage))) return none;
+    const kinds: AssistantActionKind[] = [];
+    if (abilities.create) kinds.push('doc.save');
+    // Saving over, and deleting, exist for the three kinds of document that have a page of their own.
+    if (deps.context === 'email' || deps.context === 'report' || deps.context === 'automation') {
+      if (abilities.change && deps.host.documentId !== undefined && deps.host.documentId !== '') kinds.push('doc.change');
+      if (abilities.delete) kinds.push('doc.delete');
+    }
+    if (kinds.length === 0) return none;
+    const kind = deps.context === 'email' ? 'email' : deps.context === 'report' ? 'report' : 'rule';
+    return {
+      kinds,
+      maxActions,
+      ...(kinds.includes('doc.delete') ? { where: `On this page "doc.delete" takes kind ${JSON.stringify(kind)} and the id list_documents returned.` } : {}),
+    };
+  }
 
   const page = await dataPageOf(deps);
   if (page === null || page.connectionId === null || page.table === null) return none;

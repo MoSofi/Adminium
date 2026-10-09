@@ -54,7 +54,14 @@ export const DOOR_ROUTES = {
   'row.change': { method: 'PATCH', url: `${API}/data/:connectionId/:table/:recordId`, query: '' },
   'row.delete': { method: 'DELETE', url: `${API}/data/:connectionId/:table/:recordId`, query: '' },
   'row.delete.confirmed': { method: 'DELETE', url: `${API}/data/:connectionId/:table/:recordId`, query: 'confirm=true' },
-} as const satisfies Record<string, { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; url: string; query: string }>;
+  // A workspace document: saved over, or deleted, by its own page's route.
+  'doc.change.email': { method: 'PUT', url: `${API}/email-templates/:id`, query: '' },
+  'doc.change.report': { method: 'PUT', url: `${API}/report-documents/:id`, query: '' },
+  'doc.change.rule': { method: 'PATCH', url: `${API}/automations/:id`, query: '' },
+  'doc.delete.email': { method: 'DELETE', url: `${API}/email-templates/:id`, query: '' },
+  'doc.delete.report': { method: 'DELETE', url: `${API}/report-documents/:id`, query: '' },
+  'doc.delete.rule': { method: 'DELETE', url: `${API}/automations/:id`, query: '' },
+} as const satisfies Record<string, { method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; url: string; query: string }>;
 export type DoorRouteKey = keyof typeof DOOR_ROUTES;
 
 /** What a ticket says a request is for. */
@@ -95,7 +102,7 @@ export function doorPath(route: DoorRouteKey, params: Record<string, string>): s
   const path = listed.url.replace(/:([A-Za-z]+)/g, (_marker, name: string) => {
     const value = params[name];
     if (value === undefined || !isSafeSegment(value)) {
-      throw new DoorRefusedError('UNSAFE_KEY', `That ${name === 'recordId' ? 'record id' : name} cannot be used in an address.`);
+      throw new DoorRefusedError('UNSAFE_KEY', `That ${name === 'recordId' || name === 'id' ? 'id' : name} cannot be used in an address.`);
     }
     return encodeURIComponent(value);
   });

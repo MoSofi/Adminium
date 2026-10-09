@@ -26,11 +26,13 @@
 import { createHash } from 'node:crypto';
 
 import { assistantProposalSchema, type AssistantAction } from '@adminium/llm';
-import { settingsRepo, type MetaDb } from '@adminium/meta';
+import { automationsRepo, emailTemplatesRepo, reportDocumentsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
+import { isBuiltinEmailKey } from '../email/document.js';
 import { ConflictError, ValidationFailedError } from '../errors.js';
+import { PERMISSIONS } from '../rbac/permissions.js';
 import { dataPageOf } from './data-page.js';
 import { DoorRefusedError, type Door, type DoorReply, type DoorRouteKey } from './door.js';
 import { viewOrError } from './tools/schema.js';
@@ -56,7 +58,15 @@ export interface ProposalRefusal {
 export type ProposalPreview =
   | { kind: 'create'; after: Record<string, unknown> }
   | { kind: 'change'; before: Record<string, unknown>; after: Record<string, unknown> }
-  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[] };
+  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[] }
+  /** A draft saved as a new document of the page it was made on. */
+  | { kind: 'doc.save'; what: DocKind | 'invoice' | 'invoice-template'; name: string }
+  /** A draft saved over the document open on the page. A rule that is on is saved switched off. */
+  | { kind: 'doc.change'; what: DocKind; id: string; name: string; switchesOff?: boolean }
+  | { kind: 'doc.delete'; what: DocKind; id: string; name: string };
+
+/** The three kinds of workspace document the assistant may change or delete. */
+export type DocKind = 'email' | 'report' | 'rule';
 
 export type CheckedAction = AssistantAction & {
   /** `row.change` only: what the changed columns held when it was checked. Sent with the write, so a row changed since is refused. */
@@ -207,9 +217,97 @@ export interface CheckProposalInput {
   /** Whether this turn is the conversation's newest: a proposal is let go once the person asks anything else. */
   newest: boolean;
   now: number;
+  /** The draft this same turn made, when it made one: what `doc.save` and `doc.change` save. */
+  artefact?: Record<string, unknown> | null | undefined;
 }
 
-const ABILITY_OF = { 'row.create': 'create', 'row.change': 'change', 'row.delete': 'delete' } as const;
+const ABILITY_OF = {
+  'row.create': 'create',
+  'row.change': 'change',
+  'row.delete': 'delete',
+  'doc.save': 'create',
+  'doc.change': 'change',
+  'doc.delete': 'delete',
+} as const;
+
+const SWITCHED_OFF: ProposalRefusal = { code: 'SWITCHED_OFF', message: 'This is switched off for the assistant in this workspace.' };
+const NOT_OFFERED: ProposalRefusal = { code: 'NOT_OFFERED', message: 'That cannot be done from here.' };
+
+/** The kind of document each editor page holds, for the two actions that name one. */
+const DOC_KIND_OF: Partial<Record<AssistantToolDeps['context'], DocKind>> = { email: 'email', report: 'report', automation: 'rule' };
+
+/** One workspace document as the checks need it: that it is there, what it is called, and what a save over it must carry. */
+async function documentOf(meta: MetaDb, kind: DocKind, id: string): Promise<{ id: string; name: string; builtIn: boolean; enabled: boolean; keep: Record<string, unknown> } | null> {
+  if (kind === 'email') {
+    const row = await emailTemplatesRepo(meta).findById(id);
+    return row === null ? null : { id: row.id, name: row.name, builtIn: isBuiltinEmailKey(row.key), enabled: row.enabled, keep: { name: row.name, category: row.category, enabled: row.enabled } };
+  }
+  if (kind === 'report') {
+    const row = await reportDocumentsRepo(meta).findById(id);
+    return row === null ? null : { id: row.id, name: row.name, builtIn: false, enabled: false, keep: { name: row.name, status: row.status } };
+  }
+  const row = await automationsRepo(meta).findById(id);
+  return row === null ? null : { id: row.id, name: row.name, builtIn: false, enabled: row.enabled, keep: {} };
+}
+
+/**
+ * What a save over a document sends: the draft, and of the document itself
+ * only what the draft does not hold (its name, its category, whether it is
+ * live). A rule is ALWAYS sent switched off: a rule the assistant wrote runs
+ * only after a person has looked at it and switched it on.
+ */
+function changeBody(kind: DocKind, keep: Record<string, unknown>, artefact: Record<string, unknown>): Record<string, unknown> {
+  if (kind === 'email') return { ...keep, document: artefact.document };
+  if (kind === 'report') return { ...keep, body: artefact.body };
+  return { trigger: artefact.trigger, graph: artefact.graph, enabled: false };
+}
+
+interface CheckDocInput {
+  action: CheckedAction;
+  abilities: { create: boolean; change: boolean; send: boolean; delete: boolean };
+  deps: AssistantToolDeps;
+  artefact: Record<string, unknown> | null;
+}
+
+/**
+ * Check one action on a workspace document. There is no trial run for these:
+ * what is checked is that the switch is on, that the person may save on this
+ * page, and that the document named is there and is one a draft may replace.
+ * The page's own route judges the rest when it is confirmed.
+ */
+async function checkDoc(input: CheckDocInput): Promise<CheckedAction> {
+  const { action, abilities, deps, artefact } = input;
+  if (action.do !== 'doc.save' && action.do !== 'doc.change' && action.do !== 'doc.delete') return { ...action, refused: NOT_OFFERED };
+  if (!abilities[ABILITY_OF[action.do]]) return { ...action, refused: SWITCHED_OFF };
+  const manage = deps.context === 'automation' ? PERMISSIONS.automationsManage : PERMISSIONS.settingsManage;
+  if (!(await deps.can(manage))) return { ...action, refused: { code: 'FORBIDDEN', message: 'Your role cannot save here.' } };
+  const kind = DOC_KIND_OF[deps.context];
+
+  if (action.do === 'doc.save') {
+    if (artefact === null) return { ...action, refused: { code: 'NO_DRAFT', message: 'There is no draft to save.' } };
+    if (deps.context === 'data' || deps.context === 'general') return { ...action, refused: NOT_OFFERED };
+    const what = kind ?? (deps.context === 'invoices' ? 'invoice' : 'invoice-template');
+    return { ...action, preview: { kind: 'doc.save', what, name: typeof artefact.name === 'string' && artefact.name !== '' ? artefact.name.slice(0, 120) : '' } };
+  }
+  if (kind === undefined) return { ...action, refused: NOT_OFFERED };
+
+  if (action.do === 'doc.change') {
+    if (artefact === null) return { ...action, refused: { code: 'NO_DRAFT', message: 'There is no draft to save.' } };
+    // Only the document that is open on the page: the id is the page's, never the model's.
+    const open = deps.host.documentId;
+    if (open === undefined || open === '') return { ...action, refused: { code: 'NO_OPEN_DOCUMENT', message: 'No document is open on this page to save over.' } };
+    const found = await documentOf(deps.meta, kind, open);
+    if (found === null) return { ...action, refused: { code: 'NOT_FOUND', message: 'That document is no longer there.' } };
+    if (found.builtIn) return { ...action, refused: { code: 'BUILT_IN', message: 'A built-in mail is changed on its own screen.' } };
+    return { ...action, preview: { kind: 'doc.change', what: kind, id: found.id, name: found.name, ...(kind === 'rule' && found.enabled ? { switchesOff: true } : {}) } };
+  }
+
+  if (action.kind !== kind) return { ...action, refused: NOT_OFFERED };
+  const found = await documentOf(deps.meta, kind, action.id);
+  if (found === null) return { ...action, refused: { code: 'NOT_FOUND', message: 'That document is not there.' } };
+  // From here the id is the stored row's own.
+  return { ...action, id: found.id, preview: { kind: 'doc.delete', what: kind, id: found.id, name: found.name } };
+}
 
 /** Where a row action lands: ids the SERVER resolved, or why it lands nowhere. */
 type Placed = { ok: true; connectionId: string; table: string } | { ok: false; refusal: ProposalRefusal };
@@ -262,6 +360,8 @@ interface CheckOneInput {
   abilities: { create: boolean; change: boolean; send: boolean; delete: boolean };
   place: Place;
   through: Through;
+  deps: AssistantToolDeps;
+  artefact?: Record<string, unknown> | null | undefined;
 }
 
 /**
@@ -271,12 +371,11 @@ interface CheckOneInput {
  */
 async function checkOne(input: CheckOneInput): Promise<{ checked: CheckedAction; stop?: ProposalRefusal }> {
   const { action, abilities, through } = input;
-  if (action.do !== 'row.create' && action.do !== 'row.change' && action.do !== 'row.delete') {
-    return { checked: { ...action, refused: { code: 'NOT_OFFERED', message: 'That cannot be done from here.' } } };
+  if (action.do === 'doc.save' || action.do === 'doc.change' || action.do === 'doc.delete') {
+    return { checked: await checkDoc({ action, abilities, deps: input.deps, artefact: input.artefact ?? null }) };
   }
-  if (!abilities[ABILITY_OF[action.do]]) {
-    return { checked: { ...action, refused: { code: 'SWITCHED_OFF', message: 'This is switched off for the assistant in this workspace.' } } };
-  }
+  if (action.do !== 'row.create' && action.do !== 'row.change' && action.do !== 'row.delete') return { checked: { ...action, refused: NOT_OFFERED } };
+  if (!abilities[ABILITY_OF[action.do]]) return { checked: { ...action, refused: SWITCHED_OFF } };
   // Placed by the server: from here on nothing of the model's names a table.
   const at = await input.place(action);
   if (!at.ok) return { checked: { ...action, refused: at.refusal } };
@@ -365,7 +464,7 @@ export async function checkProposal(input: CheckProposalInput): Promise<{ propos
       checked.push({ ...action, refused: stopped });
       continue;
     }
-    const one = await checkOne({ action, abilities, place, through });
+    const one = await checkOne({ action, abilities, place, through, deps: input.deps, artefact: input.artefact });
     checked.push(one.checked);
     if (one.stop !== undefined) stopped = one.stop;
   }
@@ -408,6 +507,8 @@ export interface ApplyProposalInput extends CheckProposalInput {
   pick?: readonly number[] | undefined;
   /** The key column of the page's table, to name a new row; absent, a new row is not named. */
   keyColumn?: string | undefined;
+  /** Saves this turn's draft as a new document, by the page's own code, once; answers what it became. */
+  saveDraft?: (() => Promise<{ id: string } | null>) | undefined;
 }
 
 /** Thrown with the proposal as it now stands: the browser draws that instead of what it had. */
@@ -485,7 +586,7 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
         if (!(error instanceof DoorRefusedError)) throw error;
       }
     }
-    const again = await checkOne({ action: asked as CheckedAction, abilities, place, through });
+    const again = await checkOne({ action: asked as CheckedAction, abilities, place, through, deps: input.deps, artefact: input.artefact });
     if (JSON.stringify(sortKeys(again.checked)) === JSON.stringify(sortKeys(shown))) continue;
     actions[index] = again.checked;
     differs = true;
@@ -512,21 +613,44 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
     }
     const action = proposal.actions[index]!;
     try {
-      const where = { connectionId: (action as { connectionId: string }).connectionId, table: (action as { table: string }).table };
-      const reply =
-        action.do === 'row.create'
-          ? await through('row.create', where, { values: action.values })
-          : action.do === 'row.change'
-            ? await through('row.change', { ...where, recordId: action.id }, { values: action.values, ...(action.seen === undefined || Object.keys(action.seen).length === 0 ? {} : { seen: action.seen }) })
-            : action.do === 'row.delete'
-              ? // "Yes, with what refers to it" is said only for a row whose references the person was shown.
-                await through(action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete', { ...where, recordId: action.id })
-              : null;
+      if (action.do === 'doc.save') {
+        // The page's own save, as the card's button runs it; it remembers the turn, so it saves once.
+        const saved = input.saveDraft === undefined ? null : await input.saveDraft();
+        if (saved === null) outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
+        else outcome.done.push({ index, id: saved.id });
+        await keep(running());
+        continue;
+      }
+      let reply: DoorReply | null = null;
+      if (action.do === 'doc.change' || action.do === 'doc.delete') {
+        const shown = action.preview;
+        if (shown?.kind === 'doc.delete') reply = await through(`doc.delete.${shown.what}`, { id: shown.id });
+        if (shown?.kind === 'doc.change' && input.artefact !== undefined && input.artefact !== null) {
+          const found = await documentOf(input.meta, shown.what, shown.id);
+          if (found !== null) reply = await through(`doc.change.${shown.what}`, { id: found.id }, changeBody(shown.what, found.keep, input.artefact));
+        }
+        if (reply !== null && reply.status >= 200 && reply.status < 300) {
+          outcome.done.push({ index, id: shown?.kind === 'doc.change' || shown?.kind === 'doc.delete' ? shown.id : null });
+          await keep(running());
+          continue;
+        }
+      } else {
+        const where = { connectionId: (action as { connectionId: string }).connectionId, table: (action as { table: string }).table };
+        reply =
+          action.do === 'row.create'
+            ? await through('row.create', where, { values: action.values })
+            : action.do === 'row.change'
+              ? await through('row.change', { ...where, recordId: action.id }, { values: action.values, ...(action.seen === undefined || Object.keys(action.seen).length === 0 ? {} : { seen: action.seen }) })
+              : action.do === 'row.delete'
+                ? // "Yes, with what refers to it" is said only for a row whose references the person was shown.
+                  await through(action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete', { ...where, recordId: action.id })
+                : null;
+      }
       if (reply === null) {
         outcome.failed.push({ index, code: 'NOT_OFFERED', message: 'That cannot be done from here.' });
       } else if (reply.status === 200 || reply.status === 201) {
         const body = reply.body as { data?: Record<string, unknown> | null; undoToken?: unknown; once?: unknown };
-        const key = action.do === 'row.change' || action.do === 'row.delete' ? action.id : input.keyColumn === undefined ? undefined : body.data?.[input.keyColumn];
+        const key = action.do === 'row.change' || action.do === 'row.delete' ? action.id : action.do !== 'row.create' || input.keyColumn === undefined ? undefined : body.data?.[input.keyColumn];
         outcome.done.push({ index, id: key === undefined || key === null ? null : String(key) });
         if (typeof body.undoToken === 'string' && body.undoToken !== '') handOver.undo.push({ index, token: body.undoToken });
         if (Array.isArray(body.once)) handOver.once.push(...(body.once as unknown[]));
@@ -537,8 +661,10 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
         if (reply.status === 429) stopped = true;
       }
     } catch (error) {
-      if (!(error instanceof DoorRefusedError)) throw error;
-      outcome.failed.push({ index, code: error.code, message: error.message });
+      // Whatever one action throws is that action's failure: the proposal is taken, and a
+      // run that stopped here would leave it "working" until the next start.
+      const code = typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : 'FAILED';
+      outcome.failed.push({ index, code, message: error instanceof Error ? error.message : 'This could not be done.' });
     }
     await keep(running());
   }
