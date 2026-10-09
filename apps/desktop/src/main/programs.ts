@@ -71,7 +71,17 @@ export function shimForSh(binary: string, entry: string | null, npm: Pick<Deskto
       'export NPM_CONFIG_UPDATE_NOTIFIER=false',
     );
   }
-  lines.push(`exec ${shQuote(binary)}${entry === null ? '' : ` ${shQuote(entry)}`} "$@"`, '');
+  const program = shQuote(binary);
+  const first = entry === null ? '' : ` ${shQuote(entry)}`;
+  lines.push(
+    '# A build of a copied app is kept inside its own folder by a file loaded before anything else. It comes as an',
+    '# argument here: a signed Mac app does not read NODE_OPTIONS when a shell, and not the app, started it.',
+    'if [ -n "${ADMINIUM_BUILD_GUARD:-}" ]; then',
+    `  exec ${program} --require "$ADMINIUM_BUILD_GUARD"${first} "$@"`,
+    'fi',
+    `exec ${program}${first} "$@"`,
+    '',
+  );
   return lines.join('\n');
 }
 
@@ -91,7 +101,17 @@ export function shimForCmd(binary: string, entry: string | null, npm: Pick<Deskt
       'set NPM_CONFIG_UPDATE_NOTIFIER=false',
     );
   }
-  lines.push(`${q(binary)}${entry === null ? '' : ` ${q(entry)}`} %*`, 'exit /b %ERRORLEVEL%', '');
+  const first = entry === null ? '' : ` ${q(entry)}`;
+  lines.push(
+    'rem The guard of a copied app’s build, as an argument (see the sh stand-in for why).',
+    'if defined ADMINIUM_BUILD_GUARD (',
+    `  ${q(binary)} --require "%ADMINIUM_BUILD_GUARD%"${first} %*`,
+    ') else (',
+    `  ${q(binary)}${first} %*`,
+    ')',
+    'exit /b %ERRORLEVEL%',
+    '',
+  );
   return lines.join('\r\n');
 }
 

@@ -277,6 +277,11 @@ if (root) {
     }
   }
   syncBuiltinESMExports();
+  // For every Node this one starts: the same guard, by the road that reaches them. Inside the desktop app this file
+  // may have been loaded as an argument (a signed Mac app ignores NODE_OPTIONS when a shell started it), and a child
+  // this process forks is started by the app itself, which the app does listen to.
+  const again = '--require ' + JSON.stringify(__filename);
+  if (!String(process.env.NODE_OPTIONS || '').includes(__filename)) process.env.NODE_OPTIONS = ((process.env.NODE_OPTIONS || '') + ' ' + again).trim();
 }
 `;
 
@@ -286,7 +291,10 @@ export function guardEnvironment(root: string, dir: string): Record<string, stri
   mkdirSync(dirname(file), { recursive: true });
   if (!existsSync(file) || readFileSync(file, 'utf8') !== BUILD_GUARD_SOURCE) writeFileSync(file, BUILD_GUARD_SOURCE);
   // NODE_OPTIONS reads a quoted value, with a backslash before a quote or a backslash.
-  return { NODE_OPTIONS: `--require "${file.replace(/[\\"]/g, '\\$&')}"`, ADMINIUM_BUILD_ROOT: dir };
+  // ADMINIUM_BUILD_GUARD names the same file plainly, for the desktop app's stand-ins: a signed Mac app does not
+  // read NODE_OPTIONS when anything but the app itself started it, and a build line is started by a shell, so
+  // there `node`, `npm` and `npx` hand the guard to the app's program as an argument instead.
+  return { NODE_OPTIONS: `--require "${file.replace(/[\\"]/g, '\\$&')}"`, ADMINIUM_BUILD_ROOT: dir, ADMINIUM_BUILD_GUARD: file };
 }
 
 /** One line, run by the machine's shell in `cwd`. Killed after ten minutes, or when the signal says stop. */

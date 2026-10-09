@@ -53,7 +53,11 @@ describe('provideDesktopPrograms', () => {
   it('on Windows they are .cmd files', () => {
     const value = provideDesktopPrograms({ binary: 'C:\\Users\\Ava\\AppData\\Local\\Programs\\Adminium\\Adminium.exe', npmDir: 'C:\\Users\\Ava\\AppData\\Local\\Programs\\Adminium\\resources\\npm', userDataDir: userData, git: null, platform: 'win32' });
     expect(readdirSync(value.shims).sort()).toEqual(['node.cmd', 'npm.cmd', 'npx.cmd']);
-    expect(readFileSync(join(value.shims, 'npm.cmd'), 'utf8')).toContain('\r\n"C:\\Users\\Ava\\AppData\\Local\\Programs\\Adminium\\Adminium.exe" "C:\\Users\\Ava\\AppData\\Local\\Programs\\Adminium\\resources\\npm\\bin\\npm-cli.js" %*\r\n');
+    const npm = readFileSync(join(value.shims, 'npm.cmd'), 'utf8');
+    const line = '"C:\\Users\\Ava\\AppData\\Local\\Programs\\Adminium\\Adminium.exe"';
+    const entry = '"C:\\Users\\Ava\\AppData\\Local\\Programs\\Adminium\\resources\\npm\\bin\\npm-cli.js"';
+    expect(npm).toContain(`) else (\r\n  ${line} ${entry} %*\r\n)`);
+    expect(npm).toContain(`if defined ADMINIUM_BUILD_GUARD (\r\n  ${line} --require "%ADMINIUM_BUILD_GUARD%" ${entry} %*\r\n`);
   });
 
   it.skipIf(process.platform === 'win32')('a stand-in really starts the program it names as Node, from a folder with a quote and a space in its name', () => {
@@ -61,6 +65,25 @@ describe('provideDesktopPrograms', () => {
     const value = provideDesktopPrograms({ binary: process.execPath, npmDir: join(userData, 'no npm here'), userDataDir: userData, git: null, platform: process.platform });
     const out = execFileSync(join(value.shims, 'node'), ['-e', 'process.stdout.write(JSON.stringify([process.env.ELECTRON_RUN_AS_NODE, process.argv.slice(1)]))', 'a b', "it's"], { encoding: 'utf8' });
     expect(JSON.parse(out)).toEqual(['1', ['a b', "it's"]]);
+  });
+});
+
+describe('the guard of a copied app’s build', () => {
+  it.skipIf(process.platform === 'win32')('is handed to the program as an argument when its name is set, before anything else runs', () => {
+    const value = provideDesktopPrograms({ binary: process.execPath, npmDir: join(userData, 'no npm here'), userDataDir: userData, git: null, platform: process.platform });
+    const guard = join(userData, "guard's file.cjs");
+    writeFileSync(guard, 'globalThis.guarded = true;\n');
+    const run = (env: Record<string, string>): string =>
+      execFileSync(join(value.shims, 'node'), ['-e', 'process.stdout.write(String(globalThis.guarded === true))'], { encoding: 'utf8', env: { PATH: process.env.PATH ?? '', ...env } });
+    expect(run({ ADMINIUM_BUILD_GUARD: guard })).toBe('true');
+    // No build of a copied app: nothing is loaded first.
+    expect(run({})).toBe('false');
+    expect(run({ ADMINIUM_BUILD_GUARD: '' })).toBe('false');
+  });
+
+  it('comes before npm’s own entry, so npm and everything it starts is behind it', () => {
+    const text = shimForSh('/app/Adminium', '/res/npm/bin/npm-cli.js', NPM);
+    expect(text).toContain(`exec '/app/Adminium' --require "$ADMINIUM_BUILD_GUARD" '/res/npm/bin/npm-cli.js' "$@"`);
   });
 });
 
@@ -75,7 +98,7 @@ describe('the stand-ins’ text', () => {
 
   it('cmd: doubles a percent sign, and ends with the program’s own exit code', () => {
     const text = shimForCmd('C:\\100% mine\\Adminium.exe', null, NPM);
-    expect(text).toContain('"C:\\100%% mine\\Adminium.exe" %*\r\nexit /b %ERRORLEVEL%\r\n');
+    expect(text).toContain('  "C:\\100%% mine\\Adminium.exe" %*\r\n)\r\nexit /b %ERRORLEVEL%\r\n');
     expect(shimForCmd('C:\\a.exe', 'C:\\npm\\bin\\npx-cli.js', NPM)).toContain('set "NPM_CONFIG_CACHE=/u/cache"');
   });
 });
