@@ -145,10 +145,10 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect !== 'mysql') {
         const before = await allColumnTypes(m);
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use']);
         // Nothing of 0047's here; 0048 adds a key's peak, two columns of its own, and 0049 a table of its own.
         expect(
-          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash):|^adminium_assistant_turns\.(context|host|draft|answer):|^adminium_assistant_sessions\.kind:/.test(column)),
+          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash):|^adminium_assistant_turns\.(context|host|draft|answer):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\./.test(column)),
         ).toEqual(before);
       } else {
         const before = await textColumns(m);
@@ -167,7 +167,7 @@ for (const dialect of TEST_DIALECTS) {
           publicEndpointsRepo(m).create({ connectionId, ref: 'refused', origin: 'custom', definition: BIG }, T0),
         ).rejects.toThrow(/Data too long/);
 
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use']);
         const after = await textColumns(m);
         expect(after).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
       }

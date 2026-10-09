@@ -1412,6 +1412,16 @@ export interface AdminiumAssistantSessionsTable {
 }
 
 /** One exchange inside a session: what was asked, what ran, what came back. */
+/** What a person has used of the assistant on one UTC day (0053). Added to, never rewritten. */
+export interface AdminiumAssistantUseTable {
+  userId: Id;
+  /** The UTC day, `YYYY-MM-DD`. */
+  day: string;
+  tokens: ColumnType<number, number | undefined, number>;
+  turns: ColumnType<number, number | undefined, number>;
+  voiceSeconds: ColumnType<number, number | undefined, number>;
+}
+
 export interface AdminiumAssistantTurnsTable {
   id: Id;
   sessionId: Id;
@@ -1508,6 +1518,7 @@ export interface MetaDB {
   adminium_option_lists: AdminiumOptionListsTable;
   adminium_assistant_sessions: AdminiumAssistantSessionsTable;
   adminium_assistant_turns: AdminiumAssistantTurnsTable;
+  adminium_assistant_use: AdminiumAssistantUseTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1573,4 +1584,5 @@ export const META_TABLE_NAMES = [
   'adminium_option_lists',
   'adminium_assistant_sessions',
   'adminium_assistant_turns',
+  'adminium_assistant_use',
 ] as const satisfies readonly (keyof MetaDB)[];
