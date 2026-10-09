@@ -190,6 +190,13 @@ function Line({ line }: { line: ProposalLine }) {
 
 const STRUCK = 'text-fg-subtle line-through decoration-fg-subtle/70';
 
+/** From what it was to what it will be: drawn in the reading direction, whichever that is. */
+const ARROW = (
+  <span className="inline-block text-fg-subtle rtl:-scale-x-100" aria-hidden="true">
+    →
+  </span>
+);
+
 /**
  * A row that will not be done: refused, or unticked. Drawn quieter by colour
  * and ground, never by opacity: a faded row's text would fall under the
@@ -319,9 +326,7 @@ export function ProposalCard(props: ProposalCardProps) {
                     {row.inline === undefined ? null : (
                       <span className="ms-auto flex shrink-0 items-center gap-1.5 font-mono text-[11.5px]">
                         <span className={STRUCK}>{row.inline.before}</span>
-                        <span className="text-fg-subtle" aria-hidden="true">
-                          {arrow}
-                        </span>
+                        {ARROW}
                         <span className={cn('font-semibold', quiet(row) && 'text-fg-muted')}>{row.inline.after}</span>
                       </span>
                     )}
@@ -333,9 +338,7 @@ export function ProposalCard(props: ProposalCardProps) {
                         {change.before === null ? null : (
                           <>
                             <span className={STRUCK}>{change.before}</span>
-                            <span className="text-fg-subtle" aria-hidden="true">
-                              {arrow}
-                            </span>
+                            {ARROW}
                           </>
                         )}
                         <span className="break-all font-semibold text-fg">{change.after}</span>

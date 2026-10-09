@@ -85,7 +85,7 @@ export function forgetProposals(): void {
 /** How far along a proposal is: a copy further along is the newer one. */
 const rank = (proposal: AssistantProposal): number => (proposal.state === 'unchecked' ? 0 : proposal.state === 'open' ? 1 : 2);
 
-export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest, atHome, homeTitle, onOpenHome, onAsk, blocked, onChanged, onOpenTemplate, rtl = false, now = Date.now }: LiveProposalProps) {
+export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest, atHome, homeTitle, onOpenHome, onAsk, blocked, onChanged, onOpenTemplate, rtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl', now = Date.now }: LiveProposalProps) {
   const memory = remembered.get(turnId);
   // What the server last said of it: the turn's own copy, until a check or a confirm answers a newer one.
   const [fresh, setFresh] = useState<AssistantProposal | null>(memory?.fresh ?? null);
