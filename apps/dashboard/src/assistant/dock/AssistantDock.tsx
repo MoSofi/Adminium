@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The assistant's panel, docked at the end edge of the dashboard (Milo Panel
- * comp; measures in workplan/64-specs/09-panel-comp-map.md).
+ * The assistant's panel, docked at the end edge of the dashboard.
  *
  * ONE CONVERSATION, EVERY PAGE. The panel stays where it is while the person
  * walks from page to page; each question is asked on the page they are on

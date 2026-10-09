@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The panel as it is drawn: header, bars, thread, composer (Milo Panel comp;
- * measures in workplan/64-specs/09-panel-comp-map.md).
+ * The panel as it is drawn: header, bars, thread, composer.
  *
  * A VIEW AND NOTHING ELSE. What it shows is handed to it; it asks no server
  * and reads no page. `AssistantDock` is the half that knows the conversation
