@@ -215,6 +215,30 @@ export async function gather(repo) {
   };
 }
 
+// The header of a SKILL.md is YAML, and `npx skills add` skips a skill whose header does not parse
+// (it reports "Found 4 skills" and moves on). A plain value may not hold ": " or " #", nor open
+// with a character YAML reads as syntax; this repo has no YAML parser at the root, so say it here.
+export function headerProblems(label, text) {
+  const header = /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1];
+  if (header === undefined) return [`${label}: no header between two "---" lines`];
+  const problems = [];
+  const keys = new Set();
+  for (const line of header.split('\n')) {
+    const pair = /^([a-z-]+): (.+)$/.exec(line);
+    if (pair === null) {
+      problems.push(`${label}: the header line "${line.slice(0, 40)}" is not "key: value" on one line`);
+      continue;
+    }
+    const [, key, value] = pair;
+    keys.add(key);
+    if (/^(["']).*\1$/.test(value)) continue;
+    const bad = /: | #|:$/.exec(value)?.[0] ?? /^[-?:,[\]{}#&*!|>'"%@`]/.exec(value)?.[0];
+    if (bad !== undefined) problems.push(`${label}: the header's ${key} holds "${bad}", which is not valid in a plain YAML value — reword it (an installer skips the whole skill)`);
+  }
+  for (const key of ['name', 'description']) if (!keys.has(key)) problems.push(`${label}: the header has no ${key}`);
+  return problems;
+}
+
 export async function run(repo) {
   const skillsDir = join(repo, 'skills');
   const facts = await gather(repo);
@@ -226,6 +250,7 @@ export async function run(repo) {
     const dir = join(skillsDir, skill);
     const referenceFiles = walk(join(dir, 'references'), (name) => name.endsWith('.md')).map((file) => relative(dir, file).split(sep).join('/'));
     allReferences.push(...referenceFiles.map((path) => join(dir, path)));
+    if (existsSync(join(dir, 'SKILL.md'))) problems.push(...headerProblems(`skills/${skill}/SKILL.md`, read(join(dir, 'SKILL.md'))));
     for (const name of HAND_WRITTEN) {
       const file = join(dir, name);
       if (existsSync(file)) problems.push(...problemsOf(`skills/${skill}/${name}`, read(file), facts, referenceFiles));
@@ -282,7 +307,22 @@ function selfTest() {
     const found = problemsOf('x.md', text, facts, []);
     if (!found.some((problem) => problem.includes(expected))) fail(`${what} was not caught (${found.join('; ') || 'no problem reported'})`);
   }
-  console.log(`self-test ok — ${String(cases.length)} kinds of stale claim each fail the check`);
+
+  const header = (description) => `---\nname: x\ndescription: ${description}\n---\n\n# X\n`;
+  const fine = headerProblems('x.md', header('Build screens — the staff side. Use `x` first, then y.'));
+  if (fine.length > 0) fail(`a correct header was refused: ${fine.join('; ')}`);
+  const headers = [
+    ['a colon and a space in a description', header('Not for pages: those are ours.'), 'holds ": "'],
+    ['a comment mark in a description', header('Use it #always.'), 'holds " #"'],
+    ['a description that opens with syntax', header('`x` builds screens.'), 'holds "`"'],
+    ['a header with no description', '---\nname: x\n---\n', 'has no description'],
+    ['a file with no header', '# X\n', 'no header'],
+  ];
+  for (const [what, text, expected] of headers) {
+    const found = headerProblems('x.md', text);
+    if (!found.some((problem) => problem.includes(expected))) fail(`${what} was not caught (${found.join('; ') || 'no problem reported'})`);
+  }
+  console.log(`self-test ok — ${String(cases.length + headers.length)} kinds of stale claim each fail the check`);
 }
 
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

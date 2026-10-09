@@ -1,6 +1,6 @@
 ---
 name: adminium-design
-description: Design the screens of an Adminium app so they look made for the business — the public customer side and the staff side. Covers the first screen, hierarchy, type, spacing, colour, pictures, icons, the logo, real words and the access basics, and carries a set of ready styles (`styles/`). Use whenever a screen people see is written or restyled. Not for dashboard pages: those are Adminium's own.
+description: Design the screens of an Adminium app so they look made for the business — the public customer side and the staff side. Covers the first screen, hierarchy, type, spacing, colour, pictures, icons, the logo, real words and the access basics, and carries a set of ready styles (`styles/`). Use whenever a screen people see is written or restyled. Not for dashboard pages, which are Adminium's own.
 license: AGPL-3.0-only
 ---
 
