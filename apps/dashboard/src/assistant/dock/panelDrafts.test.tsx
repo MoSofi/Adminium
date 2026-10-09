@@ -967,10 +967,17 @@ describe('an answer on a data page', () => {
   });
 
   it('says when nothing was read, and asks again to have it read', async () => {
-    const { user } = await ask(() => answered({ sources: [], reads: [] }));
+    // Answered straight off, with no look at anything.
+    const { user } = await ask(() => answered({ sources: [], reads: [] }, { steps: [] }));
     expect(await screen.findByText('Nothing was read for this answer.')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Read again' }));
     await waitFor(() => expect(asked().at(-1)).toBe('Who are our best customers? Read the data to answer.'));
+  });
+
+  it('does not say "nothing was read" of an answer that looked something up, though no table was read', async () => {
+    // Where a screen is, which add-ons there are, a table it turned out not to have access to.
+    await ask(() => answered({ sources: [], reads: [] }, { steps: [{ id: 'c1', state: 'done', icon: 'compass', label: 'Looked for the place', detail: '', tables: [] }] }));
+    expect(screen.queryByText('Nothing was read for this answer.')).toBeNull();
   });
 
   it('draws an add-on the answer points at, with the way in only for who may install', async () => {

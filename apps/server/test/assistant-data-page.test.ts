@@ -81,7 +81,7 @@ for (const [dialect, available] of legs) {
       expect(setup.system).not.toContain('== The document format ==');
       expect(setup.system).not.toContain('"result"');
       expect(setup.system).toContain('This page has no document');
-      expect(setup.specs.map((spec) => spec.name)).toEqual(['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons']);
+      expect(setup.specs.map((spec) => spec.name)).toEqual(['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons', 'where_is']);
     });
 
     it('holds "the rows shown" to the grid`s own filter, which a call can narrow and never widen', async () => {

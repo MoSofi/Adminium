@@ -39,7 +39,7 @@ function viewLines(page: DataPage): string[] {
 export const dataContext: AssistantContextAdapter = {
   key: 'data',
   pageLabel: 'Data',
-  toolNames: ['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons'],
+  toolNames: ['list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons', 'where_is'],
 
   async pageFacts(deps) {
     const page = await dataPageOf(deps);
@@ -67,6 +67,7 @@ export const dataContext: AssistantContextAdapter = {
       'Answer in "say", in words, with the figures you read. When a question names no measure ("best customers", "busiest day"), use the most natural one the tables can give, and say which one you used.',
       'Every row tool answers `returned` and `total`. When `returned` is less than `total` your answer is about a part of the rows: say so, with both numbers, or read the rest with `offset`.',
       'You cannot change the page (its filters, its saved views) and you cannot change rows. If the person asks you to DO that, say so.',
+      'For "where do I…" or "how do I get to…" (a settings screen, another page), call where_is and answer from it with the place\'s path as a link. Name no page or screen where_is did not give you, and never guess at a menu.',
       'A question about what they CAN do here ("can I give customers a discount code?", "is there a way to print labels?") is a question about what this workspace offers, not a request to you. Before you answer that something cannot be done, call list_add_ons. If an add-on that is NOT installed would give it, say in one sentence what is missing and put its key in "suggest" (three at most). Never suggest one that is installed, and never when nothing asked for needs one.',
       '',
       'The databases you may read:',

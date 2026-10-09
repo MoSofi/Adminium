@@ -137,8 +137,10 @@ export function TurnView({
       {answer === null ? null : (
         <AnswerFoot
           answer={answer}
-          // An answer that points at an add-on is about what the workspace offers, not about its rows.
-          reads={READING_CONTEXTS.has(context) && answer.suggest.length === 0}
+          // "Nothing was read" is for an answer made with no look at anything: not for one that
+          // looked something up (where a screen is, which add-ons there are), and not for one
+          // that points at an add-on, which is about what the workspace offers.
+          reads={READING_CONTEXTS.has(context) && answer.suggest.length === 0 && turn.steps.every((step) => step.id === 'page')}
           disabled={blocked}
           {...(question === null || !newest
             ? {}
