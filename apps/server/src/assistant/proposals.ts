@@ -26,7 +26,7 @@
 import { createHash } from 'node:crypto';
 
 import { assistantProposalSchema, type AssistantAction } from '@adminium/llm';
-import { automationsRepo, emailTemplatesRepo, reportDocumentsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { automationsRepo, emailTemplatesRepo, reportDocumentsRepo, rolesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
@@ -63,7 +63,9 @@ export type ProposalPreview =
   | { kind: 'doc.save'; what: DocKind | 'invoice' | 'invoice-template'; name: string }
   /** A draft saved over the document open on the page. A rule that is on is saved switched off. */
   | { kind: 'doc.change'; what: DocKind; id: string; name: string; switchesOff?: boolean }
-  | { kind: 'doc.delete'; what: DocKind; id: string; name: string };
+  | { kind: 'doc.delete'; what: DocKind; id: string; name: string }
+  /** A campaign sent to people of this workspace: which mail, to which roles, to how many. It cannot be taken back. */
+  | { kind: 'send.template'; id: string; name: string; subject: string; roles: { id: string; name: string }[]; total: number; skipped: number };
 
 /** The three kinds of workspace document the assistant may change or delete. */
 export type DocKind = 'email' | 'report' | 'rule';
@@ -228,10 +230,54 @@ const ABILITY_OF = {
   'doc.save': 'create',
   'doc.change': 'change',
   'doc.delete': 'delete',
+  'send.template': 'send',
 } as const;
 
 const SWITCHED_OFF: ProposalRefusal = { code: 'SWITCHED_OFF', message: 'This is switched off for the assistant in this workspace.' };
 const NOT_OFFERED: ProposalRefusal = { code: 'NOT_OFFERED', message: 'That cannot be done from here.' };
+
+/**
+ * Check a campaign's send: the mail is one that exists and is a campaign,
+ * each role named is one of this workspace's (by its name, its slug or its
+ * id; the ids used from here on are the server's), and the page's own route
+ * says how many people that is. The model names a mail and roles; it writes
+ * neither the mail nor an address.
+ */
+async function checkSend(input: { action: CheckedAction; abilities: CheckDocInput['abilities']; deps: AssistantToolDeps; through: Through }): Promise<{ checked: CheckedAction; stop?: ProposalRefusal }> {
+  const { action, abilities, deps, through } = input;
+  if (action.do !== 'send.template') return { checked: { ...action, refused: NOT_OFFERED } };
+  if (!abilities.send) return { checked: { ...action, refused: SWITCHED_OFF } };
+  if (deps.context !== 'email') return { checked: { ...action, refused: NOT_OFFERED } };
+  const row = await emailTemplatesRepo(deps.meta).findById(action.templateId);
+  if (row === null) return { checked: { ...action, refused: { code: 'NOT_FOUND', message: 'That mail is not there.' } } };
+  if (row.kind !== 'campaign') return { checked: { ...action, refused: { code: 'NOT_A_CAMPAIGN', message: 'Only a campaign can be sent to people.' } } };
+  if (row.archivedAt !== null) return { checked: { ...action, refused: { code: 'ARCHIVED', message: 'An archived campaign cannot be sent.' } } };
+  const known = await rolesRepo(deps.meta).list();
+  const roles: { id: string; name: string }[] = [];
+  for (const asked of action.roles) {
+    const wanted = asked.trim().toLowerCase();
+    const found = known.find((role) => role.id === asked || role.slug.toLowerCase() === wanted || role.name.toLowerCase() === wanted);
+    if (found === undefined) return { checked: { ...action, refused: { code: 'UNKNOWN_ROLE', message: `There is no role called ${JSON.stringify(asked.slice(0, 80))}.` } } };
+    if (!roles.some((role) => role.id === found.id)) roles.push({ id: found.id, name: found.name });
+  }
+  const placed = { ...action, templateId: row.id, roles: roles.map((role) => role.id) };
+  try {
+    const tried = await through('send.template.try', { id: row.id }, { audience: { kind: 'users', roleIds: placed.roles } });
+    if (tried.status !== 200) {
+      const refused = refusalOf(tried);
+      return { checked: { ...placed, refused }, ...(tried.status === 429 ? { stop: refused } : {}) };
+    }
+    const counted = tried.body as { total?: unknown; skipped?: unknown };
+    const total = typeof counted.total === 'number' ? counted.total : 0;
+    if (total === 0) return { checked: { ...placed, refused: { code: 'NO_RECIPIENTS', message: 'Nobody would get this mail.' } } };
+    return {
+      checked: { ...placed, preview: { kind: 'send.template', id: row.id, name: row.name, subject: row.subject, roles, total, skipped: typeof counted.skipped === 'number' ? counted.skipped : 0 } },
+    };
+  } catch (error) {
+    if (!(error instanceof DoorRefusedError)) throw error;
+    return { checked: { ...placed, refused: { code: error.code, message: error.message } } };
+  }
+}
 
 /** The kind of document each editor page holds, for the two actions that name one. */
 const DOC_KIND_OF: Partial<Record<AssistantToolDeps['context'], DocKind>> = { email: 'email', report: 'report', automation: 'rule' };
@@ -374,6 +420,7 @@ async function checkOne(input: CheckOneInput): Promise<{ checked: CheckedAction;
   if (action.do === 'doc.save' || action.do === 'doc.change' || action.do === 'doc.delete') {
     return { checked: await checkDoc({ action, abilities, deps: input.deps, artefact: input.artefact ?? null }) };
   }
+  if (action.do === 'send.template') return checkSend({ action, abilities, deps: input.deps, through });
   if (action.do !== 'row.create' && action.do !== 'row.change' && action.do !== 'row.delete') return { checked: { ...action, refused: NOT_OFFERED } };
   if (!abilities[ABILITY_OF[action.do]]) return { checked: { ...action, refused: SWITCHED_OFF } };
   // Placed by the server: from here on nothing of the model's names a table.
@@ -634,6 +681,15 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
           await keep(running());
           continue;
         }
+      } else if (action.do === 'send.template') {
+        reply = await through('send.template', { id: action.templateId }, { audience: { kind: 'users', roleIds: action.roles } });
+        if (reply.status >= 200 && reply.status < 300) {
+          outcome.done.push({ index, id: action.templateId });
+          await keep(running());
+          continue;
+        }
+      } else if (action.do === 'send.document') {
+        reply = null;
       } else {
         const where = { connectionId: (action as { connectionId: string }).connectionId, table: (action as { table: string }).table };
         reply =

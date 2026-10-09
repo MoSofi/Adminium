@@ -61,6 +61,9 @@ export const DOOR_ROUTES = {
   'doc.delete.email': { method: 'DELETE', url: `${API}/email-templates/:id`, query: '' },
   'doc.delete.report': { method: 'DELETE', url: `${API}/report-documents/:id`, query: '' },
   'doc.delete.rule': { method: 'DELETE', url: `${API}/automations/:id`, query: '' },
+  // A campaign sent to people of this workspace, by role: who would get it, and the send itself.
+  'send.template.try': { method: 'POST', url: `${API}/email-templates/:id/audience/preview`, query: '' },
+  'send.template': { method: 'POST', url: `${API}/email-templates/:id/send`, query: '' },
 } as const satisfies Record<string, { method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; url: string; query: string }>;
 export type DoorRouteKey = keyof typeof DOOR_ROUTES;
 

@@ -14,7 +14,7 @@
  * - A proposal is let go when the conversation moves on or its time passes.
  */
 import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
-import { assistantSessionsRepo, auditRepo, emailTemplatesRepo, pagesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
+import { assistantSessionsRepo, auditRepo, automationsRepo, emailTemplatesRepo, pagesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -29,6 +29,19 @@ import { makeScriptedClient } from './llm-fixtures.js';
 
 const OFF = { create: false, change: false, send: false, delete: false };
 
+/** Every address the door may build, written out: a route added to it is added here on purpose. */
+const ALLOWED_DOOR_URLS = [
+  '/api/v1/data/:connectionId/:table',
+  '/api/v1/data/:connectionId/:table/dry-run',
+  '/api/v1/data/:connectionId/:table/:recordId',
+  '/api/v1/data/:connectionId/:table/:recordId/dry-run',
+  '/api/v1/email-templates/:id',
+  '/api/v1/report-documents/:id',
+  '/api/v1/automations/:id',
+  '/api/v1/email-templates/:id/audience/preview',
+  '/api/v1/email-templates/:id/send',
+];
+
 for (const [dialect, available] of legs) {
   describe.skipIf(!available)(`what the assistant may propose — ${dialect}`, () => {
     let s: Stack;
@@ -42,7 +55,7 @@ for (const [dialect, available] of legs) {
     const reply = (extra: Record<string, unknown>) => ({ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'Here is what I would do.', ...extra }) });
 
     /** One whole turn through the job, with the model's replies scripted. */
-    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string, context: 'data' | 'general' | 'email' = 'data', documentId?: string) => {
+    const turn = async (userId: string, replies: { text: string }[], at = Date.now(), inSession?: string, context: 'data' | 'general' | 'email' | 'report' | 'automation' = 'data', documentId?: string) => {
       const repo = assistantSessionsRepo(s.meta);
       const session = inSession === undefined ? await repo.create({ context, host: { connectionIds: [s.connectionId], ...(context === 'data' ? { pageId } : {}), ...(documentId === undefined ? {} : { documentId }) }, createdBy: userId }) : (await repo.findSession(inSession))!;
       const created = await repo.createTurn({ sessionId: session.id, askText: 'Move Ana to in house.' });
@@ -682,6 +695,87 @@ for (const [dialect, available] of legs) {
       expect(missed.proposal.actions![0]!.refused).toMatchObject({ code: 'NOT_FOUND' });
     });
 
+    it('sends a campaign only as the page`s own route would: to roles the server finds, counted first, refused in the route`s words', async () => {
+      await switches({ send: true });
+      const ownerCookie = await signIn(s.app, 'owner@lodge.dev');
+      const owner = { cookie: ownerCookie, id: (await usersRepo(s.meta).findByEmail('owner@lodge.dev'))!.id };
+      const templates = emailTemplatesRepo(s.meta);
+      const make = (name: string, kind: 'campaign' | 'template') =>
+        templates.create({ kind, key: `p64-${name.toLowerCase()}-${dialect}`, locale: 'en_US', name, category: 'lifecycle', starter: null, enabled: true, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Winter hours', blocks: [] } as never)) });
+      const campaign = await make('News', 'campaign');
+      const plain = await make('Receipt', 'template');
+      const send = (templateId: string, roles: string[]) => ({ do: 'send.template', templateId, roles });
+
+      const made = await turn(owner.id, [reply({ propose: { title: 'Send the news', actions: [send(campaign.id, ['planner', 'Planner']), send(plain.id, ['Planner']), send(campaign.id, ['Nobody at all']), send('tpl_nothing', ['Planner'])] } })], Date.now(), undefined, 'email');
+      expect(made.stored.status, JSON.stringify(made.stored.error)).toBe('done');
+      expect(made.scripted.calls[0]!.system).toContain('"send.template" takes the id of a CAMPAIGN');
+      const shown = await check(owner, made);
+      const [first, second, third, fourth] = shown.proposal.actions!;
+      expect(first, shown.body).toMatchObject({ preview: { kind: 'send.template', id: campaign.id, name: 'News', subject: 'Winter hours', roles: [{ name: 'Planner' }] } });
+      expect((first!.preview as { total: number }).total).toBeGreaterThanOrEqual(1);
+      expect([second!.refused?.code, third!.refused?.code, fourth!.refused?.code]).toEqual(['NOT_A_CAMPAIGN', 'UNKNOWN_ROLE', 'NOT_FOUND']);
+
+      // No mail server is set up on this workspace: the page's own route says so, and nothing is queued.
+      const done = await apply(owner, made, shown.proposal.hash);
+      expect(done.status, done.body).toBe(200);
+      expect(done.proposal.outcome!.done).toEqual([]);
+      expect(done.proposal.outcome!.failed[0]).toMatchObject({ index: 0, code: 'CONFLICT' });
+      expect(done.body).toContain('SMTP');
+
+      // Switched off, it is not a move at all.
+      await switches({ create: true, change: true, delete: true });
+      const off = await turn(owner.id, [reply({ propose: { title: 'Send the news', actions: [send(campaign.id, ['Planner'])] } })], Date.now(), undefined, 'email');
+      expect(off.scripted.calls[0]!.system).not.toContain('- send.template:');
+      expect(off.stored.status).toBe('failed');
+    });
+
+    it('saves over an open report, and saves a rule that is on switched off, saying so first', async () => {
+      await switches({ create: true, change: true, delete: true });
+      const ownerCookie = await signIn(s.app, 'owner@lodge.dev');
+      const owner = { cookie: ownerCookie, id: (await usersRepo(s.meta).findByEmail('owner@lodge.dev'))!.id };
+
+      // A report, made by its own page.
+      const report = await s.app.inject({ method: 'POST', url: '/api/v1/report-documents', headers: { cookie: ownerCookie }, payload: { kind: 'template', name: 'Weekly' } });
+      expect(report.statusCode, report.body).toBeLessThan(300);
+      const reportId = ((report.json() as { id?: string; document?: { id: string } }).id ?? (report.json() as { document: { id: string } }).document.id);
+      const body = { blocks: [{ kind: 'heading', title: 'Section', text: 'Occupancy' }] };
+      const made = await turn(owner.id, [reply({ result: { title: 'Weekly', meta: '', artefact: { name: 'Another name', body } }, propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } })], Date.now(), undefined, 'report', reportId);
+      expect(made.stored.status, JSON.stringify(made.stored.error)).toBe('done');
+      const shown = await check(owner, made);
+      expect(shown.proposal.actions![0], shown.body).toMatchObject({ preview: { kind: 'doc.change', what: 'report', id: reportId, name: 'Weekly' } });
+      const done = await apply(owner, made, shown.proposal.hash);
+      expect(done.proposal.outcome, done.body).toMatchObject({ done: [{ index: 0, id: reportId }], failed: [] });
+      const kept = await s.app.inject({ method: 'GET', url: `/api/v1/report-documents/${reportId}`, headers: { cookie: ownerCookie } });
+      expect(kept.body).toContain('Occupancy');
+      expect(kept.body).toContain('Weekly');
+
+      // A rule that is running.
+      const trigger = { kind: 'record', connectionId: s.connectionId, table: s.table.stays, event: 'updated', when: [] };
+      const graph = (note: string) => ({ version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'Trigger' }, { id: 'n2', kind: 'action', title: 'Note it', onError: false, action: { kind: 'record.update', values: { note } } }] });
+      const rule = await s.app.inject({ method: 'POST', url: '/api/v1/automations', headers: { cookie: ownerCookie }, payload: { name: 'Note it', connectionId: s.connectionId, trigger, graph: graph('old'), enabled: true } });
+      expect(rule.statusCode, rule.body).toBe(201);
+      const ruleId = (rule.json() as { data?: { id: string }; id?: string }).data?.id ?? (rule.json() as { id: string }).id;
+      try {
+        const changed = await turn(owner.id, [reply({ result: { title: 'Note it', meta: '', artefact: { name: 'Note it', trigger, graph: graph('new') } }, propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } })], Date.now(), undefined, 'automation', ruleId);
+        expect(changed.stored.status, JSON.stringify(changed.stored.error)).toBe('done');
+        const asked = await check(owner, changed);
+        expect(asked.proposal.actions![0], asked.body).toMatchObject({ preview: { kind: 'doc.change', what: 'rule', id: ruleId, name: 'Note it', switchesOff: true } });
+        const saved = await apply(owner, changed, asked.proposal.hash);
+        expect(saved.proposal.outcome, saved.body).toMatchObject({ done: [{ index: 0, id: ruleId }], failed: [] });
+        const now = await automationsRepo(s.meta).findById(ruleId);
+        expect(now?.enabled).toBe(false);
+        expect(JSON.stringify(now?.graph)).toContain('"new"');
+
+        const remove = await turn(owner.id, [reply({ propose: { title: 'Remove it', actions: [{ do: 'doc.delete', kind: 'rule', id: ruleId }] } })], Date.now(), undefined, 'automation');
+        const last = await check(owner, remove);
+        expect(last.proposal.actions![0], last.body).toMatchObject({ preview: { kind: 'doc.delete', what: 'rule', id: ruleId, name: 'Note it' } });
+        expect((await apply(owner, remove, last.proposal.hash)).proposal.outcome).toMatchObject({ done: [{ index: 0, id: ruleId }] });
+        expect(await automationsRepo(s.meta).findById(ruleId)).toBeNull();
+      } finally {
+        await s.app.inject({ method: 'DELETE', url: `/api/v1/automations/${ruleId}`, headers: { cookie: ownerCookie } });
+      }
+    });
+
     // ── the door ─────────────────────────────────────────────────────────────
 
     it('refuses the door`s header from outside, whatever it carries', async () => {
@@ -698,8 +792,8 @@ for (const [dialect, available] of legs) {
       const never = ['roles', 'users', 'permissions', 'api-keys', 'settings', 'llm', 'assistant', 'connections', 'schema', 'apps', 'add-ons', 'project', 'designer', 'auth', 'setup', 'system'];
       for (const [key, route] of Object.entries(DOOR_ROUTES)) {
         expect(s.app.hasRoute({ method: route.method, url: route.url }), key).toBe(true);
-        // A row of the person's data, or one of the three kinds of workspace document by its id. Nothing else.
-        expect(/^\/api\/v1\/(data\/:connectionId\/:table(\/:recordId)?(\/dry-run)?|(email-templates|report-documents|automations)\/:id)$/.test(route.url), `${key}: ${route.url}`).toBe(true);
+        // A row of the person's data, one of the three kinds of workspace document by its id, or a campaign's send. Nothing else.
+        expect(ALLOWED_DOOR_URLS, `${key}: ${route.url}`).toContain(route.url);
         for (const prefix of never) expect(route.url.startsWith(`/api/v1/${prefix}`), `${key} under ${prefix}`).toBe(false);
       }
     });

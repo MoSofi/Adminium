@@ -59,13 +59,18 @@ export async function proposableKindsFor(deps: AssistantToolDeps): Promise<Propo
       if (abilities.change && deps.host.documentId !== undefined && deps.host.documentId !== '') kinds.push('doc.change');
       if (abilities.delete) kinds.push('doc.delete');
     }
+    // A campaign, to people of this workspace by role: the one send a screen has. (A document
+    // sent to its own recipient has a route and no screen, so it is not offered anywhere.)
+    if (deps.context === 'email' && abilities.send) kinds.push('send.template');
     if (kinds.length === 0) return none;
     const kind = deps.context === 'email' ? 'email' : deps.context === 'report' ? 'report' : 'rule';
-    return {
-      kinds,
-      maxActions,
-      ...(kinds.includes('doc.delete') ? { where: `On this page "doc.delete" takes kind ${JSON.stringify(kind)} and the id list_documents returned.` } : {}),
-    };
+    const where = [
+      ...(kinds.includes('doc.delete') ? [`On this page "doc.delete" takes kind ${JSON.stringify(kind)} and the id list_documents returned.`] : []),
+      ...(kinds.includes('send.template')
+        ? ['"send.template" takes the id of a CAMPAIGN that list_documents returned and the names of the roles to send it to. Ask which roles when the person has not said. You write no mail and no address.']
+        : []),
+    ];
+    return { kinds, maxActions, ...(where.length === 0 ? {} : { where: where.join('\n') }) };
   }
 
   const page = await dataPageOf(deps);
