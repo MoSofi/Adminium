@@ -6,7 +6,7 @@ import { gzipSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
-import { SourceArchiveError, fetchSourceArchive, readSourceArchive, sourceArchiveUrl } from '../src/project/apps/source-archive.js';
+import { SourceArchiveError, fetchSourceArchive, readSource, readSourceArchive, sourceArchiveUrl } from '../src/project/apps/source-archive.js';
 
 /** One tar member: a header block and its body, padded. */
 function member(name: string, body: string | Buffer, type = '0', linkOrPrefix = ''): Buffer {
@@ -33,6 +33,21 @@ describe('where an app’s source comes from', () => {
     for (const repo of ['https://github.com/someone-else/point-of-sale', 'https://github.com/Adminiumjs/..', 'https://github.com/Adminiumjs/.']) expect(sourceArchiveUrl(repo, '0.2.3'), repo).toBeNull();
     expect(sourceArchiveUrl('https://github.com/adminiumjs/point-of-sale', '0.2.3')).not.toBeNull();
     for (const version of ['main', '0.2', 'v0.2.3', '0.2.3/../../x', '']) expect(sourceArchiveUrl('https://github.com/Adminiumjs/b', version), version).toBeNull();
+  });
+});
+
+describe('which commit an archive is of', () => {
+  it('is the one GitHub writes into the archive itself, and nothing when there is none or it is no commit', () => {
+    const sha = '0123456789abcdef0123456789abcdef01234567';
+    const of = (comment: string | null): string | null =>
+      readSource(archive(...(comment === null ? [] : [member('pax_global_header', comment, 'g')]), member('app-0.2.3/a.txt', 'a'))).commit;
+    expect(of(`52 comment=${sha}\n`)).toBe(sha);
+    expect(of(`52 comment=${sha.toUpperCase()}\n`)).toBe(sha);
+    expect(of(null)).toBeNull();
+    expect(of('20 comment=not-a-sha\n')).toBeNull();
+    expect(of(`30 other=x\n52 comment=${sha}\n`)).toBe(sha);
+    // The files are the same whichever way they are asked for.
+    expect([...readSource(archive(member('app-0.2.3/a.txt', 'a'))).files.keys()]).toEqual(['a.txt']);
   });
 });
 

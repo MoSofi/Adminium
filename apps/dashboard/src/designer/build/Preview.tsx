@@ -10,42 +10,23 @@
  *
  * Sides: the Dashboard (the person's own dashboard, as the owner they are,
  * on the Designer's name: no ticket, no preview user),
- * Staff and Customer — a side the app does not have is absent. Widths:
- * desktop fills, tablet is 768 wide, phone 360 in a bezel. The frame reloads
- * when the app is applied again (`app-changed`), and on Reload.
+ * Staff and Customer — a side the app does not have is absent. Sizes:
+ * desktop fills its box, tablet is 768 wide, phone 360 in a bezel. The frame
+ * reloads when the app is applied again (`app-changed`), and on Reload. Its
+ * controls are in the work area's bar.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, ExternalLink, Eye, Hammer, LayoutDashboard, LoaderCircle, Monitor, RotateCw, Smartphone, Tablet, UserRound, WandSparkles, IdCard } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Hammer, LoaderCircle, WandSparkles } from 'lucide-react';
 
-import { api } from '../../app/api.js';
-import { systemInfoQuery } from '../../app/capabilities.js';
-import { createRealtimeClient } from '../../app/ws.js';
 import { AppFrame } from '../../apps/AppFrame.js';
 import { t } from '../../i18n/t.js';
-import type { InstalledApp } from '../../studio/apps/appsApi.js';
 import { designerApi, type DesignerSession } from '../api.js';
-import { previewShows, seesPage, setSeesPage, sightFrom } from './sight.js';
+import { seesPage, sightFrom } from './sight.js';
 import type { TurnView } from './turns.js';
+import type { PreviewModel, PreviewSide } from './usePreview.js';
+import { sideName } from './WorkBar.js';
 
-export type PreviewSide = 'dashboard' | 'staff' | 'customer';
-
-/** The dashboard on the Designer's own name, where the session is the owner's. */
-const OWN_DASHBOARD = '/';
-export type PreviewWidth = 'desktop' | 'tablet' | 'phone';
-
-const installedKey = ['designer', 'installed'] as const;
-
-function sideName(side: PreviewSide): string {
-  switch (side) {
-    case 'dashboard':
-      return t('designer:preview.dashboard', 'Dashboard');
-    case 'staff':
-      return t('designer:preview.staff', 'Staff');
-    case 'customer':
-      return t('designer:preview.customer', 'Customer');
-  }
-}
+export type { PreviewSide, PreviewWidth } from './usePreview.js';
 
 function building(side: PreviewSide): string {
   switch (side) {
@@ -73,15 +54,6 @@ function crashedTitle(side: PreviewSide): string {
   return side === 'staff'
     ? t('designer:preview.crashedStaff', 'The staff screen stopped with an error.')
     : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
-}
-
-/** Whose eyes the preview is: the owner's own for the dashboard, the app's roles for the staff side, nobody for the customer side. */
-export function seenAs(side: PreviewSide, roles: readonly string[] | null): string {
-  if (side === 'dashboard') return t('designer:preview.seenAsOwner', 'Seen as: you, the owner');
-  if (side === 'customer') return t('designer:preview.seenAsVisitor', 'Seen as: a visitor, not signed in');
-  if (roles === null) return t('designer:preview.seenAsStaff', 'Seen as: staff — a preview');
-  if (roles.length === 0) return t('designer:preview.seenAsNoRole', 'Seen as: a person with no role yet — a preview');
-  return t('designer:preview.seenAs', 'Seen as: {who} — a preview', { who: roles.join(', ') });
 }
 
 /** The screen went on, and something in it threw: a part of it is empty or wrong, and says nothing. */
@@ -119,70 +91,17 @@ export function previewState(turns: readonly TurnView[]): { building: boolean; f
   return { building: false, failed: lines.slice(0, named ? 2 : 1).join('\n') };
 }
 
-export function Preview({ session, turns, onFix, compact }: { session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void; compact: boolean }): ReactNode {
-  const queryClient = useQueryClient();
-  // A live server has one name, so model-written screens have no second one to be shown on.
-  const info = useQuery(systemInfoQuery());
-  const noPreview = info.data?.designer?.mode === 'live';
-  const installed = useQuery({ queryKey: installedKey, queryFn: () => api.get<{ apps: InstalledApp[] }>('/api/v1/apps') });
-  const app = installed.data?.apps.find((entry) => entry.key === session.appKey) ?? null;
-  const sides = useMemo<PreviewSide[]>(() => {
-    const own = (app?.sides ?? []).map((side) => side.side as PreviewSide).filter((side) => side === 'staff' || side === 'customer');
-    return ['dashboard', ...(['staff', 'customer'] as const).filter((side) => own.includes(side))];
-  }, [app]);
-  const [chosen, setChosen] = useState<PreviewSide | null>(null);
-  const side: PreviewSide = chosen !== null && sides.includes(chosen) ? chosen : (sides.find((entry) => entry !== 'dashboard') ?? 'dashboard');
-  const [width, setWidth] = useState<PreviewWidth>('desktop');
-  const [round, setRound] = useState(0);
+/**
+ * The frame and what is drawn over it. Its bar is drawn by the work area,
+ * from the same {@link PreviewModel}; `compact` is a phone-wide window, where
+ * the frame always fills.
+ */
+export function Preview({ preview, session, turns, onFix, compact }: { preview: PreviewModel; session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void; compact: boolean }): ReactNode {
+  const { app, side, width, round, noPreview } = preview;
   // The frame's own page has loaded (the dashboard then paints on its own); reset whenever its address changes.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
-
-  const prefix = side === 'dashboard' ? '' : (app?.sides.find((entry) => entry.side === side)?.prefix ?? `/apps/${session.appKey}/${side}`);
-  const to = `${prefix}/`;
-  const ticket = useQuery({
-    queryKey: ['designer', 'preview', session.id, side, round] as const,
-    queryFn: () => designerApi.previewTicket(session.id, to),
-    // The dashboard is the person's own, on the Designer's name: it needs no ticket.
-    enabled: app !== null && !info.isPending && !noPreview && side !== 'dashboard',
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 0,
-    retry: false,
-  });
-
-  // The app applied again: its sides may have changed, and the frame shows the old one.
-  useEffect(() => {
-    const client = createRealtimeClient({
-      channels: ['config-changed'],
-      onEvent: (event) => {
-        if (event.type !== 'app-changed') return;
-        const data = event.data as { key?: unknown } | null;
-        if (data?.key !== session.appKey) return;
-        void queryClient.invalidateQueries({ queryKey: installedKey });
-        setRound((value) => value + 1);
-      },
-    });
-    client.start();
-    return () => client.stop();
-  }, [queryClient, session.appKey]);
-
-  // Rows loaded from an attached file: the app did not change, what its pages show did.
-  const loads = turns.reduce((sum, turn) => sum + turn.steps.filter((step) => step.tool === 'load_rows' && step.outcome === 'added' && step.state !== 'running').length, 0);
-  const seenLoads = useRef(loads);
-  const [sees, setSees] = useState(seesPage);
-  // Only a load that finishes while its turn runs: a session opened later already shows those rows, and its past loads arriving with the first read of events are no reason to spend a ticket.
-  const running = turns.length > 0 && turns[turns.length - 1]?.outcome === null;
-  useEffect(() => {
-    if (loads > seenLoads.current && running) setRound((value) => value + 1);
-    seenLoads.current = loads;
-  }, [loads, running]);
-  const runningNow = useRef(running);
-  runningNow.current = running;
-  // What this preview shows, for a turn about to start: only a side of the app's own can be looked at.
-  const showing = noPreview || app === null ? null : side;
-  useEffect(() => {
-    previewShows(showing);
-    return () => previewShows(null);
-  }, [showing]);
+  const runningNow = useRef(preview.running);
+  runningNow.current = preview.running;
   /** The sights sent on for the frame as it is open now: which opening, when the last went, how many. */
   const sentSight = useRef({ round: -1, at: 0, count: 0 });
 
@@ -190,7 +109,7 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   // A screen that built and then stopped as it opened says so from inside its frame (dev bundles only).
   /** `refused`: the screen goes on working, and a call it made was refused as wrongly asked. */
   const [crashed, setCrashed] = useState<{ side: PreviewSide; message: string; round: number; refused: boolean; went: boolean } | null>(null);
-  const previewOrigin = ticket.data?.origin ?? null;
+  const previewOrigin = preview.ticket?.origin ?? null;
   useEffect(() => {
     const heard = (event: MessageEvent): void => {
       if (previewOrigin === null || event.origin !== previewOrigin) return;
@@ -217,38 +136,18 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
   }, [previewOrigin, session.appKey, round]);
   const crash = crashed !== null && crashed.round === round && crashed.side === side ? crashed : null;
   const state = { building: built.building, failed: built.failed ?? (crash === null ? null : crash.message) };
-  const openTab = (): void => {
-    // Opened now, filled when the ticket arrives: a window opened after a wait is a blocked pop-up.
-    const tab = window.open('', '_blank');
-    if (tab === null) return;
-    tab.opener = null;
-    // The dashboard is Adminium's own pages, not a model's: it opens on this name, as the owner.
-    if (side === 'dashboard') {
-      tab.location.href = OWN_DASHBOARD;
-      return;
-    }
-    // A customer page is public: it opens as it is, with nobody signed in, and makes no preview session in the tab.
-    if (side === 'customer' && previewOrigin !== null) {
-      tab.location.href = `${previewOrigin}${to}`;
-      return;
-    }
-    // The staff side opens inside the dashboard, as staff meet it: there the bar says whose eyes this is.
-    void designerApi
-      .previewTicket(session.id, `/a/${session.appKey}`)
-      .then((reply) => {
-        tab.location.href = reply.url;
-      })
-      .catch(() => tab.close());
-  };
 
+  // The app frame's paths have no slash in front, as a staff side's own list of screens writes them.
+  const staffPath = preview.path.slice(1);
   // What the plain frame shows, and the mark of its having loaded (a Reload opens the same dashboard again).
-  const frameUrl = side === 'dashboard' ? OWN_DASHBOARD : ticket.data?.url;
+  const frameUrl = side === 'dashboard' ? preview.dashboardSrc : preview.ticket?.url;
   const frameMark = frameUrl === undefined ? null : `${String(round)} ${frameUrl}`;
   const frame =
-    frameUrl === undefined ? null : side === 'staff' && ticket.data !== undefined ? (
-      <AppFrame key={`${side}.${String(round)}`} appKey={session.appKey} path="" title={sideName(side)} onNavigate={() => undefined} src={ticket.data.url} origin={ticket.data.origin} />
+    frameUrl === undefined ? null : side === 'staff' && preview.ticket !== null ? (
+      <AppFrame key={`${side}.${String(round)}`} appKey={session.appKey} path={staffPath} title={sideName(side)} onNavigate={preview.onStaffNavigate} src={preview.ticket.url} origin={preview.ticket.origin} />
     ) : (
       <iframe
+        ref={preview.frame}
         key={`${side}.${String(round)}`}
         src={frameUrl}
         title={sideName(side)}
@@ -258,18 +157,19 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
       />
     );
 
-  // One element tree for every width, so a width change restyles the frame and never reloads it
+  // One element tree for every size, so a size change restyles the frame and never reloads it
   // (a reload would spend a new ticket, and the old one is already used).
+  // The page sits in a box; the tablet and the phone stand on a dotted ground.
   const wide = width === 'desktop' || compact;
-  const ground = wide
-    ? 'flex min-h-0 flex-1 bg-surface'
-    : 'flex min-h-0 flex-1 justify-center overflow-auto bg-surface-2 bg-[radial-gradient(var(--border-strong)_1px,transparent_1px)] bg-[size:16px_16px] p-5';
+  const ground = `flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[14px] ${compact ? 'm-2.5' : 'm-3'} ${
+    wide ? '' : 'bg-surface-3 bg-[radial-gradient(var(--border-strong)_1px,transparent_1px)] bg-[size:16px_16px] p-[22px]'
+  }`;
   const device = wide
-    ? 'flex min-h-0 flex-1'
+    ? 'flex h-full w-full overflow-hidden rounded-[12px] border border-border bg-surface shadow-card'
     : width === 'tablet'
-      ? 'flex h-full w-[768px] max-w-full shrink-0 overflow-hidden rounded-xl border border-border bg-surface shadow-md'
-      : 'adm-always-dark flex h-[min(760px,100%)] w-[380px] shrink-0 rounded-[36px] bg-bg p-2.5 shadow-lg';
-  const screenBox = wide || width === 'tablet' ? 'flex min-h-0 flex-1' : 'flex w-[360px] overflow-hidden rounded-[28px] bg-surface';
+      ? 'flex h-full w-[min(768px,100%)] overflow-hidden rounded-[16px] border border-border-strong bg-surface shadow-md'
+      : 'adm-always-dark flex h-[min(720px,100%)] w-[360px] max-w-full rounded-[30px] bg-bg p-2 shadow-lg';
+  const screenBox = wide || width === 'tablet' ? 'flex min-h-0 min-w-0 flex-1' : 'flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[22px] bg-surface';
   const sized = (
     <div className={ground}>
       <div className={device}>
@@ -277,11 +177,6 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
       </div>
     </div>
   );
-
-  const segmented = 'inline-flex items-center rounded-[10px] border border-border bg-surface-2 p-[3px]';
-  const segment = 'inline-flex h-[30px] items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] font-bold text-fg-muted hover:text-fg aria-pressed:bg-surface aria-pressed:text-fg aria-pressed:shadow-sm';
-  const iconFor = (entry: PreviewSide): ReactNode =>
-    entry === 'dashboard' ? <LayoutDashboard aria-hidden="true" className="size-3.5" /> : entry === 'staff' ? <IdCard aria-hidden="true" className="size-3.5" /> : <UserRound aria-hidden="true" className="size-3.5" />;
 
   if (noPreview) {
     return (
@@ -295,92 +190,20 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2">
-        <div role="group" aria-label={t('designer:preview.side', 'Side')} className={segmented}>
-          {sides.map((entry) => (
-            <button key={entry} type="button" aria-pressed={side === entry} onClick={() => setChosen(entry)} className={segment}>
-              {iconFor(entry)}
-              {sideName(entry)}
-            </button>
-          ))}
-        </div>
-        {compact ? null : (
-          <div role="group" aria-label={t('designer:preview.width', 'Width')} className={segmented}>
-            {(
-              [
-                ['desktop', Monitor, t('designer:preview.desktop', 'Desktop')],
-                ['tablet', Tablet, t('designer:preview.tablet', 'Tablet')],
-                ['phone', Smartphone, t('designer:preview.phone', 'Phone')],
-              ] as const
-            ).map(([id, Icon, label]) => (
-              <button key={id} type="button" aria-pressed={width === id} aria-label={label} title={label} onClick={() => setWidth(id)} className={segment}>
-                <Icon aria-hidden="true" className="size-3.5" />
-              </button>
-            ))}
-          </div>
-        )}
-        {app === null ? null : (
-          <span
-            className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold text-fg-muted"
-            title={side === 'dashboard' ? undefined : t('designer:preview.seenAsHint', 'The preview is not your own sign-in. It shows the app as its people will see it.')}
-          >
-            <Eye aria-hidden="true" className="size-3 shrink-0" />
-            <span className="truncate">{seenAs(side, ticket.data?.seenAs ?? null)}</span>
-          </span>
-        )}
-        <div className="ms-auto flex items-center gap-1.5">
-          <button
-            type="button"
-            aria-pressed={sees}
-            onClick={() => {
-              setSeesPage(!sees);
-              setSees(!sees);
-            }}
-            aria-label={t('designer:preview.sees', 'The Designer looks at the page after it builds')}
-            title={
-              sees
-                ? t('designer:preview.seesOn', 'After a build, the Designer is shown this page and what is broken on it, and fixes what it sees. Press to switch that off.')
-                : t('designer:preview.seesOff', 'The Designer does not look at the page it builds. Press to let it.')
-            }
-            className="flex size-8 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-subtle hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
-          >
-            <Camera aria-hidden="true" className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setRound((value) => value + 1)}
-            aria-label={t('designer:preview.reload', 'Reload')}
-            title={t('designer:preview.reload', 'Reload')}
-            className="flex size-8 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-muted hover:text-fg"
-          >
-            <RotateCw aria-hidden="true" className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={openTab}
-            disabled={app === null}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-border bg-surface px-2.5 text-[12.5px] font-bold text-fg-muted hover:text-fg disabled:opacity-50"
-          >
-            <ExternalLink aria-hidden="true" className="size-3.5" />
-            <span className="max-lg:sr-only">{t('designer:preview.newTab', 'Open in a new tab')}</span>
-          </button>
-        </div>
-      </div>
-
       <div className="relative flex min-h-0 flex-1 flex-col">
         {app === null ? (
           <p className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
-            {installed.isPending ? null : t('designer:preview.nothing', 'Nothing to show yet. Once the Designer applies the app, it shows here.')}
+            {preview.appPending ? null : t('designer:preview.nothing', 'Nothing to show yet. Once the Designer applies the app, it shows here.')}
           </p>
-        ) : ticket.isError && side !== 'dashboard' ? (
+        ) : preview.ticketError !== null ? (
           <p role="alert" className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
-            {t('designer:preview.unavailable', 'The preview could not be opened: {message}', { message: ticket.error.message })}
+            {t('designer:preview.unavailable', 'The preview could not be opened: {message}', { message: preview.ticketError })}
           </p>
         ) : (
           sized
         )}
 
-        {app !== null && side !== 'staff' && !state.building && state.failed === null && (frameMark === null || loadedFor !== frameMark) && !ticket.isError ? (
+        {app !== null && side !== 'staff' && !state.building && state.failed === null && (frameMark === null || loadedFor !== frameMark) && preview.ticketError === null ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <LoaderCircle aria-label={t('designer:preview.loading', 'Opening the preview')} className="size-5 animate-spin text-fg-subtle" />
           </div>
@@ -439,3 +262,4 @@ export function Preview({ session, turns, onFix, compact }: { session: DesignerS
     </div>
   );
 }
+

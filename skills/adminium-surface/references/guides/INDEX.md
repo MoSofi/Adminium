@@ -8,8 +8,9 @@
 | `references/guides/building-a-side--the-folder.md` | The folder | 1269 |
 | `references/guides/building-a-side--the-look.md` | The look | 2448 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
-| `references/guides/building-a-side--a-staff-side.md` | A staff side | 3317 |
+| `references/guides/building-a-side--a-staff-side.md` | A staff side | 3450 |
 | `references/guides/building-a-side--a-customer-side.md` | A customer side | 3718 |
+| `references/guides/building-a-side--pages-and-their-addresses.md` | Pages and their addresses | 3134 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |
 | `references/guides/building-a-side--looking-at-a-side-without-adminium.md` | Looking at a side without Adminium | 1224 |
 | `references/guides/building-a-side--what-a-served-screen-may-not-load.md` | What a served screen may not load | 783 |
@@ -84,6 +85,5 @@
 | `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
-| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
 
 More: `references/guides/INDEX-2.md`

@@ -100,6 +100,10 @@ const GROUPS = {
     gated: true,
     label: 'syntax colours on the code surfaces of an exception scope (WCAG 1.4.3)',
   },
+  'syn-ink': {
+    gated: true,
+    label: 'syntax colours of code a person edits, on --surface and on the caret line\'s tint (WCAG 1.4.3)',
+  },
   'focus-ring': {
     gated: true,
     label: 'accent as focus ring / non-text indicator (WCAG 1.4.11)',
@@ -573,6 +577,8 @@ function vocabulary(resolved, where) {
   const surfaces = names.filter((n) => n === '--bg' || /^--surface(-\d+)?$/.test(n));
   const foregrounds = names.filter((n) => /^--fg(-[a-z0-9-]+)?$/.test(n));
   const codeInk = names.filter((n) => /^--code-[a-z0-9-]+$/.test(n));
+  // Source code as editable text (the Designer's Code tab): painted on --surface, and on --cur-line over it.
+  const synInk = names.filter((n) => /^--syn-[a-z0-9-]+$/.test(n));
   const softs = names.filter((n) => n.endsWith('-soft'));
   const tones = softs.map((s) => s.slice(0, -'-soft'.length)).filter((b) => names.includes(b) && b !== '--accent');
   // `-soft-solid` is a distinct role, not a longer `-soft`: it is the tint PRE-COMPOSITED over
@@ -627,6 +633,8 @@ function vocabulary(resolved, where) {
     ...surfaces,
     ...foregrounds,
     ...codeInk,
+    ...synInk,
+    ...(names.includes('--cur-line') ? ['--cur-line'] : []),
     ...softs,
     ...softSolids,
     ...tones,
@@ -639,14 +647,15 @@ function vocabulary(resolved, where) {
   if (unclassified.length) {
     throw new Error(
       `unclassified colour token(s) in ${where}: ${unclassified.join(', ')}\n` +
-        '  This gate measures roles it recognises by shape (--bg/--surface*, --fg*, --code-*,\n' +
+        '  This gate measures roles it recognises by shape (--bg/--surface*, --fg*, --code-*, --syn-*,\n' +
         '  <tone>/<tone>-soft, and the enumerated --accent* roles). Give the token one of those\n' +
         '  shapes, add it to ACCENT_ROLES with a check, or list it in SKIP_TOKENS/SKIPPED with a\n' +
         '  written reason. A colour token must never ship unmeasured.'
     );
   }
   if (!surfaces.length || !foregrounds.length) throw new Error(`no surfaces/foregrounds found in ${where}`);
-  return { surfaces, foregrounds, codeInk, softs, softSolids, tones, accentTints };
+  if (synInk.length && !names.includes('--cur-line')) throw new Error(`--syn-* tokens with no --cur-line in ${where}: the caret line's tint is the worst ground they are painted on.`);
+  return { surfaces, foregrounds, codeInk, synInk, softs, softSolids, tones, accentTints };
 }
 
 /* ------------------------------------------------------------------- the matrix */
@@ -684,10 +693,10 @@ function inkRoleFor(has) {
   return INK_ROLE;
 }
 
-function buildChecks(get, has, vocab) {
+function buildChecks(get, has, vocab, scope = null) {
   const checks = [];
   const inkRole = inkRoleFor(has);
-  const { surfaces, foregrounds, codeInk, softs, softSolids, tones, accentTints } = vocab;
+  const { surfaces, foregrounds, codeInk, synInk, softs, softSolids, tones, accentTints } = vocab;
   const push = (group, fgName, bgName, min, opts = {}) => {
     const bgBase = opts.on ? get(opts.on) : [255, 255, 255, 1];
     const bg = over(get(bgName), bgBase);
@@ -708,6 +717,16 @@ function buildChecks(get, has, vocab) {
 
   // 1b. Syntax colours inside an exception scope, on the same surfaces (CodeBlock/JsonViewer).
   for (const fg of codeInk) for (const s of surfaces) push('code-ink', fg, s, AA_TEXT);
+
+  // 1c. The editor's syntax colours, with the two text greys it also uses, on its own ground and on the
+  //     caret line's tint over it. Measured at the root only: the editor is never painted inside an
+  //     exception scope, where these tokens are the root theme's and the surface is not.
+  if (scope === null) {
+    for (const fg of [...synInk, ...(synInk.length ? ['--fg', '--fg-muted'] : [])]) {
+      push('syn-ink', fg, '--surface', AA_TEXT);
+      push('syn-ink', fg, '--cur-line', AA_TEXT, { on: '--surface' });
+    }
+  }
 
   // 2. --accent as a focus ring / non-text indicator on every surface — WCAG 1.4.11.
   //    (`focus-visible:outline-accent` is used on 113 controls across the UI package.)
@@ -911,7 +930,7 @@ export function runAudit({ strict = false, css: cssOverride } = {}) {
         };
         const has = (name) => resolved.has(name);
         const vocab = vocabulary(resolved, `${theme}/${accent}${scope ? `/${scope}` : ''}`);
-        for (const c of buildChecks(get, has, vocab)) {
+        for (const c of buildChecks(get, has, vocab, scope)) {
           results.push({ theme, accent, scope: scope ?? '(root)', ...c, pass: c.actual + 1e-9 >= c.min });
         }
       }

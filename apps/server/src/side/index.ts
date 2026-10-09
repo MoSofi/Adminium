@@ -27,7 +27,7 @@
  * never used, because it is the reader's and is silently an hour out.
  */
 
-import { useEffect, useState } from 'react';
+import { createElement, useEffect, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactElement } from 'react';
 
 declare const __ADMINIUM_APP_KEY__: string | undefined;
 declare const __ADMINIUM_APP_NAME__: string | undefined;
@@ -407,7 +407,10 @@ export function reportSightToFrame(target: Window | undefined = framed(), dev: b
       const faults = pageFaults(doc, target);
       // The picture is worth a few seconds and no more: what was measured goes whether or not the browser draws it.
       const picture = await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
-      target.parent.postMessage({ type: 'adminium:side-sight', app: APP_KEY, side: SIDE, width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) }, '*');
+      target.parent.postMessage(
+        { type: 'adminium:side-sight', app: APP_KEY, side: SIDE, path: pagePath(target.location.pathname), width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) },
+        '*',
+      );
     } catch {
       // Looking never breaks the page.
     }
@@ -870,3 +873,257 @@ export function useStaff(options: { demo?: Record<string, readonly Row[]> } = {}
 export function useCustomer(options: { baseUrl?: string; publishableKey?: string } = {}): Loaded<CustomerConfig> {
   return useLoaded(() => connectCustomer(options));
 }
+
+// ── pages and their addresses ────────────────────────────────────────────────
+
+/** How long a page's path may be, counted as a person reads it (decoded). */
+const PATH_MAX = 160;
+
+/**
+ * The one shape every path has here, or null for what is no page's path.
+ *
+ * A path is read part by part: a query and a hash are not part of it, empty
+ * parts and the parts that climb (`.`, `..`) are dropped, and each part is
+ * decoded and then encoded, so a path that arrives encoded (the browser's own
+ * address) and one that does not (`go('/menu/crème brûlée')`) come out the
+ * same and nothing is encoded twice. Everything that handles a path goes
+ * through this: what a screen asks for, what the framing page says, and what
+ * is said back to it.
+ */
+function tidyPath(path: string): string | null {
+  const parts: string[] = [];
+  let length = 0;
+  for (const part of (path.split(/[?#]/)[0] ?? '').split('/')) {
+    let plain: string;
+    try {
+      plain = decodeURIComponent(part);
+    } catch {
+      // A percent sign that starts no escape is a character of the name.
+      plain = part;
+    }
+    if (plain === '' || plain === '.' || plain === '..') continue;
+    length += 1 + plain.length;
+    parts.push(encodeURIComponent(plain));
+  }
+  if (length > PATH_MAX) return null;
+  return `/${parts.join('/')}`;
+}
+
+/** The parts of a path as written, decoded; null when one of them is an escape that is none. */
+function plainParts(path: string): string[] | null {
+  try {
+    return (path.split(/[?#]/)[0] ?? '')
+      .split('/')
+      .filter((part) => part !== '')
+      .map((part) => decodeURIComponent(part));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The page's path under the side's base: `/` for the first page, `/menu`,
+ * `/menu/spicy-wings`. No slash at the end and no query, wherever the side is
+ * mounted. An address that is not under the base is the first page.
+ */
+export function pagePath(pathname: string = globalThis.location?.pathname ?? '/', base: string = mountBase(pathname)): string {
+  if (`${pathname}/` === base) return '/';
+  return pathname.startsWith(base) ? (tidyPath(pathname.slice(base.length - 1)) ?? '/') : '/';
+}
+
+/** The address a page's path has in the browser: the side's base, then the path. What a link's `href` holds. */
+export function pageHref(path: string, base: string = mountBase()): string {
+  return `${base}${(tidyPath(path) ?? '/').slice(1)}`;
+}
+
+/** As much of a window as a page's address needs. The page's own; tests pass theirs. */
+interface PageWindow {
+  location: { pathname: string; search?: string };
+  history: { pushState(data: unknown, unused: string, url: string): void; replaceState(data: unknown, unused: string, url: string): void };
+  parent: unknown;
+  addEventListener(type: string, listener: (event: never) => void): void;
+  scrollTo?(x: number, y: number): void;
+  document?: { title: string };
+}
+
+/** This page's window; undefined where there is none (a test, a server). */
+function pageWindow(): PageWindow | undefined {
+  return typeof window === 'undefined' ? undefined : (window as unknown as PageWindow);
+}
+
+/** Every screen that asked for its path: each is called when the path changed. */
+const pathListeners = new Set<() => void>();
+
+/** How a window that {@link watchAddress} watches tells the page that frames it. */
+const frameSayers = new WeakMap<object, (own: boolean) => void>();
+
+/** The path changed: the screens draw again, and the framing page is told. `own` is false for a move the framing page asked for. */
+function pathChanged(target: PageWindow, own: boolean): void {
+  for (const listener of [...pathListeners]) listener();
+  frameSayers.get(target)?.(own);
+}
+
+/**
+ * Go to a page of this side: `go('/menu')`, `go(`/menu/${slug}`)`. The
+ * address changes and nothing is loaded again; every screen that reads
+ * {@link usePath} draws the new page. Nothing happens when the page is
+ * already there.
+ *
+ * As the browser's own page it adds to the history, so Back returns. Inside a
+ * frame (the dashboard, a preview) it replaces its address instead: Back there
+ * belongs to the page around it, and nobody should have to press it through
+ * every screen of an app to leave the app. `replace: true` replaces anywhere.
+ */
+export function go(path: string, opts: { replace?: boolean } = {}, target: PageWindow | undefined = pageWindow()): void {
+  if (target === undefined) return;
+  moveTo(target, path, opts.replace === true, true);
+}
+
+function moveTo(target: PageWindow, path: string, replace: boolean, own: boolean): void {
+  const tidy = tidyPath(path);
+  if (tidy === null) return;
+  if (tidy === pagePath(target.location.pathname)) return;
+  // The address's query is the visit's, not the page's (`?demo` on a staff screen): a move to another page keeps it.
+  const href = `${pageHref(tidy, mountBase(target.location.pathname))}${target.location.search ?? ''}`;
+  if (replace || target.parent !== target) target.history.replaceState(null, '', href);
+  else target.history.pushState(null, '', href);
+  // A new page starts at its top; an address put right in place does not move the reader.
+  if (!replace) target.scrollTo?.(0, 0);
+  pathChanged(target, own);
+}
+
+/**
+ * The page's path, kept current: `const path = usePath()`. The screen draws
+ * again when it changes, by {@link go} or a {@link Link}, by Back and
+ * Forward, or because the page that frames it said where to be. Decide what to
+ * draw from it, with {@link pathParams} for a page that has a part of its own:
+ *
+ *     const path = usePath();
+ *     const item = pathParams('/menu/:slug', path);
+ *     if (path === '/') return <Home />;
+ *     if (item !== null) return <Item slug={item.slug} />;
+ *     return <NotFound />;
+ */
+export function usePath(target: PageWindow | undefined = pageWindow()): string {
+  const [path, setPath] = useState(() => pagePath(target?.location.pathname));
+  useEffect(() => {
+    const read = (): void => setPath(pagePath(target?.location.pathname));
+    pathListeners.add(read);
+    // The address may have moved between the first draw and now.
+    read();
+    return () => void pathListeners.delete(read);
+  }, [target]);
+  return path;
+}
+
+/**
+ * `'/menu/:slug'` against `'/menu/spicy-wings'` gives `{ slug: 'spicy-wings' }`,
+ * and null when the path is another page. A pattern with no `:part` gives `{}`
+ * for its own page. Values come decoded. A screen whose every pattern says null
+ * draws its own "This page does not exist": the server answers a side's page
+ * for any path under it, so the screen is the one that knows.
+ */
+export function pathParams(pattern: string, path: string): Record<string, string> | null {
+  const want = pattern.split('/').filter((part) => part !== '');
+  const have = plainParts(path);
+  if (have === null || want.length !== have.length) return null;
+  const out: Record<string, string> = {};
+  for (const [index, part] of want.entries()) {
+    const value = have[index] as string;
+    if (part.startsWith(':')) out[part.slice(1)] = value;
+    else if (part !== value) return null;
+  }
+  return out;
+}
+
+/**
+ * A link to a page of this side: `<Link to="/menu">Menu</Link>`. It is a real
+ * `<a>` with the page's address, so it opens in a new tab and can be copied; a
+ * plain click is followed with {@link go}, without loading the side again.
+ * Takes what an `<a>` takes (`className`, `aria-current`, …) except `href`.
+ */
+export function Link(props: { to: string } & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>): ReactElement {
+  const { to, onClick, ...rest } = props;
+  const target = pageWindow();
+  return createElement('a', {
+    ...rest,
+    href: pageHref(to, mountBase(target?.location.pathname)),
+    onClick: (event: MouseEvent<HTMLAnchorElement>): void => {
+      onClick?.(event);
+      // A click the screen kept, a new tab or window, another button: not this link's to follow.
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (rest.target !== undefined && rest.target !== '_self') return;
+      event.preventDefault();
+      go(to);
+    },
+  });
+}
+
+/** Text of the page's own (its title) as it is said to another page: one line, no control characters, not long. */
+function plainLine(value: unknown): string {
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what is taken out
+  return (typeof value === 'string' ? value : '').replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, PATH_MAX);
+}
+
+/**
+ * Keep the page's path current, and keep the page that frames it told.
+ *
+ * Any page: Back and Forward reach the screens that read {@link usePath}.
+ *
+ * A STAFF side inside a frame, in every build, speaks the dashboard's frame
+ * protocol, so the dashboard's sidebar and the side stay in step: it says
+ * `adminium:surface:hello` once, `adminium:surface:navigate` for each move of
+ * its own, and follows the `path` of an `adminium:host:init` or
+ * `adminium:host:set` without saying it back. Paths there have no slash in
+ * front, as `nav.json` writes them. The theme and locale those messages also
+ * carry are not acted on.
+ *
+ * In a bundle `adminium dev` built, inside a frame, either side also says
+ * where it is (`adminium:side-location`: the path and the page's title) on
+ * load and on every change, to the Designer's preview; and a customer side
+ * follows a path the preview sends. A packed customer side says nothing and
+ * listens to nothing.
+ *
+ * Only the framing page is listened to. What is posted goes to whoever frames
+ * the page (`*`): the preview is served on another name than the side, and a
+ * path and a title are nothing of the session.
+ */
+export function watchAddress(
+  target: PageWindow | undefined = pageWindow(),
+  dev: boolean = DEV,
+  /** A moment later: once the screen has drawn the page it moved to, and named it. */
+  later: (run: () => void) => void = (run) => void setTimeout(run, 80),
+): void {
+  if (target === undefined) return;
+  target.addEventListener('popstate', () => pathChanged(target, true));
+  if (target.parent === target) return;
+  const parent = target.parent as { postMessage(message: unknown, origin: string): void };
+  const here = (): string => pagePath(target.location.pathname);
+
+  let waiting = false;
+  const sayLocation = (): void => {
+    if (!dev || waiting) return;
+    waiting = true;
+    later(() => {
+      waiting = false;
+      parent.postMessage({ type: 'adminium:side-location', app: APP_KEY, side: SIDE, path: here(), title: plainLine(target.document?.title) }, '*');
+    });
+  };
+  frameSayers.set(target, (own) => {
+    if (SIDE === 'staff' && own) parent.postMessage({ type: 'adminium:surface:navigate', v: 1, path: here().slice(1) }, '*');
+    sayLocation();
+  });
+
+  if (SIDE === 'staff' || dev) {
+    target.addEventListener('message', (event: { source?: unknown; data?: unknown }) => {
+      if (event.source !== parent) return;
+      const said = record(event.data);
+      const follows = said['type'] === 'adminium:host:set' || (SIDE === 'staff' && said['type'] === 'adminium:host:init');
+      if (follows && typeof said['path'] === 'string') moveTo(target, said['path'], true, false);
+    });
+  }
+  if (SIDE === 'staff') parent.postMessage({ type: 'adminium:surface:hello', v: 1, appKey: APP_KEY, side: SIDE, path: here().slice(1) }, '*');
+  sayLocation();
+}
+
+watchAddress();

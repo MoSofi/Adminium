@@ -154,7 +154,7 @@ const TESTS = [
     // fresh clone, where this file went green and its five neighbours red.
     dir: 'apps/desktop',
     file: 'src/test/generate-notices.test.ts',
-    reads: ['scripts/generate-notices.mjs'],
+    reads: ['scripts/generate-notices.mjs', 'apps/dashboard/package.json'],
     phase: 'dist',
   },
   {

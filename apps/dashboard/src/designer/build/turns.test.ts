@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DesignerEvent, DesignerEventBody } from '../api.js';
 import { stepLine } from './stepLine.js';
-import { foldTurns, isWorking, spendWarnings, waitingCards, type StepRow } from './turns.js';
+import { foldTurns, heldBy, isWorking, spendWarnings, waitingCards, type StepRow } from './turns.js';
 
 let seq = 0;
 const at = (turn: number, body: DesignerEventBody, time = seq * 100): DesignerEvent => {
@@ -166,3 +166,77 @@ describe('spendWarnings', () => {
     expect(spendWarnings([])).toEqual([]);
   });
 });
+
+describe('what a person does outside a turn', () => {
+  /** An event the server marks as a person's: it carries the last turn's number, and belongs to no turn. */
+  const mine = (turn: number, body: DesignerEventBody): DesignerEvent => ({ ...at(turn, body), by: 'person' });
+  const finished = (): DesignerEvent[] => [
+    at(1, { kind: 'turn-started', text: 'A repair desk.' }, 0),
+    at(1, { kind: 'apply', ok: true, state: 'installed' }),
+    at(1, { kind: 'version', n: 1, name: 'v1' }),
+    at(1, { kind: 'turn-finished', outcome: 'done' }, 900),
+  ];
+
+  it('a hand save after a finished turn adds no row, keeps the reply’s own version, and leaves nothing working', () => {
+    seq = 0;
+    const events = [
+      ...finished(),
+      mine(1, { kind: 'hold', what: 'save' }),
+      mine(1, { kind: 'check', ok: false, findings: [{ file: 'a.json', path: '', message: 'not valid JSON', level: 'error' }] }),
+      mine(1, { kind: 'build', ok: false, problems: ['no'] }),
+      mine(1, { kind: 'apply', ok: true, state: 'unchanged' }),
+      mine(1, { kind: 'version', n: 2, name: 'v2 · Your edit to design.css' }),
+      mine(1, { kind: 'released', what: 'save' }),
+    ];
+    const turns = foldTurns(events);
+    expect(turns).toHaveLength(1);
+    expect(isWorking(turns)).toBe(false);
+    expect(turns[0]?.steps.map((row) => row.tool)).toEqual(['apply']);
+    expect(turns[0]?.version).toEqual({ n: 1, name: 'v1' });
+    expect(turns[0]?.buildFailed).toBeNull();
+    expect(heldBy(events)).toBeNull();
+  });
+
+  it('a session with no turn stays with no turn: nothing reads as working after a hand save', () => {
+    seq = 0;
+    const events = [mine(0, { kind: 'hold', what: 'save' }), mine(0, { kind: 'version', n: 1, name: 'v1 · Your edit to design.css' }), mine(0, { kind: 'released', what: 'save' })];
+    expect(foldTurns(events)).toEqual([]);
+    expect(isWorking(foldTurns(events))).toBe(false);
+    // 0.3.17's own style event, before events said whose they were, is a person's too when it comes at turn 0.
+    expect(foldTurns([mine(0, { kind: 'style', skill: 'warm', title: 'Warm table' })])).toEqual([]);
+  });
+
+  it('a style change and going back still say themselves under the last reply', () => {
+    seq = 0;
+    const turns = foldTurns([
+      ...finished(),
+      mine(1, { kind: 'hold', what: 'style' }),
+      mine(1, { kind: 'style', skill: 'warm', title: 'Warm table', fonts: [] }),
+      mine(1, { kind: 'version', n: 2, name: 'v2' }),
+      mine(1, { kind: 'released', what: 'style' }),
+    ]);
+    expect(turns[0]?.style).toEqual({ title: 'Warm table', fonts: [] });
+    expect(turns[0]?.version).toEqual({ n: 2, name: 'v2' });
+    expect(turns[0]?.steps.map((row) => row.tool)).toEqual(['apply']);
+  });
+
+  it('says what holds the folder while it is held, and nothing once it is handed back', () => {
+    seq = 0;
+    const held = [...finished(), mine(1, { kind: 'hold', what: 'restore' })];
+    expect(heldBy(held)).toBe('restore');
+    expect(heldBy([...held, mine(1, { kind: 'released', what: 'restore' })])).toBeNull();
+    expect(heldBy([])).toBeNull();
+  });
+
+  it('a look the Designer took is no step of the turn', () => {
+    seq = 0;
+    const turns = foldTurns([at(1, { kind: 'turn-started', text: 'x' }, 0), at(1, { kind: 'sight', side: 'customer', path: '/menu' })]);
+    expect(turns[0]?.stepCount).toBe(0);
+    expect(isWorking(turns)).toBe(true);
+    // It has a line of its own, where it happened: after the build it looked at.
+    const row = turns[0]?.steps[0] as StepRow;
+    expect([row.tool, row.state, row.subject]).toEqual(['sight', 'done', '/menu']);
+    expect(stepLine(row).replace('\u0001', row.subject ?? '')).toBe('Looked at /menu after it built');
+  });
+});
+

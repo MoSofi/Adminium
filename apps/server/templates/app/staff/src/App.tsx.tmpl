@@ -9,7 +9,7 @@
  * on the sample rows in seeds/sample.json, held in memory, with no Adminium.
  */
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { APP_NAME, en, sampleRows, useStaff, type Row, type StaffSession } from '@adminiumjs/adminium/side';
+import { APP_NAME, Link, en, sampleRows, usePath, useStaff, type Row, type StaffSession } from '@adminiumjs/adminium/side';
 
 import sample from '../../seeds/sample.json';
 
@@ -20,10 +20,18 @@ export function App() {
   const loaded = useStaff({ demo: sampleRows(sample) });
   if (loaded.state === 'loading') return <p className="page muted">{en('Loading…')}</p>;
   if (loaded.state === 'error') return <p className="page notice error">{loaded.message}</p>;
-  return <Items staff={loaded.value} />;
+  return <Desk staff={loaded.value} />;
 }
 
-function Items({ staff }: { staff: StaffSession }) {
+/**
+ * The pages, each at an address of its own: `/` (what is open) and `/done`
+ * (what is finished). `usePath()` says which one the address names. They are
+ * the two entries of nav.json, so the dashboard's sidebar opens each, and a
+ * `<Link>` here moves the sidebar with it. An address that is neither gets the
+ * last branch.
+ */
+function Desk({ staff }: { staff: StaffSession }) {
+  const path = usePath();
   const [rows, setRows] = useState<Row[]>([]);
   const [title, setTitle] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
@@ -40,6 +48,14 @@ function Items({ staff }: { staff: StaffSession }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The operator's own name for the app when they set one, else the name in the app's manifest.
+  const name = staff.appName ?? (APP_NAME || en('__NAME__'));
+  const heading = path === '/' ? en('Items') : path === '/done' ? en('Done') : en('This page does not exist');
+  // Each page names itself: the browser's tab and its history show this.
+  useEffect(() => {
+    document.title = `${heading} · ${name}`;
+  }, [heading, name]);
 
   async function add(event: FormEvent) {
     event.preventDefault();
@@ -62,9 +78,9 @@ function Items({ staff }: { staff: StaffSession }) {
     }
   }
 
-  // The operator's own name for the app when they set one, else the name in the app's manifest.
-  const name = staff.appName ?? (APP_NAME || en('__NAME__'));
-  const open = rows.filter((row) => row['status'] !== 'done').length;
+  const open = rows.filter((row) => row['status'] !== 'done');
+  const done = rows.filter((row) => row['status'] === 'done');
+  const shown = path === '/done' ? done : open;
 
   // The parts (page, toolbar, list, badge, empty) are in app.css; the colours and type in theme.css.
   return (
@@ -76,9 +92,14 @@ function Items({ staff }: { staff: StaffSession }) {
           </span>
           {name}
         </div>
-        <span className="badge accent">
-          {open} {en('open')}
-        </span>
+        <nav className="site-nav" aria-label={en('Pages')}>
+          <Link to="/" aria-current={path === '/' ? 'page' : undefined}>
+            {en('Items')} ({open.length})
+          </Link>
+          <Link to="/done" aria-current={path === '/done' ? 'page' : undefined}>
+            {en('Done')} ({done.length})
+          </Link>
+        </nav>
       </header>
 
       {staff.mode === 'demo' ? <p className="notice">{en('Sample data. Nothing here is saved.')}</p> : null}
@@ -91,42 +112,49 @@ function Items({ staff }: { staff: StaffSession }) {
         </p>
       )}
 
-      <main>
-        {staff.can(ITEMS, 'create') ? (
-          <form className="toolbar" onSubmit={add}>
-            <div className="field">
-              <label htmlFor="title">{en('New item')}</label>
-              <input id="title" value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} />
-            </div>
-            <button type="submit" className="btn btn-primary">
-              {en('Add')}
-            </button>
-          </form>
-        ) : null}
+      {path !== '/' && path !== '/done' ? (
+        <main className="empty">
+          <strong>{en('This page does not exist')}</strong>
+          <Link to="/">{en('Back to the first page')}</Link>
+        </main>
+      ) : (
+        <main>
+          {path === '/' && staff.can(ITEMS, 'create') ? (
+            <form className="toolbar" onSubmit={add}>
+              <div className="field">
+                <label htmlFor="title">{en('New item')}</label>
+                <input id="title" value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} />
+              </div>
+              <button type="submit" className="btn btn-primary">
+                {en('Add')}
+              </button>
+            </form>
+          ) : null}
 
-        {rows.length === 0 ? (
-          <div className="empty">
-            <strong>{en('Nothing here yet')}</strong>
-            <span>{en('What comes in shows here.')}</span>
-          </div>
-        ) : (
-          <ul className="list">
-            {rows.map((row) => (
-              <li className="list-row" key={String(row['id'])}>
-                <div className="row">
-                  <span className={row['status'] === 'done' ? 'badge good' : 'badge accent'}>{row['status'] === 'done' ? en('Done') : en('Open')}</span>
-                  <span className={row['status'] === 'done' ? 'done' : undefined}>{String(row['title'] ?? '')}</span>
-                </div>
-                {staff.can(ITEMS, 'update') ? (
-                  <button type="button" className="btn btn-small" onClick={() => void setStatus(row, row['status'] === 'done' ? 'open' : 'done')}>
-                    {row['status'] === 'done' ? en('Reopen') : en('Mark done')}
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </main>
+          {shown.length === 0 ? (
+            <div className="empty">
+              <strong>{en('Nothing here yet')}</strong>
+              <span>{path === '/' ? en('What comes in shows here.') : en('What is marked done shows here.')}</span>
+            </div>
+          ) : (
+            <ul className="list">
+              {shown.map((row) => (
+                <li className="list-row" key={String(row['id'])}>
+                  <div className="row">
+                    <span className={row['status'] === 'done' ? 'badge good' : 'badge accent'}>{row['status'] === 'done' ? en('Done') : en('Open')}</span>
+                    <span className={row['status'] === 'done' ? 'done' : undefined}>{String(row['title'] ?? '')}</span>
+                  </div>
+                  {staff.can(ITEMS, 'update') ? (
+                    <button type="button" className="btn btn-small" onClick={() => void setStatus(row, row['status'] === 'done' ? 'open' : 'done')}>
+                      {row['status'] === 'done' ? en('Reopen') : en('Mark done')}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </main>
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ import {
   type ClientBuild,
   type ClientBundler,
 } from './client-build.js';
-import { appsStaleReason, buildProjectApps, type AppsBuild } from './apps/build-apps.js';
+import { appsBuiltAsOther, appsStaleReason, buildProjectApps, type AppsBuild } from './apps/build-apps.js';
 import { parseProjectConfig, type ProjectConfig } from './config.js';
 import { listAppKeys } from './apps/read-app.js';
 import { configFileName, type ProjectLocation } from './locate.js';
@@ -475,6 +475,8 @@ export interface LoadedProjectConfig {
   config: ProjectConfig;
   /** How the config was obtained, for the boot log. */
   from: 'build' | 'new-build' | 'source';
+  /** The build was current, and its apps' screens were built again as the kind this start needs. */
+  appsRebuilt?: true;
 }
 
 /**
@@ -485,16 +487,36 @@ export interface LoadedProjectConfig {
  */
 export async function loadProjectConfig(
   project: ProjectLocation,
-  opts: { version: string; loadBundler?: LoadBundler; rebuild?: boolean },
+  opts: {
+    version: string;
+    loadBundler?: LoadBundler;
+    rebuild?: boolean;
+    /**
+     * Who the build is for: true under `adminium dev` and `adminium design`, false for a server. A build whose
+     * apps' screens are of the other kind is out of date for them, both ways: a developer's preview is told
+     * nothing by screens built for a server, and a server should not serve a developer's. Left out by a command
+     * that only reads the config, which takes the build as it is.
+     */
+    dev?: boolean;
+  },
 ): Promise<LoadedProjectConfig> {
   const stale = opts.rebuild === true ? 'a rebuild was asked for' : staleReason(project, opts.version);
   if (stale === null) {
-    return { config: await importConfig(project, join(buildDir(project), BUILT_CONFIG)), from: 'build' };
+    const config = await importConfig(project, join(buildDir(project), BUILT_CONFIG));
+    if (opts.dev !== undefined && appsBuiltAsOther(project.root, readBuildManifest(project)?.apps, opts.dev)) {
+      // Without esbuild (a server image with no dev dependencies) the screens are left as they are: they work.
+      const bundler = await (opts.loadBundler ?? loadProjectBundler)(project.root);
+      if (bundler !== null) {
+        await rebuildApps(project, { version: opts.version, loadBundler: async () => bundler, dev: opts.dev });
+        return { config, from: 'build', appsRebuilt: true };
+      }
+    }
+    return { config, from: 'build' };
   }
 
   const bundler = await (opts.loadBundler ?? loadProjectBundler)(project.root);
   if (bundler !== null) {
-    const built = await buildProject(project, { version: opts.version, loadBundler: async () => bundler });
+    const built = await buildProject(project, { version: opts.version, loadBundler: async () => bundler, dev: opts.dev === true });
     return { config: await importConfig(project, built.configOutput), from: 'new-build' };
   }
 

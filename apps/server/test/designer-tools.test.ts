@@ -366,6 +366,22 @@ describe('the Designer’s tools', () => {
     expect(readFileSync(join(root, 'apps/repairs/manifest/app.json'), 'utf8')).toBe(text);
   });
 
+  // Seen on a real model: app.json written again without "prefixed", and the app's table "orders" was then somebody else's.
+  it('refuse a write of the manifest that would name the app’s tables anew, and take any other change of it', async () => {
+    const file = 'apps/repairs/manifest/app.json';
+    const text = readFileSync(join(root, file), 'utf8');
+    const app = JSON.parse(text) as Record<string, unknown>;
+    expect(app['prefixed']).toBe(true);
+    const { prefixed: _dropped, ...bare } = app;
+    const writing = await run('write_file', { path: file, content: JSON.stringify(bare) });
+    expect(writing).toMatchObject({ isError: true });
+    expect(writing.content).toContain('"prefixed"');
+    expect(await run('write_file', { path: file, content: JSON.stringify({ ...app, key: 'other' }) })).toMatchObject({ isError: true });
+    expect(await run('edit_file', { path: file, old: '"prefixed": true', new: '"prefixed": false' })).toMatchObject({ isError: true });
+    expect(readFileSync(join(root, file), 'utf8')).toBe(text);
+    expect(await run('write_file', { path: file, content: JSON.stringify({ ...app, description: 'Repairs, tracked.' }) })).not.toMatchObject({ isError: true });
+  });
+
   it('check the app with the add-ons it names in sight, when this server has them', async () => {
     writeFileSync(join(root, 'apps/repairs/manifest/add-ons.json'), JSON.stringify({ suggests: [{ key: 'invoices', range: '*', reason: { 'en-US': 'Invoices.' } }] }));
     writeFileSync(
@@ -1060,5 +1076,52 @@ describe('the Designer’s tools', () => {
     expect(await run('run_tests')).toMatchObject({ label: 'Tests passed' });
     writeFileSync(join(root, 'apps/repairs/tests/sum.test.mjs'), "import test from 'node:test';\nimport assert from 'node:assert';\ntest('adds', () => assert.equal(1 + 1, 3));\n");
     expect(await run('run_tests')).toMatchObject({ label: 'Tests failed', isError: true });
+  });
+});
+
+describe('a file the person changed by hand', () => {
+  const path = 'apps/repairs/manifest/pages/repairs-items.json';
+  /** The turn as the runner hands it to a tool: the session as stored, with what the person saved by hand. */
+  const turn = (n: number, handEdits?: string[]): ToolContext => ({ ...context(), turn: n, session: { ...session, ...(handEdits === undefined ? {} : { handEdits }) } as DesignerSession });
+
+  it('is not written or edited by a model that has not read it in this turn, and is once it has', async () => {
+    expect(await tool('write_file').run({ path, content: '{"key":"repairs-items"}' }, turn(1))).toMatchObject({ label: expect.stringContaining('Wrote') });
+
+    // The person saved it by hand; the next turn's model writes it from what it remembers.
+    const refusedWrite = await tool('write_file').run({ path, content: '{"key":"repairs-items","mine":true}' }, turn(2, [path]));
+    expect(refusedWrite).toMatchObject({ isError: true, miss: true, label: 'Read it first' });
+    expect(refusedWrite.content).toContain('Call read_file on it first');
+    expect(refusedWrite.content).toContain(path);
+    const refusedEdit = await tool('edit_file').run({ path, old: '"repairs-items"', new: '"other"' }, turn(2, [path]));
+    expect(refusedEdit).toMatchObject({ isError: true, miss: true });
+    expect(readFileSync(join(root, path), 'utf8')).toBe('{"key":"repairs-items"}');
+
+    // Another file is written as ever, and a read of the changed one opens it.
+    expect(await tool('write_file').run({ path: 'apps/repairs/manifest/pages/repairs-other.json', content: '{}' }, turn(2, [path]))).not.toMatchObject({ isError: true });
+    expect(await tool('read_file').run({ path }, turn(2, [path]))).toMatchObject({ content: '{"key":"repairs-items"}' });
+    expect(await tool('edit_file').run({ path, old: '"repairs-items"', new: '"repairs-items-2"' }, turn(2, [path]))).not.toMatchObject({ isError: true });
+    expect(await tool('write_file').run({ path, content: '{"key":"again"}' }, turn(2, [path]))).not.toMatchObject({ isError: true });
+
+    // A read in one turn says nothing for the next; and with nothing changed by hand, nothing is asked.
+    expect(await tool('write_file').run({ path, content: '{"key":"later"}' }, turn(3, [path]))).toMatchObject({ miss: true });
+    expect(await tool('write_file').run({ path, content: '{"key":"later"}' }, turn(3, []))).not.toMatchObject({ isError: true });
+  });
+
+  it('is found however the model spells its path', async () => {
+    await tool('write_file').run({ path, content: '{}' }, turn(1));
+    expect(await tool('write_file').run({ path: 'APPS/repairs/manifest/pages/repairs-items.json/', content: '{"a":1}' }, turn(2, [path]))).toMatchObject({ miss: true });
+    // On a disk that folds case this is the same file: it is refused by any case, and a read by any case opens it.
+    const shouted = 'apps/repairs/manifest/pages/Repairs-Items.JSON';
+    expect(await tool('write_file').run({ path: shouted, content: '{"a":1}' }, turn(2, [path]))).toMatchObject({ miss: true });
+    expect(await tool('edit_file').run({ path: shouted, old: '{', new: '{ ' }, turn(2, [path]))).toMatchObject({ miss: true });
+    expect(readFileSync(join(root, path), 'utf8')).toBe('{}');
+  });
+
+  it('is not deleted by a model that has not read it in this turn', async () => {
+    await tool('write_file').run({ path, content: '{}' }, turn(1));
+    expect(await tool('delete_file').run({ path }, turn(2, [path]))).toMatchObject({ isError: true, miss: true, label: 'Read it first' });
+    expect(readFileSync(join(root, path), 'utf8')).toBe('{}');
+    await tool('read_file').run({ path }, turn(2, [path]));
+    expect(await tool('delete_file').run({ path }, turn(2, [path]))).not.toMatchObject({ isError: true });
   });
 });

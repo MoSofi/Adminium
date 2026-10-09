@@ -25,7 +25,7 @@ import { contrast, inkOn, type Theme, type ThemeColours } from './theme.js';
 
 export interface DesignIssue {
   /** What kind of finding it is: a test and the page tell them apart by this. */
-  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'contrast' | 'dashboard' | 'component';
+  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'contrast' | 'dashboard' | 'component' | 'address';
   /** One line for the model, the same each time. */
   line: string;
 }
@@ -211,6 +211,48 @@ export function unbroughtPicture(source: string): string | null {
   }
   return null;
 }
+
+/** The import that brings the page-address helper, written out: a model follows the words it is given. */
+const ADDRESS_HELPER = "import { Link, usePath, pathParams, go } from '@adminiumjs/adminium/side'";
+
+/** Whether a file brings a part of the side module that reads or changes the page's address (`usePath`, `Link`, `go`). */
+export function readsAddress(source: string): boolean {
+  for (const found of code(source).matchAll(/\bimport\s*\{([^}]*)\}\s*from\s*['"]@adminiumjs\/adminium\/side['"]/g)) {
+    if ((found[1] as string).split(',').some((name) => /^\s*(?:usePath|Link|go)\s*$/.test(name))) return true;
+  }
+  return false;
+}
+
+/**
+ * A link a screen writes from the server's root (`href="/menu"`): on a side,
+ * which is served under `/apps/<key>/<side>/`, it leaves the app. An address
+ * of another site, of the public API, a place on the page and one a function
+ * gives are none of these. The first such address, or null.
+ */
+export function rootedLink(source: string): string | null {
+  for (const found of code(source).matchAll(/\bhref\s*=\s*(?:"([^"]*)"|\{\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)\s*\})/g)) {
+    const address = found[1] ?? found[2] ?? found[3] ?? found[4] ?? '';
+    if (address.startsWith('/') && !address.startsWith('//') && !address.startsWith('/api/')) return address.slice(0, 60);
+  }
+  return null;
+}
+
+/**
+ * The state a screen keeps its page in: `const [page, …] = useState('home')`,
+ * by the state's name (page, screen, view, route) and a first value that is
+ * text. A number is rows turned a page at a time, not a page of the side. The
+ * state's name, or null. Never a sign on its own, and never said as a fact:
+ * "view" and "page" name much that is no page (a grid or a list).
+ */
+export function pageState(source: string): string | null {
+  for (const found of code(source).matchAll(/\bconst\s*\[\s*(page|screen|view|route)\s*,[^\]]*\]\s*=\s*(?:React\.)?useState\s*(?:<([^>(]*)>)?\s*\(\s*(['"`])?/g)) {
+    if (found[3] !== undefined || /['"`]|\bstring\b/.test(found[2] ?? '')) return found[1] as string;
+  }
+  return null;
+}
+
+/** The folders a side's pages are kept in, when it keeps them apart. */
+const PAGE_FOLDERS = ['pages', 'screens', 'views'] as const;
 
 /** How many colour values a stylesheet of the app's own may hold before it is said: a shadow or a gradient needs one or two. */
 const COLOURS_ALLOWED = 3;
@@ -416,6 +458,45 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
         line: `- ${at(screen.name)} shows a picture from "${address}", an address nothing is at, so an empty frame shows. A page's picture is a file the screen imports (call find_pictures with "for": "page", then import hero1 from '../../assets/pictures/hero-1.jpg'); a row's picture comes from its picture column with pictureUrl. With no picture to show, take the <img> out and leave the tile plain.`,
       });
     }
+    // More than one page, and one address for all of them. One line a side.
+    {
+      const reads = sources(src, /\.(?:tsx?|jsx?)$/).some((file) => readsAddress(file.text));
+      let listed = 0;
+      if (side === 'staff') {
+        try {
+          const nav: unknown = JSON.parse(readFileSync(join(dir, side, 'nav.json'), 'utf8'));
+          listed = Array.isArray(nav) ? nav.length : 0;
+        } catch {
+          // No nav file, or one that cannot be read: the build says that.
+        }
+      }
+      const folder = PAGE_FOLDERS.map((name) => ({ name, files: screens.filter((screen) => screen.name.startsWith(`${name}/`)).length })).sort((a, b) => b.files - a.files)[0];
+      const rooted = screens.map((screen) => ({ screen, address: rootedLink(screen.text) })).find((entry) => entry.address !== null);
+      const hashed = screens.find((screen) => /\blocation\.hash\b|['"]hashchange['"]/.test(code(screen.text)));
+      if (!reads && (listed > 1 || (folder !== undefined && folder.files > 1))) {
+        const state = screens.map((screen) => pageState(screen.text)).find((name) => name !== null);
+        const sign = listed > 1 ? `${appPath(key, side, 'nav.json')} lists ${String(listed)} screens` : `${String(folder?.files ?? 0)} files under src/${folder?.name ?? ''}/`;
+        issues.push({
+          kind: 'address',
+          line:
+            `- ${appPath(key, side, 'src')}/ shows more than one page (${sign}) and none has an address of its own. Every page is at "/", so ${side === 'staff' ? "each entry of the dashboard's sidebar opens the same first screen" : 'a page cannot be refreshed, sent to somebody or gone back to'}. ` +
+            `Give each page an address with the side module's helper: ${ADDRESS_HELPER}. In the component that chooses what to draw, const path = usePath() (before any return); path === '/' is the first page, and pathParams('/menu/:slug', path) gives { slug } for a page with a part of its own, or null for another page. Move with <Link to="/menu">…</Link> or go('/menu'), never by setting a state${state === undefined || state === null ? '' : ` (if const [${state}, …] = useState is what chooses the page, the path takes its place)`}. For a path that is none of the pages draw "This page does not exist" with a <Link to="/">.` +
+            (side === 'staff' ? ' Each "path" in nav.json is its page\'s address without the first slash: "" is "/", "done" is "/done".' : ''),
+        });
+      } else if (rooted !== undefined) {
+        const address = rooted.address as string;
+        issues.push({
+          kind: 'address',
+          line: `- ${at(rooted.screen.name)} links with href="${address}", an address from the server's root: a side is served under /apps/<key>/<side>/, so that link leaves the app's pages. Write ${address.includes('${') ? `<Link to={\`${address}\`}>` : `<Link to="${address}">`}…</Link> with the page's own path (import { Link } from '@adminiumjs/adminium/side'): it adds where the side is served.`,
+        });
+      } else if (hashed !== undefined) {
+        issues.push({
+          kind: 'address',
+          line: `- ${at(hashed.name)} keeps the page in the address's hash (window.location.hash): a side's pages have real addresses. Read the page with const path = usePath() and move with <Link to="/menu">…</Link> or go('/menu') (${ADDRESS_HELPER}).`,
+        });
+      }
+    }
+
     for (const screen of screens) {
       // A custom property passed down is not styling: `style={{ '--w': x }}` is left alone.
       const inline = [...code(screen.text).matchAll(/\bstyle\s*=\s*\{\{([^}]*)\}\}/g)].find((found) => /(^|,)\s*[a-zA-Z]+\s*:/.test(found[1] as string));

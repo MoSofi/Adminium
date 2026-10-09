@@ -71,6 +71,27 @@ export interface RequestJsonOptions {
  * Non-2xx → status-mapped error (body scrubbed + snippeted); fetch rejection →
  * `network`; our own abort → `timeout`; unparseable 2xx body → `bad_response`.
  */
+/**
+ * Whoever runs this package may have checked where a model's address points
+ * (not the cloud's metadata address, not its own network). A check is only
+ * worth what the request that follows does: asked again, the same name can
+ * answer with another address. So the host can hand back, for an address it
+ * checked, a `fetch` that connects to what it checked. Null means the
+ * platform's own.
+ */
+export type FetchFor = (url: string) => typeof fetch | null;
+let fetchFor: FetchFor | null = null;
+
+/** Set, or with null take away, the host's choice of `fetch` per address. */
+export function setOutboundFetch(pick: FetchFor | null): void {
+  fetchFor = pick;
+}
+
+/** The `fetch` a request to `url` is made with. Read at each call: the platform's can be replaced under a test. */
+export function outboundFetch(url: string): typeof fetch {
+  return fetchFor?.(url) ?? fetch;
+}
+
 export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
   const { provider, url, method = 'GET', headers, body, apiKey } = opts;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -87,7 +108,7 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(url, init);
+    res = await outboundFetch(url)(url, init);
   } catch (err) {
     if (controller.signal.aborted) {
       throw new ProviderError({

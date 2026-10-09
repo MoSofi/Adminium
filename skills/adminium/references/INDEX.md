@@ -26,7 +26,7 @@ file. Every file is 8 KB or less.
 | `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 905 |
 | `references/projects/apps--check-it.md` | Check it | 999 |
 | `references/projects/apps--try-it-then-pack-it.md` | Try it, then pack it | 1640 |
-| `references/projects/apps--screens-of-its-own.md` | Screens of its own | 3260 |
+| `references/projects/apps--screens-of-its-own.md` | Screens of its own | 3662 |
 | `references/projects/folder--overview.md` | The project folder | 1500 |
 | `references/projects/folder--adminium-config-ts.md` | `adminium.config.ts` | 2052 |
 | `references/projects/folder--several-databases.md` | Several databases | 1476 |

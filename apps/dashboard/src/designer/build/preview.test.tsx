@@ -13,9 +13,14 @@ import { ThemeProvider } from '@adminium/ui';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerSession } from '../api.js';
-import { Preview, previewState, sideNamed } from './Preview.js';
-import { sightFrom } from './sight.js';
+import { idleCode } from './codeFiles.fixture.js';
+import { previewState, sideNamed } from './Preview.js';
+import { WorkArea } from './WorkArea.js';
+import { looksNow, sightFrom } from './sight.js';
 import { foldTurns, type TurnView } from './turns.js';
+
+// The diagram is another test's; here the tab only has to open.
+vi.mock('../architecture/ArchitectureTab.js', () => ({ default: () => null }));
 
 class FakeSocket {
   static all: FakeSocket[] = [];
@@ -50,10 +55,12 @@ let tickets: string[];
 let sides: { side: string; prefix: string; navAvailable: boolean }[];
 let installed: boolean;
 let live: boolean;
+const notices = vi.fn<(text: string) => void>();
 
 beforeEach(() => {
   tickets = [];
   installed = true;
+  notices.mockClear();
   live = false;
   sides = [
     { side: 'staff', prefix: '/apps/repairs/staff', navAvailable: true },
@@ -94,7 +101,7 @@ function mount(turns: TurnView[] = [], onFix = vi.fn()) {
     <QueryClientProvider client={client}>
       <ThemeProvider>
         <div className="flex h-[600px]">
-          <Preview session={SESSION} turns={turns} onFix={onFix} compact={false} />
+          <WorkArea code={idleCode()} session={SESSION} turns={turns} onFix={onFix} onNotice={notices} />
         </div>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -134,17 +141,17 @@ describe('the preview', () => {
   it('offers the app’s own sides, opens the first one by a ticket, and frames the others by theirs', async () => {
     mount();
     await waitFor(() => expect(frame()).not.toBeNull());
-    expect(within(screen.getByRole('group', { name: 'Side' })).getAllByRole('button').map((button) => button.textContent)).toEqual(['Dashboard', 'Staff', 'Customer']);
-    expect(screen.getByRole('button', { name: 'Staff' }).getAttribute('aria-pressed')).toBe('true');
+    expect(within(screen.getByRole('radiogroup', { name: 'Side' })).getAllByRole('radio').map((button) => button.textContent)).toEqual(['Dashboard', 'Staff', 'Customer']);
+    expect(screen.getByRole('radio', { name: 'Staff' }).getAttribute('aria-checked')).toBe('true');
     expect(tickets).toEqual(['/apps/repairs/staff/']);
     expect(frame().src).toContain('ticket=t1');
 
     // The dashboard is the owner's own, on the Designer's name: no ticket, no preview user.
-    await userEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Dashboard' }));
     await waitFor(() => expect(frame().getAttribute('src')).toBe('/'));
-    expect(screen.getByText('Seen as: you, the owner')).toBeTruthy();
+    expect(screen.getByLabelText('Seen as: owner. You, the owner.').textContent).toBe('Seen as: owner');
     expect(tickets).toEqual(['/apps/repairs/staff/']);
-    await userEvent.click(screen.getByRole('button', { name: 'Customer' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Customer' }));
     await waitFor(() => expect(tickets.at(-1)).toBe('/apps/repairs/customer/'));
   });
 
@@ -153,21 +160,22 @@ describe('the preview', () => {
     mount();
     await waitFor(() => expect(frame()?.getAttribute('src')).toBe('/'));
     expect(tickets).toEqual([]);
-    expect(screen.getByRole('button', { name: 'Dashboard' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Staff' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();
+    // One side is no choice: there is no switch to draw.
+    expect(screen.queryByRole('radiogroup', { name: 'Side' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Staff' })).toBeNull();
+    expect(screen.getByLabelText('Address on the dashboard side')).toBeTruthy();
   });
 
   it('keeps the frame on a width change, and opens it again on Reload and when the app is applied', async () => {
     mount();
     await waitFor(() => expect(frame()).not.toBeNull());
     const first = frame();
-    await userEvent.click(screen.getByRole('button', { name: 'Phone' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Tablet' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Phone' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Tablet' }));
     expect(frame()).toBe(first);
     expect(tickets).toHaveLength(1);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reload the preview' }));
     await waitFor(() => expect(tickets).toHaveLength(2));
     await waitFor(() => expect(frame().src).toContain('ticket=t2'));
 
@@ -185,7 +193,7 @@ describe('the preview', () => {
       <QueryClientProvider client={client}>
         <ThemeProvider>
           <div className="flex h-[600px]">
-            <Preview session={SESSION} turns={turns} onFix={() => undefined} compact={false} />
+            <WorkArea code={idleCode()} session={SESSION} turns={turns} onFix={() => undefined} onNotice={notices} />
           </div>
         </ThemeProvider>
       </QueryClientProvider>
@@ -212,6 +220,9 @@ describe('the preview', () => {
     installed = false;
     mount();
     expect(await screen.findByText('Nothing to show yet. Once the Designer applies the app, it shows here.')).toBeTruthy();
+    // Before the first build the bar is its tabs alone.
+    expect(screen.queryByRole('button', { name: 'Reload the preview' })).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
     expect(tickets).toEqual([]);
   });
 
@@ -219,7 +230,10 @@ describe('the preview', () => {
     live = true;
     mount();
     expect(await screen.findByText('The preview is off on a live server. Open the app from the dashboard once it is applied.')).toBeTruthy();
-    expect(screen.queryByRole('group', { name: 'Side' })).toBeNull();
+    expect(screen.queryByRole('radiogroup', { name: 'Side' })).toBeNull();
+    // Tabs only: nothing of a preview there is none of.
+    expect(screen.queryByRole('button', { name: 'Reload the preview' })).toBeNull();
+    expect(screen.getAllByRole('tab').map((entry) => entry.textContent)).toEqual(['Preview', 'Architecture', 'Code']);
     expect(tickets).toEqual([]);
   });
 
@@ -230,7 +244,7 @@ describe('the preview', () => {
 
   it('shows a side that did not build with its first error, and asks the Designer to fix it', async () => {
     const { onFix } = mount([turn({ buildFailed: 'src/Today.tsx: Cannot find name "jobs".\nmore', steps: [{ id: 'b', tool: 'build_sides', label: 'x', state: 'failed', ms: 10, detail: 'src/Today.tsx: Cannot find name "jobs".\nmore', folded: 1 }] })]);
-    await screen.findByRole('button', { name: 'Staff' });
+    await screen.findByRole('radio', { name: 'Staff' });
     const card = await screen.findByRole('alert');
     expect(card.textContent).toContain('The staff side did not build.');
     expect(card.textContent).toContain('src/Today.tsx: Cannot find name "jobs".');
@@ -266,7 +280,7 @@ describe('the preview', () => {
     const sight = { type: 'adminium:side-sight', app: SESSION.appKey, side: 'customer', width: 1280, faults: [{ kind: 'overlap', first: 'input', second: 'input' }], picture: 'data:image/jpeg;base64,/9j/4AAQ' };
     // The turn is still running: the Designer is waiting to see what it built.
     mount([turn({ outcome: null })]);
-    await screen.findByRole('button', { name: 'Staff' });
+    await screen.findByRole('radio', { name: 'Staff' });
     await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
     const say = (origin: string, data: unknown, source?: Window): void => {
       act(() => {
@@ -290,6 +304,11 @@ describe('the preview', () => {
       faults: [{ kind: 'broken', count: 2 }],
     });
     expect(sightFrom(sight, 'another-app')).toBeNull();
+    // The page it was on goes with it, tidied by the one path rule; what is no path is left out, and the server reads that as the first page.
+    expect(sightFrom({ ...sight, path: '/menu/1/' }, SESSION.appKey)?.path).toBe('/menu/1');
+    expect(sightFrom({ ...sight, path: 'menu' }, SESSION.appKey)).not.toHaveProperty('path');
+    expect(sightFrom({ ...sight, path: 42 }, SESSION.appKey)).not.toHaveProperty('path');
+    expect(sightFrom(sight, SESSION.appKey)).not.toHaveProperty('path');
     // It is no error of the screen: nothing is shown for it.
     expect(screen.queryByRole('alert')).toBeNull();
 
@@ -299,6 +318,8 @@ describe('the preview', () => {
     await userEvent.click(look);
     expect(look.getAttribute('aria-pressed')).toBe('false');
     expect(window.localStorage.getItem('adminium.designer.sees')).toBe('off');
+    // Said each time it changes: the switch is small, and what it does is not.
+    expect(notices.mock.calls).toEqual([['The Designer will not look at the page after it builds']]);
     say('http://localhost:4731', sight);
     expect(sent()).toHaveLength(1);
     window.localStorage.removeItem('adminium.designer.sees');
@@ -306,15 +327,50 @@ describe('the preview', () => {
     // No turn runs: nobody is waiting for it, and nothing is sent.
     cleanup();
     mount([turn({})]);
-    await screen.findByRole('button', { name: 'Staff' });
+    await screen.findByRole('radio', { name: 'Staff' });
     await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
     say('http://localhost:4731', sight);
     expect(sent()).toHaveLength(1);
   });
 
+  it('keeps the frame while another tab shows: the same frame, no new ticket, out of sight and out of reach, and still looked at', async () => {
+    window.localStorage.removeItem('adminium.designer.sees');
+    const sent = (): unknown[] => vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith(`/sessions/${SESSION.id}/sight`));
+    mount([turn({ outcome: null })]);
+    await waitFor(() => expect(frame()).not.toBeNull());
+    const first = frame();
+    const panel = first.closest('[role="tabpanel"]') as HTMLElement;
+    expect(panel.hasAttribute('inert')).toBe(false);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Architecture' }));
+    expect(screen.getByRole('tab', { name: 'Architecture' }).getAttribute('aria-selected')).toBe('true');
+    expect(frame()).toBe(first);
+    // Hidden as a thing still laid out at its size, never taken out of the layout: a frame with no width is one the Designer cannot look at.
+    expect(panel.hasAttribute('inert')).toBe(true);
+    expect(panel.hasAttribute('hidden')).toBe(false);
+    expect(panel.className).toContain('invisible');
+    expect(panel.className).not.toMatch(/(^| )hidden( |$)/);
+    // Its own bar goes with it.
+    expect(screen.queryByRole('radiogroup', { name: 'Side' })).toBeNull();
+    // A turn sent from here is still shown the page, and what the page says of itself still goes on.
+    expect(looksNow()).toBe(true);
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { origin: 'http://localhost:4731', data: { type: 'adminium:side-sight', app: SESSION.appKey, side: 'staff', width: 1280, faults: [] }, source: first.contentWindow }),
+      );
+    });
+    expect(sent()).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    expect(frame()).toBe(first);
+    expect(panel.hasAttribute('inert')).toBe(false);
+    expect(panel.className).not.toContain('invisible');
+    expect(tickets).toHaveLength(1);
+  });
+
   it('shows a screen that built and then stopped as it opened, heard from its own frame, and asks for the fix', async () => {
     const { onFix } = mount([turn({})]);
-    await screen.findByRole('button', { name: 'Staff' });
+    await screen.findByRole('radio', { name: 'Staff' });
     await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
     const say = (origin: string, data: unknown, source?: Window): void => {
       act(() => {
@@ -337,7 +393,7 @@ describe('the preview', () => {
 
   it('shows an error a screen went on from, asks for the fix, and lets the page be looked at', async () => {
     const { onFix } = mount([turn({})]);
-    await screen.findByRole('button', { name: 'Staff' });
+    await screen.findByRole('radio', { name: 'Staff' });
     await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
     act(() => {
       window.dispatchEvent(
@@ -360,7 +416,7 @@ describe('the preview', () => {
 
   it('shows a call the screen made that Adminium refused, asks for the fix, and lets the page be looked at', async () => {
     const { onFix } = mount([turn({})]);
-    await screen.findByRole('button', { name: 'Staff' });
+    await screen.findByRole('radio', { name: 'Staff' });
     await waitFor(() => expect(document.querySelector('iframe')).not.toBeNull());
     act(() => {
       window.dispatchEvent(

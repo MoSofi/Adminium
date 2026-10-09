@@ -37,6 +37,11 @@ project's own dependencies.
 A `path` never starts with `/`: it is added to wherever the side is opened. `icon` is a
 [Lucide](https://lucide.dev) icon name.
 
+Each page of a side has an address of its own, and a `path` in `nav.json` is one of them without
+its first slash. A screen reads its page with `usePath()` and moves with `<Link to="/done">` or
+`go('/done')`, all from `@adminiumjs/adminium/side`; the starter screens are two pages each. See
+[Pages and their addresses](https://docs.adminium.dev/guides/apps/building-a-side/#pages-and-their-addresses).
+
 ### What a side is given
 
 A side imports its plumbing from `@adminiumjs/adminium/side`. The build supplies that module from

@@ -6,13 +6,17 @@
  * at the foot; while a turn runs the send button is a stop. A question card
  * can be answered by its buttons or in the person's own words.
  *
- * The chat is 420 wide and can be dragged (or moved with the arrow keys)
- * between 340 and 600. On a phone the two halves are tabs.
+ * The chat starts 380 wide and can be dragged (or moved with the arrow keys)
+ * between 340 and 600. As the window narrows it gives that width up by
+ * itself, and gets it back when there is room. When the work area's bar at
+ * its most folded no longer fits beside the narrowest chat, the two halves
+ * become views with a switch between them; the one out of sight is kept at
+ * its size, so the preview's frame lives on and can still be looked at.
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Eye, MessageSquare } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
@@ -44,17 +48,32 @@ import {
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
+import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
+import { LeaveGuard } from './LeaveGuard.js';
 import { StyleMenu } from './LookMenu.js';
 import { SessionMenu } from './SessionMenu.js';
 import { looksNow } from './sight.js';
 import { SessionTitle } from './SessionTitle.js';
 import { playSpendSound } from './spendSound.js';
-import { foldTurns, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
+import { foldTurns, heldBy, isWorking, spendWarnings, waitingCards, type TurnView } from './turns.js';
 import { useFollowEnd } from './useFollowEnd.js';
+import { useCodeFiles, type CodeLock } from './useCodeFiles.js';
 import { useSessionEvents } from './useSessionEvents.js';
+import { VIEW_IDS, ViewSwitch, type BuildView } from './ViewSwitch.js';
 import { WorkArea } from './WorkArea.js';
 
-export const CHAT_WIDTH = { min: 340, max: 600, start: 420, step: 20 } as const;
+export { CHAT_WIDTH } from './barLevel.js';
+
+/** The window's width, kept current. */
+function useWindowWidth(): number {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const on = (): void => setWidth(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return width;
+}
 
 function errorText(error: unknown): string {
   return error instanceof ApiError || error instanceof Error ? error.message : String(error);
@@ -75,15 +94,29 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const { events, loaded } = useSessionEvents(sessionId);
   const turns = useMemo(() => foldTurns(events), [events]);
   const working = isWorking(turns);
+  /** The folder taken by something done from a page (this one or another): a style change, going back, a hand save. */
+  const held = useMemo(() => heldBy(events), [events]);
   const spend = useMemo(() => spendWarnings(turns), [turns]);
   const waiting = waitingCards(turns);
   const question = waiting.find((card): card is Extract<DesignerCard, { type: 'question' }> => card.type === 'question') ?? null;
 
   const [text, setText] = useState('');
   const [answering, setAnswering] = useState(false);
+  /** A message was sent while files hold unsaved text: asked once what to do with them. */
+  const [askUnsaved, setAskUnsaved] = useState(false);
   const [open, setOpen] = useState<Record<number, boolean>>({});
-  const [chatWidth, setChatWidth] = useState<number>(CHAT_WIDTH.start);
-  const [tab, setTab] = useState<'chat' | 'preview'>('chat');
+  /** The width the person gave the chat; what is drawn may be less while the window is narrow. */
+  const [wanted, setWanted] = useState<number>(CHAT_WIDTH.start);
+  /** What the work area's bar needs at its most folded: the design's own number until the page has measured its own. */
+  const [foldedNeed, setFoldedNeed] = useState<number>(FOLDED_NEED_GUESS);
+  const windowWidth = useWindowWidth();
+  const wasTwo = useRef(false);
+  const layout = views({ window: windowWidth, need: foldedNeed, wanted, two: wasTwo.current });
+  wasTwo.current = layout.two;
+  const chatWidth = layout.chat;
+  const [view, setView] = useState<BuildView>('chat');
+  /** Counts the times the page itself opened the Code tab: a save made from the chat that did not go through. */
+  const [codeAsked, setCodeAsked] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
   const follow = useFollowEnd([events.length]);
 
@@ -92,6 +125,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: designerKeys.versions(sessionId) });
     void queryClient.invalidateQueries({ queryKey: designerKeys.apps });
     void queryClient.invalidateQueries({ queryKey: designerKeys.architecture(sessionId) });
+    void queryClient.invalidateQueries({ queryKey: designerKeys.files(sessionId) });
     // The preview's list of installed apps: a live `app-changed` can be missed, a turn's end cannot.
     void queryClient.invalidateQueries({ queryKey: ['designer', 'installed'] });
   };
@@ -106,7 +140,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   // A turn that ends, or a version that lands, changes what the top bar and Home show.
   const lastKind = events.at(-1)?.kind;
   useEffect(() => {
-    if (lastKind === 'turn-finished' || lastKind === 'version') refresh();
+    if (lastKind === 'turn-finished' || lastKind === 'version' || lastKind === 'released') refresh();
   }, [events.length, lastKind]);
 
   // A spending mark passed while the page is open is heard once. One read from the session's file (a reload) is not.
@@ -152,7 +186,12 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       attach.clear();
       follow.pin();
     },
-    onError: fail(t('designer:build.turnFailed', 'The Designer could not start this turn')),
+    onError: (error) => {
+      // The folder is taken by something done from a page (a save, a style change): no fault, said plainly.
+      const reason = error instanceof ApiError && typeof error.details === 'object' && error.details !== null ? (error.details as { reason?: unknown }).reason : undefined;
+      if (reason === 'DESIGNER_BUSY') toasts.push({ variant: 'info', title: t('designer:code.busy', 'The app is being changed. Try again in a moment.') });
+      else fail(t('designer:build.turnFailed', 'The Designer could not start this turn'))(error);
+    },
   });
   const stop = useMutation({ mutationFn: () => designerApi.stop(sessionId), onError: fail(t('designer:build.stopFailed', 'The turn could not be stopped')) });
   const answer = useMutation({
@@ -203,6 +242,20 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onError: fail(t('designer:versions.failed', 'The files could not be put back')),
   });
 
+  // What keeps the app's files from being changed by hand right now, for the Code tab to say.
+  const codeLock: CodeLock = working ? (waiting.length > 0 ? 'waiting' : 'turn') : (held ?? (restore.isPending ? 'restore' : look.isPending ? 'style' : null));
+  const versionNow = session.data?.session.version ?? 0;
+  const code = useCodeFiles(sessionId, {
+    lock: codeLock,
+    onNotice: (notice) => toasts.push(notice),
+    onPutBack: () => restore.mutateAsync({ n: versionNow, record: false }),
+  });
+  // The edits the question was about are gone (saved or discarded in the Code tab): the next ones are asked about again.
+  const unsaved = code.edited.size;
+  useEffect(() => {
+    if (unsaved === 0) setAskUnsaved(false);
+  }, [unsaved]);
+
   const model = useDesignerModel(
     session.data === undefined
       ? undefined
@@ -230,7 +283,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   }
 
   const data = session.data;
-  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending || look.isPending;
+  const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending || look.isPending || held !== null;
   const appSessions = apps.data?.apps.find((app) => app.key === data?.session.appKey)?.sessions ?? [];
   // A session that has not been used yet is already a new one: another would only be an empty twin.
   const canStartNew = data !== undefined && !working && !busy && turns.length > 0;
@@ -246,7 +299,27 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       answer.mutate({ cardId: question.id, value: { text: message } });
       return;
     }
-    if (!working) start.mutate(message);
+    if (working) return;
+    // The Designer reads the files as they are on disk: what is typed and not saved is not there.
+    if (code.edited.size > 0 && !askUnsaved) {
+      setAskUnsaved(true);
+      return;
+    }
+    setAskUnsaved(false);
+    start.mutate(message);
+  };
+  const saveThenSend = (): void => {
+    const message = text.trim();
+    setAskUnsaved(false);
+    void code.save().then((applied) => {
+      if (applied) {
+        if (message !== '') start.mutate(message);
+        return;
+      }
+      // Not saved, or saved and not applied: the message stays in the box, and the Code tab says why.
+      setView('work');
+      setCodeAsked((count) => count + 1);
+    });
   };
 
   const onDividerKey = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -256,15 +329,17 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     if (event.key === 'ArrowLeft') delta = rtl ? CHAT_WIDTH.step : -CHAT_WIDTH.step;
     if (delta === 0) return;
     event.preventDefault();
-    setChatWidth((width) => Math.max(CHAT_WIDTH.min, Math.min(CHAT_WIDTH.max, width + delta)));
+    // From the width as it is drawn, and no further than there is room for now.
+    setWanted(Math.max(CHAT_WIDTH.min, Math.min(layout.most, chatWidth + delta)));
   };
   const onDividerDown = (event: PointerEvent<HTMLDivElement>): void => {
     const rtl = document.documentElement.dir === 'rtl';
     const startX = event.clientX;
     const startWidth = chatWidth;
+    const most = layout.most;
     const move = (moved: globalThis.PointerEvent): void => {
       const dx = moved.clientX - startX;
-      setChatWidth(Math.round(Math.max(CHAT_WIDTH.min, Math.min(CHAT_WIDTH.max, startWidth + (rtl ? -dx : dx)))));
+      setWanted(Math.round(Math.max(CHAT_WIDTH.min, Math.min(most, startWidth + (rtl ? -dx : dx)))));
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
@@ -408,9 +483,14 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate({ message: turn.text ?? '', attachments: turn.attachments.map((file) => file.id) }) : undefined} />
           ) : null}
           {turn.look === null ? null : <LookChip direction={turn.look} />}
+          {/* One row under the reply: what it was saved as, then the way to change the style. What the style was changed to comes after it. */}
+          {turn.version === null && !(last && !live && data?.look != null) ? null : (
+            <div data-part="saved-row" className="flex flex-wrap items-center gap-1.5">
+              {turn.version === null ? null : <SavedChip name={turn.version.name} />}
+              {last && !live && data?.look != null ? <StyleMenu current={data.look} styles={styles.data?.styles ?? []} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(skill) => look.mutate(skill)} /> : null}
+            </div>
+          )}
           {turn.style === null ? null : <StyleChip title={turn.style.title} fontsLater={turn.style.fonts.length > 0} />}
-          {turn.version === null ? null : <SavedChip name={turn.version.name} />}
-          {last && !live && data?.look != null ? <StyleMenu current={data.look} styles={styles.data?.styles ?? []} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(skill) => look.mutate(skill)} /> : null}
         </DesignerMessage>
       </div>
     );
@@ -419,11 +499,12 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
       <TopBar
+        build
         middle={
           data === undefined ? null : (
             <SessionTitle
               title={data.session.title}
-              onRename={(title) => patch.mutate({ title })}
+              onRename={(title) => patch.mutate({ title }, { onSuccess: () => toasts.push({ variant: 'success', title: t('designer:build.renamed', 'Renamed to {name}', { name: title }) }) })}
               versions={versionList}
               available={versions.data?.available ?? true}
               current={current}
@@ -445,38 +526,32 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               />
             )}
             <a
-            href="/"
-            className="inline-flex items-center gap-[7px] rounded-[10px] px-[11px] py-2 text-[13px] font-bold text-fg-muted hover:bg-surface-2 hover:text-fg"
-            aria-label={t('designer:build.openDashboard', 'Open in the dashboard')}
-          >
-            <ExternalLink aria-hidden="true" className="size-4" />
-            <span className="hidden lg:inline">{t('designer:build.openDashboard', 'Open in the dashboard')}</span>
-          </a>
+              href="/"
+              aria-label={t('designer:build.openDash', 'Open Dashboard')}
+              className="inline-flex h-[34px] min-w-[34px] shrink-0 items-center justify-center gap-[7px] whitespace-nowrap rounded-[10px] border border-border-strong bg-surface text-[13px] font-bold leading-[normal] text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent min-[900px]:px-[11px]"
+            >
+              <ExternalLink aria-hidden="true" className="size-[15px] rtl:-scale-x-100" />
+              <span className="hidden min-[900px]:inline">{t('designer:build.openDash', 'Open Dashboard')}</span>
+            </a>
           </>
         }
       />
 
-      <div role="tablist" aria-label={t('designer:build.halves', 'Chat and preview')} className="flex shrink-0 gap-1 border-b border-border bg-surface px-3 py-1.5 md:hidden">
-        {(['chat', 'preview'] as const).map((which) => (
-          <button
-            key={which}
-            type="button"
-            role="tab"
-            aria-selected={tab === which}
-            onClick={() => setTab(which)}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[13px] font-bold text-fg-muted aria-selected:bg-surface-2 aria-selected:text-fg"
-          >
-            {which === 'chat' ? <MessageSquare aria-hidden="true" className="size-[15px]" /> : <Eye aria-hidden="true" className="size-[15px]" />}
-            {which === 'chat' ? t('designer:build.chat', 'Chat') : t('designer:build.preview', 'Preview')}
-          </button>
-        ))}
-      </div>
+      <LeaveGuard count={code.edited.size} />
 
-      <div className="flex min-h-0 flex-1">
+      {layout.two ? <ViewSwitch view={view} onView={setView} chatWaiting={waiting.length > 0} /> : null}
+
+      <div className="relative flex min-h-0 flex-1">
+        {/* In two views the one out of sight keeps its size and is out of reach: hidden, never taken out of the layout. */}
         <aside
-          aria-label={t('designer:build.chat', 'Chat')}
+          {...(layout.two ? { id: VIEW_IDS.chat.panel, role: 'tabpanel', 'aria-labelledby': VIEW_IDS.chat.tab } : { 'aria-label': t('designer:build.chat', 'Chat') })}
+          inert={layout.two && view !== 'chat'}
           style={{ '--designer-chat-w': `${String(chatWidth)}px` }}
-          className={`flex min-w-0 flex-col border-border bg-surface max-md:w-full md:w-[var(--designer-chat-w)] md:shrink-0 md:border-e ${tab === 'chat' ? '' : 'max-md:hidden'}`}
+          className={
+            layout.two
+              ? `absolute inset-0 mx-auto flex w-full min-w-0 max-w-[680px] flex-col bg-surface ${view === 'chat' ? '' : 'invisible'}`
+              : 'flex w-[var(--designer-chat-w)] min-w-0 shrink-0 flex-col border-e border-border bg-surface'
+          }
         >
           {/* `relative`: a word hidden for screen readers (a running step's "(running)") is placed absolutely. With no positioned ancestor it sat at its place in the whole chat's length, far below the window, and the page itself scrolled to empty space. */}
           <div ref={follow.scroller} onScroll={follow.onScroll} aria-busy={!loaded} className="nb-scroll relative min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-[22px] [overflow-anchor:none]">
@@ -492,6 +567,17 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             </div>
           </div>
           <SpendNotice warnings={spend} onNewSession={canStartNew ? () => newSession.mutate() : undefined} />
+          {askUnsaved && code.edited.size > 0 ? (
+            <div role="group" aria-label={t('designer:code.unsaved', 'Unsaved changes')} className="mx-3.5 mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-[12px] border border-border bg-surface-2 px-3 py-2.5 text-[12.5px] font-semibold leading-[1.45] text-fg-muted">
+              <span className="min-w-0 flex-1 basis-[200px]">{t('designer:code.composerUnsaved', 'You have unsaved changes in {count, plural, one {# file} other {# files}}. The Designer will not see them.', { count: code.edited.size })}</span>
+              <button type="button" onClick={saveThenSend} disabled={!code.canSave} className="rounded-[8px] border border-border-strong bg-surface px-2.5 py-1 text-[12px] font-bold text-fg hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-45">
+                {t('designer:code.saveFirst', 'Save first')}
+              </button>
+              <button type="button" onClick={send} className="rounded-[8px] px-2.5 py-1 text-[12px] font-bold text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent">
+                {t('designer:code.sendAnyway', 'Send anyway')}
+              </button>
+            </div>
+          ) : null}
           <BuildComposer
             value={text}
             onChange={setText}
@@ -511,17 +597,32 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           aria-orientation="vertical"
           aria-label={t('designer:build.resize', 'Resize the chat')}
           aria-valuemin={CHAT_WIDTH.min}
-          aria-valuemax={CHAT_WIDTH.max}
+          aria-valuemax={layout.most}
           aria-valuenow={chatWidth}
           tabIndex={0}
           onKeyDown={onDividerKey}
           onPointerDown={onDividerDown}
-          className="relative z-[5] -mx-1 hidden w-[9px] shrink-0 cursor-col-resize touch-none justify-center focus-visible:outline-2 focus-visible:outline-accent md:flex"
+          hidden={layout.two}
+          className={`relative z-[5] -mx-1 w-[9px] shrink-0 cursor-col-resize touch-none justify-center focus-visible:outline-2 focus-visible:outline-accent ${layout.two ? 'hidden' : 'flex'}`}
         >
           <span aria-hidden="true" className="h-full w-px bg-border" />
         </div>
-        <section aria-label={t('designer:build.work', 'The app')} className={`min-w-0 flex-1 flex-col ${tab === 'preview' ? 'flex' : 'max-md:hidden md:flex'}`}>
-          {data === undefined ? null : <WorkArea session={data.session} turns={turns} onFix={(message) => (working ? undefined : start.mutate({ message, attachments: [] }))} />}
+        <section
+          {...(layout.two ? { id: VIEW_IDS.work.panel, role: 'tabpanel', 'aria-labelledby': VIEW_IDS.work.tab } : { 'aria-label': t('designer:build.workArea', 'Work area') })}
+          inert={layout.two && view !== 'work'}
+          className={layout.two ? `absolute inset-0 flex min-w-0 flex-col bg-bg ${view === 'work' ? '' : 'invisible'}` : 'flex min-w-0 flex-1 flex-col bg-bg'}
+        >
+          {data === undefined ? null : (
+            <WorkArea
+              session={data.session}
+              turns={turns}
+              code={code}
+              codeAsked={codeAsked}
+              onFix={(message) => (working || busy ? undefined : start.mutate({ message, attachments: [] }))}
+              onNotice={(title) => toasts.push({ variant: 'info', title })}
+              onFoldedNeed={setFoldedNeed}
+            />
+          )}
         </section>
       </div>
     </div>

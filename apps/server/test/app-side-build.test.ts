@@ -14,10 +14,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { parseSurfaceManifest } from '../src/cli/surfaces-root.js';
 import { runCli } from '../src/cli/run.js';
-import { loadProjectBundler, type Bundler } from '../src/project/build.js';
+import { buildProject, loadProjectBundler, loadProjectConfig, readBuildManifest, type Bundler } from '../src/project/build.js';
+import { designIssues } from '../src/project/apps/design-check.js';
 import { buildAppSides, buildSide, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
 import { addUiParts, UI_PARTS } from '../src/project/apps/scaffold-app.js';
 import { BASE_THEME, fontsCssOf } from '../src/project/apps/theme.js';
+import { APP_VERSION } from '../src/version.js';
 import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
@@ -227,14 +229,72 @@ describe.skipIf(!ready)('the starter that `adminium app new` writes', () => {
         expect(existsSync(join(dir, (address ?? '').replace(`/apps/repairs/${side}/`, ''))), address).toBe(true);
       }
     }
-    // The staff side lists its screen for the sidebar; the customer side has none to list.
-    expect(parseSurfaceManifest(readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'surface.json'), 'utf8'))?.nav).toHaveLength(1);
+    // The staff side lists its two pages for the sidebar, each at its own path; the customer side has none to list.
+    expect(parseSurfaceManifest(readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'surface.json'), 'utf8'))?.nav.map((entry) => entry.path)).toEqual(['', 'done']);
     expect(existsSync(join(sideBuildDir(root, 'repairs', 'customer'), 'surface.json'))).toBe(false);
     // The key and side were baked in, and the plumbing came from the engine.
     const staff = readdirSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets')).find((file) => file.endsWith('.js')) ?? '';
     const script = readFileSync(join(sideBuildDir(root, 'repairs', 'staff'), 'assets', staff), 'utf8');
     expect(script).toContain('surface-config.json');
     expect(script).toContain('x-adminium-csrf');
+    // Each starter is two pages with addresses, and draws its own page for an address that is none of them.
+    for (const side of ['staff', 'customer'] as const) {
+      const source = readFileSync(join(root, 'apps', 'repairs', side, 'src', 'App.tsx'), 'utf8');
+      expect(source, side).toMatch(/import \{[^}]*\bLink\b[^}]*\busePath\b[^}]*\} from '@adminiumjs\/adminium\/side'/);
+      expect(source, side).toContain("en('This page does not exist')");
+      expect(source, side).toContain("const ITEMS = 'items'");
+      // A page is chosen by its path: no state of the screen's own says which page shows.
+      expect(source, side).not.toMatch(/const \[(?:page|screen|view|route|tab)\b/);
+      const js = readdirSync(join(sideBuildDir(root, 'repairs', side), 'assets')).find((file) => file.endsWith('.js')) ?? '';
+      const bundle = readFileSync(join(sideBuildDir(root, 'repairs', side), 'assets', js), 'utf8');
+      // The helper came from the engine, and the screen's own pages are in the bundle.
+      expect(bundle, side).toContain('adminium:surface:hello');
+      expect(bundle, side).toContain(side === 'staff' ? '/done' : '/request');
+    }
+    // The staff starter lists two screens in nav.json and reads its address: the design check has nothing to say of either side's pages.
+    expect((await designIssues(root, 'repairs')).filter((issue) => issue.kind === 'address')).toEqual([]);
+  });
+});
+
+describe.skipIf(!ready)('screens built for a developer, and screens built for a server', () => {
+  it('builds them again when a start needs the other kind, both ways, and leaves them when nobody says', async () => {
+    rmSync(join(root, 'apps'), { recursive: true });
+    const deps = fakeDeps({ cwd: root, env: {} });
+    deps.runProcess = () => ({ status: 0, stdout: '' });
+    expect(await runCli(['app', 'new', 'repairs', '--customer'], { io: fakeIo({ interactive: false }), deps })).toBe(0);
+    const project = { root, configFile: join(root, 'adminium.config.ts') };
+    const assets = (): string[] => readdirSync(join(sideBuildDir(root, 'repairs', 'customer'), 'assets'));
+    /** A developer's bundle has its source map beside it, and keeps the words of what it says to the page that frames it. */
+    const forDeveloper = (): boolean => assets().some((file) => file.endsWith('.js.map'));
+    const load = (opts: { dev?: boolean; loadBundler?: () => Promise<Bundler | null> } = {}) => loadProjectConfig(project, { version: APP_VERSION, ...opts });
+
+    // As `adminium build` leaves a folder: for a server.
+    await buildProject(project, { version: APP_VERSION });
+    expect(readBuildManifest(project)?.apps?.dev).toBeUndefined();
+    expect(forDeveloper()).toBe(false);
+
+    // `adminium design` or `adminium dev` on that folder: the build is current, and its screens are the wrong kind.
+    expect(await load({ dev: true })).toMatchObject({ from: 'build', appsRebuilt: true });
+    expect(readBuildManifest(project)?.apps?.dev).toBe(true);
+    expect(forDeveloper()).toBe(true);
+    // Again: nothing to do.
+    expect((await load({ dev: true })).appsRebuilt).toBeUndefined();
+    // A command that only reads the config takes the build as it is.
+    expect((await load()).appsRebuilt).toBeUndefined();
+    expect(forDeveloper()).toBe(true);
+
+    // A server with no esbuild serves what is there: the screens work.
+    expect((await load({ dev: false, loadBundler: async () => null })).appsRebuilt).toBeUndefined();
+    expect(forDeveloper()).toBe(true);
+    // `adminium start` after `adminium design`: built again, for a server.
+    expect(await load({ dev: false })).toMatchObject({ from: 'build', appsRebuilt: true });
+    expect(readBuildManifest(project)?.apps?.dev).toBeUndefined();
+    expect(forDeveloper()).toBe(false);
+    // And a build that is out of date is made the kind the start asks for.
+    writeFileSync(join(root, 'apps', 'repairs', 'customer', 'src', 'design.css'), '.x { color: red; }\n');
+    expect(await load({ dev: true })).toMatchObject({ from: 'new-build' });
+    expect(readBuildManifest(project)?.apps?.dev).toBe(true);
+    expect(forDeveloper()).toBe(true);
   });
 });
 

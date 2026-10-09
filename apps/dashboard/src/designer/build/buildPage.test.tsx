@@ -31,6 +31,15 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, YourApp } from '../api.js';
 
+// The Code tab's editor is its own test's (`code/codeTab.test.tsx`). Here a stand-in types into the open file, so the page's part can be held: what it asks before a message is sent or the page is left.
+vi.mock('./CodeTab.js', () => ({
+  default: ({ code }: { code: { open: string | null; onText: (path: string, text: string) => void; content: { state: string } } }) => (
+    <button type="button" disabled={code.content.state !== 'ready'} onClick={() => (code.open === null ? undefined : code.onText(code.open, 'typed by hand\n'))}>
+      type in the open file
+    </button>
+  ),
+}));
+
 const spendSound = vi.hoisted(() => ({ playSpendSound: vi.fn() }));
 vi.mock('./spendSound.js', () => spendSound);
 
@@ -76,6 +85,12 @@ let uploads: number;
 /** How many times the next turns are refused before one starts. */
 let turnRefusals: number;
 let readsImages: boolean | null;
+/** Why the next turn is refused, as the server words a folder that is taken; null starts it. */
+let turnBusy: boolean;
+/** The next save of files is refused: the file changed on disk. */
+let saveRefused: boolean;
+const FILE = 'apps/repairs/customer/src/App.tsx';
+const FILE_HASH = 'a'.repeat(64);
 
 const ev = (turn: number, body: DesignerEventBody, at = seq * 100): DesignerEvent => {
   seq += 1;
@@ -97,18 +112,29 @@ const SESSION = {
   tokens: { in: 0, out: 0 },
 };
 
+/** The window at a width: the test's DOM starts at 1024, where the page is two views. */
+function windowAt(width: number): void {
+  act(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width });
+    window.dispatchEvent(new Event('resize'));
+  });
+}
+
 beforeEach(() => {
+  windowAt(1440);
   calls = [];
   yourApps = [];
   look = null;
   seq = 0;
   uploads = 0;
   turnRefusals = 0;
+  turnBusy = false;
+  saveRefused = false;
   readsImages = true;
   stored = [];
   versions = [
     { n: 1, name: 'v1', at: Date.now() - 60_000, current: false },
-    { n: 2, name: 'v2', at: Date.now() - 30_000, current: false },
+    { n: 2, name: 'v2 · Order tracking', at: Date.now() - 30_000, current: false },
     { n: 3, name: 'v3', at: Date.now() - 10_000, current: true },
   ];
   FakeSocket.all = [];
@@ -143,6 +169,19 @@ beforeEach(() => {
         return Promise.resolve(jsonResponse(201, { attachment: { id: `att_${String(uploads).padStart(20, '0')}`, label: file.name, kind: file.type === 'text/csv' ? 'csv' : 'image', mediaType: file.type, bytes: file.size } }));
       }
       if (url === '/api/v1/designer/models/reads-images') return Promise.resolve(jsonResponse(200, { readsImages }));
+      if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'GET') {
+        return Promise.resolve(jsonResponse(200, { groups: [{ key: 'customer', files: [{ path: FILE, label: 'customer/App.tsx', hash: FILE_HASH, size: 10 }] }], busy: null, version: 3 }));
+      }
+      if (url.startsWith(`/api/v1/designer/sessions/${ID}/files/content`)) return Promise.resolve(jsonResponse(200, { path: FILE, content: 'on disk\n', hash: FILE_HASH }));
+      if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'PUT' && saveRefused) {
+        return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'A file changed.', requestId: 'r', details: { reason: 'FILES_CHANGED', changed: [{ path: FILE, hash: 'c'.repeat(64) }] } } }));
+      }
+      if (url === `/api/v1/designer/sessions/${ID}/files` && method === 'PUT') {
+        return Promise.resolve(jsonResponse(200, { applied: true, version: { n: 4, name: 'v4 · Your edit to App.tsx' }, files: [{ path: FILE, hash: 'b'.repeat(64) }] }));
+      }
+      if (url === `/api/v1/designer/sessions/${ID}/turns` && turnBusy) {
+        return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'The app is being changed. Try again in a moment.', requestId: 'r', details: { reason: 'DESIGNER_BUSY', busy: 'save' } } }));
+      }
       if (url === `/api/v1/designer/sessions/${ID}/turns` && turnRefusals > 0) {
         turnRefusals -= 1;
         return Promise.resolve(jsonResponse(409, { error: { code: 'CONFLICT', message: 'The Designer is already working on something in this project.', requestId: 'r' } }));
@@ -351,7 +390,7 @@ describe('the build page', () => {
     stored = finishedTurn();
     await open();
     // The button names the style in use.
-    await userEvent.click(await screen.findByRole('button', { name: /^Change the style\s*Clean service$/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Change the style\s*·\s*Clean service$/ }));
     const menu = await screen.findByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Clean serviceCool white, slate and a clear blue.',
@@ -369,6 +408,13 @@ describe('the build page', () => {
     expect(posted('/turns')).toEqual([]);
     live(ev(1, { kind: 'style', skill: 'warm', title: 'Warm table', fonts: ['Playfair Display'] }), ev(1, { kind: 'version', n: 2, name: 'v2' }));
     expect(await screen.findByText('Style changed to Warm table')).toBeTruthy();
+    // One row under the reply holds what it was saved as and the way to change the style; what it was changed to comes after that row.
+    const row = document.querySelector('[data-part="saved-row"]') as HTMLElement;
+    expect(within(row).getByText(/^Saved as/)).toBeTruthy();
+    expect(within(row).getByRole('button', { name: /^Change the style/ })).toBeTruthy();
+    const changed = screen.getByText('Style changed to Warm table');
+    expect(row.contains(changed)).toBe(false);
+    expect(row.compareDocumentPosition(changed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Its fonts are not in the project yet: said, so the system's standing in is no surprise.
     expect(screen.getByText('Its fonts are added when you next send a message.')).toBeTruthy();
 
@@ -769,6 +815,8 @@ describe('the build page', () => {
     const router = await open();
     // A turn is running: no new session from under it.
     const button = await screen.findByRole('button', { name: 'New session' });
+    // Bar 1's own link out, by its short name.
+    expect(screen.getByRole('link', { name: 'Open Dashboard' }).getAttribute('href')).toBe('/');
     expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(within(screen.getByRole('alert')).queryByRole('button', { name: 'Start a new session' })).toBeNull();
 
@@ -796,11 +844,37 @@ describe('the build page', () => {
     await userEvent.clear(field);
     await userEvent.type(field, 'Tandem Repairs{Enter}');
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ title: 'Tandem Repairs' });
+    // Said once it is kept.
+    expect(await screen.findByText('Renamed to Tandem Repairs')).toBeTruthy();
+    // The name is a button with a pencil after it, and says what a press does.
+    const name = await screen.findByRole('button', { name: /^Rename / });
+    expect(name.querySelector('svg')).not.toBeNull();
+    name.focus();
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Rename');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Version v3: v3' }));
+    const version = screen.getByRole('button', { name: 'Version v3: v3' });
+    expect(version.textContent).toBe('v3');
+    await userEvent.click(version);
+    const menu = await screen.findByRole('menu');
+    // Every version, newest first; the one in use says so and has no way back to itself.
+    expect(within(menu).getAllByText(/^v\d$/).filter((entry) => entry.className.includes('w-[30px]')).map((entry) => entry.textContent)).toEqual(['v3', 'v2', 'v1']);
+    expect(within(menu).getByText('current')).toBeTruthy();
+    // The row in use is an item that is off (a menu of one version must still hold an item); the others each hold the way back.
+    expect(within(menu).getAllByRole('menuitem').map((item) => [item.getAttribute('aria-label'), item.getAttribute('aria-disabled')])).toEqual([
+      [null, 'true'],
+      ['Go back to v2: Order tracking', null],
+      ['Go back to v1: v1', null],
+    ]);
+    // A version's name as it is kept starts with its number; the row says the number once, in its own column.
+    expect([...menu.querySelectorAll('span.truncate.text-fg')].map((entry) => entry.textContent)).toEqual(['v3', 'Order tracking', 'v1']);
+    expect(within(menu).getAllByRole('menuitem')[1]!.textContent).toBe('Go back to this');
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Go back to v1: v1' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Go back to v1?' });
+    // The version is its own piece of the title (drawn in the fixed-width face), which this DOM reads as a word apart.
+    const dialog = await screen.findByRole('dialog', { name: /^Go back to ?v1 ?\?$/ });
     expect(dialog.textContent).toContain('Your files return to v1. v2 and v3 stay in the list, so you can come forward again. Data already in the database is kept.');
+    // Two answers, and the version written as a version.
+    expect(within(dialog).getAllByRole('button').map((button) => button.textContent)).toEqual(['Cancel', 'Go back']);
+    expect(within(dialog).getAllByText('v1').every((entry) => entry.className.includes('font-mono'))).toBe(true);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Go back' }));
     await waitFor(() => expect(calls.find((call) => call.url.endsWith('/versions/1/restore'))?.body).toEqual({ record: true }));
     expect(await screen.findByText('Your files are as they were in v1.')).toBeTruthy();
@@ -809,11 +883,224 @@ describe('the build page', () => {
   it('moves the chat’s edge with the arrow keys, within 340 and 600', async () => {
     await open();
     const edge = screen.getByRole('separator', { name: 'Resize the chat' });
-    expect(edge.getAttribute('aria-valuenow')).toBe('420');
+    expect(edge.getAttribute('aria-valuenow')).toBe('380');
     edge.focus();
     await userEvent.keyboard('{ArrowRight}{ArrowRight}');
-    expect(edge.getAttribute('aria-valuenow')).toBe('460');
+    expect(edge.getAttribute('aria-valuenow')).toBe('420');
     for (let i = 0; i < 20; i += 1) await userEvent.keyboard('{ArrowLeft}');
     expect(edge.getAttribute('aria-valuenow')).toBe('340');
+    for (let i = 0; i < 20; i += 1) await userEvent.keyboard('{ArrowRight}');
+    expect(edge.getAttribute('aria-valuenow')).toBe('600');
+  });
+
+  it('lets the chat give its width up as the window narrows and get it back, and never lets it be dragged past the room there is', async () => {
+    await open();
+    const edge = screen.getByRole('separator', { name: 'Resize the chat' });
+    const chat = screen.getByRole('complementary', { name: 'Chat' });
+    const drawn = (): string => chat.style.getPropertyValue('--designer-chat-w');
+    edge.focus();
+    for (let i = 0; i < 20; i += 1) await userEvent.keyboard('{ArrowRight}');
+    expect(drawn()).toBe('600px');
+    // 1300 less the rule and the bar at its most folded leaves 547.
+    windowAt(1300);
+    expect(drawn()).toBe('547px');
+    expect(edge.getAttribute('aria-valuenow')).toBe('547');
+    expect(edge.getAttribute('aria-valuemax')).toBe('547');
+    windowAt(1100);
+    expect(drawn()).toBe('347px');
+    // Its own width comes back with the room.
+    windowAt(1500);
+    expect(drawn()).toBe('600px');
+    expect(edge.getAttribute('aria-valuemax')).toBe('600');
+
+    // Dragged while narrow: no further than fits, by the keys and by the pointer.
+    windowAt(1200);
+    expect(drawn()).toBe('447px');
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}');
+    expect(drawn()).toBe('447px');
+    // The width a person asked for is the one they saw: more room does not bring a wider chat than that.
+    windowAt(1500);
+    expect(drawn()).toBe('447px');
+    windowAt(1200);
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(drawn()).toBe('427px');
+    act(() => {
+      edge.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 427 }));
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 900 }));
+      window.dispatchEvent(new MouseEvent('pointerup', { clientX: 900 }));
+    });
+    expect(drawn()).toBe('447px');
+    windowAt(1500);
+    expect(drawn()).toBe('447px');
+  });
+
+  it('keeps the work area beside the chat at 1100, and makes them two views with a switch at 1024, each kept at its size while out of sight', async () => {
+    windowAt(1100);
+    await open();
+    expect(screen.getByRole('separator', { name: 'Resize the chat' })).toBeTruthy();
+    expect(screen.queryByRole('tablist', { name: 'View' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Work area' }).hasAttribute('inert')).toBe(false);
+
+    windowAt(1024);
+    const tabs = within(screen.getByRole('tablist', { name: 'View' })).getAllByRole('tab');
+    expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('aria-selected')])).toEqual([
+      ['Chat', 'true'],
+      ['Work area', 'false'],
+    ]);
+    expect(screen.queryByRole('separator', { name: 'Resize the chat' })).toBeNull();
+    const chat = document.getElementById(tabs[0]!.getAttribute('aria-controls')!)!;
+    const work = document.getElementById(tabs[1]!.getAttribute('aria-controls')!)!;
+    expect([chat.getAttribute('role'), chat.getAttribute('aria-labelledby')]).toEqual(['tabpanel', tabs[0]!.id]);
+    expect([work.getAttribute('role'), work.getAttribute('aria-labelledby')]).toEqual(['tabpanel', tabs[1]!.id]);
+    // Out of sight and out of reach, and still laid out: the preview's frame inside keeps its size.
+    const hiddenWell = (panel: HTMLElement): boolean => panel.hasAttribute('inert') && panel.className.includes('invisible') && !panel.hasAttribute('hidden') && !/(^| )hidden( |$)/.test(panel.className);
+    expect([hiddenWell(chat), hiddenWell(work)]).toEqual([false, true]);
+    expect(chat.className).toContain('max-w-[680px]');
+    const bar = work.querySelector('[data-part="work-bar"]');
+    expect(bar).not.toBeNull();
+
+    await userEvent.click(tabs[1]!);
+    expect([hiddenWell(chat), hiddenWell(work)]).toEqual([true, false]);
+    // The same work area, not a new one.
+    expect(work.querySelector('[data-part="work-bar"]')).toBe(bar);
+    tabs[1]!.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(tabs[0]);
+
+    // Back side by side only with a few pixels over the edge.
+    windowAt(1096);
+    expect(screen.queryByRole('tablist', { name: 'View' })).not.toBeNull();
+    windowAt(1101);
+    expect(screen.queryByRole('tablist', { name: 'View' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Chat' }).hasAttribute('inert')).toBe(false);
+  });
+
+  /** Open the Code tab and type in its open file, through the stand-in. */
+  async function typeInCode(): Promise<void> {
+    await userEvent.click(screen.getByRole('tab', { name: 'Code' }));
+    const typer = await screen.findByRole('button', { name: 'type in the open file' });
+    await waitFor(() => expect((typer as HTMLButtonElement).disabled).toBe(false));
+    await userEvent.click(typer);
+    await screen.findByRole('status');
+  }
+
+  it('asks what to do with unsaved text before a message is sent: save it first, or send anyway', async () => {
+    stored = finishedTurn();
+    await open();
+    await typeInCode();
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Make the header blue.{Enter}');
+    const ask = await screen.findByRole('group', { name: 'Unsaved changes' });
+    expect(ask.textContent).toContain('You have unsaved changes in 1 file. The Designer will not see them.');
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Make the header blue.');
+    // Saved first: the files go, and only then the message.
+    await userEvent.click(within(ask).getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Make the header blue.' }]));
+    const order = calls.filter((call) => call.method !== 'GET' && (call.url.endsWith('/files') || call.url.endsWith('/turns'))).map((call) => `${call.method} ${call.url.slice(call.url.lastIndexOf('/'))}`);
+    expect(order).toEqual(['PUT /files', 'POST /turns']);
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ files: [{ path: FILE, content: 'typed by hand\n', base: FILE_HASH }] });
+    expect(screen.queryByRole('group', { name: 'Unsaved changes' })).toBeNull();
+  });
+
+  it('sends anyway when asked to, and asks nothing when nothing is unsaved', async () => {
+    stored = finishedTurn();
+    await open();
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'First.{Enter}');
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'First.' }]));
+    expect(screen.queryByRole('group', { name: 'Unsaved changes' })).toBeNull();
+    await typeInCode();
+    await userEvent.type(box, 'Second.{Enter}');
+    const ask = await screen.findByRole('group', { name: 'Unsaved changes' });
+    await userEvent.click(within(ask).getByRole('button', { name: 'Send anyway' }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'First.' }, { text: 'Second.' }]));
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('asks again about new unsaved text when the text it first asked about was dealt with in the Code tab', async () => {
+    stored = finishedTurn();
+    await open();
+    await typeInCode();
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Make the header blue.{Enter}');
+    await screen.findByRole('group', { name: 'Unsaved changes' });
+    // Discarded in the Code tab, not answered here: the question goes with the text it was about.
+    await userEvent.click(screen.getAllByRole('button', { name: 'Discard changes to App.tsx' })[0] as HTMLElement);
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Unsaved changes' })).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'type in the open file' }));
+    await userEvent.type(box, '{Enter}');
+    expect(await screen.findByRole('group', { name: 'Unsaved changes' })).toBeTruthy();
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Make the header blue.');
+  });
+
+  it('keeps the message and shows the Code tab when "Save first" did not save', async () => {
+    stored = finishedTurn();
+    await open();
+    windowAt(1024);
+    const [chatView, workView] = within(screen.getByRole('tablist', { name: 'View' })).getAllByRole('tab') as [HTMLElement, HTMLElement];
+    await userEvent.click(workView);
+    await typeInCode();
+    // Away from the Code tab and from the work area: neither is where the person is when they send.
+    await userEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    await userEvent.click(chatView);
+    const box = screen.getByRole('textbox', { name: 'Message to Adminium Designer' });
+    await userEvent.type(box, 'Make the header blue.{Enter}');
+    saveRefused = true;
+    await userEvent.click(within(await screen.findByRole('group', { name: 'Unsaved changes' })).getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(workView.getAttribute('aria-selected')).toBe('true'));
+    expect(screen.getByRole('tab', { name: 'Code' }).getAttribute('aria-selected')).toBe('true');
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+    expect(posted('/turns')).toEqual([]);
+    expect((box as HTMLTextAreaElement).value).toBe('Make the header blue.');
+    // Still unsaved: the next send asks again.
+    await userEvent.click(chatView);
+    await userEvent.type(box, '{Enter}');
+    expect(await screen.findByRole('group', { name: 'Unsaved changes' })).toBeTruthy();
+    expect(posted('/turns')).toEqual([]);
+  });
+
+  it('asks before the page is left with unsaved text, and leaves only on a yes', async () => {
+    stored = finishedTurn();
+    const router = await open();
+    // Nothing typed: the browser is not asked to hold the tab either.
+    const unload = (): boolean => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+    await typeInCode();
+    expect(unload()).toBe(true);
+    await userEvent.click(screen.getByRole('link', { name: 'Adminium Designer home' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+    expect(dialog.textContent).toContain('You have unsaved changes in 1 file. They are lost if you leave.');
+    expect(router.state.location.pathname).toBe(`/design/${ID}`);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(router.state.location.pathname).toBe(`/design/${ID}`);
+    await userEvent.click(screen.getByRole('link', { name: 'Adminium Designer home' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Leave without saving?' })).getByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/design'));
+  });
+
+  it('says a taken folder plainly when a message is refused for it, and marks the chat view while the Designer waits for an answer', async () => {
+    stored = finishedTurn();
+    await open();
+    turnBusy = true;
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Again.{Enter}');
+    expect(await screen.findByText('The app is being changed. Try again in a moment.')).toBeTruthy();
+    expect(screen.queryByText('The Designer could not start this turn')).toBeNull();
+    turnBusy = false;
+
+    windowAt(1024);
+    const chat = within(screen.getByRole('tablist', { name: 'View' })).getAllByRole('tab')[0] as HTMLElement;
+    expect(within(chat).queryByRole('img')).toBeNull();
+    live(ev(2, { kind: 'turn-started', text: 'x' }), ev(2, { kind: 'card', card: { id: 'q9', type: 'question', question: 'Which?', choices: ['A', 'B'] } }));
+    expect(within(chat).getByRole('img', { name: 'The Designer is waiting for your answer' })).toBeTruthy();
+    live(ev(2, { kind: 'card-answered', id: 'q9', value: { text: 'A' } }));
+    expect(within(chat).queryByRole('img')).toBeNull();
   });
 });

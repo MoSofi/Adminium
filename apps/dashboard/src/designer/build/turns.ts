@@ -10,7 +10,7 @@
  * files"); the header still counts every step. The end-of-turn check, build
  * and apply join the list as rows of their own.
  */
-import type { DesignerAttachment, DesignerCard, DesignerEvent, LimitKind, SpendMark, StepFacts, TurnOutcome } from '../api.js';
+import type { DesignerAttachment, DesignerCard, DesignerEvent, FolderHold, LimitKind, SpendMark, StepFacts, TurnOutcome } from '../api.js';
 
 export interface StepRow extends StepFacts {
   id: string;
@@ -137,7 +137,24 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
     return found;
   };
 
+  /** What a person's own act holds the folder for, while its events pass. */
+  let held: FolderHold | null = null;
   for (const event of events) {
+    if (event.by === 'person') {
+      /*
+       * Done from a page, outside any turn: it opens no turn and is no step of one. A style change and
+       * going back are still said under the last reply, where their buttons are; a hand save is said
+       * by the Code tab and the version button, and leaves the reply's own "Saved as" alone.
+       */
+      if (event.kind === 'hold') held = event.what;
+      else if (event.kind === 'released') held = null;
+      const last = turns.get(event.turn);
+      if (last !== undefined) {
+        if (event.kind === 'style') last.style = { title: event.title, fonts: event.fonts ?? [] };
+        if (event.kind === 'version' && held !== 'save') last.version = { n: event.n, name: event.name };
+      }
+      continue;
+    }
     const turn = view(event);
     const list = rows.get(event.turn) ?? [];
     switch (event.kind) {
@@ -230,6 +247,10 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
       case 'style':
         turn.style = { title: event.title, fonts: event.fonts ?? [] };
         break;
+      case 'sight':
+        // The Designer was shown the page: a line where it happened, and no step of its own work.
+        list.push({ id: `sight-${String(event.seq)}`, tool: 'sight', label: 'Looked at the page', state: 'done', ms: null, detail: null, folded: 1, subject: event.path });
+        break;
       case 'limit':
         turn.limit = { which: event.which, value: event.value };
         break;
@@ -255,8 +276,19 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
     .sort((a, b) => a.turn - b.turn)
     .map((turn) => {
       const list = rows.get(turn.turn) ?? [];
-      return { ...turn, stepCount: list.filter((row) => !row.id.startsWith('apply-') && !row.id.startsWith('check-') && !row.id.startsWith('build-')).length, steps: fold(list) };
+      return { ...turn, stepCount: list.filter((row) => !row.id.startsWith('apply-') && !row.id.startsWith('check-') && !row.id.startsWith('build-') && !row.id.startsWith('sight-')).length, steps: fold(list) };
     });
+}
+
+/** What a person's act holds the app's folder for right now (this page's, or another's), or null. */
+export function heldBy(events: readonly DesignerEvent[]): FolderHold | null {
+  let held: FolderHold | null = null;
+  for (const event of events) {
+    if (event.kind === 'hold') held = event.what;
+    // A turn can only start on a folder nobody holds: a hold whose end was never written (the server stopped under it) ends here.
+    else if (event.kind === 'released' || event.kind === 'turn-started') held = null;
+  }
+  return held;
 }
 
 /** The cards still waiting for an answer, newest last. */

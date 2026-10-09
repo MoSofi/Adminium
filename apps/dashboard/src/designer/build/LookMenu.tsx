@@ -60,12 +60,12 @@ export function StyleMenu({
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
           disabled={disabled || pending}
-          className="inline-flex items-center gap-1.5 self-start rounded-[10px] border border-border-strong bg-surface px-3 py-[7px] text-[12.5px] font-bold text-fg hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-[26px] items-center gap-1.5 self-start whitespace-nowrap rounded-[8px] border border-transparent pe-1.5 ps-[7px] text-[12px] font-bold leading-[normal] text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin text-accent" /> : <Palette aria-hidden="true" className="size-3.5 text-fg-muted" />}
-          {pending ? t('designer:style.changing', 'Changing the style…') : t('designer:style.change', 'Change the style')}
-          {pending ? null : <span className="font-normal text-fg-muted">{current.title}</span>}
-          <ChevronDown aria-hidden="true" className="size-3.5 text-fg-subtle" />
+          {pending ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin text-accent" /> : <Palette aria-hidden="true" className="size-3.5" />}
+          <span>{pending ? t('designer:style.changing', 'Changing the style…') : t('designer:style.change', 'Change the style')}</span>
+          {pending ? null : <span className="font-medium text-fg-subtle">· {current.title}</span>}
+          <ChevronDown aria-hidden="true" className="size-[13px] text-fg-subtle" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="max-h-[min(70vh,560px)] w-[340px] overflow-y-auto">
           <DropdownMenuLabel>{t('designer:style.menu', 'The style of the screens')}</DropdownMenuLabel>

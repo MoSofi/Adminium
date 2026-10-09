@@ -58,12 +58,25 @@ export type DesignerEventBody =
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }
-  | { kind: 'turn-finished'; outcome: TurnOutcome };
+  | { kind: 'turn-finished'; outcome: TurnOutcome }
+  /** The Designer looked at the page it built, and what it saw went to the model: which side, and the page's own path. */
+  | { kind: 'sight'; side: 'staff' | 'customer'; path: string }
+  /** The app's folder is being written with no turn behind it (a hand save, a style change, going back), and then no longer. */
+  | { kind: 'hold'; what: HoldKind }
+  | { kind: 'released'; what: HoldKind };
 
-export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number };
+/** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app. */
+export type HoldKind = 'save' | 'style' | 'restore' | 'start';
+
+/**
+ * `turn` is the turn an event belongs to. An event with `by: 'person'` belongs to none: a person did it from the page
+ * (a save, a style change, going back), and `turn` is then only the number of the session's last turn, 0 before the first.
+ */
+export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
 
 export interface EventLog {
-  emit(turn: number, body: DesignerEventBody): DesignerEvent;
+  /** `by: 'person'` marks an event of no turn: what a person did from the page. */
+  emit(turn: number, body: DesignerEventBody, opts?: { by: 'person' }): DesignerEvent;
   /** A piece of the model's text: gathered, and sent soon. */
   text(turn: number, delta: string): void;
   /** Send any gathered text now. */
@@ -86,9 +99,9 @@ export function createEventLog(opts: {
   let pending: { turn: number; text: string } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  function write(turn: number, body: DesignerEventBody): DesignerEvent {
+  function write(turn: number, body: DesignerEventBody, by?: 'person'): DesignerEvent {
     seq += 1;
-    const event = { ...body, seq, turn, at: now() } as DesignerEvent;
+    const event = { ...body, seq, turn, at: now(), ...(by === undefined ? {} : { by }) } as DesignerEvent;
     opts.append(event);
     opts.publish(event);
     return event;
@@ -107,9 +120,9 @@ export function createEventLog(opts: {
   }
 
   return {
-    emit(turn, body) {
+    emit(turn, body, opts) {
       flush();
-      return write(turn, body);
+      return write(turn, body, opts?.by);
     },
     text(turn, delta) {
       if (delta.length === 0) return;
@@ -123,4 +136,9 @@ export function createEventLog(opts: {
     },
     flush,
   };
+}
+
+/** A session's log as a person's own action writes to it: every event is marked as belonging to no turn. */
+export function personLog(log: EventLog): EventLog {
+  return { emit: (turn, body) => log.emit(turn, body, { by: 'person' }), text: (turn, delta) => log.text(turn, delta), flush: () => log.flush() };
 }

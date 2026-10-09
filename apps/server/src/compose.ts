@@ -457,6 +457,10 @@ export interface ComposeServerOptions {
   designer?: { mode: 'local'; token: string | null; port: number } | undefined;
   /** Tests only: whether the project can build screens. Production asks the project for its esbuild. */
   designerBundler?: (() => boolean) | undefined;
+  /** For tests: a hand save, a style change or going back calls this as it reaches a step, so one can be held open or made to fail there. */
+  designerSeam?: ((step: 'held' | 'write', detail?: string) => void | Promise<void>) | undefined;
+  /** For tests: how long such a piece of work may hold the project folder before it is told to stop. */
+  designerHoldCapMs?: number | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -2077,6 +2081,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           stopRunning: () => {
             const active = designer?.runner.active() ?? null;
             if (active !== null) designer?.runner.stop(active.sessionId);
+            // A hand save, a style change or a copy under way is told to stop too: nobody could stop it afterwards.
+            designer?.runner.stopHolds();
             stopOwnBuilds();
           },
         }),
@@ -2178,6 +2184,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           needs: designerNeeds,
           findsPictures: () => pictureSource() !== null,
+          ...(opts.designerSeam === undefined ? {} : { seam: opts.designerSeam }),
+          ...(opts.designerHoldCapMs === undefined ? {} : { holdCapMs: opts.designerHoldCapMs }),
           reseedSample: async (key) => {
             const target = await findSampleApp(meta, key);
             if (target === null) return;
@@ -2305,7 +2313,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 return { key: entry.key, version: entry.version, name: pickLocalized(entry.name, 'en-US') ?? entry.key, repo: entry.repo };
               },
               installedKeys: async () => (await designerService.manifests.list('app')).map((installed) => installed.row.manifestKey),
-              buildAndApply: (key) => (designer as Designer).buildAndApply(key),
+              buildAndApply: (key, signal) => (designer as Designer).buildAndApply(key, signal),
+              hold: () => (designer as Designer).runner.hold('start'),
               openSession: async (appKey, input) =>
                 (await (designer as Designer).createSession({ appKey, target: 'web', connectionId: input.connectionId, model: input.model }, input.by)).id,
               audit: (action, by, detail) => designerAudit(action, by, detail),

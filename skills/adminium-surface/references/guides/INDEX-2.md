@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
 | `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1372 |
 | `references/guides/booking-rules--booking-rules-and-capacity.md` | Booking rules and capacity | 779 |
 | `references/guides/booking-rules--limits.md` | Limits | 1061 |

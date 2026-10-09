@@ -16,7 +16,7 @@
  * the sheet, and the build command it approves is the one the sheet showed.
  */
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -24,7 +24,7 @@ import { copyBuildFor, planCopy } from '../project/apps/copy-app.js';
 import { approveBuild, buildFingerprint, readAppBuild, type AppBuildFile } from '../project/apps/own-build.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { appKeyProblem } from '../project/apps/scaffold-app.js';
-import { SourceArchiveError, fetchSourceArchive, readSourceArchive, sourceArchiveUrl } from '../project/apps/source-archive.js';
+import { SourceArchiveError, fetchSourceArchive, readSource, sourceArchiveUrl } from '../project/apps/source-archive.js';
 
 export type StartStepId = 'get' | 'make' | 'build';
 export interface StartStep {
@@ -60,7 +60,13 @@ export interface StarterHost {
   /** The keys of every app installed on this server. */
   installedKeys(): Promise<string[]>;
   /** Build the project's apps and apply them: the problems of `key`, or none. */
-  buildAndApply(key: string): Promise<string[]>;
+  buildAndApply(key: string, signal?: AbortSignal): Promise<string[]>;
+  /**
+   * Take the project folder for the copy, or throw: a turn, a hand save, a
+   * style change and going back write the same folder, and none of them runs
+   * beside a copy. Absent in a harness with nothing else that writes.
+   */
+  hold?(): { signal: AbortSignal; release(): void };
   /** Open a session on an app that is in the folder. */
   openSession(appKey: string, input: StartInput): Promise<string>;
   audit(action: string, by: { id: string | null; label: string }, detail: Record<string, unknown>): Promise<void>;
@@ -90,6 +96,37 @@ export interface Starter {
 }
 
 const KEY_MAX = 40;
+
+/** Where the commit each copied version came from is kept: beside the Designer's other notes on this project. */
+const SOURCES_FILE = join('.adminium', 'designer', 'sources.json');
+const sourceKey = (repo: string, version: string): string => `${repo.replace(/^https:\/\/github\.com\//i, '').replace(/(\.git)?\/?$/, '').toLowerCase()}@${version}`;
+
+function readSources(root: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(readFileSync(join(root, SOURCES_FILE), 'utf8')) as unknown;
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && /^[0-9a-f]{40}$/.test(entry[1])));
+  } catch {
+    // None kept yet, or a file that does not read: every version is new to this project.
+    return {};
+  }
+}
+
+/** The commit this project copied a version from before, or null. */
+function knownCommit(root: string, repo: string, version: string): string | null {
+  return readSources(root)[sourceKey(repo, version)] ?? null;
+}
+
+function keepCommit(root: string, repo: string, version: string, commit: string, log: StarterHost['log']): void {
+  try {
+    const file = join(root, SOURCES_FILE);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify({ ...readSources(root), [sourceKey(repo, version)]: commit }, null, 2)}\n`);
+  } catch (error) {
+    // The copy stands; only the memory of where it came from is not kept.
+    log('the commit a copy was taken from was not kept', error);
+  }
+}
 
 export function createStarter(host: StarterHost): Starter {
   const jobs = new Map<string, StartJob>();
@@ -127,24 +164,49 @@ export function createStarter(host: StarterHost): Starter {
       job.state = 'failed';
     };
     const resumed = unfinished.get(job.newKey) === app.key && existsSync(folder(job.newKey));
+    let hold: { signal: AbortSignal; release(): void } | undefined;
+    /** The folder is taken once the download is over and before the first write: a refusal is this job's own failure. */
+    const takeFolder = (id: StartStepId): boolean => {
+      try {
+        hold = host.hold?.();
+        return true;
+      } catch (error) {
+        fail(id, error instanceof Error ? error.message : String(error));
+        return false;
+      }
+    };
+    /** The commit the archive says it is of; null when it does not say, or the copy was written by an earlier try. */
+    let commit: string | null = null;
     try {
       if (resumed) {
         // The copy is written: only the last step is left.
         step('get').state = 'done';
         step('make').state = 'done';
+        if (!takeFolder('build')) return;
       } else {
         step('get').state = 'running';
         const url = sourceArchiveUrl(app.repo, app.version);
         if (url === null) return fail('get', 'The list does not say where this app’s source is, so it cannot be copied. Install it as it is instead.');
         let source: Map<string, Buffer>;
         try {
-          source = readSourceArchive(await fetchSourceArchive(url, { ...(host.fetch === undefined ? {} : { fetch: host.fetch }), signal: AbortSignal.timeout(120_000) }));
+          const read = readSource(await fetchSourceArchive(url, { ...(host.fetch === undefined ? {} : { fetch: host.fetch }), signal: AbortSignal.timeout(120_000) }));
+          source = read.files;
+          commit = read.commit;
         } catch (error) {
           return fail('get', error instanceof SourceArchiveError ? error.message : `The app’s source could not be fetched: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        // A version is a tag, and a tag can be moved. The commit this project first copied a version from is the one it trusts for it.
+        const before = commit === null ? null : knownCommit(host.root, app.repo, app.version);
+        if (commit !== null && before !== null && before !== commit) {
+          return fail(
+            'get',
+            `Version ${app.version} of this app is not the source it was when it was last copied here: it was commit ${before.slice(0, 12)}, and is now ${commit.slice(0, 12)}. A released version does not change, so nothing was copied. Ask its publisher, or copy another version.`,
+          );
         }
         step('get').state = 'done';
 
         step('make').state = 'running';
+        if (!takeFolder('make')) return;
         const plan = planCopy(source, { to: job.newKey, name: job.name });
         if (plan.problems.length > 0) return fail('make', plan.problems.slice(0, 4).join('\n'));
         const dir = folder(job.newKey);
@@ -183,19 +245,20 @@ export function createStarter(host: StarterHost): Starter {
           rmSync(dir, { recursive: true, force: true });
           return fail('make', `The approval could not be kept: ${error instanceof Error ? error.message : String(error)}`);
         }
+        if (commit !== null) keepCommit(host.root, app.repo, app.version, commit, host.log);
         unfinished.set(job.newKey, app.key);
         step('make').state = 'done';
       }
 
       step('build').state = 'running';
-      const problems = await host.buildAndApply(job.newKey);
+      const problems = await host.buildAndApply(job.newKey, hold?.signal);
       if (problems.length > 0) return fail('build', problems.slice(0, 4).join('\n'));
       // The copy is whole once its session is open: until then "Try again" finishes it.
       job.sessionId = await host.openSession(job.newKey, input);
       unfinished.delete(job.newKey);
       step('build').state = 'done';
       job.state = 'done';
-      await host.audit('designer.app.copied', input.by, { from: app.key, version: app.version, key: job.newKey }).catch((error: unknown) => {
+      await host.audit('designer.app.copied', input.by, { from: app.key, version: app.version, key: job.newKey, repo: app.repo, commit }).catch((error: unknown) => {
         host.log('a copy was not recorded in the audit log', error);
       });
     } catch (error) {
@@ -203,6 +266,7 @@ export function createStarter(host: StarterHost): Starter {
       const running = job.steps.find((candidate) => candidate.state === 'running');
       fail(running?.id ?? 'build', error instanceof Error ? error.message : String(error));
     } finally {
+      hold?.release();
       busy = false;
     }
   }

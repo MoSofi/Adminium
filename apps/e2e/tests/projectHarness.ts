@@ -172,6 +172,26 @@ function childEnv(extra: Record<string, string> = {}): Record<string, string> {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Packages of this repository that a project installs under the name they are
+ * published by: a customer screen imports `@adminiumjs/public-client`, which
+ * here is the workspace's `@adminium/public-client`.
+ */
+const PUBLISHED_AS: Record<string, string> = { '@adminiumjs/public-client': '@adminium/public-client' };
+
+/** The folder of a package the server package has installed. */
+function installedFolder(from: NodeJS.Require, name: string): string {
+  try {
+    return dirname(from.resolve(`${name}/package.json`));
+  } catch {
+    // Its `exports` hide package.json: walk up from its entry.
+    for (let dir = dirname(from.resolve(name)); dir !== dirname(dir); dir = dirname(dir)) {
+      if (existsSync(join(dir, 'package.json'))) return dir;
+    }
+    throw new Error(`${name} is not installed for the server package`);
+  }
+}
+
 function portIsFree(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = connect({ host: '127.0.0.1', port });
@@ -243,7 +263,8 @@ export class ProjectHarness {
    * `adminium new` on a fresh Northwind, with the project's code written in.
    * `packages` are linked into the project as `npm install` would have put
    * them there: an app's own screens need React, which the server package
-   * carries for its tests.
+   * carries for its tests, and a customer screen needs the public client
+   * under its published name.
    */
   static async create(files: Record<string, string>, packages: readonly string[] = []): Promise<ProjectHarness> {
     if (!existsSync(CLI)) throw new Error(`${CLI} is missing — build the server first`);
@@ -260,7 +281,9 @@ export class ProjectHarness {
     symlinkSync(dirname(require.resolve('esbuild/package.json')), join(project.root, 'node_modules', 'esbuild'), 'dir');
     const fromServer = createRequire(join(repoRoot, 'apps', 'server', 'package.json'));
     for (const name of packages) {
-      symlinkSync(dirname(fromServer.resolve(`${name}/package.json`)), join(project.root, 'node_modules', name), 'dir');
+      const link = join(project.root, 'node_modules', ...name.split('/'));
+      mkdirSync(dirname(link), { recursive: true });
+      symlinkSync(installedFolder(fromServer, PUBLISHED_AS[name] ?? name), link, 'dir');
     }
     if (metaUrl !== null) appendFileSync(join(project.root, '.env'), `\nADMINIUM_META_URL=${metaUrl}\n`);
     for (const [path, text] of Object.entries(files)) project.write(path, text);

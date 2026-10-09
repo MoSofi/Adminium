@@ -19,6 +19,8 @@ export interface PreparedProject {
   project: ProjectLocation;
   config: ProjectConfig;
   from: LoadedProjectConfig['from'];
+  /** The apps' screens were built again as the kind this start needs. */
+  appsRebuilt?: true;
   /** The environment the server should validate: yours, with the config's values filling gaps. */
   env: Record<string, string | undefined>;
   databases: ReturnType<typeof configuredDatabases>;
@@ -57,6 +59,8 @@ export async function prepareProject(opts: {
   env: Record<string, string | undefined>;
   version: string;
   loadBundler?: LoadBundler;
+  /** Who the build is for (`loadProjectConfig`); left out by a command that only reads the project. */
+  dev?: boolean;
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
@@ -64,11 +68,13 @@ export async function prepareProject(opts: {
   const loaded = await loadProjectConfig(project, {
     version: opts.version,
     ...(opts.loadBundler === undefined ? {} : { loadBundler: opts.loadBundler }),
+    ...(opts.dev === undefined ? {} : { dev: opts.dev }),
   });
   return {
     project,
     config: loaded.config,
     from: loaded.from,
+    ...(loaded.appsRebuilt === true ? { appsRebuilt: true as const } : {}),
     env: withDefaults(opts.env, projectEnvironment(loaded.config, project.root)),
     databases: configuredDatabases(loaded.config),
     fromDotEnv,

@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createPublicClient, PublicApiError, type PublicClient, type Row } from '@adminiumjs/public-client';
-import { APP_NAME, en, useCustomer, type CustomerConfig } from '@adminiumjs/adminium/side';
+import { APP_NAME, Link, en, useCustomer, usePath, type CustomerConfig } from '@adminiumjs/adminium/side';
 
 /** The tables' short names: the `ref` of each file in manifest/tables/. */
 const ITEMS = 'items';
@@ -19,13 +19,63 @@ export function App() {
   const loaded = useCustomer();
   if (loaded.state === 'loading') return <p className="page muted">{en('Loading…')}</p>;
   if (loaded.state === 'error') return <p className="page notice error">{loaded.message}</p>;
-  return <Items config={loaded.value} />;
+  return <Site config={loaded.value} />;
 }
 
-function Items({ config }: { config: CustomerConfig }) {
+/**
+ * The pages, each at an address of its own: `/` and `/request`. `usePath()`
+ * says which one the address names, and the screen draws that page; a link is
+ * a `<Link to="/request">`. So a page can be opened, refreshed, sent to
+ * somebody and gone back to. An address that is none of them gets the last
+ * branch: Adminium serves this screen for any address under the side.
+ */
+function Site({ config }: { config: CustomerConfig }) {
   const client = useMemo(() => createPublicClient({ baseUrl: config.baseUrl, publishableKey: config.publishableKey }), [config]);
+  const path = usePath();
+  // The operator's own name for the app when they set one, else the name in the app's manifest.
+  const name = config.appName ?? (APP_NAME || en('__NAME__'));
+  const title = path === '/' ? en('On offer') : path === '/request' ? en('Send a request') : en('This page does not exist');
+  // Each page names itself: the browser's tab, its history and a bookmark show this.
+  useEffect(() => {
+    document.title = `${title} · ${name}`;
+  }, [title, name]);
+
   if (client === null) return <p className="page notice error">{en('This page is not connected yet.')}</p>;
-  return <Requests client={client} config={config} />;
+
+  // The parts (page, hero, grid, card, form, notice, empty) are in app.css; the colours and type in theme.css.
+  return (
+    <div className="page">
+      <header className="site-header">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            {name.slice(0, 1).toUpperCase()}
+          </span>
+          {name}
+        </div>
+        <nav className="site-nav" aria-label={en('Pages')}>
+          <Link to="/" aria-current={path === '/' ? 'page' : undefined}>
+            {en('On offer')}
+          </Link>
+          <Link to="/request" aria-current={path === '/request' ? 'page' : undefined}>
+            {en('Send a request')}
+          </Link>
+        </nav>
+      </header>
+
+      {path === '/' ? (
+        <Offer client={client} config={config} />
+      ) : path === '/request' ? (
+        <Request client={client} config={config} />
+      ) : (
+        <main className="empty">
+          <strong>{en('This page does not exist')}</strong>
+          <Link to="/">{en('Back to the first page')}</Link>
+        </main>
+      )}
+
+      <footer className="site-footer">{name}</footer>
+    </div>
+  );
 }
 
 /**
@@ -38,13 +88,11 @@ function sorry(error: unknown): string {
   return code === null ? en('Something went wrong. Please try again.') : `${en('That did not work. Please try again.')} (${code})`;
 }
 
-function Requests({ client, config }: { client: PublicClient; config: CustomerConfig }) {
-  // The name each table's public endpoint goes by on this install.
+/** The first page, `/`: what is on offer. */
+function Offer({ client, config }: { client: PublicClient; config: CustomerConfig }) {
+  // The name the table's public endpoint goes by on this install.
   const items = config.tables[ITEMS] ?? ITEMS;
-  const requests = config.tables[REQUESTS] ?? REQUESTS;
   const [rows, setRows] = useState<Row[]>([]);
-  const [message, setMessage] = useState('');
-  const [sent, setSent] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -63,38 +111,17 @@ function Requests({ client, config }: { client: PublicClient; config: CustomerCo
     void load();
   }, [load]);
 
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (message.trim() === '') return;
-    try {
-      // access.json lets anyone ADD a request and read none: the reply is only the new row's id.
-      await client.create(requests, { message: message.trim() });
-      setMessage('');
-      setSent(true);
-    } catch (error) {
-      setProblem(sorry(error));
-    }
-  }
-
-  // The operator's own name for the app when they set one, else the name in the app's manifest.
-  const name = config.appName ?? (APP_NAME || en('__NAME__'));
-
-  // The parts (page, hero, grid, card, form, notice, empty) are in app.css; the colours and type in theme.css.
   return (
-    <div className="page">
-      <header className="site-header">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            {name.slice(0, 1).toUpperCase()}
-          </span>
-          {name}
-        </div>
-      </header>
-
+    <main>
       <section className="hero">
         <p className="eyebrow">{en('Welcome')}</p>
         <h1>{en('What can we do for you?')}</h1>
         <p className="lead">{en('See what is on offer, and send us what you need. We will get back to you.')}</p>
+        <div>
+          <Link to="/request" className="btn btn-primary">
+            {en('Send a request')}
+          </Link>
+        </div>
       </section>
 
       {problem === null ? null : (
@@ -103,60 +130,88 @@ function Requests({ client, config }: { client: PublicClient; config: CustomerCo
         </p>
       )}
 
-      <main className="layout">
-        <section className="section" aria-labelledby="offer">
-          <div className="section-head">
-            <h2 id="offer">{en('On offer')}</h2>
-            <span className="muted small">{rows.length}</span>
+      <section className="section" aria-labelledby="offer">
+        <div className="section-head">
+          <h2 id="offer">{en('On offer')}</h2>
+          <span className="muted small">{rows.length}</span>
+        </div>
+        {rows.length === 0 ? (
+          <div className="empty">
+            <strong>{en('Nothing here yet')}</strong>
+            <span>{en('Come back soon.')}</span>
           </div>
-          {rows.length === 0 ? (
-            <div className="empty">
-              <strong>{en('Nothing here yet')}</strong>
-              <span>{en('Come back soon.')}</span>
-            </div>
-          ) : (
-            <div className="grid">
-              {rows.map((row) => (
-                <article className="card" key={String(row['id'])}>
-                  <div className="card-media" aria-hidden="true">
-                    {String(row['title'] ?? '?').slice(0, 1).toUpperCase()}
-                  </div>
-                  <h3 className="card-title">{String(row['title'] ?? '')}</h3>
-                  <div className="card-row">
-                    <span className={row['status'] === 'done' ? 'badge' : 'badge good'}>{row['status'] === 'done' ? en('Gone') : en('Available')}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        ) : (
+          <div className="grid">
+            {rows.map((row) => (
+              <article className="card" key={String(row['id'])}>
+                <div className="card-media" aria-hidden="true">
+                  {String(row['title'] ?? '?').slice(0, 1).toUpperCase()}
+                </div>
+                <h3 className="card-title">{String(row['title'] ?? '')}</h3>
+                <div className="card-row">
+                  <span className={row['status'] === 'done' ? 'badge' : 'badge good'}>{row['status'] === 'done' ? en('Gone') : en('Available')}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
 
-        <aside className="aside card" aria-labelledby="ask">
-          <h2 id="ask">{en('Send a request')}</h2>
-          {sent ? (
-            <div className="stack">
-              <p className="notice ok" role="status">
-                {en('Sent. Thank you — we will be in touch.')}
-              </p>
-              <button type="button" className="btn btn-quiet" onClick={() => setSent(false)}>
-                {en('Send another')}
-              </button>
-            </div>
-          ) : (
-            <form className="form" onSubmit={send}>
-              <div className="field">
-                <label htmlFor="message">{en('What do you need?')}</label>
-                <textarea id="message" value={message} maxLength={500} required onChange={(event) => setMessage(event.target.value)} />
-              </div>
-              <button type="submit" className="btn btn-primary btn-block">
-                {en('Send')}
-              </button>
-            </form>
-          )}
-        </aside>
-      </main>
+/** The second page, `/request`: the form a visitor sends. */
+function Request({ client, config }: { client: PublicClient; config: CustomerConfig }) {
+  const requests = config.tables[REQUESTS] ?? REQUESTS;
+  const [message, setMessage] = useState('');
+  const [sent, setSent] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
-      <footer className="site-footer">{name}</footer>
-    </div>
+  async function send(event: FormEvent) {
+    event.preventDefault();
+    if (message.trim() === '') return;
+    try {
+      // access.json lets anyone ADD a request and read none: the reply is only the new row's id.
+      await client.create(requests, { message: message.trim() });
+      setMessage('');
+      setProblem(null);
+      setSent(true);
+    } catch (error) {
+      setProblem(sorry(error));
+    }
+  }
+
+  return (
+    <main>
+      <section className="section" aria-labelledby="ask">
+        <h1 id="ask">{en('Send a request')}</h1>
+        {problem === null ? null : (
+          <p className="notice error" role="alert">
+            {problem}
+          </p>
+        )}
+        {sent ? (
+          <div className="stack">
+            <p className="notice ok" role="status">
+              {en('Sent. Thank you — we will be in touch.')}
+            </p>
+            <button type="button" className="btn btn-quiet" onClick={() => setSent(false)}>
+              {en('Send another')}
+            </button>
+            <Link to="/">{en('See what is on offer')}</Link>
+          </div>
+        ) : (
+          <form className="form card" onSubmit={send}>
+            <div className="field">
+              <label htmlFor="message">{en('What do you need?')}</label>
+              <textarea id="message" value={message} maxLength={500} required onChange={(event) => setMessage(event.target.value)} />
+            </div>
+            <button type="submit" className="btn btn-primary btn-block">
+              {en('Send')}
+            </button>
+          </form>
+        )}
+      </section>
+    </main>
   );
 }

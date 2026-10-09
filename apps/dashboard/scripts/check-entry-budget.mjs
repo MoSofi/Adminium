@@ -15,7 +15,7 @@
  * move the new code behind a dynamic import instead.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -77,3 +77,39 @@ if (over) {
   process.exit(1);
 }
 console.log(`check-entry-budget: OK — ${line}`);
+
+/*
+ * The Designer's code editor (CodeMirror and its parsers, about 150 KiB gz) is one chunk, asked
+ * for when the Code tab is first opened. Three things keep it that: the chunk exists under its
+ * own name, the first paint does not name it, and no OTHER chunk holds the editor (a second
+ * importer would have the bundler lift it into something loaded sooner). Its size is a ratchet
+ * like the entry's: lowered when it shrinks, never raised to get green.
+ */
+const assets = readdirSync(join(root, 'dist', 'assets')).filter((name) => name.endsWith('.js'));
+const codeTabs = assets.filter((name) => /^CodeTab-[\w-]+\.js$/.test(name));
+if (codeTabs.length !== 1) {
+  console.error(`check-entry-budget: FAIL — expected one CodeTab-*.js chunk, found ${String(codeTabs.length)}.`);
+  console.error("The Designer's Code tab must stay a chunk of its own (lazy(() => import('./CodeTab.js')) in WorkArea.tsx).");
+  process.exit(1);
+}
+const [codeTab] = codeTabs;
+if (html.includes(codeTab) || refs.some((ref) => ref.endsWith(`/${codeTab}`))) {
+  console.error(`check-entry-budget: FAIL — index.html names ${codeTab}: the editor would load on the first paint.`);
+  process.exit(1);
+}
+// A class name only the editor's own stylesheet writes: where it is, the editor is.
+const EDITOR_MARK = 'cm-gutterElement';
+const holders = assets.filter((name) => readFileSync(join(root, 'dist', 'assets', name), 'utf8').includes(EDITOR_MARK));
+if (holders.length !== 1 || holders[0] !== codeTab) {
+  console.error(`check-entry-budget: FAIL — the code editor is in ${holders.join(', ') || 'no chunk'}; it must be in ${codeTab} alone.`);
+  console.error('Something outside src/designer/build/code/ imports it, or it was split into a shared chunk.');
+  process.exit(1);
+}
+const codeTabBytes = gzipSync(readFileSync(join(root, 'dist', 'assets', codeTab))).byteLength;
+const codeLine = `Code tab JS ${(codeTabBytes / 1024).toFixed(1)} KiB gz (${String(codeTabBytes)} bytes) — ratchet ${(budget.codeTabJsGzBytes / 1024).toFixed(1)} KiB`;
+if (!(codeTabBytes <= budget.codeTabJsGzBytes)) {
+  console.error(`check-entry-budget: FAIL — ${codeLine}`);
+  console.error('The Code tab grew past its ratchet. Find what was added to it (its source map says) instead of raising the number.');
+  process.exit(1);
+}
+console.log(`check-entry-budget: OK — ${codeLine}`);

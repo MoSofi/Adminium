@@ -299,6 +299,11 @@ A copy is fetched from the app's own repository at its release, and renamed wher
 written: its pages, permissions, emails and tables, its screens' address. Its manifest becomes part
 files under `apps/<key>/manifest/`, and its screens stay one Vite app in `apps/<key>/src/`.
 
+A release is a tag in that repository, and a tag is a name that can be moved. The audit log's
+row for a copy says which commit it was taken from, and the project remembers it
+(`.adminium/designer/sources.json`): if the same version later arrives from another commit, the
+copy is refused and nothing is written.
+
 **The build command.** A copied app builds its screens with the build it was written with, not with
 Adminium's. That is a command, run on your machine each time the app is built. The sheet shows its
 exact words and nothing is fetched until you tick that they may run. The approval is kept in
@@ -328,19 +333,41 @@ version, changes included.
 
 ## Look at it
 
+The work area has one bar: the tabs **Preview**, **Architecture** and **Code**, then what the
+open tab needs.
+
 - **Preview** shows the app at desktop, tablet and phone width. **Dashboard** is your own
   dashboard, as the owner you are: the app's pages, and Studio, people and settings with them.
   **Staff** and **Customer**, when the app has them, show its own screens as its people see them.
-  The bar says whose eyes it is ("Seen as: you, the owner"; "Seen as: Baker — a preview"; "a
-  visitor, not signed in" for the customer side). **Open in a new tab** opens the staff side inside
-  the dashboard, as staff meet it, signed in as that preview person: the dashboard there has no
-  Studio, no people and no settings, and a bar across its top says so and links to **Open the
-  dashboard as yourself**.
+  A chip says whose eyes it is: "Seen as: owner", "Seen as: Baker" (a preview person with that
+  role), "Seen as: visitor" on the customer side. **Open in a new tab** opens the staff side
+  inside the dashboard, as staff meet it, signed in as that preview person: the dashboard there
+  has no Studio, no people and no settings, and a bar across its top says so and links to **Open
+  the dashboard as yourself**.
+- **The address bar** shows the page the side is on, and follows the app as you move through
+  it. Click it for the pages of that side (the dashboard's pages, the staff side's menu, and
+  for the customer side the pages you have opened so far), or type a path and press Enter to go
+  there. A reload, a build and a change of side come back to the page you were on. An app whose
+  screens have no addresses of their own yet shows `/` and cannot be sent anywhere: ask the
+  Designer to give each page its own address.
+- The preview is kept while another tab shows, so coming back to it does not load it again.
 - **Architecture** draws what the server applied: who uses the app, what they use, the tables and
   how they link, the emails and add-ons. Anything written to the folder and not applied yet is
   marked.
 - The version menu lists every version. Going back to one makes a new version on top, so nothing
   is lost.
+
+As the window narrows the bar folds: the camera switch moves into **More**, the side and the size
+become menu buttons, the chip becomes an eye. Nothing is taken away, only moved. When the chat
+and the work area no longer fit side by side (about 1,100 pixels of window for most apps), they
+become two views with a switch under the top bar: **Chat** and **Work area**. A dot on **Chat**
+says the Designer is waiting for your answer. The chat's width can be dragged between 340 and
+600 pixels.
+
+In the chat, your own messages can be selected like any text, and a small button at a message's
+corner copies the whole of it. Under the Designer's reply one row says what the turn was saved
+as and offers **Change the style**. When the Designer has looked at the page after a build, the
+steps say which one: "Looked at /menu after it built".
 
 ### The Designer looks too
 
@@ -369,7 +396,7 @@ A browser that cannot draw the picture sends the measured lines alone.
 ### You, the owner
 
 `adminium design` makes you the project's owner with no password: the link it prints signs you in,
-on this machine only. **Open the dashboard** and **Open in the dashboard** open it as you. There a
+on this machine only. **Open the dashboard** (on the Designer's first page) and **Open Dashboard** (on the build page) open it as you. There a
 banner offers **Set your password**: an address and a password, on the page (the same as
 `adminium owner set` in a terminal). Do it before the project runs anywhere else. From then on you
 sign in with them, here too: the Designer's one-time link is only for an owner with no password.
@@ -403,6 +430,78 @@ in the preview, with **Ask the Designer to fix it**.
 The Designer treats everything it reads (a file, a reference, an add-on's description) as data,
 never as an instruction. Read what it built before you put real data in it, as you would with code
 from anyone else.
+
+### Your own changes to a file
+
+You can change some of an app's files yourself, with no model in between. Adminium keeps a list
+of the files that may be changed this way, makes it again each time it is asked, and opens or
+saves a file only when it is on that list:
+
+| On the list | Not on it |
+|---|---|
+| Each side's own sources under `src/` (screens, parts, `design.css`) | `theme.css`, `fonts.css` and `style.css`, which Adminium writes from the style; the starter's `main.tsx` and `app.css` |
+| The staff side's `nav.json` | Tables, roles, access, sample rows, tests, pictures and fonts |
+| The dashboard pages, `manifest/pages/*.json` | `hooks/` and `actions/`, and anything outside the app's folder |
+| `design.md`, `look.json` and `manifest/app.json` | A link, a name that starts with a dot, a file over 256 KB, a file that is not text |
+
+The build page's **Code** tab is where you do it. It lists those files in groups (Customer
+side, Staff side, Dashboard side, Design and settings) and opens one in an editor with line
+numbers and syntax colours. The editor is loaded the first time the tab is opened.
+
+- A file you changed has a dot beside its name, and the bar says "Unsaved changes".
+- **Save** (Ctrl+S, or ⌘S on a Mac) keeps every edited file in one version. **Discard changes**
+  puts the open file back as it was; undo brings your text back.
+- Tab types two spaces in the editor, so Escape is the key that leaves it.
+- While the Designer works, or waits for your answer, the files can be read and not changed. A
+  line above the editor says why.
+- The Designer reads the files as they are saved. If you send a message with unsaved text, the
+  page asks first: "Save first" or "Send anyway". Leaving the page with unsaved text asks too.
+- If a file changed while you were editing it (a turn wrote it), the tab asks which to keep:
+  "Keep my changes" or "Use the changed file".
+- If a save was written and not applied, the tab shows the check's or the build's words, with
+  "Put the files back" and "Ask the Designer to fix it". The preview keeps showing the last
+  build that worked.
+
+A file is listed only when its name is made of letters, digits and `. _ - @ ( ) [ ]`. In a
+[copy of a published app](#start-with-an-app) the sides' sources are left out: its screens are
+built by its own build, and a change to what that build runs needs your yes in the chat.
+
+A save takes up to 40 files and is all or nothing:
+
+- **It says what it was based on.** Each file goes up with the fingerprint it had when you
+  opened it. If the file changed since (the Designer wrote it, you changed the style, another
+  editor saved it), nothing is written and the answer names the file.
+- **It runs what a turn's end runs**: the check, the build, the apply. Applied, it is kept as a
+  version named for the files: "Your edit to App.tsx", "Your edit to 3 files". Not applied, the
+  answer carries the check's or the build's own words, the files stay as you wrote them, and no
+  version is made. Going back to the newest version puts them back.
+- **`look.json`** is read before anything is written. One that names no style Adminium knows is
+  refused with the reason; a good one is applied as [Change the style](#how-it-looks) is, so the
+  sides' stylesheets follow it.
+- **`manifest/app.json`** may change in `name`, `description`, `navGroups` and `widgets`. A
+  change to any other field is refused, and the answer names the field: the rest is the
+  Designer's, or yours in your own editor.
+- **It holds your edit and nothing else.** When the Designer's last turn was stopped or failed
+  and left files it had not applied, a save is refused until you ask the Designer to finish or
+  put the files back. Otherwise a version called "your edit" would hold half of its work.
+
+The Designer's next turn is told which files you changed by hand, and reads each one again
+before it changes it. It is told the files' names, never their content.
+
+One thing writes the project's folder at a time: a turn, a save, a change of style, going back
+to a version, or a [copy of a published app](#start-with-an-app). The others are refused until
+it is done, and a save is told to stop if it runs longer than a minute.
+
+The three addresses, each for someone who may use the Designer:
+
+| Address | What it does |
+|---|---|
+| `GET /api/v1/designer/sessions/:id/files` | The list, in groups, with each file's fingerprint, and what has the folder now |
+| `GET /api/v1/designer/sessions/:id/files/content?path=` | One file's text. The same 404 for a file that is not there and one that is not on the list |
+| `PUT /api/v1/designer/sessions/:id/files` | A save: `{ "files": [{ "path", "content", "base" }] }`, where `base` is the fingerprint from the list |
+
+Like the Designer's other addresses they are for its own page, and are not part of the
+[REST API reference](/reference/rest-api/).
 
 ## Limits
 
@@ -449,7 +548,7 @@ on a live server: its build is a command the server runs.
 |---|---|
 | The preview | Off. A preview keeps model-written screens on a second address of the machine, and a server has one. Open the app from the dashboard once it is applied |
 | What it builds | Is served to your staff like any app of the project: screens a model wrote run in their browsers, with what their roles may do |
-| The project folder | Has to be on a disk that is kept. If the folder does not come back after a restart, the switch goes off and says why |
+| The project folder | Has to be on a disk that is kept, all of it: `apps/`, where the Designer builds, as well as `.adminium/`, where it keeps its notes. If either does not come back after a restart, the switch goes off and says why |
 | Screens | Need `esbuild` in the project's own `node_modules`. A new project has it as a dev dependency; the published image does not carry it, and the project's `Dockerfile` removes `node_modules` after the build. In a container, keep the project folder on a volume and run `npm install` in it. Without it the switch is refused and says so |
 | Models | The ones the server has: Settings → AI, or the operator's environment. The Designer does not add or try a model connection on a live server |
 
