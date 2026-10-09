@@ -2291,6 +2291,24 @@
       "wrongValue": "Ce modèle a utilisé l’outil puis a rapporté autre chose. Choisissez un autre modèle.",
       "provider": "Le modèle n’a pas répondu : {message}",
       "error": "Le test n’a pas pu être exécuté. Réessayez."
+    },
+    "allowance": {
+      "title": "Quota quotidien",
+      "subtitle": "Ce qu’une personne peut utiliser de {name} en une journée.",
+      "field": "Jetons qu’une personne peut utiliser par jour",
+      "hint": "0 signifie aucune limite. La journée est comptée en UTC : elle repart donc pour tout le monde au même instant, à {time} chez vous.",
+      "save": "Enregistrer",
+      "saved": "Quota enregistré",
+      "saveFailed": "Impossible d’enregistrer le quota. Réessayez.",
+      "today": "Aujourd’hui",
+      "person": "Personne",
+      "questions": "Questions",
+      "tokens": "Jetons",
+      "empty": "Personne n’a utilisé {name} aujourd’hui.",
+      "atLimit": "À la limite",
+      "roles": "Rôles pouvant utiliser {name}",
+      "rolesHint": "Défini dans les autorisations de chaque rôle.",
+      "rolesNone": "Seul le Super Admin peut utiliser {name}."
     }
   },
   "settingsHub": {

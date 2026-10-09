@@ -142,7 +142,9 @@ export default {
     "tryAgain": "Erneut versuchen",
     "modelFormat": "Dieses Modell antwortet nicht so, wie {name} es braucht. Wählen Sie unter Einstellungen → KI ein anderes Modell.",
     "modelFormatAsk": "Dieses Modell antwortet nicht so, wie {name} es braucht. Bitten Sie einen Administrator, ein anderes Modell zu wählen.",
-    "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal."
+    "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal.",
+    "busy": "Ihre letzte Frage wird noch bearbeitet. Warten Sie darauf oder halten Sie sie zuerst an.",
+    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht."
   },
   "invoiceTemplate": {
     "action1": "Anderes Beispiel ansehen",
@@ -279,5 +281,8 @@ export default {
     "network": "Ausgehende Netzwerkfunktionen sind auf dieser Instanz deaktiviert.",
     "noProvider": "Es ist noch kein KI-Anbieter konfiguriert.",
     "settings": "Einstellungen → KI öffnen"
+  },
+  "budget": {
+    "usedUp": "Das heutige Kontingent ist aufgebraucht. Es beginnt um {time} neu."
   }
 } as const;

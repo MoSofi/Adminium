@@ -2301,6 +2301,24 @@ export default {
       "wrongValue": "This model used the tool and then reported something else. Choose another model.",
       "provider": "The model did not answer: {message}",
       "error": "The test could not be run. Try again."
+    },
+    "allowance": {
+      "title": "Daily allowance",
+      "subtitle": "How much of {name} one person may use in a day.",
+      "field": "Tokens a person may use in a day",
+      "hint": "0 means no limit. A day is counted in UTC, so it starts again for everyone at the same moment: {time} your time.",
+      "save": "Save",
+      "saved": "Allowance saved",
+      "saveFailed": "Could not save the allowance. Try again.",
+      "today": "Today",
+      "person": "Person",
+      "questions": "Questions",
+      "tokens": "Tokens",
+      "empty": "Nobody has used {name} today.",
+      "atLimit": "At the limit",
+      "roles": "Roles that may use {name}",
+      "rolesHint": "Set in each role’s permissions.",
+      "rolesNone": "Only Super Admin may use {name}."
     }
   },
   "settingsHub": {

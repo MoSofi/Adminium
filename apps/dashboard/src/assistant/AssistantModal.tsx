@@ -44,6 +44,7 @@ import { Idle } from './parts/Idle.js';
 import { ReadOnlyBar } from './parts/ReadOnlyBar.js';
 import { ResultCard, Warning } from './parts/ResultCard.js';
 import { StepsCard } from './parts/StepsCard.js';
+import { AllowanceBar } from './parts/AllowanceBar.js';
 import { UnavailableBar } from './parts/UnavailableBar.js';
 import { UserBubble } from './parts/UserBubble.js';
 import { useAssistantSession, type ThreadTurn } from './useAssistantSession.js';
@@ -95,7 +96,8 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
 
   const canWrite = session.availability?.canWrite ?? false;
   const unavailable = session.phase === 'unavailable';
-  const composerBlocked = unavailable || session.phase !== 'ready';
+  // A used-up day blocks asking, like no provider does: the bar above the thread says when it starts again.
+  const composerBlocked = unavailable || session.phase !== 'ready' || session.usedUpUntil !== null;
 
   const submit = useCallback(
     (text: string) => {
@@ -242,19 +244,26 @@ export function AssistantModal({ host, open, onClose, onOpenSettings }: Assistan
         />
       )}
 
+      {session.usedUpUntil === null ? null : <AllowanceBar resetsAt={session.usedUpUntil} />}
+
       <ModalBody data-testid="assistant-thread" className="bg-bg px-[22px] pb-[22px] pt-5">
         {session.phase === 'loading' ? (
           <div className="flex items-center justify-center py-10">
             <Spinner />
           </div>
         ) : session.turns.length === 0 ? (
-          <Idle
-            greeting={copy.greeting}
-            greetingSub={copy.greetingSub}
-            suggestions={copy.suggestions}
-            onPick={submit}
-            disabled={composerBlocked}
-          />
+          <div className="flex flex-col gap-4">
+            <Idle
+              greeting={copy.greeting}
+              greetingSub={copy.greetingSub}
+              suggestions={copy.suggestions}
+              onPick={submit}
+              disabled={composerBlocked}
+            />
+            {/* A first question the server refused has no turn to hang its reason on: it is said here,
+                or the window would look as if nothing had been asked. */}
+            {session.problem === null || session.phase !== 'ready' ? null : <Warning text={session.problem} />}
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
             {session.turns.map((turn, index) => (
@@ -399,6 +408,9 @@ function failureText(turn: ThreadTurn, name: string, canConfigure: boolean): str
         : t('assistant:error.modelFormatAsk', 'This model does not answer in the way {name} needs. Ask an administrator to choose another model.', { name });
     case 'setup':
       return t('assistant:error.setup', 'This page could not be read just now. Try asking again.');
+    case 'budget':
+      // The bar across the window says when it starts again; this is the turn's own line.
+      return t('assistant:error.budget', 'This stopped part way: today’s allowance is used up.');
     default:
       return turn.errorMessage ?? t('assistant:error.generic', 'That did not work. Try asking again.');
   }
@@ -460,7 +472,7 @@ function TurnView({
           <div className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface pt-4 shadow-menu">
             <Warning
               text={failureText(turn, name, canConfigure)}
-              {...(onRetry === null || turn.errorKind === 'model-format'
+              {...(onRetry === null || turn.errorKind === 'model-format' || turn.errorKind === 'budget'
                 ? {}
                 : {
                     action: (

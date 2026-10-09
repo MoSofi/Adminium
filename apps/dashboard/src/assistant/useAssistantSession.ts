@@ -29,6 +29,7 @@ import {
   readAsk,
   isTooLong,
   readErrorKind,
+  readResetsAt,
   readErrorMessage,
   readResult,
   type AssistantAsk,
@@ -61,6 +62,8 @@ export interface ThreadTurn {
   tooLong: boolean;
   /** A failure this app has its own words for; `null` for one it shows in the server's. */
   errorKind: AssistantErrorKind | null;
+  /** When today's allowance starts again, if this is the turn that used the last of it. */
+  usedUpUntil: number | null;
   jobId: string | null;
   /** What this turn cost, as the row reports it. */
   tokensIn: number;
@@ -85,6 +88,8 @@ export interface AssistantSession {
   nextTurnTokens: number;
   /** A sentence about something that went wrong outside a turn (opening, an action). */
   problem: string | null;
+  /** When today's allowance starts again (epoch ms), once it is used up; `null` while there is some left. */
+  usedUpUntil: number | null;
   submit: (text: string) => void;
   answer: (turnId: string, picks: Record<string, string>) => void;
   runAction: (turnId: string, body: ActionRequest) => Promise<ActionOutcome | null>;
@@ -116,6 +121,7 @@ function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): ThreadTu
     errorMessage: readErrorMessage(view.error),
     tooLong: isTooLong(view.error),
     errorKind: readErrorKind(view.error),
+    usedUpUntil: readResetsAt(view.answer) ?? (readErrorKind(view.error) === 'budget' ? readResetsAt(view.error) : null),
     jobId: view.jobId,
     tokensIn: view.tokensIn ?? 0,
     tokensOut: view.tokensOut ?? 0,
@@ -145,9 +151,19 @@ function messageOf(error: unknown): string {
     if (setting === 'email.smtp') {
       return t('assistant:error.smtp', 'Email is not configured yet. Open Email settings to add a relay.');
     }
+    // One question at a time, in whichever window: said in the person's language, not the server's.
+    if (reasonOf(error) === 'busy') return t('assistant:error.busy', 'Your last question is still being worked on. Wait for it, or stop it first.');
     return error.message;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Why the server refused, when it named a reason this app has its own words for. */
+function reasonOf(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const details = error.details;
+  const reason = typeof details === 'object' && details !== null && !Array.isArray(details) ? (details as { reason?: unknown }).reason : undefined;
+  return typeof reason === 'string' ? reason : null;
 }
 
 /**
@@ -169,6 +185,8 @@ export function useAssistantSession(host: AssistantHostContext, open: boolean): 
   const [baseTokens, setBaseTokens] = useState({ in: 0, out: 0 });
   const [nextTurnTokens, setNextTurnTokens] = useState(0);
   const [problem, setProblem] = useState<string | null>(null);
+  // When a used-up day starts again, once the server has said the day is used up; `null` while there is allowance.
+  const [usedUpUntil, setUsedUpUntil] = useState<number | null>(null);
 
   const sessionRef = useRef<string | null>(null);
   sessionRef.current = sessionId;
@@ -190,6 +208,7 @@ export function useAssistantSession(host: AssistantHostContext, open: boolean): 
         const state = await assistantApi.availability(current.context);
         if (cancelled) return;
         setAvailability(state);
+        setUsedUpUntil(state.budget !== undefined && !state.budget.left ? state.budget.resetsAt : null);
         if (!state.enabled) {
           setPhase('unavailable');
           return;
@@ -244,6 +263,7 @@ export function useAssistantSession(host: AssistantHostContext, open: boolean): 
       setTurns((previous) =>
         previous.map((turn) => (turn.id === turnId ? toThreadTurn(view, turn.pickedLabels) : turn)),
       );
+
     } catch (error) {
       setProblem(messageOf(error));
     }
@@ -266,6 +286,11 @@ export function useAssistantSession(host: AssistantHostContext, open: boolean): 
         setTurns((previous) => [...previous, toThreadTurn(started.turn, pickedLabels)]);
         setNextTurnTokens(started.nextTurnTokens);
       } catch (error) {
+        // A used-up day is a state of the whole window (the bar, the composer), not a line under one question.
+        if (reasonOf(error) === 'budget') {
+          setUsedUpUntil(readResetsAt(error instanceof ApiError ? error.details : null));
+          return;
+        }
         setProblem(messageOf(error));
       }
     },
@@ -325,6 +350,8 @@ export function useAssistantSession(host: AssistantHostContext, open: boolean): 
     tokensOut: baseTokens.out + turns.reduce((total, turn) => total + turn.tokensOut, 0),
     nextTurnTokens,
     problem,
+    // Said by the server when asked (opening, a refused question), or by the turn that used the last of the day.
+    usedUpUntil: usedUpUntil ?? turns.reduce<number | null>((found, turn) => turn.usedUpUntil ?? found, null),
     submit,
     answer,
     runAction,

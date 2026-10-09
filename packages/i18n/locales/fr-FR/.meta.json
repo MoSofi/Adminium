@@ -367,6 +367,10 @@
     "status": "mt",
     "srcHash": "13895d6d39b7"
   },
+  "assistant.budget.usedUp": {
+    "status": "mt",
+    "srcHash": "0df3780afc66"
+  },
   "assistant.button": {
     "status": "mt",
     "srcHash": "23b48bef02ad"
@@ -638,6 +642,14 @@
   "assistant.email.workTitle": {
     "status": "mt",
     "srcHash": "645cf9bfac3c"
+  },
+  "assistant.error.budget": {
+    "status": "mt",
+    "srcHash": "bec1686adc9f"
+  },
+  "assistant.error.busy": {
+    "status": "mt",
+    "srcHash": "e0d1bd495fdb"
   },
   "assistant.error.generic": {
     "status": "mt",
@@ -24470,6 +24482,70 @@
   "studio.settings.workspaceSection": {
     "srcHash": "4ca0a75c2b7f",
     "status": "mt"
+  },
+  "studio.settingsAi.allowance.atLimit": {
+    "status": "mt",
+    "srcHash": "c2d7771faa84"
+  },
+  "studio.settingsAi.allowance.empty": {
+    "status": "mt",
+    "srcHash": "bcc239a20398"
+  },
+  "studio.settingsAi.allowance.field": {
+    "status": "mt",
+    "srcHash": "ab3aba154bc0"
+  },
+  "studio.settingsAi.allowance.hint": {
+    "status": "mt",
+    "srcHash": "0c9e32ac8b27"
+  },
+  "studio.settingsAi.allowance.person": {
+    "status": "mt",
+    "srcHash": "8c41ae88467f"
+  },
+  "studio.settingsAi.allowance.questions": {
+    "status": "src",
+    "srcHash": "9a1fc1731f62"
+  },
+  "studio.settingsAi.allowance.roles": {
+    "status": "mt",
+    "srcHash": "451827a36839"
+  },
+  "studio.settingsAi.allowance.rolesHint": {
+    "status": "mt",
+    "srcHash": "015c65717202"
+  },
+  "studio.settingsAi.allowance.rolesNone": {
+    "status": "mt",
+    "srcHash": "130bbf5b37af"
+  },
+  "studio.settingsAi.allowance.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.allowance.saveFailed": {
+    "status": "mt",
+    "srcHash": "d74975aa2dee"
+  },
+  "studio.settingsAi.allowance.saved": {
+    "status": "mt",
+    "srcHash": "b39436beeb64"
+  },
+  "studio.settingsAi.allowance.subtitle": {
+    "status": "mt",
+    "srcHash": "bc63c12cf809"
+  },
+  "studio.settingsAi.allowance.title": {
+    "status": "mt",
+    "srcHash": "e0213d0cc492"
+  },
+  "studio.settingsAi.allowance.today": {
+    "status": "mt",
+    "srcHash": "24345a14377f"
+  },
+  "studio.settingsAi.allowance.tokens": {
+    "status": "mt",
+    "srcHash": "c38c6c1f3a27"
   },
   "studio.settingsAi.assistant.name.hint": {
     "status": "mt",

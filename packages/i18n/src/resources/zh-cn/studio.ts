@@ -2301,6 +2301,24 @@ export default {
       "wrongValue": "此模型用了工具，却报告了别的内容。请换一个模型。",
       "provider": "模型没有回答：{message}",
       "error": "测试无法运行。请重试。"
+    },
+    "allowance": {
+      "title": "每日额度",
+      "subtitle": "每个人一天可以使用多少 {name}。",
+      "field": "每人每天可用的令牌数",
+      "hint": "0 表示不限。一天按 UTC 计算，所以对所有人在同一时刻重新开始：你当地时间 {time}。",
+      "save": "保存",
+      "saved": "额度已保存",
+      "saveFailed": "无法保存额度。请重试。",
+      "today": "今天",
+      "person": "人员",
+      "questions": "提问",
+      "tokens": "令牌",
+      "empty": "今天还没有人使用 {name}。",
+      "atLimit": "已达上限",
+      "roles": "可以使用 {name} 的角色",
+      "rolesHint": "在每个角色的权限中设置。",
+      "rolesNone": "只有超级管理员可以使用 {name}。"
     }
   },
   "settingsHub": {

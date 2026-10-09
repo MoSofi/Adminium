@@ -142,7 +142,9 @@ export default {
     "tryAgain": "Zkusit znovu",
     "modelFormat": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Vyberte jiný model v Nastavení → AI.",
     "modelFormatAsk": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Požádejte správce, aby vybral jiný model.",
-    "setup": "Tuto stránku se teď nepodařilo přečíst. Zeptejte se znovu."
+    "setup": "Tuto stránku se teď nepodařilo přečíst. Zeptejte se znovu.",
+    "busy": "Na vaší poslední otázce se ještě pracuje. Počkejte na ni, nebo ji nejdřív zastavte.",
+    "budget": "Zastavilo se to v půli: dnešní příděl je vyčerpán."
   },
   "invoiceTemplate": {
     "action1": "Zobrazit jinou ukázku",
@@ -279,5 +281,8 @@ export default {
     "network": "Odchozí síťové funkce jsou na této instanci vypnuté.",
     "noProvider": "Zatím není nastavený žádný poskytovatel AI.",
     "settings": "Otevřít Nastavení → AI"
+  },
+  "budget": {
+    "usedUp": "Dnešní příděl je vyčerpán. Znovu začne v {time}."
   }
 } as const;

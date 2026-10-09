@@ -50,6 +50,19 @@ function key(method: string, url: string): string {
   return `${method} ${url.split('?')[0] ?? url}`;
 }
 
+/** A route's refusal, in the server's own error envelope. */
+class Refusal {
+  constructor(
+    private readonly status: number,
+    private readonly details: Record<string, unknown>,
+  ) {}
+
+  response(): Response {
+    const body = { error: { code: 'CONFLICT', message: 'raw server text', requestId: 'req_test', details: this.details } };
+    return { ok: false, status: this.status, headers: { get: () => null }, json: async () => body, text: async () => JSON.stringify(body) } as unknown as Response;
+  }
+}
+
 function jsonOk(body: unknown): Response {
   return {
     ok: true,
@@ -69,7 +82,8 @@ beforeEach(() => {
     calls.push({ url, method, body });
     const handler = routes[key(method, url)];
     if (handler === undefined) throw new Error(`unscripted request: ${method} ${url}`);
-    return Promise.resolve(jsonOk(handler()));
+    const answer = handler();
+    return Promise.resolve(answer instanceof Refusal ? answer.response() : jsonOk(answer));
   });
   // No socket in happy-dom: the modal falls back to reading the row, which is
   // what a browser with a blocked WebSocket does too.
@@ -100,6 +114,7 @@ function availability(overrides: Record<string, unknown> = {}) {
     canConfigure: true,
     provider: 'anthropic',
     model: 'm',
+    budget: { limit: 500_000, used: 0, resetsAt: Date.UTC(2026, 9, 10), left: true },
     ...overrides,
   };
 }
@@ -637,6 +652,61 @@ describe('a turn that failed', () => {
     expect(await screen.findByText('This page could not be read just now. Try asking again.')).toBeTruthy();
     expect(screen.queryByText(/SQLITE_BUSY/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+});
+
+describe('the daily allowance, in the window', () => {
+  const RESETS_AT = Date.UTC(2026, 9, 10);
+
+  it('says the day is used up and when it starts again, and takes no question', async () => {
+    await openModal({ availability: { budget: { limit: 1000, used: 1000, resetsAt: RESETS_AT, left: false } } });
+    const bar = await screen.findByTestId('assistant-allowance-used');
+    expect(bar.textContent).toMatch(/Today’s allowance is used up\. It starts again at .*\d{1,2}[:.]\d{2}/);
+    expect((screen.getByRole('textbox') as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('shows the same when the server refuses the question that came one too late', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => new Refusal(409, { reason: 'budget', limit: 1000, used: 1000, resetsAt: RESETS_AT });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    expect(await screen.findByTestId('assistant-allowance-used')).toBeTruthy();
+    expect(screen.queryByText('raw server text')).toBeNull();
+  });
+
+  it('marks the window when an answer used the last of the day, and keeps the answer', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({
+      turn: turn({ answer: { budget: { limit: 1000, used: 1200, resetsAt: RESETS_AT } } }),
+      jobId: 'job_1',
+      nextTurnTokens: 900,
+    });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    expect(await screen.findByTestId('assistant-allowance-used')).toBeTruthy();
+  });
+
+  it('says a turn the allowance stopped part way, with nothing to try again', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({
+      turn: turn({ status: 'failed', result: null, error: { kind: 'budget', limit: 1000, used: 1200, resetsAt: RESETS_AT, message: 'raw' } }),
+      jobId: 'job_1',
+      nextTurnTokens: 900,
+    });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    expect(await screen.findByText('This stopped part way: today’s allowance is used up.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(screen.getByTestId('assistant-allowance-used')).toBeTruthy();
+  });
+
+  it('says in its own words that the last question is still being worked on', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => new Refusal(409, { reason: 'busy', turnId: 'atn_0' });
+    await openModal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+    expect(await screen.findByText('Your last question is still being worked on. Wait for it, or stop it first.')).toBeTruthy();
+    expect(screen.queryByText('raw server text')).toBeNull();
   });
 });
 

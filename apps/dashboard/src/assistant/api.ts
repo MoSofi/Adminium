@@ -345,11 +345,24 @@ export function readErrorMessage(raw: Record<string, unknown> | null): string | 
  * The failures this app words itself, by the KIND the server reports. Each is
  * advice to a person, so each is a message key and not the server's English.
  */
-export type AssistantErrorKind = 'too-long' | 'model-format' | 'setup';
+export type AssistantErrorKind = 'too-long' | 'model-format' | 'setup' | 'budget';
 
 export function readErrorKind(raw: Record<string, unknown> | null): AssistantErrorKind | null {
   const kind = raw === null ? null : raw.kind;
-  return kind === 'too-long' || kind === 'model-format' || kind === 'setup' ? kind : null;
+  return kind === 'too-long' || kind === 'model-format' || kind === 'setup' || kind === 'budget' ? kind : null;
+}
+
+/**
+ * When a used-up day starts again, read from wherever the server said so: a
+ * failed turn's error, the mark beside the answer that used the last of the
+ * day, or the refusal of a new question. `null` when none of them says it.
+ */
+export function readResetsAt(raw: unknown): number | null {
+  const source = record(raw);
+  if (source === null) return null;
+  const nested = record(source.budget);
+  const value = nested === null ? source.resetsAt : nested.resetsAt;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 /** True when the turn failed because the conversation no longer fits the model. */

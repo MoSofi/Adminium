@@ -142,7 +142,9 @@ export default {
     "tryAgain": "Try again",
     "modelFormat": "This model does not answer in the way {name} needs. Choose another model in Settings → AI.",
     "modelFormatAsk": "This model does not answer in the way {name} needs. Ask an administrator to choose another model.",
-    "setup": "This page could not be read just now. Try asking again."
+    "setup": "This page could not be read just now. Try asking again.",
+    "busy": "Your last question is still being worked on. Wait for it, or stop it first.",
+    "budget": "This stopped part way: today’s allowance is used up."
   },
   "invoiceTemplate": {
     "action1": "Preview another sample",
@@ -279,5 +281,8 @@ export default {
     "network": "Outbound network features are off on this instance.",
     "noProvider": "No AI provider is configured yet.",
     "settings": "Open Settings → AI"
+  },
+  "budget": {
+    "usedUp": "Today’s allowance is used up. It starts again at {time}."
   }
 } as const;

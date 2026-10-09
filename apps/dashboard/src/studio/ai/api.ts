@@ -110,6 +110,20 @@ export interface LlmAssistantTestResult {
   message: string | null;
 }
 
+/** `GET` / `PUT /assistant/settings` — what a person may use in a day, and today's use. */
+export interface AssistantSettings {
+  /** Tokens a person may use in a UTC day; 0 means no limit. */
+  dailyTokens: number;
+  today: {
+    day: string;
+    /** The instant the day's use starts again (epoch ms). */
+    resetsAt: number;
+    people: { userId: string; name: string; tokens: number; turns: number }[];
+  };
+  /** The roles that may use the assistant. */
+  roles: { id: string; name: string }[];
+}
+
 export interface LlmModelInfo {
   id: string;
   label: string;
@@ -300,6 +314,10 @@ export const aiApi = {
 
   /** Ping the active provider (`test()`); never echoes the key. */
   testConfig: () => api.post<LlmConfigTestResult>(`${BASE}/config/test`),
+
+  /** The assistant's allowance and today's use. Needs the settings permission, not the model's. */
+  getAssistantSettings: () => api.get<AssistantSettings>('/api/v1/assistant/settings'),
+  putAssistantSettings: (body: { dailyTokens: number }) => api.put<AssistantSettings>('/api/v1/assistant/settings', body),
 
   /** One small turn in the assistant's reply format, with one tool: can the saved model run it? */
   testAssistant: () => api.post<LlmAssistantTestResult>(`${BASE}/config/assistant-test`),

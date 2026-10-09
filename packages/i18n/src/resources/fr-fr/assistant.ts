@@ -142,7 +142,9 @@ export default {
     "tryAgain": "Réessayer",
     "modelFormat": "Ce modèle ne répond pas de la manière dont {name} a besoin. Choisissez un autre modèle dans Paramètres → IA.",
     "modelFormatAsk": "Ce modèle ne répond pas de la manière dont {name} a besoin. Demandez à un administrateur de choisir un autre modèle.",
-    "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question."
+    "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question.",
+    "busy": "Votre dernière question est encore en cours. Attendez-la ou arrêtez-la d’abord.",
+    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé."
   },
   "invoiceTemplate": {
     "action1": "Voir un autre échantillon",
@@ -279,5 +281,8 @@ export default {
     "network": "Les fonctions réseau sortantes sont désactivées sur cette instance.",
     "noProvider": "Aucun fournisseur d’IA n’est encore configuré.",
     "settings": "Ouvrir Paramètres → IA"
+  },
+  "budget": {
+    "usedUp": "Le quota du jour est épuisé. Il repart à {time}."
   }
 } as const;

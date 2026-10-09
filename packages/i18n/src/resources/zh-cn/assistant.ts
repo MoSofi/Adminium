@@ -142,7 +142,9 @@ export default {
     "tryAgain": "重试",
     "modelFormat": "此模型的回答方式不是 {name} 需要的。请在“设置 → AI”中换一个模型。",
     "modelFormatAsk": "此模型的回答方式不是 {name} 需要的。请让管理员换一个模型。",
-    "setup": "刚才无法读取此页面。请再问一次。"
+    "setup": "刚才无法读取此页面。请再问一次。",
+    "busy": "你的上一个问题还在处理中。请等待它完成，或先停止它。",
+    "budget": "处理到一半停下了：今天的额度已用完。"
   },
   "invoiceTemplate": {
     "action1": "换一个示例预览",
@@ -279,5 +281,8 @@ export default {
     "network": "本实例已关闭对外网络功能。",
     "noProvider": "尚未配置 AI 服务商。",
     "settings": "打开 设置 → AI"
+  },
+  "budget": {
+    "usedUp": "今天的额度已用完。将于 {time} 重新开始。"
   }
 } as const;

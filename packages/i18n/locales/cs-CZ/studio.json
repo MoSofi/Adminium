@@ -2291,6 +2291,24 @@
       "wrongValue": "Tento model nástroj použil a pak ohlásil něco jiného. Vyberte jiný model.",
       "provider": "Model neodpověděl: {message}",
       "error": "Test se nepodařilo spustit. Zkuste to znovu."
+    },
+    "allowance": {
+      "title": "Denní příděl",
+      "subtitle": "Kolik smí jeden člověk za den využít asistenta {name}.",
+      "field": "Tokeny, které smí jeden člověk za den využít",
+      "hint": "0 znamená bez omezení. Den se počítá v UTC, takže všem začíná znovu ve stejný okamžik: v {time} vašeho času.",
+      "save": "Uložit",
+      "saved": "Příděl uložen",
+      "saveFailed": "Příděl se nepodařilo uložit. Zkuste to znovu.",
+      "today": "Dnes",
+      "person": "Osoba",
+      "questions": "Otázky",
+      "tokens": "Tokeny",
+      "empty": "Asistenta {name} dnes nikdo nepoužil.",
+      "atLimit": "Na limitu",
+      "roles": "Role, které smějí používat asistenta {name}",
+      "rolesHint": "Nastavuje se v oprávněních každé role.",
+      "rolesNone": "Asistenta {name} smí používat jen Super Admin."
     }
   },
   "settingsHub": {

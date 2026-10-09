@@ -2291,6 +2291,24 @@
       "wrongValue": "此模型用了工具，卻回報了別的內容。請換一個模型。",
       "provider": "模型沒有回答：{message}",
       "error": "測試無法執行。請再試一次。"
+    },
+    "allowance": {
+      "title": "每日額度",
+      "subtitle": "每個人一天可以使用多少 {name}。",
+      "field": "每人每天可用的權杖數",
+      "hint": "0 表示不限。一天以 UTC 計算，所以對所有人在同一時刻重新開始：你當地時間 {time}。",
+      "save": "儲存",
+      "saved": "額度已儲存",
+      "saveFailed": "無法儲存額度。請再試一次。",
+      "today": "今天",
+      "person": "人員",
+      "questions": "提問",
+      "tokens": "權杖",
+      "empty": "今天還沒有人使用 {name}。",
+      "atLimit": "已達上限",
+      "roles": "可以使用 {name} 的角色",
+      "rolesHint": "在每個角色的權限中設定。",
+      "rolesNone": "只有超級管理員可以使用 {name}。"
     }
   },
   "settingsHub": {

@@ -2301,6 +2301,24 @@ export default {
       "wrongValue": "Dieses Modell hat das Werkzeug benutzt und dann etwas anderes gemeldet. Wählen Sie ein anderes Modell.",
       "provider": "Das Modell hat nicht geantwortet: {message}",
       "error": "Der Test konnte nicht ausgeführt werden. Versuchen Sie es erneut."
+    },
+    "allowance": {
+      "title": "Tageskontingent",
+      "subtitle": "Wie viel eine Person an einem Tag von {name} nutzen darf.",
+      "field": "Tokens, die eine Person an einem Tag nutzen darf",
+      "hint": "0 bedeutet kein Limit. Ein Tag wird in UTC gezählt und beginnt daher für alle im selben Moment neu: {time} Ihrer Zeit.",
+      "save": "Speichern",
+      "saved": "Kontingent gespeichert",
+      "saveFailed": "Das Kontingent konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+      "today": "Heute",
+      "person": "Person",
+      "questions": "Fragen",
+      "tokens": "Tokens",
+      "empty": "Heute hat niemand {name} genutzt.",
+      "atLimit": "Am Limit",
+      "roles": "Rollen, die {name} nutzen dürfen",
+      "rolesHint": "Wird in den Berechtigungen jeder Rolle festgelegt.",
+      "rolesNone": "Nur Super Admin darf {name} nutzen."
     }
   },
   "settingsHub": {

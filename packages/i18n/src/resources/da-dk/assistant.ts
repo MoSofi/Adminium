@@ -142,7 +142,9 @@ export default {
     "tryAgain": "Prøv igen",
     "modelFormat": "Denne model svarer ikke på den måde, {name} har brug for. Vælg en anden model under Indstillinger → AI.",
     "modelFormatAsk": "Denne model svarer ikke på den måde, {name} har brug for. Bed en administrator om at vælge en anden model.",
-    "setup": "Denne side kunne ikke læses lige nu. Prøv at spørge igen."
+    "setup": "Denne side kunne ikke læses lige nu. Prøv at spørge igen.",
+    "busy": "Dit seneste spørgsmål er stadig i gang. Vent på det, eller stop det først.",
+    "budget": "Dette stoppede undervejs: dagens kvote er brugt op."
   },
   "invoiceTemplate": {
     "action1": "Se en anden prøve",
@@ -279,5 +281,8 @@ export default {
     "network": "Udgående netværksfunktioner er slået fra på denne instans.",
     "noProvider": "Der er endnu ikke konfigureret en AI-udbyder.",
     "settings": "Åbn Indstillinger → AI"
+  },
+  "budget": {
+    "usedUp": "Dagens kvote er brugt op. Den starter igen kl. {time}."
   }
 } as const;
