@@ -1,5 +1,23 @@
 # @adminium/dashboard
 
+## 0.3.21
+
+### Patch Changes
+
+- ffedb61: Sample data ticked at an app's install now also loads the sample data of the add-ons that install put in, after the app's own. Before, an add-on's sample was a second step under Add-ons that nothing on the install screen mentioned, and the app's rows that point at it (a clinic's kits, for one) stayed out until then. An add-on that was already installed is left as it is, and the install screen says so. `POST /apps/:key/sample-data` takes an optional `addOns` list for this; it refuses an add-on the app does not name.
+- 05654cb: The Designer's build page has two bars instead of three. The preview has an address bar: it shows the page each side is on, lists the pages of that side, and takes a typed path. The preview is kept while another tab shows, and a reload, a build and a change of side come back to the page you were on. As the window narrows the bar folds, the chat gives up its width, and under about 1,100 pixels the chat and the work area become two views.
+- efec265: Adminium Designer: a Code tab on the build page. It lists the files of the app that can be changed by hand (the screens' source, the dashboard's pages, the design brief, the look and the app's name) and opens them in an editor with line numbers and syntax colours. "Save" keeps every edited file in one version, applies the app, and the Designer is told of the change on its next turn. While the Designer works the files can be read and not changed. A save that does not apply says why and offers to put the files back. The editor is loaded when the tab is first opened.
+- Updated dependencies [ffedb61]
+- Updated dependencies [05654cb]
+- Updated dependencies [efec265]
+  - @adminium/i18n@0.3.21
+  - @adminium/tokens@0.3.21
+  - @adminium/charts@0.3.21
+  - @adminium/widgets@0.3.21
+  - @adminium/ui@0.3.21
+  - @adminium/engine@0.3.21
+  - @adminium/add-on-contracts@0.3.21
+
 ## 0.3.20
 
 ### Patch Changes

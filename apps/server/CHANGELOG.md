@@ -1,5 +1,29 @@
 # @adminium/server
 
+## 0.3.21
+
+### Patch Changes
+
+- ffedb61: Sample data ticked at an app's install now also loads the sample data of the add-ons that install put in, after the app's own. Before, an add-on's sample was a second step under Add-ons that nothing on the install screen mentioned, and the app's rows that point at it (a clinic's kits, for one) stayed out until then. An add-on that was already installed is left as it is, and the install screen says so. `POST /apps/:key/sample-data` takes an optional `addOns` list for this; it refuses an add-on the app does not name.
+- 44bf77e: A model connection whose address is a name is now called at the address that was checked when the name was resolved, so a name that answers differently a moment later gains nothing. The live Designer writes its kept-disk mark in `apps/` as well as `.adminium/`: a host that keeps one folder and not the other is found at the next start, and the switch goes off and says why. A copy of a published app records the commit it was taken from, and the same version arriving later from another commit is refused.
+- 8a2f44e: An app's files can be opened and saved by hand through Adminium Designer's own addresses, with no model in between. The server keeps the list of what may be changed this way (each side's sources, the staff `nav.json`, the dashboard pages, `design.md`, `look.json` and `manifest/app.json`) and opens or saves a file only when it is on it. A save is all or nothing, names the fingerprint each file was opened at and is refused when a file changed since, runs the same check, build and apply as the end of a turn, and is kept as a version named for the files ("Your edit to App.tsx"). A saved `look.json` is applied as a change of style is; `app.json` may change in its name, description, nav groups and widgets only. A save is refused while the Designer's last turn left unfinished files, so a version called "your edit" holds your edit. The Designer's next turn is told which files were changed by hand and reads each again before it writes it. One thing now writes a project's folder at a time: a turn, a hand save, a change of style, going back to a version and a copy of a published app each take the same lock. Before this a turn could start while a style change or a restore was still writing. The Designer is told which page of a side it looked at, and that look is recorded as an event of the session.
+- 530f1ad: A side's pages have addresses. `@adminiumjs/adminium/side` gains `usePath`, `Link`, `go`, `pathParams`, `pagePath` and `pageHref`: one address per page (`/`, `/menu`, `/menu/spicy-wings`), with no router package, so a page of an app's own screens can be refreshed, opened in a new tab and gone back to. A staff side keeps the dashboard's sidebar in step with the page it shows, so a second entry in `nav.json` opens its own screen. Inside the dashboard or a preview a side changes its address in place, and the browser's Back leaves the app; opened in its own tab it steps through the pages. The starter screens of `adminium app new` are two pages each, and Adminium Designer is taught to build this way and names a side whose pages share one address. `adminium design` and `adminium dev` now build an app's screens again when the folder was last built for a server, so the preview is told of a screen's errors from the first start; `adminium start` builds them again when they were last built for development. An app built before this keeps working as it was.
+- 377bee9: An app's install check now says why an add-on it names cannot be had: the add-on catalogue is switched off, it could not be read, or it was read and does not list the add-on. Before, all three read "the add-on catalogue is off or has nothing for it … or switch the catalogue on", which sent an owner whose catalogue was on to a switch that changed nothing. An add-on no catalogue names is said by its key in quotes.
+- Updated dependencies [ffedb61]
+- Updated dependencies [05654cb]
+- Updated dependencies [44bf77e]
+- Updated dependencies [efec265]
+  - @adminium/i18n@0.3.21
+  - @adminium/llm@0.3.21
+  - @adminium/engine@0.3.21
+  - @adminium/adapter-mysql@0.3.21
+  - @adminium/adapter-postgres@0.3.21
+  - @adminium/adapter-sqlite@0.3.21
+  - @adminium/schema-import@0.3.21
+  - @adminium/add-on-contracts@0.3.21
+  - @adminium/manifest@0.3.21
+  - @adminium/meta@0.3.21
+
 ## 0.3.20
 
 ### Patch Changes

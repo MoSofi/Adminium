@@ -1,5 +1,0 @@
----
-'@adminium/server': patch
----
-
-A side's pages have addresses. `@adminiumjs/adminium/side` gains `usePath`, `Link`, `go`, `pathParams`, `pagePath` and `pageHref`: one address per page (`/`, `/menu`, `/menu/spicy-wings`), with no router package, so a page of an app's own screens can be refreshed, opened in a new tab and gone back to. A staff side keeps the dashboard's sidebar in step with the page it shows, so a second entry in `nav.json` opens its own screen. Inside the dashboard or a preview a side changes its address in place, and the browser's Back leaves the app; opened in its own tab it steps through the pages. The starter screens of `adminium app new` are two pages each, and Adminium Designer is taught to build this way and names a side whose pages share one address. `adminium design` and `adminium dev` now build an app's screens again when the folder was last built for a server, so the preview is told of a screen's errors from the first start; `adminium start` builds them again when they were last built for development. An app built before this keeps working as it was.

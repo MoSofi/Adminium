@@ -1,6 +1,6 @@
 {
   "name": "@adminium/adapter-sqlite",
-  "version": "0.3.20",
+  "version": "0.3.21",
   "private": true,
   "license": "AGPL-3.0-only",
   "repository": {
