@@ -3161,6 +3161,7 @@
     "title": "Ukázková data",
     "add": "Přidat ukázková data",
     "installNote": "několik ukázkových záznamů v tabulkách aplikace, abyste ji měli na čem vyzkoušet. Odstraníte je jedním kliknutím.",
+    "installAddOns": "Doplněk nainstalovaný spolu s ní dostane také svá ukázková data, pokud nějaká má. Doplněk, který tu už byl, zůstane beze změny: jeho ukázková data přidáte v Doplňcích.",
     "remove": "Odstranit ukázková data",
     "keptNotice": "{count, plural, one {# ukázkový záznam zůstává: používají ho vaše vlastní záznamy, nebo jste ho změnili.} few {# ukázkové záznamy zůstávají: používají je vaše vlastní záznamy, nebo jste je změnili.} many {# ukázkového záznamu zůstává: používají ho vaše vlastní záznamy, nebo jste ho změnili.} other {# ukázkových záznamů zůstává: používají je vaše vlastní záznamy, nebo jste je změnili.}}",
     "notLoaded": "Nenačteno",

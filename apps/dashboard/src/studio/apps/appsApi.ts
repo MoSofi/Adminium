@@ -399,9 +399,14 @@ export function sampleDataQuery(key: string, kind: SampleOwnerKind = 'app') {
   });
 }
 
-/** Queue the add; the job writes every record or none. */
-export function addSampleData(key: string, kind: SampleOwnerKind = 'app'): Promise<{ jobId: string }> {
-  return api.post<{ jobId: string }>(sampleDataUrl(key, kind));
+/**
+ * Queue the add; the job writes every record or none. `addOns` (an app's add
+ * only) names the add-ons the same install put in: each one's own sample is
+ * added after the app's, so the app's rows that point at it are not left
+ * waiting for a second step on another screen.
+ */
+export function addSampleData(key: string, kind: SampleOwnerKind = 'app', addOns: readonly string[] = []): Promise<{ jobId: string }> {
+  return api.post<{ jobId: string }>(sampleDataUrl(key, kind), kind === 'app' && addOns.length > 0 ? { addOns } : undefined);
 }
 
 /** What a removal would take and keep, read fresh each time the dialog opens. */

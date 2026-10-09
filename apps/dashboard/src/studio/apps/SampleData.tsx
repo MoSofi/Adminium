@@ -86,8 +86,9 @@ export async function runSampleAdd(
   appKey: string,
   onProgress: (progress: { pct: number; message: string | null }) => void,
   kind: SampleOwnerKind = 'app',
+  addOns: readonly string[] = [],
 ): Promise<void> {
-  const { jobId } = await addSampleData(appKey, kind);
+  const { jobId } = await addSampleData(appKey, kind, addOns);
   await followAppJob(jobId, {
     onProgress,
     failed: t('studio:sampleData.addFailedBody', 'The sample data was not added. Nothing was written.'),
@@ -96,8 +97,13 @@ export async function runSampleAdd(
 
 // ── The install step ────────────────────────────────────────────────────────
 
-/** Unticked by default: an install writes nothing it was not asked to. */
-export function SampleInstallCard({ checked, onChange }: { checked: boolean; onChange: (next: boolean) => void }) {
+/**
+ * Unticked by default: an install writes nothing it was not asked to.
+ * `withAddOns`: the install also puts add-ons in, so the card says what
+ * happens to their sample data — theirs comes with the app's, and one that
+ * was here already is left as it is.
+ */
+export function SampleInstallCard({ checked, onChange, withAddOns = false }: { checked: boolean; onChange: (next: boolean) => void; withAddOns?: boolean }) {
   return (
     <section className={CARD} data-testid="install-sample-data">
       <h3 className="mb-[11px] flex items-center gap-[9px]">
@@ -115,6 +121,14 @@ export function SampleInstallCard({ checked, onChange }: { checked: boolean; onC
             'studio:sampleData.installNote',
             'a few example records in the app’s tables, so there is something to try it with. You can remove it in one click.',
           )}
+          {withAddOns ? (
+            <span className="mt-1 block" data-part="sample-add-ons">
+              {t(
+                'studio:sampleData.installAddOns',
+                'An add-on installed with it gets its own sample data too, where it has some. An add-on that was already here is left as it is: you can add its sample data under Add-ons.',
+              )}
+            </span>
+          ) : null}
         </span>
       </label>
     </section>

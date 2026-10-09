@@ -11,7 +11,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createSampleDataService, findSampleApp, findSampleOwner, type SampleApp } from '../src/apps/sample-data.js';
+import { createSampleDataService, findSampleApp, findSampleOwner, registerSampleDataHandler, type SampleApp } from '../src/apps/sample-data.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { stockKitManifest } from './fixtures/stock-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
@@ -169,6 +169,61 @@ describe.each(LEGS)('an app\'s sample rows for an add-on — %s', (dialect, avai
     // The shop's own rows are still its sample.
     expect((await service(h).status(w.app)).total).toBe(2);
     expect(await count(h, 'orders')).toBe(2);
+  });
+
+  it.runIf(available)('asked for with the add-on its install put in, the add-on\'s own sample follows the app\'s and nothing is left waiting', async () => {
+    // The shop's rows for the kit point at the kit's own "flour": alone, they would wait for a second step in another screen.
+    const w = await world({ tables: [{ ref: 'takes', rows: [{ item_id: { '@ref': 'flour' }, qty: '3.00' }] }] });
+    h = w.harness;
+    const queued = await post(h, '/apps/shop/sample-data', { addOns: ['stock-kit'] });
+    expect(queued.statusCode, queued.body).toBe(200);
+    const job = await h.meta.db.selectFrom('adminium_jobs').selectAll().where('id', '=', queued.json().jobId).executeTakeFirstOrThrow();
+    const payload = (typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload) as Record<string, unknown>;
+    expect(payload).toMatchObject({ key: 'shop', withAddOns: ['stock-kit'] });
+    // The handler a real server runs the job with.
+    let handler: ((payload: never, ctx: never) => Promise<unknown>) | null = null;
+    registerSampleDataHandler({ registerJobHandler: (_kind: string, _schema: unknown, run: typeof handler) => (handler = run) } as never, h.sampleData);
+    const seen: number[] = [];
+    const result = (await handler!(payload as never, { progress: (pct: number) => seen.push(pct) } as never)) as { counts: Record<string, number>; addOns: Record<string, { counts: Record<string, number> }> };
+    expect(result.counts).toEqual({ orders: 2 });
+    expect(Object.keys(result.addOns)).toEqual(['stock-kit']);
+    // The kit's two items and its take, and the shop's take of the kit's flour: all in, in one go.
+    expect(await names(h, 'stock_kit_items')).toEqual(['Flour', 'Salt']);
+    expect(await count(h, 'stock_kit_takes')).toBe(2);
+    expect((await service(h).status(w.addOn!)).loaded).toBe(true);
+    expect((await service(h).status(w.app)).total).toBe(3);
+    // One bar for the whole of it: it never runs backwards and never passes its end.
+    expect(seen).toEqual([...seen].sort((a, b) => a - b));
+    expect(Math.max(0, ...seen)).toBeLessThanOrEqual(100);
+  });
+
+  it.runIf(available)('asked for alone, as before, the app\'s rows for the add-on still wait; an add-on that holds its sample is left as it is', async () => {
+    const w = await world({ tables: [{ ref: 'takes', rows: [{ item_id: { '@ref': 'flour' }, qty: '3.00' }] }] });
+    h = w.harness;
+    let handler: ((payload: never, ctx: never) => Promise<unknown>) | null = null;
+    registerSampleDataHandler({ registerJobHandler: (_kind: string, _schema: unknown, run: typeof handler) => (handler = run) } as never, h.sampleData);
+    const run = async (payload: Record<string, unknown>) => handler!({ locale: 'en-US', userId: null, userLabel: 'test', ...payload } as never, { progress: () => undefined } as never);
+    // The kit's sample is already in, with a row somebody added since.
+    await service(h).add(w.addOn!, OPTS);
+    await h.rows(`INSERT INTO stock_kit_items (name, opening) VALUES ('Pepper', '1.00')`);
+    const result = (await run({ key: 'shop', withAddOns: ['stock-kit', 'not-installed'] })) as { addOns: Record<string, unknown> };
+    // Nothing of the kit's was added a second time, and the add-on that is not here is passed over.
+    expect(result.addOns).toEqual({});
+    expect(await names(h, 'stock_kit_items')).toEqual(['Flour', 'Salt', 'Pepper']);
+    // The shop's section found the kit's sample there and went in with the shop's own rows.
+    expect((await service(h).status(w.app)).total).toBe(3);
+  });
+
+  it.runIf(available)('refuses an add-on the app does not name, before anything is queued', async () => {
+    const w = await world(OWN_ROWS);
+    h = w.harness;
+    const refused = await post(h, '/apps/shop/sample-data', { addOns: ['ledger-kit'] });
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect(refused.json().error.details).toMatchObject({ reason: 'ADD_ON_NOT_NAMED', addOn: 'ledger-kit' });
+    expect(await count(h, 'orders')).toBe(0);
+    // With no body at all the request is what it always was.
+    const plain = await h.inject({ method: 'POST', url: '/apps/shop/sample-data' });
+    expect(plain.statusCode, plain.body).toBe(200);
   });
 
   it.runIf(available)('a file that waits, waits whole: its other rows do not go in ahead of the ones that point at the add-on\'s sample', async () => {

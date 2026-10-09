@@ -3171,6 +3171,7 @@ export default {
     "title": "Sample data",
     "add": "Add sample data",
     "installNote": "a few example records in the app’s tables, so there is something to try it with. You can remove it in one click.",
+    "installAddOns": "An add-on installed with it gets its own sample data too, where it has some. An add-on that was already here is left as it is: you can add its sample data under Add-ons.",
     "remove": "Remove sample data",
     "keptNotice": "{count, plural, one {# sample record stays: your own records use it, or you changed it.} other {# sample records stay: your own records use them, or you changed them.}}",
     "notLoaded": "Not loaded",

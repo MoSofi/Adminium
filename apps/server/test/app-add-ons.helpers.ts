@@ -316,6 +316,8 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     serverVersion: '0.4.0',
     schemaTarget,
     addOns: { installer, catalog, bundledDir },
+    // As a real server: an app's sample data is asked for through the app's own routes.
+    sampleData,
     ...(runtime === undefined ? {} : { addOnRuntime: runtime }),
     // The public API's own service and views: an app's key, and an add-on's entries on it, are made for real.
     publicAccess: {

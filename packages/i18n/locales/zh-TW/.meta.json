@@ -24367,6 +24367,10 @@
     "status": "mt",
     "srcHash": "92625356d300"
   },
+  "studio.sampleData.installAddOns": {
+    "status": "mt",
+    "srcHash": "0327b5c119ba"
+  },
   "studio.sampleData.installNote": {
     "status": "mt",
     "srcHash": "8365c3ebacf1"

@@ -798,6 +798,14 @@ export const appCatalogSettingsReply = z.object({
 
 export const appJobReply = z.object({ jobId: z.string() });
 
+/**
+ * An app's sample data, asked for at its install: `addOns` names the add-ons
+ * that install put in, whose own sample is added too. Each must be one the
+ * app names; one that ships no sample, or holds one, is passed over.
+ */
+// Nullish: the request has always been sent with no body at all, which arrives as null.
+export const addSampleBody = z.object({ addOns: z.array(appKey).max(32).optional() }).nullish();
+
 /** One catalog release to download into the store (48 G8-D5). */
 export const downloadAppBody = z.object({
   key: appKey,

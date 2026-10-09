@@ -2479,6 +2479,13 @@ const sampleAddPayloadSchema = z.object({
   userLabel: z.string(),
   /** Whose sample it is; an app's when absent (every job queued before add-ons had one). */
   kind: z.enum(['app', 'add-on']).optional(),
+  /**
+   * With an app's sample: the add-ons installed in the same install, whose own
+   * sample is added after the app's. Without it an app's rows for an add-on
+   * that point at that add-on's sample wait for a second step in another
+   * screen, which nothing on the install said was there.
+   */
+  withAddOns: z.array(z.string().min(1)).max(32).optional(),
 });
 export type SampleAddPayload = z.infer<typeof sampleAddPayloadSchema>;
 
@@ -2519,12 +2526,46 @@ export function registerSampleDataHandler(registry: JobRegistry, deps: SampleDat
     async (payload: SampleAddPayload, ctx: JobHandlerContext) => {
       const app = await findSampleOwner(deps.meta, payload.key, payload.kind ?? 'app');
       if (app === null) throw new NotFoundError(`"${payload.key}" is not installed.`);
-      return service.add(app, {
+      const withAddOns = payload.kind === 'add-on' ? [] : (payload.withAddOns ?? []);
+      // The app's share of the bar when add-ons follow it: each owner gets an equal part.
+      const parts = withAddOns.length + 1;
+      // One bar for all of it, and it never runs backwards: an add-on's add starts over for the rows of the app that waited for it.
+      let reached = 0;
+      const opts = (part: number) => ({
         locale: payload.locale,
         userId: payload.userId,
         userLabel: payload.userLabel,
-        progress: (pct, message) => ctx.progress(pct, { step: 'sample', message }),
+        progress: (pct: number, message: string) => {
+          reached = Math.max(reached, Math.round((part * 100 + pct) / parts));
+          return ctx.progress(reached, { step: 'sample', message });
+        },
       });
+      const added = await service.add(app, opts(0));
+      /*
+       * The app's own rows first, then each add-on's sample: an add-on's add
+       * brings in the app's rows that were waiting for it, so the order is the
+       * one an owner already takes by hand. An add-on that is not here, ships
+       * no sample or already holds one is passed over — its rows are not this
+       * install's to touch.
+       */
+      const addOns: Record<string, { counts: Record<string, number>; files: number }> = {};
+      for (const [index, key] of withAddOns.entries()) {
+        const owner = await findSampleOwner(deps.meta, key, 'add-on');
+        if (owner === null) continue;
+        const status = await service.status(owner);
+        if (!status.offered || status.loaded) continue;
+        try {
+          addOns[key] = await service.add(owner, opts(index + 1));
+        } catch (error) {
+          // The app's sample is in and stays in: say which half is missing and where it is added.
+          const name = typeof owner.manifest.name === 'string' ? owner.manifest.name : key;
+          throw new ConflictError(
+            `The sample data of ${app.manifest.name} was added. ${name}’s own sample data was not: ${error instanceof Error ? error.message : String(error)} Add it under Add-ons.`,
+            'CONFLICT',
+          );
+        }
+      }
+      return withAddOns.length === 0 ? added : { ...added, addOns };
     },
     { internal: true },
   );

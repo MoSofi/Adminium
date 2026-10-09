@@ -3161,6 +3161,7 @@
     "title": "Beispieldaten",
     "add": "Beispieldaten hinzufügen",
     "installNote": "ein paar Beispieldatensätze in den Tabellen der App, damit es etwas zum Ausprobieren gibt. Sie lassen sich mit einem Klick wieder entfernen.",
+    "installAddOns": "Eine Erweiterung, die mit installiert wird, erhält ebenfalls ihre eigenen Beispieldaten, sofern sie welche hat. Eine Erweiterung, die schon da war, bleibt unverändert: Ihre Beispieldaten können Sie unter „Erweiterungen“ hinzufügen.",
     "remove": "Beispieldaten entfernen",
     "keptNotice": "{count, plural, one {# Beispieldatensatz bleibt: Ihre eigenen Datensätze nutzen ihn, oder Sie haben ihn geändert.} other {# Beispieldatensätze bleiben: Ihre eigenen Datensätze nutzen sie, oder Sie haben sie geändert.}}",
     "notLoaded": "Nicht geladen",

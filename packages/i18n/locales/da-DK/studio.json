@@ -3161,6 +3161,7 @@
     "title": "Eksempeldata",
     "add": "Tilføj eksempeldata",
     "installNote": "nogle få eksempelposter i appens tabeller, så der er noget at prøve den med. Du kan fjerne dem med ét klik.",
+    "installAddOns": "En tilføjelse, der installeres sammen med den, får også sine egne eksempeldata, hvis den har nogen. En tilføjelse, der allerede var her, forbliver, som den er: du kan tilføje dens eksempeldata under Tilføjelser.",
     "remove": "Fjern eksempeldata",
     "keptNotice": "{count, plural, one {# eksempelpost bliver: dine egne poster bruger den, eller du har ændret den.} other {# eksempelposter bliver: dine egne poster bruger dem, eller du har ændret dem.}}",
     "notLoaded": "Ikke indlæst",

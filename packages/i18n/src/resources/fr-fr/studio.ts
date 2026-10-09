@@ -3171,6 +3171,7 @@ export default {
     "title": "Données d’exemple",
     "add": "Ajouter des données d’exemple",
     "installNote": "quelques enregistrements d’exemple dans les tables de l’app, pour avoir de quoi l’essayer. Vous pouvez les retirer en un clic.",
+    "installAddOns": "Un module installé avec elle reçoit aussi ses propres données d’exemple, s’il en a. Un module déjà présent reste tel quel : vous pouvez ajouter ses données d’exemple sous Modules.",
     "remove": "Retirer les données d’exemple",
     "keptNotice": "{count, plural, one {# enregistrement d’exemple reste : vos propres enregistrements l’utilisent, ou vous l’avez modifié.} other {# enregistrements d’exemple restent : vos propres enregistrements les utilisent, ou vous les avez modifiés.}}",
     "notLoaded": "Non chargées",

@@ -323,7 +323,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
 
   /** The sample data, after the install: the app has to be there first. */
   const sample = useMutation({
-    mutationFn: (key: string) => runSampleAdd(key, () => undefined),
+    mutationFn: (asked: { key: string; addOns: readonly string[] }) => runSampleAdd(asked.key, () => undefined, 'app', asked.addOns),
   });
 
   const install = useMutation({
@@ -351,7 +351,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       setError(null);
       setStopped(null);
       setStep('done');
-      if (addSample && plan?.sampleData === true) sample.mutate(next.key);
+      // With the add-ons this install put in: their own sample comes with the app's. One that was here already is not touched.
+      if (addSample && plan?.sampleData === true) sample.mutate({ key: next.key, addOns: (next.addOns?.installed ?? []).map((addOn) => addOn.key) });
       // Both lists change: the app is installed, and it is now a surface.
       await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: SURFACES_QUERY_KEY });
@@ -538,7 +539,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             grants={plan.addOnGrants}
           />
         )}
-        {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} /> : null}
+        {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} withAddOns={addOnRows.length > 0} /> : null}
       </div>
     ) : null;
 

@@ -64,6 +64,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { AddOnCatalogError, pickLocalized } from '../../add-ons/catalog.js';
 import {
+  addOnNeedsOf,
   addOnPlanProblems,
 } from '../../apps/add-ons.js';
 import {
@@ -113,6 +114,7 @@ import {
   appCatalogSettingsBody,
   appCatalogSettingsReply,
   appInstallPlanReply,
+  addSampleBody,
   appJobReply,
   appKeyParams,
   appListReply,
@@ -1230,7 +1232,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         config: { audit: audited('rbac') },
-        schema: { params: appKeyParams, response: { 200: appJobReply } },
+        schema: { params: appKeyParams, body: addSampleBody, response: { 200: appJobReply } },
       },
       /*
        * A JOB: the rows and images of a small business are more than a request
@@ -1242,6 +1244,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const target = await sampleAppOf(request.params.key);
         if (samples === null) throw new NotFoundError(`"${target.key}" ships no sample data.`, { reason: 'NO_SAMPLE_DATA' });
         await samples.addPreview(target);
+        // Only the add-ons this app names: a sample is never put into an add-on the app has nothing to do with.
+        const withAddOns = [...new Set(request.body?.addOns ?? [])];
+        const needs = addOnNeedsOf(target.manifest);
+        const named = new Set([...(needs?.requires ?? []), ...(needs?.suggests ?? [])].map((entry) => entry.key));
+        const stranger = withAddOns.find((key) => !named.has(key));
+        if (stranger !== undefined) {
+          throw new ValidationFailedError(`"${stranger}" is not an add-on ${target.manifest.name} names.`, { reason: 'ADD_ON_NOT_NAMED', addOn: stranger });
+        }
         const userId = request.user?.id ?? null;
         const locale = (await userPrefsRepo(deps.meta).resolve(userId)).locale;
         const job = await enqueueSampleAdd(deps.meta, {
@@ -1249,6 +1259,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           locale,
           userId,
           userLabel: request.user?.email ?? 'unknown',
+          ...(withAddOns.length === 0 ? {} : { withAddOns }),
         });
         return { jobId: job.id };
       },

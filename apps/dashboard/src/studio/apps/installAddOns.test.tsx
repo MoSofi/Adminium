@@ -156,6 +156,10 @@ function stubFetch() {
     }
     if (url === '/api/v1/apps/plan') return Promise.resolve(jsonResponse(200, { plan: plans.length > 1 ? plans.shift() : plans[0] }));
     if (url === '/api/v1/apps/install') return installReply();
+    if (url === '/api/v1/apps/clients/sample-data' && method === 'POST') return Promise.resolve(jsonResponse(200, { jobId: 'job_sample' }));
+    if (url === '/api/v1/jobs/job_sample') {
+      return Promise.resolve(jsonResponse(200, { data: { id: 'job_sample', status: 'succeeded', progress: { pct: 100 }, lastError: null } }));
+    }
     if (url === '/api/v1/add-ons/catalog') {
       return Promise.resolve(jsonResponse(200, { addOns: [], catalogFetchedAt: null, onlineEnabled: catalogueOn }));
     }
@@ -245,6 +249,23 @@ describe('the Add-ons card', () => {
     const done = document.querySelector('[data-part="done-add-ons"]');
     expect(done?.textContent).toBe('Also installed: Invoices & Receipts. Its settings are under Add-ons.');
     expect(within(done as HTMLElement).getByRole('link', { name: 'Add-ons' }).getAttribute('href')).toBe('/studio/add-ons');
+  });
+
+  it('asks for the sample data of the add-ons the install put in with the app’s own, and of no add-on that was already here', async () => {
+    plans = [{ ...planWith([INVOICES, HOLIDAYS]), sampleData: true }];
+    const user = userEvent.setup();
+    await reachCheck(user);
+    const sample = screen.getByTestId('install-sample-data');
+    // Said before the tick: what happens to an add-on's own sample.
+    expect(sample.querySelector('[data-part="sample-add-ons"]')?.textContent).toBe(
+      'An add-on installed with it gets its own sample data too, where it has some. An add-on that was already here is left as it is: you can add its sample data under Add-ons.',
+    );
+    await user.click(within(sample).getByRole('checkbox'));
+    await user.click(installButton());
+    await screen.findByText('Client Portal is installed');
+    await waitFor(() => expect(calls.some((call) => call.url === '/api/v1/apps/clients/sample-data' && call.method === 'POST')).toBe(true));
+    // Invoices was installed by this install; Holiday calendars was already here and only connected.
+    expect(calls.find((call) => call.url === '/api/v1/apps/clients/sample-data' && call.method === 'POST')?.body).toEqual({ addOns: ['invoices'] });
   });
 
   it('never leaves a required add-on out, whatever the ticks say', () => {
