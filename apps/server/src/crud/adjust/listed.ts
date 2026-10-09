@@ -15,7 +15,13 @@
 import { ratioText, toRatio } from '@adminium/manifest';
 
 import type { Row } from '../mask.js';
-import { nameIn } from './replies.js';
+
+/** A name in the reader's language: theirs, else the default locale's, else the first there is. */
+export function nameIn(name: string | Readonly<Record<string, string>>, locale: string, fallback = 'en-US'): string {
+  if (typeof name === 'string') return name;
+  // A language is named `de-DE` in what an add-on answers and `de_DE` where Adminium keeps one: either finds it.
+  return name[locale.replace('_', '-')] ?? name[locale.replace('-', '_')] ?? name[fallback] ?? Object.values(name)[0] ?? '';
+}
 
 /** Where an add-on says its applied rows keep each part (`addOn.adjuster.applied.columns`). */
 export interface ListedColumns {

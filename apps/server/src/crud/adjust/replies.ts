@@ -15,6 +15,7 @@ import { ratioText, toRatio } from '@adminium/manifest';
 
 import { canonicalCode } from '../code-lookup.js';
 import type { TreeWritten } from '../write-tree.js';
+import { nameIn } from './listed.js';
 import type { LoadedCode } from './load.js';
 import type { AdjustedOrder } from './step.js';
 
@@ -35,15 +36,11 @@ export interface ToldReply {
   name: string;
 }
 
+export { nameIn };
+
 /** The shortest code whose last four are told: of anything shorter, four characters are the code. */
 const LAST4_MIN = 8;
 
-/** A name in the reader's language: theirs, else the default locale's, else the first there is. */
-export function nameIn(name: AdjustApplied['name'], locale: string, fallback = 'en-US'): string {
-  if (typeof name === 'string') return name;
-  // A language is named `de-DE` in what an add-on answers and `de_DE` where Adminium keeps one: either finds it.
-  return name[locale.replace('_', '-')] ?? name[locale.replace('-', '_')] ?? name[fallback] ?? Object.values(name)[0] ?? '';
-}
 
 export interface AppliedSource {
   applied: readonly AdjustApplied[];
