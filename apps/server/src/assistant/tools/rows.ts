@@ -30,7 +30,10 @@
 import { ASSISTANT_MAX_ROWS_PER_CALL } from '@adminium/llm';
 
 import { AppError } from '../../errors.js';
+import { measureSchema, type Measure } from '@adminium/engine/config';
+
 import { runList } from '../../crud/list.js';
+import { resolveMeasures } from '../../crud/measures.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import type { AssistantTool, AssistantToolDeps, AssistantToolOutcome } from '../types.js';
@@ -116,6 +119,46 @@ const WHERE_GRAMMAR = [
   ...WHERE_EXAMPLES.map((example) => JSON.stringify(example)),
 ].join('\n');
 
+/** On SQLite, the most rows of a table that may be ranked by a measure. */
+export const MEASURE_SORT_MAX_ROWS_SQLITE = 20_000;
+
+/** Measures one call may ask for: each is a subquery a listed row. */
+export const MEASURES_PER_CALL = 3;
+
+const MEASURES_ARG = {
+  type: 'array',
+  maxItems: MEASURES_PER_CALL,
+  description: [
+    'Figures over the rows of ANOTHER table that point at each listed row, computed by the database over all of them. Each is `{ "id", "table", "fkColumn", "fn", "of"? }`:',
+    '- `id`: a name for the figure (letters, digits, underscores); it becomes a key of each row, and `sort` may name it (`order_count.desc`).',
+    '- `table`: the related table, e.g. "main.orders"; `fkColumn`: its column that points at the table you are listing, e.g. "customer_id".',
+    '- `fn`: count, sum, avg, min or max. For anything but count, `of` says what is folded: `{ "terms": [{ "sign": "plus", "factors": ["quantity", "unit_price"] }] }` is the sum of quantity × unit_price.',
+    'Example, customers by number of orders: `"measures": [{ "id": "order_count", "table": "main.orders", "fkColumn": "customer_id", "fn": "count" }], "sort": "order_count.desc"`.',
+    'One hop only: the related table must point at the listed table directly.',
+  ].join('\n'),
+} as const;
+
+/** `measures`, read from a tool's arguments and checked by the engine's own schema. */
+function measureSpecs(value: unknown, table: { columns: ReadonlyMap<string, unknown> }): { measures: Measure[] } | { error: { code: string; message: string } } {
+  if (value === undefined || value === null) return { measures: [] };
+  if (!Array.isArray(value) || value.length > MEASURES_PER_CALL) {
+    return { error: { code: 'BAD_ARGS', message: `\`measures\` is a list of at most ${String(MEASURES_PER_CALL)}.` } };
+  }
+  const measures: Measure[] = [];
+  for (const entry of value) {
+    const parsed = measureSchema.safeParse(entry);
+    if (!parsed.success) {
+      return { error: { code: 'BAD_MEASURE', message: parsed.error.issues.slice(0, 4).map((issue) => `${issue.path.join('.') || '(measure)'}: ${issue.message}`).join('; ') } };
+    }
+    // A figure named like a column would stand in for the column in every row.
+    if (table.columns.has(parsed.data.id) || measures.some((measure) => measure.id === parsed.data.id)) {
+      return { error: { code: 'BAD_MEASURE', message: `"${parsed.data.id}" is already a column or a figure of this list. Give the figure another id.` } };
+    }
+    measures.push(parsed.data);
+  }
+  return { measures };
+}
+
 /** The `where` argument, shared by the two row tools. */
 const WHERE_ARG = { type: 'object', description: WHERE_GRAMMAR } as const;
 
@@ -144,6 +187,7 @@ export const readRowsTool: AssistantTool = {
       limit: { type: 'integer', minimum: 1, maximum: ROW_LIMIT_MAX },
       offset: { type: 'integer', minimum: 0, description: 'Rows to skip: read the next part of a list with the same call and a larger offset.' },
       scope: SCOPE_ARG,
+      measures: MEASURES_ARG,
     },
     required: ['connectionId', 'table'],
     additionalProperties: false,
@@ -177,10 +221,34 @@ export const readRowsTool: AssistantTool = {
 
     const { db, dialect } = await deps.manager.data(connectionId);
     try {
+      // A figure over the rows that POINT AT each listed row ("orders per customer"), computed by
+      // the database over every one of them, and something the list can be ordered by. Resolved
+      // as the person: one over a table they may not read comes back empty and marked.
+      const specs = measureSpecs(args.measures, table);
+      if ('error' in specs) return { error: specs.error };
+      const measures =
+        specs.measures.length === 0
+          ? []
+          : await resolveMeasures({ view, table, specs: specs.measures, canReadPii: false, canReadTable: await deps.canReadTable(connectionId) });
+      const byMeasure = measures.some((measure) => (sort ?? '').split(',').some((part) => part.split('.')[0] === measure.alias));
+      if (byMeasure && dialect === 'sqlite') {
+        // One process, one SQLite thread: ranking every row of a large table by a subquery a row
+        // would stop every other request while it ran. Said, with the way round it.
+        const size = await db.selectFrom(table.id as never).select((eb) => eb.fn.countAll().as('n')).executeTakeFirst();
+        if (Number((size as { n?: unknown } | undefined)?.n ?? 0) > MEASURE_SORT_MAX_ROWS_SQLITE) {
+          return {
+            error: {
+              code: 'TOO_MANY_ROWS_TO_RANK',
+              message: `${tableId} has too many rows to rank by a computed value here. Narrow it with \`where\` or \`scope\` first, or use aggregate on the related table.`,
+            },
+          };
+        }
+      }
       const listed = await runList({
         db,
         view,
         table,
+        ...(measures.length === 0 ? {} : { measures }),
         params: {
           limit,
           ...(offset > 0 ? { offset } : {}),

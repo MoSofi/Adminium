@@ -11,7 +11,7 @@ import { sql, type Kysely, type SelectQueryBuilder } from 'kysely';
 import { STATS_EXACT_COUNT_THRESHOLD, type Dialect } from '@adminium/engine';
 import type { DerivedField } from '@adminium/engine/config';
 
-import { ValidationFailedError } from '../errors.js';
+import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import {
   compileFilter,
@@ -32,8 +32,15 @@ export const LIST_LIMIT_DEFAULT = 50;
 export const MAX_SORT_KEYS = 3;
 
 export interface SortKey {
+  /** A column of the table; or, with {@link SortKey.measure}, the alias of a fold over related rows. */
   column: string;
   dir: 'asc' | 'desc';
+  /**
+   * Set when the key is a MEASURE (a count or a sum over the rows that point
+   * at each listed row), not a column: "customers by number of orders". It is
+   * ordered by its select alias, rows with no value last on every engine.
+   */
+  measure?: true;
 }
 
 export interface ListParams {
@@ -59,6 +66,8 @@ export function parseOrder(
   table: ResolvedTable,
   raw: string | undefined,
   canReadPii: boolean,
+  /** The measures this list selects: a sort key may name one by its alias. */
+  measures: readonly ResolvedMeasure[] = [],
 ): SortKey[] {
   const keys: SortKey[] = [];
   if (raw !== undefined && raw.length > 0) {
@@ -66,6 +75,19 @@ export function parseOrder(
       const [name, dir = 'asc'] = part.split('.', 2);
       if (name === undefined || name.length === 0 || (dir !== 'asc' && dir !== 'desc')) {
         throw new ValidationFailedError('`order` must be `col.asc` / `col.desc` pairs.', { part });
+      }
+      // A fold over related rows, by its alias. Never one the caller was refused (a table they
+      // may not read, a masked column): its values never leave the database, and an order by
+      // them would say which row holds the most of what they may not see.
+      const measure = table.columns.has(name) ? undefined : measures.find((candidate) => candidate.alias === name);
+      if (measure !== undefined) {
+        if (measure.refused) {
+          throw new ForbiddenError(`"${name}" is not shown to your role, so rows cannot be ordered by it.`, 'COLUMN_FORBIDDEN', { measure: name });
+        }
+        // The constant applied to a fold after the fetch does not reach the SQL: a negative one turns the order round.
+        const flipped = measure.factor !== null && measure.factor.trim().startsWith('-');
+        keys.push({ column: measure.alias, dir: flipped ? (dir === 'asc' ? 'desc' : 'asc') : dir, measure: true });
+        continue;
       }
       // Masked columns are rejected in `order`.
       const column = view.readableColumn(table, name, canReadPii);
@@ -272,7 +294,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   }
 
   const filter: RecordFilter | null = params.where === undefined ? null : parseWhereParam(params.where);
-  const sortKeys = parseOrder(view, table, params.order, canReadPii);
+  const sortKeys = parseOrder(view, table, params.order, canReadPii, measures);
 
   const applyFilters = (qb: Qb): Qb => {
     let out = qb;
@@ -307,7 +329,26 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // Same contract: refused measures never reach SQL.
     qb = qb.select((eb) => measureSelections(eb as never, db, table, measures)) as Qb;
   }
-  for (const key of sortKeys) qb = qb.orderBy(dynamic.ref(key.column), key.dir);
+  for (const key of sortKeys) {
+    if (key.measure !== true) {
+      qb = qb.orderBy(dynamic.ref(key.column), key.dir);
+      continue;
+    }
+    // By the select alias (all three engines order by an output column's name), with rows that
+    // have no value LAST whichever way the order runs: left to each engine, a customer with no
+    // orders leads the list on one and trails it on another. PostgreSQL and SQLite spell that
+    // `NULLS LAST`; MySQL has no such words and orders by "is it null" first.
+    if (dialect === 'mysql') {
+      qb = qb.orderBy(sql`${sql.ref(key.column)} is null`).orderBy(sql.ref(key.column), key.dir);
+    } else {
+      qb = qb.orderBy(sql`${sql.ref(key.column)} ${sql.raw(key.dir)} nulls last`);
+    }
+  }
+  // A keyset cursor carries the sort tuple and compares it in a WHERE, where a select alias does
+  // not exist. Paging by offset stays available.
+  if (params.cursor !== undefined && sortKeys.some((key) => key.measure === true)) {
+    throw new ValidationFailedError('Keyset pagination is unavailable when rows are ordered by a computed value; use offset pagination.', {});
+  }
 
   const cursorMode = params.cursor !== undefined;
   // Keyset cursors carry the sort tuple — including the primary-key tiebreaker
