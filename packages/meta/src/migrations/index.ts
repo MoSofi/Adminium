@@ -76,6 +76,7 @@ import { up as up0051 } from './0051_automation_ownership.js';
 import { up as up0052 } from './0052_assistant_turn_page.js';
 import { up as up0053 } from './0053_assistant_use.js';
 import { up as up0054 } from './0054_assistant_abilities.js';
+import { up as up0055 } from './0055_assistant_proposal_claim.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -139,4 +140,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0052_assistant_turn_page', up: up0052 },
   { name: '0053_assistant_use', up: up0053 },
   { name: '0054_assistant_abilities', up: up0054 },
+  { name: '0055_assistant_proposal_claim', up: up0055 },
 ];

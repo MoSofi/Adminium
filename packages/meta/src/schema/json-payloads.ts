@@ -345,6 +345,8 @@ export const auditChangesSchema = z.object({
   before: z.record(z.string(), z.unknown()).nullish(),
   after: z.record(z.string(), z.unknown()).nullish(),
   _truncated: z.literal(true).optional(),
+  /** The conversation with the assistant a write was confirmed in. */
+  via: z.object({ assistant: z.object({ sessionId: z.string(), turnId: z.string() }) }).optional(),
 });
 export type AuditChanges = z.infer<typeof auditChangesSchema>;
 
@@ -2029,6 +2031,11 @@ export const automationTriggerEventSchema = z.object({
    */
   values: z.record(z.string(), z.unknown()).nullish(),
   occurredAt: z.number().int(),
+  /**
+   * The conversation with the assistant in which the write that started this
+   * run was confirmed. A row the run then writes says so in its audit entry.
+   */
+  via: z.object({ assistant: z.object({ sessionId: z.string(), turnId: z.string() }) }).optional(),
 });
 export type AutomationTriggerEvent = z.infer<typeof automationTriggerEventSchema>;
 
