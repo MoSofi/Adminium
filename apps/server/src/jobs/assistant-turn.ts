@@ -147,8 +147,9 @@ export async function executeAssistantTurn(
     setup = await setUpTurn({
       meta: deps.meta,
       manager: deps.manager,
-      context: session.context,
-      host: session.host,
+      // The page the question was asked on; a turn that names none was asked on the session's.
+      context: turn.context ?? session.context,
+      host: turn.host ?? session.host,
       userId: userId ?? null,
       can: (permission) => deps.can(userId ?? null, permission),
     });

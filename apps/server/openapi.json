@@ -108140,36 +108140,24 @@
                       "properties": {
                         "values": {
                           "type": "object",
-                          "properties": {
-                            "templates": {
-                              "type": "number"
-                            },
-                            "campaigns": {
-                              "type": "number"
-                            },
-                            "invoices": {
-                              "type": "number"
-                            },
-                            "reports": {
-                              "type": "number"
-                            },
-                            "rules": {
-                              "type": "number"
-                            },
-                            "tables": {
-                              "type": "number"
-                            },
-                            "connection": {
-                              "type": "string"
-                            },
-                            "pattern": {
-                              "type": "string"
-                            },
-                            "write": {
-                              "type": "boolean"
-                            }
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^[a-z][A-Za-z0-9]{0,31}$"
                           },
-                          "additionalProperties": false
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
                         },
                         "scope": {
                           "type": "object",
@@ -108235,6 +108223,45 @@
                       "type": "string",
                       "maxLength": 24
                     }
+                  },
+                  "context": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "invoice-template",
+                      "invoices",
+                      "report",
+                      "automation"
+                    ]
+                  },
+                  "host": {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "tab": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "connectionIds": {
+                        "default": [],
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 64
+                        }
+                      }
+                    }
+                  },
+                  "draft": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
                   }
                 }
               }
@@ -108445,6 +108472,30 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "context": {
+                          "type": "string",
+                          "enum": [
+                            "email",
+                            "invoice-template",
+                            "invoices",
+                            "report",
+                            "automation"
+                          ]
+                        },
+                        "answer": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -108462,7 +108513,9 @@
                         "tokensIn",
                         "tokensOut",
                         "createdAt",
-                        "finishedAt"
+                        "finishedAt",
+                        "context",
+                        "answer"
                       ],
                       "additionalProperties": false
                     },
@@ -108699,6 +108752,30 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "context": {
+                      "type": "string",
+                      "enum": [
+                        "email",
+                        "invoice-template",
+                        "invoices",
+                        "report",
+                        "automation"
+                      ]
+                    },
+                    "answer": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -108716,7 +108793,9 @@
                     "tokensIn",
                     "tokensOut",
                     "createdAt",
-                    "finishedAt"
+                    "finishedAt",
+                    "context",
+                    "answer"
                   ],
                   "additionalProperties": false
                 }

@@ -134,6 +134,10 @@ export interface AssistantTurnView {
   tokensOut: number | null;
   createdAt: number;
   finishedAt: number | null;
+  /** The page the question was asked on. */
+  context: AssistantContext;
+  /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
+  answer: Record<string, unknown> | null;
 }
 
 export interface AssistantTurnReply {
@@ -351,7 +355,17 @@ export const assistantApi = {
     api.get<AssistantAvailability>(`${BASE}/availability?context=${encodeURIComponent(context)}`),
   openSession: (body: { context: AssistantContext; host: AssistantHostRef; draft?: unknown }) =>
     api.post<AssistantSessionReply>(`${BASE}/sessions`, body),
-  createTurn: (sessionId: string, body: { text?: string; picks?: Record<string, string> }) =>
+  createTurn: (
+    sessionId: string,
+    body: {
+      text?: string;
+      picks?: Record<string, string>;
+      /** The page the question is asked on, when it is not the one the session was opened on. */
+      context?: AssistantContext;
+      host?: AssistantHostRef;
+      draft?: unknown;
+    },
+  ) =>
     api.post<AssistantTurnReply>(`${sessionPath(sessionId)}/turns`, body),
   turn: (sessionId: string, turnId: string) =>
     api.get<AssistantTurnView>(`${sessionPath(sessionId)}/turns/${encodeURIComponent(turnId)}`),

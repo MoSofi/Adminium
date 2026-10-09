@@ -122,6 +122,10 @@ export const assistantTurnView = z.object({
   tokensOut: z.number().nullable(),
   createdAt: z.number(),
   finishedAt: z.number().nullable(),
+  /** The page the question was asked on. */
+  context: assistantContextSchema,
+  /** What the turn ended with besides its words and its draft: what was read, what was suggested. */
+  answer: z.record(z.string(), z.unknown()).nullable(),
 });
 export type AssistantTurnView = z.infer<typeof assistantTurnView>;
 
@@ -130,6 +134,17 @@ export const assistantTurnCreateBody = z
     text: z.string().min(1).max(4000).optional(),
     /** The answer to the previous turn's question: one option key per group. */
     picks: z.record(z.string().max(24), z.string().max(24)).optional(),
+    /**
+     * The page this question is asked on, when it is not the one the session
+     * was opened on: a conversation that goes on while the person walks from
+     * page to page asks each question somewhere. Left out, the turn is asked
+     * on the session's page.
+     */
+    context: assistantContextSchema.optional(),
+    /** What that page is showing. Read only together with `context`. */
+    host: assistantHostBody.optional(),
+    /** That page's on-screen, unsaved document, when it is an editor. Read only together with `context`. */
+    draft: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((body) => body.text !== undefined || body.picks !== undefined, {
     message: 'A turn needs either text or picks.',

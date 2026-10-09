@@ -897,3 +897,100 @@ describe('what a turn ends as when something else got there first', () => {
     expect((await repo.findSession(session.id))?.status).toBe('open');
   });
 });
+
+describe('a question asked on another page than the one the conversation began on', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+
+  async function askOn(sessionId: string, body: Record<string, unknown>, script: readonly ScriptStep[]) {
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: body,
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turn = (asked.json() as { turn: { id: string; context: string } }).turn;
+    const scripted = await runTurn(turn.id, script, t.users.admin.id);
+    return { turn, scripted };
+  }
+
+  it('is answered as that page: its prompt, its tools, its open document', async () => {
+    // Opened on Email templates, with an email on the editor's screen.
+    const opened = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/assistant/sessions',
+      headers: asUser(t.users.admin),
+      payload: { context: 'email', host: { connectionIds: [] }, draft: { subject: 'THE EMAIL ON SCREEN' } },
+    });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const first = await askOn(sessionId, { text: 'Make it shorter' }, [{ text: plain('Shorter.') }]);
+    expect(first.turn.context).toBe('email');
+    expect(first.scripted.calls[0]!.system).toContain('"Email templates" page');
+    expect(first.scripted.calls[0]!.messages[0]!.content).toContain('THE EMAIL ON SCREEN');
+
+    // The person walks to the report builder and asks there, with a report open.
+    const second = await askOn(
+      sessionId,
+      { text: 'Add a chart', context: 'report', host: { connectionIds: [] }, draft: { name: 'THE REPORT ON SCREEN' } },
+      [{ text: plain('Added.') }],
+    );
+    expect(second.turn.context).toBe('report');
+    const call = second.scripted.calls[0]!;
+    expect(call.system).toContain('"Report builder" page');
+    expect(call.system).not.toContain('"Email templates" page');
+    const sent = call.messages.map((message) => message.content);
+    // The document open NOW is the report; the email is a page the person has left.
+    expect(sent[0]).toContain('THE REPORT ON SCREEN');
+    expect(sent.join('\n')).not.toContain('THE EMAIL ON SCREEN');
+    // And the conversation came along.
+    expect(sent).toContain('Make it shorter');
+    expect(sent.at(-1)).toBe('Add a chart');
+
+    // Read back, each turn says where it was asked.
+    const stored = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${second.turn.id}`, headers: asUser(t.users.admin) });
+    expect(stored.json()).toMatchObject({ context: 'report', answer: null });
+
+    // A page that is not an editor shows no document at all.
+    const third = await askOn(sessionId, { text: 'How many rules are there?', context: 'automation', host: { connectionIds: [] } }, [{ text: plain('None.') }]);
+    expect(third.scripted.calls[0]!.messages.map((message) => message.content).join('\n')).not.toContain('open_document');
+  });
+
+  it('saves a draft through the page it was made on, not the page the conversation began on', async () => {
+    // Opened on the report builder; the draft is made on Email templates.
+    const opened = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/assistant/sessions',
+      headers: asUser(t.users.admin),
+      payload: { context: 'report', host: { connectionIds: [] } },
+    });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const drafted = await askOn(
+      sessionId,
+      { text: 'Draft a welcome email', context: 'email', host: { connectionIds: [] } },
+      [
+        {
+          text: reply({
+            result: {
+              title: 'Welcome',
+              meta: 'template',
+              artefact: { kind: 'template', name: 'Walked welcome', locale: 'en_US', document: { subject: 'Welcome', preheader: '', blocks: [{ block: 'email.text', data: { paras: ['Hello'] } }], footer: '' } },
+            },
+          }),
+        },
+      ],
+    );
+    const stored = await assistantSessionsRepo(t.meta).findTurn(drafted.turn.id);
+    expect(stored?.status, JSON.stringify(stored?.error)).toBe('done');
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns/${drafted.turn.id}/actions`,
+      headers: asUser(t.users.admin),
+      payload: { action: 'save' },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const created = (res.json() as { created: { id: string; kind: string } }).created;
+    // An email template, on the page that drafts emails. The report builder would have made a report of it.
+    expect(created.kind).toBe('template');
+    expect((await emailTemplatesRepo(t.meta).findById(created.id))?.name).toBe('Walked welcome');
+  });
+});

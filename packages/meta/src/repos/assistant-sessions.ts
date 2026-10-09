@@ -67,7 +67,12 @@ export interface AssistantSession {
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
+  /** One window on one page, or the conversation that stays open across pages. */
+  kind: AssistantSessionKind;
 }
+
+/** How a conversation is held: by one window, or by the panel. */
+export type AssistantSessionKind = 'modal' | 'panel';
 
 export interface AssistantTurn {
   id: string;
@@ -88,6 +93,14 @@ export interface AssistantTurn {
   durationMs: number | null;
   createdAt: number;
   finishedAt: number | null;
+  /** The page this turn was asked on; `null` means the session's. */
+  context: AssistantContextKey | null;
+  /** What that page was showing; `null` means the session's. */
+  host: AssistantHost | null;
+  /** The editor's unsaved document when the question was asked. */
+  draft: unknown | null;
+  /** What the turn ended with besides its words and its draft. */
+  answer: Record<string, unknown> | null;
 }
 
 export interface CreateAssistantSessionInput {
@@ -97,6 +110,7 @@ export interface CreateAssistantSessionInput {
   provider?: string | null;
   model?: string | null;
   createdBy?: string | null;
+  kind?: AssistantSessionKind;
 }
 
 export interface CreateAssistantTurnInput {
@@ -106,6 +120,10 @@ export interface CreateAssistantTurnInput {
   /** The user message this turn starts from; every round appends to it. */
   transcript?: readonly AssistantTranscriptMessage[];
   jobId?: string | null;
+  /** The page the question is asked on, when the client names one. */
+  context?: AssistantContextKey | null;
+  host?: AssistantHost | null;
+  draft?: unknown;
 }
 
 /** Everything a finished (or stopped) turn writes back in one statement. */
@@ -120,6 +138,7 @@ export interface FinishAssistantTurnInput {
   tokensIn?: number | null;
   tokensOut?: number | null;
   durationMs?: number | null;
+  answer?: Record<string, unknown> | null;
   /** Stamped for every terminal status; omit to leave the turn unfinished. */
   finishedAt?: number | null;
   /**
@@ -144,6 +163,7 @@ function decodeSession(row: Selectable<AdminiumAssistantSessionsTable>): Assista
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     closedAt: row.closedAt,
+    kind: row.kind === 'panel' ? 'panel' : 'modal',
   };
 }
 
@@ -167,7 +187,19 @@ function decodeTurn(row: Selectable<AdminiumAssistantTurnsTable>): AssistantTurn
     durationMs: row.durationMs,
     createdAt: row.createdAt,
     finishedAt: row.finishedAt,
+    // Read, never trusted to parse: a page a newer server knew is, to this one, the session's.
+    context: assistantContextSchema.nullable().catch(null).parse(row.context ?? null),
+    host: row.host === null || row.host === undefined ? null : assistantHostSchema.nullable().catch(null).parse(readJson(row.host)),
+    draft: readJsonOrNull(row.draft ?? null),
+    answer: readJsonOrNull<Record<string, unknown>>(row.answer ?? null),
   };
+}
+
+/** A context key on the way in, refused by name when it is none this build knows. */
+function contextOf(value: unknown): AssistantContextKey {
+  const context = assistantContextSchema.safeParse(value);
+  if (!context.success) throw new MetaValidationError('invalid assistant context', context.error.issues);
+  return context.data;
 }
 
 /** Validate a json payload on the way in, naming the field a caller got wrong. */
@@ -216,6 +248,7 @@ export function assistantSessionsRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
         closedAt: null,
+        kind: input.kind ?? ('modal' as const),
       };
       await db.insertInto('adminium_assistant_sessions').values(row).execute();
       return decodeSession(row as unknown as Selectable<AdminiumAssistantSessionsTable>);
@@ -338,6 +371,10 @@ export function assistantSessionsRepo(meta: MetaDb) {
         durationMs: null,
         createdAt: at,
         finishedAt: null,
+        context: input.context === undefined || input.context === null ? null : contextOf(input.context),
+        host: input.host === undefined || input.host === null ? null : packChecked('host', assistantHostSchema, input.host),
+        draft: input.draft === undefined || input.draft === null ? null : packJson(input.draft),
+        answer: null,
       };
       await db.insertInto('adminium_assistant_turns').values(row).execute();
       // A question is use: the sweep that closes a conversation left alone for a day reads this.
@@ -437,6 +474,7 @@ export function assistantSessionsRepo(meta: MetaDb) {
       if (input.tokensIn !== undefined) set.tokensIn = input.tokensIn;
       if (input.tokensOut !== undefined) set.tokensOut = input.tokensOut;
       if (input.durationMs !== undefined) set.durationMs = input.durationMs;
+      if (input.answer !== undefined) set.answer = input.answer === null ? null : packJson(input.answer);
       if (input.finishedAt !== undefined) set.finishedAt = input.finishedAt;
       let query = db.updateTable('adminium_assistant_turns').set(set).where('id', '=', id);
       if (input.expected !== undefined) query = query.where('status', '=', input.expected);

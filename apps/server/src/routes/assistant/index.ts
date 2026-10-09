@@ -116,7 +116,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
  * job is to explain what happened — so a field that no longer fits comes back
  * as null and the rest of the turn still renders.
  */
-function turnView(turn: AssistantTurn): AssistantTurnView {
+function turnView(turn: AssistantTurn, session: AssistantSession): AssistantTurnView {
   const steps = assistantTurnView.shape.steps.safeParse(turn.steps);
   return {
     id: turn.id,
@@ -134,6 +134,8 @@ function turnView(turn: AssistantTurn): AssistantTurnView {
     tokensOut: turn.tokensOut,
     createdAt: turn.createdAt,
     finishedAt: turn.finishedAt,
+    context: turn.context ?? session.context,
+    answer: asRecord(turn.answer),
   };
 }
 
@@ -296,6 +298,14 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             sessionId: session.id,
             askText: request.body.text ?? null,
             picks: request.body.picks ?? null,
+            // The page the question is asked on. Without one it is the session's, and the turn says nothing.
+            ...(request.body.context === undefined
+              ? {}
+              : {
+                  context: request.body.context,
+                  host: request.body.host ?? { connectionIds: [] },
+                  ...(request.body.draft === undefined ? {} : { draft: request.body.draft }),
+                }),
           },
           at,
         );
@@ -312,7 +322,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
 
         const stored = (await sessions.findTurn(turn.id)) ?? turn;
         return await reply.status(202).send({
-          turn: turnView(stored),
+          turn: turnView(stored, session),
           jobId: job.id,
           nextTurnTokens: estimateTokens(request.body.text ?? ''),
         });
@@ -328,7 +338,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        return turnView(turn);
+        return turnView(turn, session);
       },
     );
 
@@ -388,8 +398,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             ? await toolDepsFor({
                 meta,
                 manager: deps.manager,
-                context: session.context,
-                host: session.host,
+                context: turn.context ?? session.context,
+                host: turn.host ?? session.host,
                 userId,
                 can: (permission) => request.can(permission),
               })
@@ -397,7 +407,9 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         const outcome = await runAssistantAction({
           meta,
           action: request.body.action as AssistantActionKind,
-          context: session.context,
+          // The page the DRAFT was made on. A conversation opened on one page and asked on
+          // another would otherwise be saved by the first page's code.
+          context: turn.context ?? session.context,
           artefact,
           sessionId: session.id,
           turnId: turn.id,

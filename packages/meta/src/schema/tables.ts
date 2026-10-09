@@ -1407,6 +1407,8 @@ export interface AdminiumAssistantSessionsTable {
   createdAt: Ts;
   updatedAt: Ts;
   closedAt: Ts | null;
+  /** `modal` (one window, closed with it) or `panel` (the conversation that stays open across pages) (0052). The column's default is `modal`. */
+  kind: ColumnType<string, string | undefined, string>;
 }
 
 /** One exchange inside a session: what was asked, what ran, what came back. */
@@ -1433,6 +1435,14 @@ export interface AdminiumAssistantTurnsTable {
   durationMs: number | null;
   createdAt: Ts;
   finishedAt: Ts | null;
+  /** The page this turn was asked on; NULL means the session's (0052). */
+  context: string | null;
+  /** What that page was showing; NULL means the session's (0052). */
+  host: JsonColumn | null;
+  /** The editor's unsaved document when the question was asked (0052). */
+  draft: JsonColumn | null;
+  /** What the turn ended with besides its words and its draft: what was read, what was suggested (0052). */
+  answer: JsonColumn | null;
 }
 
 /** The full meta-store database — every adminium_* table (BRIEF). */

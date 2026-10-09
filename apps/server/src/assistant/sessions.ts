@@ -79,8 +79,9 @@ export function replayTranscript(
   upTo: string,
 ): TurnMessage[] {
   const messages: TurnMessage[] = [];
-  if (session.draft !== null) {
-    messages.push({ role: 'user', content: assistantOpenDocumentMessage(session.draft) });
+  const open = openDocumentOf(session, turns.find((turn) => turn.id === upTo) ?? null);
+  if (open !== null) {
+    messages.push({ role: 'user', content: assistantOpenDocumentMessage(open) });
   }
   // How long the replay was when an unmarked row was written: the draft, then every earlier row whole.
   let legacyBefore = session.draft === null ? 0 : 1;
@@ -101,6 +102,21 @@ export function replayTranscript(
     legacyBefore += whole.length;
   }
   return messages;
+}
+
+/**
+ * The unsaved document the model is shown before anything else: the one on
+ * the screen of the page the question is asked on.
+ *
+ * A turn that names its own page carries that page's document (or none, on a
+ * page that is not an editor). A turn that names no page was asked in the
+ * window the session opened, whose document the session kept. The session's
+ * is never shown to a turn asked elsewhere: it would be a document from a
+ * page the person has left, presented as "currently open".
+ */
+function openDocumentOf(session: AssistantSession, turn: AssistantTurn | null): unknown | null {
+  if (turn === null || turn.context === null) return session.draft;
+  return turn.draft;
 }
 
 /**

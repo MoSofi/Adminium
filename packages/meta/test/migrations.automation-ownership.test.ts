@@ -16,6 +16,7 @@ import { ALL_MIGRATIONS, applyMigrations, automationsRepo, connectionsRepo } fro
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
 
 const PRE_0051 = ALL_MIGRATIONS.filter((m) => m.name < '0051_automation_ownership');
+const UP_TO_0051 = ALL_MIGRATIONS.filter((m) => m.name <= '0051_automation_ownership');
 const TRIGGER = { kind: 'record', event: 'created', connectionId: 'cnx_1', table: 'public.users', watch: true } as const;
 const GRAPH = { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'When a user signs up' }] } as const;
 const crypto = { encrypt: (v: string) => v, decrypt: (v: string) => v };
@@ -34,18 +35,17 @@ for (const dialect of TEST_DIALECTS) {
     const make = (connectionId: string | null, over: Record<string, unknown> = {}) =>
       automationsRepo(t.meta).create({ connectionId, name: 'Rule', trigger: TRIGGER as never, graph: GRAPH as never, ...over });
 
-    it('is the last wave, and a store from before it keeps its rules as an owner\'s', async () => {
-      expect(ALL_MIGRATIONS.at(-1)!.name).toBe('0051_automation_ownership');
+    it('a store from before it keeps its rules as an owner\'s', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: PRE_0051 });
       const now = Date.now();
       await sql`INSERT INTO adminium_automations (id, connection_id, name, description, enabled, ${sql.ref('trigger')}, graph, created_at, updated_at) VALUES (${'auto_old'}, ${null}, ${'Old rule'}, ${null}, ${t.meta.dialect === 'postgres' ? sql`true` : sql`1`}, ${JSON.stringify(TRIGGER)}, ${JSON.stringify(GRAPH)}, ${now}, ${now})`.execute(t.meta.db);
 
-      const applied = await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+      const applied = await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: UP_TO_0051 });
       expect(applied.applied).toEqual(['0051_automation_ownership']);
       const old = await automationsRepo(t.meta).findById('auto_old');
       expect(old).toMatchObject({ name: 'Old rule', enabled: true, managedBy: null, templateKey: null, contentHash: null });
       // Again: nothing to apply.
-      expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied).toEqual([]);
+      expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: UP_TO_0051 })).applied).toEqual([]);
     });
 
     it('a manifest ships a rule once a database; an owner\'s rules never meet that rule', async () => {
