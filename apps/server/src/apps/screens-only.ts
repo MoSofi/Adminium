@@ -49,6 +49,8 @@ export async function appConnections(meta: MetaDb, settings: SurfaceSettings, ap
 export const STAFF_WORDS_ROUTE = `${API}/words/:addOn/:wordsId`;
 /** The route a screen looks a scanned or typed code up through. */
 export const ADD_ON_LOOK_UP_ROUTE = `${API}/add-ons/:key/look-up`;
+/** The route a screen draws an add-on's own document through. */
+export const ADD_ON_DOCUMENT_ROUTE = `${API}/add-ons/:key/documents/render`;
 
 /**
  * The add-ons a screens-only person's apps use: connected to one of their
@@ -98,6 +100,10 @@ export function allowedForScreensOnly(
   if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;
   // A code scanned or typed at their app's desk, looked up in an add-on of their app. The route answers only from columns they read.
   if (method === 'POST' && route === ADD_ON_LOOK_UP_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
+  // A document of an add-on of their app, drawn at its desk (a gift card printed once, as it is sold). The route checks the reads it needs.
+  if (method === 'POST' && route === ADD_ON_DOCUMENT_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
+  // …and the page it prints, by the one-time ticket the render answered.
+  if (method === 'GET' && rest === '/documents/print-once/:ticket') return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

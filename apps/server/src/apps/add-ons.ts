@@ -618,7 +618,15 @@ export interface AddOnsDone {
  */
 export async function runAddOnSteps(
   deps: AppAddOnDeps,
-  input: { steps: readonly AddOnStep[]; host: HostApp; connectionId: string | null; actor: Actor; manifestRowId: string },
+  input: {
+    steps: readonly AddOnStep[];
+    host: HostApp;
+    connectionId: string | null;
+    actor: Actor;
+    manifestRowId: string;
+    /** The app's public access was allowed with this install: an add-on installed with it opens its own key too (a guest's link to a gift card). */
+    publicAccess?: boolean | undefined;
+  },
 ): Promise<AddOnsDone> {
   const done: AddOnsDone = { installed: [], updated: [], attached: [] };
   const via = `app:${input.host.key}`;
@@ -634,6 +642,8 @@ export async function runAddOnSteps(
         via,
         // The app's own apply gives its key what this add-on serves through it, under the app's own say.
         settle: 'caller',
+        // Its OWN key is the add-on's to make, and is made under the same say.
+        ...(input.publicAccess === true ? { publicAccess: true } : {}),
       });
       done.installed.push({ key: step.key, name: step.name, version: step.version });
     } else if (step.action === 'update') {

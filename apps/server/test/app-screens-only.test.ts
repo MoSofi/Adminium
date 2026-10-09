@@ -23,7 +23,7 @@ import {
 } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
-import { ADD_ON_LOOK_UP_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
+import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
 import { discoverSurfaces } from '../src/cli/surfaces-root.js';
 import { composeServer } from '../src/compose.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -146,6 +146,13 @@ describe('someone who opens only an app’s own screens', () => {
     expect(allowed('POST', '/api/v1/add-ons/:key/connect', { key: 'offers' })).toBe(false);
     expect(allowed('PATCH', '/api/v1/add-ons/:key', { key: 'offers' })).toBe(false);
     expect(allowed('POST', LOOK_UP, { key: ['offers'] })).toBe(false);
+    // …and draw that add-on's own document (a card printed once as it is sold), then open the page by its one-time ticket.
+    const RENDER = '/api/v1/add-ons/:key/documents/render';
+    expect(ADD_ON_DOCUMENT_ROUTE).toBe(RENDER);
+    expect(allowed('POST', RENDER, { key: 'offers' })).toBe(true);
+    expect(allowed('POST', RENDER, { key: 'stock' })).toBe(false);
+    expect(allowed('GET', RENDER, { key: 'offers' })).toBe(false);
+    expect(allowed('GET', '/api/v1/documents/print-once/:ticket', { ticket: 't' })).toBe(true);
   });
 
   it('finds who they are, and their token, in the staff config', async () => {

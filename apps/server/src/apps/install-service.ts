@@ -2086,6 +2086,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         connectionId,
         actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
         manifestRowId: installed.row.id,
+        publicAccess: input.publicAccess === true && (await actor.can(PERMISSIONS.apiKeysManage)),
       });
       addOnsDone = {
         installed: [...(addOnsDone?.installed ?? []), ...done.installed],
@@ -2442,6 +2443,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           connectionId: connectionId ?? null,
           actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
           manifestRowId: rowId,
+          publicAccess: grantsPublicAccess,
         });
         // Their tables exist now: the app's plan is read again from the
         // database, so a foreign key into one is made with its real type.
@@ -2724,6 +2726,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         connectionId,
         actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
         manifestRowId: installed.row.id,
+        publicAccess: input.body?.publicAccess === true && (await actor.can(PERMISSIONS.apiKeysManage)),
       });
       addOnsDone = {
         installed: [...(addOnsDone?.installed ?? []), ...done.installed],
