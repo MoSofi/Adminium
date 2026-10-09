@@ -35,6 +35,7 @@ import {
   runScript,
   type PackageManager,
 } from '../../project/package-manager.js';
+import { writeInstallStamp } from '../../project/install-stamp.js';
 import { gitProgram, namedPackageManager, packageManagerProgram } from '../../project/programs.js';
 import { createSampleDatabase } from '../../project/sample.js';
 import { scaffoldProject } from '../../project/scaffold.js';
@@ -385,6 +386,8 @@ export const newCommand: Command = {
       const launch = program.launch(args);
       io.out(`Installing dependencies with ${command}…`);
       installed = run(launch.command, launch.args, { cwd: root, inherit: true, ...(Object.keys(launch.env).length === 0 ? {} : { env: launch.env }) }).status === 0;
+      // Marked as a finished install, so the desktop app does not install the same folder again.
+      if (installed) writeInstallStamp(root, APP_VERSION);
       if (!installed) io.err(`\`${command} ${args.join(' ')}\` failed. Fix the problem above and run it again.`);
     }
 

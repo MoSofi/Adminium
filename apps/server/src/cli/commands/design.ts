@@ -27,6 +27,7 @@ import { runChild } from '../../designer/child.js';
 import { DESIGNER_REACT_VERSION } from '../../designer/tools.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../../project/apps/scaffold-app.js';
 import { findProject } from '../../project/locate.js';
+import { refreshInstallStamp } from '../../project/install-stamp.js';
 import { addPackagesArgs, packageManagerProgram } from '../../project/programs.js';
 import { APP_VERSION } from '../../version.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
@@ -46,7 +47,8 @@ async function addScreenPackages(root: string, env: NodeJS.ProcessEnv): Promise<
   const program = packageManagerProgram(root, env);
   const specs = [`react@${DESIGNER_REACT_VERSION}`, `react-dom@${DESIGNER_REACT_VERSION}`, `${PUBLIC_CLIENT_PACKAGE}@${APP_VERSION}`];
   const launch = program.launch(addPackagesArgs(program.manager, specs));
-  await runChild(launch.command, launch.args, { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal, env: { ...process.env, ...launch.env } }).catch(() => undefined);
+  const added = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal, env: { ...process.env, ...launch.env } }).catch(() => undefined);
+  if (added?.code === 0) refreshInstallStamp(root, APP_VERSION);
 }
 
 /** The ports `design` tries, in order, when none is named. */

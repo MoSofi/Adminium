@@ -6,6 +6,7 @@
 import { checkApp } from '../../../project/apps/check-app.js';
 import { appPath, type AppSide } from '../../../project/apps/read-app.js';
 import { addSideDependencies, appKeyProblem, nameFromKey, scaffoldApp } from '../../../project/apps/scaffold-app.js';
+import { refreshInstallStamp } from '../../../project/install-stamp.js';
 import { packageManagerProgram } from '../../../project/programs.js';
 import { APP_VERSION } from '../../../version.js';
 import { parseFlags, type FlagSpecs } from '../../args.js';
@@ -63,6 +64,7 @@ export const appNewCommand: Command = {
       } else {
         io.out(`Running ${command} ${args.join(' ')} …`);
         const result = (deps.runProcess ?? defaultRunProcess)(launch.command, launch.args, { cwd: project.root, inherit: true, ...(Object.keys(launch.env).length === 0 ? {} : { env: launch.env }) });
+        if (result.status === 0) refreshInstallStamp(project.root, APP_VERSION);
         if (result.status !== 0) {
           installFailed = true;
           io.err(`\`${command} ${args.join(' ')}\` failed. The app's files are in place; run it again before building.`);
