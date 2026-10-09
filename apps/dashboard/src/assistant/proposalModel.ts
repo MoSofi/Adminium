@@ -13,8 +13,10 @@ import { t } from '../i18n/t.js';
 import type { AssistantProposal, AssistantProposalAction } from './api.js';
 import type { ProposalIcon, ProposalRow } from './parts/ProposalCard.js';
 
-/** The longest a cell is drawn in a row of the card. */
-const CELL_MAX = 48;
+/** The longest a cell is drawn: what the server itself keeps of one for a card. Longer is cut there, with a mark. */
+const CELL_MAX = 300;
+/** The longest a value may be to be the one sentence of a list ("status → paid on 50 rows"). */
+const SHARED_MAX = 32;
 
 /** A stored value as one short piece of text. Nothing here is markup: it is drawn as text. */
 export function cellText(value: unknown): string {
@@ -147,6 +149,8 @@ export function refusalText(refused: { code: string; message: string }, name: st
       return t('assistant:proposal.refused.builtIn', 'A built-in mail is changed on its own screen.');
     case 'NOT_A_CAMPAIGN':
       return t('assistant:proposal.refused.notCampaign', 'Only a campaign can be sent to people.');
+    case 'NOT_LIVE':
+      return t('assistant:proposal.refused.notLive', 'A draft is switched on by a person before it can be sent.');
     case 'NO_RECIPIENTS':
       return t('assistant:proposal.refused.noRecipients', 'Nobody would get this mail.');
     default:
@@ -176,7 +180,8 @@ export function rowOf(action: AssistantProposalAction, index: number, name: stri
   }
   if (preview.kind === 'create') {
     const set = Object.entries(preview.after).filter(([, value]) => value !== null && value !== undefined && value !== '');
-    return { ...row, changes: set.slice(0, 8).map(([field, value]) => ({ field, before: null, after: cellText(value) })) };
+    // Every value the row would hold: a new row is confirmed whole.
+    return { ...row, changes: set.map(([field, value]) => ({ field, before: null, after: cellText(value) })) };
   }
   if (preview.kind === 'delete') {
     // The first few things the row holds, so the person can tell which row it is.
@@ -196,18 +201,21 @@ export function rowOf(action: AssistantProposalAction, index: number, name: stri
  */
 export function sharedChange(actions: readonly AssistantProposalAction[]): { field: string; after: string } | null {
   if (actions.length < 2) return null;
-  let shared: { field: string; after: string } | null = null;
+  let shared: { field: string; after: string; raw: string } | null = null;
   for (const action of actions) {
     const preview = action.preview;
     if (preview === null || preview.kind !== 'change') return null;
     const fields = Object.keys(preview.after);
     if (fields.length !== 1) return null;
     const field = fields[0] as string;
+    // The value itself, not its text: `1` and `"1"`, or nothing and an empty text, are two values.
+    const raw = JSON.stringify(preview.after[field] ?? null);
     const after = cellText(preview.after[field]);
-    if (shared === null) shared = { field, after };
-    else if (shared.field !== field || shared.after !== after) return null;
+    if (after.length > SHARED_MAX) return null;
+    if (shared === null) shared = { field, after, raw };
+    else if (shared.field !== field || shared.raw !== raw) return null;
   }
-  return shared;
+  return shared === null ? null : { field: shared.field, after: shared.after };
 }
 
 /** What a delete would take with it, as one sentence; `null` when nothing refers to the row. */

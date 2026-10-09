@@ -393,7 +393,8 @@
       "subject": "Předmět",
       "to": "Komu",
       "roles": "všichni s rolí {roles} ({count, plural, one {# člověk} few {# lidé} other {# lidí}})",
-      "open": "Otevřít šablonu"
+      "open": "Otevřít šablonu",
+      "skipped": "{count, plural, one {# člověk se odhlásil a nedostane} few {# lidé se odhlásili a nedostanou} other {# lidí se odhlásilo a nedostane}} nic."
     },
     "more": "Dalších {count}. Otevřete velké zobrazení a uvidíte všechny.",
     "irreversible": "Tohle nelze vrátit zpět.",
@@ -439,7 +440,8 @@
       "notOffered": "To odtud nelze udělat.",
       "builtIn": "Vestavěný e-mail se mění na vlastní obrazovce.",
       "notCampaign": "Lidem lze odeslat jen kampaň.",
-      "noRecipients": "Tento e-mail by nikdo nedostal."
+      "noRecipients": "Tento e-mail by nikdo nedostal.",
+      "notLive": "Koncept musí před odesláním zapnout člověk."
     },
     "row": {
       "untitled": "Bez názvu",
@@ -450,6 +452,9 @@
       "reference": "{count} v {table}",
       "references": "Odkazují na to jiné řádky: {list}. Zmizí nebo se změní s ním, stejně jako při mazání na stránce."
     },
-    "noneAble": "Nic z toho nelze provést"
+    "noneAble": "Nic z toho nelze provést",
+    "checkAgain": "Zkontrolovat znovu",
+    "undoFailed": "{count, plural, one {# změnu} few {# změny} other {# změn}} se nepodařilo vzít zpět. Zkuste to znovu.",
+    "parkedNoHome": "Chcete-li to použít, vraťte se na {page}, kde byl dotaz položen."
   }
 }

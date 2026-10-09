@@ -393,7 +393,8 @@
       "subject": "主旨",
       "to": "收件者",
       "roles": "所有擁有 {roles} 角色的人（{count, plural, other {#}} 人）",
-      "open": "開啟範本"
+      "open": "開啟範本",
+      "skipped": "{count, plural, other {#}} 人已取消訂閱，不會收到。"
     },
     "more": "還有 {count} 項。放大檢視全部。",
     "irreversible": "此操作無法復原。",
@@ -439,7 +440,8 @@
       "notOffered": "無法在這裡執行此操作。",
       "builtIn": "內建郵件需在其自己的頁面上變更。",
       "notCampaign": "只有行銷郵件可以傳送給人員。",
-      "noRecipients": "沒有人會收到這封郵件。"
+      "noRecipients": "沒有人會收到這封郵件。",
+      "notLive": "草稿需由人開啟後才能傳送。"
     },
     "row": {
       "untitled": "未命名",
@@ -450,6 +452,9 @@
       "reference": "{table} 中 {count} 列",
       "references": "其他列參照了此項：{list}。它們會隨之刪除或變更，與頁面本身的刪除相同。"
     },
-    "noneAble": "這些都無法執行"
+    "noneAble": "這些都無法執行",
+    "checkAgain": "重新檢查",
+    "undoFailed": "{count, plural, other {#}} 項變更未能收回。請重試。",
+    "parkedNoHome": "請回到提出此問題的{page}以使用它。"
   }
 }

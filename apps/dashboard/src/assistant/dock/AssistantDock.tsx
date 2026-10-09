@@ -43,7 +43,7 @@ import { UnavailableBar } from '../parts/UnavailableBar.js';
 import { TurnView } from '../TurnView.js';
 import type { ThreadTurn } from '../thread.js';
 import { dockLayout, type DockLayout } from './dockLayout.js';
-import { setDockOpen, setDockSignal } from './dockStore.js';
+import { clearDockSignal, setDockOpen, setDockSignal } from './dockStore.js';
 import { LiveDraft } from './LiveDraft.js';
 import { LiveProposal } from './LiveProposal.js';
 import { PanelView, type ScopeChip } from './PanelView.js';
@@ -62,7 +62,21 @@ export interface AssistantDockProps {
  * turn remembers the id; the list of this person's pages has both. `null` for
  * a page they no longer have.
  */
+const slugs = new WeakMap<object, Map<string, string | null>>();
+
 export function pageSlugOf(pages: unknown, pageId: string): string | null {
+  if (typeof pages !== 'object' || pages === null) return null;
+  // Asked on every draw of the thread; the list of pages is the same object until it is fetched again.
+  const known = slugs.get(pages) ?? new Map<string, string | null>();
+  slugs.set(pages, known);
+  const cached = known.get(pageId);
+  if (cached !== undefined) return cached;
+  const found = findSlug(pages, pageId);
+  known.set(pageId, found);
+  return found;
+}
+
+function findSlug(pages: unknown, pageId: string): string | null {
   const seen = new Set<unknown>();
   const walk = (node: unknown, depth: number): string | null => {
     if (typeof node !== 'object' || node === null || depth > 8 || seen.has(node)) return null;
@@ -251,7 +265,9 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
   // ── the bubble's signal while the panel is closed ─────────────────────────
   const wasWorking = useRef(false);
   const lastProposal = turns.at(-1)?.answer?.proposal ?? null;
-  const waiting = lastProposal !== null && (lastProposal.state === 'unchecked' || lastProposal.state === 'open');
+  const waiting =
+    lastProposal !== null &&
+    (lastProposal.state === 'unchecked' || (lastProposal.state === 'open' && (lastProposal.expiresAt === null || lastProposal.expiresAt > Date.now())));
   useEffect(() => {
     if (visible) {
       setDockSignal('idle');
@@ -263,6 +279,9 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
     } else if (wasWorking.current) {
       // It finished while nobody was looking.
       setDockSignal('unread');
+    } else {
+      // What it asked for is decided or over: nothing is waiting any more.
+      clearDockSignal('proposal');
     }
     wasWorking.current = working;
   }, [visible, working, waiting]);
@@ -526,7 +545,9 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
                       turnId={turn.id}
                       proposal={proposal}
                       name={name}
-                      atHome={turn.context === page.context && turn.on.pageId === (page.host.pageId ?? null) && turn.on.documentId === (page.host.documentId ?? null)}
+                      newest={index === turns.length - 1}
+                      // Asked away from any page, it belongs to none: it can be used wherever the person is.
+                      atHome={turn.context === 'general' || (!turn.on.gone && turn.context === page.context && turn.on.pageId === (page.host.pageId ?? null) && turn.on.documentId === (page.host.documentId ?? null))}
                       homeTitle={turn.on.title ?? contextCopy(turn.context, {}, name).page}
                       onOpenHome={home === null ? null : open}
                       onAsk={submit}

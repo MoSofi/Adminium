@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readProposal, type AssistantProposal } from '../api.js';
 import { askTitle, cellText, doneTitle, fixRequest, referencesText, sharedChange, tableName } from '../proposalModel.js';
-import { LiveProposal, type LiveProposalProps } from './LiveProposal.js';
+import { forgetProposals, LiveProposal, type LiveProposalProps } from './LiveProposal.js';
 
 interface Call {
   url: string;
@@ -60,6 +60,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  forgetProposals();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -84,6 +85,7 @@ function show(proposal: unknown, overrides: Partial<LiveProposalProps> = {}) {
     turnId: 'atn_1',
     proposal: parsed(proposal),
     name: 'Milo',
+    newest: true,
     atHome: true,
     homeTitle: 'Invoices',
     onOpenHome: vi.fn(),
@@ -102,7 +104,8 @@ describe('what a card says, worked out from the proposal alone', () => {
     expect(cellText(12)).toBe('12');
     expect(cellText(false)).toBe('false');
     expect(cellText({ a: 1 })).toBe('{"a":1}');
-    expect(cellText('x'.repeat(80))).toHaveLength(48);
+    expect(cellText('x'.repeat(80))).toHaveLength(80);
+    expect(cellText('x'.repeat(400))).toHaveLength(300);
     expect(tableName('main.orders')).toBe('orders');
     expect(tableName('orders')).toBe('orders');
   });
@@ -126,6 +129,12 @@ describe('what a card says, worked out from the proposal alone', () => {
     expect(sharedChange(parsed(open([change('1', 'sent', 'paid'), change('2', 'sent', 'void')])).actions)).toBeNull();
     expect(sharedChange(parsed(open([change('1', 'sent', 'paid'), change('2', 'a', 'b', 'note')])).actions)).toBeNull();
     expect(sharedChange(parsed(open([change('1', 'sent', 'paid')])).actions)).toBeNull();
+    // The values themselves are compared, not their text: nothing and an empty text are two values, and so are 1 and "1".
+    const raw = (id: string, after: unknown) => ({ do: 'row.change', id, preview: { kind: 'change', before: { n: 'x' }, after: { n: after } } });
+    expect(sharedChange(parsed(open([raw('1', null), raw('2', '')])).actions)).toBeNull();
+    expect(sharedChange(parsed(open([raw('1', 1), raw('2', '1')])).actions)).toBeNull();
+    // A long value is never the one sentence of a list: each row shows its own, whole.
+    expect(sharedChange(parsed(open([raw('1', 'y'.repeat(60)), raw('2', 'y'.repeat(60))])).actions)).toBeNull();
   });
 
   it('says what a delete would touch, and asks for a fix by naming what was refused', () => {
@@ -141,7 +150,12 @@ describe('what a card says, worked out from the proposal alone', () => {
     expect(readProposal({ state: 'made-up' })).toBeNull();
     expect(readProposal({ state: 'unchecked', madeAt: 1 })).toMatchObject({ state: 'unchecked', actions: [], hash: null });
     expect(readProposal({ state: 'superseded', title: 'x', count: 3 })).toMatchObject({ state: 'superseded', count: 3, actions: [] });
-    expect(parsed(open([{ do: 'row.change', id: 7, preview: { kind: 'nonsense' } }, 'x'])).actions).toEqual([{ do: 'row.change', table: null, id: null, preview: null, refused: null }]);
+    // An entry that does not read keeps its place, as something that cannot be done: ticks and outcomes go by index.
+    expect(parsed(open([{ do: 'row.change', id: 7, preview: { kind: 'nonsense' } }, 'x', change('3', 'a', 'b')])).actions.map((action) => [action.do, action.refused?.code ?? null])).toEqual([
+      ['row.change', null],
+      ['', 'NOT_OFFERED'],
+      ['row.change', null],
+    ]);
   });
 });
 
@@ -164,14 +178,16 @@ describe('a proposal that has not been tried yet', () => {
     routes[ACTIONS] = () => new Refusal(500, {});
     show({ state: 'unchecked', madeAt: 1 });
     expect(await screen.findByText('raw server text')).toBeTruthy();
-    expect(screen.queryByRole('button')).toBeNull();
+    // Nothing to confirm: only the way to have it checked again.
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Check again']);
   });
 });
 
 describe('a proposal that waits for a yes', () => {
   it('shows one change as old and new, focuses its title and never the confirm, and cancels on Escape', async () => {
-    show(open([change('INV-0218', 'sent', 'paid')]));
-    const row = screen.getByTestId('assistant-proposal-row');
+    routes[ACTIONS] = () => ({ proposal: open([change('INV-0218', 'sent', 'paid')]) });
+    show({ state: 'unchecked', madeAt: 1 });
+    const row = await screen.findByTestId('assistant-proposal-row');
     expect(within(row).getByText('INV-0218')).toBeTruthy();
     expect(within(row).getByText('status')).toBeTruthy();
     expect(within(row).getByText('sent')).toBeTruthy();
@@ -185,7 +201,24 @@ describe('a proposal that waits for a yes', () => {
     fireEvent.keyDown(screen.getByTestId('assistant-proposal'), { key: 'Escape' });
     expect(await screen.findByText('Nothing was changed.')).toBeTruthy();
     expect(screen.getByText('Cancelled')).toBeTruthy();
-    expect(calls).toHaveLength(0);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('takes no focus from someone who is typing, nor for a card that was already there', async () => {
+    const field = document.createElement('input');
+    document.body.append(field);
+    field.value = 'and another thing';
+    field.focus();
+    routes[ACTIONS] = () => ({ proposal: open([change('INV-1', 'sent', 'paid')]) });
+    show({ state: 'unchecked', madeAt: 1 });
+    await screen.findByRole('button', { name: 'Change 1 row' });
+    expect(document.activeElement).toBe(field);
+    field.remove();
+    cleanup();
+    forgetProposals();
+    // Found open on a reload: it is not news, and takes nothing.
+    show(open([change('INV-1', 'sent', 'paid')]));
+    expect(document.activeElement).not.toBe(screen.getByTestId('assistant-proposal-title'));
   });
 
   it('counts what is ticked, sends the hash and the ticked rows, and shows what the server then did', async () => {
@@ -198,8 +231,10 @@ describe('a proposal that waits for a yes', () => {
     // The list is one sentence, and each row says what it held.
     expect(screen.getByTestId('assistant-proposal-group').textContent).toBe('status → paid on 3 rows');
     expect(screen.getByTestId('assistant-proposal-count').textContent).toBe('3 of 3 chosen');
-    await user.click(screen.getByRole('checkbox', { name: 'INV-2' }));
+    await user.click(screen.getByRole('checkbox', { name: 'INV-2: sent → paid' }));
     expect(screen.getByTestId('assistant-proposal-count').textContent).toBe('2 of 3 chosen');
+    // The sentence and the button count what is ticked.
+    expect(screen.getByTestId('assistant-proposal-group').textContent).toBe('status → paid on 2 rows');
     await user.click(screen.getByRole('button', { name: 'Change 2 rows' }));
 
     const sent = calls.find((call) => (call.body as { action?: string }).action === 'apply');
@@ -217,8 +252,8 @@ describe('a proposal that waits for a yes', () => {
   it('cannot confirm with nothing ticked', async () => {
     show(open([change('INV-1', 'sent', 'paid'), change('INV-2', 'sent', 'paid')]));
     const user = userEvent.setup();
-    await user.click(screen.getByRole('checkbox', { name: 'INV-1' }));
-    await user.click(screen.getByRole('checkbox', { name: 'INV-2' }));
+    await user.click(screen.getByRole('checkbox', { name: 'INV-1: sent → paid' }));
+    await user.click(screen.getByRole('checkbox', { name: 'INV-2: sent → paid' }));
     expect(screen.getByTestId('assistant-proposal-count').textContent).toBe('0 of 2 chosen');
     expect(screen.getByTestId('assistant-proposal-confirm').hasAttribute('disabled')).toBe(true);
   });
@@ -269,6 +304,7 @@ describe('a proposal that waits for a yes', () => {
     expect(screen.getByText('Menu update')).toBeTruthy();
     expect(screen.getByText('Our autumn menu')).toBeTruthy();
     expect(screen.getByText('everyone with the role Staff (14 people)')).toBeTruthy();
+    expect(screen.getByText('1 person has opted out and gets nothing.')).toBeTruthy();
     expect(screen.getByText('This cannot be undone.')).toBeTruthy();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Open template' }));
     expect(onOpenTemplate).toHaveBeenCalledWith('tpl_1');
@@ -277,15 +313,82 @@ describe('a proposal that waits for a yes', () => {
   it('keeps a long list short in the panel and opens all of it large', async () => {
     const many = Array.from({ length: 9 }, (_, index) => change(`INV-${String(index)}`, 'sent', 'paid'));
     show(open(many));
-    // More than fits: the group starts closed, and opening it shows the first six.
-    expect(screen.queryAllByTestId('assistant-proposal-row')).toHaveLength(0);
+    // More than fits: the first six, and how many more there are.
     const user = userEvent.setup();
-    await user.click(screen.getByTestId('assistant-proposal-group'));
     expect(screen.getAllByTestId('assistant-proposal-row')).toHaveLength(6);
     expect(screen.getByText('3 more. Open large to see them all.')).toBeTruthy();
+    // Closed, the rows are not listed, and the card still says all nine are there to be seen.
+    await user.click(screen.getByTestId('assistant-proposal-group'));
+    expect(screen.queryAllByTestId('assistant-proposal-row')).toHaveLength(0);
+    expect(screen.getByText('9 more. Open large to see them all.')).toBeTruthy();
+    await user.click(screen.getByTestId('assistant-proposal-group'));
     await user.click(screen.getByTestId('assistant-proposal-large'));
     const sheet = await screen.findByTestId('assistant-proposal-sheet');
     expect(within(sheet).getAllByTestId('assistant-proposal-row')).toHaveLength(9);
+  });
+
+  it('keeps what was unticked when the server answers that something changed', async () => {
+    const actions = [change('INV-1', 'sent', 'paid'), change('INV-2', 'sent', 'paid'), change('INV-3', 'sent', 'paid')];
+    routes[ACTIONS] = () => new Refusal(409, { reason: 'proposal-changed', proposal: open([change('INV-1', 'overdue', 'paid'), actions[1], actions[2]], { hash: 'b'.repeat(64) }) });
+    show(open(actions));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('checkbox', { name: 'INV-3: sent → paid' }));
+    await user.click(screen.getByRole('button', { name: 'Change 2 rows' }));
+    await screen.findByText('This changed since you were shown it. Look again before confirming.');
+    expect(screen.getByTestId('assistant-proposal-count').textContent).toBe('2 of 3 chosen');
+    expect(screen.getByRole('button', { name: 'Change 2 rows' })).toBeTruthy();
+  });
+
+  it('cannot be confirmed while something else is being asked, nor cancelled by Escape while it is being carried out', async () => {
+    const { props, rerender } = show(open([change('INV-1', 'sent', 'paid')]), { blocked: true });
+    expect(screen.getByTestId('assistant-proposal-confirm').hasAttribute('disabled')).toBe(true);
+    let release: (value: unknown) => void = () => undefined;
+    const held = new Promise((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal('fetch', async () => {
+      await held;
+      return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ proposal: applied([change('INV-1', 'sent', 'paid')], [0], { done: [{ index: 0, id: 'INV-1' }], failed: [], notTried: [] }), undo: [] }) } as unknown as Response;
+    });
+    rerender(<LiveProposal {...props} blocked={false} />);
+    fireEvent.click(screen.getByTestId('assistant-proposal-confirm'));
+    fireEvent.keyDown(screen.getByTestId('assistant-proposal'), { key: 'Escape' });
+    expect(screen.queryByText('Cancelled')).toBeNull();
+    release(null);
+    expect(await screen.findByTestId('assistant-proposal-result')).toBeTruthy();
+    // The result arrived while the person was here: its title takes focus, so the undo is one Tab away.
+    expect(document.activeElement).toBe(within(screen.getByTestId('assistant-proposal-result')).getByTestId('assistant-proposal-title'));
+  });
+
+  it('is let go here as soon as something else was asked, or its half hour is over, without asking the server', () => {
+    show(open([change('INV-1', 'sent', 'paid')]), { newest: false });
+    expect(screen.getByText('Replaced')).toBeTruthy();
+    expect(screen.queryByTestId('assistant-proposal-confirm')).toBeNull();
+    cleanup();
+    forgetProposals();
+    show({ state: 'unchecked', madeAt: 1 }, { newest: false });
+    expect(screen.getByText('Replaced')).toBeTruthy();
+    cleanup();
+    forgetProposals();
+    show(open([change('INV-1', 'sent', 'paid')], { expiresAt: 1000 }), { now: () => 2000 });
+    expect(screen.getByText('This proposal is 30 minutes old. Ask again.')).toBeTruthy();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('offers the check again when it could not be made', async () => {
+    routes[ACTIONS] = () => new Refusal(429, { reason: 'check-again' });
+    show({ state: 'unchecked', madeAt: 1 });
+    const again = await screen.findByRole('button', { name: 'Check again' });
+    routes[ACTIONS] = () => ({ proposal: open([change('INV-1', 'sent', 'paid')]) });
+    await userEvent.setup().click(again);
+    expect(await screen.findByRole('button', { name: 'Change 1 row' })).toBeTruthy();
+    expect(calls.filter((call) => (call.body as { action?: string }).action === 'check')).toHaveLength(2);
+  });
+
+  it('says where to go when a parked proposal has no page to open', () => {
+    show(open([change('INV-1', 'sent', 'paid')]), { atHome: false, onOpenHome: null });
+    expect(screen.getByText('Go back to Invoices, where this was asked, to use it.')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('waits, parked, while the person is on another page, and offers the way back', async () => {
@@ -323,6 +426,52 @@ describe('a proposal that is over', () => {
     expect(within(result).queryByText('This cannot be undone from here.')).toBeNull();
     await userEvent.setup().click(within(result).getByRole('button', { name: 'Propose the rest again' }));
     expect(props.onAsk).toHaveBeenCalledWith(expect.stringContaining('INV-2: This invoice was paid in the meantime.'));
+  });
+
+  it('says what was sent, saved or deleted by the name the server kept, and words a part by what was asked', () => {
+    const send = { do: 'send.template', preview: { kind: 'send.template', id: 't1', name: 'Menu update', subject: 'Hi', roles: [], total: 14, skipped: 0 } };
+    show(applied([send], [0], { done: [{ index: 0, id: 't1' }], failed: [], notTried: [] }));
+    expect(screen.getByText('Sending to 14 people.')).toBeTruthy();
+    expect(screen.getByText('Menu update')).toBeTruthy();
+    cleanup();
+    forgetProposals();
+    // Two rows changed and one delete refused: not "2 of 3 rows changed".
+    const mixed = [{ do: 'row.change', id: '1' }, { do: 'row.change', id: '2' }, { do: 'row.delete', id: '3' }];
+    show(applied(mixed, [0, 1, 2], { done: [{ index: 0, id: '1' }, { index: 1, id: '2' }], failed: [{ index: 2, code: 'FORBIDDEN', message: 'No.' }], notTried: [] }));
+    expect(screen.getByText('2 of 3 changes made.')).toBeTruthy();
+  });
+
+  it('keeps the undo, a cancel and an undone change while the panel is closed and opened again', async () => {
+    const actions = [change('INV-1', 'sent', 'paid')];
+    routes[ACTIONS] = () => ({ proposal: applied(actions, [0], { done: [{ index: 0, id: 'INV-1' }], failed: [], notTried: [] }), undo: [{ index: 0, token: 'undo_a' }] });
+    routes['POST /api/v1/data/undo/undo_a'] = () => ({ restoredIds: ['INV-1'] });
+    const first = show(open(actions));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Change 1 row' }));
+    await screen.findByRole('button', { name: /Undo/ });
+    // The panel is closed: the card is gone from the screen. Opened again, the turn still reads "open" until it is fetched.
+    first.unmount();
+    show(open(actions));
+    await user.click(await screen.findByRole('button', { name: /Undo/ }));
+    expect(await screen.findByText('Undone. Everything is as it was.')).toBeTruthy();
+    cleanup();
+    show(applied(actions, [0], { done: [{ index: 0, id: 'INV-1' }], failed: [], notTried: [] }));
+    expect(screen.getByText('Undone. Everything is as it was.')).toBeTruthy();
+  });
+
+  it('keeps a token whose undo failed, so it can be tried again within the minute', async () => {
+    const actions = [change('INV-1', 'sent', 'paid'), change('INV-2', 'sent', 'paid')];
+    routes[ACTIONS] = () => ({ proposal: applied(actions, [0, 1], { done: [{ index: 0, id: 'INV-1' }, { index: 1, id: 'INV-2' }], failed: [], notTried: [] }), undo: [{ index: 0, token: 'undo_a' }, { index: 1, token: 'undo_b' }] });
+    routes['POST /api/v1/data/undo/undo_a'] = () => ({ restoredIds: ['INV-1'] });
+    routes['POST /api/v1/data/undo/undo_b'] = () => new Refusal(429, {});
+    show(open(actions));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Change 2 rows' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText('1 change could not be taken back. Try again.')).toBeTruthy();
+    routes['POST /api/v1/data/undo/undo_b'] = () => ({ restoredIds: ['INV-2'] });
+    await user.click(screen.getByRole('button', { name: /Undo 1 of 2/ }));
+    expect(await screen.findByText('Undone. Everything is as it was.')).toBeTruthy();
   });
 
   it('shows a confirmation that stopped part way as three groups', () => {

@@ -197,6 +197,14 @@ const STRUCK = 'text-fg-subtle line-through decoration-fg-subtle/70';
  */
 const quiet = (row: ProposalRow): boolean => row.dim === true || row.checked === false;
 
+/** What a tick stands for, said whole: the row and what would change on it. */
+function tickLabel(row: ProposalRow, arrow: string): string {
+  if (row.inline !== undefined) return `${row.label}: ${row.inline.before} ${arrow} ${row.inline.after}`;
+  const first = row.changes?.[0];
+  if (first === undefined) return row.sub === undefined || row.sub === '' ? row.label : `${row.label}: ${row.sub}`;
+  return `${row.label}: ${first.field} ${first.before === null ? '' : `${first.before} ${arrow} `}${first.after}`;
+}
+
 export function ProposalCard(props: ProposalCardProps) {
   const { tone = 'default', iconTone = 'accent', rtl = false } = props;
   const HeadIcon = ICONS[props.icon];
@@ -204,8 +212,12 @@ export function ProposalCard(props: ProposalCardProps) {
   const title = useRef<HTMLDivElement | null>(null);
   const asks = props.asks === true;
   useEffect(() => {
+    if (!asks) return;
+    // Not from under someone who is typing: their words, and their next Escape, stay theirs.
+    const active = document.activeElement;
+    if ((active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) && active.value !== '') return;
     // The title, never a button: Enter must not be able to confirm what was only just shown.
-    if (asks) title.current?.focus({ preventScroll: true });
+    title.current?.focus({ preventScroll: true });
   }, [asks]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -232,7 +244,7 @@ export function ProposalCard(props: ProposalCardProps) {
             <HeadIcon className="size-[15px]" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1 pt-[5px]">
-            <div ref={title} tabIndex={-1} data-testid="assistant-proposal-title" className="text-pretty text-[13.5px] font-extrabold leading-[1.4] tracking-[-0.01em] outline-none">
+            <div ref={title} tabIndex={-1} data-testid="assistant-proposal-title" className="rounded-sm text-pretty text-[13.5px] font-extrabold leading-[1.4] tracking-[-0.01em] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
               {props.title}
             </div>
             {props.sub === undefined || props.sub === '' ? null : <div className="mt-[3px] text-[11.5px] leading-[1.5] text-fg-muted">{props.sub}</div>}
@@ -292,7 +304,7 @@ export function ProposalCard(props: ProposalCardProps) {
                         type="button"
                         role="checkbox"
                         aria-checked={row.checked}
-                        aria-label={row.label}
+                        aria-label={tickLabel(row, arrow)}
                         onClick={row.onToggle}
                         className={cn(
                           'flex size-4 shrink-0 items-center justify-center rounded-[5px] border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
@@ -380,8 +392,9 @@ export function ProposalCard(props: ProposalCardProps) {
                       <span className="flex-1">{group.label}</span>
                       <span className="font-mono">{group.count}</span>
                     </div>
-                    {group.rows.map((row) => (
-                      <div key={row.label} className="flex gap-2 ps-[21px] text-[11.5px] leading-[1.45] text-fg-muted">
+                    {group.rows.map((row, index) => (
+                      // By place as well as label: two new rows share a label, and the list never reorders.
+                      <div key={`${String(index)}:${row.label}`} className="flex gap-2 ps-[21px] text-[11.5px] leading-[1.45] text-fg-muted">
                         <span className="shrink-0 font-mono font-semibold text-fg">{row.label}</span>
                         <span>{row.text}</span>
                       </div>

@@ -403,7 +403,8 @@ export default {
       "subject": "Betreff",
       "to": "An",
       "roles": "alle mit der Rolle {roles} ({count, plural, one {# Person} other {# Personen}})",
-      "open": "Vorlage öffnen"
+      "open": "Vorlage öffnen",
+      "skipped": "{count, plural, one {# Person hat sich abgemeldet und bekommt nichts.} other {# Personen haben sich abgemeldet und bekommen nichts.}}"
     },
     "more": "{count} weitere. Groß öffnen, um alle zu sehen.",
     "irreversible": "Das lässt sich nicht rückgängig machen.",
@@ -449,7 +450,8 @@ export default {
       "notOffered": "Das geht von hier aus nicht.",
       "builtIn": "Eine eingebaute Mail wird auf ihrer eigenen Seite geändert.",
       "notCampaign": "Nur eine Kampagne kann an Personen gesendet werden.",
-      "noRecipients": "Niemand würde diese Mail bekommen."
+      "noRecipients": "Niemand würde diese Mail bekommen.",
+      "notLive": "Ein Entwurf wird von einer Person eingeschaltet, bevor er gesendet werden kann."
     },
     "row": {
       "untitled": "Ohne Titel",
@@ -460,6 +462,9 @@ export default {
       "reference": "{count} in {table}",
       "references": "Andere Zeilen verweisen darauf: {list}. Sie werden mit entfernt oder geändert, wie beim Löschen auf der Seite selbst."
     },
-    "noneAble": "Nichts davon lässt sich machen"
+    "noneAble": "Nichts davon lässt sich machen",
+    "checkAgain": "Erneut prüfen",
+    "undoFailed": "{count, plural, one {# Änderung konnte} other {# Änderungen konnten}} nicht zurückgenommen werden. Versuch es noch einmal.",
+    "parkedNoHome": "Geh zurück zu {page}, wo das gefragt wurde, um es zu nutzen."
   }
 } as const;

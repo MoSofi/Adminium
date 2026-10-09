@@ -403,7 +403,8 @@ export default {
       "subject": "Emne",
       "to": "Til",
       "roles": "alle med rollen {roles} ({count, plural, one {# person} other {# personer}})",
-      "open": "Åbn skabelon"
+      "open": "Åbn skabelon",
+      "skipped": "{count, plural, one {# person har} other {# personer har}} frameldt sig og får intet."
     },
     "more": "{count} mere. Åbn stort for at se dem alle.",
     "irreversible": "Dette kan ikke fortrydes.",
@@ -449,7 +450,8 @@ export default {
       "notOffered": "Det kan ikke gøres herfra.",
       "builtIn": "En indbygget mail ændres på sin egen skærm.",
       "notCampaign": "Kun en kampagne kan sendes til personer.",
-      "noRecipients": "Ingen ville få denne mail."
+      "noRecipients": "Ingen ville få denne mail.",
+      "notLive": "Et udkast slås til af en person, før det kan sendes."
     },
     "row": {
       "untitled": "Uden titel",
@@ -460,6 +462,9 @@ export default {
       "reference": "{count} i {table}",
       "references": "Andre rækker henviser til denne: {list}. De forsvinder eller ændres med den, som ved sidens egen sletning."
     },
-    "noneAble": "Intet af dette kan lade sig gøre"
+    "noneAble": "Intet af dette kan lade sig gøre",
+    "checkAgain": "Tjek igen",
+    "undoFailed": "{count, plural, one {# ændring} other {# ændringer}} kunne ikke tages tilbage. Prøv igen.",
+    "parkedNoHome": "Gå tilbage til {page}, hvor dette blev spurgt, for at bruge det."
   }
 } as const;

@@ -1143,6 +1143,10 @@
     "status": "mt",
     "srcHash": "f709270727b9"
   },
+  "assistant.proposal.checkAgain": {
+    "status": "mt",
+    "srcHash": "e185048ce3c0"
+  },
   "assistant.proposal.checking.line": {
     "status": "mt",
     "srcHash": "9d143dee38ec"
@@ -1299,6 +1303,10 @@
     "status": "mt",
     "srcHash": "6bc8c5e92911"
   },
+  "assistant.proposal.parkedNoHome": {
+    "status": "mt",
+    "srcHash": "434997c1a866"
+  },
   "assistant.proposal.refused.builtIn": {
     "status": "mt",
     "srcHash": "0de8c5f8d30d"
@@ -1326,6 +1334,10 @@
   "assistant.proposal.refused.notFound": {
     "status": "mt",
     "srcHash": "0457e864e70e"
+  },
+  "assistant.proposal.refused.notLive": {
+    "status": "mt",
+    "srcHash": "6a9d04752b8b"
   },
   "assistant.proposal.refused.notOffered": {
     "status": "mt",
@@ -1367,6 +1379,10 @@
     "status": "mt",
     "srcHash": "80eebdd849cc"
   },
+  "assistant.proposal.send.skipped": {
+    "status": "mt",
+    "srcHash": "6f3d2c516a57"
+  },
   "assistant.proposal.send.subject": {
     "status": "mt",
     "srcHash": "8d183dbdcea3"
@@ -1386,6 +1402,10 @@
   "assistant.proposal.undo": {
     "status": "mt",
     "srcHash": "39fc72124884"
+  },
+  "assistant.proposal.undoFailed": {
+    "status": "mt",
+    "srcHash": "d7812ee55d74"
   },
   "assistant.proposal.undoPassed": {
     "status": "mt",

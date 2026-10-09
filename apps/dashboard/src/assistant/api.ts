@@ -326,7 +326,11 @@ export function readProposal(raw: unknown): AssistantProposal | null {
   const actions: AssistantProposalAction[] = [];
   for (const entry of Array.isArray(proposal.actions) ? proposal.actions : []) {
     const action = record(entry);
-    if (action === null || typeof action.do !== 'string') continue;
+    // Kept in its place, as something that cannot be done: the ticks and the outcome go by index.
+    if (action === null || typeof action.do !== 'string') {
+      actions.push({ do: '', table: null, id: null, preview: null, refused: { code: 'NOT_OFFERED', message: '' } });
+      continue;
+    }
     const refused = record(action.refused);
     actions.push({
       do: action.do,

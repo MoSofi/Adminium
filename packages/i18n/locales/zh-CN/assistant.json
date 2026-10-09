@@ -393,7 +393,8 @@
       "subject": "主题",
       "to": "收件人",
       "roles": "所有拥有 {roles} 角色的人（{count, plural, other {#}} 人）",
-      "open": "打开模板"
+      "open": "打开模板",
+      "skipped": "{count, plural, other {#}} 人已退订，不会收到。"
     },
     "more": "还有 {count} 项。放大查看全部。",
     "irreversible": "此操作无法撤销。",
@@ -439,7 +440,8 @@
       "notOffered": "无法在这里执行此操作。",
       "builtIn": "内置邮件需在其自己的页面上更改。",
       "notCampaign": "只有营销邮件可以发送给人员。",
-      "noRecipients": "没有人会收到这封邮件。"
+      "noRecipients": "没有人会收到这封邮件。",
+      "notLive": "草稿需由人开启后才能发送。"
     },
     "row": {
       "untitled": "未命名",
@@ -450,6 +452,9 @@
       "reference": "{table} 中 {count} 行",
       "references": "其他行引用了此项：{list}。它们会随之删除或更改，与页面自身的删除相同。"
     },
-    "noneAble": "这些都无法执行"
+    "noneAble": "这些都无法执行",
+    "checkAgain": "重新检查",
+    "undoFailed": "{count, plural, other {#}} 项更改未能撤回。请重试。",
+    "parkedNoHome": "请回到提出此问题的{page}以使用它。"
   }
 }

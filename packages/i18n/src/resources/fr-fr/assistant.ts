@@ -403,7 +403,8 @@ export default {
       "subject": "Objet",
       "to": "À",
       "roles": "toutes les personnes ayant le rôle {roles} ({count, plural, one {# personne} other {# personnes}})",
-      "open": "Ouvrir le modèle"
+      "open": "Ouvrir le modèle",
+      "skipped": "{count, plural, one {# personne s’est désinscrite et ne reçoit} other {# personnes se sont désinscrites et ne reçoivent}} rien."
     },
     "more": "{count} de plus. Ouvrez en grand pour tout voir.",
     "irreversible": "Cela ne peut pas être annulé.",
@@ -449,7 +450,8 @@ export default {
       "notOffered": "Cela ne peut pas être fait d’ici.",
       "builtIn": "Un e-mail intégré se modifie sur son propre écran.",
       "notCampaign": "Seule une campagne peut être envoyée à des personnes.",
-      "noRecipients": "Personne ne recevrait cet e-mail."
+      "noRecipients": "Personne ne recevrait cet e-mail.",
+      "notLive": "Un brouillon est activé par une personne avant de pouvoir être envoyé."
     },
     "row": {
       "untitled": "Sans titre",
@@ -460,6 +462,9 @@ export default {
       "reference": "{count} dans {table}",
       "references": "D’autres lignes y font référence : {list}. Elles partent ou changent avec elle, comme pour la suppression sur la page."
     },
-    "noneAble": "Rien de cela ne peut être fait"
+    "noneAble": "Rien de cela ne peut être fait",
+    "checkAgain": "Vérifier à nouveau",
+    "undoFailed": "{count, plural, one {# modification n’a pas pu être annulée} other {# modifications n’ont pas pu être annulées}}. Réessayez.",
+    "parkedNoHome": "Revenez à {page}, où cela a été demandé, pour l’utiliser."
   }
 } as const;

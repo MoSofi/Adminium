@@ -37,7 +37,7 @@ function Card({ proposal, asked, said = 'I can do this for you.', ...over }: Omi
         </AssistantBubble>
       )}
       <AssistantBubble spacer={asked !== undefined} bare>
-        <LiveProposal sessionId="s1" turnId="t1" proposal={read} name="Milo" atHome homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} {...over} />
+        <LiveProposal sessionId="s1" turnId="t1" proposal={read} name="Milo" newest atHome homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} {...over} />
       </AssistantBubble>
     </Frame>
   );
@@ -127,14 +127,15 @@ export const LetGo = {
   tags: ['vrt'],
   render: () => (
     <Frame>
-      <LiveProposal sessionId="s1" turnId="a" proposal={readProposal({ state: 'superseded', title: 'Mark as paid', madeAt: 1, count: 3 }) as AssistantProposal} name="Milo" atHome homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} />
-      <LiveProposal sessionId="s1" turnId="b" proposal={readProposal({ state: 'expired', title: 'Mark as paid', madeAt: 1, count: 3 }) as AssistantProposal} name="Milo" atHome homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} />
-      <LiveProposal sessionId="s1" turnId="c" proposal={readProposal(open(three)) as AssistantProposal} name="Milo" atHome={false} homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} />
+      <LiveProposal sessionId="s1" turnId="a" proposal={readProposal({ state: 'superseded', title: 'Mark as paid', madeAt: 1, count: 3 }) as AssistantProposal} name="Milo" newest atHome homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} />
+      <LiveProposal sessionId="s1" turnId="b" proposal={readProposal({ state: 'expired', title: 'Mark as paid', madeAt: 1, count: 3 }) as AssistantProposal} name="Milo" newest atHome homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} />
+      <LiveProposal sessionId="s1" turnId="c" proposal={readProposal(open(three)) as AssistantProposal} name="Milo" newest atHome={false} homeTitle="Invoices" onOpenHome={noop} onAsk={noop} blocked={false} onChanged={noop} />
       <LiveProposal
         sessionId="s1"
         turnId="d"
         proposal={readProposal({ state: 'refused', title: 'Mark as paid', madeAt: 1, actions: [{ do: 'row.change', id: '1' }], refusal: { code: 'OVER_CAP', message: '', count: 80, cap: 50 } }) as AssistantProposal}
         name="Milo"
+        newest
         atHome
         homeTitle="Invoices"
         onOpenHome={noop}

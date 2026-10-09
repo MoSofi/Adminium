@@ -403,7 +403,8 @@ export default {
       "subject": "Subject",
       "to": "To",
       "roles": "everyone with the role {roles} ({count, plural, one {# person} other {# people}})",
-      "open": "Open template"
+      "open": "Open template",
+      "skipped": "{count, plural, one {# person has opted out and gets nothing.} other {# people have opted out and get nothing.}}"
     },
     "more": "{count} more. Open large to see them all.",
     "irreversible": "This cannot be undone.",
@@ -449,7 +450,8 @@ export default {
       "notOffered": "That cannot be done from here.",
       "builtIn": "A built-in mail is changed on its own screen.",
       "notCampaign": "Only a campaign can be sent to people.",
-      "noRecipients": "Nobody would get this mail."
+      "noRecipients": "Nobody would get this mail.",
+      "notLive": "A draft is switched on by a person before it can be sent."
     },
     "row": {
       "untitled": "Untitled",
@@ -460,6 +462,9 @@ export default {
       "reference": "{count} in {table}",
       "references": "Other rows refer to this: {list}. They go or change with it, as on the page’s own delete."
     },
-    "noneAble": "None of this can be done"
+    "noneAble": "None of this can be done",
+    "checkAgain": "Check again",
+    "undoFailed": "{count, plural, one {# change} other {# changes}} could not be taken back. Try again.",
+    "parkedNoHome": "Go back to {page}, where this was asked, to use it."
   }
 } as const;

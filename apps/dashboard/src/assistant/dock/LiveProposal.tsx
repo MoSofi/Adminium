@@ -38,6 +38,8 @@ export interface LiveProposalProps {
   /** The proposal as the turn carries it. */
   proposal: AssistantProposal;
   name: string;
+  /** The conversation's last turn: once something else was asked, a proposal is let go. */
+  newest: boolean;
   /** The person is on the page this was asked on: elsewhere it waits, parked. */
   atHome: boolean;
   /** What that page is called, for "Open Invoices to use this". */
@@ -58,37 +60,73 @@ export interface LiveProposalProps {
 
 type Phase = 'idle' | 'checking' | 'applying' | 'undoing';
 
-export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome, homeTitle, onOpenHome, onAsk, blocked, onChanged, onOpenTemplate, rtl = false, now = Date.now }: LiveProposalProps) {
+/**
+ * What this window knows of a proposal that the server does not keep: the
+ * undo tokens of a confirmation made here, what was unticked, that it was
+ * cancelled. Held by the turn, outside the component: the panel is taken off
+ * the screen when it is closed, and closing it must not cost the minute's undo.
+ * It lives as long as the page does; a reload has none of it.
+ */
+interface Remembered {
+  fresh: AssistantProposal | null;
+  off: readonly number[];
+  cancelled: boolean;
+  changed: boolean;
+  undo: { tokens: { index: number; token: string }[]; at: number; given: number } | null;
+  undone: number | null;
+}
+const remembered = new Map<string, Remembered>();
+
+/** For tests: nothing is remembered of any proposal. */
+export function forgetProposals(): void {
+  remembered.clear();
+}
+
+/** How far along a proposal is: a copy further along is the newer one. */
+const rank = (proposal: AssistantProposal): number => (proposal.state === 'unchecked' ? 0 : proposal.state === 'open' ? 1 : 2);
+
+export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest, atHome, homeTitle, onOpenHome, onAsk, blocked, onChanged, onOpenTemplate, rtl = false, now = Date.now }: LiveProposalProps) {
+  const memory = remembered.get(turnId);
   // What the server last said of it: the turn's own copy, until a check or a confirm answers a newer one.
-  const [fresh, setFresh] = useState<AssistantProposal | null>(null);
+  const [fresh, setFresh] = useState<AssistantProposal | null>(memory?.fresh ?? null);
   const proposal = fresh ?? stored;
   const [phase, setPhase] = useState<Phase>('idle');
   const [problem, setProblem] = useState<string | null>(null);
-  const [off, setOff] = useState<ReadonlySet<number>>(new Set());
-  const [cancelled, setCancelled] = useState(false);
-  const [changed, setChanged] = useState(false);
-  const [groupOpen, setGroupOpen] = useState<boolean | null>(null);
+  const [off, setOff] = useState<ReadonlySet<number>>(new Set(memory?.off ?? []));
+  const [cancelled, setCancelled] = useState(memory?.cancelled ?? false);
+  const [changed, setChanged] = useState(memory?.changed ?? false);
+  const [groupOpen, setGroupOpen] = useState(true);
   const [large, setLarge] = useState(false);
-  // The undo: tokens in hand, when they were given, and what became of them.
-  const [undo, setUndo] = useState<{ tokens: { index: number; token: string }[]; at: number } | null>(null);
-  const [undone, setUndone] = useState<number | null>(null);
+  // The undo: tokens in hand, when the confirmation began, how many were given, and how many were taken back.
+  const [undo, setUndo] = useState<Remembered['undo']>(memory?.undo ?? null);
+  const [undone, setUndone] = useState<number | null>(memory?.undone ?? null);
   const [tick, setTick] = useState(0);
+  // Whether the card came to ask, or to say what was done, while the person was looking: then it takes focus.
+  const [arrived, setArrived] = useState<'asked' | 'done' | null>(null);
+  const [retry, setRetry] = useState(0);
 
-  // A newer copy on the turn (a reload, another window) replaces what was held here.
   useEffect(() => {
-    setFresh(null);
-  }, [stored.state, stored.hash]);
+    remembered.set(turnId, { fresh, off: [...off], cancelled, changed, undo, undone });
+  }, [turnId, fresh, off, cancelled, changed, undo, undone]);
+
+  // A copy on the turn that is further along (a reload's, another window's) replaces what is
+  // held here. One that is not is the turn as it was read before this window's own reply.
+  useEffect(() => {
+    setFresh((held) => (held !== null && rank(stored) > rank(held) ? null : held));
+  }, [stored]);
 
   // ── the check, once, as soon as there is something to check ───────────────
   const checked = useRef<string | null>(null);
   useEffect(() => {
-    if (proposal.state !== 'unchecked' || sessionId === null || checked.current === turnId) return;
-    checked.current = turnId;
+    // Something else was asked since: the server would only say it was let go.
+    if (proposal.state !== 'unchecked' || !newest || sessionId === null || checked.current === `${turnId}:${String(retry)}`) return;
+    checked.current = `${turnId}:${String(retry)}`;
     setPhase('checking');
     setProblem(null);
     assistantApi.checkProposal(sessionId, turnId).then(
       (reply) => {
         setFresh(readProposal(reply.proposal));
+        setArrived('asked');
         setPhase('idle');
         onChanged();
       },
@@ -97,7 +135,7 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
         setPhase('idle');
       },
     );
-  }, [proposal.state, sessionId, turnId, onChanged]);
+  }, [proposal.state, newest, sessionId, turnId, onChanged, retry]);
 
   // ── the undo's minute ────────────────────────────────────────────────────
   const left = undo === null ? 0 : Math.max(0, UNDO_MS - (now() - undo.at));
@@ -111,15 +149,19 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
   const picked = useMemo(() => able.filter((entry) => !off.has(entry.index)), [able, off]);
 
   const confirm = useCallback(() => {
-    if (sessionId === null || proposal.hash === null || picked.length === 0) return;
+    if (sessionId === null || proposal.hash === null || picked.length === 0 || phase !== 'idle') return;
     setPhase('applying');
     setProblem(null);
+    // The undo's minute runs from each row's own write: counted from the click, the ring is never late.
+    const began = now();
+    const count = proposal.actions.length;
     assistantApi.applyProposal(sessionId, turnId, { hash: proposal.hash, pick: picked.map((entry) => entry.index) }).then(
       (reply) => {
         setFresh(readProposal(reply.proposal));
         const tokens = reply.undo ?? [];
-        setUndo(tokens.length === 0 ? { tokens: [], at: 0 } : { tokens, at: now() });
+        setUndo({ tokens, at: tokens.length === 0 ? 0 : began, given: tokens.length });
         setChanged(false);
+        setArrived('done');
         setPhase('idle');
         onChanged();
       },
@@ -132,45 +174,59 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
           return;
         }
         setFresh(current);
-        setOff(new Set());
+        // What was unticked stays unticked while the list is the same list.
+        if (current.actions.length !== count) setOff(new Set());
         setChanged(current.state === 'open');
         onChanged();
       },
     );
-  }, [sessionId, turnId, proposal.hash, picked, now, onChanged]);
+  }, [sessionId, turnId, proposal.hash, proposal.actions.length, picked, phase, now, onChanged]);
 
   const takeBack = useCallback(() => {
-    if (undo === null || undo.tokens.length === 0) return;
+    if (undo === null || undo.tokens.length === 0 || phase !== 'idle') return;
     setPhase('undoing');
+    setProblem(null);
     void (async () => {
       let back = 0;
-      for (const { token } of undo.tokens) {
+      const kept: { index: number; token: string }[] = [];
+      for (const entry of undo.tokens) {
         try {
-          await undoMutation(token);
+          await undoMutation(entry.token);
           back += 1;
         } catch {
-          // One that could not be taken back is counted out, and said so.
+          // Kept: while the minute lasts it can be tried again.
+          kept.push(entry);
         }
       }
-      setUndone(back);
-      setUndo({ tokens: [], at: 0 });
+      setUndone((already) => (already ?? 0) + back);
+      setUndo({ ...undo, tokens: kept });
+      if (kept.length > 0) setProblem(t('assistant:proposal.undoFailed', '{count, plural, one {# change} other {# changes}} could not be taken back. Try again.', { count: kept.length }));
       setPhase('idle');
     })();
-  }, [undo]);
+  }, [undo, phase]);
 
   const base = { rtl, testId: 'assistant-proposal' } satisfies Partial<ProposalCardProps>;
   const sub = proposal.title === '' ? undefined : proposal.title;
   const problemLine: ProposalLine[] = problem === null ? [] : [{ icon: 'warn', text: problem, tone: 'warn' }];
 
+  // What the server would say on its next look, known here already: something else was asked
+  // since, or its half hour has passed.
+  const late = proposal.state === 'open' && proposal.expiresAt !== null && now() > proposal.expiresAt;
+  const waiting = proposal.state === 'unchecked' || proposal.state === 'open';
+  const letGo: 'superseded' | 'expired' | null = proposal.state === 'superseded' || (waiting && !newest) ? 'superseded' : proposal.state === 'expired' || late ? 'expired' : null;
+
   // ── before the check ─────────────────────────────────────────────────────
-  if (proposal.state === 'unchecked') {
+  if (proposal.state === 'unchecked' && letGo === null) {
     return (
       <ProposalCard
         {...base}
         icon="change"
         title={t('assistant:proposal.checking.title', 'A change to confirm')}
-        {...(phase === 'checking' || problem === null ? { spinner: t('assistant:proposal.checking.line', 'Checking what would change…') } : {})}
+        {...(problem === null ? { spinner: t('assistant:proposal.checking.line', 'Checking what would change…') } : {})}
         lines={problemLine}
+        {...(problem === null || phase === 'checking'
+          ? {}
+          : { buttons: [{ id: 'recheck', label: t('assistant:proposal.checkAgain', 'Check again'), onClick: () => setRetry((count) => count + 1) }] })}
       />
     );
   }
@@ -178,10 +234,10 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
   const quiet = { ...base, tone: 'muted' as const, iconTone: 'muted' as const, icon: iconOf(sharedKind(proposal.actions)), title: sub ?? t('assistant:proposal.checking.title', 'A change to confirm') };
 
   // ── let go ───────────────────────────────────────────────────────────────
-  if (proposal.state === 'superseded') {
+  if (letGo === 'superseded') {
     return <ProposalCard {...quiet} badge={t('assistant:proposal.badge.replaced', 'Replaced')} lines={[{ icon: 'down', text: t('assistant:proposal.replaced', 'Something else was asked after this. Nothing was changed.') }]} />;
   }
-  if (proposal.state === 'expired') {
+  if (letGo === 'expired') {
     return <ProposalCard {...quiet} badge={t('assistant:proposal.badge.expired', 'Expired')} lines={[{ icon: 'clock', text: t('assistant:proposal.expired', 'This proposal is 30 minutes old. Ask again.') }]} />;
   }
   if (proposal.state === 'refused') {
@@ -217,7 +273,8 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
     if (proposal.state === 'applying') {
       return <ProposalCard {...base} icon={iconOf(sharedKind(asked))} title={askTitle(asked)} sub={sub} spinner={t('assistant:proposal.applying', 'Working…')} />;
     }
-    if (undone !== null) {
+    const tokensLeft = undo?.tokens.length ?? 0;
+    if (undone !== null && undone > 0 && (tokensLeft === 0 || left <= 0)) {
       return undone >= outcome.done.length ? (
         <ProposalCard {...base} tone="muted" icon="undone" iconTone="muted" title={t('assistant:proposal.undone', 'Undone. Everything is as it was.')} />
       ) : (
@@ -261,7 +318,7 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
       ...outcome.notTried.map((index) => ({ id: `n${String(index)}`, label: labels([index])[0] ?? '—', reason: t('assistant:proposal.notTried', 'Not attempted: too many requests at once. Ask again in a minute.') })),
     ];
     const names = labels(outcome.done.map((entry) => entry.index));
-    const tokens = undo?.tokens.length ?? 0;
+    const tokens = left > 0 ? tokensLeft : 0;
     const buttons: ProposalButton[] = [];
     if (notDone.length > 0) {
       buttons.push({
@@ -272,7 +329,7 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
         onClick: () => onAsk(t('assistant:proposal.againAsk', 'Propose again the changes that were not made:\n{rows}', { rows: failedRows.map((row) => `${row.label}: ${row.reason ?? ''}`).join('\n') })),
       });
     }
-    if (tokens > 0 && left > 0) {
+    if (tokens > 0) {
       const seconds = Math.ceil(left / 1000);
       buttons.push({
         id: 'undo',
@@ -285,9 +342,9 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
     const after: ProposalLine[] = [];
     // Only when this window made the confirmation does it know which changes had an undo.
     if (undo !== null && outcome.done.length > 0) {
-      if (tokens > 0 && left <= 0) after.push({ icon: 'clock', text: t('assistant:proposal.undoPassed', 'The time to undo has passed.'), tone: 'subtle' });
-      const without = outcome.done.length - tokens;
-      if (tokens === 0) after.push({ icon: 'info', text: t('assistant:proposal.noUndo', 'This cannot be undone from here.') });
+      if (undo.given > 0 && left <= 0) after.push({ icon: 'clock', text: t('assistant:proposal.undoPassed', 'The time to undo has passed.'), tone: 'subtle' });
+      const without = outcome.done.length - undo.given;
+      if (undo.given === 0) after.push({ icon: 'info', text: t('assistant:proposal.noUndo', 'This cannot be undone from here.') });
       else if (without > 0) after.push({ icon: 'info', text: t('assistant:proposal.noUndoSome', '{count, plural, one {# change} other {# changes}} cannot be undone from here.', { count: without }) });
     }
     return (
@@ -297,7 +354,8 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
         tone={notDone.length === 0 ? 'pos' : 'default'}
         icon={notDone.length === 0 ? 'done' : 'mixed'}
         iconTone={notDone.length === 0 ? 'pos' : 'warn'}
-        title={doneTitle(done.length === 0 ? asked : done, outcome.done.length, proposal.picked.length)}
+        asks={arrived === 'done'}
+        title={doneTitle(notDone.length === 0 ? done : asked, outcome.done.length, proposal.picked.length)}
         {...(names.length === 0 ? {} : { sub: names.length <= 3 ? names.join(', ') : undefined })}
         {...(failedRows.length === 0 ? {} : { lines: [{ text: t('assistant:proposal.notChanged', '{count, plural, one {This one was} other {These # were}} not changed:', { count: failedRows.length }) }], rows: failedRows })}
         buttons={buttons}
@@ -315,7 +373,9 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
       <ProposalCard
         {...quiet}
         badge={t('assistant:proposal.badge.parked', 'Parked')}
-        {...(onOpenHome === null ? {} : { buttons: [{ id: 'home', label: t('assistant:proposal.parked', 'Open {page} to use this.', { page: homeTitle }), icon: 'open' as const, onClick: onOpenHome }] })}
+        {...(onOpenHome === null
+          ? { lines: [{ icon: 'info' as const, text: t('assistant:proposal.parkedNoHome', 'Go back to {page}, where this was asked, to use it.', { page: homeTitle }) }] }
+          : { buttons: [{ id: 'home', label: t('assistant:proposal.parked', 'Open {page} to use this.', { page: homeTitle }), icon: 'open' as const, onClick: onOpenHome }] })}
       />
     );
   }
@@ -323,10 +383,13 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
   const refused = proposal.actions.filter((action) => action.refused !== null).length;
   const pickedActions = picked.map((entry) => entry.action);
   const kind = sharedKind(able.map((entry) => entry.action));
-  const title = able.length === 0 ? (sub ?? t('assistant:proposal.checking.title', 'A change to confirm')) : askTitle(pickedActions.length === 0 ? able.map((entry) => entry.action) : pickedActions);
+  const title = able.length === 0 ? t('assistant:proposal.noneAble', 'None of this can be done') : askTitle(pickedActions.length === 0 ? able.map((entry) => entry.action) : pickedActions);
   const shared = sharedChange(able.map((entry) => entry.action));
+  const busy = phase === 'applying';
   const tickable = able.length > 1;
   const toggle = (index: number) => (): void => {
+    // Not while it is being carried out: what was sent is what was ticked then.
+    if (busy) return;
     setOff((current) => {
       const next = new Set(current);
       if (next.has(index)) next.delete(index);
@@ -346,10 +409,12 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
       ...(tickable && isAble ? { checked: !off.has(index), onToggle: toggle(index) } : {}),
     };
   });
-  const open = groupOpen ?? allRows.length <= ROWS_SHOWN;
-  const shownRows = shared === null ? allRows.slice(0, ROWS_SHOWN) : open ? allRows.slice(0, ROWS_SHOWN) : [];
-  const more = allRows.length - ROWS_SHOWN;
-  const send = able[0]?.action.preview?.kind === 'send.template' ? able[0].action.preview : null;
+  const open = shared === null || groupOpen;
+  const shownRows = open ? allRows.slice(0, ROWS_SHOWN) : [];
+  const more = allRows.length - shownRows.length;
+  // A send is a card of its own: one mail, who gets it. (The server takes no other shape.)
+  const only = proposal.actions.length === 1 ? able[0]?.action.preview : undefined;
+  const send = only?.kind === 'send.template' ? only : null;
   const references = referencesText(pickedActions);
   const irreversible = send !== null || references !== null;
   const lines: ProposalLine[] = [
@@ -357,7 +422,6 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
     ...(changed ? [{ icon: 'changed' as const, tone: 'warn' as const, text: t('assistant:proposal.changedSince', 'This changed since you were shown it. Look again before confirming.') }] : []),
     ...problemLine,
   ];
-  const busy = phase === 'applying';
   const buttons: ProposalButton[] = [{ id: 'cancel', label: t('assistant:confirm.cancel', 'Cancel'), disabled: busy, onClick: () => setCancelled(true) }];
   if (refused > 0) {
     buttons.push({ id: 'fix', label: t('assistant:proposal.fix', 'Ask {name} to fix this', { name }), icon: 'ask', disabled: blocked || busy, onClick: () => onAsk(fixRequest(proposal, name)) });
@@ -368,7 +432,8 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
       label: busy ? t('assistant:proposal.applying', 'Working…') : title,
       kind: kind === 'delete' || kind === 'deleteDoc' ? 'danger' : 'primary',
       ...(kind === 'send' ? { icon: 'send' as const } : {}),
-      disabled: busy || picked.length === 0 || sessionId === null,
+      // Not while something else is being asked or answered: the server would let this go.
+      disabled: busy || blocked || picked.length === 0 || sessionId === null,
       onClick: confirm,
     });
   }
@@ -377,8 +442,8 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
     <>
       <ProposalCard
         {...base}
-        asks
-        onEscape={() => setCancelled(true)}
+        asks={arrived === 'asked'}
+        {...(busy ? {} : { onEscape: () => setCancelled(true) })}
         icon={iconOf(kind)}
         iconTone={kind === 'delete' || kind === 'deleteDoc' ? 'danger' : 'accent'}
         title={title}
@@ -401,7 +466,8 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
           ? {}
           : {
               group: {
-                label: t('assistant:proposal.group.shared', '{field} {arrow} {value} on {count, plural, one {# row} other {# rows}}', { field: shared.field, arrow: rtl ? '←' : '→', value: shared.after, count: able.length }),
+                // Of the rows that are ticked: the sentence is what the button will do.
+                label: t('assistant:proposal.group.shared', '{field} {arrow} {value} on {count, plural, one {# row} other {# rows}}', { field: shared.field, arrow: rtl ? '←' : '→', value: shared.after, count: picked.length }),
                 open,
                 onToggle: () => setGroupOpen(!open),
               },
@@ -409,7 +475,10 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, atHome
         rows={send === null ? shownRows : []}
         {...(references === null ? {} : { danger: references })}
         notes={[
-          ...(more > 0 && (shared === null || open) ? [{ text: t('assistant:proposal.more', '{count} more. Open large to see them all.', { count: more }), tone: 'subtle' as const }] : []),
+          ...(more > 0 && allRows.length > ROWS_SHOWN ? [{ text: t('assistant:proposal.more', '{count} more. Open large to see them all.', { count: more }), tone: 'subtle' as const }] : []),
+          ...(send !== null && send.skipped > 0
+            ? [{ icon: 'info' as const, text: t('assistant:proposal.send.skipped', '{count, plural, one {# person has opted out and gets nothing.} other {# people have opted out and get nothing.}}', { count: send.skipped }) }]
+            : []),
           ...(irreversible ? [{ icon: 'info' as const, text: t('assistant:proposal.irreversible', 'This cannot be undone.') }] : []),
         ]}
         {...(tickable ? { count: t('assistant:proposal.chosen', '{picked} of {count} chosen', { picked: picked.length, count: able.length }) } : {})}

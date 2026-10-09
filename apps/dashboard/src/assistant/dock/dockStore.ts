@@ -64,6 +64,11 @@ export function setDockSignal(next: DockSignal): void {
   emit();
 }
 
+/** Back to nothing to say, when what it said is over (a proposal that was let go, or decided). */
+export function clearDockSignal(kind: DockSignal): void {
+  if (signal === kind) setDockSignal('idle');
+}
+
 export function useDockOpen(): boolean {
   return useSyncExternalStore(subscribe, () => open, () => false);
 }
