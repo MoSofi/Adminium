@@ -1501,6 +1501,46 @@ describe('what an owner sets, and what was used today', () => {
     }
     await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
   });
+
+  it('starts with the assistant only reading, and switches one thing on at a time, on record', async () => {
+    const OFF = { create: false, change: false, send: false, delete: false };
+    const put = (payload: unknown, as = t.users.admin) => t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(as), payload: payload as never });
+    const get = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
+    expect(get.json()).toMatchObject({ abilities: OFF, maxRows: 50, maxRowsCeiling: 50 });
+
+    // One switch named: the other three stay as they were.
+    const created = await put({ abilities: { create: true } });
+    expect(created.statusCode, created.body).toBe(200);
+    expect(created.json().abilities).toEqual({ ...OFF, create: true });
+    const changed = await put({ abilities: { change: true }, maxRows: 20 });
+    expect(changed.json()).toMatchObject({ abilities: { ...OFF, create: true, change: true }, maxRows: 20 });
+    expect(await settingsRepo(t.meta).get('assistant.abilities')).toEqual({ ...OFF, create: true, change: true });
+
+    // Who let the assistant write, and what it could do before, is in the audit.
+    const entries = await auditRepo(t.meta).list({ category: 'settings', limit: 5 });
+    expect(entries[0]).toMatchObject({
+      action: 'assistant.settings.update',
+      changes: { before: { abilities: { ...OFF, create: true }, maxRows: 50 }, after: { abilities: { ...OFF, create: true, change: true }, maxRows: 20 } },
+    });
+    // Saying what is already so writes nothing.
+    const count = (await auditRepo(t.meta).list({ category: 'settings', limit: 50 })).length;
+    await put({ abilities: { change: true }, maxRows: 20 });
+    expect((await auditRepo(t.meta).list({ category: 'settings', limit: 50 })).length).toBe(count);
+
+    // Everyone who may ask is told what is switched on; it is not a grant.
+    const availability = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability?context=email', headers: asUser(t.users.admin) });
+    expect(availability.json()).toMatchObject({ abilities: { ...OFF, create: true, change: true }, maxRows: 20 });
+
+    // Not a switch, more rows than has been measured, a switch that is not one, and someone without the settings permission.
+    for (const bad of [{ abilities: { create: 'yes' } }, { maxRows: 51 }, { maxRows: 0 }, { abilities: { publish: true } }, { other: 1 }]) {
+      expect((await put(bad)).statusCode, JSON.stringify(bad)).toBe(422);
+    }
+    expect((await put({ abilities: { delete: true } }, t.users.editor)).statusCode).toBe(403);
+    expect((await settingsRepo(t.meta).get('assistant.abilities')).delete).toBe(false);
+
+    await settingsRepo(t.meta).set('assistant.abilities', OFF, { updatedBy: null });
+    await settingsRepo(t.meta).set('assistant.maxRows', 50, { updatedBy: null });
+  });
 });
 
 describe('a suggestion, as a turn is read', () => {

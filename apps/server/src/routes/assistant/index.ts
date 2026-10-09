@@ -72,6 +72,7 @@ import {
   assistantSessionCreateBody,
   assistantSessionCreateReply,
   assistantSessionParams,
+  ASSISTANT_MAX_ROWS_CEILING,
   assistantSettingsPutBody,
   assistantSettingsReply,
   assistantTurnCreateBody,
@@ -310,6 +311,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           canConfigure: await request.can(PERMISSIONS.llmRun),
           provider: state.provider,
           model: state.model,
+          abilities: await settings.get('assistant.abilities'),
+          maxRows: await settings.get('assistant.maxRows'),
           budget: await readAllowance(meta, requireUserId(request), app.rbac.now()),
         };
       },
@@ -676,6 +679,9 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       }
       return {
         dailyTokens: await settings.get('assistant.dailyTokens'),
+        abilities: await settings.get('assistant.abilities'),
+        maxRows: await settings.get('assistant.maxRows'),
+        maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
       };
@@ -695,15 +701,39 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         schema: { body: assistantSettingsPutBody, response: { 200: assistantSettingsReply } },
       },
       async (request) => {
-        const before = await settings.get('assistant.dailyTokens');
-        const next = request.body.dailyTokens;
-        if (before !== next) {
-          await settings.set('assistant.dailyTokens', next, { updatedBy: requireUserId(request), at: app.rbac.now() });
-          await app.rbac.audit(request, {
-            category: 'settings',
-            action: 'assistant.settings.update',
-            changes: { before: { dailyTokens: before }, after: { dailyTokens: next } },
-          });
+        const by = { updatedBy: requireUserId(request), at: app.rbac.now() };
+        const before: Record<string, unknown> = {};
+        const after: Record<string, unknown> = {};
+        const body = request.body;
+        if (body.dailyTokens !== undefined) {
+          const held = await settings.get('assistant.dailyTokens');
+          if (held !== body.dailyTokens) {
+            await settings.set('assistant.dailyTokens', body.dailyTokens, by);
+            before.dailyTokens = held;
+            after.dailyTokens = body.dailyTokens;
+          }
+        }
+        if (body.abilities !== undefined) {
+          // A switch that is not named keeps its state: turning one on never moves another.
+          const held = await settings.get('assistant.abilities');
+          const next = { ...held, ...Object.fromEntries(Object.entries(body.abilities).filter(([, value]) => value !== undefined)) };
+          if (JSON.stringify(held) !== JSON.stringify(next)) {
+            await settings.set('assistant.abilities', next, by);
+            before.abilities = held;
+            after.abilities = next;
+          }
+        }
+        if (body.maxRows !== undefined) {
+          const held = await settings.get('assistant.maxRows');
+          if (held !== body.maxRows) {
+            await settings.set('assistant.maxRows', body.maxRows, by);
+            before.maxRows = held;
+            after.maxRows = body.maxRows;
+          }
+        }
+        // One entry for what really changed, with what it was: who let the assistant write is on record.
+        if (Object.keys(after).length > 0) {
+          await app.rbac.audit(request, { category: 'settings', action: 'assistant.settings.update', changes: { before, after } });
         }
         return settingsReply();
       },

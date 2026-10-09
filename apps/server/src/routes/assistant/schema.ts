@@ -20,6 +20,11 @@ import { z } from 'zod';
 
 import { MAX_IN_VALUES, MAX_WHERE_BYTES } from '../../crud/filters.js';
 
+/** The four switches on what the assistant may do beyond reading. */
+export const assistantAbilities = z.object({ create: z.boolean(), change: z.boolean(), send: z.boolean(), delete: z.boolean() }).strict();
+/** The most rows one confirmation may be allowed to write: each is its own full write, and 50 is what has been measured. */
+export const ASSISTANT_MAX_ROWS_CEILING = 50;
+
 /** The page a session was opened from, and what it was showing. */
 export const assistantHostBody = z.object({
   documentId: z.string().max(64).optional(),
@@ -66,6 +71,13 @@ export const assistantAvailabilityReply = z.object({
   canConfigure: z.boolean(),
   provider: z.string().nullable(),
   model: z.string().nullable(),
+  /**
+   * What the workspace lets the assistant do beyond reading. A switch that is
+   * on is not a grant: the person still needs their own on the table or page.
+   */
+  abilities: assistantAbilities,
+  /** The most rows one confirmation may write. */
+  maxRows: z.number(),
   /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
   budget: z.object({
     limit: z.number(),
@@ -250,6 +262,11 @@ export const assistantActionReply = z.object({
 export const assistantSettingsReply = z.object({
   /** Tokens a person may use in a UTC day; 0 means no limit. */
   dailyTokens: z.number(),
+  /** What the assistant may do beyond reading; all off on a new workspace. */
+  abilities: assistantAbilities,
+  /** The most rows one confirmation may write, and the most this field may be set to. */
+  maxRows: z.number(),
+  maxRowsCeiling: z.number(),
   today: z.object({
     /** The UTC day, `YYYY-MM-DD`. */
     day: z.string(),
@@ -262,9 +279,14 @@ export const assistantSettingsReply = z.object({
   roles: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
-export const assistantSettingsPutBody = z.object({
-  dailyTokens: z.number().int().min(0).max(1_000_000_000),
-});
+/** Each field is its own decision: what is left out is left as it is. */
+export const assistantSettingsPutBody = z
+  .object({
+    dailyTokens: z.number().int().min(0).max(1_000_000_000).optional(),
+    abilities: assistantAbilities.partial().optional(),
+    maxRows: z.number().int().min(1).max(ASSISTANT_MAX_ROWS_CEILING).optional(),
+  })
+  .strict();
 
 /**
  * `GET /assistant/sessions/current` — the person's open panel conversation,
