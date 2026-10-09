@@ -136,6 +136,22 @@ export const llmConfigTestReply = z.object({
 });
 export type LlmConfigTestReply = z.infer<typeof llmConfigTestReply>;
 
+/**
+ * `POST /config/assistant-test` reply — whether the saved model can run the
+ * assistant: one small turn in its reply format, with one tool. `failure` is a
+ * KIND the dashboard words; `message` is the provider's own sentence when the
+ * provider is what failed (never the key).
+ */
+export const llmAssistantTestReply = z.object({
+  ok: z.boolean(),
+  model: z.string().nullable(),
+  rounds: z.number(),
+  latencyMs: z.number(),
+  failure: z.enum(['format', 'no-tool', 'wrong-value', 'provider']).nullable(),
+  message: z.string().nullable(),
+});
+export type LlmAssistantTestReply = z.infer<typeof llmAssistantTestReply>;
+
 /** `GET /models` reply — the active provider's models + whether they are live. */
 export const llmModelInfo = z.object({ id: z.string(), label: z.string() });
 export const llmModelsReply = z.object({

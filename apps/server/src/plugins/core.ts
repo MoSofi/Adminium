@@ -363,7 +363,7 @@ const AUTO_BUCKETS: readonly {
   { methods: ['POST'], pattern: /\/(?:exports|imports)$/, bucket: 'data-io' },
   {
     methods: ['POST'],
-    pattern: /\/(?:llm\/config\/test|llm\/runs|llm\/runs\/:id\/execute)$/,
+    pattern: /\/(?:llm\/config\/test|llm\/config\/assistant-test|llm\/runs|llm\/runs\/:id\/execute)$/,
     bucket: 'llm',
   },
   { methods: ['GET'], pattern: /\/llm\/models$/, bucket: 'llm' },

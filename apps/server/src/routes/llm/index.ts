@@ -40,6 +40,8 @@ import { settingsRepo, snapshotsRepo, type LlmRun, type MetaDb } from '@adminium
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
+import { testAssistantModel } from '../../assistant/model-test.js';
+import { auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { AiConnections, ConnectionId } from '../../llm/connections.js';
 import { LLM_RUN_KIND } from '../../jobs/llm-run.js';
@@ -73,6 +75,7 @@ import {
   jobAcceptedReply,
   llmConfigPutBody,
   llmConfigReply,
+  llmAssistantTestReply,
   llmConfigTestReply,
   llmModelsReply,
   runApplyBody,
@@ -357,6 +360,36 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
           }
           throw error;
         }
+      },
+    );
+
+    app.post(
+      '/llm/config/assistant-test',
+      {
+        preHandler: guard,
+        config: { audit: auditExempt('a test of the saved model: it reads nothing of the workspace and writes nothing') },
+        schema: { response: { 200: llmAssistantTestReply } },
+      },
+      async () => {
+        // The SAVED provider, model, address and key, exactly as a real turn resolves them:
+        // nothing of the request chooses where the key is sent.
+        let resolved: Awaited<ReturnType<typeof resolveProviderClient>>;
+        try {
+          resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient);
+        } catch (error) {
+          if (error instanceof ProviderNotConfiguredError) throw new ConflictError(error.message, 'CONFLICT');
+          if (error instanceof ProviderError) {
+            return { ok: false, model: null, rounds: 0, latencyMs: 0, failure: 'provider' as const, message: error.message };
+          }
+          throw error;
+        }
+        const result = await testAssistantModel({
+          client: resolved.client,
+          provider: resolved.provider,
+          model: resolved.model,
+          name: await settings.get('assistant.name'),
+        });
+        return { ...result, model: resolved.model };
       },
     );
 
