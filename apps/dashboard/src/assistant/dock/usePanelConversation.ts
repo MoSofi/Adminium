@@ -72,6 +72,8 @@ export interface PanelConversation {
 const LIVE: readonly AssistantTurnStatus[] = ['queued', 'running'];
 /** How long a page must stand still before its facts are asked for: a grid publishes on every keystroke. */
 const FACTS_SETTLE_MS = 350;
+/** How often a running turn's row is read, beside the channel that announces its end. */
+export const LIVE_POLL_MS = 5_000;
 
 export function usePanelConversation(page: PanelPage): PanelConversation {
   const [phase, setPhase] = useState<PanelPhase>('loading');
@@ -162,6 +164,17 @@ export function usePanelConversation(page: PanelPage): PanelConversation {
     if (id !== undefined) void refreshTurn(id);
   }, [live?.id, refreshTurn]);
   const { steps: liveSteps } = useTurnProgress(live?.jobId ?? null, onTerminal);
+
+  // The channel says when a turn ends, and a missed event would leave it "working" for ever: a
+  // socket that dropped, a turn found already running on load, a tab that slept. So the row is
+  // read as well, slowly, while one runs. Slow on purpose: these reads share the person's
+  // per-minute allowance of requests with their questions.
+  const liveTurnId = live?.id ?? null;
+  useEffect(() => {
+    if (liveTurnId === null) return;
+    const timer = setInterval(() => void refreshTurn(liveTurnId), LIVE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [liveTurnId, refreshTurn]);
 
   const start = useCallback(async (body: { text?: string; picks?: Record<string, string> }, pickedLabels: string[], on: PanelPage) => {
     setProblem(null);

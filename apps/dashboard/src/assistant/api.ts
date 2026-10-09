@@ -283,6 +283,8 @@ export interface AssistantResult {
   workTitle: string | null;
   basedOn: string | null;
   /** The drafted document, in the host page's own format. */
+  /** Served without its document (an older turn): read the turn whole before using it. */
+  light: boolean;
   artefact: Record<string, unknown>;
   warning: string | null;
   /** The page's own rows. */
@@ -308,7 +310,10 @@ function savedOf(raw: unknown): { id: string; kind: string; name: string } | nul
 /** Narrow a stored `result`; anything unreadable means "no draft to show". */
 export function readResult(raw: Record<string, unknown> | null): AssistantResult | null {
   if (raw === null) return null;
-  const artefact = record(raw.artefact);
+  // An older turn of a long conversation is served LIGHT: its card's words without its document.
+  // It is still a draft, drawn by its title; to use it the turn is read whole.
+  const light = raw.light === true;
+  const artefact = record(raw.artefact) ?? (light ? {} : null);
   if (artefact === null) return null;
   const diff = record(raw.diff);
   const lines = Array.isArray(diff?.lines) ? diff.lines : [];
@@ -317,6 +322,7 @@ export function readResult(raw: Record<string, unknown> | null): AssistantResult
     meta: str(raw.meta),
     workTitle: typeof raw.workTitle === 'string' ? raw.workTitle : null,
     basedOn: typeof raw.basedOn === 'string' ? raw.basedOn : null,
+    light,
     artefact,
     warning: typeof raw.warning === 'string' && raw.warning !== '' ? raw.warning : null,
     details: (Array.isArray(raw.details) ? raw.details : [])

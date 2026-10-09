@@ -225,13 +225,22 @@ export function AssistantDock({ visible }: AssistantDockProps) {
     const pageColumn = element.previousElementSibling;
     if (pageColumn instanceof HTMLElement) pageColumn.inert = true;
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    inputRef.current?.focus();
     return () => {
       if (pageColumn instanceof HTMLElement) pageColumn.inert = false;
       // Back to what opened it, when that is still there.
       if (before !== null && before.isConnected) before.focus();
     };
   }, [visible, floating, element]);
+
+  // Focus comes inside: to the field when it can be typed in, to the panel itself while it loads.
+  const fieldClosed = conversation.phase !== 'ready' || working;
+  useEffect(() => {
+    if (!visible || !floating || element === null) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== element && element.contains(active)) return;
+    if (fieldClosed) element.focus();
+    else inputRef.current?.focus();
+  }, [visible, floating, element, fieldClosed]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     if (event.key === 'Escape' && floating && !event.defaultPrevented) {
@@ -289,9 +298,10 @@ export function AssistantDock({ visible }: AssistantDockProps) {
       role={floating ? 'dialog' : 'complementary'}
       {...(floating ? { 'aria-modal': true } : {})}
       aria-labelledby={titleId}
+      tabIndex={-1}
       onKeyDown={onKeyDown}
       className={cn(
-        'relative flex min-h-0 flex-col overflow-hidden bg-surface',
+        'relative flex min-h-0 flex-col overflow-hidden bg-surface outline-none',
         // The shell's row grows with the page and the document scrolls: the panel stays in view.
         layout === 'docked' && 'sticky top-0 h-dvh w-[400px] shrink-0 self-start border-s border-border',
         // Above the sticky top bar (30), below the product's own dialogs (50) and the toasts.
