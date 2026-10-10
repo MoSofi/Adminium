@@ -730,5 +730,18 @@
   "chat": {
     "copy": "複製這則訊息",
     "copied": "已複製"
+  },
+  "project": {
+    "menu": "專案：{name}",
+    "export": "匯出此專案…",
+    "showFinder": "在 Finder 中顯示",
+    "showExplorer": "在檔案總管中顯示",
+    "showFiles": "在檔案管理員中顯示",
+    "close": "關閉專案"
+  },
+  "mode": {
+    "label": "建置或分享",
+    "build": "建置",
+    "share": "分享"
   }
 }

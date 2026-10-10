@@ -740,5 +740,18 @@ export default {
   "chat": {
     "copy": "Kopiér denne besked",
     "copied": "Kopieret"
+  },
+  "project": {
+    "menu": "Projekt: {name}",
+    "export": "Eksportér dette projekt…",
+    "showFinder": "Vis i Finder",
+    "showExplorer": "Vis i Stifinder",
+    "showFiles": "Vis i filhåndteringen",
+    "close": "Luk projektet"
+  },
+  "mode": {
+    "label": "Byg eller del",
+    "build": "Byg",
+    "share": "Del"
   }
 } as const;

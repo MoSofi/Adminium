@@ -48,6 +48,7 @@ import {
   UsageLine,
 } from '../parts/chat.js';
 import { TopBar } from '../parts/TopBar.js';
+import { DesktopBuildShare } from '../parts/DesktopProject.js';
 import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
 import { LeaveGuard } from './LeaveGuard.js';
 import { StyleMenu } from './LookMenu.js';
@@ -525,6 +526,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                 onOpen={(id) => void navigate({ to: '/design/$sessionId', params: { sessionId: id } })}
               />
             )}
+            <DesktopBuildShare />
             <a
               href="/"
               aria-label={t('designer:build.openDash', 'Open Dashboard')}

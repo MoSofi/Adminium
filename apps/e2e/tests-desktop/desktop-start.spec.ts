@@ -134,6 +134,10 @@ test('"Open" serves the folder in the Designer and remembers what was agreed to'
   expect(saved.projects).toHaveLength(1);
   expect(saved.projects[0]).toMatchObject({ path: project.root, state: 'building' });
   expect(saved.projects[0]?.trusted).toMatch(/^[0-9a-f]{64}$/);
+  // The Designer's bar says which project this is, and that it is being built.
+  await expect(page.getByRole('button', { name: 'Project: Demo' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Build' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Share' })).toBeDisabled();
   // The first screens' calls are the app's own pages': a project's page is refused them.
   const refused = await page.evaluate(async () => {
     try {
@@ -164,13 +168,15 @@ test('the next launch lists it under Recent projects and opens it without asking
 
 test('"Close project" comes back to Start, and the project can be opened again', async () => {
   test.setTimeout(240_000);
-  // The project's own page asks: what it holds, then to be closed. (The dashboard's menu will call the same.)
+  // The project's own page may ask what it holds: a name and a path as a person reads it.
   const info = await page.evaluate(() => (window as unknown as { adminiumDesktop: { project: { info: () => Promise<unknown> } } }).adminiumDesktop.project.info());
   // Outside the (temporary) home folder, so the path is shown whole.
   expect(info).toEqual({ name: 'Demo', displayPath: project.root, mode: 'design' });
 
+  await page.getByRole('button', { name: 'Project: Demo' }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Export this project…', process.platform === 'darwin' ? 'Show in Finder' : process.platform === 'win32' ? 'Show in File Explorer' : 'Show in the file manager', 'Close project']);
   const next = app.waitForEvent('window');
-  void page.evaluate(() => (window as unknown as { adminiumDesktop: { project: { close: () => Promise<boolean> } } }).adminiumDesktop.project.close()).catch(() => undefined);
+  await page.getByRole('menuitem', { name: 'Close project' }).click();
   page = await next;
   await expect(page.getByRole('heading', { name: 'What would you like to do?' })).toBeVisible({ timeout: 60_000 });
   expect(app.windows()).toHaveLength(1);

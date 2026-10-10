@@ -9415,6 +9415,18 @@
     "status": "mt",
     "srcHash": "8cdaaf95efd8"
   },
+  "designer.mode.build": {
+    "status": "mt",
+    "srcHash": "bbd80cf7e2de"
+  },
+  "designer.mode.label": {
+    "status": "mt",
+    "srcHash": "c33d5dfd4fcd"
+  },
+  "designer.mode.share": {
+    "status": "mt",
+    "srcHash": "09ca55ca52d2"
+  },
   "designer.model.add": {
     "status": "mt",
     "srcHash": "5dd98dadf960"
@@ -9938,6 +9950,30 @@
   "designer.preview.wentOnStaff": {
     "status": "mt",
     "srcHash": "2541052f3150"
+  },
+  "designer.project.close": {
+    "status": "mt",
+    "srcHash": "54a9b279c844"
+  },
+  "designer.project.export": {
+    "status": "mt",
+    "srcHash": "eb55fc9a7f9b"
+  },
+  "designer.project.menu": {
+    "status": "mt",
+    "srcHash": "32cb1c5e9515"
+  },
+  "designer.project.showExplorer": {
+    "status": "mt",
+    "srcHash": "7e922b309074"
+  },
+  "designer.project.showFiles": {
+    "status": "mt",
+    "srcHash": "f2aad194e21b"
+  },
+  "designer.project.showFinder": {
+    "status": "mt",
+    "srcHash": "f1ec2b16eed9"
   },
   "designer.provider.anthropic": {
     "status": "src",

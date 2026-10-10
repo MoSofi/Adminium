@@ -730,5 +730,18 @@
   "chat": {
     "copy": "Copy this message",
     "copied": "Copied"
+  },
+  "project": {
+    "menu": "Project: {name}",
+    "export": "Export this project…",
+    "showFinder": "Show in Finder",
+    "showExplorer": "Show in File Explorer",
+    "showFiles": "Show in the file manager",
+    "close": "Close project"
+  },
+  "mode": {
+    "label": "Build or share",
+    "build": "Build",
+    "share": "Share"
   }
 }

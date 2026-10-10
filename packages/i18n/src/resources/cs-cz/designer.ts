@@ -740,5 +740,18 @@ export default {
   "chat": {
     "copy": "Zkopírovat tuto zprávu",
     "copied": "Zkopírováno"
+  },
+  "project": {
+    "menu": "Projekt: {name}",
+    "export": "Exportovat tento projekt…",
+    "showFinder": "Zobrazit ve Finderu",
+    "showExplorer": "Zobrazit v Průzkumníku souborů",
+    "showFiles": "Zobrazit ve správci souborů",
+    "close": "Zavřít projekt"
+  },
+  "mode": {
+    "label": "Stavět, nebo sdílet",
+    "build": "Stavět",
+    "share": "Sdílet"
   }
 } as const;

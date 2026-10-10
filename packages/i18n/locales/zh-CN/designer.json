@@ -730,5 +730,18 @@
   "chat": {
     "copy": "复制这条消息",
     "copied": "已复制"
+  },
+  "project": {
+    "menu": "项目：{name}",
+    "export": "导出此项目…",
+    "showFinder": "在访达中显示",
+    "showExplorer": "在文件资源管理器中显示",
+    "showFiles": "在文件管理器中显示",
+    "close": "关闭项目"
+  },
+  "mode": {
+    "label": "构建或共享",
+    "build": "构建",
+    "share": "共享"
   }
 }

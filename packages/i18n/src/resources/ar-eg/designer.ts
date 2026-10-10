@@ -740,5 +740,18 @@ export default {
   "chat": {
     "copy": "نسخ هذه الرسالة",
     "copied": "تم النسخ"
+  },
+  "project": {
+    "menu": "المشروع: {name}",
+    "export": "تصدير هذا المشروع…",
+    "showFinder": "إظهار في Finder",
+    "showExplorer": "إظهار في مستكشف الملفات",
+    "showFiles": "إظهار في مدير الملفات",
+    "close": "إغلاق المشروع"
+  },
+  "mode": {
+    "label": "البناء أو المشاركة",
+    "build": "بناء",
+    "share": "مشاركة"
   }
 } as const;

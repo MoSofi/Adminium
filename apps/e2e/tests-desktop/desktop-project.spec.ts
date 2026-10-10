@@ -133,6 +133,44 @@ test('a request builds an app, saves a version and shows it', async () => {
   expect(await frame.locator('body').evaluate(() => typeof (window as unknown as { adminiumDesktop?: unknown }).adminiumDesktop)).toBe('undefined');
 });
 
+test('the build page’s first bar holds the project’s button and Build | Share, and still fits at the window’s smallest', async () => {
+  // The seam opened this folder, so its name is the folder's own.
+  const bar = page.locator('header').first();
+  await expect(bar.getByRole('button', { name: 'Project: Demo' })).toBeVisible();
+  await expect(bar.getByRole('radiogroup', { name: 'Build or share' })).toBeVisible();
+
+  const measure = async (): Promise<{ width: number; overflow: number; clipped: string[] }> =>
+    bar.evaluate((header) => {
+      const box = header.getBoundingClientRect();
+      const clipped: string[] = [];
+      for (const control of header.querySelectorAll('a, button, [role="radiogroup"]')) {
+        const at = control.getBoundingClientRect();
+        if (at.width === 0) continue;
+        if (at.left < box.left - 0.5 || at.right > box.right + 0.5) clipped.push((control.getAttribute('aria-label') ?? control.textContent ?? '').trim().slice(0, 40));
+      }
+      return { width: Math.round(box.width), overflow: header.scrollWidth - header.clientWidth, clipped };
+    });
+
+  const sizes = await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    const before = win?.getContentSize() ?? [0, 0];
+    win?.setContentSize(1024, 700);
+    return { before, after: win?.getContentSize() ?? [0, 0] };
+  });
+  expect(sizes.after[0]).toBe(1024);
+  await expect.poll(async () => (await measure()).width).toBe(1024);
+  const small = await measure();
+  expect(small.clipped).toEqual([]);
+  expect(small.overflow).toBeLessThanOrEqual(0);
+  // Every control of the bar is still there to press.
+  for (const name of ['Project: Demo', 'Switch to dark theme', 'Language']) await expect(bar.getByRole('button', { name })).toBeVisible();
+  await expect(bar.getByRole('link', { name: 'Open Dashboard' })).toBeVisible();
+
+  await app.evaluate(({ BrowserWindow }, size) => {
+    BrowserWindow.getAllWindows()[0]?.setContentSize(size[0] ?? 1440, size[1] ?? 900);
+  }, sizes.before);
+});
+
 test('quitting in the middle of a turn asks first, and “keep working” keeps the app', async () => {
   test.setTimeout(240_000);
   // The native question, answered "Keep working" and written down.
