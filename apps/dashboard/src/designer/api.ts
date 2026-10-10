@@ -35,6 +35,8 @@ export interface DesignerState {
   active: { sessionId: string; turn: number } | null;
   /** The person asking is the owner `design` made, still with no password. */
   ownerNeedsPassword?: boolean;
+  /** Names in the project's `.env` the app did not obey (it decides them itself). */
+  ignoredEnv?: string[];
 }
 
 /** Who the preview signs in as: the dashboard says so when it is opened as them outside the Designer's frame. */
@@ -404,7 +406,7 @@ export const designerApi = {
   fileContent: (id: string, path: string) => api.get<{ path: string; content: string; hash: string }>(`${BASE}/sessions/${id}/files/content?path=${encodeURIComponent(path)}`),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   /** A one-use link that signs this project's local owner in from the system's browser, landing on `to` (a path). */
-  browserLink: (to: string) => api.post<{ data: { url: string } }>('/auth/design-link', { to }),
+  browserLink: (to: string) => api.post<{ data: { url: string } }>('/api/v1/auth/design-link', { to }),
   setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
   createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; text?: string; /** With `text`: this page will show the preview and say what it sees. */ sees?: boolean }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
