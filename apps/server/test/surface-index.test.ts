@@ -20,7 +20,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { AdminiumServer } from '../src/app.js';
 import { discoverSurfaces, type HostedSurface } from '../src/cli/surfaces-root.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
-import { MILO_LOADER_PATH, MILO_LOADER_TAG, withLoader } from '../src/plugins/surface-index.js';
+import { MILO_LOADER_PATH, miloLoaderTag, withLoader } from '../src/plugins/surface-index.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import type { DomainMapping } from '../src/surfaces/settings.js';
 import { ADMIN_PASSWORD, adminPasswordHash, buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
@@ -28,6 +28,7 @@ import { ADMIN_PASSWORD, adminPasswordHash, buildAuthApp, login, type AuthTestAp
 const DASH_HTML = '<!doctype html><html><body data-app="dashboard"></body></html>';
 const STAFF_HTML = '<!doctype html><html><body data-app="clients-staff"><p>desk</p></body></html>';
 const CUSTOMER_HTML = '<!doctype html><html><body data-app="clients-customer"></body></html>';
+const MILO_LOADER_TAG = miloLoaderTag('clients');
 const WITH_TAG = `<!doctype html><html><body data-app="clients-staff"><p>desk</p>${MILO_LOADER_TAG}</body></html>`;
 
 const NAVIGATE = { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', accept: 'text/html' };
@@ -98,12 +99,14 @@ const get = (app: AdminiumServer, url: string, headers: Record<string, string> =
 
 describe('the page with the loader', () => {
   it('is the file with one tag before its last </body>, or nothing when the file cannot take one', () => {
-    expect(withLoader(Buffer.from(STAFF_HTML))).toBe(WITH_TAG);
+    expect(withLoader(Buffer.from(STAFF_HTML), 'clients')).toBe(WITH_TAG);
     // The LAST one: a page that prints "</body>" in a script is not cut there.
-    expect(withLoader(Buffer.from('<body><script>"</body>"</script></BODY>'))).toBe(`<body><script>"</body>"</script>${MILO_LOADER_TAG}</BODY>`);
-    expect(withLoader(Buffer.from('<p>no body tag</p>'))).toBeNull();
+    expect(withLoader(Buffer.from('<body><script>"</body>"</script></BODY>'), 'clients')).toBe(`<body><script>"</body>"</script>${MILO_LOADER_TAG}</BODY>`);
+    expect(withLoader(Buffer.from('<p>no body tag</p>'), 'clients')).toBeNull();
     // Not UTF-8: left alone, never re-encoded.
-    expect(withLoader(Buffer.from([0x3c, 0x62, 0x6f, 0x64, 0x79, 0x3e, 0xff, 0xfe, 0x3c, 0x2f, 0x62, 0x6f, 0x64, 0x79, 0x3e]))).toBeNull();
+    expect(withLoader(Buffer.from([0x3c, 0x62, 0x6f, 0x64, 0x79, 0x3e, 0xff, 0xfe, 0x3c, 0x2f, 0x62, 0x6f, 0x64, 0x79, 0x3e]), 'clients')).toBeNull();
+    // The key is written into the page: only what a key is made of gets there.
+    expect(miloLoaderTag('cli"><x')).toContain('data-app="clix"');
   });
 });
 

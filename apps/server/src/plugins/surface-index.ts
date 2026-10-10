@@ -14,7 +14,7 @@
  * On a STAFF side, to a signed-in person who may use the assistant, the page
  * is sent with one tag before its last `</body>`:
  *
- *   <script type="module" src="/assets/milo/loader.js" data-milo-loader></script>
+ *   <script type="module" src="/assets/milo/loader.js" data-milo-loader data-app="<key>"></script>
  *
  * The loader is a file of the dashboard's own build, same-origin, so the
  * page's content policy allows it as it stands. Everything else of the page
@@ -50,8 +50,10 @@ const ASSISTANT_USE = 'system:assistant:use';
 /** Where the loader is served from: a file of the dashboard's build. */
 export const MILO_LOADER_PATH = '/assets/milo/loader.js';
 
-/** The one tag the server adds. */
-export const MILO_LOADER_TAG = `<script type="module" src="${MILO_LOADER_PATH}" data-milo-loader></script>`;
+/** The one tag the server adds: the loader, told which app's page it is on (a key is letters, digits and dashes). */
+export function miloLoaderTag(appKey: string): string {
+  return `<script type="module" src="${MILO_LOADER_PATH}" data-milo-loader data-app="${appKey.replace(/[^a-z0-9-]/gi, '')}"></script>`;
+}
 
 /** What the door needs to know of the assistant on this server. */
 export interface SurfaceAssistant {
@@ -64,6 +66,7 @@ export interface SurfaceAssistant {
 interface IndexSurface {
   root: string;
   side: string;
+  appKey: string;
 }
 
 interface Rewritten {
@@ -77,7 +80,7 @@ interface Rewritten {
 const pages = new Map<string, Rewritten>();
 
 /** The page with the loader before its last `</body>`, or null when the file is not one this can be said of. */
-export function withLoader(bytes: Buffer): string | null {
+export function withLoader(bytes: Buffer, appKey: string): string | null {
   let html: string;
   try {
     html = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
@@ -86,10 +89,10 @@ export function withLoader(bytes: Buffer): string | null {
   }
   const at = html.toLowerCase().lastIndexOf('</body>');
   if (at === -1) return null;
-  return `${html.slice(0, at)}${MILO_LOADER_TAG}${html.slice(at)}`;
+  return `${html.slice(0, at)}${miloLoaderTag(appKey)}${html.slice(at)}`;
 }
 
-async function pageWithLoader(root: string): Promise<string | null> {
+async function pageWithLoader(root: string, appKey: string): Promise<string | null> {
   const path = join(root, 'index.html');
   let info;
   try {
@@ -99,7 +102,7 @@ async function pageWithLoader(root: string): Promise<string | null> {
   }
   const held = pages.get(root);
   if (held !== undefined && held.mtimeMs === info.mtimeMs && held.size === info.size) return held.html;
-  const html = withLoader(await readFile(path));
+  const html = withLoader(await readFile(path), appKey);
   pages.set(root, { mtimeMs: info.mtimeMs, size: info.size, html });
   return html;
 }
@@ -126,7 +129,7 @@ export async function loaderGoesWith(request: FastifyRequest, surface: IndexSurf
  */
 export async function sendSurfaceIndex(request: FastifyRequest, reply: FastifyReply, surface: IndexSurface, assistant?: SurfaceAssistant): Promise<FastifyReply> {
   if (await loaderGoesWith(request, surface, assistant)) {
-    const html = await pageWithLoader(surface.root);
+    const html = await pageWithLoader(surface.root, surface.appKey);
     if (html !== null) {
       void reply
         .header('content-type', 'text/html; charset=utf-8')
