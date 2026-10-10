@@ -89,6 +89,8 @@ export const rulePartsTool: AssistantTool = {
         reads: family.placeholders,
         // What the step must give through "vars": read with no backup of its own, and not a column of this table.
         mustFill: family.placeholders.filter((name) => !backed.has(name) && !ruleFills.has(name)),
+        // Read with a backup of their own ("Thanks, there!"): nothing must fill them, and the mail reads better when "vars" does.
+        betterFilled: family.placeholders.filter((name) => backed.has(name) && !ruleFills.has(name)),
       };
     });
 
@@ -135,7 +137,7 @@ export const rulePartsTool: AssistantTool = {
         roles: (await rolesRepo(deps.meta).list()).slice(0, 30).map((role) => ({ id: role.id, name: role.name })),
         notes: [
           reachable.length === 0 ? 'No column of this table, or of a row it links to, holds email addresses: an email step needs typed addresses, or cannot be made.' : 'An email step\'s `to` column is one of addressColumns, exactly as written.',
-          templates.length === 0 ? (words.length === 0 ? 'No live email template exists: an email step cannot be completed. Say so, and offer to draft one on Email templates.' : 'No live template matches those words. Call again without `find`, or say that none fits and offer to draft one on Email templates.') : 'Name a template by its key. Fill every name in its mustFill through the step\'s "vars".',
+          templates.length === 0 ? (words.length === 0 ? 'No live email template exists: an email step cannot be completed. Say so, and offer to draft one on Email templates.' : 'No live template matches those words. Call again without `find`, or say that none fits and offer to draft one on Email templates.') : 'Name a template by its key. Fill every name in its mustFill through the step\'s "vars"; fill a name in betterFilled too when a column of the record, or of a row it links to, holds it ("first_name": "{{record.customer_id.first_name}}").',
           steps.length === 0 ? 'No installed add-on gives a step. What only an add-on could do, leave out and say so in "leftOut"; then call list_add_ons and put in "suggest" the key of one that would give it.' : 'An add-on\'s step is named by its addOn and step keys, with a text for each input.',
         ],
       },

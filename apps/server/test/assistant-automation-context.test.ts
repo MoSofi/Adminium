@@ -159,7 +159,7 @@ for (const [dialect, available] of legs) {
       expect(result).toMatchObject({ table: s.table.stays, events: ['created', 'updated', 'deleted'], addressColumns: ['guest_id.email'] });
       const templates = result!['templates'] as { key: string; reads: string[]; mustFill: string[] }[];
       // `note` is a column of the stay, `city` says its own backup, the guest's name is one link away: only the first name is the step's to fill.
-      expect(templates.find((one) => one.key === 'p64-thanks')).toMatchObject({ name: 'Thank you for staying', reads: ['first_name', 'note', 'city', 'record.guest_id.name'], mustFill: ['first_name'] });
+      expect(templates.find((one) => one.key === 'p64-thanks')).toMatchObject({ name: 'Thank you for staying', reads: ['first_name', 'note', 'city', 'record.guest_id.name'], mustFill: ['first_name'], betterFilled: ['city'] });
       expect(templates.find((one) => one.key === 'p64-plain')).toMatchObject({ mustFill: [] });
       expect(result!['steps']).toEqual([
         {
