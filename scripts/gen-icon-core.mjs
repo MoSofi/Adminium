@@ -133,6 +133,8 @@ const SWEEP_IGNORE = [
   // same local map — the five node kinds, the six picker actions, the four
   // logic tiles, the seven run statuses and the five trace tones.
   'apps/dashboard/src/automations/model/vocabulary.ts',
+  // A step an add-on gives: its one glyph (`puzzle`) is in the same local map.
+  'apps/dashboard/src/automations/model/addOnSteps.ts',
   'apps/dashboard/src/automations/AutomationRulesPage.tsx',
   'apps/dashboard/src/automations/WorkflowLogsPage.tsx',
   // The page assistant (44): one modal, `lazy()`-loaded from three lazy
@@ -142,6 +144,8 @@ const SWEEP_IGNORE = [
   // card's actions, per page, in `contexts.ts`; everywhere else the slug is a
   // positional argument the sweep never sees.
   'apps/dashboard/src/assistant/contexts.ts',
+  // The rule draft's one own action ("Apply to this rule"), drawn by the same row through `assistantIcon`.
+  'apps/dashboard/src/assistant/dock/LiveDraft.tsx',
 ];
 
 /** Files whose curated arrays are icon vocabularies in full. */
