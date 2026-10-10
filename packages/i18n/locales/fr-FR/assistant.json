@@ -69,6 +69,17 @@
     "noticeOk": "OK",
     "ownService": "le service de modèles de votre espace de travail"
   },
+  "speak": {
+    "play": "Lire à voix haute",
+    "stop": "Arrêter la lecture",
+    "settings": "Lecture à voix haute",
+    "readAloud": "Lire les réponses à voix haute",
+    "speed": "Vitesse",
+    "voice": "Voix",
+    "voiceDefault": "Celle du navigateur",
+    "draft": "Il y a un brouillon à regarder.",
+    "proposal": "J’ai affiché à l’écran ce qui changerait, pour que vous le regardiez."
+  },
   "confirm": {
     "cancel": "Annuler"
   },

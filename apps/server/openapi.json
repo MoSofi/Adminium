@@ -109609,13 +109609,41 @@
                         },
                         "maxSeconds": {
                           "type": "number"
+                        },
+                        "mine": {
+                          "type": "object",
+                          "properties": {
+                            "readAloud": {
+                              "type": "boolean"
+                            },
+                            "rate": {
+                              "type": "number"
+                            },
+                            "voice": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "readAloud",
+                            "rate",
+                            "voice"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "input",
                         "to",
                         "output",
-                        "maxSeconds"
+                        "maxSeconds",
+                        "mine"
                       ],
                       "additionalProperties": false
                     },
@@ -109657,6 +109685,79 @@
                     "maxRows",
                     "voice",
                     "budget"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/voice/mine": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "readAloud": {
+                    "type": "boolean"
+                  },
+                  "rate": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 2
+                  },
+                  "voice": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "readAloud": {
+                      "type": "boolean"
+                    },
+                    "rate": {
+                      "type": "number"
+                    },
+                    "voice": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "readAloud",
+                    "rate",
+                    "voice"
                   ],
                   "additionalProperties": false
                 }

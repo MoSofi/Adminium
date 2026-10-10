@@ -79,6 +79,17 @@ export default {
     "noticeOk": "好",
     "ownService": "您工作區的模型服務"
   },
+  "speak": {
+    "play": "朗讀",
+    "stop": "停止朗讀",
+    "settings": "朗讀",
+    "readAloud": "朗讀回覆",
+    "speed": "速度",
+    "voice": "語音",
+    "voiceDefault": "瀏覽器內建的",
+    "draft": "有一份草稿供您查看。",
+    "proposal": "我已把將要變更的內容顯示在畫面上，供您查看。"
+  },
   "confirm": {
     "cancel": "取消"
   },

@@ -69,6 +69,17 @@
     "noticeOk": "OK",
     "ownService": "den Modelldienst Ihres Arbeitsbereichs"
   },
+  "speak": {
+    "play": "Vorlesen",
+    "stop": "Vorlesen beenden",
+    "settings": "Vorlesen",
+    "readAloud": "Antworten vorlesen",
+    "speed": "Tempo",
+    "voice": "Stimme",
+    "voiceDefault": "Die des Browsers",
+    "draft": "Es gibt einen Entwurf, den Sie sich ansehen können.",
+    "proposal": "Ich habe auf dem Bildschirm gezeigt, was sich ändern würde."
+  },
   "confirm": {
     "cancel": "Abbrechen"
   },

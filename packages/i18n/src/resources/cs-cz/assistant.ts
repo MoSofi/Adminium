@@ -79,6 +79,17 @@ export default {
     "noticeOk": "OK",
     "ownService": "modelová služba vašeho pracovního prostoru"
   },
+  "speak": {
+    "play": "Přečíst nahlas",
+    "stop": "Zastavit čtení",
+    "settings": "Čtení nahlas",
+    "readAloud": "Číst odpovědi nahlas",
+    "speed": "Rychlost",
+    "voice": "Hlas",
+    "voiceDefault": "Vlastní hlas prohlížeče",
+    "draft": "Je tu návrh, na který se můžete podívat.",
+    "proposal": "Na obrazovce jsem ukázal, co by se změnilo, abyste se na to mohli podívat."
+  },
   "confirm": {
     "cancel": "Zrušit"
   },

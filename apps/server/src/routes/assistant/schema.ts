@@ -89,7 +89,14 @@ export const assistantAvailabilityReply = z.object({
    * `to` names the service for the one-time notice. `output`: whether replies
    * may be read aloud (by the browser's own voice).
    */
-  voice: z.object({ input: z.enum(['provider', 'browser', 'none']), to: z.string().nullable(), output: z.boolean(), maxSeconds: z.number() }),
+  voice: z.object({
+    input: z.enum(['provider', 'browser', 'none']),
+    to: z.string().nullable(),
+    output: z.boolean(),
+    maxSeconds: z.number(),
+    /** This person's own choices for replies read aloud. */
+    mine: z.object({ readAloud: z.boolean(), rate: z.number(), voice: z.string().nullable() }),
+  }),
   /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
   budget: z.object({
     limit: z.number(),
@@ -373,3 +380,10 @@ export const assistantTranscribeReply = z.object({
   seconds: z.number(),
   allowance: z.object({ limitSeconds: z.number(), usedSeconds: z.number(), resetsAt: z.number() }),
 });
+
+/** `PUT /assistant/voice/mine` — a person's own choices for replies read aloud; what is left out is kept. */
+export const assistantVoiceMineBody = z
+  .object({ readAloud: z.boolean(), rate: z.number().min(0.5).max(2), voice: z.string().min(1).max(200).nullable() })
+  .partial()
+  .strict();
+export const assistantVoiceMineReply = z.object({ readAloud: z.boolean(), rate: z.number(), voice: z.string().nullable() });

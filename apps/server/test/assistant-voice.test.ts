@@ -9,7 +9,7 @@
  * record this server keeps.
  */
 import { ProviderError, type ProviderClient, type TranscribeRequest } from '@adminium/llm';
-import { assistantUseDay, assistantUseRepo, auditRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { assistantUseDay, assistantUseRepo, auditRepo, permissionsRepo, rolesRepo, settingsRepo, userPrefsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { VOICE_MAX_BYTES, recordingSeconds, voiceWay } from '../src/assistant/voice.js';
@@ -93,7 +93,7 @@ describe('how a recording becomes text here', () => {
   });
 
   it('is told to the panel, with where the voice goes', async () => {
-    expect((await availability()).voice).toEqual({ input: 'provider', to: 'openai', output: true, maxSeconds: 120 });
+    expect((await availability()).voice).toEqual({ input: 'provider', to: 'openai', output: true, maxSeconds: 120, mine: { readAloud: false, rate: 1, voice: null } });
     provider = 'anthropic';
     expect((await availability()).voice).toMatchObject({ input: 'browser' });
     await settingsRepo(t.meta).set('assistant.voice.input', false);
@@ -121,6 +121,23 @@ describe('the workspace\'s choices', () => {
     expect((await put({ dailyMinutes: 2_000 })).statusCode).toBe(422);
     expect((await put({ speed: 2 })).statusCode).toBe(422);
     await put({ output: true });
+  });
+});
+
+describe('a person\'s own choices for replies read aloud', () => {
+  it('are theirs alone, changed one at a time, and keep the rest of what their screens remember', async () => {
+    const mine = (payload: unknown, as = t.users.admin) => t.app.inject({ method: 'PUT', url: '/api/v1/assistant/voice/mine', headers: asUser(as), payload: payload as never });
+    await userPrefsRepo(t.meta).set(t.users.admin.id, { uiState: { railCollapsed: true } }, Date.now());
+    expect((await mine({ readAloud: true })).json()).toEqual({ readAloud: true, rate: 1, voice: null });
+    expect((await mine({ rate: 1.25, voice: 'com.apple.voice.Anna' })).json()).toEqual({ readAloud: true, rate: 1.25, voice: 'com.apple.voice.Anna' });
+    expect((await availability()).voice['mine']).toEqual({ readAloud: true, rate: 1.25, voice: 'com.apple.voice.Anna' });
+    // The rest of their screen state is as it was.
+    expect((await userPrefsRepo(t.meta).get(t.users.admin.id))?.uiState).toMatchObject({ railCollapsed: true });
+    // Out of range, or anything else, is refused; a person without the assistant has no such choices.
+    expect((await mine({ rate: 9 })).statusCode).toBe(422);
+    expect((await mine({ volume: 1 })).statusCode).toBe(422);
+    expect((await mine({ readAloud: true }, t.users.viewer)).statusCode).toBe(403);
+    expect((await mine({ voice: null, readAloud: false })).json()).toEqual({ readAloud: false, rate: 1.25, voice: null });
   });
 });
 

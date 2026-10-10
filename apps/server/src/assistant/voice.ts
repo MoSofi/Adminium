@@ -26,7 +26,7 @@
  * The recording itself is kept nowhere: not stored, not logged, not in the
  * audit, which says who dictated and for how many seconds.
  */
-import { assistantUseDay, assistantUseRepo, assistantUseResetsAt, settingsRepo, type MetaDb } from '@adminium/meta';
+import { assistantUseDay, assistantUseRepo, assistantUseResetsAt, settingsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
 
 /** The longest one recording may be. */
 export const VOICE_MAX_SECONDS = 120;
@@ -99,4 +99,48 @@ export async function reserveVoice(
     throw error;
   }
   return { ok: true, release: () => underWay.delete(userId) };
+}
+
+// ─── the assistant speaking: one person's own choices ─────────────────────────
+
+/**
+ * Reading replies aloud is the browser's own voice: nothing leaves the
+ * browser, and nothing of it is the server's except these three choices of
+ * one person, kept beside their theme and language so they follow them from
+ * one device to the next: whether replies are read as they arrive (off until
+ * they switch it on), how fast, and in which of the browser's voices.
+ */
+export interface VoiceChoices {
+  readAloud: boolean;
+  /** 0.5 to 2; 1 is the voice's own pace. */
+  rate: number;
+  /** A voice of the browser's, by its own address; null for the browser's choice. */
+  voice: string | null;
+}
+
+const UI_KEY = 'assistantVoice';
+export const VOICE_DEFAULTS: VoiceChoices = { readAloud: false, rate: 1, voice: null };
+
+/** What is stored, read as what it may be: anything else is the default. */
+export function voiceChoicesOf(uiState: unknown): VoiceChoices {
+  const held = (uiState as Record<string, unknown> | null)?.[UI_KEY] as Partial<VoiceChoices> | undefined;
+  const rate = typeof held?.rate === 'number' && Number.isFinite(held.rate) ? Math.min(2, Math.max(0.5, held.rate)) : VOICE_DEFAULTS.rate;
+  return {
+    readAloud: held?.readAloud === true,
+    rate,
+    voice: typeof held?.voice === 'string' && held.voice !== '' ? held.voice.slice(0, 200) : null,
+  };
+}
+
+export async function readVoiceChoices(meta: MetaDb, userId: string): Promise<VoiceChoices> {
+  return voiceChoicesOf((await userPrefsRepo(meta).get(userId))?.uiState ?? null);
+}
+
+/** Change what is named, keep the rest, and keep everything else the person's screen state holds. */
+export async function writeVoiceChoices(meta: MetaDb, userId: string, change: Partial<VoiceChoices>, at: number): Promise<VoiceChoices> {
+  const repo = userPrefsRepo(meta);
+  const state = (await repo.get(userId))?.uiState ?? {};
+  const next = voiceChoicesOf({ [UI_KEY]: { ...voiceChoicesOf(state), ...change } });
+  await repo.set(userId, { uiState: { ...state, [UI_KEY]: next } }, at);
+  return next;
 }

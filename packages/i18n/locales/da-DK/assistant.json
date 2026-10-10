@@ -69,6 +69,17 @@
     "noticeOk": "OK",
     "ownService": "dit arbejdsområdes modeltjeneste"
   },
+  "speak": {
+    "play": "Læs højt",
+    "stop": "Stop oplæsning",
+    "settings": "Oplæsning",
+    "readAloud": "Læs svar højt",
+    "speed": "Hastighed",
+    "voice": "Stemme",
+    "voiceDefault": "Browserens egen",
+    "draft": "Der er et udkast, du kan se på.",
+    "proposal": "Jeg har vist på skærmen, hvad der ville ændre sig, så du kan se på det."
+  },
   "confirm": {
     "cancel": "Annullér"
   },

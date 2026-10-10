@@ -7,9 +7,9 @@
  * and the page. Split so every state of the panel can be drawn on its own,
  * in a story or a test, without a conversation behind it.
  */
-import { cn } from '@adminium/ui';
-import { ArrowUp, CircleAlert, Ellipsis, Hourglass, ListFilter, LoaderCircle, MessageSquarePlus, Mic, MicOff, Rows3, Sparkles, Square, SquareCheck, Timer, X } from 'lucide-react';
-import { useId, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { Select, Switch, cn } from '@adminium/ui';
+import { ArrowUp, CircleAlert, Ellipsis, Hourglass, ListFilter, LoaderCircle, MessageSquarePlus, Mic, MicOff, Rows3, Sparkles, Square, SquareCheck, Timer, Volume2, X } from 'lucide-react';
+import { useId, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 
 import { t } from '../../i18n/t.js';
 import { ChipList } from '../parts/ChipList.js';
@@ -41,6 +41,24 @@ export interface MicView {
   onToggle: () => void;
 }
 
+/**
+ * The person's own choices for replies read aloud, behind the header's
+ * speaker. Absent: no speaker (the workspace has reading aloud off, or this
+ * browser has no voice for the person's language).
+ */
+export interface VoiceMenuView {
+  readAloud: boolean;
+  onReadAloud: (next: boolean) => void;
+  rate: number;
+  onRate: (next: number) => void;
+  /** The browser's voices for the person's language; the choice is drawn only when there are several. */
+  voices: readonly { uri: string; name: string }[];
+  voice: string | null;
+  onVoice: (uri: string | null) => void;
+}
+
+const RATES: readonly number[] = [0.75, 1, 1.25, 1.5];
+
 export interface PanelViewProps {
   layout: DockLayout;
   name: string;
@@ -68,6 +86,8 @@ export interface PanelViewProps {
   blocked: boolean;
   /** Speaking to the assistant; absent where it cannot be done. */
   mic?: MicView | undefined;
+  /** The assistant speaking: this person's choices; absent where it cannot. */
+  voice?: VoiceMenuView | undefined;
   working: boolean;
   onStop: () => void;
   nextTurnTokens: number;
@@ -105,6 +125,7 @@ export function PanelView({
   placeholder,
   blocked,
   mic,
+  voice,
   working,
   onStop,
   nextTurnTokens,
@@ -119,6 +140,8 @@ export function PanelView({
   const floating = layout !== 'docked';
   const ChipIcon = chip === null ? null : chip.icon === 'selection' ? SquareCheck : chip.icon === 'record' ? Rows3 : ListFilter;
   const sendIdle = input.trim() === '';
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const voiceId = useId();
   const listening = mic?.state === 'listening';
   const micBusy = mic !== undefined && mic.state !== 'idle';
   // While the microphone is asked for or the words are being written down, the field says so.
@@ -176,6 +199,20 @@ export function PanelView({
             {lookingAt}
           </p>
         </div>
+        {voice === undefined ? null : (
+          <button
+            type="button"
+            data-testid="assistant-voice"
+            className={cn(HEADER_BUTTON, voiceOpen && 'border-accent text-accent')}
+            aria-expanded={voiceOpen}
+            aria-controls={voiceId}
+            onClick={() => setVoiceOpen((open) => !open)}
+            aria-label={t('assistant:speak.settings', 'Reading aloud')}
+            title={t('assistant:speak.settings', 'Reading aloud')}
+          >
+            <Volume2 className="size-4" aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           data-testid="assistant-new"
@@ -200,6 +237,45 @@ export function PanelView({
       </header>
 
       {bars}
+
+      {voice === undefined || !voiceOpen ? null : (
+        // The person's own choices for replies read aloud: kept for them, on every device.
+        <div id={voiceId} data-testid="assistant-voice-choices" className="flex shrink-0 flex-col gap-2.5 border-b border-border bg-surface px-4 py-3">
+          <label className="flex items-center gap-2.5 text-[12.5px] font-bold text-fg">
+            <Switch data-testid="assistant-read-aloud" checked={voice.readAloud} onCheckedChange={voice.onReadAloud} aria-label={t('assistant:speak.readAloud', 'Read replies aloud')} />
+            <span aria-hidden="true">{t('assistant:speak.readAloud', 'Read replies aloud')}</span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="flex items-center gap-1.5 text-[11.5px] font-semibold text-fg-muted">
+              <span>{t('assistant:speak.speed', 'Speed')}</span>
+              <Select data-testid="assistant-voice-rate" value={String(voice.rate)} onChange={(event) => voice.onRate(Number(event.target.value))} className="h-7 py-0 text-[12px]">
+                {(RATES.includes(voice.rate) ? RATES : [...RATES, voice.rate].sort((a, b) => a - b)).map((rate) => (
+                  <option key={rate} value={String(rate)}>{`${String(rate)}×`}</option>
+                ))}
+              </Select>
+            </label>
+            {voice.voices.length < 2 ? null : (
+              <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11.5px] font-semibold text-fg-muted">
+                <span>{t('assistant:speak.voice', 'Voice')}</span>
+                <Select
+                  data-testid="assistant-voice-pick"
+                  value={voice.voice ?? ''}
+                  onChange={(event) => voice.onVoice(event.target.value === '' ? null : event.target.value)}
+                  className="h-7 min-w-0 py-0 text-[12px]"
+                  wrapperClassName="min-w-0 flex-1"
+                >
+                  <option value="">{t('assistant:speak.voiceDefault', 'The browser’s own')}</option>
+                  {voice.voices.map((one) => (
+                    <option key={one.uri} value={one.uri}>
+                      {one.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── thread ─────────────────────────────────────────────────────────── */}
       <div data-testid="assistant-thread" className="min-h-0 flex-1 overflow-y-auto bg-bg px-4 py-[18px]">

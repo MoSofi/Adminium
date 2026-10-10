@@ -1659,6 +1659,42 @@
     "status": "mt",
     "srcHash": "9268b7604b20"
   },
+  "assistant.speak.draft": {
+    "status": "mt",
+    "srcHash": "7fb1d19c488c"
+  },
+  "assistant.speak.play": {
+    "status": "mt",
+    "srcHash": "562107b866b5"
+  },
+  "assistant.speak.proposal": {
+    "status": "mt",
+    "srcHash": "a85b68cb0510"
+  },
+  "assistant.speak.readAloud": {
+    "status": "mt",
+    "srcHash": "b88cd8a24201"
+  },
+  "assistant.speak.settings": {
+    "status": "mt",
+    "srcHash": "eafb556167bc"
+  },
+  "assistant.speak.speed": {
+    "status": "mt",
+    "srcHash": "2d2cb022bc3d"
+  },
+  "assistant.speak.stop": {
+    "status": "mt",
+    "srcHash": "24fc8907a423"
+  },
+  "assistant.speak.voice": {
+    "status": "mt",
+    "srcHash": "3091c8446f8d"
+  },
+  "assistant.speak.voiceDefault": {
+    "status": "mt",
+    "srcHash": "6d71fe212070"
+  },
   "assistant.steps.done": {
     "status": "mt",
     "srcHash": "e5fd9cfe0e80"

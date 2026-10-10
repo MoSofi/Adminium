@@ -328,3 +328,50 @@ export const MicTheOneTimeNotice = {
   tags: ['vrt'],
   render: () => <Panel mic={{ ...MIC, notice: 'What you say is sent to OpenAI to be written down. Nothing is kept.' }}>{IDLE}</Panel>,
 };
+
+// ── the assistant speaking (comp 21) ────────────────────────────────────────
+function Spoken({ speaking }: { speaking: boolean }) {
+  const value = turn({});
+  return (
+    <TurnView
+      turn={value}
+      live={false}
+      liveSteps={[]}
+      answered={false}
+      workTitle="Read the data"
+      context={value.context}
+      name="Milo"
+      canConfigure
+      newest
+      blocked={false}
+      onAsk={noop}
+      onOpenAddOn={noop}
+      askedOn="on Customers"
+      picks={{}}
+      onPick={noop}
+      onGo={noop}
+      onRetry={noop}
+      renderResult={() => null}
+      speech={{ speaking, onToggle: noop }}
+    />
+  );
+}
+
+const VOICE = { readAloud: true, onReadAloud: noop, rate: 1, onRate: noop, voices: [{ uri: 'a', name: 'Samantha' }, { uri: 'b', name: 'Daniel' }], voice: null, onVoice: noop };
+
+export const AReplyWithItsSpeaker = {
+  tags: ['vrt'],
+  render: () => (
+    <Panel voice={VOICE}>
+      <Spoken speaking={false} />
+    </Panel>
+  ),
+};
+
+export const AReplyBeingRead = {
+  render: () => (
+    <Panel voice={VOICE}>
+      <Spoken speaking />
+    </Panel>
+  ),
+};

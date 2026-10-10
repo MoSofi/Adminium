@@ -108,6 +108,32 @@ In the **desktop app** the microphone is the only browser permission that is
 ever allowed, for audio only, and only while the switch is on. macOS asks once
 for the microphone, by the app's name.
 
+## Having it read to you
+
+Each reply has a speaker at its end: press it to hear the reply, press it again
+to stop. The panel's header has a speaker too, with your own choices:
+
+- **Read replies aloud**: each reply is read as it arrives. Off until you
+  switch it on.
+- **Speed**, and a **voice** where your browser has several for your language.
+
+Your choices are kept with your account, so they are the same on your other
+devices. The reading is done by your browser's own voice: nothing is sent
+anywhere for it.
+
+- It reads what the assistant **said**. For a draft or a change it adds one
+  short line ("There is a draft for you to look at."); it never reads the
+  draft, the table or the list of changes itself.
+- It stops when you press stop, press Escape, send a new message, close the
+  panel, or open the microphone.
+- It never starts by itself when a page loads: only replies that arrive while
+  the panel is open are read.
+- Where your browser has no voice for your language, there is no speaker.
+- Confirming a change is always a click. Nothing is confirmed by voice.
+
+An administrator can switch reading aloud off for the whole workspace in
+**Settings → AI → Voice**.
+
 ## What it never does
 
 - **It never writes.** The model's last move is a draft. Creating the row is a

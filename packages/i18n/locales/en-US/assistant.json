@@ -69,6 +69,17 @@
     "noticeOk": "OK",
     "ownService": "your workspace’s model service"
   },
+  "speak": {
+    "play": "Read aloud",
+    "stop": "Stop reading",
+    "settings": "Reading aloud",
+    "readAloud": "Read replies aloud",
+    "speed": "Speed",
+    "voice": "Voice",
+    "voiceDefault": "The browser’s own",
+    "draft": "There is a draft for you to look at.",
+    "proposal": "I have put what would change on the screen for you to look at."
+  },
   "confirm": {
     "cancel": "Cancel"
   },

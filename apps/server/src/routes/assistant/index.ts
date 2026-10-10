@@ -57,7 +57,7 @@ import { dataPageOf } from '../../assistant/data-page.js';
 import { applyProposal, checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
 import { viewOrError } from '../../assistant/tools/schema.js';
 import { readAllowance } from '../../assistant/allowance.js';
-import { VOICE_MAX_BYTES, VOICE_MAX_SECONDS, VOICE_TYPES, readVoiceAllowance, recordingSeconds, reserveVoice, voiceWay } from '../../assistant/voice.js';
+import { VOICE_MAX_BYTES, VOICE_MAX_SECONDS, VOICE_TYPES, readVoiceAllowance, readVoiceChoices, recordingSeconds, reserveVoice, voiceWay, writeVoiceChoices } from '../../assistant/voice.js';
 import { listedAddOns } from '../../assistant/tools/add-ons.js';
 import type { AssistantAddOn, AssistantToolDeps } from '../../assistant/types.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
@@ -76,6 +76,8 @@ import {
   assistantFactsBody,
   assistantTranscribeQuery,
   assistantTranscribeReply,
+  assistantVoiceMineBody,
+  assistantVoiceMineReply,
   assistantFactsReply,
   assistantSessionCreateBody,
   assistantSessionCreateReply,
@@ -381,6 +383,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             to: state.provider,
             output: await settings.get('assistant.voice.output'),
             maxSeconds: VOICE_MAX_SECONDS,
+            mine: await readVoiceChoices(meta, requireUserId(request)),
           },
           budget: await readAllowance(meta, requireUserId(request), app.rbac.now()),
         };
@@ -395,6 +398,16 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
      * never in the request log), and the audit says who and how long, never
      * what was said.
      */
+    app.put(
+      '/assistant/voice/mine',
+      {
+        preHandler: guard,
+        config: { audit: auditExempt('a person’s own choice of how replies are read aloud to them: a preference, like their theme') },
+        schema: { body: assistantVoiceMineBody, response: { 200: assistantVoiceMineReply } },
+      },
+      async (request) => writeVoiceChoices(meta, requireUserId(request), Object.fromEntries(Object.entries(request.body).filter(([, value]) => value !== undefined)), app.rbac.now()),
+    );
+
     for (const type of VOICE_TYPES) {
       app.addContentTypeParser(type, { parseAs: 'buffer', bodyLimit: VOICE_MAX_BYTES }, (_request, body, done) => {
         done(null, body);
