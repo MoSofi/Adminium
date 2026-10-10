@@ -9,13 +9,20 @@
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import Database from 'better-sqlite3';
 
 import { ProjectHarness } from '../tests/projectHarness.js';
 import { closeDesktop, launchDesktop } from './helpers/launch.js';
+
+/** The engine's own SQLite library, as far as this spec uses it (it ships no types of its own). */
+interface Store {
+  prepare(sql: string): { run(...values: unknown[]): unknown };
+  close(): void;
+}
+const Database = createRequire(import.meta.url)('better-sqlite3') as new (file: string) => Store;
 
 const FIRST_PORT = process.env['E2E_PORT'] === undefined || process.env['E2E_PORT'] === '' ? 4740 : Number(process.env['E2E_PORT']) + 40;
 

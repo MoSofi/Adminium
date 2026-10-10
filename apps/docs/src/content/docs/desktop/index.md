@@ -7,6 +7,9 @@ The desktop app is the same Adminium as the server, wrapped in an Electron
 shell: `@adminium/server` runs in a background process, the dashboard is served
 over loopback, and nothing leaves your machine. No Docker, no Node, no terminal.
 
+It is also where you can [build an app by describing it](/desktop/designer/),
+with Adminium Designer, on your own computer.
+
 Download it from the
 [Releases page](https://github.com/MoSofi/Adminium/releases) — desktop builds
 are tagged `desktop-vX.Y.Z`, separately from the server's `vX.Y.Z` tags.
