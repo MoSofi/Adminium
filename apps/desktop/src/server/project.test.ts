@@ -211,6 +211,36 @@ describe('runProjectEntry', () => {
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
   });
 
+  it('being built: the app’s keys go to the one reader and nowhere else, and a saved model goes up', async () => {
+    const { port, posted, send } = fakePort();
+    const env = block();
+    let keep: (values: Partial<Record<string, string | null>>) => void = () => undefined;
+    const useModels = vi.fn((opts: { keep: typeof keep }) => void (keep = opts.keep));
+    const setModels = vi.fn();
+    const lines: string[] = [];
+    await runProjectEntry({ parentPort: port, env, start: vi.fn(async () => started()), chdir: vi.fn(), exit: vi.fn(), onLog: (line) => lines.push(line), useModels, setModels });
+    expect(useModels).toHaveBeenCalledTimes(1);
+
+    send({ type: 'models', values: { ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-secret' }, keeping: 'key-store' });
+    expect(setModels).toHaveBeenCalledWith({ ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-secret' }, 'key-store');
+    // Not in the environment a hook or a build line reads, and not in the log.
+    expect(JSON.stringify(env)).not.toContain('sk-ant-secret');
+    expect(lines.join('\n')).not.toContain('sk-ant-secret');
+    // A name that is not one of the eight is not a message.
+    send({ type: 'models', values: { NODE_OPTIONS: '--evil' }, keeping: 'key-store' });
+    expect(setModels).toHaveBeenCalledTimes(1);
+
+    keep({ ADMINIUM_AI_MODEL: 'anthropic/claude' });
+    expect(posted.at(-1)).toEqual({ type: 'keep-model', values: { ADMINIUM_AI_MODEL: 'anthropic/claude' } });
+  });
+
+  it('shared: no host keeps keys for it (it has no Designer)', async () => {
+    const { port } = fakePort();
+    const useModels = vi.fn();
+    await runProjectEntry({ parentPort: port, env: block({ mode: 'serve', host: '0.0.0.0' }), start: vi.fn(async () => started()), chdir: vi.fn(), exit: vi.fn(), onLog: vi.fn(), useModels, setModels: vi.fn() });
+    expect(useModels).not.toHaveBeenCalled();
+  });
+
   it('takes the app’s word for where its programs are now, without stopping', async () => {
     const { port, send } = fakePort();
     const handle = started();

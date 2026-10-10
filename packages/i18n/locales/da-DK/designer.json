@@ -159,7 +159,12 @@
     "save": "Gem",
     "saving": "Gemmer…",
     "addedToast": "Model tilføjet.",
-    "none": "Ingen model"
+    "none": "Ingen model",
+    "envNotUsed": "Dette projekts .env nævner en model. I appen opbevares modeller på denne computer; den linje bruges ikke.",
+    "keptPlain": "på denne computer, som almindelig tekst i en fil, som kun du kan læse: denne computer har intet nøglelager. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
+    "keptMac": "på denne computer, krypteret af Nøglering. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
+    "keptWindows": "på denne computer, krypteret af Windows. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
+    "keptLinux": "på denne computer, krypteret af dit skrivebords nøglelager. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen."
   },
   "provider": {
     "anthropic": "Anthropic",

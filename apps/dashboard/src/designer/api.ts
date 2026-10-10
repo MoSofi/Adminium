@@ -90,6 +90,10 @@ export interface DesignerModels {
   selected: { connectionId: string; model: string } | null;
   verdicts: { connectionId: string; model: string; canBuild: boolean; message: string | null }[];
   canAdd: boolean;
+  /** Inside the desktop app: where the app keeps keys (`null` and absent elsewhere: they are in the project's `.env`). */
+  kept?: 'key-store' | 'plain' | null;
+  /** Inside the desktop app: model names this project's `.env` sets, which are not used there. */
+  ignoredEnv?: string[];
 }
 
 export interface ConnectionDraft {

@@ -53,7 +53,7 @@ import {
   type DesktopLogLevel,
   type DesktopProjectMode,
 } from '../server/env.js';
-import { parseServerMessage, type ServerBusyMessage, type ServerReadyMessage } from '../server/protocol.js';
+import { parseServerMessage, type ServerBusyMessage, type ServerReadyMessage, type KeptKeyName, type ServerKeepModelMessage } from '../server/protocol.js';
 import {
   createDesktopLogging,
   createMemoryLogSink,
@@ -232,6 +232,12 @@ export interface ProjectServerOptions {
   /** Where the app's own programs are (`ADMINIUM_DESKTOP_PROGRAMS`), made at this launch. */
   programs?: string | undefined;
 }
+/** The keys the app keeps and how it holds them at rest, as a project's server is told them. */
+export interface KeptModels {
+  values: Partial<Record<KeptKeyName, string>>;
+  keeping: 'key-store' | 'plain';
+}
+
 /** Lines of log attached to a failure. Enough for a stack, short enough to read. */
 export const CRASH_EXCERPT_LINES = 20;
 
@@ -412,6 +418,15 @@ export interface ServerManager {
    * Nothing for the classic workspace.
    */
   setPrograms(value: string): void;
+  /**
+   * The keys the app keeps, for a project that is being built: told to the
+   * running server, and to every later one as soon as it is up. Never part of
+   * a child's environment. A shared project and the classic workspace are told
+   * nothing.
+   */
+  setModels(models: KeptModels): void;
+  /** What a project's model screen saved, to be kept by the app. Returns an unsubscribe. */
+  onKeepModel(listener: (values: ServerKeepModelMessage['values']) => void): () => void;
   /** The project this manager serves and how, or `null` for the classic workspace. */
   readonly project: { readonly root: string; readonly mode: DesktopProjectMode } | null;
   /**
@@ -441,6 +456,8 @@ class ServerManagerImpl implements ServerManager {
   readonly #stateListeners = new Set<ServerStateListener>();
   readonly #exitListeners = new Set<ServerExitListener>();
 
+  #models: KeptModels | null = null;
+  readonly #keepListeners = new Set<(values: ServerKeepModelMessage['values']) => void>();
   /** The programs value a later `setPrograms` gave, over the one this manager was made with. */
   #programs: string | null = null;
   #state: ServerState = { status: 'idle' };
@@ -608,6 +625,30 @@ class ServerManagerImpl implements ServerManager {
     return this.#opts.project === undefined || this.#mode === null ? null : { root: this.#opts.project.root, mode: this.#mode };
   }
 
+  setModels(models: KeptModels): void {
+    if (this.#opts.project === undefined) return;
+    this.#models = models;
+    this.#tellModels();
+  }
+
+  onKeepModel(listener: (values: ServerKeepModelMessage['values']) => void): () => void {
+    this.#keepListeners.add(listener);
+    return () => {
+      this.#keepListeners.delete(listener);
+    };
+  }
+
+  /** To the child that is up and being built, and to no other. */
+  #tellModels(): void {
+    const child = this.#child;
+    if (child === null || this.#models === null || this.#state.status !== 'ready' || this.#mode !== 'design') return;
+    try {
+      child.postMessage({ type: 'models', values: this.#models.values, keeping: this.#models.keeping });
+    } catch {
+      // A child on its way out: the next one is told when it is up.
+    }
+  }
+
   setPrograms(value: string): void {
     if (this.#opts.project === undefined) return;
     this.#programs = value;
@@ -739,7 +780,13 @@ class ServerManagerImpl implements ServerManager {
     const ready = this.#awaitReady(child);
     child.on('message', (raw) => {
       const parsed = parseServerMessage(raw);
-      if (!parsed.ok || parsed.message.type !== 'busy') return;
+      if (!parsed.ok) return;
+      if (parsed.message.type === 'keep-model') {
+        // Only from a project being built: nothing else has a model screen that writes here.
+        if (this.#mode === 'design') for (const listener of [...this.#keepListeners]) listener(parsed.message.values);
+        return;
+      }
+      if (parsed.message.type !== 'busy') return;
       for (const waiter of [...this.#busyWaiters]) waiter(parsed.message.busy);
     });
     child.on('exit', (code) => {
@@ -757,6 +804,8 @@ class ServerManagerImpl implements ServerManager {
     };
     this.#supervise = true;
     this.#setState({ status: 'ready', ...info });
+    // Up: now, and not a moment sooner, it is given the keys (they are never in what it was started with).
+    this.#tellModels();
     this.#log.write(
       `[main] server ready on ${info.url} (pid ${String(info.pid ?? 'unknown')}, ` +
         `${String(info.migrationsApplied)} migration(s) applied)`,
@@ -820,8 +869,8 @@ class ServerManagerImpl implements ServerManager {
           fail(`The Adminium server failed to start (${stage}): ${message}`, null);
           return;
         }
-        // An answer to `busy?` (asked by `busy()`), never a start's outcome.
-        if (parsed.message.type === 'busy') return;
+        // An answer to `busy?` (asked by `busy()`) or a model saved: never a start's outcome.
+        if (parsed.message.type === 'busy' || parsed.message.type === 'keep-model') return;
         const ready = parsed.message;
         finish(() => {
           resolve(ready);

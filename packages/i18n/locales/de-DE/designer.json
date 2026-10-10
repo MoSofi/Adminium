@@ -159,7 +159,12 @@
     "save": "Speichern",
     "saving": "Wird gespeichert…",
     "addedToast": "Modell hinzugefügt.",
-    "none": "Kein Modell"
+    "none": "Kein Modell",
+    "envNotUsed": "Die .env dieses Projekts nennt ein Modell. In der App werden Modelle auf diesem Computer aufbewahrt; diese Zeile wird nicht verwendet.",
+    "keptPlain": "auf diesem Computer, als Klartext in einer Datei, die nur Sie lesen können: Dieser Computer hat keinen Schlüsselspeicher. Er wird nicht in Ihr Projekt geschrieben, ein exportiertes oder geteiltes Projekt enthält also keinen.",
+    "keptMac": "auf diesem Computer, verschlüsselt vom Schlüsselbund. Er wird nicht in Ihr Projekt geschrieben, ein exportiertes oder geteiltes Projekt enthält also keinen.",
+    "keptWindows": "auf diesem Computer, verschlüsselt von Windows. Er wird nicht in Ihr Projekt geschrieben, ein exportiertes oder geteiltes Projekt enthält also keinen.",
+    "keptLinux": "auf diesem Computer, verschlüsselt vom Schlüsselspeicher Ihres Desktops. Er wird nicht in Ihr Projekt geschrieben, ein exportiertes oder geteiltes Projekt enthält also keinen."
   },
   "provider": {
     "anthropic": "Anthropic",

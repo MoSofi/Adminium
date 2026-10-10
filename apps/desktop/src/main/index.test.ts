@@ -42,6 +42,7 @@ import type {
   ServerManager,
   ServerReadyInfo,
   ServerState,
+  KeptModels,
 } from './server-manager.js';
 import type { UpdateManager } from './updates.js';
 import type { CrashAction, CrashScreenInfo, DesktopWindows } from './window.js';
@@ -317,6 +318,8 @@ function harness(
     },
     project: null,
     setPrograms: () => undefined,
+    setModels: () => undefined,
+    onKeepModel: () => () => undefined,
     busy: () => Promise.resolve(null),
     start: () =>
       fork(
@@ -1423,6 +1426,9 @@ describe('createDesktopApp opening a project folder', () => {
     const said: Array<string | null> = [];
     /** What the running server was told of the app's programs. */
     const told: string[] = [];
+    /** The keys it was told, each time; and the way a saved model comes up from it. */
+    const modelsTold: KeptModels[] = [];
+    let keepModel: (values: Partial<Record<string, string | null>>) => void = () => undefined;
     /** Whether the last look found a git: the test's to change. */
     const git = { found: false, looks: 0, fetched: 0 };
     let stops = 0;
@@ -1436,6 +1442,11 @@ describe('createDesktopApp opening a project folder', () => {
         return { root: ROOT, mode };
       },
       setPrograms: (value) => void told.push(value),
+      setModels: (models) => void modelsTold.push(models),
+      onKeepModel: (listener) => {
+        keepModel = listener;
+        return () => undefined;
+      },
       busy: () => Promise.resolve(over.busy ?? null),
       start: () => (over.startFails === undefined ? Promise.resolve(PROJECT_READY) : Promise.reject(over.startFails)),
       stop: () => {
@@ -1498,7 +1509,7 @@ describe('createDesktopApp opening a project folder', () => {
         return Promise.resolve(over.confirm ?? true);
       },
     };
-    return { h, deps, opts, shown, sessions, confirmed, said, told, git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
+    return { h, deps, opts, shown, sessions, confirmed, said, told, modelsTold, saveModel: (values: Partial<Record<string, string | null>>) => keepModel(values), git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
   }
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -1541,6 +1552,37 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.told).toEqual(['{"binary":"/app/Adminium","git":"/data/git/bin/git"}']);
     expect(offer?.state()).toMatchObject({ on: true, declined: false, download: { phase: 'idle' } });
     expect(p.h.bridge()?.readConfig().versionsDeclined).toBe(false);
+  });
+
+  it('tells the project’s server the keys the app keeps, and keeps what its model screen saves', async () => {
+    const p = projectHarness();
+    let kept: KeptModels = { values: { ADMINIUM_AI_MODEL: 'ollama/llama3' }, keeping: 'key-store' };
+    const keep = vi.fn((patch: Partial<Record<string, string | null>>) => {
+      const values = { ...kept.values } as Record<string, string>;
+      for (const [name, value] of Object.entries(patch)) {
+        if (value === null) Reflect.deleteProperty(values, name);
+        else if (value !== undefined) values[name] = value;
+      }
+      kept = { ...kept, values };
+      return kept;
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await createDesktopApp({ ...p.deps, models: { read: () => kept, keep } }).start();
+    expect(p.modelsTold).toEqual([{ values: { ADMINIUM_AI_MODEL: 'ollama/llama3' }, keeping: 'key-store' }]);
+    // Never part of what the server was started with.
+    expect(JSON.stringify(p.opts[0])).not.toContain('ollama/llama3');
+
+    p.saveModel({ ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-1', ADMINIUM_AI_MODEL: 'anthropic/claude' });
+    expect(keep).toHaveBeenCalledWith({ ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-1', ADMINIUM_AI_MODEL: 'anthropic/claude' });
+    expect(p.modelsTold.at(-1)).toEqual({ values: { ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-1', ADMINIUM_AI_MODEL: 'anthropic/claude' }, keeping: 'key-store' });
+    // A store that cannot write is a line in the log, not a crash of the app.
+    keep.mockImplementationOnce(() => {
+      throw new Error('EACCES');
+    });
+    expect(() => p.saveModel({ ADMINIUM_AI_MODEL: 'x' })).not.toThrow();
+    expect(p.modelsTold).toHaveLength(2);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('EACCES'));
+    error.mockRestore();
   });
 
   it('opens the Designer with the one-use token after #, on a cookie jar of the project’s own, the preview allowed', async () => {

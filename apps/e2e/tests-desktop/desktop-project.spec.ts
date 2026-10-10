@@ -21,7 +21,7 @@ import { expect, test, type ElectronApplication, type Page } from '@playwright/t
 
 import { createDesignerModelServer } from '../scripts/fake-llm.mjs';
 import { ProjectHarness } from '../tests/projectHarness.js';
-import { closeDesktop, launchDesktop, readExternalOpens, stubExternalOpen } from './helpers/launch.js';
+import { closeDesktop, keepModels, launchDesktop, newUserDataDir, readExternalOpens, stubExternalOpen } from './helpers/launch.js';
 
 const APP_KEY = 'repair-desk';
 /** Inside the run's own ports when it was given any; else in the product's range. */
@@ -67,13 +67,14 @@ test.beforeAll(async ({}, testInfo) => {
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
   const modelUrl = `http://localhost:${String((model.address() as AddressInfo).port)}`;
 
-  // The model, where the Designer's own model screen writes it today: the project's `.env` (keys are to move to the
-  // app's own store). Not the environment: the app's server child inherits none of the app's.
-  appendFileSync(join(project.root, '.env'), `\nADMINIUM_AI_OLLAMA_BASE_URL=${modelUrl}\nADMINIUM_AI_MODEL=ollama/fake\n`);
+  // The model, where the app keeps it: with the app, for every project, and never in a project's `.env`.
+  userDataDir = newUserDataDir();
+  keepModels(userDataDir, { ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' });
   // A name the app decides itself: a folder from somewhere else may say anything of it.
   appendFileSync(join(project.root, '.env'), 'ADMINIUM_TRUST_PROXY=true\n');
 
-  ({ app, userDataDir } = await launchDesktop({
+  ({ app } = await launchDesktop({
+    userDataDir,
     env: {
       ADMINIUM_DESKTOP_E2E_PROJECT: project.root,
       ADMINIUM_DESKTOP_E2E_PORT: String(FIRST_PORT),

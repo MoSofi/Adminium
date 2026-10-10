@@ -11,7 +11,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -21,7 +21,7 @@ import { expect, test, type ElectronApplication, type Page } from '@playwright/t
 
 import { createDesignerModelServer } from '../scripts/fake-llm.mjs';
 import { ProjectHarness } from '../tests/projectHarness.js';
-import { closeDesktop, launchDesktop } from './helpers/launch.js';
+import { closeDesktop, keepModels, launchDesktop, newUserDataDir } from './helpers/launch.js';
 
 const APP_KEY = 'repair-desk';
 const FIRST_PORT = process.env['E2E_PORT'] === undefined || process.env['E2E_PORT'] === '' ? 4760 : Number(process.env['E2E_PORT']) + 60;
@@ -67,7 +67,8 @@ test.beforeAll(async ({}, testInfo) => {
   };
   model = createDesignerModelServer({ appKey: APP_KEY, appName: 'Repair desk', files: Object.fromEntries(Object.entries(files).map(([file, value]) => [file, JSON.stringify(value, null, 2)])) });
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
-  appendFileSync(join(project.root, '.env'), `\nADMINIUM_AI_OLLAMA_BASE_URL=http://localhost:${String((model.address() as AddressInfo).port)}\nADMINIUM_AI_MODEL=ollama/fake\n`);
+  userDataDir = newUserDataDir();
+  keepModels(userDataDir, { ADMINIUM_AI_OLLAMA_BASE_URL: `http://localhost:${String((model.address() as AddressInfo).port)}`, ADMINIUM_AI_MODEL: 'ollama/fake' });
 
   scratch = mkdtempSync(join(tmpdir(), 'adminium-e2e-git-'));
   const git = standInGit(scratch);
@@ -81,7 +82,8 @@ test.beforeAll(async ({}, testInfo) => {
   });
   await new Promise<void>((resolve) => downloads.listen(0, '127.0.0.1', resolve));
 
-  ({ app, userDataDir } = await launchDesktop({
+  ({ app } = await launchDesktop({
+    userDataDir,
     env: {
       ADMINIUM_DESKTOP_E2E_PROJECT: project.root,
       ADMINIUM_DESKTOP_E2E_PORT: String(FIRST_PORT),

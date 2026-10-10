@@ -169,7 +169,12 @@ export default {
     "save": "Save",
     "saving": "Saving…",
     "addedToast": "Model added.",
-    "none": "No model"
+    "none": "No model",
+    "envNotUsed": "This project’s .env names a model. In the app, models are kept on this computer; that line is not used.",
+    "keptPlain": "on this computer, as plain text in a file only you can read: this computer has no key store. It is not put in your project, so a project you export or share carries none.",
+    "keptMac": "on this computer, encrypted by Keychain. It is not put in your project, so a project you export or share carries none.",
+    "keptWindows": "on this computer, encrypted by Windows. It is not put in your project, so a project you export or share carries none.",
+    "keptLinux": "on this computer, encrypted by your desktop’s key store. It is not put in your project, so a project you export or share carries none."
   },
   "provider": {
     "anthropic": "Anthropic",

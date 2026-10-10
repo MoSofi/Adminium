@@ -647,6 +647,8 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
       selected: { connectionId: 'env:ollama', model: 'fake' },
       verdicts: [],
       canAdd: true,
+      kept: null,
+      ignoredEnv: [],
     });
 
     expect((await client.call('POST', '/api/v1/designer/models/check', { connectionId: 'env:ollama', model: 'fake' })).body).toEqual({ canBuild: true, message: null });

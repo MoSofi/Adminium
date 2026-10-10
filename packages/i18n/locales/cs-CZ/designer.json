@@ -159,7 +159,12 @@
     "save": "Uložit",
     "saving": "Ukládá se…",
     "addedToast": "Model přidán.",
-    "none": "Žádný model"
+    "none": "Žádný model",
+    "envNotUsed": "Soubor .env tohoto projektu jmenuje model. V aplikaci se modely uchovávají na tomto počítači; ten řádek se nepoužívá.",
+    "keptPlain": "na tomto počítači, jako prostý text v souboru, který můžete číst jen vy: tento počítač nemá úložiště klíčů. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
+    "keptMac": "na tomto počítači, zašifrovaný Klíčenkou. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
+    "keptWindows": "na tomto počítači, zašifrovaný systémem Windows. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
+    "keptLinux": "na tomto počítači, zašifrovaný úložištěm klíčů vašeho prostředí. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje."
   },
   "provider": {
     "anthropic": "Anthropic",

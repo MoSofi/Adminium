@@ -257,6 +257,8 @@ export { COMMANDS, findCommand, runCli, type RunCliOptions } from './cli/run.js'
 // The database a project made for the Designer starts with (the desktop app makes projects the same way).
 export { DESIGN_DATABASE } from './cli/commands/design.js';
 export { HOST_DECIDED_ENV, startProject, type StartProjectOptions, type StartedProject } from './cli/start-project.js';
+// Keys a host keeps instead of the project's `.env` (the desktop app, plan 66 spec 09).
+export { HOST_KEPT_NAMES, setHostModels, stopHostModels, useHostModels, type HostKeeping, type HostKeptName, type HostKeptValues } from './llm/host-models.js';
 export type { StartBusy } from './cli/commands/start.js';
 export { readRunning, runningMessage, type RunningMark } from './project/running.js';
 export { DESKTOP_PROGRAMS_ENV, desktopPrograms, type DesktopPrograms } from './project/programs.js';

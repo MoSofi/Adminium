@@ -91,6 +91,7 @@ import { createFolderFacts, createInstallPackages, createMakeProject, createUpda
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, type FolderDeps } from './projects.js';
+import { createModelsStore, modelsFileFor, type ModelsStore } from './models.js';
 import { createVersionsOffer, type VersionsOffer, type VersionsOfferDeps } from './versions-offer.js';
 import { createStartService, displayPathOf, nameFromFolder, type StartChoice, type StartDeps, type StartService } from './start.js';
 import {
@@ -600,6 +601,12 @@ export interface DesktopBootDeps {
    * (`ADMINIUM_DESKTOP_PROGRAMS`, JSON). Called once per project boot.
    */
   projectPrograms?: (() => string | Promise<string>) | undefined;
+  /**
+   * The model keys the app keeps (`models.ts`), for a project that is being
+   * built. Left out: a project's server is told none, and the Designer's model
+   * screen has nowhere to save one.
+   */
+  models?: ModelsStore | undefined;
   /**
    * git on this computer, for the offer to keep versions: whether the last
    * `projectPrograms()` found one, the file there is to fetch, and the fetch.
@@ -1148,6 +1155,19 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           },
         });
         manager = projectManager;
+        // The keys go to the server once it is up, over the message channel, and what its model screen saves comes
+        // back the same way: kept here, then told again so every reader has the same set.
+        const models = deps.models;
+        if (models !== undefined) {
+          projectManager.setModels(models.read());
+          projectManager.onKeepModel((values) => {
+            try {
+              projectManager.setModels(models.keep(values));
+            } catch (error) {
+              console.error(`[models] a saved model could not be kept: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          });
+        }
         const git = deps.projectGit;
         versionsOffer =
           git === undefined || deps.projectPrograms === undefined
@@ -2376,6 +2396,7 @@ export function electronBootDeps(): DesktopBootDeps {
       classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
     },
     projectEnv: process.env,
+    models: createModelsStore({ file: modelsFileFor(userDataDir), keyStore: safeStorage, log: mainLog }),
     projectPrograms,
     projectGit: {
       found: () => gitFound,

@@ -878,6 +878,59 @@ describe('ServerManager serving a project', () => {
     expect(() => h.manager.setPrograms(WITH_GIT)).not.toThrow();
   });
 
+  it('gives a project being built the app’s keys once it is up, never in what it is started with, and again when they change', async () => {
+    const h = project();
+    const KEYS = { values: { ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-secret', ADMINIUM_AI_MODEL: 'anthropic/claude' }, keeping: 'key-store' as const };
+    h.manager.setModels(KEYS);
+    void h.manager.start();
+    // Not in its environment, not in its arguments.
+    await vi.waitFor(() => expect(h.forkCalls).toHaveLength(1));
+    expect(JSON.stringify(h.forkCalls[0])).not.toContain('sk-ant-secret');
+    expect(childAt(h, 0).posted).toEqual([]);
+    await up(h, 0, 4700);
+    expect(childAt(h, 0).posted).toEqual([{ type: 'models', ...KEYS }]);
+
+    h.manager.setModels({ values: { ADMINIUM_AI_MODEL: 'ollama/llama3' }, keeping: 'plain' });
+    expect(childAt(h, 0).posted.at(-1)).toEqual({ type: 'models', values: { ADMINIUM_AI_MODEL: 'ollama/llama3' }, keeping: 'plain' });
+    childAt(h, 0).postMessage = () => {
+      throw new Error('closed');
+    };
+    expect(() => h.manager.setModels(KEYS)).not.toThrow();
+  });
+
+  it('hands on what the model screen saved, from a project being built and from nothing else', async () => {
+    const h = project();
+    const saved: unknown[] = [];
+    const off = h.manager.onKeepModel((values) => void saved.push(values));
+    void h.manager.start();
+    await up(h, 0, 4700);
+    childAt(h, 0).send({ type: 'keep-model', values: { ADMINIUM_AI_OPENAI_API_KEY: 'sk-1', ADMINIUM_AI_MODEL: null } });
+    expect(saved).toEqual([{ ADMINIUM_AI_OPENAI_API_KEY: 'sk-1', ADMINIUM_AI_MODEL: null }]);
+    // A name that is not one of the eight is not a message at all.
+    childAt(h, 0).send({ type: 'keep-model', values: { NODE_OPTIONS: '--evil' } });
+    expect(saved).toHaveLength(1);
+    off();
+    childAt(h, 0).send({ type: 'keep-model', values: { ADMINIUM_AI_MODEL: 'a/b' } });
+    expect(saved).toHaveLength(1);
+
+    // Shared: no Designer, so no keys down and none taken up.
+    const shared = harness({ dataDir: undefined, secret: undefined, singleUser: undefined, project: { root: ROOT, mode: 'serve', pickPort: () => Promise.resolve(4701) } });
+    const taken: unknown[] = [];
+    shared.manager.onKeepModel((values) => void taken.push(values));
+    shared.manager.setModels({ values: { ADMINIUM_AI_MODEL: 'a/b' }, keeping: 'key-store' });
+    void shared.manager.start();
+    await up(shared, 0, 4701);
+    expect(childAt(shared, 0).posted).toEqual([]);
+    childAt(shared, 0).send({ type: 'keep-model', values: { ADMINIUM_AI_MODEL: 'x/y' } });
+    expect(taken).toEqual([]);
+    // And the classic workspace is told nothing.
+    const classic = harness();
+    classic.manager.setModels({ values: { ADMINIUM_AI_MODEL: 'a/b' }, keeping: 'key-store' });
+    void classic.manager.start();
+    await up(classic, 0, 4600);
+    expect(childAt(classic, 0).posted).toEqual([]);
+  });
+
   it('the classic workspace has no programs to be told of', async () => {
     const h = harness();
     void h.manager.start();

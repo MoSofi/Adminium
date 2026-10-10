@@ -118,6 +118,7 @@ import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
+import { hostModels } from './llm/host-models.js';
 import { gitProgram } from './project/programs.js';
 import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
@@ -2180,15 +2181,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const designerShelf = createPictureShelf();
         const pictureSource = (): PictureSource | null => {
           if (!addOnCatalog.networkFeaturesAllowed()) return null;
-          const key = (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '').trim();
+          // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
+          const host = hostModels();
+          const key = (host !== null ? (host.read().PEXELS_API_KEY ?? '') : (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '')).trim();
           return key === '' ? openverse() : pexels(key);
         };
         // Unsplash, with the project's own key: for a page's pictures, shown from Unsplash's own site as its rules ask. Pexels, whose pictures are copied, comes first.
         const shownPictureSource = (): PictureSource | null => {
           if (!addOnCatalog.networkFeaturesAllowed()) return null;
-          const env = readDotEnv(root);
-          if ((process.env['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
-          const key = (process.env['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
+          const host = hostModels();
+          const env = host !== null ? host.read() : readDotEnv(root);
+          const own = host !== null ? {} : process.env;
+          if ((own['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
+          const key = (own['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
           return key === '' ? null : unsplash(key);
         };
         designer = createDesigner({

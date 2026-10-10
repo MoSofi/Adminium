@@ -689,7 +689,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           return verdict === null ? [] : [{ connectionId: connection.id, model: model.id, canBuild: verdict.canBuild, message: verdict.canBuild ? null : verdict.message }];
         }),
       );
-      return { connections: listedModels, selected, verdicts, canAdd: connections.envWritable && !onLive };
+      return { connections: listedModels, selected, verdicts, canAdd: connections.envWritable && !onLive, kept: connections.keptBy(), ignoredEnv: connections.ignoredEnv() };
     });
 
     // Whether one model can build: a round trip, kept for the process (Q15).

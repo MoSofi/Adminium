@@ -55,6 +55,8 @@
 import {
   HOST_DECIDED_ENV,
   LATEST_META_MIGRATION,
+  setHostModels,
+  useHostModels,
   composeServer,
   firstRun,
   loadCliEnv,
@@ -78,6 +80,7 @@ import {
   parseParentMessage,
   type ServerBootStage,
   type ServerMessage,
+  type ServerKeepModelMessage,
 } from './protocol.js';
 
 /**
@@ -302,8 +305,8 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
         post({ type: 'busy', busy: null });
         return;
       }
-      // A project's message: here there is no folder whose versions a git could keep.
-      if (parsed.message.type === 'programs') return;
+      // A project's messages: here there is no folder whose versions a git could keep, and no Designer to call a model.
+      if (parsed.message.type === 'programs' || parsed.message.type === 'models') return;
       void shutdown(booted).then(
         () => exit(0),
         () => exit(1),
@@ -340,6 +343,9 @@ export interface RunProjectEntryOptions extends RunServerEntryOptions {
   /** Test seams: the server package's `startProject`, and `process.chdir`. */
   start?: typeof startProject;
   chdir?: (directory: string) => void;
+  /** Test seams: the server package's keeping of a host's keys. */
+  useModels?: typeof useHostModels;
+  setModels?: typeof setHostModels;
 }
 
 /**
@@ -367,6 +373,8 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
   const exit = opts.exit ?? ((code: number) => process.exit(code));
   const start = opts.start ?? startProject;
   const chdir = opts.chdir ?? ((directory: string) => process.chdir(directory));
+  const useModels = opts.useModels ?? useHostModels;
+  const setModels = opts.setModels ?? setHostModels;
   const post = (message: ServerMessage): void => {
     if (port === null) {
       log(`[server] no parentPort; ${JSON.stringify(message)}`);
@@ -380,6 +388,9 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
   try {
     const processEnv = opts.env ?? process.env;
     const project = await stage('env', () => parseDesktopProjectEnv(processEnv));
+    // Being built: the app keeps the model keys, not the project's `.env`. What the model screen saves goes up to it.
+    // A shared project has no Designer, and is given none.
+    if (project.mode === 'design') useModels({ keep: (values: Partial<Record<string, string | null>>) => post({ type: 'keep-model', values: values as ServerKeepModelMessage['values'] }) });
     host = project.host;
     started = await stage('project', async () => {
       chdir(project.root);
@@ -418,6 +429,11 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
       }
       if (parsed.message.type === 'busy?') {
         post({ type: 'busy', busy: started.busy() });
+        return;
+      }
+      if (parsed.message.type === 'models') {
+        // Into the one module that calls a model, and nowhere else: not the environment, not a log line.
+        setModels(parsed.message.values, parsed.message.keeping);
         return;
       }
       if (parsed.message.type === 'programs') {

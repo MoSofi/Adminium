@@ -14,6 +14,7 @@
  * inherited by every child process.
  */
 import { AI_ENV_NAMES, readDotEnv, setDotEnv, type AiEnvName } from '../project/dotenv.js';
+import { hostModels } from './host-models.js';
 
 export { AI_ENV_NAMES, type AiEnvName };
 
@@ -28,6 +29,14 @@ export interface AiEnv {
   fromOperator(): AiEnvName[];
   /** Whether there is a project `.env` this server may write. */
   readonly writable: boolean;
+  /**
+   * Where a host keeps the values instead of the project's `.env` (the desktop
+   * app), or `null`: they are in the environment and the `.env`. With a host,
+   * nothing in the project's file is read.
+   */
+  keptBy(): 'key-store' | 'plain' | null;
+  /** With a host: the names the project's `.env` sets all the same, which are not used. Empty otherwise. */
+  ignored(): AiEnvName[];
   /** Write to the project's `.env`; `null` removes a variable. In use from the next `read()`. */
   write(values: Partial<Record<AiEnvName, string | null>>): void;
 }
@@ -59,8 +68,20 @@ export function createAiEnv(opts: AiEnvOptions): AiEnv {
     return out;
   };
 
+  const pick = (values: Readonly<Record<string, string | undefined>>): AiEnvValues => {
+    const out: AiEnvValues = {};
+    for (const name of AI_ENV_NAMES) {
+      const value = values[name];
+      if (set(value)) out[name] = value;
+    }
+    return out;
+  };
+
   return {
     read() {
+      // A host's keys are the only ones, base addresses included: a folder's own `.env` decides nothing here.
+      const host = hostModels();
+      if (host !== null) return pick(host.read());
       const out = fromFile();
       for (const name of AI_ENV_NAMES) {
         const value = opts.fromEnvironment[name];
@@ -69,15 +90,25 @@ export function createAiEnv(opts: AiEnvOptions): AiEnv {
       return out;
     },
     shadowed() {
+      if (hostModels() !== null) return [];
       const file = fromFile();
       return AI_ENV_NAMES.filter((name) => {
         const value = opts.fromEnvironment[name];
         return set(value) && file[name] !== undefined && file[name] !== value;
       });
     },
-    fromOperator: () => AI_ENV_NAMES.filter((name) => set(opts.fromEnvironment[name])),
-    writable: opts.root !== null,
+    fromOperator: () => (hostModels() !== null ? [] : AI_ENV_NAMES.filter((name) => set(opts.fromEnvironment[name]))),
+    get writable() {
+      return hostModels() !== null || opts.root !== null;
+    },
+    keptBy: () => hostModels()?.keeping ?? null,
+    ignored: () => (hostModels() === null ? [] : (Object.keys(fromFile()) as AiEnvName[])),
     write(values) {
+      const host = hostModels();
+      if (host !== null) {
+        host.keep(values);
+        return;
+      }
       if (opts.root === null) throw new Error('There is no project folder to keep a model in.');
       setDotEnv(opts.root, values as Record<string, string | null>, AI_ENV_NAMES);
     },
@@ -90,6 +121,8 @@ export const NO_AI_ENV: AiEnv = {
   shadowed: () => [],
   fromOperator: () => [],
   writable: false,
+  keptBy: () => null,
+  ignored: () => [],
   write: () => {
     throw new Error('There is no project folder to keep a model in.');
   },

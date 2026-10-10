@@ -159,7 +159,12 @@
     "save": "Enregistrer",
     "saving": "Enregistrement…",
     "addedToast": "Modèle ajouté.",
-    "none": "Aucun modèle"
+    "none": "Aucun modèle",
+    "envNotUsed": "Le fichier .env de ce projet nomme un modèle. Dans l’application, les modèles sont conservés sur cet ordinateur ; cette ligne n’est pas utilisée.",
+    "keptPlain": "sur cet ordinateur, en clair dans un fichier que vous seul pouvez lire : cet ordinateur n’a pas de trousseau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
+    "keptMac": "sur cet ordinateur, chiffrée par le Trousseau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
+    "keptWindows": "sur cet ordinateur, chiffrée par Windows. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
+    "keptLinux": "sur cet ordinateur, chiffrée par le trousseau de votre bureau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune."
   },
   "provider": {
     "anthropic": "Anthropic",

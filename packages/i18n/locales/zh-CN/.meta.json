@@ -9555,6 +9555,10 @@
     "status": "mt",
     "srcHash": "7bcd787e6c15"
   },
+  "designer.model.envNotUsed": {
+    "status": "mt",
+    "srcHash": "67edab9580d1"
+  },
   "designer.model.find": {
     "status": "mt",
     "srcHash": "2f629b09bdc7"
@@ -9574,6 +9578,22 @@
   "designer.model.keptLead": {
     "status": "mt",
     "srcHash": "c7b24db085b0"
+  },
+  "designer.model.keptLinux": {
+    "status": "mt",
+    "srcHash": "3245426d2dd9"
+  },
+  "designer.model.keptMac": {
+    "status": "mt",
+    "srcHash": "cf330bb3bda3"
+  },
+  "designer.model.keptPlain": {
+    "status": "mt",
+    "srcHash": "e9eff07e64e1"
+  },
+  "designer.model.keptWindows": {
+    "status": "mt",
+    "srcHash": "6aa63f3f90dc"
   },
   "designer.model.key": {
     "status": "mt",

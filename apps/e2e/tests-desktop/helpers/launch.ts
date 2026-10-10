@@ -14,7 +14,7 @@
  * survives between evaluate calls in a single main process).
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -280,4 +280,19 @@ export function killDesktop(app: ElectronApplication): void {
 export async function closeDesktop(app: ElectronApplication, userDataDir?: string): Promise<void> {
   await app.close().catch(() => undefined);
   if (userDataDir !== undefined) rmSync(userDataDir, { recursive: true, force: true });
+}
+
+/** A data folder for an app that is not launched yet: for a spec that puts something in it first. */
+export function newUserDataDir(): string {
+  return mkdtempSync(join(tmpdir(), 'adminium-desktop-e2e-'));
+}
+
+/**
+ * The models the app keeps for every project (`models.json` in its own folder),
+ * written before a launch as a person's earlier "Add a model" would have left
+ * them. Plain, which the app reads on any system; what it writes itself is the
+ * key store's wherever there is one.
+ */
+export function keepModels(userDataDir: string, values: Record<string, string>): void {
+  writeFileSync(join(userDataDir, 'models.json'), `${JSON.stringify({ version: 1, storage: 'plain', values }, null, 2)}\n`);
 }
