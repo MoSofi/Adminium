@@ -16,7 +16,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { resolve, win32 } from 'node:path';
 
 import { adapterRegistry } from '@adminium/engine/adapter';
 import type { AllowedVocabularies } from '@adminium/llm';
@@ -510,15 +510,25 @@ export type RunProcess = (
   opts: { cwd: string; inherit?: boolean; env?: Readonly<Record<string, string>> },
 ) => { status: number | null; stdout: string };
 
+/**
+ * Whether Windows needs its shell to start `command`. A bare name does: npm,
+ * pnpm and yarn are `.cmd` shims there, which only a shell runs. A whole path
+ * does not, and must not have one: the shell is handed the words joined by
+ * spaces, so a path with a space in it (`C:\Users\Ada Lovelace\…`, where the
+ * desktop app and its npm live) is cut at the space and nothing starts.
+ */
+export function needsShell(command: string, platform: NodeJS.Platform = process.platform): boolean {
+  return platform === 'win32' && !win32.isAbsolute(command);
+}
+
 export const runProcess: RunProcess = (command, args, opts) => {
   const result = spawnSync(command, [...args], {
     cwd: opts.cwd,
     stdio: opts.inherit === true ? 'inherit' : ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
     ...(opts.env === undefined ? {} : { env: { ...process.env, ...opts.env } }),
-    // npm, pnpm and yarn are `.cmd` shims on Windows, which only a shell runs.
-    // The arguments are fixed words, never user input.
-    shell: process.platform === 'win32',
+    // Where a shell is used the arguments are fixed words, never user input.
+    shell: needsShell(command),
   });
   return {
     status: result.error === undefined ? result.status : null,

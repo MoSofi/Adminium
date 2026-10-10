@@ -13,7 +13,7 @@ import { createSqliteMetaDb, firstRun } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { runCli } from '../src/cli/run.js';
-import { openRuntime, type CliRuntime, type RunProcess } from '../src/cli/runtime.js';
+import { needsShell, openRuntime, runProcess, type CliRuntime, type RunProcess } from '../src/cli/runtime.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
@@ -44,6 +44,29 @@ function depsIn(cwd: string, env: Record<string, string | undefined> = {}, run: 
   deps.runProcess = run;
   return deps;
 }
+
+describe('starting a program for `adminium new`', () => {
+  it('uses the Windows shell for a bare name only, never for a whole path', () => {
+    expect(needsShell('npm', 'win32')).toBe(true);
+    expect(needsShell('git', 'win32')).toBe(true);
+    // The desktop app's own program and the git it fetched, under a user folder with a space in its name.
+    expect(needsShell('C:\\Users\\Adminium PC\\AppData\\Local\\Programs\\Adminium\\Adminium.exe', 'win32')).toBe(false);
+    expect(needsShell('C:\\Users\\Adminium PC\\AppData\\Roaming\\Adminium\\git\\v2\\cmd\\git.exe', 'win32')).toBe(false);
+    expect(needsShell('npm', 'darwin')).toBe(false);
+    expect(needsShell('/usr/bin/git', 'linux')).toBe(false);
+  });
+
+  it('runs a program by its whole path with an argument that holds a space', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'adminium run '));
+    try {
+      const script = join(dir, 'say it.cjs');
+      writeFileSync(script, "process.stdout.write(process.argv[2] ?? '');");
+      expect(runProcess(process.execPath, [script, 'two words'], { cwd: dir })).toEqual({ status: 0, stdout: 'two words' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('adminium new <name>', () => {
   it('creates the folder with a secret, installs, and says what to run next', async () => {
