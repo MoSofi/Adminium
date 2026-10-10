@@ -79,7 +79,7 @@ describe('the app’s own pages', () => {
       for (const match of text.matchAll(/\bt\(\s*'([\w:.]+)',\s*'((?:[^'\\]|\\.)*)'/g)) {
         const key = match[1] ?? '';
         // The fallback as the program holds it: its escapes read.
-        const fallback = JSON.parse(`"${(match[2] ?? '').replace(/\\'/g, "'").replace(/"/g, '\\"')}"`) as string;
+        const fallback = JSON.parse(`"${(match[2] ?? '').replace(/\\[\s\S]|"/g, (found) => (found === "\\'" ? "'" : found === '"' ? '\\"' : found))}"`) as string;
         if (!key.startsWith('desktop:')) {
           problems.push(`${relative(pages, file)}: ${key} is not a desktop: key`);
           continue;

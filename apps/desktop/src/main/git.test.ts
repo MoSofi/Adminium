@@ -175,12 +175,12 @@ describe('what is fetched', () => {
 
 describe('fetchGit', () => {
   let server: Server;
-  let routes: Record<string, (res: import('node:http').ServerResponse) => void>;
+  let routes: Map<string, (res: import('node:http').ServerResponse) => void>;
   let base: string;
   beforeEach(async () => {
-    routes = {};
+    routes = new Map();
     server = createServer((req, res) => {
-      const route = routes[req.url ?? ''];
+      const route = routes.get(req.url ?? '');
       if (route === undefined) {
         res.statusCode = 404;
         res.end();
@@ -207,7 +207,7 @@ describe('fetchGit', () => {
     ...over,
   });
   const serve = (path: string, body: Buffer): void => {
-    routes[path] = (res) => res.end(body);
+    routes.set(path, (res) => res.end(body));
   };
 
   it('fetches, checks, unpacks, writes the record last, and says where the program is', async () => {
@@ -225,19 +225,19 @@ describe('fetchGit', () => {
 
   it('follows a redirect only to a host a release’s file is served from', async () => {
     serve('/real', packed);
-    routes['/git.tar.gz'] = (res) => {
+    routes.set('/git.tar.gz', (res) => {
       res.statusCode = 302;
       res.setHeader('location', '/real');
       res.end();
-    };
+    });
     await expect(fetchGit(options())).resolves.toContain('bin');
 
     rmSync(join(dir, 'git'), { recursive: true, force: true });
-    routes['/git.tar.gz'] = (res) => {
+    routes.set('/git.tar.gz', (res) => {
       res.statusCode = 302;
       res.setHeader('location', 'https://mirror.somewhere-else.io/git.tar.gz');
       res.end();
-    };
+    });
     await expect(fetchGit(options())).rejects.toMatchObject({ reason: 'refused-address' });
     expect(existsSync(gitHome(dir))).toBe(false);
   });
