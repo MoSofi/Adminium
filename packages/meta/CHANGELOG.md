@@ -1,5 +1,26 @@
 # @adminium/meta
 
+## 0.3.24
+
+### Patch Changes
+
+- bd16293: The assistant has a button on an app's own staff screens, opened by themselves at `/apps/<key>/staff/` or on a domain attached to that side. A signed-in person whose role may use the assistant gets it in the bottom corner; the first press opens the same panel as in the dashboard, as the general assistant with the app named. It is the same assistant: the same permission, the same limits on what a role reads, the same switches, allowance and confirmation.
+  
+  The customer side of an app never has it. Nobody signed out sees it. Inside the dashboard, where an app's staff screens are framed, the dashboard's own button serves.
+  
+  Settings → AI has a switch, "On your apps' staff addresses", on by default: off keeps the assistant in the dashboard without touching roles.
+  
+  A person whose roles are all screens-only reaches the assistant only when an administrator has given their role the assistant permission (no role has it by default, and an app's manifest cannot grant it). They can ask about their app's data and where things are done; the conversations of the dashboard's document pages are not opened for them.
+  
+  A file of the dashboard's build that does not exist now answers 404 instead of the dashboard's page.
+- 20daf20: You can speak to the assistant. With Settings → AI → Voice → "Speak to the assistant" switched on (off on a new workspace), the panel's field has a microphone: press, speak, press again or Escape, and the words are written into the field for you to check and send. Nothing is sent by voice alone. A recording stops by itself at two minutes.
+  
+  With OpenAI, or a compatible server that has a transcription route, the provider writes the words down: the recording goes through your server to it and is kept nowhere, and the audit log says who dictated and for how long, never what. With a provider that does not transcribe, the browser's own speech service does it where the browser has one, and the server never hears it. Where neither works there is no microphone. The first press says where your voice goes.
+  
+  A workspace sets how many minutes a person may dictate in a day (30 by default), counted from what the server received.
+  
+  The desktop app allows the microphone, for audio only and only while the switch is on; every other browser permission stays denied.
+
 ## 0.3.23
 
 ## 0.3.22
