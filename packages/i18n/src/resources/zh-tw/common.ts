@@ -1285,6 +1285,19 @@ export default {
         "failedBody": "出了點問題。請重試。",
         "retry": "重試"
       }
+    },
+    "stop": {
+      "turn": "Designer 正在進行一輪操作。",
+      "start": "正在將應用程式加入此專案。",
+      "save": "正在儲存你的變更。",
+      "restore": "正在還原較早的版本。",
+      "style": "正在變更樣式。",
+      "other": "此專案正在變更中。",
+      "quitDetail": "如果現在結束，它會停在目前的位置。已寫入的內容會保留。",
+      "closeDetail": "如果現在關閉專案，它會停在目前的位置。已寫入的內容會保留。",
+      "quitAnyway": "仍要結束",
+      "closeAnyway": "仍要關閉",
+      "keepWorking": "繼續工作"
     }
   },
   "capabilities": {

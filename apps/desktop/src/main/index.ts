@@ -49,6 +49,7 @@ import type {
   DesktopUpdateEvent,
   SetDataDirOptions,
   SetDataDirResult,
+  DesktopStopWords,
 } from '../preload/api.js';
 import { backupManifestSchema } from './backup-archive.js';
 import {
@@ -406,6 +407,7 @@ export interface DesktopBridgeContext {
     | {
         info: () => { root: string; displayPath: string; name: string; mode: 'design' | 'serve' } | null;
         close: () => Promise<boolean>;
+        setStopWords?: ((words: DesktopStopWords) => void) | undefined;
         /** The offer to keep versions, of the project that is open. */
         versions?: (() => VersionsOffer | null) | undefined;
       }
@@ -623,7 +625,7 @@ export interface DesktopBootDeps {
    * something. Resolves `true` to go on, `false` to leave it running. Left
    * out: nobody to ask, and the app goes on.
    */
-  confirmStopBusy?: ((busy: ServerBusy, why: 'quit' | 'close') => Promise<boolean>) | undefined;
+  confirmStopBusy?: ((busy: ServerBusy, why: 'quit' | 'close', words: DesktopStopWords | null) => Promise<boolean>) | undefined;
 }
 
 /** What {@link DesktopBootDeps.createBackup} needs from the boot sequence. */
@@ -693,6 +695,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   let startOpen = false;
   /** Set by `start()`; `null` before it and in a boot that cannot return to Start. */
   let closeProject: (() => Promise<boolean>) | null = null;
+  /** The quit and close questions in the page's language: the last ones a project's page handed over. */
+  let stopWords: DesktopStopWords | null = null;
   /** The offer to keep versions, of the project that is open. */
   let versionsOffer: VersionsOffer | null = null;
   /**
@@ -977,6 +981,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             return { root: open.root, displayPath, name: known?.name ?? nameFromFolder(open.root), mode: open.mode };
           },
           close: () => (closeProject === null ? Promise.resolve(false) : closeProject()),
+          setStopWords: (words) => {
+            stopWords = words;
+          },
           versions: () => (manager?.project == null ? null : versionsOffer),
         },
       });
@@ -1069,7 +1076,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           asking = true;
           void (async () => {
             const busy = await target.busy().catch(() => null);
-            const goOn = busy === null || deps.confirmStopBusy === undefined || (await deps.confirmStopBusy(busy, 'quit').catch(() => true));
+            const goOn = busy === null || deps.confirmStopBusy === undefined || (await deps.confirmStopBusy(busy, 'quit', stopWords).catch(() => true));
             asking = false;
             if (!goOn) return;
             stopping = true;
@@ -1525,7 +1532,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         if (target === null || target.project === null) return false;
         const root = target.project.root;
         const busy = await target.busy().catch(() => null);
-        if (busy !== null && deps.confirmStopBusy !== undefined && !(await deps.confirmStopBusy(busy, 'close').catch(() => true))) return false;
+        if (busy !== null && deps.confirmStopBusy !== undefined && !(await deps.confirmStopBusy(busy, 'close', stopWords).catch(() => true))) return false;
         await target.stop().catch(() => undefined);
         await startService?.trustNow(root).catch(() => undefined);
         versionsOffer?.dispose();
@@ -2377,8 +2384,8 @@ export function electronBootDeps(): DesktopBootDeps {
     // Absolute even though this build bundles no apps: the server's default is
     // `./apps-bundle`, which a project's child would look for inside the opened folder.
     bundledAppsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'apps-bundle'),
-    confirmStopBusy: async (busy, why) => {
-      const words = stopBusyWords(busy, why);
+    confirmStopBusy: async (busy, why, said) => {
+      const words = stopBusyWords(busy, why, said ?? undefined);
       const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
       const options: Electron.MessageBoxOptions = {
         type: 'warning',

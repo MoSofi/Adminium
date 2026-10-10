@@ -1275,6 +1275,19 @@
         "failedBody": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
         "retry": "Erneut versuchen"
       }
+    },
+    "stop": {
+      "turn": "Der Designer ist mitten in einem Durchgang.",
+      "start": "Diesem Projekt wird gerade eine App hinzugefügt.",
+      "save": "Ihre Änderungen werden gespeichert.",
+      "restore": "Eine frühere Version wird wiederhergestellt.",
+      "style": "Der Stil wird geändert.",
+      "other": "Dieses Projekt wird gerade geändert.",
+      "quitDetail": "Wenn Sie jetzt beenden, wird es an dieser Stelle angehalten. Was bereits geschrieben wurde, bleibt.",
+      "closeDetail": "Wenn Sie das Projekt jetzt schließen, wird es an dieser Stelle angehalten. Was bereits geschrieben wurde, bleibt.",
+      "quitAnyway": "Trotzdem beenden",
+      "closeAnyway": "Trotzdem schließen",
+      "keepWorking": "Weiterarbeiten"
     }
   },
   "capabilities": {

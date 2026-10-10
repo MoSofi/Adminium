@@ -544,6 +544,28 @@ export interface DesktopProjectInfo {
   readonly mode: 'design' | 'serve';
 }
 
+/**
+ * The words of the one question the app asks in a native dialog while a project
+ * is open: "stop what is running?", before a quit or "Close project". The app
+ * has no translations of its own (as with the menu), so the page that has them
+ * hands them over; until it has, the question is asked in English.
+ */
+export interface DesktopStopWords {
+  /** What is running, by the kind the server names. */
+  readonly turn: string;
+  readonly start: string;
+  readonly save: string;
+  readonly restore: string;
+  readonly style: string;
+  /** A kind this page does not know. */
+  readonly other: string;
+  readonly quitDetail: string;
+  readonly closeDetail: string;
+  readonly quitAnyway: string;
+  readonly closeAnyway: string;
+  readonly keepWorking: string;
+}
+
 /** How far a download of git is, or why it did not finish. */
 export type DesktopVersionsDownload =
   | { readonly phase: 'idle' }
@@ -593,6 +615,8 @@ export interface DesktopProjectApi {
    * chose to keep working (something was in the middle of running).
    */
   close(): Promise<boolean>;
+  /** The quit and close questions in the page's language. Absent in an app older than the call. */
+  setStopWords?(words: DesktopStopWords): Promise<void>;
   /** Absent in an app older than the offer. */
   readonly versions?: DesktopVersionsApi | undefined;
 }

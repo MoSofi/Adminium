@@ -57,6 +57,7 @@ import type {
   DesktopUpdateEvent,
   SetDataDirOptions,
   SetDataDirResult,
+  DesktopStopWords,
 } from '../preload/api.js';
 import {
   INVOKE_CHANNELS,
@@ -200,6 +201,22 @@ const menuLabelsSchema = z.strictObject({
   'help.logs': menuLabelSchema,
   'help.checkForUpdates': menuLabelSchema,
   'help.about': menuLabelSchema,
+});
+
+const stopWordSchema = z.string().min(1).max(300);
+/** `project.setStopWords`: the eleven sentences of the quit and close questions. */
+const stopWordsSchema = z.strictObject({
+  turn: stopWordSchema,
+  start: stopWordSchema,
+  save: stopWordSchema,
+  restore: stopWordSchema,
+  style: stopWordSchema,
+  other: stopWordSchema,
+  quitDetail: stopWordSchema,
+  closeDetail: stopWordSchema,
+  quitAnyway: stopWordSchema,
+  closeAnyway: stopWordSchema,
+  keepWorking: stopWordSchema,
 });
 
 /**
@@ -485,6 +502,8 @@ export interface RegisterIpcHandlersOptions {
     | {
         info: () => (DesktopProjectInfo & { root: string }) | null;
         close: () => Promise<boolean>;
+        /** The quit and close questions' words, in the page's language. */
+        setStopWords?: ((words: DesktopStopWords) => void) | undefined;
         /** The versions offer of the project that is open, or `null`: no project, or a build that cannot look for git. */
         versions?: (() => VersionsOffer | null) | undefined;
       }
@@ -864,6 +883,12 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(IPC_CHANNELS.projectClose, noPayloadSchema, () => {
     if (opts.project === undefined || opts.project.info() === null) throw new UnavailableError('This window holds no project.');
     return opts.project.close();
+  });
+
+  // Words for a native dialog: bounded like the menu's, and all of them or none.
+  register(IPC_CHANNELS.projectStopWords, stopWordsSchema, (words) => {
+    opts.project?.setStopWords?.(words);
+    return Promise.resolve();
   });
 
   // The versions offer. `download` is the one call in this bridge that reaches out to the internet for a

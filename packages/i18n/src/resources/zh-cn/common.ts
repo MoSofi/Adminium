@@ -1285,6 +1285,19 @@ export default {
         "failedBody": "出了点问题。请重试。",
         "retry": "重试"
       }
+    },
+    "stop": {
+      "turn": "Designer 正在进行一轮操作。",
+      "start": "正在向此项目添加应用。",
+      "save": "正在保存你的更改。",
+      "restore": "正在恢复较早的版本。",
+      "style": "正在更改样式。",
+      "other": "此项目正在更改中。",
+      "quitDetail": "如果现在退出，它会停在当前位置。已写入的内容会保留。",
+      "closeDetail": "如果现在关闭项目，它会停在当前位置。已写入的内容会保留。",
+      "quitAnyway": "仍然退出",
+      "closeAnyway": "仍然关闭",
+      "keepWorking": "继续工作"
     }
   },
   "capabilities": {

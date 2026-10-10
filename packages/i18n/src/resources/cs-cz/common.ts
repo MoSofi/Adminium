@@ -1285,6 +1285,19 @@ export default {
         "failedBody": "Něco se pokazilo. Zkuste to znovu.",
         "retry": "Zkusit znovu"
       }
+    },
+    "stop": {
+      "turn": "Designer je uprostřed kola.",
+      "start": "Do tohoto projektu se právě přidává aplikace.",
+      "save": "Vaše změny se ukládají.",
+      "restore": "Vrací se dřívější verze.",
+      "style": "Mění se styl.",
+      "other": "Tento projekt se právě mění.",
+      "quitDetail": "Pokud teď skončíte, zastaví se tam, kde je. Co už bylo zapsáno, zůstane.",
+      "closeDetail": "Pokud teď projekt zavřete, zastaví se tam, kde je. Co už bylo zapsáno, zůstane.",
+      "quitAnyway": "Přesto ukončit",
+      "closeAnyway": "Přesto zavřít",
+      "keepWorking": "Pokračovat v práci"
     }
   },
   "capabilities": {

@@ -24,7 +24,7 @@
  * fallbacks mirror `menu.ts`'s `EN_US_MENU_LABELS` so a pre-i18n call (or a
  * missing bundle) degrades to the same English the boot menu shows.
  */
-import type { DesktopMenuLabelKey, DesktopMenuLabels } from '@adminium/desktop/api';
+import type { DesktopMenuLabelKey, DesktopMenuLabels, DesktopStopWords } from '@adminium/desktop/api';
 
 import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { t as appTranslate } from '../i18n/t.js';
@@ -73,5 +73,35 @@ export function pushDesktopMenuLabels(): void {
   void api.setMenuLabels(resolveMenuLabels()).catch(() => {
     // The shell logs its own failures; a menu that stays in the previous
     // locale is not worth a console error in the SPA.
+  });
+}
+
+/**
+ * The quit and close questions (a native dialog, asked by the app while a
+ * project is in the middle of something), in the current language. Same road
+ * as the menu, for the same reason: the app holds no translations.
+ */
+export function resolveStopWords(translate: (key: string, fallback: string) => string = appTranslate): DesktopStopWords {
+  return {
+    turn: translate('desktop.stop.turn', 'The Designer is in the middle of a turn.'),
+    start: translate('desktop.stop.start', 'An app is being added to this project.'),
+    save: translate('desktop.stop.save', 'Your changes are being saved.'),
+    restore: translate('desktop.stop.restore', 'An earlier version is being put back.'),
+    style: translate('desktop.stop.style', 'The style is being changed.'),
+    other: translate('desktop.stop.other', 'This project is being changed.'),
+    quitDetail: translate('desktop.stop.quitDetail', 'If you quit now it is stopped where it is. What was already written stays.'),
+    closeDetail: translate('desktop.stop.closeDetail', 'If you close the project now it is stopped where it is. What was already written stays.'),
+    quitAnyway: translate('desktop.stop.quitAnyway', 'Quit anyway'),
+    closeAnyway: translate('desktop.stop.closeAnyway', 'Close anyway'),
+    keepWorking: translate('desktop.stop.keepWorking', 'Keep working'),
+  };
+}
+
+/** Handed over with the menu, at boot and at every change of language. Nothing in an app older than the call. */
+export function pushDesktopStopWords(): void {
+  const setStopWords = getDesktopApi()?.project?.setStopWords;
+  if (setStopWords === undefined) return;
+  void setStopWords(resolveStopWords()).catch(() => {
+    // The question is then asked in the language it had: not worth a console error.
   });
 }

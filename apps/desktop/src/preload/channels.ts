@@ -69,6 +69,7 @@ export const IPC_CHANNELS = {
   projectInfo: 'adminium-desktop:project-info',
   projectShowInFolder: 'adminium-desktop:project-show-in-folder',
   projectClose: 'adminium-desktop:project-close',
+  projectStopWords: 'adminium-desktop:project-stop-words',
   versionsState: 'adminium-desktop:versions-state',
   versionsDownload: 'adminium-desktop:versions-download',
   versionsCancel: 'adminium-desktop:versions-cancel',
@@ -132,6 +133,7 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.projectInfo,
   IPC_CHANNELS.projectShowInFolder,
   IPC_CHANNELS.projectClose,
+  IPC_CHANNELS.projectStopWords,
   ...VERSIONS_CHANNELS,
 ] as const;
 

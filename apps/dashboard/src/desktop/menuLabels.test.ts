@@ -11,7 +11,7 @@
 import type { AdminiumDesktopApi, DesktopMenuLabels } from '@adminium/desktop/api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { pushDesktopMenuLabels, resolveMenuLabels } from './menuLabels.js';
+import { pushDesktopMenuLabels, pushDesktopStopWords, resolveMenuLabels, resolveStopWords } from './menuLabels.js';
 
 /** The key set `DesktopMenuLabels` requires — the shell rejects any subset. */
 const MENU_KEYS = [
@@ -74,5 +74,32 @@ describe('pushDesktopMenuLabels', () => {
     // reject anything less, leaving the native menu in English.
     expect(Object.keys(pushed).sort()).toEqual(MENU_KEYS);
     for (const value of Object.values(pushed)) expect(value).toBeTruthy();
+  });
+});
+
+describe('the quit and close questions’ words', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'adminiumDesktop');
+  });
+
+  it('are resolved through the translator, every one', () => {
+    const words = resolveStopWords((key) => `<${key}>`);
+    expect(Object.keys(words)).toHaveLength(11);
+    expect(words.turn).toBe('<desktop.stop.turn>');
+    expect(words.keepWorking).toBe('<desktop.stop.keepWorking>');
+    expect(resolveStopWords((_key, fallback) => fallback).closeAnyway).toBe('Close anyway');
+  });
+
+  it('are handed to the app where it takes them, and nowhere else', async () => {
+    // A browser, and an app older than the call: nothing happens.
+    pushDesktopStopWords();
+    Object.defineProperty(window, 'adminiumDesktop', { value: { project: {} } as unknown as AdminiumDesktopApi, configurable: true });
+    pushDesktopStopWords();
+
+    const setStopWords = vi.fn(() => Promise.reject(new Error('closed')));
+    Object.defineProperty(window, 'adminiumDesktop', { value: { project: { setStopWords } } as unknown as AdminiumDesktopApi, configurable: true });
+    pushDesktopStopWords();
+    expect(setStopWords).toHaveBeenCalledWith(expect.objectContaining({ quitAnyway: 'Quit anyway' }));
+    await Promise.resolve();
   });
 });

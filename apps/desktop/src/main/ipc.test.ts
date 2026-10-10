@@ -806,6 +806,22 @@ describe('the project’s channels', () => {
     expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectClose))).toBe(false);
   });
 
+  it('take the quit and close questions’ words whole, bounded, and never from a stranger', async () => {
+    const setStopWords = vi.fn();
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true), setStopWords } });
+    const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k' };
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.projectStopWords, words));
+    expect(setStopWords).toHaveBeenCalledWith(words);
+    // A native dialog's words: all of them, each of a sentence's length, and nothing else.
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectStopWords, { ...words, turn: undefined })).code).toBe('INVALID_PAYLOAD');
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectStopWords, { ...words, turn: 'x'.repeat(301) })).code).toBe('INVALID_PAYLOAD');
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectStopWords, { ...words, extra: 'x' })).code).toBe('INVALID_PAYLOAD');
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectStopWords, words, { senderFrame: { url: 'https://example.com/' } })).code).toBe('UNTRUSTED_SENDER');
+    expect(setStopWords).toHaveBeenCalledTimes(1);
+    // A build with nowhere to keep them answers all the same.
+    expectOk(await harness().ipc.invoke(IPC_CHANNELS.projectStopWords, words));
+  });
+
   it('carry the versions offer of the project that is open, and nothing when there is none', async () => {
     const STATE = { on: false, declined: false, megabytes: 62, appleTools: true, download: { phase: 'idle' as const } };
     const offer = {

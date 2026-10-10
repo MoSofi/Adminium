@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:net';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { E2E_GIT_ENV, E2E_PORT_ENV, E2E_PROJECT_ENV, PROJECT_PORTS, firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
+import { EN_US_STOP_WORDS, E2E_GIT_ENV, E2E_PORT_ENV, E2E_PROJECT_ENV, PROJECT_PORTS, firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 
 const open: Server[] = [];
 afterEach(async () => {
@@ -117,6 +117,12 @@ describe('stopBusyWords', () => {
     // Closing a project asks the same thing in its own words.
     expect(stopBusyWords({ kind: 'turn', sessionId: 'ds_1' }, 'close')).toMatchObject({ goOn: 'Close anyway', detail: 'If you close the project now it is stopped where it is. What was already written stays.' });
     expect(stopBusyWords({ kind: 'something-new', sessionId: null }).title).toBe('This project is being changed.');
+  });
+
+  it('asks in the language the project’s page handed over', () => {
+    const de = { ...EN_US_STOP_WORDS, turn: 'Der Designer ist mitten in einem Durchgang.', other: 'Dieses Projekt wird gerade geändert.', closeDetail: 'Wenn Sie das Projekt jetzt schließen…', closeAnyway: 'Trotzdem schließen', keepWorking: 'Weiterarbeiten' };
+    expect(stopBusyWords({ kind: 'turn', sessionId: 'ds_1' }, 'close', de)).toEqual({ title: 'Der Designer ist mitten in einem Durchgang.', detail: 'Wenn Sie das Projekt jetzt schließen…', goOn: 'Trotzdem schließen', stay: 'Weiterarbeiten' });
+    expect(stopBusyWords({ kind: 'new', sessionId: null }, 'quit', de).title).toBe('Dieses Projekt wird gerade geändert.');
   });
 });
 

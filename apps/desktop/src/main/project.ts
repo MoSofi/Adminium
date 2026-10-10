@@ -12,6 +12,7 @@ import { createServer } from 'node:net';
 import { isAbsolute, join } from 'node:path';
 
 import { LOOPBACK_HOST } from '../server/env.js';
+import type { DesktopStopWords } from '../preload/api.js';
 import type { GitDownload } from './git.js';
 import type { ServerBusy } from './server-manager.js';
 
@@ -112,7 +113,22 @@ export function projectPortRange(env: NodeJS.ProcessEnv, isPackaged: boolean): {
   return { first, last: first + 19 };
 }
 
-/** A native question's words. English here, as the menu's and the backup dialogs' words are in main. */
+/** English, until the project's page hands over its own language's (`project.setStopWords`), as with the menu. */
+export const EN_US_STOP_WORDS: DesktopStopWords = Object.freeze({
+  turn: 'The Designer is in the middle of a turn.',
+  start: 'An app is being added to this project.',
+  save: 'Your changes are being saved.',
+  restore: 'An earlier version is being put back.',
+  style: 'The style is being changed.',
+  other: 'This project is being changed.',
+  quitDetail: 'If you quit now it is stopped where it is. What was already written stays.',
+  closeDetail: 'If you close the project now it is stopped where it is. What was already written stays.',
+  quitAnyway: 'Quit anyway',
+  closeAnyway: 'Close anyway',
+  keepWorking: 'Keep working',
+});
+
+/** A native question's words. */
 export interface StopBusyWords {
   title: string;
   detail: string;
@@ -121,19 +137,13 @@ export interface StopBusyWords {
 }
 
 /** What is said before the app ends a project's server that is in the middle of something. */
-export function stopBusyWords(busy: ServerBusy, why: 'quit' | 'close' = 'quit'): StopBusyWords {
-  const what: Record<string, string> = {
-    turn: 'The Designer is in the middle of a turn.',
-    start: 'An app is being added to this project.',
-    save: 'Your changes are being saved.',
-    restore: 'An earlier version is being put back.',
-    style: 'The style is being changed.',
-  };
+export function stopBusyWords(busy: ServerBusy, why: 'quit' | 'close' = 'quit', words: DesktopStopWords = EN_US_STOP_WORDS): StopBusyWords {
+  const what: Record<string, string> = { turn: words.turn, start: words.start, save: words.save, restore: words.restore, style: words.style };
   return {
-    title: what[busy.kind] ?? 'This project is being changed.',
-    detail: why === 'close' ? 'If you close the project now it is stopped where it is. What was already written stays.' : 'If you quit now it is stopped where it is. What was already written stays.',
-    goOn: why === 'close' ? 'Close anyway' : 'Quit anyway',
-    stay: 'Keep working',
+    title: what[busy.kind] ?? words.other,
+    detail: why === 'close' ? words.closeDetail : words.quitDetail,
+    goOn: why === 'close' ? words.closeAnyway : words.quitAnyway,
+    stay: words.keepWorking,
   };
 }
 

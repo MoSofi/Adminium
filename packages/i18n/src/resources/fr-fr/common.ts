@@ -1285,6 +1285,19 @@ export default {
         "failedBody": "Un problème est survenu. Réessayez.",
         "retry": "Réessayer"
       }
+    },
+    "stop": {
+      "turn": "Le Designer est au milieu d’un tour.",
+      "start": "Une application est en cours d’ajout à ce projet.",
+      "save": "Vos modifications sont en cours d’enregistrement.",
+      "restore": "Une version antérieure est en cours de restauration.",
+      "style": "Le style est en cours de modification.",
+      "other": "Ce projet est en cours de modification.",
+      "quitDetail": "Si vous quittez maintenant, il est arrêté là où il en est. Ce qui a déjà été écrit reste.",
+      "closeDetail": "Si vous fermez le projet maintenant, il est arrêté là où il en est. Ce qui a déjà été écrit reste.",
+      "quitAnyway": "Quitter quand même",
+      "closeAnyway": "Fermer quand même",
+      "keepWorking": "Continuer à travailler"
     }
   },
   "capabilities": {

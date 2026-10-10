@@ -1416,6 +1416,8 @@ describe('createDesktopApp opening a project folder', () => {
     const shown: Array<{ url: string; preview: boolean }> = [];
     const sessions: Array<string | null> = [];
     const confirmed: string[] = [];
+    /** The words each question was asked with: the page's, or none yet. */
+    const said: Array<string | null> = [];
     /** What the running server was told of the app's programs. */
     const told: string[] = [];
     /** Whether the last look found a git: the test's to change. */
@@ -1487,12 +1489,13 @@ describe('createDesktopApp opening a project folder', () => {
           return Promise.resolve('/data/git/bin/git');
         },
       },
-      confirmStopBusy: (busy) => {
+      confirmStopBusy: (busy, _why, words) => {
         confirmed.push(busy.kind);
+        said.push(words?.keepWorking ?? null);
         return Promise.resolve(over.confirm ?? true);
       },
     };
-    return { h, deps, opts, shown, sessions, confirmed, told, git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
+    return { h, deps, opts, shown, sessions, confirmed, said, told, git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
   }
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -1575,10 +1578,14 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.stops()).toBe(0);
     expect(p.h.quit()).toBe(false);
     expect(p.h.updateDisposed()).toBe(0);
+    // Asked in English until the project's page hands over its own language's words, then in those.
+    expect(p.said).toEqual([null]);
+    p.h.bridge()?.project?.setStopWords?.({ turn: 't', start: 's', save: 'v', restore: 'r', style: 'y', other: 'o', quitDetail: 'q', closeDetail: 'c', quitAnyway: 'qa', closeAnyway: 'ca', keepWorking: 'Weiterarbeiten' });
     // Asked again the next time, not remembered as a no.
     p.h.fireBeforeQuit();
     await settle();
     expect(p.confirmed).toEqual(['turn', 'turn']);
+    expect(p.said).toEqual([null, 'Weiterarbeiten']);
   });
 
   it('and on a yes stops the server first, then quits', async () => {

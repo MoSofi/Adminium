@@ -58,6 +58,7 @@ import type {
   DesktopOpenProjectResult,
   DesktopProjectInfo,
   DesktopRecentProject,
+  DesktopStopWords,
   DesktopVersionsState,
   DesktopRuntimeInfo,
   DesktopStartState,
@@ -304,6 +305,7 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
       info: (): Promise<DesktopProjectInfo | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectInfo)),
       showInFolder: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowInFolder)),
       close: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.projectClose)),
+      setStopWords: (words: DesktopStopWords): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectStopWords, words)),
       versions: {
         state: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsState)),
         download: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsDownload)),

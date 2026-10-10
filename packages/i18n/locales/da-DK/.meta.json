@@ -4719,6 +4719,50 @@
     "srcHash": "d4b1a6d5c80c",
     "status": "mt"
   },
+  "common.desktop.stop.closeAnyway": {
+    "status": "mt",
+    "srcHash": "19bb748c5862"
+  },
+  "common.desktop.stop.closeDetail": {
+    "status": "mt",
+    "srcHash": "4a618ad88085"
+  },
+  "common.desktop.stop.keepWorking": {
+    "status": "mt",
+    "srcHash": "56362c19ac19"
+  },
+  "common.desktop.stop.other": {
+    "status": "mt",
+    "srcHash": "7f80f34482d1"
+  },
+  "common.desktop.stop.quitAnyway": {
+    "status": "mt",
+    "srcHash": "a36e9b560965"
+  },
+  "common.desktop.stop.quitDetail": {
+    "status": "mt",
+    "srcHash": "21710da2018d"
+  },
+  "common.desktop.stop.restore": {
+    "status": "mt",
+    "srcHash": "899083a4d92e"
+  },
+  "common.desktop.stop.save": {
+    "status": "mt",
+    "srcHash": "17017e2527da"
+  },
+  "common.desktop.stop.start": {
+    "status": "mt",
+    "srcHash": "e456fdc4d8ab"
+  },
+  "common.desktop.stop.style": {
+    "status": "mt",
+    "srcHash": "b9464b853081"
+  },
+  "common.desktop.stop.turn": {
+    "status": "mt",
+    "srcHash": "a70e5fe1e1e4"
+  },
   "common.invoices.copySuffix": {
     "status": "mt",
     "srcHash": "7e4c743b8f09"
