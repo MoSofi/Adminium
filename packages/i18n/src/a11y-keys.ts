@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2898 entries. */
+/** `namespace:key` — 2906 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -98,6 +98,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:invoices.chip3',
   'assistant:invoices.confirm.title',
   'assistant:invoices.placeholder',
+  'assistant:mic.speak',
+  'assistant:mic.stop',
   'assistant:panel.new',
   'assistant:panel.stop',
   'assistant:proposal.again',
@@ -134,6 +136,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:report.chip3',
   'assistant:report.confirm.title',
   'assistant:report.placeholder',
+  'assistant:speak.play',
+  'assistant:speak.readAloud',
+  'assistant:speak.settings',
+  'assistant:speak.stop',
   'assistant:steps.readPage',
   'assistant:steps.working',
   'assistant:suggestion.openLabel',
@@ -2267,6 +2273,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:settingsAi.subtitle',
   'studio:settingsAi.testError',
   'studio:settingsAi.title',
+  'studio:settingsAi.voice.minutes',
+  'studio:settingsAi.voice.saveFailed',
   'studio:settingsHub.apiCard.api.label',
   'studio:settingsHub.apiCard.docs.label',
   'studio:settingsHub.apiCard.failed',

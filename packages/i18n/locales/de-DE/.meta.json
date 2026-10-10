@@ -1059,6 +1059,62 @@
     "status": "mt",
     "srcHash": "263ac6470e15"
   },
+  "assistant.mic.asking": {
+    "status": "mt",
+    "srcHash": "e7b95695e2de"
+  },
+  "assistant.mic.blocked": {
+    "status": "mt",
+    "srcHash": "26a93eab8535"
+  },
+  "assistant.mic.check": {
+    "status": "mt",
+    "srcHash": "7ba8a72e3c5f"
+  },
+  "assistant.mic.failed": {
+    "status": "mt",
+    "srcHash": "fa9c0cf87f18"
+  },
+  "assistant.mic.listening": {
+    "status": "mt",
+    "srcHash": "dc353487021a"
+  },
+  "assistant.mic.noticeBrowser": {
+    "status": "mt",
+    "srcHash": "2ae4357a11ba"
+  },
+  "assistant.mic.noticeOk": {
+    "status": "src",
+    "srcHash": "9ce3bd4224c8"
+  },
+  "assistant.mic.noticeProvider": {
+    "status": "mt",
+    "srcHash": "c8d5ec8cee44"
+  },
+  "assistant.mic.ownService": {
+    "status": "mt",
+    "srcHash": "ffb9fb901480"
+  },
+  "assistant.mic.speak": {
+    "status": "mt",
+    "srcHash": "ccc7fab294ff"
+  },
+  "assistant.mic.stop": {
+    "status": "mt",
+    "srcHash": "e134211eedf1"
+  },
+  "assistant.mic.stopped": {
+    "status": "mt",
+    "srcHash": "ef81b5cfcbc7"
+  },
+  "assistant.mic.used": {
+    "status": "mt",
+    "srcHash": "e833a1f54ca1"
+  },
+  "assistant.mic.working": {
+    "status": "mt",
+    "srcHash": "def1020f3366"
+  },
   "assistant.panel.aged": {
     "status": "mt",
     "srcHash": "0dc491cf5e3e"
@@ -1602,6 +1658,42 @@
   "assistant.scope.title": {
     "status": "mt",
     "srcHash": "9268b7604b20"
+  },
+  "assistant.speak.draft": {
+    "status": "mt",
+    "srcHash": "7fb1d19c488c"
+  },
+  "assistant.speak.play": {
+    "status": "mt",
+    "srcHash": "562107b866b5"
+  },
+  "assistant.speak.proposal": {
+    "status": "mt",
+    "srcHash": "a85b68cb0510"
+  },
+  "assistant.speak.readAloud": {
+    "status": "mt",
+    "srcHash": "b88cd8a24201"
+  },
+  "assistant.speak.settings": {
+    "status": "mt",
+    "srcHash": "eafb556167bc"
+  },
+  "assistant.speak.speed": {
+    "status": "mt",
+    "srcHash": "2d2cb022bc3d"
+  },
+  "assistant.speak.stop": {
+    "status": "mt",
+    "srcHash": "24fc8907a423"
+  },
+  "assistant.speak.voice": {
+    "status": "mt",
+    "srcHash": "3091c8446f8d"
+  },
+  "assistant.speak.voiceDefault": {
+    "status": "mt",
+    "srcHash": "6d71fe212070"
   },
   "assistant.steps.done": {
     "status": "mt",
@@ -26870,6 +26962,46 @@
   "studio.settingsAi.title": {
     "srcHash": "f2869a21b90e",
     "status": "mt"
+  },
+  "studio.settingsAi.voice.aloud": {
+    "status": "mt",
+    "srcHash": "f56dc296648f"
+  },
+  "studio.settingsAi.voice.aloudWhat": {
+    "status": "mt",
+    "srcHash": "1e83a95d1946"
+  },
+  "studio.settingsAi.voice.minutes": {
+    "status": "mt",
+    "srcHash": "ae1a13e36b86"
+  },
+  "studio.settingsAi.voice.minutesHint": {
+    "status": "mt",
+    "srcHash": "53c715fcaa6c"
+  },
+  "studio.settingsAi.voice.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.voice.saveFailed": {
+    "status": "mt",
+    "srcHash": "848e72d4e660"
+  },
+  "studio.settingsAi.voice.speak": {
+    "status": "mt",
+    "srcHash": "ccc7fab294ff"
+  },
+  "studio.settingsAi.voice.speakBrowser": {
+    "status": "mt",
+    "srcHash": "41b38c8ec0f5"
+  },
+  "studio.settingsAi.voice.speakProvider": {
+    "status": "mt",
+    "srcHash": "fdc5cb5a9192"
+  },
+  "studio.settingsAi.voice.title": {
+    "status": "mt",
+    "srcHash": "3091c8446f8d"
   },
   "studio.settingsHub.addOnsCard.body": {
     "status": "mt",

@@ -25,9 +25,9 @@ describe('the Mac entitlements', () => {
   const body = plist.slice(plist.indexOf('<plist'));
   const granted = [...body.matchAll(/<key>([^<]+)<\/key>\s*<true\/>/g)].map((match) => match[1]);
 
-  it('grants the JIT and loading a project’s own libraries, and nothing else', () => {
-    expect(granted).toEqual(['com.apple.security.cs.allow-jit', 'com.apple.security.cs.disable-library-validation']);
-    expect([...body.matchAll(/<key>/g)]).toHaveLength(2);
+  it('grants the JIT, loading a project’s own libraries and the microphone, and nothing else', () => {
+    expect(granted).toEqual(['com.apple.security.cs.allow-jit', 'com.apple.security.cs.disable-library-validation', 'com.apple.security.device.audio-input']);
+    expect([...body.matchAll(/<key>/g)]).toHaveLength(3);
   });
 
   it('says what the wide one costs, where the next reader will look', () => {

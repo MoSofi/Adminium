@@ -2347,6 +2347,18 @@ export default {
       "save": "Uložit",
       "saveFailed": "Nepodařilo se uložit. Zkuste to znovu.",
       "never": "{name} nikdy nemění oprávnění, osoby, připojení, strukturu databáze ani tato nastavení."
+    },
+    "voice": {
+      "title": "Hlas",
+      "speak": "Mluvit s {name}",
+      "speakProvider": "To, co člověk řekne, se odesílá k zapsání vašemu poskytovateli AI. Nic se neuchovává.",
+      "speakBrowser": "Váš poskytovatel AI řeč nezapisuje, proto to dělá prohlížeč každého člověka, pokud to umí. Nic se neuchovává.",
+      "minutes": "Počet minut, které může člověk za den nadiktovat",
+      "minutesHint": "0 znamená bez omezení",
+      "save": "Uložit",
+      "saveFailed": "To se nepodařilo uložit. Zkuste to znovu.",
+      "aloud": "{name} čte své odpovědi nahlas",
+      "aloudWhat": "Používá hlasy prohlížeče. Každý si to zapíná sám pro sebe."
     }
   },
   "settingsHub": {

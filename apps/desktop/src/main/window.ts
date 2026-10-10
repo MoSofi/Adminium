@@ -86,6 +86,55 @@ export function isPermissionAllowed(permission: string): boolean {
   return ALLOWED_PERMISSIONS.has(permission);
 }
 
+// ─── The one exception: the microphone, for speaking to the assistant ────────
+
+/**
+ * Asks the app's own server whether people may speak to the assistant in this
+ * workspace (its switch, which is off until an administrator turns it on).
+ * Read at every prompt, so turning the switch off takes the microphone away
+ * at the next press with nothing to push.
+ */
+export type MicrophoneReader = () => Promise<boolean>;
+
+/** A prompt or a check, reduced to what the decision reads. */
+export interface MicrophoneAsk {
+  permission: string;
+  /** A prompt names what it wants (`['audio']`, `['video']`, both). */
+  mediaTypes?: readonly string[] | undefined;
+  /** A synchronous check names one. */
+  mediaType?: string | undefined;
+  /** Who asks: the page's address or origin. */
+  origin: string | null | undefined;
+  /** The app's own server, the only origin this window shows. */
+  appOrigin: string | null;
+  /** The workspace's switch, as the server last answered. */
+  switchedOn: boolean;
+}
+
+function originOrNull(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * {@link ALLOWED_PERMISSIONS} stays empty: nothing is allowed by its name
+ * alone. The microphone is allowed by a DECISION, and only when all of it
+ * holds: the permission is `media`; what is asked for is audio and nothing
+ * else (never the camera, alone or beside it); the asker is the app's own
+ * origin; and the workspace has speaking to the assistant switched on.
+ */
+export function isMicrophoneAllowed(ask: MicrophoneAsk): boolean {
+  if (ask.permission !== 'media' || !ask.switchedOn) return false;
+  if (ask.appOrigin === null || ask.origin === null || ask.origin === undefined) return false;
+  const asker = originOrNull(ask.origin);
+  if (asker === null || asker !== originOrNull(ask.appOrigin)) return false;
+  if (ask.mediaTypes !== undefined) return ask.mediaTypes.length === 1 && ask.mediaTypes[0] === 'audio';
+  return ask.mediaType === 'audio';
+}
+
 // ─── Navigation lockdown ─────────────────────────────────────────────────────
 
 /**
@@ -589,6 +638,12 @@ export interface DesktopWindows {
    * undefined, on the one screen whose entire job is to offer a way out.
    */
   setCrashActionHandler(handler: (action: CrashAction) => void): void;
+  /**
+   * Late-bound like the crash handler: the reader needs the running server,
+   * which does not exist when the window manager is made. Until it is set,
+   * the microphone is denied like everything else.
+   */
+  setMicrophoneReader(reader: MicrophoneReader): void;
 }
 
 export interface CreateWindowManagerOptions {
@@ -656,6 +711,10 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   let pendingFile: string | null = null;
   /** Late-bound — see {@link DesktopWindows.setCrashActionHandler}. */
   let crashActionHandler: ((action: CrashAction) => void) | null = opts.onCrashAction ?? null;
+  /** Late-bound — see {@link DesktopWindows.setMicrophoneReader}. */
+  let microphoneReader: MicrophoneReader | null = null;
+  /** What the server last answered: the synchronous check cannot ask, so it reads this. */
+  let microphoneOn = false;
   let persistTimer: NodeJS.Timeout | null = null;
   /** In-flight window construction, so concurrent callers share one — see {@link create}. */
   let creating: Promise<BrowserWindow> | null = null;
@@ -780,10 +839,25 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     // raise a prompt). Denying only the first leaves the second at Chromium's
     // default, which is not "deny".
     const { session } = created.webContents;
-    session.setPermissionRequestHandler((_contents, permission, callback) => {
-      callback(isPermissionAllowed(permission));
+    session.setPermissionRequestHandler((_contents, permission, callback, details) => {
+      if (permission !== 'media' || microphoneReader === null) {
+        callback(isPermissionAllowed(permission));
+        return;
+      }
+      // The microphone: the server is asked NOW, and a reader that fails is a "no".
+      const asked = details as { mediaTypes?: readonly string[]; requestingUrl?: string; securityOrigin?: string };
+      void microphoneReader()
+        .catch(() => false)
+        .then((on) => {
+          microphoneOn = on;
+          callback(isMicrophoneAllowed({ permission, mediaTypes: asked.mediaTypes ?? [], origin: asked.securityOrigin ?? asked.requestingUrl, appOrigin, switchedOn: on }));
+        });
     });
-    session.setPermissionCheckHandler((_contents, permission) => isPermissionAllowed(permission));
+    session.setPermissionCheckHandler((_contents, permission, requestingOrigin, details) =>
+      permission === 'media'
+        ? isMicrophoneAllowed({ permission, mediaType: (details as { mediaType?: string }).mediaType, origin: requestingOrigin, appOrigin, switchedOn: microphoneOn })
+        : isPermissionAllowed(permission),
+    );
 
     // ── window state ──
     created.on('resize', persistDebounced);
@@ -1001,6 +1075,10 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     broadcast(channel: string, payload: unknown): void {
       if (win === null || win.isDestroyed()) return;
       win.webContents.send(channel, payload);
+    },
+
+    setMicrophoneReader(reader: MicrophoneReader): void {
+      microphoneReader = reader;
     },
 
     setCrashActionHandler(handler: (action: CrashAction) => void): void {

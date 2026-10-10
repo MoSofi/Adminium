@@ -63,6 +63,33 @@ export default {
     "send": "Send",
     "working": "Arbejder …"
   },
+  "mic": {
+    "speak": "Tal til {name}",
+    "stop": "Stop med at lytte",
+    "listening": "Lytter",
+    "asking": "Tillad mikrofonen for at tale til {name}",
+    "working": "Skriver ned, hvad du sagde…",
+    "check": "Tjek teksten, og send så.",
+    "stopped": "Stoppet efter {minutes, plural, one {# minut} other {# minutter}}.",
+    "blocked": "Mikrofonen er blokeret for dette websted. Tillad den i browserens adresselinje.",
+    "used": "Taletiden er brugt op for i dag.",
+    "failed": "Det virkede ikke. Prøv igen.",
+    "noticeProvider": "Det, du siger, sendes til {provider} for at blive skrevet ned. Intet gemmes.",
+    "noticeBrowser": "Det, du siger, skrives ned af din browsers egen taletjeneste.",
+    "noticeOk": "OK",
+    "ownService": "dit arbejdsområdes modeltjeneste"
+  },
+  "speak": {
+    "play": "Læs højt",
+    "stop": "Stop oplæsning",
+    "settings": "Oplæsning",
+    "readAloud": "Læs svar højt",
+    "speed": "Hastighed",
+    "voice": "Stemme",
+    "voiceDefault": "Browserens egen",
+    "draft": "Der er et udkast, du kan se på.",
+    "proposal": "Jeg har vist på skærmen, hvad der ville ændre sig, så du kan se på det."
+  },
   "confirm": {
     "cancel": "Annullér"
   },

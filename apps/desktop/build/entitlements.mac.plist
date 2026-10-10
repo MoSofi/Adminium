@@ -42,6 +42,14 @@
     One file serves the app and every helper (entitlementsInherit), so the
     renderers carry the key too. They load no project library; a second, narrower
     file for them is possible and is not done here.
+
+  * com.apple.security.device.audio-input — GRANTED, for speaking to the
+    assistant. Under the hardened runtime a process without it is handed
+    silence by the system whatever the app itself allows. The app's own
+    permission handler still denies the microphone unless the workspace has
+    speaking switched on (src/main/window.ts), and macOS asks the person once,
+    with the sentence in electron-builder.yml (NSMicrophoneUsageDescription).
+    The camera has no such entitlement and is never asked for.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -49,6 +57,8 @@
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.device.audio-input</key>
     <true/>
   </dict>
 </plist>

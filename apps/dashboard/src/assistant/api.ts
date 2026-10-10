@@ -43,6 +43,27 @@ export interface AssistantAvailability {
   abilities?: AssistantAbilities;
   /** The most changes one confirmation may make. */
   maxRows?: number;
+  /**
+   * Voice. `input`: a recording is written down by the workspace's own model
+   * service (`provider`, named in `to`), by the browser's own speech service,
+   * or not at all. `output`: replies may be read aloud. Absent from a server
+   * before voice.
+   */
+  voice?: {
+    input: 'provider' | 'browser' | 'none';
+    to: string | null;
+    output: boolean;
+    maxSeconds: number;
+    /** This person's own choices for replies read aloud. */
+    mine?: VoiceChoices;
+  };
+}
+
+/** A person's own choices for replies read aloud: whether, how fast, in which of the browser's voices. */
+export interface VoiceChoices {
+  readAloud: boolean;
+  rate: number;
+  voice: string | null;
 }
 
 /** The workspace's four switches on what the assistant may do. */
@@ -654,6 +675,8 @@ function sessionPath(id: string): string {
 }
 
 export const assistantApi = {
+  /** Change what is named of this person's read-aloud choices; the rest is kept. */
+  setVoiceChoices: (change: Partial<VoiceChoices>) => api.put<VoiceChoices>(`${BASE}/voice/mine`, change),
   availability: (context: AssistantContext) =>
     api.get<AssistantAvailability>(`${BASE}/availability?context=${encodeURIComponent(context)}`),
   openSession: (body: { context: AssistantContext; host: AssistantHostRef; draft?: unknown; kind?: 'modal' | 'panel' }) =>

@@ -32,7 +32,7 @@
 import { startersFor } from '../../assistant/add-on-notes.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { AiConnections } from '../../llm/connections.js';
-import { estimateTokens } from '@adminium/llm';
+import { ProviderError, estimateTokens } from '@adminium/llm';
 import {
   assistantSessionsRepo,
   assistantUseDay,
@@ -49,7 +49,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { FastifyPluginAsyncZod, ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { assistantDocumentExists, runAssistantAction } from '../../assistant/actions.js';
@@ -57,11 +57,25 @@ import { dataPageOf } from '../../assistant/data-page.js';
 import { applyProposal, checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
 import { viewOrError } from '../../assistant/tools/schema.js';
 import { readAllowance } from '../../assistant/allowance.js';
+import {
+  VOICE_MAX_BYTES,
+  VOICE_MAX_SECONDS,
+  VOICE_TYPES,
+  giveBackVoice,
+  noteCannotTranscribe,
+  readVoiceAllowance,
+  readVoiceChoices,
+  recordingSeconds,
+  reserveVoice,
+  settleVoice,
+  voiceWay,
+  writeVoiceChoices,
+} from '../../assistant/voice.js';
 import { listedAddOns } from '../../assistant/tools/add-ons.js';
 import type { AssistantAddOn, AssistantToolDeps } from '../../assistant/types.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { ASSISTANT_TURN_KIND } from '../../jobs/assistant-turn.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { isUniqueViolation } from '../../crud/decided-columns.js';
@@ -73,6 +87,10 @@ import {
   assistantAvailabilityReply,
   assistantCurrentReply,
   assistantFactsBody,
+  assistantTranscribeQuery,
+  assistantTranscribeReply,
+  assistantVoiceMineBody,
+  assistantVoiceMineReply,
   assistantFactsReply,
   assistantSessionCreateBody,
   assistantSessionCreateReply,
@@ -270,6 +288,23 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       if (refused !== undefined) {
         throw new ForbiddenError('The assistant answers questions about your app’s data here. That page is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', context: refused });
       }
+      // A conversation from before (opened while they held another role) may hold turns of pages that are
+      // no longer theirs: it is closed, and they start a new one. Their one open conversation is the panel's.
+      const route = request.routeOptions.url ?? '';
+      if (route.includes('/assistant/sessions')) {
+        const open = await sessions.openPanelOf(request.user.id);
+        if (open !== null) {
+          const foreign = !SCREENS_ONLY_CONTEXTS.includes(open.context) || (await sessions.listTurns(open.id)).some((turn) => turn.context !== null && !SCREENS_ONLY_CONTEXTS.includes(turn.context));
+          if (foreign) await sessions.close(open.id, app.rbac.now());
+        }
+        const named = (request.params as { id?: unknown } | null)?.id;
+        if (typeof named === 'string') {
+          const session = await sessions.findSession(named);
+          if (session !== null && session.createdBy === request.user.id && !SCREENS_ONLY_CONTEXTS.includes(session.context)) {
+            throw new ForbiddenError('That conversation was held on a page that is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', context: session.context });
+          }
+        }
+      }
       if (typeof body.action === 'string' && NOT_FOR_SCREENS_ONLY.includes(body.action)) {
         throw new ForbiddenError('That is done from the dashboard, which is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', action: body.action });
       }
@@ -373,10 +408,113 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           model: state.model,
           abilities: await settings.get('assistant.abilities'),
           maxRows: await settings.get('assistant.maxRows'),
+          voice: {
+            input: voiceWay({ on: await settings.get('assistant.voice.input'), provider: state.provider, enabled: state.enabled, connectionId: (await deps.connections?.default())?.connection.id }),
+            to: state.provider,
+            output: await settings.get('assistant.voice.output'),
+            maxSeconds: VOICE_MAX_SECONDS,
+            mine: await readVoiceChoices(meta, requireUserId(request)),
+          },
           budget: await readAllowance(meta, requireUserId(request), app.rbac.now()),
         };
       },
     );
+
+    /*
+     * SPEAKING TO THE ASSISTANT (`assistant/voice.ts`). The recording is the
+     * request's body, taken as bytes by a parser of this scope's own with its
+     * own limit (the server's is for JSON). It is handed to the workspace's
+     * model service and to nothing else: not stored, not logged (a body is
+     * never in the request log), and the audit says who and how long, never
+     * what was said.
+     */
+    app.put(
+      '/assistant/voice/mine',
+      {
+        preHandler: guard,
+        config: { audit: auditExempt('a person’s own choice of how replies are read aloud to them: a preference, like their theme') },
+        schema: { body: assistantVoiceMineBody, response: { 200: assistantVoiceMineReply } },
+      },
+      async (request) => writeVoiceChoices(meta, requireUserId(request), Object.fromEntries(Object.entries(request.body).filter(([, value]) => value !== undefined)), app.rbac.now()),
+    );
+
+    await app.register(async (voiceScope) => {
+      // The parsers are this small scope's own: no other route of the assistant takes a recording.
+      for (const type of VOICE_TYPES) {
+        voiceScope.addContentTypeParser(type, { parseAs: 'buffer', bodyLimit: VOICE_MAX_BYTES }, (_request, body, done) => {
+          done(null, body);
+        });
+      }
+      voiceScope.withTypeProvider<ZodTypeProvider>().post(
+        '/assistant/transcribe',
+        {
+          // Before the body is read: nobody without the assistant has four megabytes buffered for them.
+          onRequest: guard,
+          bodyLimit: VOICE_MAX_BYTES,
+          config: { audit: audited('rbac'), rateLimitBucket: 'assistant' },
+          schema: { querystring: assistantTranscribeQuery, response: { 200: assistantTranscribeReply } },
+        },
+        async (request) => {
+          const userId = requireUserId(request);
+          const at = app.rbac.now();
+          const state = await providerState();
+          const chosen = deps.connections === undefined ? null : await deps.connections.default();
+          const connectionId = chosen?.connection.id ?? null;
+          const way = voiceWay({ on: await settings.get('assistant.voice.input'), provider: state.provider, enabled: state.enabled, connectionId });
+          if (way === 'none') throw new ForbiddenError('Speaking to the assistant is switched off in this workspace.', 'FORBIDDEN', { reason: 'voice-off' });
+          const notHere = (): ConflictError =>
+            new ConflictError('This workspace’s model service does not turn speech into text. Your browser’s own may.', 'CONFLICT', { reason: 'voice-not-here' });
+          if (way !== 'provider' || deps.connections === undefined || chosen === null) throw notHere();
+          const type = String(request.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+          const audio = request.body;
+          if (!VOICE_TYPES.includes(type) || !Buffer.isBuffer(audio) || audio.length === 0) {
+            throw new ValidationFailedError('Send one recording as the body, as audio/webm or audio/mp4.', { contentType: type });
+          }
+          // The service is found BEFORE anything is taken from the person's day: no minutes for a service that is not there.
+          const { client } = await deps.connections.client(chosen.connection.id, chosen.model);
+          if (client.transcribe === undefined) throw notHere();
+
+          const taken = recordingSeconds(audio.length, request.query.seconds);
+          const held = await reserveVoice(meta, userId, taken, at);
+          if (!held.ok) {
+            if (held.reason === 'busy') throw new ConflictError('Your last recording is still being turned into text.', 'CONFLICT', { reason: 'voice-busy' });
+            throw new AppError(429, 'VOICE_ALLOWANCE', 'You have used today’s minutes for speaking to the assistant.', { ...held.allowance });
+          }
+          // The person's own request going away (the panel closed mid-way) stops the call to the provider.
+          const stop = new AbortController();
+          const onClose = (): void => {
+            if (!request.raw.complete || request.raw.destroyed) stop.abort();
+          };
+          request.raw.socket.once('close', onClose);
+          try {
+            const language = (request.query.language ?? '').slice(0, 2).toLowerCase();
+            let heard: { text: string; seconds?: number };
+            try {
+              heard = await client.transcribe({ audio: new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength), mime: type, ...(/^[a-z]{2}$/.test(language) ? { language } : {}), signal: stop.signal });
+            } catch (error) {
+              if (error instanceof ProviderError) {
+                // Nothing was written down for these: a server with no such route, or a person who went away.
+                if (error.code === 'not_found' || error.code === 'aborted') await giveBackVoice(meta, userId, taken, at);
+                if (error.code === 'not_found') {
+                  // Said as what it is, and remembered: the panel falls back to the browser's, and is told so from now on.
+                  noteCannotTranscribe(chosen.connection.id);
+                  throw notHere();
+                }
+                throw new AppError(502, 'VOICE_FAILED', 'The recording could not be turned into text. Try again.', { provider: error.provider, code: error.code });
+              }
+              throw error;
+            }
+            // Counted by what the service says the recording was, where it says: a light encoding holds more than its weight shows.
+            const seconds = await settleVoice(meta, userId, taken, heard.seconds, at);
+            await app.rbac.audit(request, { category: 'llm', action: 'assistant.transcribe', changes: { after: { seconds, provider: state.provider } } });
+            return { text: heard.text, seconds, allowance: await readVoiceAllowance(meta, userId, at) };
+          } finally {
+            request.raw.socket.removeListener('close', onClose);
+            held.release();
+          }
+        },
+      );
+    });
 
     app.post(
       '/assistant/sessions',
@@ -823,6 +961,15 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         maxRows: await settings.get('assistant.maxRows'),
         maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
         staffAddresses: await settings.get('assistant.staffAddresses'),
+        voice: {
+          input: await settings.get('assistant.voice.input'),
+          dailyMinutes: await settings.get('assistant.voice.dailyMinutes'),
+          output: await settings.get('assistant.voice.output'),
+          writtenBy: await (async () => {
+            const state = await providerState();
+            return voiceWay({ on: true, provider: state.provider, enabled: state.enabled, connectionId: (await deps.connections?.default())?.connection.id }) === 'provider' ? ('provider' as const) : ('browser' as const);
+          })(),
+        },
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
       };
@@ -879,6 +1026,16 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             before.staffAddresses = held;
             after.staffAddresses = body.staffAddresses;
           }
+        }
+        // Each of the three is its own decision: one named never moves another.
+        for (const [field, key] of [['input', 'assistant.voice.input'], ['dailyMinutes', 'assistant.voice.dailyMinutes'], ['output', 'assistant.voice.output']] as const) {
+          const next = body.voice?.[field];
+          if (next === undefined) continue;
+          const held = await settings.get(key);
+          if (held === next) continue;
+          await settings.set(key, next as never, by);
+          before[`voice.${field}`] = held;
+          after[`voice.${field}`] = next;
         }
         // One entry for what really changed, with what it was: who let the assistant write is on record.
         if (Object.keys(after).length > 0) {

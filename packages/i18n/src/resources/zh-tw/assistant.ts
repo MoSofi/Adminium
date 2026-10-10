@@ -63,6 +63,33 @@ export default {
     "send": "傳送",
     "working": "處理中…"
   },
+  "mic": {
+    "speak": "對 {name} 說話",
+    "stop": "停止聆聽",
+    "listening": "正在聆聽",
+    "asking": "請允許使用麥克風以便對 {name} 說話",
+    "working": "正在記錄您說的話…",
+    "check": "檢查文字，然後傳送。",
+    "stopped": "已在 {minutes, plural, other {# 分鐘}}時停止。",
+    "blocked": "此網站的麥克風已被封鎖。請在瀏覽器網址列中允許它。",
+    "used": "今天的語音時間已用完。",
+    "failed": "沒有成功。請再試一次。",
+    "noticeProvider": "您說的話會傳送給 {provider} 進行記錄。不會保留任何內容。",
+    "noticeBrowser": "您說的話由瀏覽器內建的語音服務記錄。",
+    "noticeOk": "好",
+    "ownService": "您工作區的模型服務"
+  },
+  "speak": {
+    "play": "朗讀",
+    "stop": "停止朗讀",
+    "settings": "朗讀",
+    "readAloud": "朗讀回覆",
+    "speed": "速度",
+    "voice": "語音",
+    "voiceDefault": "瀏覽器內建的",
+    "draft": "有一份草稿供您查看。",
+    "proposal": "我已把將要變更的內容顯示在畫面上，供您查看。"
+  },
   "confirm": {
     "cancel": "取消"
   },

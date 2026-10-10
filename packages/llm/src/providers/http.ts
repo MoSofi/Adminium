@@ -60,6 +60,14 @@ export interface RequestJsonOptions {
   method?: 'GET' | 'POST';
   headers?: Record<string, string>;
   body?: unknown;
+  /**
+   * A body sent as it is (a multipart form: a recording to transcribe). The
+   * runtime writes its own `content-type` with the boundary, so the caller
+   * sets none. Read instead of `body` when present.
+   */
+  rawBody?: FormData;
+  /** The caller's own signal: the request is abandoned when it fires. */
+  signal?: AbortSignal;
   /** The secret to scrub from any error text (never sent anywhere else). */
   apiKey?: string;
   /** Abort after this many ms; defaults to `DEFAULT_TIMEOUT_MS`. */
@@ -104,12 +112,20 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
   // A redirect is never followed: the address that was checked is the address that is called.
   const init: RequestInit = { method, signal: controller.signal, redirect: 'manual' };
   if (headers !== undefined) init.headers = headers;
-  if (body !== undefined) init.body = JSON.stringify(body);
+  if (opts.rawBody !== undefined) init.body = opts.rawBody;
+  else if (body !== undefined) init.body = JSON.stringify(body);
+  // The caller went away (a person closed the page mid-recording): stop with them.
+  const onAbort = (): void => controller.abort();
+  if (opts.signal?.aborted === true) controller.abort();
+  else opts.signal?.addEventListener('abort', onAbort, { once: true });
 
   let res: Response;
   try {
     res = await outboundFetch(url)(url, init);
   } catch (err) {
+    if (opts.signal?.aborted === true) {
+      throw new ProviderError({ provider, code: 'aborted', message: `${provider}: the request was stopped` });
+    }
     if (controller.signal.aborted) {
       throw new ProviderError({
         provider,
@@ -126,6 +142,7 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
     });
   } finally {
     clearTimeout(timer);
+    opts.signal?.removeEventListener('abort', onAbort);
   }
 
   if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) {
@@ -221,4 +238,53 @@ export function toCompleteResult(
     result.usage = { inputTokens, outputTokens };
   }
   return result;
+}
+
+// ─── a recording to transcribe (OpenAI's route, and the servers that copy it) ──
+
+/** The file name a transcription service reads the recording's type from. */
+function recordingName(mime: string): string {
+  const type = mime.split(';')[0]?.trim().toLowerCase() ?? '';
+  if (type === 'audio/mp4' || type === 'audio/m4a' || type === 'audio/x-m4a') return 'speech.m4a';
+  if (type === 'audio/ogg') return 'speech.ogg';
+  if (type === 'audio/wav' || type === 'audio/x-wav') return 'speech.wav';
+  if (type === 'audio/mpeg') return 'speech.mp3';
+  return 'speech.webm';
+}
+
+/**
+ * `POST {base}/audio/transcriptions`, as OpenAI defines it: one file, a model,
+ * optionally the language. Through {@link requestJson}, so it leaves by the
+ * same checked door as every other call, follows no redirect, and never puts
+ * the key or the recording into an error.
+ */
+export async function transcribeOpenAiStyle(opts: {
+  provider: ProviderId;
+  baseUrl: string;
+  apiKey?: string;
+  timeoutMs?: number;
+  model: string;
+  req: { audio: Uint8Array; mime: string; language?: string; signal?: AbortSignal };
+}): Promise<{ text: string; seconds?: number }> {
+  const form = new FormData();
+  // A copy: the bytes handed in may be a view of a larger buffer, and a Blob takes what it is given.
+  form.append('file', new Blob([opts.req.audio.slice()], { type: opts.req.mime.split(';')[0] ?? opts.req.mime }), recordingName(opts.req.mime));
+  form.append('model', opts.model);
+  // The verbose form also says how long the recording was: what it is counted by, where the service says it.
+  form.append('response_format', 'verbose_json');
+  if (opts.req.language !== undefined && /^[a-z]{2}$/.test(opts.req.language)) form.append('language', opts.req.language);
+  const json = await requestJson<{ text?: unknown; duration?: unknown }>({
+    provider: opts.provider,
+    method: 'POST',
+    url: `${opts.baseUrl}/audio/transcriptions`,
+    ...(opts.apiKey === undefined ? {} : { headers: { authorization: `Bearer ${opts.apiKey}` }, apiKey: opts.apiKey }),
+    ...(opts.timeoutMs === undefined ? {} : { timeoutMs: opts.timeoutMs }),
+    ...(opts.req.signal === undefined ? {} : { signal: opts.req.signal }),
+    rawBody: form,
+  });
+  if (typeof json.text !== 'string') {
+    throw new ProviderError({ provider: opts.provider, code: 'bad_response', message: `${opts.provider}: the transcription had no text` });
+  }
+  const seconds = typeof json.duration === 'number' && Number.isFinite(json.duration) && json.duration > 0 ? json.duration : undefined;
+  return { text: json.text.trim(), ...(seconds === undefined ? {} : { seconds }) };
 }
