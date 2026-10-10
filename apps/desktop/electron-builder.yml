@@ -134,7 +134,7 @@ files:
   # build when a workspace package carries anything its own `files` does not
   # name, so a new folder cannot ride along unseen.
   - "!node_modules/@adminium/*/{coverage,.turbo,vrt,storybook-static,.storybook,test,tests,scripts,data,e2e,fixtures,demo}{,/**}"
-  - "!node_modules/@adminium/*/{vitest.config.ts,eslint.config.js,openapi.json,tsconfig.json,tsconfig.build.json,*.tsbuildinfo,CHANGELOG.md}"
+  - "!node_modules/@adminium/*/{vitest.config.ts,playwright.config.ts,eslint.config.js,openapi.json,a11y-baseline.json,tsconfig.json,tsconfig.build.json,*.tsbuildinfo,CHANGELOG.md,TRANSLATIONS.md}"
   # Sources, except the two packages whose `files` name some: the tokens' (CSS
   # read at run time) and the charts' one stylesheet.
   - "!node_modules/@adminium/{server,ui,widgets,engine,meta,manifest,llm,i18n,schema-import,add-on-contracts,public-client,adapter-sqlite,adapter-postgres,adapter-mysql}/src{,/**}"

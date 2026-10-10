@@ -15,7 +15,7 @@
  * library, so it adds nothing to sign; it is covered by the app's seal like any
  * other resource.
  */
-const { closeSync, cpSync, existsSync, openSync, readFileSync, readSync, realpathSync, rmSync } = require('node:fs');
+const { closeSync, cpSync, existsSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 
 /** Where a packed app keeps its resources, per system. */
@@ -49,14 +49,42 @@ const ALWAYS = new Set(['package.json', 'README.md', 'LICENSE', 'LICENSES']);
  * is a folder of the repository, and whatever lies in that folder rides along
  * unless the build's list cuts it (41 MB of test pictures once did).
  */
+/**
+ * Every workspace package's manifest, by the package's name, read from the
+ * repository itself.
+ *
+ * NOT from the app's own `node_modules`: only the packages the app depends on
+ * DIRECTLY are linked there, and the archive also holds the ones the server
+ * brings. Looking there passed every such package unread (the UI package's
+ * test baseline and a translators' note rode in every installer until two of
+ * them became direct dependencies and were seen).
+ */
+function workspaceManifests(projectDir) {
+  const found = new Map();
+  const repository = join(projectDir, '..', '..');
+  for (const group of ['apps', 'packages']) {
+    const dir = join(repository, group);
+    if (!existsSync(dir)) continue;
+    for (const entry of readdirSync(dir)) {
+      const manifest = join(dir, entry, 'package.json');
+      if (!existsSync(manifest)) continue;
+      const name = JSON.parse(readFileSync(manifest, 'utf8')).name;
+      if (typeof name === 'string') found.set(name, manifest);
+    }
+  }
+  return found;
+}
+
 function checkWorkspacePackages(context) {
   const archive = join(resourcesDir(context), 'app.asar');
   if (!existsSync(archive)) return;
   const scope = archiveHeader(archive).files?.node_modules?.files?.['@adminium']?.files ?? {};
   const strays = [];
+  const manifests = workspaceManifests(context.packager.projectDir);
   for (const [name, node] of Object.entries(scope)) {
-    const manifest = join(context.packager.projectDir, 'node_modules', '@adminium', name, 'package.json');
-    if (!existsSync(manifest)) continue;
+    const manifest = manifests.get(`@adminium/${name}`);
+    // Not skipped: a package this check cannot find is one it would otherwise pass unread.
+    if (manifest === undefined) throw new Error(`after-pack: @adminium/${name} is in the archive, and no package of the repository has that name.`);
     const named = (JSON.parse(readFileSync(manifest, 'utf8')).files ?? []).map((entry) => entry.split('/')[0]);
     for (const entry of Object.keys(node.files ?? {})) {
       if (!ALWAYS.has(entry) && !named.includes(entry)) strays.push(`@adminium/${name}/${entry}`);
