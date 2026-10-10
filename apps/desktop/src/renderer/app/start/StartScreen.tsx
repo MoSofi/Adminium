@@ -125,15 +125,17 @@ function RecentRow({
             {project.name}
           </button>
         )}
-        <div className="flex flex-wrap items-center gap-2 text-[12px] text-fg-subtle">
+        {/* One line, always: a long path gives way (it is cut at its end), the day it was opened does not drop under a dot. */}
+        <div className="flex min-w-0 items-center gap-2 whitespace-nowrap text-[12px] text-fg-subtle">
           <span
             dir="ltr"
-            className={`font-mono text-[11.5px] font-medium [unicode-bidi:isolate] ${project.missing ? 'line-through' : 'text-fg-muted'}`}
+            title={project.displayPath}
+            className={`min-w-0 truncate font-mono text-[11.5px] font-medium [unicode-bidi:isolate] ${project.missing ? 'line-through' : 'text-fg-muted'}`}
           >
             {project.displayPath}
           </span>
           <span aria-hidden="true">·</span>
-          <span>{project.missing ? t('desktop:start.recent.gone', 'This folder was moved or deleted') : when}</span>
+          <span className="shrink-0">{project.missing ? t('desktop:start.recent.gone', 'This folder was moved or deleted') : when}</span>
         </div>
       </div>
       {project.missing ? (
