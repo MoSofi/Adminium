@@ -110,9 +110,13 @@ export const rbacPlugin = fp<RbacPluginOptions>(
 
     async function auditFromRequest(request: FastifyRequest, entry: RequestAuditInput): Promise<void> {
       const principal = getPrincipal(request);
+      // A write confirmed in a conversation with the assistant says so: the request came through
+      // the assistant's door, which set this only after its ticket was found and matched.
+      const via = request.assistantVia;
       await audit.append(
         {
           ...entry,
+          ...(via === null || via === undefined ? {} : { changes: { ...(entry.changes ?? {}), via: { assistant: { sessionId: via.sessionId, turnId: via.turnId } } } }),
           actorKind: principal?.kind ?? 'system',
           actorId: principal?.id ?? null,
           actorLabel: principal?.label ?? 'Adminium',

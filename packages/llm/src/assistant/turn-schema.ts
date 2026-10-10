@@ -11,10 +11,13 @@
  * - `calls`  — read tools to run; each carries the step row the UI shows while
  *              it runs;
  * - `ask`    — pick groups the operator must answer before work continues;
- * - `result` — the drafted artefact, in the host page's own document format;
- * - none     — a plain answer.
+ * - `result`  — the drafted artefact, in the host page's own document format;
+ * - `propose` — changes for the person to confirm, on a page where the
+ *               workspace allows them and the person holds the right;
+ * - none      — a plain answer.
  *
- * There is deliberately no write move. The model proposes; a person saves.
+ * Nothing here writes. A proposal is a list the person is shown and may
+ * confirm; the server checks it as that person and runs it only then.
  *
  * Every string is bounded here and rendered as TEXT by the dashboard, so a
  * reply can neither grow the page without limit nor smuggle markup into it.
@@ -168,6 +171,94 @@ export const assistantResultSchema = z.object({
 });
 export type AssistantResult = z.infer<typeof assistantResultSchema>;
 
+// ─── A proposal ──────────────────────────────────────────────────────────────
+
+/** Actions one proposal may carry. The workspace's own cap is lower or equal and is the server's to check. */
+export const ASSISTANT_MAX_ACTIONS_PER_PROPOSAL = 50;
+/** Columns one proposed row may set. */
+export const ASSISTANT_MAX_VALUES_PER_ACTION = 60;
+
+/**
+ * Everything a proposal may ask for. Every id in an action is the MODEL'S
+ * text: the server resolves each against what the person can see before it
+ * is used anywhere, and never builds an address from one.
+ */
+export const ASSISTANT_ACTION_KINDS = [
+  'row.create',
+  'row.change',
+  'row.delete',
+  'doc.save',
+  'doc.change',
+  'doc.delete',
+  'send.document',
+  'send.template',
+] as const;
+export type AssistantActionKind = (typeof ASSISTANT_ACTION_KINDS)[number];
+
+/** The two actions that are about the reply's own draft, and so travel with a `result`. */
+export const ASSISTANT_DRAFT_ACTION_KINDS: readonly AssistantActionKind[] = ['doc.save', 'doc.change'];
+
+const actionValues = z
+  .record(z.string().min(1).max(200), z.unknown())
+  .refine((values) => Object.keys(values).length >= 1 && Object.keys(values).length <= ASSISTANT_MAX_VALUES_PER_ACTION, {
+    message: `Set between 1 and ${ASSISTANT_MAX_VALUES_PER_ACTION} columns.`,
+  });
+const actionConnection = z.string().min(1).max(64);
+const actionTable = z.string().min(1).max(200);
+const actionRecordId = z.string().min(1).max(200);
+
+const ACTION_SCHEMAS = {
+  'row.create': z.object({ do: z.literal('row.create'), connectionId: actionConnection, table: actionTable, values: actionValues }),
+  'row.change': z.object({
+    do: z.literal('row.change'),
+    connectionId: actionConnection,
+    table: actionTable,
+    id: actionRecordId,
+    values: actionValues.describe('Only the columns that change, with their new values.'),
+  }),
+  'row.delete': z.object({ do: z.literal('row.delete'), connectionId: actionConnection, table: actionTable, id: actionRecordId }),
+  'doc.save': z.object({ do: z.literal('doc.save') }).describe('Save the draft in "result" of this same reply as a new document.'),
+  'doc.change': z
+    .object({ do: z.literal('doc.change') })
+    .describe('Save the draft in "result" of this same reply over the document that is open on this page.'),
+  'doc.delete': z.object({ do: z.literal('doc.delete'), kind: z.enum(['email', 'report', 'rule']), id: z.string().min(1).max(64) }),
+  'send.document': z.object({ do: z.literal('send.document'), id: z.string().min(1).max(64) }),
+  'send.template': z.object({
+    do: z.literal('send.template'),
+    templateId: z.string().min(1).max(64),
+    roles: z.array(z.string().min(1).max(80)).min(1).max(20),
+  }),
+} as const satisfies Record<AssistantActionKind, z.ZodType>;
+
+/** One action of any kind: what is stored, and what the server checks a stored proposal against. */
+export const assistantActionSchema = z.discriminatedUnion('do', [
+  ACTION_SCHEMAS['row.create'],
+  ACTION_SCHEMAS['row.change'],
+  ACTION_SCHEMAS['row.delete'],
+  ACTION_SCHEMAS['doc.save'],
+  ACTION_SCHEMAS['doc.change'],
+  ACTION_SCHEMAS['doc.delete'],
+  ACTION_SCHEMAS['send.document'],
+  ACTION_SCHEMAS['send.template'],
+]);
+export type AssistantAction = z.infer<typeof assistantActionSchema>;
+
+export const assistantProposalSchema = z.object({
+  title: z.string().min(1).max(80),
+  actions: z.array(assistantActionSchema).min(1).max(ASSISTANT_MAX_ACTIONS_PER_PROPOSAL),
+});
+export type AssistantProposal = z.infer<typeof assistantProposalSchema>;
+
+/** A proposal that may hold only the kinds one page offers. The list is never empty. */
+function proposalSchemaOf(kinds: readonly AssistantActionKind[]): z.ZodType {
+  const options = kinds.map((kind) => ACTION_SCHEMAS[kind]);
+  const action = options.length === 1 ? (options[0] as z.ZodType) : z.discriminatedUnion('do', options as never);
+  return z.object({
+    title: z.string().min(1).max(80),
+    actions: z.array(action).min(1).max(ASSISTANT_MAX_ACTIONS_PER_PROPOSAL),
+  });
+}
+
 const ONE_MOVE_MESSAGE = 'Use at most one of calls, ask and result in a single reply.';
 
 /**
@@ -184,6 +275,7 @@ const assistantTurnFields = z.object({
   calls: z.array(assistantToolCallSchema).min(1).max(ASSISTANT_MAX_CALLS_PER_REPLY).optional(),
   ask: assistantAskSchema.optional(),
   result: assistantResultSchema.optional(),
+  propose: assistantProposalSchema.optional(),
   /**
    * Not a move: add-ons that would give what was asked. KEYS only; the server
    * checks each against its own list and draws the card from that list, so a
@@ -207,13 +299,82 @@ const assistantTurnFields = z.object({
     .describe('With an answer in words only: up to 3 questions the person might ask next, shown as buttons. A click sends the text to you as their next message, so write each as THEIR question to you ("Who comes next?"), never as yours to them. Only ones you can answer with your tools.'),
 });
 
-export const assistantTurnV1 = assistantTurnFields.refine(
-  (turn) => [turn.calls, turn.ask, turn.result].filter((move) => move !== undefined).length <= 1,
-  { message: ONE_MOVE_MESSAGE },
-);
-export type AssistantTurnV1 = z.infer<typeof assistantTurnV1>;
+/** The reply with every key it can ever carry: the type the runner reads, whatever the page offered. */
+export type AssistantTurnV1 = z.infer<typeof assistantTurnFields>;
+
+/** Which contract a page's replies are shown and checked against. */
+export interface AssistantTurnVariant {
+  /** Whether the page has a document, and so whether a reply may carry `result`. */
+  document: boolean;
+  /**
+   * The actions a reply may propose here: the kinds the workspace has
+   * switched on AND this person holds a right for. Absent or empty, the
+   * contract has no `propose` at all.
+   */
+  propose?: readonly AssistantActionKind[];
+}
+
+/** The variant every page had before a page could be without a document. */
+export const ASSISTANT_DOCUMENT_VARIANT: AssistantTurnVariant = Object.freeze({ document: true });
+
+/**
+ * The kinds one variant really offers, in the catalogue's order. The two
+ * draft actions need a draft, so a page without a document never offers them.
+ */
+export function assistantProposableKinds(variant: AssistantTurnVariant): AssistantActionKind[] {
+  const asked = new Set(variant.propose ?? []);
+  return ASSISTANT_ACTION_KINDS.filter(
+    (kind) => asked.has(kind) && (variant.document || !ASSISTANT_DRAFT_ACTION_KINDS.includes(kind)),
+  );
+}
 
 const ONE_MOVE_PLAIN_MESSAGE = 'Use at most one of calls and ask in a single reply.';
+const ONE_MOVE_PROPOSE_MESSAGE = 'Use at most one of calls, ask, result and propose in a single reply.';
+const ONE_MOVE_PROPOSE_PLAIN_MESSAGE = 'Use at most one of calls, ask and propose in a single reply.';
+/** Said when a draft and a proposal travel together and the proposal is about something else. */
+export const ASSISTANT_DRAFT_WITH_PROPOSAL_MESSAGE =
+  'A reply that carries "result" may propose only ONE action, "doc.save" or "doc.change", which saves that draft. Propose anything else in a reply of its own.';
+/** Said when a proposal is about a draft the reply does not carry. */
+export const ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE =
+  '"doc.save" and "doc.change" save the draft in "result" of the SAME reply. Send the draft with it, or leave the action out.';
+
+/** Said when a send travels with anything else. */
+export const ASSISTANT_SEND_ALONE_MESSAGE = 'A send is proposed by itself: ONE "send.template" action and nothing else in that proposal.';
+
+type TurnShape = z.infer<typeof assistantTurnFields>;
+
+function isDraftAction(action: { do: string }): boolean {
+  return (ASSISTANT_DRAFT_ACTION_KINDS as readonly string[]).includes(action.do);
+}
+
+/**
+ * The rule across a reply's moves. One move, with one pair allowed: a draft
+ * and the single action that saves it.
+ */
+function checkMoves(turn: Partial<TurnShape>, context: z.RefinementCtx, message: string): void {
+  const moves = [turn.calls, turn.ask, turn.result, turn.propose].filter((move) => move !== undefined).length;
+  const actions = turn.propose?.actions ?? [];
+  if (turn.result !== undefined && turn.propose !== undefined) {
+    if (moves > 2) context.addIssue({ code: 'custom', message });
+    if (actions.length !== 1 || !actions.every(isDraftAction)) {
+      context.addIssue({ code: 'custom', path: ['propose', 'actions'], message: ASSISTANT_DRAFT_WITH_PROPOSAL_MESSAGE });
+    }
+    return;
+  }
+  if (moves > 1) context.addIssue({ code: 'custom', message });
+  // A mail to people is confirmed by itself: one card, one mail, who gets it.
+  if (actions.length > 1 && actions.some((action) => action.do === 'send.template' || action.do === 'send.document')) {
+    context.addIssue({ code: 'custom', path: ['propose', 'actions'], message: ASSISTANT_SEND_ALONE_MESSAGE });
+  }
+  if (turn.result === undefined && actions.some(isDraftAction)) {
+    context.addIssue({ code: 'custom', path: ['propose', 'actions'], message: ASSISTANT_PROPOSAL_NEEDS_DRAFT_MESSAGE });
+  }
+}
+
+/** The reply on a page that has a document and offers nothing to propose. */
+export const assistantTurnV1 = assistantTurnFields
+  .omit({ propose: true })
+  .superRefine((turn, context) => checkMoves(turn, context, ONE_MOVE_MESSAGE));
 
 /**
  * The reply on a page that has no document: the same contract without
@@ -222,35 +383,46 @@ const ONE_MOVE_PLAIN_MESSAGE = 'Use at most one of calls and ask in a single rep
  * answer with nothing in it.
  */
 export const assistantTurnPlainV1 = assistantTurnFields
-  .omit({ result: true })
-  .refine((turn) => [turn.calls, turn.ask].filter((move) => move !== undefined).length <= 1, {
-    message: ONE_MOVE_PLAIN_MESSAGE,
-  });
+  .omit({ result: true, propose: true })
+  .superRefine((turn, context) => checkMoves(turn, context, ONE_MOVE_PLAIN_MESSAGE));
 
-/** Which contract a page's replies are shown and checked against. */
-export interface AssistantTurnVariant {
-  /** Whether the page has a document, and so whether a reply may carry `result`. */
-  document: boolean;
-}
-
-/** The variant every page had before a page could be without a document. */
-export const ASSISTANT_DOCUMENT_VARIANT: AssistantTurnVariant = Object.freeze({ document: true });
+const proposingSchemas = new Map<string, z.ZodType>();
 
 /** The zod schema one variant's replies are checked against. */
 export function assistantTurnSchemaFor(variant: AssistantTurnVariant): z.ZodType {
-  return variant.document ? assistantTurnV1 : assistantTurnPlainV1;
+  const kinds = assistantProposableKinds(variant);
+  if (kinds.length === 0) return variant.document ? assistantTurnV1 : assistantTurnPlainV1;
+  const key = `${variant.document ? 'document' : 'plain'}:${kinds.join(',')}`;
+  const cached = proposingSchemas.get(key);
+  if (cached !== undefined) return cached;
+  const fields = assistantTurnFields.omit({ propose: true }).extend({ propose: proposalSchemaOf(kinds).optional() });
+  const built: z.ZodType = variant.document
+    ? fields.superRefine((turn, context) => checkMoves(turn as Partial<TurnShape>, context, ONE_MOVE_PROPOSE_MESSAGE))
+    : fields
+        .omit({ result: true })
+        .superRefine((turn, context) => checkMoves(turn as Partial<TurnShape>, context, ONE_MOVE_PROPOSE_PLAIN_MESSAGE));
+  proposingSchemas.set(key, built);
+  return built;
 }
 
 /** Said back to a model that drafted on a page with nothing to draft. */
 export const ASSISTANT_NO_DOCUMENT_MESSAGE = 'This page has no document, so "result" is not a move here. Answer in "say".';
 
-/** Which move a valid reply made. */
-export type AssistantMove = 'calls' | 'ask' | 'result' | 'answer';
+/** Said back to a model that proposed where nothing may be proposed. */
+export const ASSISTANT_NO_PROPOSE_MESSAGE = 'Nothing can be changed from here, so "propose" is not a move. Say so in "say".';
 
+/** Which move a valid reply made. */
+export type AssistantMove = 'calls' | 'ask' | 'result' | 'propose' | 'answer';
+
+/**
+ * A draft that travels with the action that saves it is a `result`: the
+ * runner checks the draft first and reads `propose` beside it.
+ */
 export function assistantMoveOf(turn: AssistantTurnV1): AssistantMove {
   if (turn.calls !== undefined) return 'calls';
   if (turn.ask !== undefined) return 'ask';
   if (turn.result !== undefined) return 'result';
+  if (turn.propose !== undefined) return 'propose';
   return 'answer';
 }
 
@@ -317,7 +489,23 @@ export function parseAssistantTurn(
     return { ok: false, errors: [makeError('LLM_SCHEMA_INVALID', 'result', ASSISTANT_NO_DOCUMENT_MESSAGE)] };
   }
 
-  const checked = (variant.document ? assistantTurnV1 : assistantTurnPlainV1).safeParse(parsed);
+  // The same for a proposal where none is offered, and for a kind this page does not offer.
+  const offered = assistantProposableKinds(variant);
+  if (record.propose !== undefined && record.propose !== null) {
+    if (offered.length === 0) {
+      return { ok: false, errors: [makeError('LLM_SCHEMA_INVALID', 'propose', ASSISTANT_NO_PROPOSE_MESSAGE)] };
+    }
+    const actions = (record.propose as { actions?: unknown }).actions;
+    const refused = (Array.isArray(actions) ? actions : []).flatMap((action, index) => {
+      const kind = typeof action === 'object' && action !== null ? (action as { do?: unknown }).do : undefined;
+      return typeof kind === 'string' && (ASSISTANT_ACTION_KINDS as readonly string[]).includes(kind) && !offered.includes(kind as AssistantActionKind)
+        ? [makeError('LLM_SCHEMA_INVALID', `propose.actions[${index}].do`, `"${kind}" cannot be proposed here. What can: ${offered.join(', ')}.`)]
+        : [];
+    });
+    if (refused.length > 0) return { ok: false, errors: refused };
+  }
+
+  const checked = assistantTurnSchemaFor(variant).safeParse(parsed);
   if (!checked.success) {
     return {
       ok: false,
@@ -326,7 +514,7 @@ export function parseAssistantTurn(
       ),
     };
   }
-  return { ok: true, turn: checked.data };
+  return { ok: true, turn: checked.data as AssistantTurnV1 };
 }
 
 // ─── What the runner writes back as `user` messages ──────────────────────────

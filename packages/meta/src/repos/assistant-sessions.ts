@@ -439,6 +439,8 @@ export function assistantSessionsRepo(meta: MetaDb) {
         host: input.host === undefined || input.host === null ? null : packChecked('host', assistantHostSchema, input.host),
         draft: input.draft === undefined || input.draft === null ? null : packJson(input.draft),
         answer: null,
+        proposalClaimedAt: null,
+        proposalDoneAt: null,
       };
       await db.insertInto('adminium_assistant_turns').values(row).execute();
       // A question is use: the sweep that closes a conversation left alone for a day reads this.
@@ -564,6 +566,85 @@ export function assistantSessionsRepo(meta: MetaDb) {
         .where('id', '=', id)
         .executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Replace what a finished turn's answer holds, as its proposal is checked
+     * or let go. Only a turn that is done (one still running writes its own
+     * answer when it ends), and only while NO confirm has taken the proposal:
+     * a check that was still running when a confirm began must not write its
+     * older copy over what the confirm did. `false` when it was not written.
+     */
+    async recordAnswer(id: string, answer: Record<string, unknown>): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer) })
+        .where('id', '=', id)
+        .where('status', '=', 'done')
+        .where('proposalClaimedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * What a confirm has done so far, written while it runs: only by the run
+     * that holds the claim and has not ended. `false` once it was ended (by
+     * itself, or as interrupted).
+     */
+    async recordProposalProgress(id: string, answer: Record<string, unknown>): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer) })
+        .where('id', '=', id)
+        .where('proposalClaimedAt', 'is not', null)
+        .where('proposalDoneAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Take a turn's proposal for the one confirm it gets. `false` when another
+     * request already has: the guard is the statement's own WHERE.
+     */
+    async claimProposal(id: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ proposalClaimedAt: at })
+        .where('id', '=', id)
+        .where('status', '=', 'done')
+        .where('proposalClaimedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /** Note that a claimed proposal's run has written its outcome. */
+    async finishProposal(id: string, answer: Record<string, unknown>, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer), proposalDoneAt: at })
+        .where('id', '=', id)
+        .where('proposalClaimedAt', 'is not', null)
+        .where('proposalDoneAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Turns whose proposal was taken, before `claimedBefore`, by a confirm that
+     * never finished. The age is the caller's proof that its process is gone:
+     * a confirm that is still writing is younger than any confirm lasts.
+     */
+    async listUnfinishedProposals(claimedBefore: number, limit = 500): Promise<AssistantTurn[]> {
+      const rows = await db
+        .selectFrom('adminium_assistant_turns')
+        .selectAll()
+        .where('proposalClaimedAt', 'is not', null)
+        .where('proposalClaimedAt', '<', claimedBefore)
+        .where('proposalDoneAt', 'is', null)
+        .orderBy('createdAt', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(decodeTurn);
     },
 
     /** Write everything a turn ended with, in one statement. */

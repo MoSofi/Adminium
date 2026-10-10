@@ -116,10 +116,9 @@ test.describe('the page assistant', () => {
     await result.locator('[data-testid="assistant-tab"][data-tab="details"]').click();
     await expect(result.getByText('Sources read')).toBeVisible();
 
-    // Locked until somebody turns actions on — for this page and this visit, not for ever.
-    await expect(modal(page).getByTestId('assistant-readonly')).toBeVisible();
-    await expect(action(page, 'save')).toBeDisabled();
-    await modal(page).getByTestId('assistant-enable').click();
+    // What writes is the workspace's to allow, in Settings: there is no lock in the panel to lift.
+    // (This server is seeded as a workspace that was in use: saving drafts is on.)
+    await expect(modal(page).getByTestId('assistant-readonly')).toHaveCount(0);
     await expect(action(page, 'save')).toBeEnabled();
 
     // A test send goes to the operator's own address and nowhere else.
@@ -161,7 +160,6 @@ test.describe('the page assistant', () => {
     // *Run full preview* writes nothing and needs no grant: it re-runs the
     // descriptors the draft recorded and redraws with today's answers.
     await expect(modal(page).getByTestId('assistant-steps')).toContainText('Read this page');
-    await modal(page).getByTestId('assistant-enable').click();
     await action(page, 'sample').click();
     await expect(modal(page).getByTestId('assistant-echo')).toContainText(/Re-ran the sources/i, { timeout: 30_000 });
 
@@ -252,6 +250,77 @@ test.describe('the page assistant', () => {
     await expect(modal(page)).toBeVisible({ timeout: 20_000 });
     await expect(modal(page).getByTestId('assistant-asked-on')).toHaveCount(2, { timeout: 20_000 });
     await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible();
+  });
+
+  test('(f) a change: asked on a page of rows, shown before anything is written, confirmed, in the audit log, undone', async ({ page }) => {
+    await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 940 });
+    const settings = async (abilities: Record<string, boolean>) => {
+      const res = await page.request.put('/api/v1/assistant/settings', { data: { abilities } });
+      expect(res.ok(), `the assistant's switches → ${String(res.status())}`).toBeTruthy();
+    };
+    const connections = (await (await page.request.get('/api/v1/connections')).json()) as { data?: { id: string }[]; connections?: { id: string }[] };
+    const connectionId = (connections.data ?? connections.connections ?? [])[0]?.id ?? '';
+    // The table's id is the engine's own (`main.customers`, `public.customers`, `<database>.customers`).
+    const schema = (await (await page.request.get(`/api/v1/connections/${connectionId}/schema`)).json()) as { model: { tables: { id: string; name: string }[] } };
+    const customers = schema.model.tables.find((table) => table.name === 'customers')?.id ?? '';
+    expect(customers, 'the customers table').not.toBe('');
+    const cityOf = async (): Promise<unknown> => {
+      const row = (await (await page.request.get(`/api/v1/data/${connectionId}/${customers}/ALFKI`)).json()) as { data: { city: unknown } };
+      return row.data.city;
+    };
+    const before = await cityOf();
+
+    try {
+      // Off: asked to change a row, it is not offered the move at all, and says so.
+      await settings({ create: true, change: false, send: false, delete: false });
+      await page.goto('/p/customers');
+      await openAssistant(page);
+      await modal(page).getByTestId('assistant-input').fill('Move ALFKI to Hamburg');
+      await modal(page).getByTestId('assistant-send').click();
+      await expect(modal(page).getByText('I cannot change anything here.')).toBeVisible({ timeout: 30_000 });
+      await expect(modal(page).getByTestId('assistant-proposal')).toHaveCount(0);
+
+      // On: the same words now end in a card, checked as this person before it is shown.
+      await settings({ create: true, change: true, send: false, delete: false });
+      await modal(page).getByTestId('assistant-input').fill('Move ALFKI to Hamburg');
+      await modal(page).getByTestId('assistant-send').click();
+      const card = modal(page).getByTestId('assistant-proposal');
+      await expect(card.getByTestId('assistant-proposal-title')).toHaveText('Change 1 row', { timeout: 30_000 });
+      await expect(card.getByTestId('assistant-proposal-row')).toContainText('ALFKI');
+      await expect(card.getByTestId('assistant-proposal-row')).toContainText('Hamburg');
+      // Nothing is written by being shown.
+      expect(await cityOf()).toEqual(before);
+      // The title has focus, not the confirm: Enter does nothing.
+      await page.keyboard.press('Enter');
+      expect(await cityOf()).toEqual(before);
+
+      await card.getByTestId('assistant-proposal-confirm').click();
+      const result = modal(page).getByTestId('assistant-proposal-result');
+      await expect(result).toContainText('Changed 1 row.', { timeout: 30_000 });
+      expect(await cityOf()).toBe('Hamburg');
+
+      // The audit log says who, and that it came through the assistant.
+      const audit = (await (await page.request.get('/api/v1/audit?category=data&limit=5')).json()) as { data?: { action: string; changes: { via?: unknown } | null }[]; entries?: { action: string; changes: { via?: unknown } | null }[] };
+      const entry = (audit.data ?? audit.entries ?? []).find((row) => row.action === 'record.update');
+      expect(entry?.changes?.via, 'the mark on the audit entry').toBeTruthy();
+
+      // The page's own undo, for its minute.
+      await result.getByTestId('assistant-proposal-undo').click();
+      await expect(modal(page).getByText('Undone. Everything is as it was.')).toBeVisible({ timeout: 20_000 });
+      expect(await cityOf()).toEqual(before);
+
+      // After a reload the card is the stored outcome; a confirmed proposal cannot be confirmed again.
+      await page.reload();
+      await expect(modal(page).getByTestId('assistant-proposal-result')).toContainText('Changed 1 row.', { timeout: 20_000 });
+      await expect(modal(page).getByTestId('assistant-proposal-confirm')).toHaveCount(0);
+
+      // The audit page draws the mark.
+      await page.goto('/audit');
+      await expect(page.getByTestId('audit-via-assistant').first()).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await settings({ create: true, change: false, send: false, delete: false });
+    }
   });
 
   test('(f) with no provider the window explains itself instead of failing', async ({ page }) => {

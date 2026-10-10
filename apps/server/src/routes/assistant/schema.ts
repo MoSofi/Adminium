@@ -20,6 +20,11 @@ import { z } from 'zod';
 
 import { MAX_IN_VALUES, MAX_WHERE_BYTES } from '../../crud/filters.js';
 
+/** The four switches on what the assistant may do beyond reading. */
+export const assistantAbilities = z.object({ create: z.boolean(), change: z.boolean(), send: z.boolean(), delete: z.boolean() }).strict();
+/** The most rows one confirmation may be allowed to write: each is its own full write, and 50 is what has been measured. */
+export const ASSISTANT_MAX_ROWS_CEILING = 50;
+
 /** The page a session was opened from, and what it was showing. */
 export const assistantHostBody = z.object({
   documentId: z.string().max(64).optional(),
@@ -66,6 +71,13 @@ export const assistantAvailabilityReply = z.object({
   canConfigure: z.boolean(),
   provider: z.string().nullable(),
   model: z.string().nullable(),
+  /**
+   * What the workspace lets the assistant do beyond reading. A switch that is
+   * on is not a grant: the person still needs their own on the table or page.
+   */
+  abilities: assistantAbilities,
+  /** The most rows one confirmation may write. */
+  maxRows: z.number(),
   /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
   budget: z.object({
     limit: z.number(),
@@ -215,7 +227,7 @@ export const assistantTurnParams = z.object({
 });
 
 export const assistantActionBody = z.object({
-  action: z.enum(['save', 'test-send', 'sample', 'language.add']),
+  action: z.enum(['save', 'test-send', 'sample', 'language.add', 'check', 'apply']),
   /**
    * The page the person is on when they press the button, and the document
    * open there. A draft belongs to the page and the document it was made
@@ -228,15 +240,37 @@ export const assistantActionBody = z.object({
   name: z.string().min(1).max(120).optional(),
   /** `language.add` only. */
   locale: z.string().min(2).max(10).optional(),
+  /** `apply` only: the hash of the proposal as the person was shown it. */
+  hash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+  /** `apply` only: the actions they left ticked, by index. Left out: every one that can be done. */
+  pick: z.array(z.number().int().min(0).max(49)).min(1).max(50).optional(),
 });
 
-export const assistantActionReply = z.object({
+const assistantDraftActionReply = z.object({
   echo: z.record(z.string(), z.unknown()),
   created: z.object({ id: z.string(), kind: z.string(), name: z.string() }).nullable(),
   sample: z
     .object({ artefact: z.record(z.string(), z.unknown()), label: z.string() })
     .nullable(),
 });
+
+/**
+ * `check` answers the turn's proposal as it now stands: tried as the person,
+ * with what they would see, or let go. Its own shape, so a reply of one kind
+ * is never read as the other.
+ */
+const assistantCheckReply = z.object({
+  proposal: z.record(z.string(), z.unknown()),
+  /**
+   * `apply` only, and only in this one reply: the route's own undo token for
+   * each row that has one, and the one-time codes a new row answered. Neither
+   * is stored with the conversation.
+   */
+  undo: z.array(z.object({ index: z.number(), token: z.string() })).optional(),
+  once: z.array(z.unknown()).optional(),
+});
+
+export const assistantActionReply = z.union([assistantDraftActionReply, assistantCheckReply]);
 
 // ─── What an owner sets, and what was used today ─────────────────────────────
 
@@ -250,6 +284,11 @@ export const assistantActionReply = z.object({
 export const assistantSettingsReply = z.object({
   /** Tokens a person may use in a UTC day; 0 means no limit. */
   dailyTokens: z.number(),
+  /** What the assistant may do beyond reading; all off on a new workspace. */
+  abilities: assistantAbilities,
+  /** The most rows one confirmation may write, and the most this field may be set to. */
+  maxRows: z.number(),
+  maxRowsCeiling: z.number(),
   today: z.object({
     /** The UTC day, `YYYY-MM-DD`. */
     day: z.string(),
@@ -262,9 +301,14 @@ export const assistantSettingsReply = z.object({
   roles: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
-export const assistantSettingsPutBody = z.object({
-  dailyTokens: z.number().int().min(0).max(1_000_000_000),
-});
+/** Each field is its own decision: what is left out is left as it is. */
+export const assistantSettingsPutBody = z
+  .object({
+    dailyTokens: z.number().int().min(0).max(1_000_000_000).optional(),
+    abilities: assistantAbilities.partial().optional(),
+    maxRows: z.number().int().min(1).max(ASSISTANT_MAX_ROWS_CEILING).optional(),
+  })
+  .strict();
 
 /**
  * `GET /assistant/sessions/current` — the person's open panel conversation,

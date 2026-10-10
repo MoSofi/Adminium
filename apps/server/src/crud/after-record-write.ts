@@ -91,6 +91,12 @@ export interface RecordWriteEvent {
    * key of its own to be heard once by: each such change is one event.
    */
   cause?: 'forget' | 'undo' | 'settled' | undefined;
+  /**
+   * The conversation with the assistant in which this write was confirmed,
+   * or the write that caused it was. Travels with a rule run it starts, so
+   * the rows that run writes say so too.
+   */
+  via?: { assistant: { sessionId: string; turnId: string } } | undefined;
 }
 
 /** What a rule dispatcher must offer; decorated by `automations/plugin.ts`. */
@@ -246,6 +252,8 @@ export async function afterRecordWrite(
     const meta = input.meta ?? app.rbac.meta;
     await auditRepo(meta).append({
       ...entry,
+      // A rule's write that a confirmed proposal set off says where it began.
+      ...(input.via === undefined ? {} : { changes: { ...(entry.changes ?? {}), via: input.via } }),
       actorKind: input.actor?.kind ?? 'automation',
       actorId: input.actor?.id ?? null,
       actorLabel: input.actor?.label ?? 'Automation',
@@ -287,5 +295,7 @@ export async function afterRecordWrite(
     });
   }
 
-  await emitRecordEvent(app, input);
+  // A write that came through the assistant's door: the rules it starts are told.
+  const through = input.request?.assistantVia ?? null;
+  await emitRecordEvent(app, through === null || input.via !== undefined ? input : { ...input, via: { assistant: { sessionId: through.sessionId, turnId: through.turnId } } });
 }

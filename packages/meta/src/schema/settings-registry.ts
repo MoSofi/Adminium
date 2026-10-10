@@ -431,6 +431,26 @@ export const SETTINGS_REGISTRY = {
    * questions. Portable: it is a number an operator chose.
    */
   'assistant.dailyTokens': def(z.number().int().min(0).max(1_000_000_000), 500_000, 'Tokens a person may use with the page assistant in a UTC day (0 = no limit)', P),
+  /**
+   * What the assistant may DO, beyond reading: four switches, each off until
+   * somebody with the settings permission turns it on. Off, the assistant is
+   * not offered the action at all, and a confirm of one is refused whatever a
+   * proposal says. A person still needs their own grant on the table or the
+   * page, and still confirms each time.
+   *
+   * NOT portable: importing another workspace's settings must never switch
+   * writing on here.
+   */
+  'assistant.abilities': def(
+    z.object({ create: z.boolean(), change: z.boolean(), send: z.boolean(), delete: z.boolean() }).strict(),
+    { create: false, change: false, send: false, delete: false },
+    'What the page assistant may do beyond reading: create, change, send, delete',
+  ),
+  /**
+   * The most rows one confirmation may write. 50 is the ceiling until a larger
+   * confirm has been measured: each row is its own full write.
+   */
+  'assistant.maxRows': def(z.number().int().min(1).max(50), 50, 'Rows one confirmation of the page assistant may write', P),
   'retention.assistantSessionsDays': def(z.number().int().min(1), 30, 'Closed assistant session retention in days', P),
   // ── Adminium Designer ─────────────────────────────────────────────────────
   //

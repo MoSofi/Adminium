@@ -196,6 +196,7 @@ import {
 } from './jobs/report-run.js';
 import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
+import { endInterruptedProposals } from './assistant/proposals.js';
 import { sweepAssistantSessions } from './assistant/retention.js';
 import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import type { AssistantAddOn } from './assistant/types.js';
@@ -2408,6 +2409,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         await assistantSessionsRepo(meta)
           .failRunningTurns({ ...INTERRUPTED_ERROR }, Date.now())
           .catch(() => undefined);
+        // The same for a confirm that was writing rows when its process went: what it had
+        // written is kept, and the rest is said to be not done, so nobody is left looking at
+        // "working" for ever.
+        await endInterruptedProposals(assistantSessionsRepo(meta), Date.now()).catch(() => undefined);
         await api.register(
           assistantRoutes({
             meta,
@@ -2970,6 +2975,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // tidy-up over the same store, and a second 03:00 job would only mean two
     // places to look.
     const assistantSessions = await sweepAssistantSessions(meta, at);
+    // A confirm that died with its process is ended here too, so nobody waits for a restart.
+    await endInterruptedProposals(assistantSessionsRepo(meta), at).catch(() => 0);
 
     // Public-surface sessions past their `expires_at` (28). `purgeExpired` was
     // written with the repo and never called, so the table only grew. Last,

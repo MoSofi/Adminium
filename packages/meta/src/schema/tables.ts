@@ -1453,6 +1453,10 @@ export interface AdminiumAssistantTurnsTable {
   draft: JsonColumn | null;
   /** What the turn ended with besides its words and its draft: what was read, what was suggested (0052). */
   answer: JsonColumn | null;
+  /** When a confirm took this turn's proposal; NULL until one does (0055). */
+  proposalClaimedAt: Ts | null;
+  /** When that confirm had written its outcome (0055). */
+  proposalDoneAt: Ts | null;
 }
 
 /** The full meta-store database — every adminium_* table (BRIEF). */

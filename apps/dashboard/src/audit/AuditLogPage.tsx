@@ -20,7 +20,7 @@
  * CATEGORY, which is a closed enum.
  */
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { ScrollText } from 'lucide-react';
+import { ScrollText, Sparkles } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -44,7 +44,7 @@ import {
 } from '@adminium/ui';
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 
-import { bootstrapQuery } from '../app/bootstrap.js';
+import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
@@ -59,6 +59,7 @@ import {
   type AuditCategory,
   type AuditEntryDto,
   type AuditFilters,
+  viaAssistant,
 } from './auditApi.js';
 
 function categoryLabel(category: AuditCategory): string {
@@ -110,6 +111,7 @@ export function AuditLogPage(): ReactNode {
   const [open, setOpen] = useState<AuditEntryDto | null>(null);
 
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
+  const assistant = bootstrap === undefined ? 'Milo' : assistantName(bootstrap);
   const rows = useMemo(() => entries.data?.pages.flatMap((page) => page.entries) ?? [], [entries.data]);
   const filtered =
     filters.category !== '' || filters.actorId !== '' || filters.from !== '' || filters.to !== '';
@@ -232,7 +234,18 @@ export function AuditLogPage(): ReactNode {
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-fg">{entry.actorLabel}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-fg">{entry.actorLabel}</span>
+                            {viaAssistant(entry.changes) ? (
+                              <span
+                                data-testid="audit-via-assistant"
+                                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[20px] bg-accent-soft-solid px-[7px] py-0.5 text-[10.5px] font-bold text-accent"
+                              >
+                                <Sparkles className="size-[11px]" aria-hidden="true" />
+                                {t('audit.via', 'through {name}', { name: assistant })}
+                              </span>
+                            ) : null}
+                          </span>
                           <span className="truncate text-caption text-fg-subtle">
                             {actorKindLabel(entry.actorKind)}
                           </span>
@@ -271,13 +284,15 @@ export function AuditLogPage(): ReactNode {
         </div>
       ) : null}
 
-      <EntryDrawer entry={open} localeTag={localeTag} onClose={() => setOpen(null)} />
+      <EntryDrawer entry={open} localeTag={localeTag} assistant={assistant} onClose={() => setOpen(null)} />
     </PageSurface>
   );
 }
 
 /** The before/after drawer. `entry === null` keeps it closed and unmounted. */
 function EntryDrawer(props: {
+  /** What the assistant is called here, for an entry written through it. */
+  assistant: string;
   entry: AuditEntryDto | null;
   localeTag: string;
   onClose: () => void;
@@ -297,10 +312,18 @@ function EntryDrawer(props: {
     >
       <DrawerHeader
         title={<MonoText>{entry.action}</MonoText>}
-        subtitle={t('audit.drawer.subtitle', '{actor} · {when}', {
-          actor: entry.actorLabel,
-          when: formatStamp(entry.createdAt, props.localeTag) ?? '',
-        })}
+        subtitle={
+          viaAssistant(entry.changes)
+            ? t('audit.drawer.subtitleVia', '{actor}, through {name} · {when}', {
+                actor: entry.actorLabel,
+                name: props.assistant,
+                when: formatStamp(entry.createdAt, props.localeTag) ?? '',
+              })
+            : t('audit.drawer.subtitle', '{actor} · {when}', {
+                actor: entry.actorLabel,
+                when: formatStamp(entry.createdAt, props.localeTag) ?? '',
+              })
+        }
         closeLabel={t('common.close', 'Close')}
       />
       <DrawerBody className="flex flex-col gap-5">

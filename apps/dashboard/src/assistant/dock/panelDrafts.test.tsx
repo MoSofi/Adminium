@@ -5,9 +5,9 @@
  *
  * WHAT IS WORTH PINNING HERE, and it is not the layout:
  *
- *  1. the two locks — a session that may save still cannot until somebody
- *     enables actions, and a session that may not save is told so and is never
- *     offered the button;
+ *  1. the two locks — what writes is held while the workspace's Create switch
+ *     is off, and a session that may not save is told so and is never offered
+ *     the button;
  *  2. the confirm — nothing writes until a second press, and the dialog names
  *     the audit key the row will carry;
  *  3. the thread — every turn keeps its bubble and its cards, because that is
@@ -140,6 +140,8 @@ function availability(overrides: Record<string, unknown> = {}) {
     provider: 'anthropic',
     model: 'm',
     budget: { limit: 500_000, used: 0, resetsAt: Date.UTC(2026, 9, 10), left: true },
+    abilities: { create: true, change: false, send: false, delete: false },
+    maxRows: 50,
     ...overrides,
   };
 }
@@ -295,7 +297,27 @@ describe('the shell', () => {
 // ─── the two locks ───────────────────────────────────────────────────────────
 
 describe('what this session is allowed to do', () => {
-  it('locks the write actions until somebody enables them, and says whose choice that is', async () => {
+  it('holds what writes while the workspace has Create switched off, says so, and shows the way to the setting to someone who may change it', async () => {
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({
+      turn: turn({ status: 'done', result: result() }),
+      jobId: 'job_1',
+      nextTurnTokens: 900,
+    });
+    await openModal({ availability: { abilities: { create: false, change: true, send: true, delete: true } } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
+
+    const save = await screen.findByRole('button', { name: 'Save template' });
+    expect(save.hasAttribute('disabled')).toBe(true);
+    expect(save.getAttribute('title')).toBe('Saving is switched off for Milo in this workspace');
+    expect(screen.getByTestId('assistant-save-off').textContent).toContain('Saving is switched off for Milo in this workspace.');
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeTruthy();
+    // There is no switch in the panel to flip: what the assistant may do is the workspace's.
+    expect(screen.queryByRole('button', { name: 'Enable actions' })).toBeNull();
+    expect(screen.queryByTestId('assistant-readonly')).toBeNull();
+  });
+
+  it('lets a draft be saved at once where Create is on: no lock to lift first', async () => {
     routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({
       turn: turn({ status: 'done', result: result() }),
       jobId: 'job_1',
@@ -304,17 +326,9 @@ describe('what this session is allowed to do', () => {
     await openModal();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
-
-    const save = await screen.findByRole('button', { name: 'Save template' });
-    expect(save.hasAttribute('disabled')).toBe(true);
-    expect(save.getAttribute('title')).toBe('Enable actions to let Milo do this');
-    // A read-only action is NOT locked: it changes nothing, so neither reason applies.
-    expect(screen.getByRole('button', { name: 'Send test email' }).hasAttribute('disabled')).toBe(true);
-
-    await user.click(screen.getByRole('button', { name: 'Enable actions' }));
-    expect(screen.getByRole('button', { name: 'Save template' }).hasAttribute('disabled')).toBe(false);
-    // The bar goes once actions are on — there is nothing left for it to say.
-    expect(screen.queryByText(/is read-only right now/)).toBeNull();
+    expect((await screen.findByRole('button', { name: 'Save template' })).hasAttribute('disabled')).toBe(false);
+    expect(screen.queryByTestId('assistant-save-off')).toBeNull();
+    expect(screen.queryByTestId('assistant-readonly')).toBeNull();
   });
 
   it('tells a role that cannot save so, and never offers it the button', async () => {
@@ -328,8 +342,9 @@ describe('what this session is allowed to do', () => {
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
 
     expect(screen.getByText('Your role can look, draft and preview here, but not save.')).toBeTruthy();
-    // No way out of this one: it is a fact about the role, not a guardrail.
-    expect(screen.queryByRole('button', { name: 'Enable actions' })).toBeNull();
+    // A fact about the role: nothing to press, and nothing about the workspace's switches.
+    expect(screen.getByTestId('assistant-readonly')).toBeTruthy();
+    expect(screen.queryByTestId('assistant-save-off')).toBeNull();
     const save = await screen.findByRole('button', { name: 'Save template' });
     expect(save.hasAttribute('disabled')).toBe(true);
     expect(save.getAttribute('title')).toBe('Your role cannot do this here');
@@ -516,7 +531,6 @@ describe('saving a draft', () => {
     await openModal({ host: { onCreated } });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     await user.click(screen.getByRole('button', { name: 'Save template' }));
 
     // Nothing has been written yet.
@@ -546,7 +560,6 @@ describe('saving a draft', () => {
     await openModal({ host: { onCreated } });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     routes[key('POST', `${BASE}/sessions/ast_1/turns/atn_1/actions`)] = () => ({
       echo: { kind: 'saved', open: false, name: 'Welcome' },
       created: { id: 'tpl_9', kind: 'template', name: 'Welcome' },
@@ -573,7 +586,6 @@ describe('saving a draft', () => {
     await openModal();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     await user.click(screen.getByRole('button', { name: 'Save template' }));
     const confirm = screen.getByRole('dialog', { name: 'Save as a new template?' });
     await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
@@ -587,7 +599,6 @@ describe('saving a draft', () => {
     await openModal({ host: { applyDraft } });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Draft a reminder/ }));
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     await user.click(screen.getByRole('button', { name: 'Open in editor' }));
 
     // An editor host has somewhere to put it: nothing is written, so nothing is confirmed.
@@ -857,7 +868,6 @@ describe('a draft and the page it was made for', () => {
     routes[key('POST', `${BASE}/sessions/ast_1/turns/atn_1/actions`)] = () => ({ echo: { kind: 'saved', open: false, name: 'Welcome' }, created: { id: 'tpl_9', kind: 'template', name: 'Welcome' }, sample: null });
     await openModal();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     await user.click(screen.getByRole('button', { name: 'Save template' }));
     await user.click(await screen.findByRole('button', { name: 'Save as draft' }));
     await waitFor(() => expect(calls.some((call) => call.url.endsWith('/actions'))).toBe(true));
@@ -866,18 +876,15 @@ describe('a draft and the page it was made for', () => {
     expect(sent.on).toEqual({ context: 'email' });
   });
 
-  it('locks its actions again when the person walks away and comes back', async () => {
+  it('parks a draft while the person is elsewhere and has it live again when they come back', async () => {
     routes[key('GET', `${BASE}/sessions/current`)] = () => drafted({});
     const { host, walk } = await openModal();
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Enable actions' })).toBeNull());
+    expect((await screen.findByRole('button', { name: 'Save template' })).hasAttribute('disabled')).toBe(false);
     // To a page that drafts nothing (there the draft is parked), and back.
     walk(null);
     await screen.findByTestId('assistant-parked-draft');
     walk(host);
-    // The permission was for that visit: it is asked for again.
-    expect(await screen.findByRole('button', { name: 'Enable actions' })).toBeTruthy();
+    expect((await screen.findByRole('button', { name: 'Save template' })).hasAttribute('disabled')).toBe(false);
     expect(screen.queryByTestId('assistant-parked-draft')).toBeNull();
   });
 
@@ -887,7 +894,6 @@ describe('a draft and the page it was made for', () => {
     routes[key('GET', `${BASE}/sessions/ast_1/turns/atn_1`)] = () => turn({ result: result({ saved: { id: 'tpl_9', kind: 'template', name: 'Welcome' } }) });
     await openModal();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Enable actions' }));
     await user.click(screen.getByRole('button', { name: 'Save template' }));
     await user.click(await screen.findByRole('button', { name: 'Save as draft' }));
     // What the server recorded on the turn is what the card is drawn from now.

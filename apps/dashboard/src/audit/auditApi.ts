@@ -166,6 +166,16 @@ export function diffRows(changes: Record<string, unknown> | null): DiffRow[] {
   });
 }
 
+/**
+ * Whether a write was confirmed in a conversation with the assistant. The
+ * server sets this only for a request that came through the assistant's own
+ * door; it stays on an entry whose images were cut for size.
+ */
+export function viaAssistant(changes: Record<string, unknown> | null): boolean {
+  const via = changes?.['via'];
+  return typeof via === 'object' && via !== null && typeof (via as { assistant?: unknown }).assistant === 'object' && (via as { assistant?: unknown }).assistant !== null;
+}
+
 /** The server dropped part of the payload at the 16 KB cap. */
 export function isTruncated(changes: Record<string, unknown> | null): boolean {
   return changes?.['_truncated'] === true;

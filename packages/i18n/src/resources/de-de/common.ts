@@ -1571,7 +1571,8 @@ export default {
       "resource": "Ressource",
       "subtitle": "{actor} · {when}",
       "truncated": "Bei 16 KB abgeschnitten",
-      "userAgent": "User-Agent"
+      "userAgent": "User-Agent",
+      "subtitleVia": "{actor}, über {name} · {when}"
     },
     "empty": {
       "body": "Änderungen an Daten, Schema, Einstellungen und Berechtigungen erscheinen hier, sobald sie geschehen.",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "Ältere Einträge laden",
     "subtitle": "Jede Änderung in diesem Workspace, wer sie vorgenommen hat und was sie geändert hat.",
-    "title": "Audit-Log"
+    "title": "Audit-Log",
+    "via": "über {name}"
   },
   "security": {
     "password": {
@@ -1768,7 +1770,8 @@ export default {
     "assistant": {
       "open": "{name} fragen",
       "working": "{name} arbeitet",
-      "unread": "1 ungelesene Antwort"
+      "unread": "1 ungelesene Antwort",
+      "proposal": "Eine Änderung wartet auf dich"
     }
   }
 } as const;

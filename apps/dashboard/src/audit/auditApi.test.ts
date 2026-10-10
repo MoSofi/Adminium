@@ -129,3 +129,20 @@ describe('entityRows', () => {
     expect(entityRows(null)).toEqual([]);
   });
 });
+
+describe('a write made through the assistant', () => {
+  it('is known by the mark the server set, on a whole entry and on one cut for size', async () => {
+    const { viaAssistant, isTruncated, diffRows } = await import('./auditApi.js');
+    const via = { assistant: { sessionId: 'ast_1', turnId: 'atn_1' } };
+    expect(viaAssistant({ before: { a: 1 }, after: { a: 2 }, via })).toBe(true);
+    expect(viaAssistant({ _truncated: true, via })).toBe(true);
+    expect(isTruncated({ _truncated: true, via })).toBe(true);
+    expect(viaAssistant({ before: { a: 1 }, after: { a: 2 } })).toBe(false);
+    expect(viaAssistant({ via: 'assistant' })).toBe(false);
+    expect(viaAssistant({ via: { assistant: null } })).toBe(false);
+    expect(viaAssistant(null)).toBe(false);
+    // The mark is not a changed field.
+    expect(diffRows({ before: { a: 1 }, after: { a: 2 }, via }).map((row) => row.field)).toEqual(['a']);
+  });
+});
+

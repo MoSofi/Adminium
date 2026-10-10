@@ -330,6 +330,15 @@ try {
     await settingsRepo(runtime.metaStore.meta).set(key, false, { updatedBy: null, at: Date.now() });
   }
 
+  // The assistant as on a workspace that was in use before its switches: it saves its drafts as
+  // new documents and does nothing else. A new install starts with all four off; the specs that
+  // try the other three switch them on themselves.
+  await settingsRepo(runtime.metaStore.meta).set(
+    'assistant.abilities',
+    { create: true, change: false, send: false, delete: false },
+    { updatedBy: null, at: Date.now() },
+  );
+
   // LOCAL SANDBOX ONLY: an AI provider from the environment, so a restart (which
   // reseeds) does not lose it. Unset in every test run — the specs configure
   // and clear the scripted provider themselves.
@@ -533,14 +542,18 @@ try {
     const customers = (await pagesRepo(meta).listAll()).find((page) => page.slug === 'customers');
     if (customers === undefined) throw new Error('the limited reader needs the generated Customers page');
     await permissions.grant(role.id, 'page', customers.id, { view: true, edit: false });
+    // With E2E_LIMITED_WRITES they may also change ONE of those columns (the city) and nothing
+    // else: a role that writes in part, for a walk of what the assistant may propose as them.
+    const writes = process.env.E2E_LIMITED_WRITES === '1';
     await permissions.grant(role.id, 'table', `${connectionId}/main.customers`, {
       read: true,
       create: false,
-      update: false,
+      update: writes,
       delete: false,
       export: false,
       import: false,
       readLimit: { readable: ['company_name', 'city', 'country'] },
+      ...(writes ? { updateLimit: { writable: ['city'] } } : {}),
     });
     const reader = await usersRepo(meta).create({ email: LIMITED_EMAIL, name: 'E2E Reader', passwordHash: await hashPassword(LIMITED_PASSWORD), status: 'active' });
     await rolesRepo(meta).assignToUser(reader.id, role.id);

@@ -20,6 +20,7 @@ import {
   buildAssistantPrompt,
   estimateAssistantInputTokens,
   ASSISTANT_INPUT_TOKEN_LIMIT,
+  type AssistantActionKind,
   type AssistantToolSpec,
   type ProviderId,
 } from '@adminium/llm';
@@ -28,6 +29,7 @@ import { settingsRepo, type AssistantContextKey, type AssistantHost, type MetaDb
 import { canReadTableFor } from '../rbac/table-grants.js';
 import { recipientLocale, translatorFor } from '../i18n/server-i18n.js';
 import type { ConnectionManager } from '../connections/manager.js';
+import { proposableKindsFor } from './abilities.js';
 import { contextAdapter } from './contexts/index.js';
 import { appNameOf } from './page-facts.js';
 import { ROWS_UNAVAILABLE_NOTE, toolsFor } from './tools/catalogue.js';
@@ -59,6 +61,8 @@ export interface TurnSetup {
    * watching sees what the model was told before it was asked anything.
    */
   facts: AssistantFactValues;
+  /** The actions a reply may propose on this page, for this person: what the prompt offered. */
+  proposable: AssistantActionKind[];
   execute: (call: { id: string; tool: string; args: Record<string, unknown> }) => Promise<AssistantToolOutcome>;
 }
 
@@ -125,6 +129,7 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
 
   const facts = await adapter.pageFacts(deps);
+  const proposable = await proposableKindsFor(deps);
   const system = buildAssistantPrompt({
     name,
     appName,
@@ -134,6 +139,7 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
     document: adapter.document === undefined ? null : { formatSpec: adapter.document.formatSpec(), examples: adapter.document.examples(deps) },
     tools: specs,
     rowsUnavailable: rowData ? null : ROWS_UNAVAILABLE_NOTE,
+    propose: proposable,
   });
 
   const execute = async (call: {
@@ -165,7 +171,7 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
     }
   };
 
-  return { adapter, deps, specs, system, facts: facts.values, execute };
+  return { adapter, deps, specs, system, facts: facts.values, proposable: proposable.kinds, execute };
 }
 
 /** `de_DE` → `German` — what the prompt asks the model to answer in. */

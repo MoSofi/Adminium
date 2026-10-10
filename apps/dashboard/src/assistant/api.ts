@@ -39,6 +39,18 @@ export interface AssistantAvailability {
   model: string | null;
   /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
   budget: { limit: number; used: number; resetsAt: number; left: boolean };
+  /** What the workspace lets the assistant do, beyond reading. Absent from a server before the switches. */
+  abilities?: AssistantAbilities;
+  /** The most changes one confirmation may make. */
+  maxRows?: number;
+}
+
+/** The workspace's four switches on what the assistant may do. */
+export interface AssistantAbilities {
+  create: boolean;
+  change: boolean;
+  send: boolean;
+  delete: boolean;
 }
 
 export interface AssistantHostRef {
@@ -212,6 +224,146 @@ export interface AssistantActionReply {
   echo: Record<string, unknown>;
   created: { id: string; kind: string; name: string } | null;
   sample: { artefact: Record<string, unknown>; label: string } | null;
+}
+
+// ─── A proposal ──────────────────────────────────────────────────────────────
+
+/** Where a proposal stands. `unchecked`: the server has not tried it yet, and nothing of it is known here. */
+export type AssistantProposalState = 'unchecked' | 'open' | 'refused' | 'superseded' | 'expired' | 'applying' | 'applied' | 'interrupted';
+
+/** What the person is shown of one action before they confirm it, built by the server from what THEY may read. */
+export type AssistantProposalPreview =
+  | { kind: 'create'; after: Record<string, unknown> }
+  | { kind: 'change'; before: Record<string, unknown>; after: Record<string, unknown> }
+  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[] }
+  | { kind: 'doc.save'; what: string; name: string }
+  | { kind: 'doc.change'; what: string; id: string; name: string; switchesOff: boolean }
+  | { kind: 'doc.delete'; what: string; id: string; name: string }
+  | { kind: 'send.template'; id: string; name: string; subject: string; roles: { id: string; name: string }[]; total: number; skipped: number };
+
+export interface AssistantProposalAction {
+  do: string;
+  /** A row's table and key, when the action is about a row. */
+  table: string | null;
+  id: string | null;
+  preview: AssistantProposalPreview | null;
+  /** Why it cannot be done. `message` is the server route's own sentence. */
+  refused: { code: string; message: string } | null;
+}
+
+export interface AssistantProposalOutcome {
+  done: { index: number; id: string | null }[];
+  failed: { index: number; code: string; message: string }[];
+  notTried: number[];
+  /** The one being written when the server stopped: done or not is not known. */
+  unsure: number[];
+}
+
+export interface AssistantProposal {
+  state: AssistantProposalState;
+  title: string;
+  /** Empty before the check, and once the proposal is let go. */
+  actions: AssistantProposalAction[];
+  /** How many actions it had, when they are no longer listed. */
+  count: number;
+  hash: string | null;
+  expiresAt: number | null;
+  /** Why the whole of it cannot be confirmed. */
+  refusal: { code: string; count: number | null; cap: number | null } | null;
+  picked: number[];
+  outcome: AssistantProposalOutcome | null;
+}
+
+/** What a confirmation answers once and the server keeps nowhere. */
+export interface AssistantApplyReply {
+  proposal: Record<string, unknown>;
+  undo?: { index: number; token: string }[];
+  once?: unknown[];
+}
+
+function readPreview(raw: unknown): AssistantProposalPreview | null {
+  const preview = record(raw);
+  if (preview === null) return null;
+  const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+  switch (preview.kind) {
+    case 'create':
+      return { kind: 'create', after: record(preview.after) ?? {} };
+    case 'change':
+      return { kind: 'change', before: record(preview.before) ?? {}, after: record(preview.after) ?? {} };
+    case 'delete': {
+      const references: { table: string; count: number }[] = [];
+      for (const entry of Array.isArray(preview.references) ? preview.references : []) {
+        const reference = record(entry);
+        if (reference !== null && typeof reference.table === 'string' && typeof reference.count === 'number') references.push({ table: reference.table, count: reference.count });
+      }
+      return { kind: 'delete', row: record(preview.row) ?? {}, references };
+    }
+    case 'doc.save':
+      return { kind: 'doc.save', what: text(preview.what), name: text(preview.name) };
+    case 'doc.change':
+      return { kind: 'doc.change', what: text(preview.what), id: text(preview.id), name: text(preview.name), switchesOff: preview.switchesOff === true };
+    case 'doc.delete':
+      return { kind: 'doc.delete', what: text(preview.what), id: text(preview.id), name: text(preview.name) };
+    case 'send.template': {
+      const roles: { id: string; name: string }[] = [];
+      for (const entry of Array.isArray(preview.roles) ? preview.roles : []) {
+        const role = record(entry);
+        if (role !== null && typeof role.id === 'string' && typeof role.name === 'string') roles.push({ id: role.id, name: role.name });
+      }
+      return { kind: 'send.template', id: text(preview.id), name: text(preview.name), subject: text(preview.subject), roles, total: typeof preview.total === 'number' ? preview.total : 0, skipped: typeof preview.skipped === 'number' ? preview.skipped : 0 };
+    }
+    default:
+      return null;
+  }
+}
+
+const PROPOSAL_STATES: readonly AssistantProposalState[] = ['unchecked', 'open', 'refused', 'superseded', 'expired', 'applying', 'applied', 'interrupted'];
+
+/** Narrow a proposal as the server sends it. Anything that does not read is no proposal. */
+export function readProposal(raw: unknown): AssistantProposal | null {
+  const proposal = record(raw);
+  if (proposal === null || !PROPOSAL_STATES.includes(proposal.state as AssistantProposalState)) return null;
+  const actions: AssistantProposalAction[] = [];
+  for (const entry of Array.isArray(proposal.actions) ? proposal.actions : []) {
+    const action = record(entry);
+    // Kept in its place, as something that cannot be done: the ticks and the outcome go by index.
+    if (action === null || typeof action.do !== 'string') {
+      actions.push({ do: '', table: null, id: null, preview: null, refused: { code: 'NOT_OFFERED', message: '' } });
+      continue;
+    }
+    const refused = record(action.refused);
+    actions.push({
+      do: action.do,
+      table: typeof action.table === 'string' ? action.table : null,
+      id: typeof action.id === 'string' ? action.id : null,
+      preview: readPreview(action.preview),
+      refused: refused === null ? null : { code: typeof refused.code === 'string' ? refused.code : '', message: typeof refused.message === 'string' ? refused.message : '' },
+    });
+  }
+  const refusal = record(proposal.refusal);
+  const outcome = record(proposal.outcome);
+  const indexes = (value: unknown): number[] => (Array.isArray(value) ? value.filter((entry): entry is number => typeof entry === 'number') : []);
+  const done: AssistantProposalOutcome['done'] = [];
+  const failed: AssistantProposalOutcome['failed'] = [];
+  for (const entry of Array.isArray(outcome?.done) ? outcome.done : []) {
+    const row = record(entry);
+    if (row !== null && typeof row.index === 'number') done.push({ index: row.index, id: typeof row.id === 'string' ? row.id : null });
+  }
+  for (const entry of Array.isArray(outcome?.failed) ? outcome.failed : []) {
+    const row = record(entry);
+    if (row !== null && typeof row.index === 'number') failed.push({ index: row.index, code: typeof row.code === 'string' ? row.code : '', message: typeof row.message === 'string' ? row.message : '' });
+  }
+  return {
+    state: proposal.state as AssistantProposalState,
+    title: typeof proposal.title === 'string' ? proposal.title : '',
+    actions,
+    count: typeof proposal.count === 'number' ? proposal.count : actions.length,
+    hash: typeof proposal.hash === 'string' ? proposal.hash : null,
+    expiresAt: typeof proposal.expiresAt === 'number' ? proposal.expiresAt : null,
+    refusal: refusal === null ? null : { code: typeof refusal.code === 'string' ? refusal.code : '', count: count(refusal.count), cap: count(refusal.cap) },
+    picked: indexes(proposal.picked),
+    outcome: outcome === null ? null : { done, failed, notTried: indexes(outcome.notTried), unsure: indexes(outcome.unsure) },
+  };
 }
 
 // ─── Readers for the loose columns ───────────────────────────────────────────
@@ -402,6 +554,8 @@ export interface AssistantAnswer {
   /** What the person might ask next, after an answer in words. */
   followups: string[];
   suggest: AssistantSuggestion[];
+  /** What the answer asked the person to confirm, when it asked. */
+  proposal: AssistantProposal | null;
 }
 
 const strings = (raw: unknown): string[] => (Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string' && entry !== '') : []);
@@ -423,7 +577,7 @@ export function readAnswer(raw: Record<string, unknown> | null | undefined): Ass
     if (card === null || typeof card.key !== 'string' || typeof card.name !== 'string') continue;
     suggest.push({ key: card.key, name: card.name, line: typeof card.line === 'string' ? card.line : '', mayInstall: card.mayInstall === true });
   }
-  return { sources: strings(raw.sources), reads, forgot: count(raw.forgot) ?? 0, followups: strings(raw.followups), suggest };
+  return { sources: strings(raw.sources), reads, forgot: count(raw.forgot) ?? 0, followups: strings(raw.followups), suggest, proposal: readProposal(raw.proposal) };
 }
 
 /**
@@ -507,5 +661,11 @@ export const assistantApi = {
     api.post<null>(`${sessionPath(sessionId)}/turns/${encodeURIComponent(turnId)}/cancel`),
   action: (sessionId: string, turnId: string, body: AssistantActionBody) =>
     api.post<AssistantActionReply>(`${sessionPath(sessionId)}/turns/${encodeURIComponent(turnId)}/actions`, body),
+  /** Have the server try a turn's proposal as this person, and say what they would see. */
+  checkProposal: (sessionId: string, turnId: string) =>
+    api.post<{ proposal: Record<string, unknown> }>(`${sessionPath(sessionId)}/turns/${encodeURIComponent(turnId)}/actions`, { action: 'check' }),
+  /** Confirm it: `hash` is the one the card showed, `pick` the actions left ticked. */
+  applyProposal: (sessionId: string, turnId: string, body: { hash: string; pick: number[] }) =>
+    api.post<AssistantApplyReply>(`${sessionPath(sessionId)}/turns/${encodeURIComponent(turnId)}/actions`, { action: 'apply', ...body }),
   closeSession: (sessionId: string) => api.post<null>(`${sessionPath(sessionId)}/close`),
 };

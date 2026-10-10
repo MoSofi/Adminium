@@ -199,11 +199,11 @@
     "workTitle": "已草擬發票"
   },
   "readOnly": {
-    "enable": "啟用操作",
-    "lockedTitle": "啟用操作後 {name} 才能執行",
     "noWrite": "你的角色在這裡可以檢視、草擬與預覽，但無法儲存。",
     "noWriteTitle": "你的角色在這裡無法執行此操作",
-    "note": "{name} 目前是唯讀的 — 可以檢視、草擬與預覽，但無法儲存、傳送或建立。"
+    "switchedOff": "此工作區已為 {name} 關閉儲存。",
+    "openSettings": "開啟設定",
+    "switchedOffTitle": "此工作區已為 {name} 關閉儲存"
   },
   "report": {
     "action1": "執行完整預覽",
@@ -345,5 +345,116 @@
     "madeOn": "建立於 {page}。",
     "open": "開啟 {page} 以使用此草稿",
     "deleted": "此草稿的文件已被刪除。"
+  },
+  "proposal": {
+    "checking": {
+      "title": "待確認的變更",
+      "line": "正在檢查會變更什麼…"
+    },
+    "badge": {
+      "replaced": "已被取代",
+      "expired": "已過期",
+      "cancelled": "已取消",
+      "parked": "已擱置"
+    },
+    "replaced": "之後又問了別的問題。沒有任何變更。",
+    "expired": "此提議已過了 30 分鐘。請重新提問。",
+    "overCap": "共 {count} 項變更；一次最多可確認 {cap} 項。更多請使用頁面自帶的批次工具。",
+    "applying": "處理中…",
+    "undone": "已復原。一切恢復原狀。",
+    "undonePart": "已收回 {count, plural, other {#}} 項變更。",
+    "undoneRest": "其餘保持已變更。",
+    "interrupted": "此操作中途停止了。",
+    "group": {
+      "done": "已完成",
+      "check": "請檢查此項",
+      "checkLine": "儲存被中斷。它可能已變更，也可能沒有。",
+      "notTried": "未嘗試",
+      "shared": "{count, plural, other {#}} 列的 {field} {arrow} {value}"
+    },
+    "openHome": "開啟{page}",
+    "notTried": "未嘗試：同時請求過多。請一分鐘後再問。",
+    "again": "重新提議其餘部分",
+    "againAsk": "請重新提議未完成的變更：\n{rows}",
+    "undo": "復原",
+    "undoSome": "復原 {total} 項中的 {count} 項",
+    "undoPassed": "復原時間已過。",
+    "noUndo": "此操作無法在這裡復原。",
+    "noUndoSome": "{count, plural, other {#}} 項變更無法在這裡復原。",
+    "notChanged": "以下 {count, plural, other {#}} 項未變更：",
+    "cancelled": "沒有任何變更。",
+    "parked": "開啟{page}以使用此項。",
+    "someRefused": "{count, plural, other {#}} 項變更中有 {refused} 項無法執行。",
+    "changedSince": "自向你顯示後，此內容已有變化。確認前請再看一次。",
+    "fix": "請 {name} 修正",
+    "fixAsk": "其中一部分無法執行。請去掉以下內容後重新提議：\n{reasons}",
+    "send": {
+      "template": "範本",
+      "subject": "主旨",
+      "to": "收件者",
+      "roles": "所有擁有 {roles} 角色的人（{count, plural, other {#}} 人）",
+      "open": "開啟範本",
+      "skipped": "{count, plural, other {#}} 人已取消訂閱，不會收到。"
+    },
+    "more": "還有 {count} 項。放大檢視全部。",
+    "irreversible": "此操作無法復原。",
+    "chosen": "已選 {picked}/{count}",
+    "large": "放大檢視",
+    "doc": {
+      "email": "郵件範本",
+      "report": "報告",
+      "rule": "規則",
+      "invoice": "發票",
+      "invoiceTemplate": "發票範本"
+    },
+    "ask": {
+      "change": "變更 {count, plural, other {#}} 列",
+      "add": "新增 {count, plural, other {#}} 列",
+      "delete": "刪除 {count, plural, other {#}} 列",
+      "save": "另存為新的{what}",
+      "saveOver": "覆寫儲存「{name}」",
+      "deleteDoc": "刪除「{name}」",
+      "deleteDocs": "刪除 {count, plural, other {#}} 份文件",
+      "send": "傳送給 {count, plural, other {#}} 人",
+      "mixed": "執行 {count, plural, other {#}} 項變更"
+    },
+    "done": {
+      "changePart": "已變更 {count, plural, other {#}} 列中的 {done} 列。",
+      "part": "已執行 {count, plural, other {#}} 項變更中的 {done} 項。",
+      "change": "已變更 {count, plural, other {#}} 列。",
+      "add": "已新增 {count, plural, other {#}} 列。",
+      "delete": "已刪除 {count, plural, other {#}} 列。",
+      "save": "已儲存。",
+      "deleteDoc": "已刪除 {count, plural, other {#}} 份文件。",
+      "send": "正在傳送給 {count, plural, other {#}} 人。",
+      "mixed": "已執行 {count, plural, other {#}} 項變更。"
+    },
+    "refused": {
+      "generic": "伺服器拒絕了此操作。",
+      "switchedOff": "此工作區已為 {name} 關閉此功能。",
+      "notThisTable": "在這裡只能變更提問所在頁面的資料表。",
+      "notData": "這不是你的資料表。",
+      "noChange": "該列已是這些值。",
+      "unsafeKey": "無法使用該 ID。",
+      "notFound": "此項已不存在。",
+      "notOffered": "無法在這裡執行此操作。",
+      "builtIn": "內建郵件需在其自己的頁面上變更。",
+      "notCampaign": "只有行銷郵件可以傳送給人員。",
+      "noRecipients": "沒有人會收到這封郵件。",
+      "notLive": "草稿需由人開啟後才能傳送。"
+    },
+    "row": {
+      "untitled": "未命名",
+      "new": "新列",
+      "switchesOff": "儲存後為關閉狀態：檢視後再重新開啟。"
+    },
+    "delete": {
+      "reference": "{table} 中 {count} 列",
+      "references": "其他列參照了此項：{list}。它們會隨之刪除或變更，與頁面本身的刪除相同。"
+    },
+    "noneAble": "這些都無法執行",
+    "checkAgain": "重新檢查",
+    "undoFailed": "{count, plural, other {#}} 項變更未能收回。請重試。",
+    "parkedNoHome": "請回到提出此問題的{page}以使用它。"
   }
 }

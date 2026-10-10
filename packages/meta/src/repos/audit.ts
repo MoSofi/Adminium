@@ -31,7 +31,12 @@ export interface AuditEntryInput {
   action: string;
   connectionId?: string | null;
   entity?: RecordRef | null;
-  changes?: { before?: Record<string, unknown> | null; after?: Record<string, unknown> | null } | null;
+  changes?: {
+    before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null;
+    /** Set when the write was confirmed in a conversation with the assistant: which one. */
+    via?: { assistant: { sessionId: string; turnId: string } };
+  } | null;
   ip?: string | null;
   userAgent?: string | null;
   requestId?: string | null;
@@ -76,7 +81,8 @@ function packChanges(changes: AuditEntryInput['changes']): string | null {
   if (changes === null || changes === undefined) return null;
   const serialized = packJson(changes);
   if (Buffer.byteLength(serialized, 'utf8') <= AUDIT_CHANGES_MAX_BYTES) return serialized;
-  return packJson({ _truncated: true });
+  // What was changed is dropped; that it came through the assistant is kept.
+  return packJson(changes.via === undefined ? { _truncated: true } : { _truncated: true, via: changes.via });
 }
 
 export function auditRepo(meta: MetaDb) {

@@ -4,8 +4,8 @@
  * happens when one is pressed.
  *
  * WHAT IT WILL NOT DO BY ITSELF. Write anything. Every button that changes
- * something is locked until the person turns actions on (for this page, this
- * visit), needs the same grant the page's own save needs, and asks once more
+ * something is held while the workspace has not let the assistant create
+ * things, needs the same grant the page's own save needs, and asks once more
  * before it runs. The model's last move is a draft; everything after it is
  * somebody's decision.
  *
@@ -33,8 +33,10 @@ export interface LiveDraftProps {
   host: () => AssistantHostContext | null;
   copy: AssistantCopy;
   name: string;
-  /** The guardrail: false until the person enables actions on this page. */
+  /** Whether the workspace lets the assistant create things: its Create switch. */
   enabled: boolean;
+  /** For someone who may change that: the way to the setting. */
+  onOpenSettings?: (() => void) | undefined;
   /** Whether this person may save on this page at all. */
   canWrite: boolean;
   tokensIn: number;
@@ -48,7 +50,7 @@ export interface LiveDraftProps {
   onLeave: () => void;
 }
 
-export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, tokensIn, tokensOut, runAction, loadWhole, onOwnDialog, onLeave }: LiveDraftProps) {
+export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, onOpenSettings, tokensIn, tokensOut, runAction, loadWhole, onOwnDialog, onLeave }: LiveDraftProps) {
   const [echo, setEcho] = useState<string | null>(null);
   const [sample, setSample] = useState<{ artefact: Record<string, unknown>; label: string } | null>(null);
   const [pending, setPending] = useState<{ action: AssistantActionSpec; open: boolean } | null>(null);
@@ -150,6 +152,17 @@ export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, t
           />
         }
       />
+      {enabled || !canWrite ? null : (
+        // The draft can still be put in the editor and saved there by hand: that save is the person's own.
+        <p data-testid="assistant-save-off" className="flex flex-wrap items-center gap-x-2 gap-y-1 ps-1 text-[11.5px] font-medium leading-[1.5] text-fg-muted">
+          {t('assistant:readOnly.switchedOff', 'Saving is switched off for {name} in this workspace.', { name })}
+          {onOpenSettings === undefined ? null : (
+            <button type="button" onClick={onOpenSettings} className="font-bold text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              {t('assistant:readOnly.openSettings', 'Open settings')}
+            </button>
+          )}
+        </p>
+      )}
       {echo === null ? null : <Echo text={echo} />}
       {pending === null ? null : (
         <ConfirmDialog

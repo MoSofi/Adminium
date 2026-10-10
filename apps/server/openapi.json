@@ -50997,6 +50997,31 @@
                               "type": "integer",
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991
+                            },
+                            "via": {
+                              "type": "object",
+                              "properties": {
+                                "assistant": {
+                                  "type": "object",
+                                  "properties": {
+                                    "sessionId": {
+                                      "type": "string"
+                                    },
+                                    "turnId": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "sessionId",
+                                    "turnId"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "assistant"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -107988,6 +108013,33 @@
                         }
                       ]
                     },
+                    "abilities": {
+                      "type": "object",
+                      "properties": {
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "change": {
+                          "type": "boolean"
+                        },
+                        "send": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "create",
+                        "change",
+                        "send",
+                        "delete"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxRows": {
+                      "type": "number"
+                    },
                     "budget": {
                       "type": "object",
                       "properties": {
@@ -108022,6 +108074,8 @@
                     "canConfigure",
                     "provider",
                     "model",
+                    "abilities",
+                    "maxRows",
                     "budget"
                   ],
                   "additionalProperties": false
@@ -109887,7 +109941,9 @@
                       "save",
                       "test-send",
                       "sample",
-                      "language.add"
+                      "language.add",
+                      "check",
+                      "apply"
                     ]
                   },
                   "on": {
@@ -109926,6 +109982,20 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 10
+                  },
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "pick": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 49
+                    }
                   }
                 },
                 "required": [
@@ -109963,76 +110033,119 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "echo": {
+                  "anyOf": [
+                    {
                       "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {}
-                    },
-                    "created": {
-                      "anyOf": [
-                        {
+                      "properties": {
+                        "echo": {
                           "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "kind": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
+                          "propertyNames": {
+                            "type": "string"
                           },
-                          "required": [
-                            "id",
-                            "kind",
-                            "name"
-                          ],
-                          "additionalProperties": false
+                          "additionalProperties": {}
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "sample": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "artefact": {
+                        "created": {
+                          "anyOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "id",
+                                "kind",
+                                "name"
+                              ],
+                              "additionalProperties": false
                             },
-                            "label": {
-                              "type": "string"
+                            {
+                              "type": "null"
                             }
-                          },
-                          "required": [
-                            "artefact",
-                            "label"
-                          ],
-                          "additionalProperties": false
+                          ]
                         },
-                        {
-                          "type": "null"
+                        "sample": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "artefact": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "artefact",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "echo",
+                        "created",
+                        "sample"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "proposal": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "undo": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "index": {
+                                "type": "number"
+                              },
+                              "token": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "index",
+                              "token"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "once": {
+                          "type": "array",
+                          "items": {}
+                        }
+                      },
+                      "required": [
+                        "proposal"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "echo",
-                    "created",
-                    "sample"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -110051,6 +110164,36 @@
                   "type": "object",
                   "properties": {
                     "dailyTokens": {
+                      "type": "number"
+                    },
+                    "abilities": {
+                      "type": "object",
+                      "properties": {
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "change": {
+                          "type": "boolean"
+                        },
+                        "send": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "create",
+                        "change",
+                        "send",
+                        "delete"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxRows": {
+                      "type": "number"
+                    },
+                    "maxRowsCeiling": {
                       "type": "number"
                     },
                     "today": {
@@ -110119,6 +110262,9 @@
                   },
                   "required": [
                     "dailyTokens",
+                    "abilities",
+                    "maxRows",
+                    "maxRowsCeiling",
                     "today",
                     "roles"
                   ],
@@ -110141,11 +110287,32 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 1000000000
+                  },
+                  "abilities": {
+                    "type": "object",
+                    "properties": {
+                      "create": {
+                        "type": "boolean"
+                      },
+                      "change": {
+                        "type": "boolean"
+                      },
+                      "send": {
+                        "type": "boolean"
+                      },
+                      "delete": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "maxRows": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
                   }
                 },
-                "required": [
-                  "dailyTokens"
-                ]
+                "additionalProperties": false
               }
             }
           }
@@ -110159,6 +110326,36 @@
                   "type": "object",
                   "properties": {
                     "dailyTokens": {
+                      "type": "number"
+                    },
+                    "abilities": {
+                      "type": "object",
+                      "properties": {
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "change": {
+                          "type": "boolean"
+                        },
+                        "send": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "create",
+                        "change",
+                        "send",
+                        "delete"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxRows": {
+                      "type": "number"
+                    },
+                    "maxRowsCeiling": {
                       "type": "number"
                     },
                     "today": {
@@ -110227,6 +110424,9 @@
                   },
                   "required": [
                     "dailyTokens",
+                    "abilities",
+                    "maxRows",
+                    "maxRowsCeiling",
                     "today",
                     "roles"
                   ],

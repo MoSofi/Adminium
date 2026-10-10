@@ -62,7 +62,7 @@ export function AssistantBubble({ bootstrap }: { bootstrap: BootstrapData }) {
   const dock =
     loaded || open ? (
       <Suspense fallback={null}>
-        <AssistantDock visible={open} />
+        <AssistantDock visible={open} pages={bootstrap} />
       </Suspense>
     ) : null;
   if (open) return dock;
@@ -91,10 +91,16 @@ function AssistantBubbleButton({ name, signal }: { name: string; signal: DockSig
       <Sparkles className="size-5" aria-hidden="true" />
       {signal === 'idle' ? null : (
         <span className="sr-only">
-          {signal === 'working' ? t('shell.assistant.working', '{name} is working', { name }) : t('shell.assistant.unread', '1 unread answer')}
+          {signal === 'working'
+            ? t('shell.assistant.working', '{name} is working', { name })
+            : signal === 'proposal'
+              ? t('shell.assistant.proposal', 'A change is waiting for you')
+              : t('shell.assistant.unread', '1 unread answer')}
         </span>
       )}
-      {signal === 'unread' ? <span aria-hidden="true" className="absolute end-[-1px] top-[-1px] size-3.5 rounded-full border-[2.5px] border-bg bg-danger" /> : null}
+      {signal === 'unread' || signal === 'proposal' ? (
+        <span aria-hidden="true" className={`absolute end-[-1px] top-[-1px] size-3.5 rounded-full border-[2.5px] border-bg ${signal === 'proposal' ? 'bg-warn' : 'bg-danger'}`} />
+      ) : null}
     </button>
   );
 }

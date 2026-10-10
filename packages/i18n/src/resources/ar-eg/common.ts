@@ -1571,7 +1571,8 @@ export default {
       "resource": "المورد",
       "subtitle": "{actor} · {when}",
       "truncated": "اقتُطع عند 16 كيلوبايت",
-      "userAgent": "وكيل المستخدم"
+      "userAgent": "وكيل المستخدم",
+      "subtitleVia": "{actor}، عبر {name} · {when}"
     },
     "empty": {
       "body": "التغييرات على البيانات والمخطط والإعدادات والصلاحيات تصل إلى هنا فور حدوثها.",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "تحميل إدخالات أقدم",
     "subtitle": "كل تغيير جرى في مساحة العمل هذه، ومن أجراه، وما الذي غيّره.",
-    "title": "سجل التدقيق"
+    "title": "سجل التدقيق",
+    "via": "عبر {name}"
   },
   "security": {
     "password": {
@@ -1768,7 +1770,8 @@ export default {
     "assistant": {
       "open": "اسأل {name}",
       "working": "{name} يعمل",
-      "unread": "إجابة واحدة غير مقروءة"
+      "unread": "إجابة واحدة غير مقروءة",
+      "proposal": "هناك تغيير بانتظارك"
     }
   }
 } as const;

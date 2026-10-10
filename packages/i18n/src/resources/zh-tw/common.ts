@@ -1571,7 +1571,8 @@ export default {
       "resource": "資源",
       "subtitle": "{actor} · {when}",
       "truncated": "已於 16 KB 處截斷",
-      "userAgent": "使用者代理程式"
+      "userAgent": "使用者代理程式",
+      "subtitleVia": "{actor}，透過 {name} · {when}"
     },
     "empty": {
       "body": "資料、結構描述、設定與權限的變更，會在發生時顯示在這裡。",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "載入較舊的項目",
     "subtitle": "這個工作區中的每一項變更、由誰執行，以及變更了什麼。",
-    "title": "稽核紀錄"
+    "title": "稽核紀錄",
+    "via": "透過 {name}"
   },
   "security": {
     "password": {
@@ -1768,7 +1770,8 @@ export default {
     "assistant": {
       "open": "詢問 {name}",
       "working": "{name} 正在處理",
-      "unread": "1 則未讀回答"
+      "unread": "1 則未讀回答",
+      "proposal": "有一項變更等待你確認"
     }
   }
 } as const;

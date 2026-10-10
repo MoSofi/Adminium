@@ -14,7 +14,7 @@
 import { useSyncExternalStore } from 'react';
 
 /** What the bubble shows while the panel is closed. */
-export type DockSignal = 'idle' | 'working' | 'unread';
+export type DockSignal = 'idle' | 'working' | 'unread' | 'proposal';
 
 let open = false;
 let signal: DockSignal = 'idle';
@@ -62,6 +62,11 @@ export function setDockSignal(next: DockSignal): void {
   if (signal === next) return;
   signal = next;
   emit();
+}
+
+/** Back to nothing to say, when what it said is over (a proposal that was let go, or decided). */
+export function clearDockSignal(kind: DockSignal): void {
+  if (signal === kind) setDockSignal('idle');
 }
 
 export function useDockOpen(): boolean {

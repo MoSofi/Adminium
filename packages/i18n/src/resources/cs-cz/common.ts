@@ -1571,7 +1571,8 @@ export default {
       "resource": "Prostředek",
       "subtitle": "{actor} · {when}",
       "truncated": "Zkráceno na 16 KB",
-      "userAgent": "User agent"
+      "userAgent": "User agent",
+      "subtitleVia": "{actor}, přes {name} · {when}"
     },
     "empty": {
       "body": "Změny dat, schématu, nastavení a oprávnění se sem zapisují průběžně, jak nastávají.",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "Načíst starší záznamy",
     "subtitle": "Každá změna provedená v tomto pracovním prostoru — kdo ji provedl a co změnila.",
-    "title": "Auditní log"
+    "title": "Auditní log",
+    "via": "přes {name}"
   },
   "security": {
     "password": {
@@ -1768,7 +1770,8 @@ export default {
     "assistant": {
       "open": "Zeptat se {name}",
       "working": "{name} pracuje",
-      "unread": "1 nepřečtená odpověď"
+      "unread": "1 nepřečtená odpověď",
+      "proposal": "Čeká na vás změna"
     }
   }
 } as const;

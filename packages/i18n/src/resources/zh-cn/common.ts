@@ -1571,7 +1571,8 @@ export default {
       "resource": "资源",
       "subtitle": "{actor} · {when}",
       "truncated": "已在 16 KB 处截断",
-      "userAgent": "用户代理"
+      "userAgent": "用户代理",
+      "subtitleVia": "{actor}，通过 {name} · {when}"
     },
     "empty": {
       "body": "对数据、架构、设置和权限的更改，会在发生时记录到这里。",
@@ -1591,7 +1592,8 @@ export default {
     },
     "loadMore": "加载更早的记录",
     "subtitle": "此工作区中的每一项更改、由谁做出，以及改动了什么。",
-    "title": "审计日志"
+    "title": "审计日志",
+    "via": "通过 {name}"
   },
   "security": {
     "password": {
@@ -1768,7 +1770,8 @@ export default {
     "assistant": {
       "open": "询问 {name}",
       "working": "{name} 正在处理",
-      "unread": "1 条未读回答"
+      "unread": "1 条未读回答",
+      "proposal": "有一项更改等待你确认"
     }
   }
 } as const;

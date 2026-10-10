@@ -1071,13 +1071,361 @@
     "status": "mt",
     "srcHash": "625869d60265"
   },
-  "assistant.readOnly.enable": {
+  "assistant.proposal.again": {
     "status": "mt",
-    "srcHash": "f84bd23a3b29"
+    "srcHash": "942c98853727"
   },
-  "assistant.readOnly.lockedTitle": {
+  "assistant.proposal.againAsk": {
     "status": "mt",
-    "srcHash": "47cffde83a82"
+    "srcHash": "373a8535d4f7"
+  },
+  "assistant.proposal.applying": {
+    "status": "mt",
+    "srcHash": "13b7bfcac438"
+  },
+  "assistant.proposal.ask.add": {
+    "status": "mt",
+    "srcHash": "b474ae8fdf72"
+  },
+  "assistant.proposal.ask.change": {
+    "status": "mt",
+    "srcHash": "d03dcd8158ed"
+  },
+  "assistant.proposal.ask.delete": {
+    "status": "mt",
+    "srcHash": "6f2cec602668"
+  },
+  "assistant.proposal.ask.deleteDoc": {
+    "status": "mt",
+    "srcHash": "48d9a4395b34"
+  },
+  "assistant.proposal.ask.deleteDocs": {
+    "status": "mt",
+    "srcHash": "b4703b3011eb"
+  },
+  "assistant.proposal.ask.mixed": {
+    "status": "mt",
+    "srcHash": "5f91cbc4cbb7"
+  },
+  "assistant.proposal.ask.save": {
+    "status": "mt",
+    "srcHash": "5960d16e7349"
+  },
+  "assistant.proposal.ask.saveOver": {
+    "status": "mt",
+    "srcHash": "41c7f5f4e154"
+  },
+  "assistant.proposal.ask.send": {
+    "status": "mt",
+    "srcHash": "93445662159d"
+  },
+  "assistant.proposal.badge.cancelled": {
+    "status": "mt",
+    "srcHash": "a1bf92eff40d"
+  },
+  "assistant.proposal.badge.expired": {
+    "status": "mt",
+    "srcHash": "a689a999a5e6"
+  },
+  "assistant.proposal.badge.parked": {
+    "status": "mt",
+    "srcHash": "e445e2b5e10d"
+  },
+  "assistant.proposal.badge.replaced": {
+    "status": "mt",
+    "srcHash": "05033aaac5d0"
+  },
+  "assistant.proposal.cancelled": {
+    "status": "mt",
+    "srcHash": "c60d5d2a70ac"
+  },
+  "assistant.proposal.changedSince": {
+    "status": "mt",
+    "srcHash": "f709270727b9"
+  },
+  "assistant.proposal.checkAgain": {
+    "status": "mt",
+    "srcHash": "e185048ce3c0"
+  },
+  "assistant.proposal.checking.line": {
+    "status": "mt",
+    "srcHash": "9d143dee38ec"
+  },
+  "assistant.proposal.checking.title": {
+    "status": "mt",
+    "srcHash": "d726c1a16cd7"
+  },
+  "assistant.proposal.chosen": {
+    "status": "mt",
+    "srcHash": "5029140b2ce4"
+  },
+  "assistant.proposal.delete.reference": {
+    "status": "mt",
+    "srcHash": "6d9410b039c3"
+  },
+  "assistant.proposal.delete.references": {
+    "status": "mt",
+    "srcHash": "05ff733785ad"
+  },
+  "assistant.proposal.doc.email": {
+    "status": "mt",
+    "srcHash": "f72270e21963"
+  },
+  "assistant.proposal.doc.invoice": {
+    "status": "mt",
+    "srcHash": "baeba7e7b9ec"
+  },
+  "assistant.proposal.doc.invoiceTemplate": {
+    "status": "mt",
+    "srcHash": "9a8457f2135c"
+  },
+  "assistant.proposal.doc.report": {
+    "status": "mt",
+    "srcHash": "a27297bde973"
+  },
+  "assistant.proposal.doc.rule": {
+    "status": "mt",
+    "srcHash": "0f400122e37d"
+  },
+  "assistant.proposal.done.add": {
+    "status": "mt",
+    "srcHash": "3820a4ab4978"
+  },
+  "assistant.proposal.done.change": {
+    "status": "mt",
+    "srcHash": "a2bdc5d3cc39"
+  },
+  "assistant.proposal.done.changePart": {
+    "status": "mt",
+    "srcHash": "630ece1766b1"
+  },
+  "assistant.proposal.done.delete": {
+    "status": "mt",
+    "srcHash": "43cccbf1948f"
+  },
+  "assistant.proposal.done.deleteDoc": {
+    "status": "mt",
+    "srcHash": "4a3563ac2613"
+  },
+  "assistant.proposal.done.mixed": {
+    "status": "mt",
+    "srcHash": "083e9c410c25"
+  },
+  "assistant.proposal.done.part": {
+    "status": "mt",
+    "srcHash": "ed6770ba2dcf"
+  },
+  "assistant.proposal.done.save": {
+    "status": "mt",
+    "srcHash": "9d4af6906a17"
+  },
+  "assistant.proposal.done.send": {
+    "status": "mt",
+    "srcHash": "d97f0d3fdfbd"
+  },
+  "assistant.proposal.expired": {
+    "status": "mt",
+    "srcHash": "944f7662fc6d"
+  },
+  "assistant.proposal.fix": {
+    "status": "mt",
+    "srcHash": "41fa33c9a2e3"
+  },
+  "assistant.proposal.fixAsk": {
+    "status": "mt",
+    "srcHash": "8e0bccbdea47"
+  },
+  "assistant.proposal.group.check": {
+    "status": "mt",
+    "srcHash": "d3c234e4821e"
+  },
+  "assistant.proposal.group.checkLine": {
+    "status": "mt",
+    "srcHash": "5004a02c7647"
+  },
+  "assistant.proposal.group.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "assistant.proposal.group.notTried": {
+    "status": "mt",
+    "srcHash": "e1be3c69127f"
+  },
+  "assistant.proposal.group.shared": {
+    "status": "mt",
+    "srcHash": "ed444ca07ac7"
+  },
+  "assistant.proposal.interrupted": {
+    "status": "mt",
+    "srcHash": "a5a86453293c"
+  },
+  "assistant.proposal.irreversible": {
+    "status": "mt",
+    "srcHash": "ad25261d32e5"
+  },
+  "assistant.proposal.large": {
+    "status": "mt",
+    "srcHash": "66ed3d522d47"
+  },
+  "assistant.proposal.more": {
+    "status": "mt",
+    "srcHash": "1e3643838bd3"
+  },
+  "assistant.proposal.noUndo": {
+    "status": "mt",
+    "srcHash": "8d6b9095bee6"
+  },
+  "assistant.proposal.noUndoSome": {
+    "status": "mt",
+    "srcHash": "8a31169f99f2"
+  },
+  "assistant.proposal.noneAble": {
+    "status": "mt",
+    "srcHash": "edf6ee875fbb"
+  },
+  "assistant.proposal.notChanged": {
+    "status": "mt",
+    "srcHash": "1a963739cddb"
+  },
+  "assistant.proposal.notTried": {
+    "status": "mt",
+    "srcHash": "47fd1764ea24"
+  },
+  "assistant.proposal.openHome": {
+    "status": "mt",
+    "srcHash": "35fa9b8791f2"
+  },
+  "assistant.proposal.overCap": {
+    "status": "mt",
+    "srcHash": "28131c3115b6"
+  },
+  "assistant.proposal.parked": {
+    "status": "mt",
+    "srcHash": "6bc8c5e92911"
+  },
+  "assistant.proposal.parkedNoHome": {
+    "status": "mt",
+    "srcHash": "434997c1a866"
+  },
+  "assistant.proposal.refused.builtIn": {
+    "status": "mt",
+    "srcHash": "0de8c5f8d30d"
+  },
+  "assistant.proposal.refused.generic": {
+    "status": "mt",
+    "srcHash": "a8440c357d52"
+  },
+  "assistant.proposal.refused.noChange": {
+    "status": "mt",
+    "srcHash": "e7cb4bebdcc4"
+  },
+  "assistant.proposal.refused.noRecipients": {
+    "status": "mt",
+    "srcHash": "656c4fae0cf5"
+  },
+  "assistant.proposal.refused.notCampaign": {
+    "status": "mt",
+    "srcHash": "1a605caf735c"
+  },
+  "assistant.proposal.refused.notData": {
+    "status": "mt",
+    "srcHash": "17e4831ef0d1"
+  },
+  "assistant.proposal.refused.notFound": {
+    "status": "mt",
+    "srcHash": "0457e864e70e"
+  },
+  "assistant.proposal.refused.notLive": {
+    "status": "mt",
+    "srcHash": "6a9d04752b8b"
+  },
+  "assistant.proposal.refused.notOffered": {
+    "status": "mt",
+    "srcHash": "daa4141b2c2b"
+  },
+  "assistant.proposal.refused.notThisTable": {
+    "status": "mt",
+    "srcHash": "db6e5d912e41"
+  },
+  "assistant.proposal.refused.switchedOff": {
+    "status": "mt",
+    "srcHash": "0c9c8cb453d4"
+  },
+  "assistant.proposal.refused.unsafeKey": {
+    "status": "mt",
+    "srcHash": "ffedf933afb5"
+  },
+  "assistant.proposal.replaced": {
+    "status": "mt",
+    "srcHash": "2a571d20ca9d"
+  },
+  "assistant.proposal.row.new": {
+    "status": "mt",
+    "srcHash": "9bb526186245"
+  },
+  "assistant.proposal.row.switchesOff": {
+    "status": "mt",
+    "srcHash": "d0daff838938"
+  },
+  "assistant.proposal.row.untitled": {
+    "status": "mt",
+    "srcHash": "621521f9a878"
+  },
+  "assistant.proposal.send.open": {
+    "status": "mt",
+    "srcHash": "e804d1387bb4"
+  },
+  "assistant.proposal.send.roles": {
+    "status": "mt",
+    "srcHash": "80eebdd849cc"
+  },
+  "assistant.proposal.send.skipped": {
+    "status": "mt",
+    "srcHash": "6f3d2c516a57"
+  },
+  "assistant.proposal.send.subject": {
+    "status": "mt",
+    "srcHash": "8d183dbdcea3"
+  },
+  "assistant.proposal.send.template": {
+    "status": "mt",
+    "srcHash": "3ec1ae061c27"
+  },
+  "assistant.proposal.send.to": {
+    "status": "mt",
+    "srcHash": "ae79ea1e9c63"
+  },
+  "assistant.proposal.someRefused": {
+    "status": "mt",
+    "srcHash": "a73347eceee4"
+  },
+  "assistant.proposal.undo": {
+    "status": "mt",
+    "srcHash": "39fc72124884"
+  },
+  "assistant.proposal.undoFailed": {
+    "status": "mt",
+    "srcHash": "d7812ee55d74"
+  },
+  "assistant.proposal.undoPassed": {
+    "status": "mt",
+    "srcHash": "7f0a21cfd5df"
+  },
+  "assistant.proposal.undoSome": {
+    "status": "mt",
+    "srcHash": "dd7a1d42fe5a"
+  },
+  "assistant.proposal.undone": {
+    "status": "mt",
+    "srcHash": "339a49d96401"
+  },
+  "assistant.proposal.undonePart": {
+    "status": "mt",
+    "srcHash": "979dc520c5cf"
+  },
+  "assistant.proposal.undoneRest": {
+    "status": "mt",
+    "srcHash": "6b40668d5dd9"
   },
   "assistant.readOnly.noWrite": {
     "status": "mt",
@@ -1087,9 +1435,17 @@
     "status": "mt",
     "srcHash": "4d94ab973f10"
   },
-  "assistant.readOnly.note": {
+  "assistant.readOnly.openSettings": {
     "status": "mt",
-    "srcHash": "7dac85fc44a5"
+    "srcHash": "fd7108f8312a"
+  },
+  "assistant.readOnly.switchedOff": {
+    "status": "mt",
+    "srcHash": "082aa2986d41"
+  },
+  "assistant.readOnly.switchedOffTitle": {
+    "status": "mt",
+    "srcHash": "6f53ace140a9"
   },
   "assistant.report.action1": {
     "status": "mt",
@@ -3095,6 +3451,10 @@
     "status": "src",
     "srcHash": "66e2f1c7082a"
   },
+  "common.audit.drawer.subtitleVia": {
+    "status": "mt",
+    "srcHash": "f72dca3e66cf"
+  },
   "common.audit.drawer.truncated": {
     "status": "mt",
     "srcHash": "7e77a196e37b"
@@ -3154,6 +3514,10 @@
   "common.audit.title": {
     "status": "mt",
     "srcHash": "3cfc5f1cc987"
+  },
+  "common.audit.via": {
+    "status": "mt",
+    "srcHash": "744cf406f310"
   },
   "common.auth.description": {
     "status": "mt",
@@ -6646,6 +7010,10 @@
   "common.shell.assistant.open": {
     "status": "mt",
     "srcHash": "23b48bef02ad"
+  },
+  "common.shell.assistant.proposal": {
+    "status": "mt",
+    "srcHash": "2a35a7b706a5"
   },
   "common.shell.assistant.unread": {
     "status": "mt",
@@ -24714,6 +25082,94 @@
   "studio.settings.workspaceSection": {
     "srcHash": "4ca0a75c2b7f",
     "status": "mt"
+  },
+  "studio.settingsAi.abilities.can": {
+    "status": "mt",
+    "srcHash": "7866a746d915"
+  },
+  "studio.settingsAi.abilities.cannot": {
+    "status": "mt",
+    "srcHash": "c76f39004597"
+  },
+  "studio.settingsAi.abilities.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "studio.settingsAi.abilities.changeWhat": {
+    "status": "mt",
+    "srcHash": "8b54f999d896"
+  },
+  "studio.settingsAi.abilities.create": {
+    "status": "mt",
+    "srcHash": "6e157c5da441"
+  },
+  "studio.settingsAi.abilities.createWhat": {
+    "status": "mt",
+    "srcHash": "2b243b3d2dd4"
+  },
+  "studio.settingsAi.abilities.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "studio.settingsAi.abilities.deleteWhat": {
+    "status": "mt",
+    "srcHash": "263ed82c70ad"
+  },
+  "studio.settingsAi.abilities.never": {
+    "status": "mt",
+    "srcHash": "020ddfd1b07b"
+  },
+  "studio.settingsAi.abilities.onlyRead": {
+    "status": "mt",
+    "srcHash": "0796593b489e"
+  },
+  "studio.settingsAi.abilities.rows": {
+    "status": "mt",
+    "srcHash": "2f5dc5ef72ac"
+  },
+  "studio.settingsAi.abilities.rowsHint": {
+    "status": "mt",
+    "srcHash": "96eb3a1f3b6c"
+  },
+  "studio.settingsAi.abilities.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.abilities.saveFailed": {
+    "status": "mt",
+    "srcHash": "848e72d4e660"
+  },
+  "studio.settingsAi.abilities.send": {
+    "status": "src",
+    "srcHash": "9bc2575c3930"
+  },
+  "studio.settingsAi.abilities.sendWhat": {
+    "status": "mt",
+    "srcHash": "f9d10e670cde"
+  },
+  "studio.settingsAi.abilities.title": {
+    "status": "mt",
+    "srcHash": "605ae2c2de20"
+  },
+  "studio.settingsAi.abilities.verb.change": {
+    "status": "mt",
+    "srcHash": "7550b672e162"
+  },
+  "studio.settingsAi.abilities.verb.create": {
+    "status": "mt",
+    "srcHash": "9b7c68a918b1"
+  },
+  "studio.settingsAi.abilities.verb.delete": {
+    "status": "mt",
+    "srcHash": "9485989ff514"
+  },
+  "studio.settingsAi.abilities.verb.read": {
+    "status": "mt",
+    "srcHash": "a7afddb68260"
+  },
+  "studio.settingsAi.abilities.verb.send": {
+    "status": "mt",
+    "srcHash": "37ed539c0cef"
   },
   "studio.settingsAi.allowance.atLimit": {
     "status": "mt",

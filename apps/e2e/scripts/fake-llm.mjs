@@ -380,6 +380,39 @@ const SCENARIOS = [
     ],
   },
   {
+    // A change to a row, on a data page. Where the workspace lets the assistant change rows the
+    // prompt says which table, by its ids, and the reply proposes one change there; where it
+    // does not, the prompt says nothing can be changed and the reply says so in words.
+    key: 'propose',
+    match: /move alfki to hamburg/i,
+    ends: 'propose',
+    replies: [
+      (messages) => {
+        const told = String(messages.find((message) => message?.role === 'system')?.content ?? '');
+        const where = /connectionId ("[^"]+"), table ("[^"]+")/.exec(told);
+        // The self-test has no prompt: it replays the reply a page that offers the move would get.
+        // Offered only where the prompt lists the move: adding rows may be on while changing them is not.
+        if (told !== '' && (where === null || !told.includes('- row.change:'))) return { schema_version: SCHEMA, say: 'I cannot change anything here.' };
+        return {
+          schema_version: SCHEMA,
+          say: 'I can do this for you.',
+          propose: {
+            title: 'Move ALFKI to Hamburg',
+            actions: [
+              {
+                do: 'row.change',
+                connectionId: where === null ? 'conn_1' : JSON.parse(where[1]),
+                table: where === null ? 'main.customers' : JSON.parse(where[2]),
+                id: 'ALFKI',
+                values: { city: 'Hamburg' },
+              },
+            ],
+          },
+        };
+      },
+    ],
+  },
+  {
     // A screen with no context of its own: it asks where the place is, then answers with a link
     // to it. Opened by the first chip that screen offers, like the data page's.
     key: 'general',
@@ -634,8 +667,13 @@ async function selfTest() {
     let repairs = 0;
     for (let round = 0; round < scenario.replies.length + 2; round += 1) {
       const text = replyFor(messages);
-      const parsed = parseAssistantTurn(text);
+      // A scenario that ends in a proposal is checked against the contract of a page that offers one.
+      const parsed = scenario.ends === 'propose' ? parseAssistantTurn(text, undefined, { document: false, propose: ['row.change'] }) : parseAssistantTurn(text);
       messages.push({ role: 'assistant', content: text });
+      if (parsed.ok && scenario.ends === 'propose' && parsed.turn.propose !== undefined) {
+        console.log(`✓ ${scenario.key}: ${String(round + 1)} replies, ends in a proposal (${parsed.turn.propose.title})`);
+        break;
+      }
       if (!parsed.ok) {
         if (scenario.key === 'repair' && repairs === 0) {
           repairs += 1;
@@ -713,6 +751,8 @@ function scenarioOpener(scenario) {
       return 'Do a repair round, please';
     case 'refused':
       return 'Use a table I cannot read';
+    case 'propose':
+      return 'Move ALFKI to Hamburg';
     case 'data':
       return 'How many rows are shown here?';
     case 'general':

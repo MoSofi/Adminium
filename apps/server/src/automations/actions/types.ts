@@ -52,6 +52,8 @@ export interface ActionContext {
   runId: string;
   /** Automation hops so far — a write this run makes carries `hops + 1`. */
   hops: number;
+  /** The conversation with the assistant the run began in, when it did: its writes carry it on. */
+  via?: { assistant: { sessionId: string; turnId: string } } | undefined;
   now: number;
   source: ActionSource | null;
   /** `{{record.x}}`, `{{now}}`, `{{ruleName}}`, `{{recordLabel}}` (D16). */

@@ -1134,7 +1134,8 @@ export default {
       "resource": "Resource",
       "subtitle": "{actor} · {when}",
       "truncated": "Truncated at 16 KB",
-      "userAgent": "User agent"
+      "userAgent": "User agent",
+      "subtitleVia": "{actor}, through {name} · {when}"
     },
     "empty": {
       "body": "Changes to data, schema, settings and permissions land here as they happen.",
@@ -1154,7 +1155,8 @@ export default {
     },
     "loadMore": "Load older entries",
     "subtitle": "Every change made in this workspace, who made it, and what it changed.",
-    "title": "Audit log"
+    "title": "Audit log",
+    "via": "through {name}"
   },
   "security": {
     "password": {
@@ -1235,7 +1237,8 @@ export default {
     "assistant": {
       "open": "Ask {name}",
       "working": "{name} is working",
-      "unread": "1 unread answer"
+      "unread": "1 unread answer",
+      "proposal": "A change is waiting for you"
     }
   }
 } as const;

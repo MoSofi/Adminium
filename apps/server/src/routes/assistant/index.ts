@@ -50,10 +50,13 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { assistantDocumentExists, runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
+import { assistantDocumentExists, runAssistantAction } from '../../assistant/actions.js';
+import { dataPageOf } from '../../assistant/data-page.js';
+import { applyProposal, checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
+import { viewOrError } from '../../assistant/tools/schema.js';
 import { readAllowance } from '../../assistant/allowance.js';
 import { listedAddOns } from '../../assistant/tools/add-ons.js';
-import type { AssistantAddOn } from '../../assistant/types.js';
+import type { AssistantAddOn, AssistantToolDeps } from '../../assistant/types.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
@@ -72,6 +75,7 @@ import {
   assistantSessionCreateBody,
   assistantSessionCreateReply,
   assistantSessionParams,
+  ASSISTANT_MAX_ROWS_CEILING,
   assistantSettingsPutBody,
   assistantSettingsReply,
   assistantTurnCreateBody,
@@ -168,9 +172,35 @@ function turnView(turn: AssistantTurn, session: AssistantSession): AssistantTurn
     createdAt: turn.createdAt,
     finishedAt: turn.finishedAt,
     context: turn.context ?? session.context,
-    answer: asRecord(turn.answer),
+    answer: answerView(turn.answer),
     on: whereAsked(turn, session),
   };
+}
+
+/**
+ * A turn's answer as a reader is given it. A proposal that has not been
+ * checked is the model's own text: only the fact of it is told.
+ */
+function answerView(answer: unknown): Record<string, unknown> | null {
+  const record = asRecord(answer);
+  if (record === null || record.proposal === undefined) return record;
+  const stored = storedProposalOf(record);
+  const { proposal: _stored, ...rest } = record;
+  return stored === null ? rest : { ...rest, proposal: proposalView(stored) };
+}
+
+/** The one key column of the table a turn's page shows, to name a row a confirm made; absent when there is not exactly one. */
+async function keyColumnOf(deps: AssistantToolDeps): Promise<string | undefined> {
+  const page = await dataPageOf(deps);
+  if (page === null || page.connectionId === null || page.table === null) return undefined;
+  const found = await viewOrError(deps, page.connectionId);
+  if ('error' in found) return undefined;
+  try {
+    const key = found.view.table(page.table).primaryKey;
+    return key.length === 1 ? key[0] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The page or document a turn was asked on. The title is filled as the turn is served. */
@@ -310,6 +340,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           canConfigure: await request.can(PERMISSIONS.llmRun),
           provider: state.provider,
           model: state.model,
+          abilities: await settings.get('assistant.abilities'),
+          maxRows: await settings.get('assistant.maxRows'),
           budget: await readAllowance(meta, requireUserId(request), app.rbac.now()),
         };
       },
@@ -593,6 +625,73 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
+        if (request.body.action === 'check' || request.body.action === 'apply') {
+          const stored = storedProposalOf(turn.answer);
+          if (turn.status !== 'done' || stored === null) {
+            throw new ValidationFailedError('That turn proposed nothing.', { turnId: turn.id });
+          }
+          const tail = await sessions.listTurnsTail(session.id, 1);
+          // The page the proposal was made on, and the person asking now.
+          const toolDeps = await toolDepsFor({
+            meta,
+            manager: deps.manager,
+            context: turn.context ?? session.context,
+            host: turn.host ?? session.host,
+            userId,
+            can: (permission) => request.can(permission),
+          });
+          const checking = {
+            request,
+            door: app.assistantDoor,
+            meta,
+            deps: toolDeps,
+            sessionId: session.id,
+            turnId: turn.id,
+            proposal: stored,
+            newest: tail.turns.at(-1)?.id === turn.id,
+            now: app.rbac.now(),
+            artefact: asRecord(asRecord(turn.result)?.artefact),
+          };
+          const answer = asRecord(turn.answer) ?? {};
+          if (request.body.action === 'check') {
+            const checked = await checkProposal(checking);
+            // Not written when a confirm took it meanwhile: the stored copy is then the confirm's.
+            if (checked.changed) await sessions.recordAnswer(turn.id, { ...answer, proposal: checked.proposal });
+            return { proposal: proposalView(checked.proposal) };
+          }
+          if (request.body.hash === undefined) {
+            throw new ValidationFailedError('A confirm names the proposal it confirms.', { fields: { hash: { code: 'required' } } });
+          }
+          const applied = await applyProposal({
+            ...checking,
+            store: sessions,
+            answer,
+            hash: request.body.hash,
+            pick: request.body.pick,
+            keyColumn: await keyColumnOf(toolDeps),
+            // The same save the draft card's button runs, by the page the draft was made on.
+            saveDraft: async () => {
+              const artefact = asRecord(asRecord(turn.result)?.artefact);
+              if (artefact === null) return null;
+              const principal = (request as unknown as { user?: { name?: string; email?: string } }).user;
+              const saved = await runAssistantAction({
+                meta,
+                action: 'save',
+                context: turn.context ?? session.context,
+                artefact,
+                sessionId: session.id,
+                turnId: turn.id,
+                actor: { kind: 'user', id: userId, label: principal?.name ?? principal?.email ?? userId },
+                can: (permission) => request.can(permission),
+                ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+                logger: request.log,
+                now: () => app.rbac.now(),
+              });
+              return saved.created === undefined ? null : { id: saved.created.id };
+            },
+          });
+          return { proposal: proposalView(applied.proposal), undo: applied.handOver.undo, once: applied.handOver.once };
+        }
         const result = asRecord(turn.result);
         const artefact = result === null ? null : asRecord(result.artefact);
         if (artefact === null) {
@@ -610,6 +709,15 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           }
         }
 
+        // Saving a draft as a document, and adding a language of one, are the assistant creating
+        // something: both stand under the workspace's Create switch. A test mail to oneself and a
+        // re-run of the sample write nothing and stay outside it.
+        if (request.body.action === 'save' || request.body.action === 'language.add') {
+          const abilities = await settingsRepo(meta).get('assistant.abilities');
+          if (!abilities.create) {
+            throw new ForbiddenError('Saving is switched off for the assistant in this workspace.', 'FORBIDDEN', { reason: 'assistant-switched-off', ability: 'create' });
+          }
+        }
         const principal = (request as unknown as { user?: { id?: string; name?: string; email?: string } }).user;
         // A RE-RUN reads the database, so it needs the same dependency bundle
         // a turn's tools read through — the acting person's grants, resolved
@@ -628,7 +736,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             : undefined;
         const outcome = await runAssistantAction({
           meta,
-          action: request.body.action as AssistantActionKind,
+          action: request.body.action,
           // The page the DRAFT was made on. A conversation opened on one page and asked on
           // another would otherwise be saved by the first page's code.
           context: turn.context ?? session.context,
@@ -676,6 +784,9 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       }
       return {
         dailyTokens: await settings.get('assistant.dailyTokens'),
+        abilities: await settings.get('assistant.abilities'),
+        maxRows: await settings.get('assistant.maxRows'),
+        maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
       };
@@ -695,15 +806,39 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         schema: { body: assistantSettingsPutBody, response: { 200: assistantSettingsReply } },
       },
       async (request) => {
-        const before = await settings.get('assistant.dailyTokens');
-        const next = request.body.dailyTokens;
-        if (before !== next) {
-          await settings.set('assistant.dailyTokens', next, { updatedBy: requireUserId(request), at: app.rbac.now() });
-          await app.rbac.audit(request, {
-            category: 'settings',
-            action: 'assistant.settings.update',
-            changes: { before: { dailyTokens: before }, after: { dailyTokens: next } },
-          });
+        const by = { updatedBy: requireUserId(request), at: app.rbac.now() };
+        const before: Record<string, unknown> = {};
+        const after: Record<string, unknown> = {};
+        const body = request.body;
+        if (body.dailyTokens !== undefined) {
+          const held = await settings.get('assistant.dailyTokens');
+          if (held !== body.dailyTokens) {
+            await settings.set('assistant.dailyTokens', body.dailyTokens, by);
+            before.dailyTokens = held;
+            after.dailyTokens = body.dailyTokens;
+          }
+        }
+        if (body.abilities !== undefined) {
+          // A switch that is not named keeps its state: turning one on never moves another.
+          const held = await settings.get('assistant.abilities');
+          const next = { ...held, ...Object.fromEntries(Object.entries(body.abilities).filter(([, value]) => value !== undefined)) };
+          if (JSON.stringify(held) !== JSON.stringify(next)) {
+            await settings.set('assistant.abilities', next, by);
+            before.abilities = held;
+            after.abilities = next;
+          }
+        }
+        if (body.maxRows !== undefined) {
+          const held = await settings.get('assistant.maxRows');
+          if (held !== body.maxRows) {
+            await settings.set('assistant.maxRows', body.maxRows, by);
+            before.maxRows = held;
+            after.maxRows = body.maxRows;
+          }
+        }
+        // One entry for what really changed, with what it was: who let the assistant write is on record.
+        if (Object.keys(after).length > 0) {
+          await app.rbac.audit(request, { category: 'settings', action: 'assistant.settings.update', changes: { before, after } });
         }
         return settingsReply();
       },

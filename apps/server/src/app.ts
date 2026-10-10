@@ -55,11 +55,13 @@ import { bootstrapRoutes } from './routes/bootstrap/index.js';
 import { meRoutes } from './routes/me/index.js';
 import { setupRoutes } from './routes/setup/index.js';
 import { APP_VERSION } from './version.js';
+import { assistantDoorPlugin } from './assistant/door.js';
 import { scrubSecretFields } from './log-redaction.js';
 
 /** Pino deny-by-path redaction set (+ ADMINIUM_SECRET). */
 export const REDACT_PATHS: readonly string[] = [
   'req.headers.authorization',
+  'req.headers["x-adminium-via"]',
   'req.headers.cookie',
   // A found (or verified) patient's public session: a bearer credential like any other.
   'req.headers["x-adminium-public-session"]',
@@ -540,6 +542,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     metaDb: opts.metaDb ?? null,
     deliverResetToken: opts.onPasswordResetToken,
   });
+  // The assistant's way to this server's own routes, as the signed-in person. After auth (its
+  // hook reads who is asking) and before any route scope, so it reaches every route.
+  await app.register(assistantDoorPlugin);
   // Learns where links in email point from a settings admin's writes
   // (security/public-origin.ts). Before any route scope exists, like the hooks
   // above, so it reaches the routes compose.ts registers too.

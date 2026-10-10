@@ -277,6 +277,7 @@ async function announce(
     // whole arithmetic.
     hops: ctx.hops + 1,
     occurredAt: ctx.now,
+    ...(ctx.via === undefined ? {} : { via: ctx.via }),
   });
 }
 

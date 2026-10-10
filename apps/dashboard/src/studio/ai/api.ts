@@ -110,10 +110,22 @@ export interface LlmAssistantTestResult {
   message: string | null;
 }
 
-/** `GET` / `PUT /assistant/settings` — what a person may use in a day, and today's use. */
+/** The four switches on what the assistant may do beyond reading. */
+export interface AssistantAbilities {
+  create: boolean;
+  change: boolean;
+  send: boolean;
+  delete: boolean;
+}
+
+/** `GET` / `PUT /assistant/settings` — what the assistant may do and use, and today's use. */
 export interface AssistantSettings {
   /** Tokens a person may use in a UTC day; 0 means no limit. */
   dailyTokens: number;
+  abilities: AssistantAbilities;
+  /** The most rows one confirmation may write, and the most that may be set to. */
+  maxRows: number;
+  maxRowsCeiling: number;
   today: {
     day: string;
     /** The instant the day's use starts again (epoch ms). */
@@ -317,7 +329,9 @@ export const aiApi = {
 
   /** The assistant's allowance and today's use. Needs the settings permission, not the model's. */
   getAssistantSettings: () => api.get<AssistantSettings>('/api/v1/assistant/settings'),
-  putAssistantSettings: (body: { dailyTokens: number }) => api.put<AssistantSettings>('/api/v1/assistant/settings', body),
+  /** Each field is its own decision: what is left out is left as it is. */
+  putAssistantSettings: (body: { dailyTokens?: number; abilities?: Partial<AssistantAbilities>; maxRows?: number }) =>
+    api.put<AssistantSettings>('/api/v1/assistant/settings', body),
 
   /** One small turn in the assistant's reply format, with one tool: can the saved model run it? */
   testAssistant: () => api.post<LlmAssistantTestResult>(`${BASE}/config/assistant-test`),
