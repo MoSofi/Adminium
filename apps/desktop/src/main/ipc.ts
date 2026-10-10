@@ -60,6 +60,8 @@ import type {
   DesktopStopWords,
   DesktopShareInfo,
   DesktopShareResult,
+  DesktopExportKind,
+  DesktopExportResult,
 } from '../preload/api.js';
 import {
   INVOKE_CHANNELS,
@@ -515,6 +517,8 @@ export interface RegisterIpcHandlersOptions {
     | {
         info: () => (DesktopProjectInfo & { root: string }) | null;
         close: () => Promise<boolean>;
+        /** "Export this project…" (`null`: a build that cannot). */
+        exporting?: (() => ProjectExporting | null) | undefined;
         /** Build and Share, of the project that is open (`null`: a build that cannot share). */
         sharing?: (() => ProjectSharing | null) | undefined;
         /** The quit and close questions' words, in the page's language. */
@@ -631,6 +635,14 @@ export const ownPagePolicy: SenderPolicy = (senderUrl) => senderUrl !== null && 
 // ─── Error mapping ───────────────────────────────────────────────────────────
 
 /** Build and Share of the project a window holds, as main does them (`main/index.ts`). */
+/** "Export this project…", of the project a window holds. */
+export interface ProjectExporting {
+  run(input: { kind: DesktopExportKind; title: string }): Promise<DesktopExportResult>;
+  /** The last outcome, handed over once. */
+  takeResult(): DesktopExportResult | null;
+  show(): Promise<void>;
+}
+
 export interface ProjectSharing {
   share(): Promise<DesktopShareResult>;
   build(): Promise<boolean>;
@@ -924,6 +936,16 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     opts.project?.setStopWords?.(words);
     return Promise.resolve();
   });
+
+  // Export. The kind is the page's to say; where the file goes is the person's, in the system's own dialog.
+  const exporting = (): ProjectExporting => {
+    const found = opts.project?.exporting?.() ?? null;
+    if (found === null) throw new UnavailableError('This window holds no project.');
+    return found;
+  };
+  register(IPC_CHANNELS.projectExport, z.strictObject({ kind: z.enum(['everything', 'apps']), title: dialogTitleSchema }), (input) => exporting().run(input));
+  register(IPC_CHANNELS.projectExportResult, noPayloadSchema, () => Promise.resolve(opts.project?.exporting?.()?.takeResult() ?? null));
+  register(IPC_CHANNELS.projectShowExport, noPayloadSchema, () => exporting().show());
 
   // Build and Share. For the project's own page (the Designer's control) and for the app's own (the sharing details).
   const sharing = (): ProjectSharing => {

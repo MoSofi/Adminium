@@ -9359,6 +9359,62 @@
     "status": "mt",
     "srcHash": "8019a4b2614e"
   },
+  "designer.export.apps": {
+    "status": "mt",
+    "srcHash": "03e12f27cd7a"
+  },
+  "designer.export.appsLine": {
+    "status": "mt",
+    "srcHash": "a035cea1591a"
+  },
+  "designer.export.busy": {
+    "status": "mt",
+    "srcHash": "2e2346059d9e"
+  },
+  "designer.export.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.export.everything": {
+    "status": "mt",
+    "srcHash": "8aaf5414f3fd"
+  },
+  "designer.export.everythingLine": {
+    "status": "mt",
+    "srcHash": "6abf6c0a5800"
+  },
+  "designer.export.failed": {
+    "status": "mt",
+    "srcHash": "6d9f87c47178"
+  },
+  "designer.export.go": {
+    "status": "mt",
+    "srcHash": "0a116345ca28"
+  },
+  "designer.export.noModelKeys": {
+    "status": "mt",
+    "srcHash": "15fea183e353"
+  },
+  "designer.export.saveTitle": {
+    "status": "mt",
+    "srcHash": "63638e541fe9"
+  },
+  "designer.export.saved": {
+    "status": "mt",
+    "srcHash": "28987f0006b3"
+  },
+  "designer.export.stops": {
+    "status": "mt",
+    "srcHash": "c05b07c2622d"
+  },
+  "designer.export.title": {
+    "status": "mt",
+    "srcHash": "63638e541fe9"
+  },
+  "designer.export.working": {
+    "status": "mt",
+    "srcHash": "583cccdcd165"
+  },
   "designer.home.cannotBuild": {
     "status": "mt",
     "srcHash": "5681f9769a5a"

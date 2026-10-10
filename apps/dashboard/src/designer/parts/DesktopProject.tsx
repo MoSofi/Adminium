@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 import { t } from '../../i18n/t.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
+import { ExportDialog, useExportOutcome } from './DesktopExport.js';
 import { ShareDialog } from './DesktopShare.js';
 
 /** Asked once per page load: the project a window holds does not change under a page. */
@@ -57,8 +58,12 @@ export function showInFolderLabel(platform: string | undefined): string {
 /** The rule, then the project's name as a button with its menu. */
 export function ProjectButton({ project }: { project: DesktopProjectInfo }): ReactNode {
   const api = getDesktopApi();
+  const [exporting, setExporting] = useState(false);
+  // The page that comes back after an export says how it went.
+  useExportOutcome();
   return (
     <>
+      {exporting ? <ExportDialog name={project.name} open onOpenChange={setExporting} /> : null}
       <span aria-hidden="true" className="h-[22px] w-px shrink-0 bg-border-strong" />
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
@@ -69,8 +74,8 @@ export function ProjectButton({ project }: { project: DesktopProjectInfo }): Rea
           <ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-fg-subtle" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[230px]">
-          {/* The ZIP is made by the app, with the choice of what goes in it: not built yet. */}
-          <DropdownMenuItem disabled icon={<Package aria-hidden="true" />}>
+          {/* The ZIP is made by the app, with the choice of what goes in it. An app older than the call cannot. */}
+          <DropdownMenuItem disabled={api?.project?.export === undefined} icon={<Package aria-hidden="true" />} onSelect={() => setExporting(true)}>
             {t('designer:project.export', 'Export this project…')}
           </DropdownMenuItem>
           <DropdownMenuItem icon={<FolderOpen aria-hidden="true" />} onSelect={() => void api?.project.showInFolder()}>

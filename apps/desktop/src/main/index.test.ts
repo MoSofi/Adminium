@@ -15,7 +15,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BackupCoordinator } from './backup.js';
 import { createDefaultConfig, type DesktopConfig, type UpdateMode } from './config.js';
@@ -1416,7 +1416,7 @@ describe('createDesktopApp opening a project folder', () => {
   const ROOT = '/Users/someone/Adminium/juniper';
   const PROJECT_READY = { ...READY, port: 4700, url: 'http://127.0.0.1:4700' };
 
-  function projectHarness(over: { busy?: { kind: string; sessionId: string | null } | null; confirm?: boolean; startFails?: Error; restartFails?: Error; ownerHasPassword?: boolean | null; keptPortFree?: boolean } = {}) {
+  function projectHarness(over: { busy?: { kind: string; sessionId: string | null } | null; confirm?: boolean; startFails?: Error; restartFails?: Error; ownerHasPassword?: boolean | null; keptPortFree?: boolean; exportTo?: string } = {}) {
     const h = harness();
     const opts: CreateServerManagerOptions[] = [];
     const shown: Array<{ url: string; preview: boolean }> = [];
@@ -1424,6 +1424,8 @@ describe('createDesktopApp opening a project folder', () => {
     const confirmed: string[] = [];
     const restarts: Array<{ host?: string; port?: number; mode?: 'design' | 'serve' }> = [];
     const awake: boolean[] = [];
+    const savedAs: Array<{ title: string; defaultName: string }> = [];
+    const revealed: string[] = [];
     let sharedShown = 0;
     /** The words each question was asked with: the page's, or none yet. */
     const said: Array<string | null> = [];
@@ -1518,6 +1520,17 @@ describe('createDesktopApp opening a project folder', () => {
           return Promise.resolve('/data/git/bin/git');
         },
       },
+      exporting: {
+        saveAs: (o) => {
+          savedAs.push(o);
+          return Promise.resolve(over.exportTo === undefined ? null : over.exportTo);
+        },
+        showInFolder: (path) => {
+          revealed.push(path);
+          return Promise.resolve();
+        },
+        stamp: () => ({ system: 'darwin', chip: 'arm64', engine: '0.3.22' }),
+      },
       sharing: { hostname: () => 'Office-Mac.local', isFree: () => Promise.resolve(over.keptPortFree ?? true), keepAwake: (on) => void awake.push(on) },
       startScreen: {
         folder: { home: '/Users/someone', platform: 'darwin', exists: () => true, list: () => [], isInsideApp: () => false, real: (path: string) => path } as never,
@@ -1531,7 +1544,7 @@ describe('createDesktopApp opening a project folder', () => {
         return Promise.resolve(over.confirm ?? true);
       },
     };
-    return { h, deps, opts, shown, sessions, confirmed, restarts, awake, sharedShown: () => sharedShown, said, told, modelsTold, saveModel: (values: Partial<Record<string, string | null>>) => keepModel(values), git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
+    return { h, deps, opts, shown, sessions, confirmed, restarts, awake, savedAs, revealed, sharedShown: () => sharedShown, said, told, modelsTold, saveModel: (values: Partial<Record<string, string | null>>) => keepModel(values), git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
   }
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -1605,6 +1618,51 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.modelsTold).toHaveLength(2);
     expect(error).toHaveBeenCalledWith(expect.stringContaining('EACCES'));
     error.mockRestore();
+  });
+
+  describe('"Export this project…"', () => {
+    let scratch: string;
+    beforeEach(() => {
+      scratch = mkdtempSync(join(tmpdir(), 'adminium-export-boot-'));
+    });
+    afterEach(() => {
+      rmSync(scratch, { recursive: true, force: true });
+    });
+    const exportOf = (p: ReturnType<typeof projectHarness>) => p.h.bridge()?.project?.exporting?.() ?? null;
+
+    it('asks where to save first, and a cancel stops nothing', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      await expect(exportOf(p)?.run({ kind: 'apps', title: 'Export Juniper' })).resolves.toEqual({ status: 'cancelled' });
+      expect(p.savedAs).toEqual([{ title: 'Export Juniper', defaultName: 'juniper.zip' }]);
+      expect(p.stops()).toBe(0);
+      expect(exportOf(p)?.takeResult()).toBeNull();
+    });
+
+    it('never exports under a turn: the files would be caught half-written', async () => {
+      const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, exportTo: '/tmp/x.zip' });
+      await createDesktopApp(p.deps).start();
+      await expect(exportOf(p)?.run({ kind: 'everything', title: 't' })).resolves.toEqual({ status: 'busy' });
+      expect(p.savedAs).toEqual([]);
+      expect(p.stops()).toBe(0);
+    });
+
+    it('stops the project for the file, starts it again as it was, and says how it went once to the page that comes back', async () => {
+      // The harness's folder does not exist: the ZIP cannot be made, and the project still comes back.
+      const p = projectHarness({ exportTo: join(scratch, 'juniper.zip') });
+      await createDesktopApp(p.deps).start();
+      const exporting = exportOf(p);
+      const result = await exporting?.run({ kind: 'everything', title: 't' });
+      expect(result?.status).toBe('failed');
+      expect(p.stops()).toBe(1);
+      expect(p.restarts).toEqual([{ mode: 'design', host: '127.0.0.1' }]);
+      // Pointed at the project's page again, though the port may be the one it had.
+      expect(p.shown).toHaveLength(2);
+      expect(exporting?.takeResult()).toMatchObject({ status: 'failed' });
+      expect(exporting?.takeResult()).toBeNull();
+      await exporting?.show();
+      expect(p.revealed).toEqual([]);
+    });
   });
 
   describe('Build and Share', () => {

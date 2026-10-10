@@ -803,5 +803,21 @@ export default {
     "cancel": "Zrušit",
     "sharing": "Sdílí se…",
     "now": "Sdílet nyní"
+  },
+  "export": {
+    "everything": "Aplikace projektu, jeho data a jeho klíč",
+    "everythingLine": "Kdo jej otevře, může přečíst vše, včetně uložených připojení k databázím. Pošlete jej jen někomu, komu byste to dali.",
+    "apps": "Jen aplikace",
+    "appsLine": "Bez dat, klíče a vašich rozhovorů s Designerem. Kdo jej otevře, začíná s prázdnými daty.",
+    "saveTitle": "Exportovat {name}",
+    "busy": "V tomto projektu ještě něco běží. Exportujte jej, až to skončí.",
+    "title": "Exportovat {name}",
+    "noModelKeys": "Vaše klíče k modelům nejsou nikdy součástí: zůstávají na tomto počítači.",
+    "stops": "Projekt se na chvíli zastaví, než se soubor vytvoří, a toto okno se vrátí, až bude hotovo.",
+    "cancel": "Zrušit",
+    "working": "Exportuje se…",
+    "go": "Exportovat…",
+    "saved": "Uloženo {file}, {size} MB",
+    "failed": "Export se nepodařilo vytvořit"
   }
 } as const;

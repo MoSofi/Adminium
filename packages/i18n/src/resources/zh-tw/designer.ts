@@ -803,5 +803,21 @@ export default {
     "cancel": "取消",
     "sharing": "正在分享…",
     "now": "立即分享"
+  },
+  "export": {
+    "everything": "專案的應用程式、資料和金鑰",
+    "everythingLine": "開啟它的人可以讀取全部內容，包括已儲存的資料庫連線。只傳給你願意交出這些內容的人。",
+    "apps": "僅應用程式",
+    "appsLine": "不含資料、金鑰以及你與 Designer 的對話。開啟它的人從空資料開始。",
+    "saveTitle": "匯出 {name}",
+    "busy": "此專案中仍有操作在執行。請在完成後再匯出。",
+    "title": "匯出 {name}",
+    "noModelKeys": "你的模型金鑰絕不會包含在內：它們保留在這台電腦上。",
+    "stops": "產生檔案時專案會暫停片刻，完成後此視窗會恢復。",
+    "cancel": "取消",
+    "working": "正在匯出…",
+    "go": "匯出…",
+    "saved": "已儲存 {file}，{size} MB",
+    "failed": "無法產生匯出檔案"
   }
 } as const;

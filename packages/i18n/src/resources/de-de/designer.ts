@@ -803,5 +803,21 @@ export default {
     "cancel": "Abbrechen",
     "sharing": "Wird geteilt…",
     "now": "Jetzt teilen"
+  },
+  "export": {
+    "everything": "Die Apps des Projekts, seine Daten und sein Schlüssel",
+    "everythingLine": "Wer es öffnet, kann alles lesen, auch gespeicherte Datenbankverbindungen. Senden Sie es nur an jemanden, dem Sie das geben würden.",
+    "apps": "Nur die Apps",
+    "appsLine": "Ohne die Daten, den Schlüssel und Ihre Unterhaltungen mit dem Designer. Wer es öffnet, beginnt mit leeren Daten.",
+    "saveTitle": "{name} exportieren",
+    "busy": "In diesem Projekt läuft noch etwas. Exportieren Sie es, wenn das fertig ist.",
+    "title": "{name} exportieren",
+    "noModelKeys": "Ihre Modellschlüssel sind nie enthalten: Sie bleiben auf diesem Computer.",
+    "stops": "Das Projekt hält kurz an, während die Datei erstellt wird, und dieses Fenster kommt zurück, wenn sie fertig ist.",
+    "cancel": "Abbrechen",
+    "working": "Wird exportiert…",
+    "go": "Exportieren…",
+    "saved": "{file} gespeichert, {size} MB",
+    "failed": "Der Export konnte nicht erstellt werden"
   }
 } as const;

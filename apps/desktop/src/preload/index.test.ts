@@ -146,7 +146,7 @@ describe('the exposed surface', () => {
   it('exposes the project’s three calls, and none of them takes a folder', async () => {
     const ipc = new FakeIpc();
     const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
-    expect(Object.keys(project).sort()).toEqual(['build', 'close', 'info', 'openDashboard', 'setStopWords', 'share', 'shareInfo', 'showInFolder', 'showShared', 'versions']);
+    expect(Object.keys(project).sort()).toEqual(['build', 'close', 'export', 'exportResult', 'info', 'openDashboard', 'setStopWords', 'share', 'shareInfo', 'showExport', 'showInFolder', 'showShared', 'versions']);
     await project.info();
     await project.showInFolder();
     await project.close();
@@ -162,6 +162,19 @@ describe('the exposed surface', () => {
     const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k', shareDetail: 'l', shareAnyway: 'm' };
     await createDesktopApi({ ipc, bootstrap: BOOTSTRAP }).project.setStopWords?.(words);
     expect(ipc.calls).toEqual([{ channel: IPC_CHANNELS.projectStopWords, args: [words] }]);
+  });
+
+  it('exposes the export: the kind and the dialog’s title go down, never a path', async () => {
+    const ipc = new FakeIpc();
+    const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    await project.export?.({ kind: 'apps', title: 'Export Shop' });
+    await project.exportResult?.();
+    await project.showExport?.();
+    expect(ipc.calls).toEqual([
+      { channel: IPC_CHANNELS.projectExport, args: [{ kind: 'apps', title: 'Export Shop' }] },
+      { channel: IPC_CHANNELS.projectExportResult, args: [] },
+      { channel: IPC_CHANNELS.projectShowExport, args: [] },
+    ]);
   });
 
   it('exposes Build and Share as five calls, none of which takes anything', async () => {

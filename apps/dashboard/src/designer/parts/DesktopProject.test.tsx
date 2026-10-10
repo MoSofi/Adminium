@@ -5,6 +5,7 @@ import type { AdminiumDesktopApi, DesktopProjectApi, DesktopProjectInfo } from '
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { installTestI18n } from '../../i18n/testing.js';
+import { AppToastProvider } from '../../pages/toasts.js';
 import { BuildShare, DesktopBuildShare, ProjectButton, forgetDesktopProject, showInFolderLabel, useDesktopProject } from './DesktopProject.js';
 
 let restore: () => void;
@@ -81,7 +82,11 @@ describe('the project a window holds', () => {
 describe('the project’s button', () => {
   it('opens a menu of what is done with a project as a whole; the two that are built call the app', async () => {
     const api = bridge({});
-    render(<ProjectButton project={INFO} />);
+    render(
+      <AppToastProvider>
+        <ProjectButton project={INFO} />
+      </AppToastProvider>,
+    );
     const button = screen.getByRole('button', { name: 'Project: Juniper Kitchen' });
     expect(button.textContent).toBe('Juniper Kitchen');
     await userEvent.click(button);

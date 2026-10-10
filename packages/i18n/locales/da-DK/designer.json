@@ -793,5 +793,21 @@
     "cancel": "Annuller",
     "sharing": "Deler…",
     "now": "Del nu"
+  },
+  "export": {
+    "everything": "Projektets apps, dets data og dets nøgle",
+    "everythingLine": "Den, der åbner det, kan læse det hele, også gemte databaseforbindelser. Send det kun til nogen, du ville give det til.",
+    "apps": "Kun appene",
+    "appsLine": "Uden dataene, nøglen og dine samtaler med Designeren. Den, der åbner det, starter med tomme data.",
+    "saveTitle": "Eksportér {name}",
+    "busy": "Noget kører stadig i dette projekt. Eksportér det, når det er færdigt.",
+    "title": "Eksportér {name}",
+    "noModelKeys": "Dine modelnøgler er aldrig med: de bliver på denne computer.",
+    "stops": "Projektet stopper et øjeblik, mens filen laves, og dette vindue kommer tilbage, når den er færdig.",
+    "cancel": "Annuller",
+    "working": "Eksporterer…",
+    "go": "Eksportér…",
+    "saved": "Gemte {file}, {size} MB",
+    "failed": "Eksporten kunne ikke laves"
   }
 }

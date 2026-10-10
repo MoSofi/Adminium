@@ -833,6 +833,31 @@ describe('the project’s channels', () => {
     expectOk(await harness().ipc.invoke(IPC_CHANNELS.projectStopWords, words));
   });
 
+  it('carry the export: a kind and a title, never where the file goes', async () => {
+    const exporting = {
+      run: vi.fn(() => Promise.resolve({ status: 'saved' as const, file: 'shop.zip', megabytes: 4.2 })),
+      takeResult: vi.fn(() => ({ status: 'saved' as const, file: 'shop.zip', megabytes: 4.2 })),
+      show: vi.fn(() => Promise.resolve()),
+    };
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true), exporting: () => exporting } });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectExport, { kind: 'everything', title: 'Export Shop' }))).toEqual({ status: 'saved', file: 'shop.zip', megabytes: 4.2 });
+    expect(exporting.run).toHaveBeenCalledWith({ kind: 'everything', title: 'Export Shop' });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectExportResult))).toMatchObject({ status: 'saved' });
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.projectShowExport));
+    expect(exporting.show).toHaveBeenCalledTimes(1);
+    // A page cannot say where the file is written, nor ask for a kind there is none of.
+    for (const bad of [{ kind: 'everything', title: 't', to: '/etc/cron.d/x' }, { kind: 'secrets', title: 't' }, { kind: 'apps' }, undefined]) {
+      expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectExport, bad)).code).toBe('INVALID_PAYLOAD');
+    }
+    expect(exporting.run).toHaveBeenCalledTimes(1);
+    const stranger: IpcInvokeEventLike = { senderFrame: { url: 'https://example.com/' } };
+    for (const channel of [IPC_CHANNELS.projectExport, IPC_CHANNELS.projectExportResult, IPC_CHANNELS.projectShowExport]) expect(expectFail(await h.ipc.invoke(channel, { kind: 'apps', title: 't' }, stranger)).code).toBe('UNTRUSTED_SENDER');
+    const none = harness();
+    expect(expectOk(await none.ipc.invoke(IPC_CHANNELS.projectExportResult))).toBeNull();
+    expect(expectFail(await none.ipc.invoke(IPC_CHANNELS.projectExport, { kind: 'apps', title: 't' })).code).toBe('UNAVAILABLE');
+    expect(expectFail(await none.ipc.invoke(IPC_CHANNELS.projectShowExport)).code).toBe('UNAVAILABLE');
+  });
+
   it('carry Build and Share for the project’s page and for the app’s own, and nothing when there is no project', async () => {
     const INFO_SHARED = { name: 'Shop', port: 4712, addresses: [{ url: 'http://office.local:4712', via: null, best: true }], changedFrom: null, language: null, theme: 'system' as const };
     const sharing = {

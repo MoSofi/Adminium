@@ -27,7 +27,7 @@ import { createRequire } from 'node:module';
 // The whole module, not its `hostname`: a named import takes that name in the bundle, and an address template that
 // reads `${hostname}` elsewhere in this file is then renamed under the offline gate's eyes.
 import os from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -54,6 +54,7 @@ import type {
   SetDataDirOptions,
   SetDataDirResult,
   DesktopStopWords,
+  DesktopExportResult,
 } from '../preload/api.js';
 import { backupManifestSchema } from './backup-archive.js';
 import {
@@ -88,13 +89,14 @@ import {
 } from './lan.js';
 import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
-import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type ProjectSharing } from './ipc.js';
+import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type ProjectExporting, type ProjectSharing } from './ipc.js';
 import { fetchGit, findGit, gitDownloadFor, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
 import { createFolderFacts, createInstallPackages, createMakeProject, createUpdateProject, runToEnd, type MakeProjectDeps } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, rememberProject, type FolderDeps } from './projects.js';
+import { exportFileName, writeProjectZip } from './export.js';
 import { shareAddresses, sharePortFor } from './share.js';
 import { createModelsStore, modelsFileFor, type ModelsStore } from './models.js';
 import { createVersionsOffer, type VersionsOffer, type VersionsOfferDeps } from './versions-offer.js';
@@ -415,6 +417,7 @@ export interface DesktopBridgeContext {
         close: () => Promise<boolean>;
         setStopWords?: ((words: DesktopStopWords) => void) | undefined;
         sharing?: (() => ProjectSharing | null) | undefined;
+        exporting?: (() => ProjectExporting | null) | undefined;
         /** The offer to keep versions, of the project that is open. */
         versions?: (() => VersionsOffer | null) | undefined;
       }
@@ -643,6 +646,18 @@ export interface DesktopBootDeps {
    */
   confirmStopBusy?: ((busy: ServerBusy, why: 'quit' | 'close' | 'share', words: DesktopStopWords | null) => Promise<boolean>) | undefined;
   /**
+   * What "Export this project…" needs of the machine: the system's save
+   * dialog, the file manager, and what this build is (for the export's stamp).
+   * Left out: a project cannot be exported from this build.
+   */
+  exporting?:
+    | {
+        readonly saveAs: (opts: { title: string; defaultName: string }) => Promise<string | null>;
+        readonly showInFolder: (path: string) => Promise<void>;
+        readonly stamp: () => { system: string; chip: string; engine: string };
+      }
+    | undefined;
+  /**
    * What sharing a project on the network needs of the machine: its name, a
    * port's being free, and keeping it awake while others use it. Left out: a
    * project cannot be shared from this build.
@@ -730,6 +745,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   let versionsOffer: VersionsOffer | null = null;
   /** Build and Share, of the project that is open. */
   let projectSharing: ProjectSharing | null = null;
+  /** "Export this project…", of the project that is open. */
+  let projectExporting: ProjectExporting | null = null;
   /**
    * The updater, `null` until step 5 and `null` forever in `disabled` mode.
    * Held here — rather than a step-5 const — for the quit hook below, which
@@ -1017,6 +1034,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           },
           versions: () => (manager?.project == null ? null : versionsOffer),
           sharing: () => (manager?.project == null ? null : projectSharing),
+          exporting: () => (manager?.project == null ? null : projectExporting),
         },
       });
 
@@ -1151,6 +1169,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       const bootProject = async (loadedConfig: DesktopConfig, project: { readonly root: string; readonly land?: 'dashboard' | undefined }): Promise<void> => {
         // Where Start asked to land, for the first page only: a restart after a crash comes back to the Designer.
         let land = project.land;
+        /** The window was taken off the project's page (an export) and must be pointed at it again, same port or not. */
+        let showAgain = false;
         /** How the project was being served when the window was last pointed at it. */
         let shownMode: 'design' | 'serve' = 'design';
         /** Set when a shared project could not have the port it had before. */
@@ -1240,6 +1260,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         const show = (ready: { host: string; port: number }): Promise<void> => {
           const mode = projectManager.project?.mode ?? 'design';
           shownMode = mode;
+          showAgain = false;
           // Shared: the Designer is off, and what the window holds is the app's own page with the addresses.
           if (mode === 'serve' && windows.showShared !== undefined) return windows.showShared();
           const url = projectUrl({ port: ready.port, mode, token: projectManager.bootToken, land });
@@ -1309,6 +1330,54 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
               };
         // Opened to be built, whatever it was when the app last let go of it (a quit while shared).
         if ((config ?? loadedConfig).projects.some((entry) => entry.path === project.root && entry.state === 'shared')) await remember('building').catch(() => undefined);
+        const exporter = deps.exporting;
+        let lastExport: { result: DesktopExportResult; path: string | null } | null = null;
+        let exportingNow = false;
+        projectExporting =
+          exporter === undefined
+            ? null
+            : {
+                async run({ kind, title }) {
+                  if (exportingNow) return { status: 'busy' };
+                  // Never under a turn, a save or a restore: the files would be caught half-written.
+                  if ((await projectManager.busy().catch(() => null)) !== null) return { status: 'busy' };
+                  const to = await exporter.saveAs({ title, defaultName: exportFileName(project.root) });
+                  if (to === null) return { status: 'cancelled' };
+                  exportingNow = true;
+                  const mode = projectManager.project?.mode ?? 'design';
+                  let result: DesktopExportResult;
+                  try {
+                    // Stopped while the file is made: a database is copied whole, never beside a write in flight.
+                    await windows.showBoot();
+                    await projectManager.stop();
+                    try {
+                      const made = await writeProjectZip({ root: project.root, kind, to, stamp: { ...exporter.stamp(), exportedAt: new Date().toISOString() } });
+                      result = { status: 'saved', file: basename(to), megabytes: Math.max(0.1, Math.ceil(made.bytes / 100_000) / 10) };
+                    } catch (error) {
+                      result = { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
+                    }
+                    lastExport = { result, path: result.status === 'saved' ? to : null };
+                    // And on again, as it was served before; the page that comes back reads the outcome.
+                    showAgain = true;
+                    await projectManager.restart({ mode, host: mode === 'serve' ? '0.0.0.0' : LOOPBACK_HOST });
+                  } catch (error) {
+                    result = { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
+                    lastExport = { result, path: null };
+                    await windows.showCrash(crashFromStartError(error));
+                  } finally {
+                    exportingNow = false;
+                  }
+                  return result;
+                },
+                takeResult() {
+                  const told = lastExport?.result ?? null;
+                  if (lastExport !== null) lastExport = { result: { status: 'cancelled' }, path: lastExport.path };
+                  return told === null || told.status === 'cancelled' ? null : told;
+                },
+                async show() {
+                  if (lastExport?.path != null) await exporter.showInFolder(lastExport.path);
+                },
+              };
         const started = projectManager.start();
         await windows.showBoot();
         let ready: ServerReadyInfo;
@@ -1333,7 +1402,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           if (state.status !== 'ready') return;
           // The same server as the window already shows: same port, and served the same way. A switch between Build
           // and Share may land on the port it had, and is still another page.
-          if (runtime !== null && state.port === runtime.serverPort && (projectManager.project?.mode ?? 'design') === shownMode) return;
+          if (runtime !== null && state.port === runtime.serverPort && (projectManager.project?.mode ?? 'design') === shownMode && !showAgain) return;
           runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
           void show(state);
         });
@@ -1686,6 +1755,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           }
         }
         projectSharing = null;
+        projectExporting = null;
         updateManager?.dispose();
         updateManager = null;
         manager = null;
@@ -2509,6 +2579,19 @@ export function electronBootDeps(): DesktopBootDeps {
       classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
     },
     projectEnv: process.env,
+    exporting: {
+      saveAs: async ({ title, defaultName }) => {
+        const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+        const options: Electron.SaveDialogOptions = { title, defaultPath: join(app.getPath('documents'), defaultName), filters: [{ name: 'ZIP', extensions: ['zip'] }] };
+        const picked = parent === null ? await dialog.showSaveDialog(options) : await dialog.showSaveDialog(parent, options);
+        return picked.canceled || picked.filePath === '' ? null : picked.filePath;
+      },
+      showInFolder: (path) => {
+        shell.showItemInFolder(path);
+        return Promise.resolve();
+      },
+      stamp: () => ({ system: process.platform, chip: process.arch, engine: app.getVersion() }),
+    },
     sharing: {
       hostname: () => os.hostname(),
       // Free on every network this computer is on: that is where a shared project listens.

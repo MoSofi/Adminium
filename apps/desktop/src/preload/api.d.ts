@@ -654,6 +654,17 @@ export interface DesktopVersionsApi {
   appleTools(): Promise<DesktopVersionsState>;
 }
 
+/** What an export holds: everything (the apps, the data, the key), or the apps only. */
+export type DesktopExportKind = 'everything' | 'apps';
+
+export type DesktopExportResult =
+  /** Saved. `megabytes` is the file's size, rounded up to one decimal. */
+  | { readonly status: 'saved'; readonly file: string; readonly megabytes: number }
+  | { readonly status: 'cancelled' }
+  /** Something is in the middle of running: export when it is done. */
+  | { readonly status: 'busy' }
+  | { readonly status: 'failed'; readonly detail: string };
+
 /** One address another device can use for a shared project. */
 export interface DesktopShareAddress {
   readonly url: string;
@@ -698,6 +709,17 @@ export interface DesktopProjectApi {
    * chose to keep working (something was in the middle of running).
    */
   close(): Promise<boolean>;
+  /**
+   * "Export this project…": the system's save dialog (`title` is its title),
+   * then one ZIP. The project stops for the moment the file is made, so the
+   * page that asked is gone when it is done: the outcome is read with
+   * `exportResult()` by the page that comes back. Absent in an older app.
+   */
+  export?(input: { readonly kind: DesktopExportKind; readonly title: string }): Promise<DesktopExportResult>;
+  /** The outcome of the last export, once: `null` when there is none to tell. */
+  exportResult?(): Promise<DesktopExportResult | null>;
+  /** Show the file the last export saved, in the system's file manager. */
+  showExport?(): Promise<void>;
   /**
    * Build → Share: the project is served on the network, with the Designer
    * off. Absent in an app older than sharing.

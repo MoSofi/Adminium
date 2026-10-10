@@ -793,5 +793,21 @@
     "cancel": "Cancel",
     "sharing": "Sharing…",
     "now": "Share now"
+  },
+  "export": {
+    "everything": "The project’s apps, its data and its key",
+    "everythingLine": "Whoever opens it can read all of it, saved database connections included. Send it only to someone you would give that to.",
+    "apps": "The apps only",
+    "appsLine": "Without the data, the key and your chats with the Designer. Whoever opens it starts with empty data.",
+    "saveTitle": "Export {name}",
+    "busy": "Something is still running in this project. Export it when that is done.",
+    "title": "Export {name}",
+    "noModelKeys": "Your model keys are never included: they stay on this computer.",
+    "stops": "The project stops for a moment while the file is made, and this window comes back when it is done.",
+    "cancel": "Cancel",
+    "working": "Exporting…",
+    "go": "Export…",
+    "saved": "Saved {file}, {size} MB",
+    "failed": "The export could not be made"
   }
 }

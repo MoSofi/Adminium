@@ -12,6 +12,7 @@
  * The model is the scripted one the browser's Designer spec uses, on this
  * process.
  */
+import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -159,6 +160,36 @@ test('"Open in a new tab" hands the system’s browser a link that signs the own
   };
   expect(await exchange()).toBe(200);
   expect(await exchange()).toBe(401);
+});
+
+test('"Export this project…" stops the project, makes one ZIP of the apps without the data or the key, and comes back', async () => {
+  test.setTimeout(240_000);
+  const to = join(userDataDir, 'demo-export.zip');
+  await app.evaluate(({ dialog }, path) => {
+    dialog.showSaveDialog = (() => Promise.resolve({ canceled: false, filePath: path })) as typeof dialog.showSaveDialog;
+  }, to);
+  await page.getByRole('button', { name: 'Project: Demo' }).click();
+  await page.getByRole('menuitem', { name: 'Export this project…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export Demo' });
+  await expect(dialog.getByRole('button', { name: 'Export…' })).toBeDisabled();
+  await dialog.getByRole('radio', { name: /The apps only/ }).click();
+  await dialog.getByRole('button', { name: 'Export…' }).click();
+  // The window comes back on the project, and says where the file is.
+  await expect(page.getByText(/^Saved demo-export\.zip, [\d.]+ MB$/)).toBeVisible({ timeout: 120_000 });
+  expect(mark()).toMatchObject({ mode: 'design', by: 'desktop' });
+
+  const listed = execFileSync('unzip', ['-Z1', to], { encoding: 'utf8' }).split('\n').filter((line) => line !== '');
+  expect(listed).toContain('demo/adminium.config.ts');
+  expect(listed).toContain('demo/package.json');
+  expect(listed).toContain('demo/.adminium/export.json');
+  expect(listed.some((name) => name.startsWith(`demo/apps/${APP_KEY}/`))).toBe(true);
+  // The apps only: no key, no data, no chats; and never packages or a build.
+  // (`.env.example` holds no value and travels; `.env` itself does not.)
+  expect(listed).not.toContain('demo/.env');
+  for (const never of ['demo/data/', 'demo/node_modules/', 'demo/.adminium/build/', 'demo/.adminium/designer/sessions/', 'demo/.adminium/running.json']) {
+    expect(listed.filter((name) => name === never || name.startsWith(never)), never).toEqual([]);
+  }
+  expect(JSON.parse(execFileSync('unzip', ['-p', to, 'demo/.adminium/export.json'], { encoding: 'utf8' }))).toMatchObject({ kind: 'apps', system: process.platform });
 });
 
 test('the build page’s first bar holds the project’s button and Build | Share, and still fits at the window’s smallest', async () => {
