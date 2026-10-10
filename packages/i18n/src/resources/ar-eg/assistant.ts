@@ -46,7 +46,6 @@ export default {
     "readPage": "قواعد الأتمتة · {rules, plural, zero {لا قواعد} one {قاعدة واحدة} two {قاعدتان} few {# قواعد} many {# قاعدة} other {# قاعدة}} · {tables, plural, zero {لا جداول مقروءة} one {جدول مقروء واحد} two {جدولان مقروءان} few {# جداول مقروءة} many {# جدولًا مقروءًا} other {# جدول مقروء}}",
     "scopePrimary": "automations",
     "workTitle": "صيغت قاعدة جديدة",
-    "addedBy": "أضافه {name}",
     "applied": "طُبِّق على هذه القاعدة. لم يُحفظ بعد.",
     "apply": "تطبيق على هذه القاعدة",
     "handoff": "افتح قوالب البريد لصياغة واحد.",

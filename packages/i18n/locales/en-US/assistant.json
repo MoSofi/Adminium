@@ -36,7 +36,6 @@
     "readPage": "Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}",
     "scopePrimary": "automations",
     "workTitle": "Drafted a new rule",
-    "addedBy": "Added by {name}",
     "applied": "Applied to this rule. It is not saved yet.",
     "apply": "Apply to this rule",
     "handoff": "Open Email templates to draft one.",

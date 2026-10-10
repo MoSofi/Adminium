@@ -512,7 +512,7 @@ export function AutomationRulesPage(): ReactNode {
               ranIds={test.ranIds}
               incompleteId={incomplete?.id ?? null}
               subFor={(node) => subLineFor(node, table)}
-              tagFor={(node) => (changedByAssistant !== null && changedByAssistant.added.includes(node.id) ? t('assistant:automation.addedBy', 'Added by {name}', { name: assistant }) : null)}
+              tagFor={(node) => (changedByAssistant !== null && changedByAssistant.added.includes(node.id) ? t('automations:assistant.addedBy', 'Added by {name}', { name: assistant }) : null)}
               addOnFor={(node) => {
                 if (node.kind !== 'action' || node.action.kind !== 'add-on.step') return null;
                 const step = findStep(node.action);

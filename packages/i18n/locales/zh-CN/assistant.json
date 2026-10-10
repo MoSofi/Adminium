@@ -36,7 +36,6 @@
     "readPage": "自动化规则 · {rules, plural, other {# 条规则}} · {tables, plural, other {# 张可读表}}",
     "scopePrimary": "automations",
     "workTitle": "已起草新规则",
-    "addedBy": "由 {name} 添加",
     "applied": "已应用到此规则，尚未保存。",
     "apply": "应用到此规则",
     "handoff": "打开邮件模板来起草一个。",

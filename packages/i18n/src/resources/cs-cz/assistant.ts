@@ -46,7 +46,6 @@ export default {
     "readPage": "Pravidla automatizace · {rules, plural, one {# pravidlo} few {# pravidla} other {# pravidel}} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} other {# čitelných tabulek}}",
     "scopePrimary": "automations",
     "workTitle": "Navrženo nové pravidlo",
-    "addedBy": "Přidal {name}",
     "applied": "Použito na toto pravidlo. Zatím není uloženo.",
     "apply": "Použít na toto pravidlo",
     "handoff": "Otevřete Šablony e-mailů a jednu navrhněte.",

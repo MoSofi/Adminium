@@ -466,6 +466,7 @@ export default {
   },
   "assistant": {
     "changed": "{name} a modifié cette règle.",
-    "undo": "Annuler la modification de {name}"
+    "undo": "Annuler la modification de {name}",
+    "addedBy": "Ajouté par {name}"
   }
 } as const;

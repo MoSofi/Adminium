@@ -466,6 +466,7 @@ export default {
   },
   "assistant": {
     "changed": "{name} 修改了此规则。",
-    "undo": "撤销 {name} 的修改"
+    "undo": "撤销 {name} 的修改",
+    "addedBy": "由 {name} 添加"
   }
 } as const;

@@ -46,7 +46,6 @@ export default {
     "readPage": "Règles d’automatisation · {rules, plural, one {# règle} other {# règles}} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
     "scopePrimary": "automations",
     "workTitle": "Nouvelle règle rédigée",
-    "addedBy": "Ajouté par {name}",
     "applied": "Appliqué à cette règle. Elle n’est pas encore enregistrée.",
     "apply": "Appliquer à cette règle",
     "handoff": "Ouvrez les modèles d’e-mail pour en rédiger un.",

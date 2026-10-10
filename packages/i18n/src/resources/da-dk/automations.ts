@@ -466,6 +466,7 @@ export default {
   },
   "assistant": {
     "changed": "{name} har ændret denne regel.",
-    "undo": "Fortryd ændringen fra {name}"
+    "undo": "Fortryd ændringen fra {name}",
+    "addedBy": "Tilføjet af {name}"
   }
 } as const;

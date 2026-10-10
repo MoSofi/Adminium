@@ -46,7 +46,6 @@ export default {
     "readPage": "Automatiseringsregler · {rules, plural, one {# regel} other {# regler}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
     "scopePrimary": "automations",
     "workTitle": "Udkast til ny regel",
-    "addedBy": "Tilføjet af {name}",
     "applied": "Anvendt på denne regel. Den er ikke gemt endnu.",
     "apply": "Anvend på denne regel",
     "handoff": "Åbn E-mailskabeloner for at lave et udkast.",

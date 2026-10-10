@@ -466,6 +466,7 @@ export default {
   },
   "assistant": {
     "changed": "{name} غيّر هذه القاعدة.",
-    "undo": "التراجع عن تغيير {name}"
+    "undo": "التراجع عن تغيير {name}",
+    "addedBy": "أضافه {name}"
   }
 } as const;

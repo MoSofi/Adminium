@@ -466,6 +466,7 @@ export default {
   },
   "assistant": {
     "changed": "{name} změnil toto pravidlo.",
-    "undo": "Vrátit změnu, kterou provedl {name}"
+    "undo": "Vrátit změnu, kterou provedl {name}",
+    "addedBy": "Přidal {name}"
   }
 } as const;

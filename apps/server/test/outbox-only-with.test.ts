@@ -29,7 +29,8 @@ const pk = { ref: 'id', type: 'int', role: 'pk' };
 
 /** The cards kit, mailing a card: who it is from when that is known, and where its balance is read when an app serves that page. */
 function mailingKit(): Doc {
-  const base = cardsKitManifest();
+  // A backup word and a block tied to a value are words of 0.3.22: the kit says so.
+  const base = cardsKitManifest({ compatibility: { minAdminiumVersion: '0.3.22' } });
   const tables = (base['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] }).tables;
   tables.find((table) => table.ref === 'cards')!.columns.push({ ref: 'email', type: 'text', maxLength: 254, nullable: true }, { ref: 'holder', type: 'text', maxLength: 80, nullable: true }, { ref: 'sender_name', type: 'text', maxLength: 80, nullable: true });
   tables.push({

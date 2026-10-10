@@ -323,10 +323,6 @@
     "status": "mt",
     "srcHash": "ae9ae0852690"
   },
-  "assistant.automation.addedBy": {
-    "status": "mt",
-    "srcHash": "19b77b48a1ea"
-  },
   "assistant.automation.applied": {
     "status": "mt",
     "srcHash": "fed59e5ca63f"
@@ -1742,6 +1738,10 @@
   "automations.addOn.typedNumber": {
     "status": "mt",
     "srcHash": "ad871a1e5638"
+  },
+  "automations.assistant.addedBy": {
+    "status": "mt",
+    "srcHash": "19b77b48a1ea"
   },
   "automations.assistant.changed": {
     "status": "mt",

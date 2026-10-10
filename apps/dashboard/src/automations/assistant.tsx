@@ -60,7 +60,7 @@ export function RulePreview({ artefact, sources, base, name }: { artefact: Recor
         incompleteId={null}
         subFor={(node) => subLineFor(node, table)}
         triggerSub={triggerSentence(trigger, table)}
-        tagFor={(node) => (known === null || known.has(node.id) || node.kind === 'trigger' ? null : t('assistant:automation.addedBy', 'Added by {name}', { name }))}
+        tagFor={(node) => (known === null || known.has(node.id) || node.kind === 'trigger' ? null : t('automations:assistant.addedBy', 'Added by {name}', { name }))}
         addOnFor={(node) => (node.kind === 'action' && node.action.kind === 'add-on.step' ? { name: addOnNameOf(stepOf(sources, trigger.connectionId, node.action), node.action), gone: null } : null)}
         onSelect={noop}
         onRemove={noop}

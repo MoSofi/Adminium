@@ -36,7 +36,6 @@
     "readPage": "自動化規則 · {rules, plural, other {# 條規則}} · {tables, plural, other {# 個可讀資料表}}",
     "scopePrimary": "automations",
     "workTitle": "已起草新規則",
-    "addedBy": "由 {name} 新增",
     "applied": "已套用到此規則，尚未儲存。",
     "apply": "套用到此規則",
     "handoff": "開啟郵件範本來草擬一個。",

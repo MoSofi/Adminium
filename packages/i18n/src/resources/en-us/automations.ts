@@ -466,6 +466,7 @@ export default {
   },
   "assistant": {
     "changed": "{name} changed this rule.",
-    "undo": "Undo {name}’s change"
+    "undo": "Undo {name}’s change",
+    "addedBy": "Added by {name}"
   }
 } as const;
