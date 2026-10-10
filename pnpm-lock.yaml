@@ -215,18 +215,36 @@ importers:
       '@adminium/dashboard':
         specifier: workspace:*
         version: link:../dashboard
+      '@adminium/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@adminium/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
+      '@adminium/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@electron/rebuild':
         specifier: ^4.2.0
         version: 4.2.0
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
       '@types/node':
         specifier: 22.15.3
         version: 22.15.3
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: ^5.0.0
+        version: 5.2.0(vite@7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))
       electron:
         specifier: ^44.4.5
         version: 44.4.5
@@ -242,9 +260,21 @@ importers:
       icon-gen:
         specifier: ^5.0.0
         version: 5.0.0
+      lucide-react:
+        specifier: ^0.525.0
+        version: 0.525.0(react@19.2.8)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       sharp:
         specifier: ^0.35.3
         version: 0.35.3(@types/node@22.15.3)
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -10567,6 +10597,13 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
+  '@tailwindcss/vite@4.3.3(vite@7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))':
+    dependencies:
+      '@tailwindcss/node': 4.3.3
+      '@tailwindcss/oxide': 4.3.3
+      tailwindcss: 4.3.3
+      vite: 7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
+
   '@tailwindcss/vite@4.3.3(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))':
     dependencies:
       '@tailwindcss/node': 4.3.3
@@ -10947,6 +10984,18 @@ snapshots:
       eslint-visitor-keys: 5.0.1
 
   '@ungap/structured-clone@1.3.3': {}
+
+  '@vitejs/plugin-react@5.2.0(vite@7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))':
+    dependencies:
+      '@babel/core': 7.29.7
+      '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
+      '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7)
+      '@rolldown/pluginutils': 1.0.0-rc.3
+      '@types/babel__core': 7.20.5
+      react-refresh: 0.18.0
+      vite: 7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - supports-color
 
   '@vitejs/plugin-react@5.2.0(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))':
     dependencies:
