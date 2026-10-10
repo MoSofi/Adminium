@@ -135,6 +135,8 @@ export interface SourceTemplate {
   name: string;
   /** Every `{{name}}` the template reads, in reading order. */
   placeholders: string[];
+  /** Those of them nothing has to fill: the template says itself what to write when they are missing. */
+  backed?: string[] | undefined;
   /** An app shipped it, and that app's own sender is what fills it. */
   ownedByApp: boolean;
 }

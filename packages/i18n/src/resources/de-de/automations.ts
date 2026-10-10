@@ -274,6 +274,7 @@ export default {
       "record": "Aus diesem Datensatz",
       "rule": "Von der Regel gefüllt",
       "mapped": "Von diesem Schritt gefüllt",
+      "backup": "Hat eigenen Ersatztext",
       "unfilled": "Nicht gefüllt",
       "fillWith": "{token} füllen mit",
       "text": "Ein Text",

@@ -274,6 +274,7 @@ export default {
       "record": "من هذا السجل",
       "rule": "تملؤه القاعدة",
       "mapped": "تملؤه هذه الخطوة",
+      "backup": "له نص بديل خاص به",
       "unfilled": "غير مملوء",
       "fillWith": "املأ {token} بـ",
       "text": "نص",

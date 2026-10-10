@@ -75,6 +75,10 @@ export interface EmailBlockRecord {
   block: string;
   data: Record<string, unknown>;
   style: EmailBlockStyle;
+  /** Sent only when this variable has a value. */
+  showWhen?: { var: string } | undefined;
+  /** What a text or heading block says in its own place when it has none. */
+  otherwise?: string | undefined;
 }
 
 /** The envelope the editor edits and the renderer reads. */

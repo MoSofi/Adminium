@@ -274,6 +274,7 @@ export default {
       "record": "Fra denne post",
       "rule": "Udfyldt af reglen",
       "mapped": "Udfyldt af dette trin",
+      "backup": "Har sin egen reservetekst",
       "unfilled": "Ikke udfyldt",
       "fillWith": "Udfyld {token} med",
       "text": "En tekst",

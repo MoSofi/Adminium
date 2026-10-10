@@ -274,6 +274,7 @@ export default {
       "record": "Z tohoto záznamu",
       "rule": "Vyplní pravidlo",
       "mapped": "Vyplní tento krok",
+      "backup": "Má vlastní náhradní text",
       "unfilled": "Nevyplněno",
       "fillWith": "Vyplnit {token} hodnotou",
       "text": "Text",

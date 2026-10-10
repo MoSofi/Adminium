@@ -274,6 +274,7 @@ export default {
       "record": "來自此記錄",
       "rule": "由規則填入",
       "mapped": "由此步驟填入",
+      "backup": "自帶備用文字",
       "unfilled": "未填入",
       "fillWith": "{token} 的填入內容",
       "text": "一段文字",

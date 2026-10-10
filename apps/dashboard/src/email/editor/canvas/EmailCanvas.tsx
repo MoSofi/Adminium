@@ -18,15 +18,18 @@
  * first time either one changed — which is also why every editing prop
  * becomes optional rather than being faked by the caller.
  */
-import { Monitor, Plus, Smartphone } from 'lucide-react';
-import { SegmentedControl, cn } from '@adminium/ui';
+import { Eye, Monitor, Plus, Smartphone } from 'lucide-react';
+import { useId } from 'react';
+import { SegmentedControl, Switch, cn } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
 import type { FileDto } from '../../../files/api.js';
 import type { EmailAttachmentResolved, EmailBlockRecord, EmailDocument } from '../../api.js';
+import { OTHERWISE_BLOCKS, answeredNames, asMissing, blocksShownFor, fillPlaceholders, showWhenOf, spokenName } from '../../model/placeholders.js';
 import { blockLabel } from '../blockText.js';
 import { blockDef } from './blocks/index.js';
 import { AttachmentsCard, BrandBanner, ClientChrome, FixedSection, FooterText, VariablesRow, effectiveBrand } from './MailShell.js';
+import type { TextPath } from './PlaceholderText.js';
 import { SectionSlot } from './SectionSlot.js';
 
 export type CanvasDevice = 'desktop' | 'mobile';
@@ -57,6 +60,19 @@ export interface EmailCanvasProps {
   onHeadingChange?: ((id: string, text: string) => void) | undefined;
   /** Opens the picker for an insert at `index` (`blocks.length` = the end). */
   onInsertAt?: ((index: number) => void) | undefined;
+  /** *Preview with missing values* (comp `Milo Automations` 7b): the email as a reader with no values is sent it. */
+  missing?: boolean | undefined;
+  onMissingChange?: ((on: boolean) => void) | undefined;
+  /** Writes one text of a block back: a placeholder's backup, typed in its chip. */
+  onBlockText?: ((id: string, path: TextPath, value: string) => void) | undefined;
+  onBlockTextEditStart?: ((id: string) => void) | undefined;
+}
+
+/** The line under the toolbar while the missing-values preview is on: whose email this is. */
+function missingSentence(names: readonly string[]): string {
+  if (names.length === 0) return t('email:missing.nothing', 'Nothing in this email changes when a value is missing. Give a placeholder a backup, or tie a block to a value.');
+  if (names.length === 1) return t('email:missing.showingOne', 'Showing what a reader with no {name} is sent.', { name: spokenName(names[0] as string) });
+  return t('email:missing.showingMany', 'Showing what a reader is sent when these have no value: {names}.', { names: names.map(spokenName).join(', ') });
 }
 
 const INLINE_INPUT = 'w-full bg-transparent px-0.5 py-0.5 outline-none focus:rounded-[5px] focus:ring-[3px] focus:ring-[color-mix(in_srgb,var(--adm-email-accent)_14%,transparent)]';
@@ -85,13 +101,23 @@ export function EmailCanvas({
   onHeadingFocus,
   onHeadingChange,
   onInsertAt,
+  missing,
+  onMissingChange,
+  onBlockText,
+  onBlockTextEditStart,
 }: EmailCanvasProps) {
+  const missingId = useId();
+  const asReader = readOnly !== true && missing === true;
   const brand = effectiveBrand(document.brand, appName, accent);
   // Nothing is selected in a preview, and nothing can be: the ring is the
   // affordance for an inspector that is not on screen.
   const isSelected = (kind: CanvasSelection['kind']) => readOnly !== true && selection?.kind === kind;
   const width = device ?? 'desktop';
-  const blocks: readonly EmailBlockRecord[] = document.blocks;
+  // With the missing-values preview on: the blocks a reader with no values is sent, each text with its backups written.
+  const blocks: readonly EmailBlockRecord[] = asReader ? blocksShownFor(document.blocks, {}).map((block) => ({ ...block, data: asMissing(block.data) })) : document.blocks;
+  const tied = new Set(asReader ? document.blocks.filter((block) => showWhenOf(block) !== null).map((block) => block.id) : []);
+  const subject = asReader ? fillPlaceholders(document.subject, {}) : document.subject;
+  const preheader = asReader ? fillPlaceholders(document.preheader, {}) : document.preheader;
 
   return (
     <div className="mx-auto max-w-email">
@@ -100,6 +126,12 @@ export function EmailCanvas({
           <div className="min-w-0 flex-1 text-[12px] text-fg-subtle">
             {t('email:canvas.livePreview', 'Live preview · click any part of the email to edit it')}
           </div>
+          {onMissingChange === undefined ? null : (
+            <label htmlFor={missingId} className="flex cursor-pointer items-center gap-2 p-1 text-[12px] font-bold text-fg">
+              <Switch id={missingId} data-testid="email-missing-switch" checked={asReader} onCheckedChange={onMissingChange} />
+              {t('email:missing.switch', 'Preview with missing values')}
+            </label>
+          )}
           <SegmentedControl
             aria-label={t('email:canvas.device', 'Preview width')}
             data-testid="email-device"
@@ -113,6 +145,12 @@ export function EmailCanvas({
         </div>
       )}
 
+      {asReader ? (
+        <div role="status" data-testid="email-missing-status" className="mb-3.5 flex items-center gap-[9px] rounded-[11px] bg-warn-soft px-[13px] py-[9px] text-[12px] font-bold text-warn">
+          <Eye className="size-3.5 shrink-0" aria-hidden="true" />
+          {missingSentence(answeredNames(document))}
+        </div>
+      ) : null}
       <div className="adm-always-light flex justify-center rounded-2xl border border-border bg-surface-2 p-[26px] shadow-card">
         <div
           dir={dir}
@@ -137,10 +175,10 @@ export function EmailCanvas({
             onSelect={() => onSelect?.({ kind: 'subject' })}
             testId="email-section-subject"
           >
-            {readOnly === true ? (
+            {readOnly === true || asReader ? (
               <>
-                <div className={cn(INLINE_TEXT, 'mb-1 text-[14px] font-extrabold text-fg')}>{document.subject}</div>
-                <div className={cn(INLINE_TEXT, 'mb-3 text-[11.5px] text-fg-subtle')}>{document.preheader}</div>
+                <div data-testid="email-subject-text" className={cn(INLINE_TEXT, 'mb-1 text-[14px] font-extrabold text-fg')}>{subject}</div>
+                <div className={cn(INLINE_TEXT, 'mb-3 text-[11.5px] text-fg-subtle')}>{preheader}</div>
               </>
             ) : (
               <>
@@ -195,10 +233,13 @@ export function EmailCanvas({
                     onInsertAbove={() => onInsertAt?.(index)}
                     onHeadingChange={(text) => onHeadingChange?.(block.id, text)}
                     onHeadingFocus={() => onHeadingFocus?.(block.id)}
+                    missing={asReader ? (tied.has(block.id) && OTHERWISE_BLOCKS.includes(block.block) ? 'otherwise' : 'as-written') : undefined}
+                    onText={onBlockText === undefined ? undefined : (path, value) => onBlockText(block.id, path, value)}
+                    onTextEditStart={onBlockTextEditStart === undefined ? undefined : () => onBlockTextEditStart(block.id)}
                   />
                 );
               })}
-              {readOnly === true ? null : (
+              {readOnly === true || asReader ? null : (
                 <div className="mt-[26px] flex justify-center">
                   <button
                     type="button"
@@ -218,7 +259,7 @@ export function EmailCanvas({
                 onSelect={() => onSelect?.({ kind: 'footer' })}
                 testId="email-section-footer"
               >
-                <FooterText text={document.footer} />
+                <FooterText text={asReader ? fillPlaceholders(document.footer, {}) : document.footer} />
               </FixedSection>
             </div>
           </div>

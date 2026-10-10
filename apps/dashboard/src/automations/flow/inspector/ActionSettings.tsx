@@ -270,7 +270,9 @@ function PlaceholderLine({
               ? t('automations:email.ph.rule', 'Filled by the rule')
               : row.state === 'mapped'
                 ? t('automations:email.ph.mapped', 'Filled by this step')
-                : t('automations:email.ph.unfilled', 'Not filled')}
+                : row.state === 'backup'
+                  ? t('automations:email.ph.backup', 'Has its own backup text')
+                  : t('automations:email.ph.unfilled', 'Not filled')}
         </span>
       </div>
       {filled ? null : (

@@ -24,9 +24,10 @@ export const RULE_EMAIL_VARS: readonly string[] = ['now', 'ruleName', 'recordLab
 
 /**
  * `mapped` — the step says what fills it. `record` — a column of the record.
- * `rule` — one of {@link RULE_EMAIL_VARS}. `unfilled` — sent as written.
+ * `rule` — one of {@link RULE_EMAIL_VARS}. `backup` — nothing fills it, and
+ * the template says itself what to write then. `unfilled` — sent as written.
  */
-export type PlaceholderState = 'mapped' | 'record' | 'rule' | 'unfilled';
+export type PlaceholderState = 'mapped' | 'record' | 'rule' | 'backup' | 'unfilled';
 
 export interface PlaceholderRow {
   name: string;
@@ -79,12 +80,12 @@ export function holdsAddresses(table: SourceTable | null, name: string): boolean
   return null;
 }
 
-export function placeholderState(name: string, action: EmailAction, table: SourceTable | null): PlaceholderState {
+export function placeholderState(name: string, action: EmailAction, table: SourceTable | null, backed: readonly string[] = []): PlaceholderState {
   if (action.vars !== undefined && Object.hasOwn(action.vars, name)) return 'mapped';
   if (RULE_EMAIL_VARS.includes(name)) return 'rule';
   const column = name.startsWith(RECORD_PREFIX) ? name.slice(RECORD_PREFIX.length) : name;
   if (knowsColumn(table, column)) return 'record';
-  return 'unfilled';
+  return backed.includes(name) ? 'backup' : 'unfilled';
 }
 
 export function templateOf(sources: Sources | null, action: EmailAction): SourceTemplate | null {
@@ -98,7 +99,7 @@ export function placeholderRows(
   template: SourceTemplate | null,
   table: SourceTable | null,
 ): PlaceholderRow[] {
-  return (template?.placeholders ?? []).map((name) => ({ name, state: placeholderState(name, action, table) }));
+  return (template?.placeholders ?? []).map((name) => ({ name, state: placeholderState(name, action, table, template?.backed) }));
 }
 
 /** `{{record.status}}` → `status` when that is exactly a column of the table; else null. */

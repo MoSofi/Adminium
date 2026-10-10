@@ -274,6 +274,7 @@ export default {
       "record": "Depuis cet enregistrement",
       "rule": "Remplie par la règle",
       "mapped": "Remplie par cette étape",
+      "backup": "A son propre texte de secours",
       "unfilled": "Non remplie",
       "fillWith": "Remplir {token} avec",
       "text": "Un texte",
