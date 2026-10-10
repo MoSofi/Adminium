@@ -9,8 +9,9 @@ import {
   buildOpenAiChatBody,
   parseOpenAiChatResponse,
   type OpenAiChatResponse,
+  OPENAI_TRANSCRIBE_MODEL,
 } from './openai.js';
-import { pingComplete, requestJson } from './http.js';
+import { pingComplete, requestJson, transcribeOpenAiStyle } from './http.js';
 import { listOpenAiCompatibleModels } from './model-catalog.js';
 import {
   assertEnrichmentTemperature,
@@ -59,6 +60,19 @@ export function createOpenAiCompatibleClient(config: ProviderConfig): ProviderCl
 
     async test() {
       return pingComplete(client, requireModel(config, 'openai-compatible'));
+    },
+
+    // Offered because the route is part of what such a server copies; one that has no such route answers 404,
+    // which the caller reads as "this server does not transcribe" (and falls back to the browser's own).
+    async transcribe(req) {
+      return transcribeOpenAiStyle({
+        provider: 'openai-compatible',
+        baseUrl,
+        ...(hasKey ? { apiKey: apiKey as string } : {}),
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        model: req.model ?? OPENAI_TRANSCRIBE_MODEL,
+        req,
+      });
     },
   };
 

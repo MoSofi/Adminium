@@ -241,6 +241,7 @@ function harness(
       calls.push('setCrashActionHandler');
       crashActionHandler = h;
     },
+    setMicrophoneReader: () => undefined,
   };
 
   // The coordinator, as a recorder. The boot sequence's job is to BUILD one,
@@ -1391,5 +1392,18 @@ describe('isElectronMain', () => {
     // If this ever returns true in a test runner, the module-scope guard at the
     // bottom of index.ts would boot a real app during the suite.
     expect(isElectronMain()).toBe(false);
+  });
+});
+
+describe('microphoneSwitchedOn', () => {
+  it('reads a clear yes from the availability reply, and a no from everything else', async () => {
+    const { microphoneSwitchedOn } = await import('./index.js');
+    expect(microphoneSwitchedOn({ voice: { input: 'provider' } })).toBe(true);
+    expect(microphoneSwitchedOn({ voice: { input: 'browser' } })).toBe(true);
+    expect(microphoneSwitchedOn({ voice: { input: 'none' } })).toBe(false);
+    // An older server says nothing of voice; a refusal has no such field.
+    for (const body of [null, {}, { voice: {} }, { voice: { input: true } }, { error: { code: 'FORBIDDEN' } }, 'yes']) {
+      expect(microphoneSwitchedOn(body)).toBe(false);
+    }
   });
 });

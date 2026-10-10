@@ -53,6 +53,33 @@
     "send": "发送",
     "working": "处理中…"
   },
+  "mic": {
+    "speak": "对 {name} 说话",
+    "stop": "停止聆听",
+    "listening": "正在聆听",
+    "asking": "请允许使用麦克风以便对 {name} 说话",
+    "working": "正在记录您说的话…",
+    "check": "检查文字，然后发送。",
+    "stopped": "已在 {minutes, plural, other {# 分钟}}时停止。",
+    "blocked": "此网站的麦克风已被阻止。请在浏览器地址栏中允许它。",
+    "used": "今天的语音时间已用完。",
+    "failed": "没有成功。请重试。",
+    "noticeProvider": "您说的话会发送给 {provider} 进行记录。不会保留任何内容。",
+    "noticeBrowser": "您说的话由浏览器自带的语音服务记录。",
+    "noticeOk": "好的",
+    "ownService": "您工作区的模型服务"
+  },
+  "speak": {
+    "play": "朗读",
+    "stop": "停止朗读",
+    "settings": "朗读",
+    "readAloud": "朗读回复",
+    "speed": "速度",
+    "voice": "语音",
+    "voiceDefault": "浏览器自带的",
+    "draft": "有一份草稿供您查看。",
+    "proposal": "我已把将要更改的内容显示在屏幕上，供您查看。"
+  },
   "confirm": {
     "cancel": "取消"
   },

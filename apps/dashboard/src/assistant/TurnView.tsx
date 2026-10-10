@@ -5,6 +5,7 @@
  * opens and in the panel beside every page, so it lives apart from both.
  */
 import { cn } from '@adminium/ui';
+import { Square, Volume2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { t } from '../i18n/t.js';
@@ -48,6 +49,8 @@ export interface TurnViewProps {
   /** Where it was asked and what "these" meant, in the panel's thread; absent in a window that is one page's. */
   askedOn?: string | undefined;
   askedScope?: string | undefined;
+  /** Reading this reply aloud; absent where it cannot be (switched off, no voice for the language, nothing said). */
+  speech?: { speaking: boolean; onToggle: () => void } | undefined;
 }
 
 /** The pages whose assistant answers from data: only there is "nothing was read" a thing to say. */
@@ -93,6 +96,7 @@ export function TurnView({
   onOpenAddOn,
   askedOn,
   askedScope,
+  speech,
   renderProposal,
   picks,
   onPick,
@@ -130,6 +134,26 @@ export function TurnView({
       {turn.ask === null && turn.result === null && turn.say !== null && !working ? (
         <AskCard say={turn.say} ask={null} picks={{}} onPick={() => undefined} onGo={() => undefined} />
       ) : null}
+
+      {speech === undefined || working || (turn.say ?? '') === '' ? null : (
+        // At the end of the reply: read it aloud, or stop reading it.
+        <AssistantBubble spacer bare>
+          <button
+            type="button"
+            data-testid="assistant-speak"
+            aria-pressed={speech.speaking}
+            onClick={speech.onToggle}
+            aria-label={speech.speaking ? t('assistant:speak.stop', 'Stop reading') : t('assistant:speak.play', 'Read aloud')}
+            title={speech.speaking ? t('assistant:speak.stop', 'Stop reading') : t('assistant:speak.play', 'Read aloud')}
+            className={cn(
+              'nb-press -mt-1.5 flex size-7 items-center justify-center rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              speech.speaking ? 'bg-accent-soft-solid text-accent' : 'text-fg-subtle hover:bg-surface-3 hover:text-fg',
+            )}
+          >
+            {speech.speaking ? <Square className="size-3 fill-current" aria-hidden="true" /> : <Volume2 className="size-3.5" aria-hidden="true" />}
+          </button>
+        </AssistantBubble>
+      )}
 
       {answer === null
         ? null

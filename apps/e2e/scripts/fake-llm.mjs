@@ -516,6 +516,27 @@ export function createFakeLlmServer() {
       res.end(JSON.stringify({ data: [{ id: 'fake' }] }));
       return;
     }
+    // A recording to write down, as an OpenAI-compatible server takes it: a multipart form with one file.
+    // What comes back says how much arrived and in which language it was asked, so a spec can see the
+    // recording really travelled; the words themselves are fixed.
+    if (req.method === 'POST' && url.startsWith('/v1/audio/transcriptions')) {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', () => {
+        const raw = Buffer.concat(chunks);
+        const head = raw.toString('latin1');
+        const language = /name="language"\r\n\r\n([a-z]{2})/.exec(head)?.[1] ?? '';
+        const isForm = String(req.headers['content-type'] ?? '').startsWith('multipart/form-data') && /name="file"; filename="speech\.(webm|m4a|ogg|wav|mp3)"/.test(head);
+        res.setHeader('content-type', 'application/json');
+        if (!isForm || raw.length < 200) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: { message: 'no recording in the form' } }));
+          return;
+        }
+        res.end(JSON.stringify({ text: `How many orders shipped today${language === '' ? '' : ` (${language})`}?` }));
+      });
+      return;
+    }
     if (req.method === 'POST' && url.startsWith('/v1/chat/completions')) {
       void readBody(req).then((raw) => {
         let body;

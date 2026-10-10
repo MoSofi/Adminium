@@ -22,6 +22,7 @@ import {
   clampWindowState,
   crashRenderScript,
   decideNavigation,
+  isMicrophoneAllowed,
   isPermissionAllowed,
   jsonForScript,
   originOf,
@@ -92,6 +93,40 @@ describe('isPermissionAllowed', () => {
 
   it('has an empty allow-list', () => {
     expect(ALLOWED_PERMISSIONS.size).toBe(0);
+  });
+});
+
+// ─── the one exception: the microphone ───────────────────────────────────────
+
+describe('isMicrophoneAllowed', () => {
+  const APP = 'http://127.0.0.1:51234';
+  const ask = (over: Partial<Parameters<typeof isMicrophoneAllowed>[0]>) =>
+    isMicrophoneAllowed({ permission: 'media', mediaTypes: ['audio'], origin: `${APP}/p/orders`, appOrigin: APP, switchedOn: true, ...over });
+
+  it('allows audio, asked by the app itself, while the workspace has speaking switched on', () => {
+    expect(ask({})).toBe(true);
+    // The synchronous check names one type and gives an origin.
+    expect(isMicrophoneAllowed({ permission: 'media', mediaType: 'audio', origin: APP, appOrigin: APP, switchedOn: true })).toBe(true);
+  });
+
+  it('is nothing but the microphone, and only with the switch', () => {
+    expect(ask({ switchedOn: false })).toBe(false);
+    // Never the camera, alone or beside the microphone; never an ask that names nothing.
+    expect(ask({ mediaTypes: ['video'] })).toBe(false);
+    expect(ask({ mediaTypes: ['audio', 'video'] })).toBe(false);
+    expect(ask({ mediaTypes: [] })).toBe(false);
+    expect(isMicrophoneAllowed({ permission: 'media', mediaType: 'video', origin: APP, appOrigin: APP, switchedOn: true })).toBe(false);
+    expect(isMicrophoneAllowed({ permission: 'media', origin: APP, appOrigin: APP, switchedOn: true })).toBe(false);
+    // Only the app's own origin, and only while there is one.
+    expect(ask({ origin: 'https://evil.example/' })).toBe(false);
+    expect(ask({ origin: 'http://127.0.0.1:51235/' })).toBe(false);
+    expect(ask({ origin: undefined })).toBe(false);
+    expect(ask({ origin: 'not an address' })).toBe(false);
+    expect(ask({ appOrigin: null })).toBe(false);
+    // And no other permission rides on it.
+    for (const permission of ['geolocation', 'notifications', 'display-capture', 'mediaKeySystem', 'clipboard-read']) {
+      expect(ask({ permission }), permission).toBe(false);
+    }
   });
 });
 

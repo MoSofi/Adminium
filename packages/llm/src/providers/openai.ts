@@ -4,7 +4,7 @@
  * `/v1/chat/completions`. The wire-format helpers are exported and reused by the
  * openai-compatible client. Fetch only, temperature fixed at 0.
  */
-import { pingComplete, requestJson, toCompleteResult } from './http.js';
+import { pingComplete, requestJson, toCompleteResult, transcribeOpenAiStyle } from './http.js';
 import { listOpenAiModels } from './model-catalog.js';
 import {
   assertEnrichmentTemperature,
@@ -21,6 +21,9 @@ import {
 } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+
+/** OpenAI's transcription model, when the caller names none. */
+export const OPENAI_TRANSCRIBE_MODEL = 'whisper-1';
 
 export interface OpenAiChatResponse {
   choices?: { message?: { content?: string | null; tool_calls?: { function?: { name?: unknown } }[] } }[];
@@ -93,6 +96,10 @@ export function createOpenAiClient(config: ProviderConfig): ProviderClient {
 
     async test() {
       return pingComplete(client, requireModel(config, 'openai'));
+    },
+
+    async transcribe(req) {
+      return transcribeOpenAiStyle({ provider: 'openai', baseUrl, apiKey, ...(timeoutMs !== undefined ? { timeoutMs } : {}), model: req.model ?? OPENAI_TRANSCRIBE_MODEL, req });
     },
   };
 

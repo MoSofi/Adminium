@@ -109,7 +109,9 @@ function hiddenSpan(className: string): HTMLSpanElement {
 async function start(): Promise<void> {
   // The dashboard's own frame of this side has the dashboard's button; and never twice.
   if (window.parent !== window) return;
-  if (document.querySelector('[data-milo-host]') !== null) return;
+  if (document.querySelector('[data-milo-host]') !== null || document.documentElement.hasAttribute('data-milo-started')) return;
+  // Marked before anything is waited for: a second run of this script finds it and stops.
+  document.documentElement.setAttribute('data-milo-started', '');
   const tag = document.querySelector<HTMLScriptElement>('script[data-milo-loader]');
   const app = tag?.dataset['app'] ?? '';
 

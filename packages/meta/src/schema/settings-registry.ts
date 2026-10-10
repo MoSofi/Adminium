@@ -432,6 +432,17 @@ export const SETTINGS_REGISTRY = {
    */
   'assistant.dailyTokens': def(z.number().int().min(0).max(1_000_000_000), 500_000, 'Tokens a person may use with the page assistant in a UTC day (0 = no limit)', P),
   /**
+   * Speaking to the assistant. Off until somebody with the settings permission
+   * turns it on: a recording leaves the browser (to the workspace's own model
+   * service, or to the browser's speech service), and that is a decision.
+   * NOT portable: another workspace's choice must not switch a microphone on here.
+   */
+  'assistant.voice.input': def(z.boolean(), false, 'Let people speak to the page assistant'),
+  /** Minutes a person may dictate in a UTC day (0 = no limit). Portable: a number an operator chose. */
+  'assistant.voice.dailyMinutes': def(z.number().int().min(0).max(1_440), 30, 'Minutes a person may dictate to the page assistant in a UTC day (0 = no limit)', P),
+  /** The assistant reading its replies aloud, with the browser's own voice: nothing leaves the browser. */
+  'assistant.voice.output': def(z.boolean(), true, 'Let the page assistant read its replies aloud', P),
+  /**
    * Whether the assistant's button is put on an app's own staff address (a
    * staff side opened by itself, or on a mapped host), for the people who may
    * use the assistant. Off keeps it to the dashboard without touching roles.

@@ -7,9 +7,9 @@
  * and the page. Split so every state of the panel can be drawn on its own,
  * in a story or a test, without a conversation behind it.
  */
-import { cn } from '@adminium/ui';
-import { ArrowUp, Ellipsis, ListFilter, MessageSquarePlus, Rows3, Sparkles, Square, SquareCheck, X } from 'lucide-react';
-import { useId, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { Select, Switch, cn } from '@adminium/ui';
+import { ArrowUp, CircleAlert, Ellipsis, Hourglass, ListFilter, LoaderCircle, MessageSquarePlus, Mic, MicOff, Rows3, Sparkles, Square, SquareCheck, Timer, Volume2, X } from 'lucide-react';
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 
 import { t } from '../../i18n/t.js';
 import { ChipList } from '../parts/ChipList.js';
@@ -20,6 +20,44 @@ export interface ScopeChip {
   icon: 'selection' | 'record' | 'filter';
   label: string;
 }
+
+/**
+ * The microphone, as the composer draws it. Absent: no button (the workspace
+ * has it off, or this browser can neither record nor write speech down).
+ */
+export interface MicView {
+  state: 'idle' | 'asking' | 'listening' | 'working';
+  /** Seconds listened so far. */
+  seconds: number;
+  /** The language being listened in, by its own name ("Deutsch"). */
+  language: string;
+  /** What stands under the field after the microphone was used. */
+  note: 'check' | 'failed' | 'blocked' | 'used' | 'stopped' | null;
+  /** The longest one recording may be, in minutes: said when it stopped by itself. */
+  maxMinutes: number;
+  /** Shown the first time the microphone is pressed: where the voice goes. Null once it was read. */
+  notice: string | null;
+  onNoticeRead: () => void;
+  onToggle: () => void;
+}
+
+/**
+ * The person's own choices for replies read aloud, behind the header's
+ * speaker. Absent: no speaker (the workspace has reading aloud off, or this
+ * browser has no voice for the person's language).
+ */
+export interface VoiceMenuView {
+  readAloud: boolean;
+  onReadAloud: (next: boolean) => void;
+  rate: number;
+  onRate: (next: number) => void;
+  /** The browser's voices for the person's language; the choice is drawn only when there are several. */
+  voices: readonly { uri: string; name: string }[];
+  voice: string | null;
+  onVoice: (uri: string | null) => void;
+}
+
+const RATES: readonly number[] = [0.75, 1, 1.25, 1.5];
 
 export interface PanelViewProps {
   layout: DockLayout;
@@ -46,6 +84,10 @@ export interface PanelViewProps {
   placeholder: string;
   /** Nothing can be asked: no model, the day used up, a dialog of the page in front. */
   blocked: boolean;
+  /** Speaking to the assistant; absent where it cannot be done. */
+  mic?: MicView | undefined;
+  /** The assistant speaking: this person's choices; absent where it cannot. */
+  voice?: VoiceMenuView | undefined;
   working: boolean;
   onStop: () => void;
   nextTurnTokens: number;
@@ -82,6 +124,8 @@ export function PanelView({
   onSubmit,
   placeholder,
   blocked,
+  mic,
+  voice,
   working,
   onStop,
   nextTurnTokens,
@@ -96,6 +140,31 @@ export function PanelView({
   const floating = layout !== 'docked';
   const ChipIcon = chip === null ? null : chip.icon === 'selection' ? SquareCheck : chip.icon === 'record' ? Rows3 : ListFilter;
   const sendIdle = input.trim() === '';
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const micRef = useRef<HTMLButtonElement>(null);
+  const voiceId = useId();
+  const listening = mic?.state === 'listening';
+  const micBusy = mic !== undefined && mic.state !== 'idle';
+  // While the microphone is asked for or the words are being written down, the field says so.
+  const shownPlaceholder =
+    mic?.state === 'asking'
+      ? t('assistant:mic.asking', 'Allow the microphone to speak to {name}', { name })
+      : mic?.state === 'working'
+        ? t('assistant:mic.working', 'Writing down what you said…')
+        : placeholder;
+  const micLabel = listening ? t('assistant:mic.stop', 'Stop listening') : t('assistant:mic.speak', 'Speak to {name}', { name });
+  const micNote =
+    mic === undefined || mic.note === null
+      ? null
+      : mic.note === 'check'
+        ? { tone: 'text-fg-subtle', Icon: null, text: t('assistant:mic.check', 'Check the text, then send.') }
+        : mic.note === 'stopped'
+          ? { tone: 'text-fg-subtle', Icon: Timer, text: t('assistant:mic.stopped', 'Stopped at {minutes, plural, one {# minute} other {# minutes}}.', { minutes: mic.maxMinutes }) }
+          : mic.note === 'blocked'
+            ? { tone: 'text-warn', Icon: MicOff, text: t('assistant:mic.blocked', 'The microphone is blocked for this site. Allow it in your browser’s address bar.') }
+            : mic.note === 'used'
+              ? { tone: 'text-warn', Icon: Hourglass, text: t('assistant:mic.used', 'Voice is used up for today.') }
+              : { tone: 'text-danger', Icon: CircleAlert, text: t('assistant:mic.failed', 'That did not work. Try again.') };
 
   return (
     <aside
@@ -131,6 +200,20 @@ export function PanelView({
             {lookingAt}
           </p>
         </div>
+        {voice === undefined ? null : (
+          <button
+            type="button"
+            data-testid="assistant-voice"
+            className={cn(HEADER_BUTTON, voiceOpen && 'border-accent text-accent')}
+            aria-expanded={voiceOpen}
+            aria-controls={voiceId}
+            onClick={() => setVoiceOpen((open) => !open)}
+            aria-label={t('assistant:speak.settings', 'Reading aloud')}
+            title={t('assistant:speak.settings', 'Reading aloud')}
+          >
+            <Volume2 className="size-4" aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           data-testid="assistant-new"
@@ -155,6 +238,45 @@ export function PanelView({
       </header>
 
       {bars}
+
+      {voice === undefined || !voiceOpen ? null : (
+        // The person's own choices for replies read aloud: kept for them, on every device.
+        <div id={voiceId} data-testid="assistant-voice-choices" className="flex shrink-0 flex-col gap-2.5 border-b border-border bg-surface px-4 py-3">
+          <label className="flex items-center gap-2.5 text-[12.5px] font-bold text-fg">
+            <Switch data-testid="assistant-read-aloud" checked={voice.readAloud} onCheckedChange={voice.onReadAloud} aria-label={t('assistant:speak.readAloud', 'Read replies aloud')} />
+            <span aria-hidden="true">{t('assistant:speak.readAloud', 'Read replies aloud')}</span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="flex items-center gap-1.5 text-[11.5px] font-semibold text-fg-muted">
+              <span>{t('assistant:speak.speed', 'Speed')}</span>
+              <Select data-testid="assistant-voice-rate" value={String(voice.rate)} onChange={(event) => voice.onRate(Number(event.target.value))} className="h-7 py-0 text-[12px]">
+                {(RATES.includes(voice.rate) ? RATES : [...RATES, voice.rate].sort((a, b) => a - b)).map((rate) => (
+                  <option key={rate} value={String(rate)}>{`${String(rate)}×`}</option>
+                ))}
+              </Select>
+            </label>
+            {voice.voices.length < 2 ? null : (
+              <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11.5px] font-semibold text-fg-muted">
+                <span>{t('assistant:speak.voice', 'Voice')}</span>
+                <Select
+                  data-testid="assistant-voice-pick"
+                  value={voice.voice ?? ''}
+                  onChange={(event) => voice.onVoice(event.target.value === '' ? null : event.target.value)}
+                  className="h-7 min-w-0 py-0 text-[12px]"
+                  wrapperClassName="min-w-0 flex-1"
+                >
+                  <option value="">{t('assistant:speak.voiceDefault', 'The browser’s own')}</option>
+                  {voice.voices.map((one) => (
+                    <option key={one.uri} value={one.uri}>
+                      {one.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── thread ─────────────────────────────────────────────────────────── */}
       <div data-testid="assistant-thread" className="min-h-0 flex-1 overflow-y-auto bg-bg px-4 py-[18px]">
@@ -200,9 +322,60 @@ export function PanelView({
             </span>
           </div>
         )}
-        <div className={cn('flex items-center gap-1.5 rounded-[14px] border border-border bg-surface-2 p-[5px] ps-3', blocked && 'opacity-60')}>
+        {mic === undefined || mic.notice === null ? null : (
+          // Said once, from the microphone, before the first word is heard: where the voice goes.
+          <div role="note" data-testid="assistant-mic-notice" className="flex items-start gap-2 rounded-[12px] border border-border bg-surface-2 px-3 py-2.5">
+            <Mic className="mt-px size-3.5 shrink-0 text-accent" aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-pretty text-[12px] font-medium leading-[1.5] text-fg">{mic.notice}</span>
+            <button
+              type="button"
+              data-testid="assistant-mic-notice-ok"
+              onClick={() => {
+                mic.onNoticeRead();
+                // This button is about to go: the focus moves to the microphone, where Escape stops the listening.
+                micRef.current?.focus();
+              }}
+              className="shrink-0 rounded-[8px] px-2 py-1 text-[11.5px] font-bold text-accent hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              {t('assistant:mic.noticeOk', 'OK')}
+            </button>
+          </div>
+        )}
+        <div
+          className={cn(
+            'flex items-center gap-1.5 rounded-[14px] border bg-surface-2 p-[5px]',
+            listening ? 'border-accent' : 'border-border',
+            mic === undefined && 'ps-3',
+            blocked && 'opacity-60',
+          )}
+        >
+          {mic === undefined ? null : (
+            <button
+              type="button"
+              ref={micRef}
+              data-testid="assistant-mic"
+              data-state={mic.state}
+              onClick={mic.onToggle}
+              disabled={blocked || working || mic.state === 'asking' || mic.state === 'working'}
+              aria-label={micLabel}
+              title={micLabel}
+              aria-pressed={listening}
+              className={cn(
+                'nb-press flex size-8 shrink-0 items-center justify-center rounded-full',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none',
+                listening ? 'bg-accent text-accent-fg shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_18%,transparent)]' : 'text-fg-muted hover:bg-surface-3 hover:text-fg',
+                (mic.state === 'asking' || mic.state === 'working') && 'text-fg-subtle',
+              )}
+            >
+              {mic.state === 'working' ? (
+                <LoaderCircle className="size-[15px] animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              ) : (
+                <Mic className="size-[15px]" aria-hidden="true" />
+              )}
+            </button>
+          )}
           <label className="sr-only" htmlFor={inputId}>
-            {placeholder}
+            {shownPlaceholder}
           </label>
           <input
             ref={inputRef}
@@ -210,16 +383,31 @@ export function PanelView({
             data-testid="assistant-input"
             type="text"
             value={input}
-            disabled={blocked || working}
-            placeholder={placeholder}
+            disabled={blocked || working || mic?.state === 'asking' || mic?.state === 'working'}
+            // While listening the words heard are written here: typed ones would be written over.
+            readOnly={listening}
+            placeholder={shownPlaceholder}
             onChange={(event) => onInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== 'Enter') return;
               event.preventDefault();
-              if (!blocked && !working) onSubmit(input);
+              // Nothing is sent by voice alone: while the microphone is at work, Enter waits.
+              if (!blocked && !working && !micBusy) onSubmit(input);
             }}
             className="min-w-0 flex-1 border-none bg-transparent py-1.5 text-[13px] font-medium text-fg outline-none placeholder:text-fg-subtle"
           />
+          {listening && mic !== undefined ? (
+            // While listening: the language heard and how long, where the eye already is.
+            <span role="status" data-testid="assistant-mic-listening" className="flex shrink-0 items-center gap-1.5 whitespace-nowrap pe-1 font-mono text-[10.5px] font-semibold text-accent">
+              <span className="sr-only">{t('assistant:mic.listening', 'Listening')}</span>
+              {/* Said once ("Listening"); the language and the running seconds are for the eye, not read out each second. */}
+              <span aria-hidden="true" className="font-sans">
+                {mic.language}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span aria-hidden="true">{`${String(Math.floor(mic.seconds / 60))}:${String(mic.seconds % 60).padStart(2, '0')}`}</span>
+            </span>
+          ) : null}
           {working ? (
             // The send button becomes Stop while a question is being answered.
             <button
@@ -236,13 +424,14 @@ export function PanelView({
             <button
               type="button"
               data-testid="assistant-send"
-              disabled={blocked || sendIdle}
+              disabled={blocked || sendIdle || micBusy}
               onClick={() => onSubmit(input)}
               aria-label={t('assistant:composer.send', 'Send')}
               className={cn(
                 'nb-press flex size-[34px] shrink-0 items-center justify-center rounded-full',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none',
-                sendIdle ? 'bg-surface-3 text-fg-subtle' : 'bg-accent text-accent-fg',
+                // Drawn as it is: nothing can be sent while the microphone is at work.
+                sendIdle || micBusy ? 'bg-surface-3 text-fg-subtle' : 'bg-accent text-accent-fg',
               )}
             >
               <ArrowUp className="size-[15px]" aria-hidden="true" />
@@ -250,6 +439,12 @@ export function PanelView({
           )}
         </div>
         <div className="flex items-start gap-2">
+          {micNote === null ? null : (
+            <span role="status" data-testid="assistant-mic-note" data-note={mic?.note ?? ''} className={cn('flex min-w-0 items-start gap-1.5 text-pretty text-[11.5px] font-semibold leading-[1.4]', micNote.tone)}>
+              {micNote.Icon === null ? null : <micNote.Icon className="mt-px size-3 shrink-0" aria-hidden="true" />}
+              <span>{micNote.text}</span>
+            </span>
+          )}
           <span className="ms-auto whitespace-nowrap font-mono text-[10.5px] text-fg-subtle">
             {t('assistant:tokens.hint', '~{n} tokens', { n: nextTurnTokens })}
           </span>

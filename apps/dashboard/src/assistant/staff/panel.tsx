@@ -66,7 +66,8 @@ function Panel() {
       {/* The dock stands beside a page column in the dashboard; here there is none, and it has the frame to itself. */}
       <div className="flex h-dvh w-full justify-end bg-transparent">
         <div hidden />
-        <AssistantDock visible={open} />
+        {/* Docked, whatever the frame's width: the app's page beside it is not covered and stays the person's to use. */}
+        <AssistantDock visible={open} layout="docked" />
       </div>
     </PageActionsProvider>
   );

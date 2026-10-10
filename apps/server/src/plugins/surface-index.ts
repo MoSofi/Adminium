@@ -26,8 +26,9 @@
  *  - the side is `staff` (a customer side never gets it, mapped or not);
  *  - the request carries a session, and that person holds
  *    `system:assistant:use`;
- *  - the assistant can exist here (a model is set up, and the workspace has
- *    not switched it off for staff addresses);
+ *  - the assistant can exist here (this server was composed with it, and the
+ *    workspace has not switched it off for staff addresses); whether a model
+ *    is set up is the panel's to say, as it does in the dashboard;
  *  - the loader's file is in the static root this server serves (a build
  *    without it must not point every staff page at a script that is not
  *    there);
@@ -59,7 +60,7 @@ export function miloLoaderTag(appKey: string): string {
 export interface SurfaceAssistant {
   /** The loader's file is in the static root that is served. */
   loaderPresent(): boolean;
-  /** A model is set up and the workspace lets the assistant onto staff addresses. */
+  /** This server has the assistant at all, and the workspace lets it onto staff addresses (its own switch). */
   on(): Promise<boolean>;
 }
 

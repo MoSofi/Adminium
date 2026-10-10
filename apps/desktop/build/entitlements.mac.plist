@@ -23,6 +23,14 @@
     is not required. No sandbox means no need for user-selected-file entitlements
     either — the app already has ordinary file access.
 
+  * com.apple.security.device.audio-input — GRANTED, for speaking to the
+    assistant. Under the hardened runtime a process without it is handed
+    silence by the system whatever the app itself allows. The app's own
+    permission handler still denies the microphone unless the workspace has
+    speaking switched on (src/main/window.ts), and macOS asks the person once,
+    with the sentence in electron-builder.yml (NSMicrophoneUsageDescription).
+    The camera has no such entitlement and is never asked for.
+
   Nothing here disables library validation: with npmRebuild the native addons are
   rebuilt from source and then co-signed by electron-builder with the same
   Developer ID as the app, so the default (strict) validation passes.
@@ -31,6 +39,8 @@
 <plist version="1.0">
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.device.audio-input</key>
     <true/>
   </dict>
 </plist>

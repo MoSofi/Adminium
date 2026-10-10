@@ -63,6 +63,33 @@ export default {
     "send": "Send",
     "working": "Working…"
   },
+  "mic": {
+    "speak": "Speak to {name}",
+    "stop": "Stop listening",
+    "listening": "Listening",
+    "asking": "Allow the microphone to speak to {name}",
+    "working": "Writing down what you said…",
+    "check": "Check the text, then send.",
+    "stopped": "Stopped at {minutes, plural, one {# minute} other {# minutes}}.",
+    "blocked": "The microphone is blocked for this site. Allow it in your browser’s address bar.",
+    "used": "Voice is used up for today.",
+    "failed": "That did not work. Try again.",
+    "noticeProvider": "What you say is sent to {provider} to be written down. Nothing is kept.",
+    "noticeBrowser": "What you say is written down by your browser’s own speech service.",
+    "noticeOk": "OK",
+    "ownService": "your workspace’s model service"
+  },
+  "speak": {
+    "play": "Read aloud",
+    "stop": "Stop reading",
+    "settings": "Reading aloud",
+    "readAloud": "Read replies aloud",
+    "speed": "Speed",
+    "voice": "Voice",
+    "voiceDefault": "The browser’s own",
+    "draft": "There is a draft for you to look at.",
+    "proposal": "I have put what would change on the screen for you to look at."
+  },
   "confirm": {
     "cancel": "Cancel"
   },

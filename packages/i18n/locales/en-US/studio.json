@@ -2337,6 +2337,18 @@
       "save": "Save",
       "saveFailed": "Could not save that. Try again.",
       "never": "{name} never changes permissions, people, connections, the database’s structure, or these settings."
+    },
+    "voice": {
+      "title": "Voice",
+      "speak": "Speak to {name}",
+      "speakProvider": "What a person says is sent to your AI provider to be written down. Nothing is kept.",
+      "speakBrowser": "Your AI provider does not write speech down, so each person’s own browser does, where it can. Nothing is kept.",
+      "minutes": "Minutes a person may dictate in a day",
+      "minutesHint": "0 means no limit",
+      "save": "Save",
+      "saveFailed": "Could not save that. Try again.",
+      "aloud": "{name} reads its replies aloud",
+      "aloudWhat": "Uses the browser’s own voices. Each person switches it on for themselves."
     }
   },
   "settingsHub": {

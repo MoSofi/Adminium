@@ -2347,6 +2347,18 @@ export default {
       "save": "Gem",
       "saveFailed": "Det kunne ikke gemmes. Prøv igen.",
       "never": "{name} ændrer aldrig tilladelser, personer, forbindelser, databasens struktur eller disse indstillinger."
+    },
+    "voice": {
+      "title": "Stemme",
+      "speak": "Tal til {name}",
+      "speakProvider": "Det, en person siger, sendes til din AI-udbyder for at blive skrevet ned. Intet gemmes.",
+      "speakBrowser": "Din AI-udbyder skriver ikke tale ned, så hver persons egen browser gør det, hvor den kan. Intet gemmes.",
+      "minutes": "Minutter, en person må diktere om dagen",
+      "minutesHint": "0 betyder ingen grænse",
+      "save": "Gem",
+      "saveFailed": "Det kunne ikke gemmes. Prøv igen.",
+      "aloud": "{name} læser sine svar højt",
+      "aloudWhat": "Bruger browserens egne stemmer. Hver person slår det til for sig selv."
     }
   },
   "settingsHub": {

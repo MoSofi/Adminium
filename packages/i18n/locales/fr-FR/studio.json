@@ -2337,6 +2337,18 @@
       "save": "Enregistrer",
       "saveFailed": "Impossible d’enregistrer. Réessayez.",
       "never": "{name} ne modifie jamais les autorisations, les personnes, les connexions, la structure de la base de données ni ces paramètres."
+    },
+    "voice": {
+      "title": "Voix",
+      "speak": "Parler à {name}",
+      "speakProvider": "Ce qu’une personne dit est envoyé à votre fournisseur d’IA pour être transcrit. Rien n’est conservé.",
+      "speakBrowser": "Votre fournisseur d’IA ne transcrit pas la parole : le navigateur de chaque personne s’en charge, là où il le peut. Rien n’est conservé.",
+      "minutes": "Minutes de dictée par personne et par jour",
+      "minutesHint": "0 signifie aucune limite",
+      "save": "Enregistrer",
+      "saveFailed": "Impossible d’enregistrer cela. Réessayez.",
+      "aloud": "{name} lit ses réponses à voix haute",
+      "aloudWhat": "Utilise les voix du navigateur. Chaque personne l’active pour elle-même."
     }
   },
   "settingsHub": {

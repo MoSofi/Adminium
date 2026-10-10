@@ -109583,6 +109583,70 @@
                     "maxRows": {
                       "type": "number"
                     },
+                    "voice": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "provider",
+                            "browser",
+                            "none"
+                          ]
+                        },
+                        "to": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "output": {
+                          "type": "boolean"
+                        },
+                        "maxSeconds": {
+                          "type": "number"
+                        },
+                        "mine": {
+                          "type": "object",
+                          "properties": {
+                            "readAloud": {
+                              "type": "boolean"
+                            },
+                            "rate": {
+                              "type": "number"
+                            },
+                            "voice": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "readAloud",
+                            "rate",
+                            "voice"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "input",
+                        "to",
+                        "output",
+                        "maxSeconds",
+                        "mine"
+                      ],
+                      "additionalProperties": false
+                    },
                     "budget": {
                       "type": "object",
                       "properties": {
@@ -109619,7 +109683,153 @@
                     "model",
                     "abilities",
                     "maxRows",
+                    "voice",
                     "budget"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/voice/mine": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "readAloud": {
+                    "type": "boolean"
+                  },
+                  "rate": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 2
+                  },
+                  "voice": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "readAloud": {
+                      "type": "boolean"
+                    },
+                    "rate": {
+                      "type": "number"
+                    },
+                    "voice": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "readAloud",
+                    "rate",
+                    "voice"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/transcribe": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 10
+            },
+            "in": "query",
+            "name": "language",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 600
+            },
+            "in": "query",
+            "name": "seconds",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "seconds": {
+                      "type": "number"
+                    },
+                    "allowance": {
+                      "type": "object",
+                      "properties": {
+                        "limitSeconds": {
+                          "type": "number"
+                        },
+                        "usedSeconds": {
+                          "type": "number"
+                        },
+                        "resetsAt": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "limitSeconds",
+                        "usedSeconds",
+                        "resetsAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "seconds",
+                    "allowance"
                   ],
                   "additionalProperties": false
                 }
@@ -111790,6 +112000,34 @@
                     "staffAddresses": {
                       "type": "boolean"
                     },
+                    "voice": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "boolean"
+                        },
+                        "dailyMinutes": {
+                          "type": "number"
+                        },
+                        "output": {
+                          "type": "boolean"
+                        },
+                        "writtenBy": {
+                          "type": "string",
+                          "enum": [
+                            "provider",
+                            "browser"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "input",
+                        "dailyMinutes",
+                        "output",
+                        "writtenBy"
+                      ],
+                      "additionalProperties": false
+                    },
                     "today": {
                       "type": "object",
                       "properties": {
@@ -111860,6 +112098,7 @@
                     "maxRows",
                     "maxRowsCeiling",
                     "staffAddresses",
+                    "voice",
                     "today",
                     "roles"
                   ],
@@ -111908,6 +112147,23 @@
                   },
                   "staffAddresses": {
                     "type": "boolean"
+                  },
+                  "voice": {
+                    "type": "object",
+                    "properties": {
+                      "input": {
+                        "type": "boolean"
+                      },
+                      "dailyMinutes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1440
+                      },
+                      "output": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 },
                 "additionalProperties": false
@@ -111959,6 +112215,34 @@
                     "staffAddresses": {
                       "type": "boolean"
                     },
+                    "voice": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "boolean"
+                        },
+                        "dailyMinutes": {
+                          "type": "number"
+                        },
+                        "output": {
+                          "type": "boolean"
+                        },
+                        "writtenBy": {
+                          "type": "string",
+                          "enum": [
+                            "provider",
+                            "browser"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "input",
+                        "dailyMinutes",
+                        "output",
+                        "writtenBy"
+                      ],
+                      "additionalProperties": false
+                    },
                     "today": {
                       "type": "object",
                       "properties": {
@@ -112029,6 +112313,7 @@
                     "maxRows",
                     "maxRowsCeiling",
                     "staffAddresses",
+                    "voice",
                     "today",
                     "roles"
                   ],

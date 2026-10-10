@@ -30,7 +30,7 @@ import {
   type PageAssistantShown,
   type PageAssistantView,
 } from '../../shell/PageActionsProvider.js';
-import type { AssistantContext, AssistantHostRef } from '../api.js';
+import { assistantApi, type AssistantContext, type AssistantHostRef, type VoiceChoices } from '../api.js';
 import { useAssistantMessages } from '../assistantMessages.js';
 import { contextCopy, type AssistantFactValues } from '../contexts.js';
 import type { AssistantHostContext } from '../hostContext.js';
@@ -49,12 +49,21 @@ import { LiveProposal } from './LiveProposal.js';
 import { PanelView, type ScopeChip } from './PanelView.js';
 import { draftHome, ParkedDraft, type DraftHome } from './ParkedDraft.js';
 import { usePanelConversation, type PanelPage } from './usePanelConversation.js';
+import { bootLocale } from '../../i18n/setup.js';
+import { useDictation } from '../voice/useDictation.js';
+import { arrivedReply, useSpeech } from '../voice/useSpeech.js';
+import type { MicView, VoiceMenuView } from './PanelView.js';
 
 export interface AssistantDockProps {
   /** False while the panel is closed: nothing is drawn, the conversation is still followed. */
   visible: boolean;
   /** Whatever lists this person's pages (the bootstrap): read only to find a page's address from its id. */
   pages?: unknown;
+  /**
+   * How it stands, when its place decides that and not the room it measures: in a frame of its own on an
+   * app's staff address it fills the frame, beside a page it does not cover (`staff/panel.tsx`).
+   */
+  layout?: DockLayout | undefined;
 }
 
 /**
@@ -97,6 +106,22 @@ function findSlug(pages: unknown, pageId: string): string | null {
     return null;
   };
   return walk(pages, 0);
+}
+
+/** A language by its own name ("Deutsch"), as the listening line says it. */
+function languageName(locale: string): string {
+  const tag = locale.replace('_', '-');
+  try {
+    return new Intl.DisplayNames([tag], { type: 'language' }).of(tag.split('-')[0] ?? tag) ?? tag;
+  } catch {
+    return tag;
+  }
+}
+
+/** Who writes the words down, for the one-time notice. */
+function providerName(provider: string | null): string {
+  if (provider === 'openai') return 'OpenAI';
+  return t('assistant:mic.ownService', 'your workspace’s model service');
 }
 
 /** The page the person is on, for the assistant: what the page published, or the general one. */
@@ -235,14 +260,15 @@ function changesOpenRule(turn: { context: string; result: { basedOn: string | nu
   return (page.host as { documentId?: string | undefined }).documentId === turn.result.basedOn;
 }
 
-export function AssistantDock({ visible, pages }: AssistantDockProps) {
+export function AssistantDock({ visible, pages, layout: fixedLayout }: AssistantDockProps) {
   useAssistantMessages();
   const navigate = useNavigate();
   const { page, shown, view } = usePanelPage();
   const [element, setElement] = useState<HTMLElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   panelRef.current = element;
-  const layout = useDockLayout(element, visible);
+  const measured = useDockLayout(element, visible);
+  const layout = fixedLayout ?? measured;
   const floating = layout !== 'docked';
 
   // The chip can be put away: the next message is then asked without "these", until the page shows something else.
@@ -386,7 +412,139 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
     }
   }, [visible, floating, element, fieldClosed]);
 
+  // ── speaking to the assistant ──────────────────────────────────────────────
+  const voice = conversation.availability?.voice;
+  const spoken = bootLocale();
+
+  // ── the assistant speaking ─────────────────────────────────────────────────
+  const speech = useSpeech();
+  const [choices, setChoices] = useState<VoiceChoices>({ readAloud: false, rate: 1, voice: null });
+  const mineKey = JSON.stringify(voice?.mine ?? null);
+  useEffect(() => {
+    const mine = JSON.parse(mineKey) as VoiceChoices | null;
+    if (mine !== null) setChoices(mine);
+  }, [mineKey]);
+  const voicesHere = speech.voicesFor(spoken);
+  // Only where the workspace lets it and the browser has a voice for this person's language.
+  const canSpeak = voice?.output === true && speech.supported && voicesHere.length > 0;
+  const choose = (change: Partial<VoiceChoices>): void => {
+    setChoices((held) => ({ ...held, ...change }));
+    // Kept for the person on the server; a save that fails leaves the choice for this visit.
+    void assistantApi.setVoiceChoices(change).catch(() => undefined);
+    if (change.readAloud === false) speech.stop();
+  };
+  /** What is read of a turn: what it said, and one short line when there is something to look at. Never the thing itself. */
+  const spokenOf = (turn: ThreadTurn): string => {
+    const said = turn.say ?? '';
+    if (turn.result !== null) return `${said} ${t('assistant:speak.draft', 'There is a draft for you to look at.')}`.trim();
+    if ((turn.answer?.proposal ?? null) !== null) return `${said} ${t('assistant:speak.proposal', 'I have put what would change on the screen for you to look at.')}`.trim();
+    return said;
+  };
+  const read = (turn: ThreadTurn): void => speech.speak(turn.id, spokenOf(turn), { locale: spoken, rate: choices.rate, voice: choices.voice });
+  // Replies that ARRIVE while the panel is open are read, when the person chose that. What was already
+  // there when the conversation loaded is never read by itself.
+  const heard = useRef<Set<string> | null>(null);
+  const settled = turns.filter((turn) => turn.status === 'done' || turn.status === 'failed').map((turn) => turn.id).join(' ');
+  useEffect(() => {
+    if (conversation.phase !== 'ready') return;
+    const arrived = arrivedReply(heard.current, turns);
+    heard.current = arrived.heard;
+    const newest = arrived.read;
+    if (newest === null) return;
+    if (choices.readAloud && canSpeak && visible) read(newest);
+    // Only a reply's arrival reads it: not a change of voice or speed afterwards.
+  }, [settled, conversation.phase]);
+  const stopSpeech = speech.stop;
+  useEffect(() => {
+    if (!visible) stopSpeech();
+  }, [visible, stopSpeech]);
+  const voiceMenu: VoiceMenuView | undefined = canSpeak
+    ? { readAloud: choices.readAloud, onReadAloud: (next) => choose({ readAloud: next }), rate: choices.rate, onRate: (next) => choose({ rate: next }), voices: voicesHere, voice: choices.voice, onVoice: (uri) => choose({ voice: uri }) }
+    : undefined;
+  /** What was in the field when the microphone was pressed: the words heard are added after it. */
+  const beforeSpeech = useRef('');
+  const dictation = useDictation({
+    way: voice?.input ?? 'none',
+    maxSeconds: voice?.maxSeconds ?? 120,
+    language: spoken,
+    onText: (text, final) => {
+      const before = beforeSpeech.current.trimEnd();
+      setInput(before === '' ? text : `${before} ${text}`);
+      // Written down: the words wait in the field, selected, to be checked and sent by the person.
+      if (final) requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
+    },
+  });
+  // Said once per way, on this device: where the voice goes. Until it is read, the microphone does not listen.
+  const noticeKey = `adminium-assistant-voice-notice:${dictation.way}`;
+  const [noticeShown, setNoticeShown] = useState(false);
+  const noticeRead = (): boolean => {
+    try {
+      return window.localStorage.getItem(noticeKey) === '1';
+    } catch {
+      return false;
+    }
+  };
+  const listen = (): void => {
+    // The microphone opening stops the reading: it would hear itself.
+    speech.stop();
+    beforeSpeech.current = input;
+    dictation.toggle();
+  };
+  const mic: MicView | undefined =
+    dictation.way === 'none'
+      ? undefined
+      : {
+          state: dictation.state,
+          seconds: dictation.seconds,
+          language: languageName(spoken),
+          note: dictation.note,
+          maxMinutes: Math.round((voice?.maxSeconds ?? 120) / 60),
+          notice: !noticeShown
+            ? null
+            : dictation.way === 'provider'
+              ? t('assistant:mic.noticeProvider', 'What you say is sent to {provider} to be written down. Nothing is kept.', { provider: providerName(voice?.to ?? null) })
+              : t('assistant:mic.noticeBrowser', 'What you say is written down by your browser’s own speech service.'),
+          onNoticeRead: () => {
+            try {
+              window.localStorage.setItem(noticeKey, '1');
+            } catch {
+              // A browser that keeps nothing says it again next time.
+            }
+            setNoticeShown(false);
+            listen();
+          },
+          onToggle: () => {
+            if (dictation.state === 'idle' && !noticeRead()) {
+              setNoticeShown(true);
+              return;
+            }
+            listen();
+          },
+        };
+  // Leaving the panel while listening: stopped, and what was heard is thrown away.
+  const cancelDictation = dictation.cancel;
+  useEffect(() => {
+    if (!visible) cancelDictation();
+  }, [visible, cancelDictation]);
+
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    // Escape while a reply is being read stops the reading; the panel stays.
+    if (event.key === 'Escape' && speech.speaking !== null) {
+      event.stopPropagation();
+      event.preventDefault();
+      speech.stop();
+      return;
+    }
+    // Escape while listening stops and writes down; the panel stays.
+    if (event.key === 'Escape' && dictation.state === 'listening') {
+      event.stopPropagation();
+      event.preventDefault();
+      dictation.toggle();
+      return;
+    }
     if (event.key === 'Escape' && floating && !event.defaultPrevented) {
       event.stopPropagation();
       close();
@@ -480,8 +638,18 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
       onDismissChip={() => setDismissedView(viewKey)}
       followups={newestDraft === null ? [] : newestDraft.followups}
       input={input}
-      onInput={setInput}
-      onSubmit={submit}
+      onInput={(value) => {
+        dictation.clearNote();
+        setInput(value);
+      }}
+      onSubmit={(text) => {
+        dictation.clearNote();
+        // A new message stops what was being read.
+        speech.stop();
+        submit(text);
+      }}
+      mic={mic}
+      voice={voiceMenu}
       placeholder={copy.placeholder}
       blocked={blocked}
       working={working}
@@ -534,6 +702,9 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               }}
               askedOn={t('assistant:panel.onPage', 'on {page}', { page: turn.on.title ?? contextCopy(turn.context, {}, name).page })}
               askedScope={scopeLabel(turn)}
+              {...(canSpeak && turn.status === 'done' && (turn.say ?? '') !== ''
+                ? { speech: { speaking: speech.speaking === turn.id, onToggle: () => (speech.speaking === turn.id ? speech.stop() : read(turn)) } }
+                : {})}
               picks={picks[turn.id] ?? {}}
               onPick={(groupKey, optionKey) => {
                 setPicks((previous) => ({ ...previous, [turn.id]: { ...(previous[turn.id] ?? {}), [groupKey]: optionKey } }));
