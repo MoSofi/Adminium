@@ -144,6 +144,44 @@ describe('a server running adminium design', () => {
     expect((await exchange(app)).statusCode).toBe(200);
   });
 
+  it('gives the signed-in owner one more link for another browser: good once, landing where it was asked to', async () => {
+    const { app } = await server();
+    const owner = String((await exchange(app)).headers['set-cookie']).split(';')[0] ?? '';
+    const csrf = ((await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { host: DESIGNER, cookie: owner } })).json() as { data: { csrfToken: string } }).data.csrfToken;
+    const ask = (to: string, headers: Record<string, string> = { cookie: owner, 'x-adminium-csrf': csrf }, host = DESIGNER) =>
+      app.inject({ method: 'POST', url: '/api/v1/auth/design-link', headers: { host, origin: `http://${host}`, ...headers }, payload: { to } });
+
+    const asked = await ask('/tables');
+    expect(asked.statusCode, asked.body).toBe(200);
+    const url = (asked.json() as { data: { url: string } }).data.url;
+    expect(url).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${String(PORT)}/tables#designToken=[0-9a-f]{64}$`));
+    const token = url.split('#designToken=')[1] ?? '';
+    // The run's own link is spent; this one signs the same owner in, with no cookie, and only once.
+    expect((await exchange(app)).statusCode).toBe(401);
+    const signedIn = await exchange(app, DESIGNER, token);
+    expect(signedIn.statusCode, signedIn.body).toBe(200);
+    expect(signedIn.json()).toMatchObject({ data: { user: { email: LOCAL_OWNER_EMAIL } } });
+    expect((await exchange(app, DESIGNER, token)).statusCode).toBe(401);
+
+    // Nobody but that owner's own session is given one, and never on the preview's name or without the CSRF token.
+    expect((await ask('/', {})).statusCode).toBe(401);
+    expect((await ask('/', { cookie: owner })).statusCode).toBe(403);
+    expect((await ask('/', undefined, PREVIEW)).statusCode).toBeGreaterThanOrEqual(400);
+    // It lands on a page of this server and nowhere else.
+    for (const to of ['//evil.example/x', 'https://evil.example', 'tables', '/a#designToken=x', '/a b']) expect((await ask(to)).statusCode, to).toBe(422);
+  });
+
+  it('gives no link for another browser once the owner has a password', async () => {
+    const { app, meta } = await server();
+    const owner = String((await exchange(app)).headers['set-cookie']).split(';')[0] ?? '';
+    const csrf = ((await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { host: DESIGNER, cookie: owner } })).json() as { data: { csrfToken: string } }).data.csrfToken;
+    const ownerId = (await settingsRepo(meta).get('designer.localOwnerId')) as string;
+    await usersRepo(meta).updatePassword(ownerId, await hashPassword('a-long-enough-test-password-1!'));
+    const res = await app.inject({ method: 'POST', url: '/api/v1/auth/design-link', headers: { host: DESIGNER, origin: `http://${DESIGNER}`, cookie: owner, 'x-adminium-csrf': csrf }, payload: { to: '/' } });
+    // Refused one way or the other: a password change ends the session it was asked with, or the route says why.
+    expect([401, 409]).toContain(res.statusCode);
+  });
+
   it('never signs in an owner who has a password, and has no link at all then', async () => {
     const { app } = await server({ owner: 'password' });
     expect((await exchange(app)).statusCode).toBe(404);

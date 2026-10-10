@@ -508,8 +508,13 @@ describe('a new window', () => {
     expect(decideNewWindow(`${PREVIEW}/apps/shop/customer`, APP, null)).toMatchObject({ action: 'deny' });
   });
 
-  it('never opens the app’s own pages anywhere else, and still sends https to the browser', () => {
+  it('never opens the app’s own pages anywhere else, but for a one-use sign-in link; and still sends https to the browser', () => {
     expect(decideNewWindow(`${APP}/tables`, APP, PREVIEW)).toMatchObject({ action: 'deny' });
+    const link = `${APP}/tables#designToken=${'a'.repeat(64)}`;
+    expect(decideNewWindow(link, APP, PREVIEW)).toEqual({ action: 'external', url: link });
+    for (const near of [`${APP}/tables#designToken=short`, `${APP}/tables#other=${'a'.repeat(64)}`, `http://127.0.0.1:9/tables#designToken=${'a'.repeat(64)}`]) {
+      expect(decideNewWindow(near, APP, PREVIEW), near).toMatchObject({ action: 'deny' });
+    }
     expect(decideNewWindow('https://docs.adminium.dev/', APP, PREVIEW)).toEqual({ action: 'external', url: 'https://docs.adminium.dev/' });
   });
 });

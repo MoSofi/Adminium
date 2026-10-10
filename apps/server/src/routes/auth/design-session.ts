@@ -18,7 +18,13 @@
  *   4. TOKEN      this run's token, compared in constant time and spent on first use
  *   5. OWNER      the local owner exists and still has no password
  *
- * It is origin-checked, not token-checked for CSRF: the page that exchanges
+ * `POST /api/v1/auth/design-link` is how that owner, already signed in, asks
+ * for one more link: for the system's browser, when the desktop app's window
+ * has spent the run's own token. Under gates 1 to 3 and 5, and only for the
+ * local owner's own session. What it mints is taken by the door above, once,
+ * within a minute (`designer/design-links.ts`).
+ *
+ * The door is origin-checked, not token-checked for CSRF: the page that exchanges
  * the link has no session yet, and a stale cookie from another project on
  * this machine must not turn the exchange into a 403.
  */
@@ -29,6 +35,7 @@ import { z } from 'zod';
 import { auditAuth } from '../../auth/audit.js';
 import { createBootTokenGuard, isLoopbackPeer } from '../../auth/desktop-session.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
+import { createDesignLinks, type DesignLinks } from '../../designer/design-links.js';
 import { hostRole } from '../../designer/design-mode.js';
 import { AppError } from '../../errors.js';
 import { toUserView } from './handlers.js';
@@ -41,6 +48,8 @@ export interface DesignSessionRoutesDeps {
   token: string;
   now?: () => number;
   port: number;
+  /** The links the owner asked for after the run's own was spent; its own when omitted. */
+  links?: DesignLinks;
 }
 
 /** A design session lasts a working day. */
@@ -51,12 +60,17 @@ export const designSessionBody = z.object({ designToken: z.string().regex(/^[0-9
 /** How long the link `design` prints can be opened. */
 export const DESIGN_LINK_MS = 15 * 60_000;
 
+/** Where a link asked for lands: a page of this server, by its path. Never another origin (`//host`, a scheme). */
+export const designLinkBody = z.strictObject({ to: z.string().max(400).regex(/^\/(?!\/)[^\\#\s]*$/, 'must be a path of this server') });
+export const designLinkReply = z.object({ data: z.object({ url: z.string() }) });
+
 const spent = (): AppError => new AppError(401, 'INVALID_CREDENTIALS', 'This link has been used.', { reason: 'DESIGN_LINK_USED' });
 
 export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
   return async (app) => {
     const guard = createBootTokenGuard(deps.token);
+    const links = deps.links ?? createDesignLinks(deps.now === undefined ? {} : { now: deps.now });
     // A link nobody opened does not stay good for as long as the server runs: the command's arguments are readable by other users of the machine.
     const goodUntil = (deps.now ?? Date.now)() + DESIGN_LINK_MS;
 
@@ -72,12 +86,14 @@ export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPlugi
           await auditAuth(meta, request, { action: 'design_session_rejected', actorId: null, actorLabel: 'design-link' });
           throw new AppError(403, 'FORBIDDEN', 'The Designer is signed into from its own address on this machine only.');
         }
-        if ((deps.now ?? Date.now)() > goodUntil) {
+        // A link the owner asked for a moment ago has its own minute and its own single use.
+        const asked = links.claim(request.body.designToken);
+        if (!asked && (deps.now ?? Date.now)() > goodUntil) {
           await auditAuth(meta, request, { action: 'design_session_failed', actorId: null, actorLabel: 'design-link' });
           throw new AppError(401, 'INVALID_CREDENTIALS', 'This link is too old. Run `adminium design` again for a new one.', { reason: 'DESIGN_LINK_OLD' });
         }
         // Spent before anything else is looked at: a failure after this costs a restart, never a second try.
-        if (guard.claim(request.body.designToken) !== 'ok') {
+        if (!asked && guard.claim(request.body.designToken) !== 'ok') {
           await auditAuth(meta, request, { action: 'design_session_failed', actorId: null, actorLabel: 'design-link' });
           throw spent();
         }
@@ -101,6 +117,31 @@ export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPlugi
         await auditAuth(meta, request, { action: 'login', actorId: owner.id, actorLabel: owner.name, changes: { after: { method: 'design-link' } } });
         const fresh = (await usersRepo(meta).findById(owner.id)) ?? owner;
         return { data: { user: toUserView(fresh) } };
+      },
+    );
+
+    app.post(
+      '/auth/design-link',
+      {
+        preHandler: [app.requireMeta, app.requireAuth],
+        schema: { body: designLinkBody, response: { 200: designLinkReply } },
+      },
+      async (request) => {
+        if (hostRole(request.headers.host, deps.port) !== 'designer' || !isLoopbackPeer(request.raw.socket)) {
+          throw new AppError(403, 'FORBIDDEN', 'The Designer is signed into from its own address on this machine only.');
+        }
+        // Only the owner the link would sign in may ask for it, and only while the link is how that owner signs in.
+        const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
+        const owner = ownerId === null ? null : await usersRepo(meta).findById(ownerId);
+        if (owner === null || request.user === null || request.user.id !== owner.id) {
+          throw new AppError(403, 'FORBIDDEN', 'Only this project’s local owner can ask for a sign-in link.');
+        }
+        if (owner.passwordHash !== null || owner.status !== 'active') {
+          throw new AppError(409, 'CONFLICT', 'This project’s owner signs in with their password.', { reason: 'OWNER_HAS_PASSWORD' });
+        }
+        await auditAuth(meta, request, { action: 'design_link_issued', actorId: owner.id, actorLabel: owner.name });
+        // After `#`, as the first link is: no request carries it and no log holds it.
+        return { data: { url: `http://127.0.0.1:${String(deps.port)}${request.body.to}#designToken=${links.issue()}` } };
       },
     );
   };

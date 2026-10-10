@@ -75,7 +75,7 @@ export interface PreviewModel {
   /** Whether the last turn is still running: only then is anybody waiting to see the page. */
   running: boolean;
   openTab: () => void;
-  /** False where there is nowhere to open it: the dashboard's own pages, inside the desktop app (its browser holds no sign-in). */
+  /** False where there is nowhere to open it. */
   canOpenTab: boolean;
 }
 
@@ -261,10 +261,21 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   // Inside the desktop app there are no tabs: "a new tab" is the person's own browser, and the app hands it the
   // address. It is asked for with the address already in hand, because the app refuses a window and reads only that.
   const inApp = getDesktopApi() !== undefined;
-  const canOpenTab = !(inApp && side === 'dashboard');
+  const canOpenTab = true;
   const openInBrowser = (): void => {
     if (side === 'customer' && origin !== null) {
       window.open(`${origin}${to}`, '_blank', 'noopener');
+      return;
+    }
+    // The dashboard is signed into by this window's own session, which the system's browser does not hold: the owner is
+    // given a link that signs them in there, once, and lands on the page shown here.
+    if (side === 'dashboard') {
+      void designerApi
+        .browserLink(path)
+        .then((reply) => {
+          window.open(reply.data.url, '_blank', 'noopener');
+        })
+        .catch(() => undefined);
       return;
     }
     if (side !== 'staff') return;

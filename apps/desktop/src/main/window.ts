@@ -164,6 +164,9 @@ export function decideNavigation(target: string, appOrigin: string | null): Navi
   return { action: 'deny', reason: `blocked ${url.protocol} navigation to ${url.host || target}` };
 }
 
+/** A one-use sign-in token after `#`, as the server mints it. */
+const SIGN_IN_HASH = /^#designToken=[0-9a-f]{64}$/;
+
 /**
  * The rule for a NEW window (`window.open`, `target="_blank"`). None is ever
  * made; the question is only whether the address is handed to the system's
@@ -176,9 +179,12 @@ export function decideNavigation(target: string, appOrigin: string | null): Navi
  * server, so the only thing handed over is an address of ours: the scheme and
  * the origin are both compared, as everywhere in this file.
  *
- * The app's own origin (`http://127.0.0.1:<port>`) is NOT handed over: the
- * dashboard there is signed in by this window's own session, and a browser
- * with no session would only show a sign-in page nobody holds a password for.
+ * The app's own origin (`http://127.0.0.1:<port>`) is handed over in ONE shape
+ * only: with a one-use sign-in token after `#` (`#designToken=<64 hex>`), which
+ * the server mints for the signed-in owner (`POST /auth/design-link`). The
+ * dashboard there is signed in by this window's own session; without that
+ * token the system's browser would show a sign-in page nobody holds a password
+ * for, so a bare address of ours is never sent there.
  */
 export function decideNewWindow(target: string, appOrigin: string | null, previewOrigin: string | null): NavigationDecision {
   const preview = previewOrigin === null ? null : safeParse(previewOrigin);
@@ -187,7 +193,9 @@ export function decideNewWindow(target: string, appOrigin: string | null, previe
     return { action: 'external', url: url.toString() };
   }
   const decision = decideNavigation(target, appOrigin);
-  return decision.action === 'allow' ? { action: 'deny', reason: 'the app’s own pages open in this window only' } : decision;
+  if (decision.action !== 'allow') return decision;
+  if (url !== null && SIGN_IN_HASH.test(url.hash)) return { action: 'external', url: url.toString() };
+  return { action: 'deny', reason: 'the app’s own pages open in this window only' };
 }
 
 /**
