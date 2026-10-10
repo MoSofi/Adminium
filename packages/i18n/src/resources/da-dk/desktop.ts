@@ -46,6 +46,15 @@ export default {
     },
     "where": "Hvor den skal ligge"
   },
+  "packages": {
+    "again": "Prøv igen",
+    "body": "Det, dette projekt er bygget med, findes ikke på denne computer endnu. Adminium kan hente det nu og derefter åbne projektet. Det tager et par minutter på en langsom forbindelse.",
+    "cancel": "Ikke nu",
+    "failed": "Pakkerne kunne ikke hentes.",
+    "get": "Hent dem og åbn",
+    "title": "Hent projektets pakker?",
+    "working": "Henter pakkerne"
+  },
   "start": {
     "choice": {
       "build": {
@@ -67,7 +76,6 @@ export default {
     },
     "heading": "Hvad vil du gerne gøre?",
     "open": {
-      "needsPackages": "Dette projekts pakker er endnu ikke på denne computer.",
       "notAProject": "Denne mappe er ikke et Adminium-projekt."
     },
     "recent": {

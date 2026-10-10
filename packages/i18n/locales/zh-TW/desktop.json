@@ -36,6 +36,15 @@
     },
     "where": "儲存位置"
   },
+  "packages": {
+    "again": "重試",
+    "body": "建置此專案所需的內容尚未在這台電腦上。Adminium 可以現在下載，然後開啟專案。網路較慢時需要幾分鐘。",
+    "cancel": "暫不",
+    "failed": "無法取得套件。",
+    "get": "取得並開啟",
+    "title": "取得此專案的套件？",
+    "working": "正在取得套件"
+  },
   "start": {
     "choice": {
       "build": {
@@ -57,7 +66,6 @@
     },
     "heading": "你想做什麼？",
     "open": {
-      "needsPackages": "這台電腦上還沒有此專案的套件。",
       "notAProject": "此資料夾不是 Adminium 專案。"
     },
     "recent": {

@@ -326,9 +326,39 @@ describe('opening a folder', () => {
 
   it('remembers an agreed folder that has no packages yet, and does not start it', async () => {
     const shop = project('shop', { packages: false });
-    await expect(service().start.openProject({ path: shop, agreed: true })).resolves.toEqual({ status: 'needs-packages' });
+    await expect(service().start.openProject({ path: shop, agreed: true })).resolves.toEqual({ status: 'needs-packages', path: shop, displayPath: '~/shop' });
     expect(config.projects[0]?.trusted).toBe(projectFingerprint(shop));
     expect(chosen).toEqual([]);
+  });
+
+  it('gets the packages of an agreed folder, then opens it where it was asked to land', async () => {
+    const shop = project('shop', { packages: false });
+    const installPackages = vi.fn(({ root }: { root: string }) => {
+      mkdirSync(join(root, 'node_modules'), { recursive: true });
+      writeFileSync(join(root, 'package-lock.json'), '{}');
+      return Promise.resolve({ ok: true as const });
+    });
+    const { start } = service({ installPackages });
+    // Never into a folder nobody agreed to open.
+    await expect(start.getPackages({ path: shop })).resolves.toEqual({ status: 'trust-needed' });
+    expect(installPackages).not.toHaveBeenCalled();
+    await start.openProject({ path: shop, agreed: true });
+    await expect(start.getPackages({ path: shop, land: 'dashboard' })).resolves.toEqual({ status: 'opened' });
+    expect(installPackages).toHaveBeenCalledWith({ root: shop });
+    expect(chosen).toEqual([{ kind: 'project', root: shop, land: 'dashboard' }]);
+    // What the install wrote is the app's own change: the folder opens next time without the question.
+    await expect(start.openProject({ path: shop })).resolves.toEqual({ status: 'opened' });
+  });
+
+  it('says why when the packages did not come, opens nothing, and refuses a folder that is not a project', async () => {
+    const shop = project('shop', { packages: false });
+    const { start } = service({ installPackages: () => Promise.resolve({ ok: false, detail: 'npm error code ENOTFOUND' }) });
+    await start.openProject({ path: shop, agreed: true });
+    await expect(start.getPackages({ path: shop })).resolves.toEqual({ status: 'failed', detail: 'npm error code ENOTFOUND' });
+    expect(chosen).toEqual([]);
+    await expect(start.getPackages({ path: join(home, 'nowhere') })).resolves.toEqual({ status: 'missing' });
+    await expect(start.getPackages({ path: home })).resolves.toEqual({ status: 'not-a-project' });
+    await expect(service().start.getPackages({ path: shop })).resolves.toEqual({ status: 'failed', detail: 'This build of Adminium cannot make a project.' });
   });
 
   it('picks a folder with the system’s picker, by its real path', async () => {

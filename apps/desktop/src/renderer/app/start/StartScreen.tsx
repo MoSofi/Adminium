@@ -6,10 +6,11 @@
 import { useLocale, useT } from '@adminium/i18n/react';
 import { tagForLocale } from '@adminium/i18n';
 import { Database, Folder, FolderOpen, Hammer, MonitorSmartphone, RadioTower, Sparkles, type LucideIcon } from 'lucide-react';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import type { DesktopRecentProject, DesktopStartState } from '../../../preload/api.js';
 import { startApi } from '../bridge.js';
+import { PackagesDialog, type PackagesQuestion } from './PackagesDialog.js';
 import { TrustDialog, type TrustQuestion } from './TrustDialog.js';
 
 type Say = (title: string, variant?: 'success' | 'error' | 'info') => void;
@@ -211,13 +212,44 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
       setQuestion(null);
       if (result.status === 'missing') say(t('desktop:start.recent.gone', 'This folder was moved or deleted'), 'error');
       else if (result.status === 'not-a-project') say(t('desktop:start.open.notAProject', 'This folder is not an Adminium project.'), 'error');
-      else if (result.status === 'needs-packages') say(t('desktop:start.open.needsPackages', 'This project’s packages are not on this computer yet.'), 'info');
+      else if (result.status === 'needs-packages') setPackages({ path: result.path, displayPath: result.displayPath, land, since: null, failure: null });
       // 'opened': main is already taking the window to the project.
     } catch (error) {
       setQuestion(null);
       say(error instanceof Error ? error.message : String(error), 'error');
     } finally {
       setOpening(false);
+    }
+  };
+
+  // The packages of a project that is there without them: asked for, fetched with a clock on the wait, then it opens.
+  const [packages, setPackages] = useState<PackagesQuestion | null>(null);
+  const [tick, setTick] = useState(() => Date.now());
+  const fetching = packages !== null && packages.since !== null;
+  useEffect(() => {
+    if (!fetching) return;
+    const timer = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [fetching]);
+  const getPackages = async (): Promise<void> => {
+    if (packages === null) return;
+    const asked = packages;
+    setTick(Date.now());
+    setPackages({ ...asked, since: Date.now(), failure: null });
+    try {
+      const result = await startApi().getPackages({ path: asked.path, ...(asked.land === 'dashboard' ? { land: asked.land } : {}) });
+      // 'opened': main is already taking the window to the project; the wait stays shown until this page is gone.
+      if (result.status === 'opened') return;
+      if (result.status === 'failed') {
+        setPackages({ ...asked, since: null, failure: result.detail });
+        return;
+      }
+      setPackages(null);
+      // The folder changed under the question: asked again from the start, which says what is wrong with it now.
+      await open(asked.path, false, asked.land);
+    } catch (error) {
+      setPackages(null);
+      say(error instanceof Error ? error.message : String(error), 'error');
     }
   };
 
@@ -304,6 +336,17 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
           </div>
         </section>
       )}
+
+      <PackagesDialog
+        question={packages}
+        now={tick}
+        onCancel={() => {
+          setPackages(null);
+        }}
+        onGet={() => {
+          void getPackages();
+        }}
+      />
 
       <TrustDialog
         question={question}

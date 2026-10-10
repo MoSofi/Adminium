@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DESIGN_DATABASE } from '@adminium/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { INSTALLING_LINE, MAKE_PROJECT_TIMEOUT_MS, NEW_PROJECT_DATABASE, createMakeProject, lastLines, runToEnd, type MakeProjectDeps, type RanProgram } from './make-project.js';
+import { INSTALLING_LINE, MAKE_PROJECT_TIMEOUT_MS, NEW_PROJECT_DATABASE, createInstallPackages, createMakeProject, lastLines, runToEnd, type MakeProjectDeps, type RanProgram } from './make-project.js';
 
 let home: string;
 beforeEach(() => {
@@ -30,6 +30,25 @@ const ran = (more: Partial<RanProgram> = {}): RanProgram => ({ code: 0, output: 
 describe('the database a new project starts with', () => {
   it('is the engine’s own', () => {
     expect(NEW_PROJECT_DATABASE).toBe(DESIGN_DATABASE);
+  });
+});
+
+describe('getting the packages of a project that is there', () => {
+  it('runs the engine’s `install` in the folder, as Node, with the app’s programs and no secret of anyone else’s', async () => {
+    const run = vi.fn<MakeProjectDeps['run']>(() => Promise.resolve(ran()));
+    await expect(createInstallPackages(deps(run))({ root: home })).resolves.toEqual({ ok: true });
+    expect(run).toHaveBeenCalledWith('/Applications/Adminium.app/Contents/MacOS/Adminium', ['/app/node_modules/@adminium/server/dist/cli/index.js', 'install'], {
+      cwd: home,
+      env: { PATH: '/usr/bin', ELECTRON_RUN_AS_NODE: '1', ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"x"}' },
+      timeoutMs: MAKE_PROJECT_TIMEOUT_MS,
+    });
+  });
+
+  it('says why in the installer’s own last lines, and never removes a folder that was there', async () => {
+    writeFileSync(join(home, 'adminium.config.ts'), 'export default {};\n');
+    await expect(createInstallPackages(deps(() => Promise.resolve(ran({ code: 1, output: 'a\nnpm error code ENOTFOUND' }))))({ root: home })).resolves.toEqual({ ok: false, detail: 'a\nnpm error code ENOTFOUND' });
+    await expect(createInstallPackages(deps(() => Promise.resolve(ran({ code: null, timedOut: true }))))({ root: home })).resolves.toEqual({ ok: false, detail: 'Getting the packages took too long and was stopped.' });
+    expect(existsSync(join(home, 'adminium.config.ts'))).toBe(true);
   });
 });
 

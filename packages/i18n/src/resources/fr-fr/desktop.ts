@@ -46,6 +46,15 @@ export default {
     },
     "where": "Emplacement"
   },
+  "packages": {
+    "again": "Réessayer",
+    "body": "Ce avec quoi ce projet est construit n’est pas encore sur cet ordinateur. Adminium peut le télécharger maintenant, puis ouvrir le projet. Cela prend quelques minutes avec une connexion lente.",
+    "cancel": "Pas maintenant",
+    "failed": "Les paquets n’ont pas pu être récupérés.",
+    "get": "Récupérer et ouvrir",
+    "title": "Récupérer les paquets de ce projet ?",
+    "working": "Récupération des paquets"
+  },
   "start": {
     "choice": {
       "build": {
@@ -67,7 +76,6 @@ export default {
     },
     "heading": "Que souhaitez-vous faire ?",
     "open": {
-      "needsPackages": "Les paquets de ce projet ne sont pas encore sur cet ordinateur.",
       "notAProject": "Ce dossier n’est pas un projet Adminium."
     },
     "recent": {

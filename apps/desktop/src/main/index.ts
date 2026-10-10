@@ -85,7 +85,7 @@ import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { findGit, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
-import { createMakeProject, runToEnd } from './make-project.js';
+import { createInstallPackages, createMakeProject, runToEnd, type MakeProjectDeps } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, type FolderDeps } from './projects.js';
@@ -572,6 +572,7 @@ export interface DesktopBootDeps {
         readonly folder: FolderDeps;
         readonly chooseDirectory: StartDeps['chooseDirectory'];
         readonly makeProject?: StartDeps['makeProject'];
+        readonly installPackages?: StartDeps['installPackages'];
         /** Whether the classic workspace was ever set up in this data folder. */
         readonly classicUsed: (config: DesktopConfig) => boolean;
       }
@@ -1185,6 +1186,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 classicUsed: () => classicUsed,
                 chooseDirectory: screen.chooseDirectory,
                 ...(screen.makeProject === undefined ? {} : { makeProject: screen.makeProject }),
+                ...(screen.installPackages === undefined ? {} : { installPackages: screen.installPackages }),
                 onChoice: choose,
               });
               startOpen = true;
@@ -2032,6 +2034,15 @@ export function electronBootDeps(): DesktopBootDeps {
       }),
     );
   };
+  /** The engine's own command line, as the app starts it for a project: `new` for a new one, `install` for one that is there. */
+  const engineCli: MakeProjectDeps = {
+    binary: process.execPath,
+    cliEntry: resolve(dirname(createRequire(import.meta.url).resolve('@adminium/server')), 'cli', 'index.js'),
+    programs: projectPrograms,
+    env: process.env,
+    run: runToEnd,
+    log: mainLog,
+  };
   /** The relaunch — one implementation, two callers (the host port). */
   const relaunchApp = (): void => {
     // `relaunch()` only QUEUES the restart. It is `quit()` that ends this
@@ -2256,14 +2267,8 @@ export function electronBootDeps(): DesktopBootDeps {
     startScreen: {
       folder: realFolderDeps(app.isPackaged ? dirname(process.resourcesPath) : resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')),
       chooseDirectory: (opts) => dialogs.chooseDirectory(opts),
-      makeProject: createMakeProject({
-        binary: process.execPath,
-        cliEntry: resolve(dirname(createRequire(import.meta.url).resolve('@adminium/server')), 'cli', 'index.js'),
-        programs: projectPrograms,
-        env: process.env,
-        run: runToEnd,
-        log: mainLog,
-      }),
+      makeProject: createMakeProject(engineCli),
+      installPackages: createInstallPackages(engineCli),
       classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
     },
     projectEnv: process.env,

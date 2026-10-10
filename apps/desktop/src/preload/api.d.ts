@@ -477,7 +477,17 @@ export type DesktopOpenProjectResult =
   | { readonly status: 'trust-needed'; readonly path: string; readonly displayPath: string; readonly changed: boolean }
   | { readonly status: 'missing' }
   | { readonly status: 'not-a-project' }
-  | { readonly status: 'needs-packages' };
+  /** Agreed to, and what it is built with is not on this computer: ask, then call `getPackages`. */
+  | { readonly status: 'needs-packages'; readonly path: string; readonly displayPath: string };
+
+/** `getPackages`: the packages were fetched and the project is opening, or why not. */
+export type DesktopGetPackagesResult =
+  | { readonly status: 'opened' }
+  | { readonly status: 'failed'; readonly detail: string }
+  | { readonly status: 'missing' }
+  | { readonly status: 'not-a-project' }
+  /** Not a folder the person agreed to open, or its code changed since: `openProject` asks first. */
+  | { readonly status: 'trust-needed' };
 
 export type DesktopLocateProjectResult =
   | { readonly status: 'located'; readonly recent: readonly DesktopRecentProject[] }
@@ -514,6 +524,8 @@ export interface DesktopStartApi {
   /** The system's folder picker, for "Open a folder". `null` on cancel. */
   chooseFolder(input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null>;
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
+  /** After `needs-packages` and a yes: fetch what the project is built with, then open it. Takes minutes on a slow line. */
+  getPackages(input: { readonly path: string; readonly land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult>;
   forgetProject(path: string): Promise<readonly DesktopRecentProject[]>;
   /** "Locate…": the system's folder picker, then the entry moves there. */
   locateProject(input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult>;

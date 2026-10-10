@@ -46,6 +46,7 @@ function fakeStart(over: Partial<DesktopStartApi> = {}): DesktopStartApi {
     chooseParent: vi.fn(() => Promise.resolve<string | null>('/Users/sam/Documents')),
     createProject: vi.fn(() => Promise.resolve({ status: 'created' as const, path: '/Users/sam/Adminium/shop' })),
     makeProgress: vi.fn(() => Promise.resolve({ step: null, since: 0 })),
+    getPackages: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
     chooseFolder: vi.fn(() => Promise.resolve<{ path: string; displayPath: string } | null>({ path: '/Users/sam/Downloads/shop', displayPath: '~/Downloads/shop' })),
     openProject: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
     forgetProject: vi.fn(() => Promise.resolve([recentProject()])),
@@ -247,11 +248,35 @@ describe('Start', () => {
     expect(openProject).toHaveBeenCalledTimes(1);
   });
 
+  it('offers to get the packages of a project that has none, waits with a clock, and says why when they did not come', async () => {
+    let finish: (value: { status: 'failed'; detail: string } | { status: 'opened' }) => void = () => undefined;
+    const getPackages = vi.fn<DesktopStartApi['getPackages']>(() => new Promise((done) => (finish = done)));
+    const start = fakeStart({ openProject: vi.fn(() => Promise.resolve({ status: 'needs-packages' as const, path: '/p/shop', displayPath: '~/shop' })), getPackages });
+    show(start, { ...STATE, recent: [recentProject()] });
+    fireEvent.click(screen.getByRole('button', { name: 'Open the dashboard of Juniper Kitchen' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Get this project’s packages?');
+    expect(dialog.textContent).toContain('~/shop');
+    // Asked, not done unasked.
+    expect(getPackages).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Get them and open' }));
+    expect(getPackages).toHaveBeenCalledWith({ path: '/p/shop', land: 'dashboard' });
+    expect((await screen.findByRole('status')).textContent).toMatch(/Getting the packages\s*0:0\d/);
+    expect((screen.getByRole('button', { name: 'Not now' }) as HTMLButtonElement).disabled).toBe(true);
+    finish({ status: 'failed', detail: 'npm error code ENOTFOUND' });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('The packages could not be fetched.');
+    expect(alert.textContent).toContain('npm error code ENOTFOUND');
+    // And it can be tried again, or left.
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(getPackages).toHaveBeenCalledTimes(2);
+    finish({ status: 'opened' });
+  });
+
   it('says in a notice why a folder was not opened', async () => {
     for (const [status, words] of [
       ['missing', 'This folder was moved or deleted'],
       ['not-a-project', 'This folder is not an Adminium project.'],
-      ['needs-packages', 'This project’s packages are not on this computer yet.'],
     ] as const) {
       show(fakeStart({ openProject: vi.fn(() => Promise.resolve({ status })) }), { ...STATE, recent: [recentProject()] });
       fireEvent.click(screen.getByRole('button', { name: 'Open Juniper Kitchen' }));

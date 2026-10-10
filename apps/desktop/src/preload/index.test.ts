@@ -122,10 +122,10 @@ describe('the exposed surface', () => {
     expect(Object.keys(build()).sort()).toEqual(SECTION_4_KEYS);
   });
 
-  it('exposes the first screens as exactly their ten calls, each over its own channel', async () => {
+  it('exposes the first screens as exactly their eleven calls, each over its own channel', async () => {
     const ipc = new FakeIpc();
     const { start } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
-    expect(Object.keys(start).sort()).toEqual(['chooseFolder', 'chooseParent', 'createProject', 'forgetProject', 'judgeNewFolder', 'locateProject', 'makeProgress', 'openProject', 'state', 'useClassic']);
+    expect(Object.keys(start).sort()).toEqual(['chooseFolder', 'chooseParent', 'createProject', 'forgetProject', 'getPackages', 'judgeNewFolder', 'locateProject', 'makeProgress', 'openProject', 'state', 'useClassic']);
     await start.state();
     await start.judgeNewFolder({ parent: '/p', name: 'n' });
     await start.chooseParent({ from: '/p', title: 't' });
@@ -133,6 +133,7 @@ describe('the exposed surface', () => {
     await start.makeProgress();
     await start.chooseFolder({ title: 't' });
     await start.openProject({ path: '/p' });
+    await start.getPackages({ path: '/p' });
     await start.forgetProject('/p');
     await start.locateProject({ path: '/p', title: 't' });
     await start.useClassic();

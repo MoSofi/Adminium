@@ -36,6 +36,15 @@
     },
     "where": "Kam ji uložit"
   },
+  "packages": {
+    "again": "Zkusit znovu",
+    "body": "To, z čeho je tento projekt postaven, v tomto počítači ještě není. Adminium to může teď stáhnout a pak projekt otevřít. Na pomalém připojení to trvá pár minut.",
+    "cancel": "Teď ne",
+    "failed": "Balíčky se nepodařilo stáhnout.",
+    "get": "Stáhnout a otevřít",
+    "title": "Stáhnout balíčky tohoto projektu?",
+    "working": "Stahují se balíčky"
+  },
   "start": {
     "choice": {
       "build": {
@@ -57,7 +66,6 @@
     },
     "heading": "Co chcete udělat?",
     "open": {
-      "needsPackages": "Balíčky tohoto projektu na tomto počítači ještě nejsou.",
       "notAProject": "Tato složka není projekt Adminia."
     },
     "recent": {

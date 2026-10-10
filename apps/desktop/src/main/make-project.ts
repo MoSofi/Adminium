@@ -135,6 +135,28 @@ export function createMakeProject(
   };
 }
 
+/**
+ * Getting the packages of a project that is already there (one copied from
+ * another computer, or whose `node_modules` was deleted): the engine's own
+ * `install`, run in the folder as `new` is run beside it. From the lockfile
+ * when the folder has one, with no install scripts, by the npm the app carries.
+ */
+export function createInstallPackages(deps: MakeProjectDeps): (input: { root: string }) => Promise<MakeProjectResult> {
+  return async ({ root }) => {
+    const programs = await deps.programs();
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
+    env.ELECTRON_RUN_AS_NODE = '1';
+    if (programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = programs;
+    delete env.ADMINIUM_SECRET;
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'install'], { cwd: root, env, timeoutMs: MAKE_PROJECT_TIMEOUT_MS });
+    deps.log?.(`[project packages] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
+    if (ran.timedOut) return { ok: false, detail: 'Getting the packages took too long and was stopped.' };
+    if (ran.code !== 0) return { ok: false, detail: lastLines(ran.output) };
+    return { ok: true };
+  };
+}
+
 /** {@link MakeProjectDeps.run} on a real machine. */
 export async function runToEnd(
   command: string,

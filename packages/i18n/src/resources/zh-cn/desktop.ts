@@ -46,6 +46,15 @@ export default {
     },
     "where": "保存位置"
   },
+  "packages": {
+    "again": "重试",
+    "body": "构建此项目所需的内容尚未在这台电脑上。Adminium 可以现在下载，然后打开项目。网络较慢时需要几分钟。",
+    "cancel": "暂不",
+    "failed": "无法获取软件包。",
+    "get": "获取并打开",
+    "title": "获取此项目的软件包？",
+    "working": "正在获取软件包"
+  },
   "start": {
     "choice": {
       "build": {
@@ -67,7 +76,6 @@ export default {
     },
     "heading": "你想做什么？",
     "open": {
-      "needsPackages": "这台电脑上还没有此项目的软件包。",
       "notAProject": "此文件夹不是 Adminium 项目。"
     },
     "recent": {

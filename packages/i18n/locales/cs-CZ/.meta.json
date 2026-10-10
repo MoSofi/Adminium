@@ -11031,6 +11031,34 @@
     "status": "mt",
     "srcHash": "dac1b475bad4"
   },
+  "desktop.packages.again": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "desktop.packages.body": {
+    "status": "mt",
+    "srcHash": "fb7a502a240c"
+  },
+  "desktop.packages.cancel": {
+    "status": "mt",
+    "srcHash": "e45714907316"
+  },
+  "desktop.packages.failed": {
+    "status": "mt",
+    "srcHash": "ec9fdc17c82b"
+  },
+  "desktop.packages.get": {
+    "status": "mt",
+    "srcHash": "803401d17ea7"
+  },
+  "desktop.packages.title": {
+    "status": "mt",
+    "srcHash": "c7e651481b86"
+  },
+  "desktop.packages.working": {
+    "status": "mt",
+    "srcHash": "1b076bbe5b0b"
+  },
   "desktop.start.choice.build.line": {
     "status": "mt",
     "srcHash": "694b31fabb15"
@@ -11066,10 +11094,6 @@
   "desktop.start.heading": {
     "status": "mt",
     "srcHash": "7b52603bb25e"
-  },
-  "desktop.start.open.needsPackages": {
-    "status": "mt",
-    "srcHash": "265bf3fc8f5d"
   },
   "desktop.start.open.notAProject": {
     "status": "mt",

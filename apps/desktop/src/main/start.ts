@@ -25,6 +25,7 @@ import { join, sep } from 'node:path';
 import type {
   DesktopCreateProjectInput,
   DesktopCreateProjectResult,
+  DesktopGetPackagesResult,
   DesktopLocateProjectResult,
   DesktopMakeProgress,
   DesktopMakeStep,
@@ -140,6 +141,8 @@ export interface StartDeps {
    */
   makeProject?: ((input: { parent: string; folder: string; root: string; onStep?: (step: DesktopMakeStep) => void }) => Promise<MakeProjectResult>) | undefined;
   fingerprint?: ((root: string) => string | null) | undefined;
+  /** Fetches what a project that is already there is built with; absent in a build that cannot. */
+  installPackages?: ((input: { root: string }) => Promise<MakeProjectResult>) | undefined;
   /** Whether the folder has what it is built with (a `node_modules`). */
   hasPackages?: ((root: string) => boolean) | undefined;
   /** The real path of a folder that exists. */
@@ -156,6 +159,7 @@ export interface StartService {
   makeProgress(): DesktopMakeProgress;
   chooseFolder(input: { title: string }): Promise<{ path: string; displayPath: string } | null>;
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
+  getPackages(input: { path: string; land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult>;
   forgetProject(path: string): Promise<DesktopRecentProject[]>;
   locateProject(input: { path: string; title: string }): Promise<DesktopLocateProjectResult>;
   useClassic(): void;
@@ -273,7 +277,37 @@ export function createStartService(deps: StartDeps): StartService {
       }
       // Agreed to (now, or before and unchanged). Nothing of the folder has been started up to this line.
       await deps.saveConfig(rememberProject(config, { path: root, name: known?.name ?? nameFromFolder(root), trusted: code }, now()));
-      if (!hasPackages(root)) return { status: 'needs-packages' };
+      if (!hasPackages(root)) return { status: 'needs-packages', path: root, displayPath: shown(root) };
+      deps.onChoice({ kind: 'project', root, ...(input.land === 'dashboard' ? { land: 'dashboard' as const } : {}) });
+      return { status: 'opened' };
+    },
+
+    async getPackages(input) {
+      if (!deps.folder.exists(input.path)) return { status: 'missing' };
+      let root: string;
+      try {
+        root = real(input.path);
+      } catch {
+        return { status: 'missing' };
+      }
+      if (!isProjectFolder(root, deps.folder.exists)) return { status: 'not-a-project' };
+      // Only into a folder the person agreed to open, as its code is now: `openProject` is where that is asked.
+      const known = deps.readConfig().projects.find((entry) => entry.path === root) ?? null;
+      if (known === null || known.trusted === null || known.trusted !== fingerprint(root)) return { status: 'trust-needed' };
+      if (!hasPackages(root)) {
+        if (deps.installPackages === undefined) return { status: 'failed', detail: CANNOT_MAKE_PROJECT };
+        if (making) return { status: 'failed', detail: 'Packages are already being fetched.' };
+        making = true;
+        try {
+          const got = await deps.installPackages({ root });
+          if (!got.ok) return { status: 'failed', detail: got.detail };
+        } finally {
+          making = false;
+        }
+        // The lockfile an install writes is the project's own change, not one to ask about on the next opening.
+        const config = deps.readConfig();
+        await deps.saveConfig({ ...config, projects: config.projects.map((entry) => (entry.path === root ? { ...entry, trusted: fingerprint(root) } : entry)) });
+      }
       deps.onChoice({ kind: 'project', root, ...(input.land === 'dashboard' ? { land: 'dashboard' as const } : {}) });
       return { status: 'opened' };
     },

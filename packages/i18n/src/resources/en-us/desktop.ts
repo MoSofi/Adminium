@@ -46,6 +46,15 @@ export default {
     },
     "where": "Where to keep it"
   },
+  "packages": {
+    "again": "Try again",
+    "body": "What this project is built with is not on this computer yet. Adminium can download it now and then open the project. It takes a few minutes on a slow connection.",
+    "cancel": "Not now",
+    "failed": "The packages could not be fetched.",
+    "get": "Get them and open",
+    "title": "Get this project’s packages?",
+    "working": "Getting the packages"
+  },
   "start": {
     "choice": {
       "build": {
@@ -67,7 +76,6 @@ export default {
     },
     "heading": "What would you like to do?",
     "open": {
-      "needsPackages": "This project’s packages are not on this computer yet.",
       "notAProject": "This folder is not an Adminium project."
     },
     "recent": {

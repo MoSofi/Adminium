@@ -46,6 +46,15 @@ export default {
     },
     "where": "Speicherort"
   },
+  "packages": {
+    "again": "Erneut versuchen",
+    "body": "Die Bausteine dieses Projekts sind noch nicht auf diesem Computer. Adminium kann sie jetzt herunterladen und das Projekt danach öffnen. Bei langsamer Verbindung dauert das ein paar Minuten.",
+    "cancel": "Nicht jetzt",
+    "failed": "Die Pakete konnten nicht geladen werden.",
+    "get": "Laden und öffnen",
+    "title": "Pakete dieses Projekts laden?",
+    "working": "Pakete werden geladen"
+  },
   "start": {
     "choice": {
       "build": {
@@ -67,7 +76,6 @@ export default {
     },
     "heading": "Was möchten Sie tun?",
     "open": {
-      "needsPackages": "Die Pakete dieses Projekts sind noch nicht auf diesem Computer.",
       "notAProject": "Dieser Ordner ist kein Adminium-Projekt."
     },
     "recent": {
