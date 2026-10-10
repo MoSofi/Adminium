@@ -224,6 +224,8 @@ export const desktopConfigSchema = z.strictObject({
    * file written before this key is read as "never asked".
    */
   versionsDeclined: z.boolean().default(false),
+  /** Other Adminiums this app was connected to, newest first: an address, the version it said, when. */
+  guests: z.array(z.strictObject({ address: z.string().min(1).max(300), version: z.string().max(40), lastOpened: z.string().min(1) })).max(8).default([]),
 });
 
 export type DesktopConfig = z.infer<typeof desktopConfigSchema>;
@@ -269,6 +271,7 @@ export function createDefaultConfig(dataDir: string): DesktopConfig {
     language: null,
     theme: 'system',
     versionsDeclined: false,
+    guests: [],
   };
 }
 
@@ -300,6 +303,8 @@ export function redactConfig(config: DesktopConfig): RedactedDesktopConfig {
     language: config.language,
     theme: config.theme,
     versionsDeclined: config.versionsDeclined,
+    // Addresses, not secrets: what was typed and the version that answered.
+    guests: config.guests.map((guest) => ({ ...guest })),
   };
 }
 

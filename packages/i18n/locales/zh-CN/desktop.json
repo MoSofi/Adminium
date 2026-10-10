@@ -205,5 +205,20 @@
     "keep": "继续共享",
     "buildAsk": "返回构建？",
     "buildAskBody": "在其他设备上使用它的人将被断开连接。"
+  },
+  "connect": {
+    "notAnAddress": "这不是一个地址。请输入类似 office-pc.local:4600 的地址。",
+    "notPrivate": "Adminium 只在你自己的网络上使用未加密连接。请使用 https 地址。",
+    "noAnswer": "该地址没有任何响应。请检查另一台电脑是否已开机并正在共享。",
+    "notAdminium": "该地址没有看起来像 Adminium 的响应。",
+    "address": "地址",
+    "checking": "正在检查…",
+    "go": "连接",
+    "notEncrypted": "此地址未加密。请只在你信任的网络上使用它。",
+    "anyway": "仍然连接",
+    "recent": "最近",
+    "version": "Adminium {version}",
+    "forgetOf": "忘记 {address}",
+    "forget": "忘记"
   }
 }

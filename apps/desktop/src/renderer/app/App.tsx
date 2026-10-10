@@ -8,15 +8,16 @@ import { ToastStack, useToastQueue } from '@adminium/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import type { DesktopShareInfo, DesktopStartState } from '../../preload/api.js';
+import { ConnectScreen } from './connect/ConnectScreen.js';
 import { NewProjectScreen } from './new/NewProjectScreen.js';
 import { PlainShell } from './shell/PlainShell.js';
 import { SharedScreen } from './shared/SharedScreen.js';
 import { StartScreen } from './start/StartScreen.js';
 
-export type Screen = 'start' | 'new';
+export type Screen = 'start' | 'new' | 'connect';
 
 export function screenFromHash(hash: string): Screen {
-  return hash === '#/new' ? 'new' : 'start';
+  return hash === '#/new' ? 'new' : hash === '#/connect' ? 'connect' : 'start';
 }
 
 export function App({ initial }: { initial: DesktopStartState }): ReactNode {
@@ -37,7 +38,7 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
   }, []);
 
   const go = useCallback((next: Screen): void => {
-    window.location.hash = next === 'new' ? '#/new' : '#/';
+    window.location.hash = next === 'new' ? '#/new' : next === 'connect' ? '#/connect' : '#/';
   }, []);
 
   const say = useCallback(
@@ -49,7 +50,14 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
 
   return (
     <PlainShell>
-      {screen === 'new' ? (
+      {screen === 'connect' ? (
+        <ConnectScreen
+          onBack={() => {
+            go('start');
+          }}
+          say={say}
+        />
+      ) : screen === 'new' ? (
         <NewProjectScreen
           proposedParent={makeIn ?? initial.proposedParent}
           proposedParentDisplay={makeIn ?? initial.proposedParentDisplay}
@@ -65,6 +73,9 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
           onBuild={() => {
             setMakeIn(null);
             go('new');
+          }}
+          onConnect={() => {
+            go('connect');
           }}
           onMakeIn={(parent) => {
             setMakeIn(parent);

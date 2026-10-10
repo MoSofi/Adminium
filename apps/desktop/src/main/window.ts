@@ -25,7 +25,7 @@ import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BrowserWindow, dialog, screen, shell, type WebPreferences } from 'electron';
+import { BrowserWindow, dialog, screen, session, shell, type WebPreferences } from 'electron';
 
 import type { OpenFileKind } from '../preload/api.js';
 import {
@@ -36,6 +36,7 @@ import {
   saveConfig,
   type DesktopConfig,
 } from './config.js';
+import { guestMayNavigate, guestPartition } from './guest.js';
 import type { DesktopDialogs } from './ipc.js';
 
 // ─── The posture ─────────────────────────────────────────────────────────────
@@ -517,6 +518,14 @@ export interface DesktopWindows {
   showBoot(): Promise<void>;
   /** The app's own first screens (Start). Absent from a fake that predates them. */
   showStart?(): Promise<void>;
+  /**
+   * Another Adminium, in a window of its own: no preload (so none of the app's
+   * bridge), a cookie jar of its own, held to its address. One window per
+   * address: a second ask brings the first to the front.
+   */
+  openGuest?(guest: { origin: string; encrypted: boolean }): Promise<void>;
+  /** Delete a guest's cookies and stored data, and close its window if one is open. */
+  clearGuest?(origin: string): Promise<void>;
   /** The app's own page with a shared project's addresses (the same document as Start, on its own screen). */
   showShared?(): Promise<void>;
   /**
@@ -621,6 +630,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   let lastAppPreview = false;
   /** The app's own pages are what the window holds: what `reopen` returns to. */
   let showingStart = false;
+  /** Other Adminiums that are open, each in a window of its own, by address. */
+  const guests = new Map<string, BrowserWindow>();
   /** The sharing details are what the window holds: what `reopen` returns to. */
   let showingShared = false;
   /** A window on the previous session partition, kept until its replacement stands (see `useProjectSession`). */
@@ -845,6 +856,66 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       lastAppUrl = null;
       await target.loadFile(startPage);
       if (!target.isVisible()) target.show();
+    },
+
+    async openGuest(guest: { origin: string; encrypted: boolean }): Promise<void> {
+      const open = guests.get(guest.origin);
+      if (open !== undefined && !open.isDestroyed()) {
+        open.focus();
+        return;
+      }
+      const host = new URL(guest.origin).host;
+      const view = new BrowserWindow({
+        width: 1280,
+        height: 800,
+        minWidth: MIN_WINDOW_WIDTH,
+        minHeight: MIN_WINDOW_HEIGHT,
+        // Its address is its name, and says so when what is typed there can be read on the way.
+        title: guest.encrypted ? `${host} — Adminium` : `${host} (not encrypted) — Adminium`,
+        // The same posture as the app's own window, and NO preload: this page is somebody else's.
+        webPreferences: { ...WEB_PREFERENCES, partition: guestPartition(guest.origin) },
+      });
+      guests.set(guest.origin, view);
+      view.on('closed', () => {
+        if (guests.get(guest.origin) === view) guests.delete(guest.origin);
+      });
+      // The page's own title would take the address away.
+      view.on('page-title-updated', (event) => event.preventDefault());
+      // Held to the address that was typed: anything else leaves for the system's browser, or nowhere.
+      const leave = (event: { preventDefault: () => void }, target: string): void => {
+        if (guestMayNavigate(target, guest.origin)) return;
+        event.preventDefault();
+        const decision = decideNavigation(target, null);
+        if (decision.action === 'external') void shell.openExternal(decision.url);
+      };
+      view.webContents.on('will-navigate', leave);
+      view.webContents.on('will-redirect', leave);
+      view.webContents.setWindowOpenHandler(({ url }) => {
+        // No second window is ever made from a guest's page: its own address goes there itself, a site to the browser.
+        if (guestMayNavigate(url, guest.origin)) void view.loadURL(url);
+        else {
+          const decision = decideNavigation(url, null);
+          if (decision.action === 'external') void shell.openExternal(decision.url);
+        }
+        return { action: 'deny' };
+      });
+      // Camera, notifications, the clipboard read: refused, not asked. A download is refused the same way.
+      const { session } = view.webContents;
+      session.setPermissionRequestHandler((_contents, _permission, callback) => {
+        callback(false);
+      });
+      session.setPermissionCheckHandler(() => false);
+      session.on('will-download', (event) => {
+        event.preventDefault();
+      });
+      await view.loadURL(`${guest.origin}/`);
+    },
+
+    async clearGuest(origin: string): Promise<void> {
+      const open = guests.get(origin);
+      if (open !== undefined && !open.isDestroyed()) open.destroy();
+      guests.delete(origin);
+      await session.fromPartition(guestPartition(origin)).clearStorageData();
     },
 
     async showShared(): Promise<void> {

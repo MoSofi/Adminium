@@ -911,6 +911,11 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(IPC_CHANNELS.startResolveKey, startResolveKeySchema, (input) => start().resolveKey({ path: input.path, answer: input.answer, ...(input.title === undefined ? {} : { title: input.title }) }), ownPage);
   register(IPC_CHANNELS.startUpdateProject, z.strictObject({ path: absolutePathSchema }), (input) => start().updateProject(input), ownPage);
   register(IPC_CHANNELS.startUpdateApp, noPayloadSchema, () => Promise.resolve(start().updateApp()), ownPage);
+  // An address a person typed: a short string, judged by `main/guest.ts` before anything is asked of it.
+  const guestAddressSchema = z.string().min(1).max(300);
+  register(IPC_CHANNELS.startConnect, z.strictObject({ address: guestAddressSchema, anyway: z.boolean().optional() }), (input) => start().connect({ address: input.address, ...(input.anyway === undefined ? {} : { anyway: input.anyway }) }), ownPage);
+  register(IPC_CHANNELS.startGuests, noPayloadSchema, () => Promise.resolve(start().guests()), ownPage);
+  register(IPC_CHANNELS.startForgetGuest, guestAddressSchema, (address) => start().forgetGuest(address), ownPage);
   register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);
   register(IPC_CHANNELS.startLocateProject, startLocateProjectSchema, (input) => start().locateProject(input), ownPage);
   // ─── the project this window holds ─────────────────────────────────────────

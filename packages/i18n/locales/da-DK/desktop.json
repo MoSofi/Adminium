@@ -205,5 +205,20 @@
     "keep": "Bliv ved med at dele",
     "buildAsk": "Gå tilbage til at bygge?",
     "buildAskBody": "Personer, der bruger det på andre enheder, bliver afbrudt."
+  },
+  "connect": {
+    "notAnAddress": "Det er ikke en adresse. Skriv en som office-pc.local:4600.",
+    "notPrivate": "Adminium forbinder kun uden kryptering på dit eget netværk. Brug en https-adresse.",
+    "noAnswer": "Intet svarede på den adresse. Tjek, at den anden computer er tændt og deler.",
+    "notAdminium": "Intet, der ligner Adminium, svarede på den adresse.",
+    "address": "Adresse",
+    "checking": "Tjekker…",
+    "go": "Forbind",
+    "notEncrypted": "Denne adresse er ikke krypteret. Brug den kun på et netværk, du stoler på.",
+    "anyway": "Forbind alligevel",
+    "recent": "Seneste",
+    "version": "Adminium {version}",
+    "forgetOf": "Glem {address}",
+    "forget": "Glem"
   }
 }

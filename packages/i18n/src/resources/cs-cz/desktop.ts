@@ -215,5 +215,20 @@ export default {
     "keep": "Sdílet dál",
     "buildAsk": "Vrátit se ke stavění?",
     "buildAskBody": "Lidé, kteří jej používají na jiných zařízeních, budou odpojeni."
+  },
+  "connect": {
+    "notAnAddress": "To není adresa. Zadejte třeba office-pc.local:4600.",
+    "notPrivate": "Adminium se bez šifrování připojuje jen ve vaší vlastní síti. Použijte adresu https.",
+    "noAnswer": "Na této adrese nic neodpovědělo. Zkontrolujte, zda je druhý počítač zapnutý a sdílí.",
+    "notAdminium": "Na této adrese neodpovědělo nic, co by vypadalo jako Adminium.",
+    "address": "Adresa",
+    "checking": "Kontroluje se…",
+    "go": "Připojit",
+    "notEncrypted": "Tato adresa není šifrovaná. Používejte ji jen v síti, které důvěřujete.",
+    "anyway": "Přesto připojit",
+    "recent": "Nedávné",
+    "version": "Adminium {version}",
+    "forgetOf": "Zapomenout {address}",
+    "forget": "Zapomenout"
   }
 } as const;

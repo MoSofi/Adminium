@@ -195,7 +195,7 @@ function RecentRow({
 /** The system the app runs on, for the words that differ by it. */
 const platformName = (): string => desktopApi().platform;
 
-export function StartScreen({ initial, onBuild, onMakeIn, say }: { initial: DesktopStartState; onBuild: () => void; /** "Make a new project here": New app, with that folder as where to keep it. */ onMakeIn?: ((parent: string) => void) | undefined; say: Say }): ReactNode {
+export function StartScreen({ initial, onBuild, onConnect, onMakeIn, say }: { initial: DesktopStartState; onBuild: () => void; /** "Connect to another Adminium": its screen. Absent: the card cannot be chosen. */ onConnect?: (() => void) | undefined; /** "Make a new project here": New app, with that folder as where to keep it. */ onMakeIn?: ((parent: string) => void) | undefined; say: Say }): ReactNode {
   const t = useT();
   const tag = tagForLocale(useLocale());
   const recentHead = useId();
@@ -277,6 +277,10 @@ export function StartScreen({ initial, onBuild, onMakeIn, say }: { initial: Desk
   const choose = async (key: Choice['key']): Promise<void> => {
     if (key === 'build') {
       onBuild();
+      return;
+    }
+    if (key === 'connect') {
+      onConnect?.();
       return;
     }
     if (key === 'db') {
@@ -410,8 +414,7 @@ export function StartScreen({ initial, onBuild, onMakeIn, say }: { initial: Desk
             choice={choice}
             title={words[choice.key][0]}
             line={words[choice.key][1]}
-            // Connecting to another Adminium has no screen yet.
-            disabled={choice.key === 'connect'}
+            disabled={choice.key === 'connect' && onConnect === undefined}
             onChoose={() => {
               void choose(choice.key);
             }}

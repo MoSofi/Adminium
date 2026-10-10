@@ -215,5 +215,20 @@ export default {
     "keep": "繼續分享",
     "buildAsk": "返回建置？",
     "buildAskBody": "在其他裝置上使用它的人將被中斷連線。"
+  },
+  "connect": {
+    "notAnAddress": "這不是一個位址。請輸入類似 office-pc.local:4600 的位址。",
+    "notPrivate": "Adminium 只在你自己的網路上使用未加密連線。請使用 https 位址。",
+    "noAnswer": "該位址沒有任何回應。請檢查另一台電腦是否已開機並正在分享。",
+    "notAdminium": "該位址沒有看起來像 Adminium 的回應。",
+    "address": "位址",
+    "checking": "正在檢查…",
+    "go": "連線",
+    "notEncrypted": "此位址未加密。請只在你信任的網路上使用它。",
+    "anyway": "仍然連線",
+    "recent": "最近",
+    "version": "Adminium {version}",
+    "forgetOf": "忘記 {address}",
+    "forget": "忘記"
   }
 } as const;

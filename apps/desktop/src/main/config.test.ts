@@ -111,6 +111,7 @@ describe('desktopConfigSchema', () => {
       language: 'ar',
       theme: 'dark',
       versionsDeclined: true,
+      guests: [{ address: 'http://office-pc.local:4600', version: '0.3.24', lastOpened: '2026-10-10T10:00:00.000Z' }],
     };
 
     expect(desktopConfigSchema.parse(body)).toEqual(body);
@@ -822,7 +823,7 @@ describe('version 1 → 2: the first screens', () => {
   it('adds an empty list of projects, the system’s language and theme, and changes nothing else', () => {
     const { raw, fromVersion } = migrateConfig(V1);
     expect(fromVersion).toBe(1);
-    expect(desktopConfigSchema.parse(raw)).toEqual({ ...V1, version: 2, projects: [], language: null, theme: 'system', versionsDeclined: false });
+    expect(desktopConfigSchema.parse(raw)).toEqual({ ...V1, version: 2, projects: [], language: null, theme: 'system', versionsDeclined: false, guests: [] });
   });
 
   it('a version 2 file read by an older build is refused with words a person can act on', () => {

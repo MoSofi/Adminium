@@ -687,6 +687,9 @@ describe('the first screens’ channels', () => {
     resolveKey: vi.fn(() => Promise.resolve({ status: 'done' as const })),
     updateProject: vi.fn(() => Promise.resolve({ status: 'updated' as const })),
     updateApp: vi.fn(() => true),
+    connect: vi.fn(() => Promise.resolve({ status: 'opened' as const, guests: [] })),
+    guests: vi.fn(() => []),
+    forgetGuest: vi.fn(() => Promise.resolve([])),
     forgetProject: vi.fn(() => Promise.resolve([])),
     locateProject: vi.fn(() => Promise.resolve({ status: 'cancelled' as const })),
     useClassic: vi.fn(),
@@ -704,6 +707,9 @@ describe('the first screens’ channels', () => {
     [IPC_CHANNELS.startResolveKey]: { path: '/home/ava/Adminium/shop', answer: 'env', title: 'Choose the .env file' },
     [IPC_CHANNELS.startUpdateProject]: { path: '/home/ava/Adminium/shop' },
     [IPC_CHANNELS.startUpdateApp]: undefined,
+    [IPC_CHANNELS.startConnect]: { address: 'office-pc.local:4600', anyway: true },
+    [IPC_CHANNELS.startGuests]: undefined,
+    [IPC_CHANNELS.startForgetGuest]: 'http://office-pc.local:4600',
     [IPC_CHANNELS.startGetPackages]: { path: '/home/ava/Adminium/shop', land: 'dashboard' },
     [IPC_CHANNELS.startForgetProject]: '/home/ava/Adminium/shop',
     [IPC_CHANNELS.startLocateProject]: { path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' },
@@ -722,6 +728,8 @@ describe('the first screens’ channels', () => {
     expect(start.resolveKey).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', answer: 'env', title: 'Choose the .env file' });
     expect(start.updateProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop' });
     expect(start.updateApp).toHaveBeenCalledTimes(1);
+    expect(start.connect).toHaveBeenCalledWith({ address: 'office-pc.local:4600', anyway: true });
+    expect(start.forgetGuest).toHaveBeenCalledWith('http://office-pc.local:4600');
     expect(start.forgetProject).toHaveBeenCalledWith('/home/ava/Adminium/shop');
     expect(start.locateProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' });
     expect(start.useClassic).toHaveBeenCalledTimes(1);

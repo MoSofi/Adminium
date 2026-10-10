@@ -215,5 +215,20 @@ export default {
     "keep": "Continuer à partager",
     "buildAsk": "Revenir à la construction ?",
     "buildAskBody": "Les personnes qui l’utilisent sur d’autres appareils seront déconnectées."
+  },
+  "connect": {
+    "notAnAddress": "Ce n’est pas une adresse. Saisissez-en une comme office-pc.local:4600.",
+    "notPrivate": "Adminium ne se connecte sans chiffrement que sur votre propre réseau. Utilisez une adresse https.",
+    "noAnswer": "Rien n’a répondu à cette adresse. Vérifiez que l’autre ordinateur est allumé et partage.",
+    "notAdminium": "Rien qui ressemble à Adminium n’a répondu à cette adresse.",
+    "address": "Adresse",
+    "checking": "Vérification…",
+    "go": "Se connecter",
+    "notEncrypted": "Cette adresse n’est pas chiffrée. Ne l’utilisez que sur un réseau de confiance.",
+    "anyway": "Se connecter quand même",
+    "recent": "Récents",
+    "version": "Adminium {version}",
+    "forgetOf": "Oublier {address}",
+    "forget": "Oublier"
   }
 } as const;

@@ -97,6 +97,7 @@ import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, rememberProject, type FolderDeps } from './projects.js';
 import { exportFileName, writeProjectZip } from './export.js';
+import { checkGuest } from './guest.js';
 import { shareAddresses, sharePortFor } from './share.js';
 import { createModelsStore, modelsFileFor, type ModelsStore } from './models.js';
 import { createVersionsOffer, type VersionsOffer, type VersionsOfferDeps } from './versions-offer.js';
@@ -597,6 +598,7 @@ export interface DesktopBootDeps {
         readonly folderFacts?: StartDeps['folderFacts'];
         readonly updateProject?: StartDeps['updateProject'];
         readonly chooseFile?: StartDeps['chooseFile'];
+        readonly checkGuest?: StartDeps['checkGuest'];
         /** Whether the classic workspace was ever set up in this data folder. */
         readonly classicUsed: (config: DesktopConfig) => boolean;
       }
@@ -1450,6 +1452,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 ...(screen.folderFacts === undefined ? {} : { folderFacts: screen.folderFacts }),
                 ...(screen.updateProject === undefined ? {} : { updateProject: screen.updateProject }),
                 ...(screen.chooseFile === undefined ? {} : { chooseFile: screen.chooseFile }),
+                ...(screen.checkGuest === undefined ? {} : { checkGuest: screen.checkGuest }),
+                ...(windows.openGuest === undefined ? {} : { openGuest: (guest) => windows.openGuest?.(guest) ?? Promise.resolve() }),
+                ...(windows.clearGuest === undefined ? {} : { clearGuest: (origin) => windows.clearGuest?.(origin) ?? Promise.resolve() }),
                 // "Update Adminium", asked from a folder a newer one wrote: the app's own updater, made now if no
                 // boot has made one yet (Start has no server, and so had none).
                 updateApp: () => {
@@ -2574,6 +2579,8 @@ export function electronBootDeps(): DesktopBootDeps {
       makeProject: createMakeProject(engineCli),
       installPackages: createInstallPackages(engineCli),
       folderFacts: createFolderFacts(engineCli),
+      // Electron's own fetch: the system's proxy and certificates. The one request the app itself makes of a guest.
+      checkGuest: (origin) => checkGuest(origin, (url, init) => net.fetch(url, init)),
       updateProject: createUpdateProject(engineCli),
       // A `.env` is a hidden file: the picker is asked to show those.
       chooseFile: async (opts) => {

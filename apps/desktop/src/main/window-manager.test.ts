@@ -13,6 +13,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface FakeWindow {
   id: number;
+  title: string | undefined;
+  preload: string | undefined;
+  /** What the window's handlers do with an address: the manager's rules, as wired. */
+  handlers: Map<string, (event: { preventDefault: () => void }, target: string) => void>;
+  openHandler: ((details: { url: string }) => { action: string }) | null;
+  focused: number;
   partition: string | undefined;
   loaded: string[];
   destroyed: boolean;
@@ -21,6 +27,9 @@ interface FakeWindow {
 }
 
 const made: FakeWindow[] = [];
+const permissionHandlers: unknown[] = [];
+const external: string[] = [];
+const cleared: string[] = [];
 /** How many windows stand at each moment one is made or destroyed: never zero once the first exists. */
 const standing: number[] = [];
 
@@ -29,15 +38,20 @@ vi.mock('electron', () => {
     readonly record: FakeWindow;
     readonly listeners = new Map<string, Array<() => void>>();
     readonly webContents = {
-      on: () => undefined,
-      setWindowOpenHandler: () => undefined,
+      on: (event: string, handler: (event: { preventDefault: () => void }, target: string) => void) => void this.record.handlers.set(event, handler),
+      setWindowOpenHandler: (handler: (details: { url: string }) => { action: string }) => void (this.record.openHandler = handler),
       executeJavaScript: () => Promise.resolve(),
-      session: { setPermissionRequestHandler: () => undefined, setPermissionCheckHandler: () => undefined },
+      session: { setPermissionRequestHandler: (handler: unknown) => void permissionHandlers.push(handler), setPermissionCheckHandler: () => undefined, on: () => undefined },
     };
-    constructor(options: { webPreferences?: { partition?: string } }) {
+    constructor(options: { title?: string; webPreferences?: { partition?: string; preload?: string } }) {
       this.record = {
         id: made.length + 1,
+        title: options.title,
+        preload: options.webPreferences?.preload,
         partition: options.webPreferences?.partition,
+        handlers: new Map(),
+        openHandler: null,
+        focused: 0,
         loaded: [],
         destroyed: false,
         visible: false,
@@ -84,7 +98,9 @@ vi.mock('electron', () => {
       return false;
     }
     restore(): void {}
-    focus(): void {}
+    focus(): void {
+      this.record.focused += 1;
+    }
     getNormalBounds(): { x: number; y: number; width: number; height: number } {
       return { x: 0, y: 0, width: 1280, height: 800 };
     }
@@ -92,17 +108,26 @@ vi.mock('electron', () => {
   return {
     BrowserWindow,
     screen: { getAllDisplays: () => [{ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }] },
-    shell: { openExternal: () => Promise.resolve() },
+    shell: {
+      openExternal: (url: string) => {
+        external.push(url);
+        return Promise.resolve();
+      },
+    },
+    session: { fromPartition: (name: string) => ({ clearStorageData: () => void cleared.push(name) }) },
     dialog: {},
   };
 });
 
 const { createWindowManager, projectPartition } = await import('./window.js');
+const { guestPartition } = await import('./guest.js');
 
 let dir: string;
 beforeEach(() => {
   made.length = 0;
   standing.length = 0;
+  external.length = 0;
+  cleared.length = 0;
   dir = mkdtempSync(join(tmpdir(), 'adminium-window-'));
 });
 afterEach(() => {
@@ -215,5 +240,69 @@ describe('the window manager', () => {
     const fresh = createWindowManager({ userDataDir: dir });
     await fresh.reopen();
     expect(made[4]?.loaded).toEqual(['file:boot.html']);
+  });
+});
+
+describe('another Adminium, as a guest', () => {
+  const ORIGIN = 'http://office-pc.local:4600';
+
+  it('gets a window of its own with NO preload, a cookie jar of its own, and its address as its name', async () => {
+    const windows = createWindowManager({ userDataDir: dir });
+    await windows.showStart?.();
+    await windows.openGuest?.({ origin: ORIGIN, encrypted: false });
+    expect(made).toHaveLength(2);
+    // The app's own window has the bridge's preload; the guest has none, so there is no bridge on its pages.
+    expect(made[0]?.preload).toMatch(/preload/);
+    expect(made[1]).toMatchObject({ preload: undefined, partition: guestPartition(ORIGIN), title: 'office-pc.local:4600 (not encrypted) — Adminium', loaded: [`${ORIGIN}/`] });
+    // The app's own window is left as it was.
+    expect(made[0]?.destroyed).toBe(false);
+    await windows.openGuest?.({ origin: 'https://admin.example.com', encrypted: true });
+    expect(made[2]?.title).toBe('admin.example.com — Adminium');
+  });
+
+  it('a second ask for the same address brings its window to the front', async () => {
+    const windows = createWindowManager({ userDataDir: dir });
+    await windows.openGuest?.({ origin: ORIGIN, encrypted: false });
+    await windows.openGuest?.({ origin: ORIGIN, encrypted: false });
+    expect(made).toHaveLength(1);
+    expect(made[0]?.focused).toBe(1);
+    // Closed, it is opened anew.
+    made[0]?.emit('closed');
+    await windows.openGuest?.({ origin: ORIGIN, encrypted: false });
+    expect(made).toHaveLength(2);
+  });
+
+  it('is held to its address: anything else goes to the system’s browser or nowhere, and no second window is made', async () => {
+    const windows = createWindowManager({ userDataDir: dir });
+    await windows.openGuest?.({ origin: ORIGIN, encrypted: false });
+    const guest = made[0] as FakeWindow;
+    const go = (event: string, target: string): boolean => {
+      let stopped = false;
+      guest.handlers.get(event)?.({ preventDefault: () => void (stopped = true) }, target);
+      return stopped;
+    };
+    expect(go('will-navigate', `${ORIGIN}/t/orders`)).toBe(false);
+    expect(go('will-navigate', 'https://docs.adminium.dev/')).toBe(true);
+    expect(go('will-redirect', 'http://office-pc.local:4601/')).toBe(true);
+    expect(go('will-navigate', 'file:///etc/passwd')).toBe(true);
+    expect(external).toEqual(['https://docs.adminium.dev/']);
+
+    expect(guest.openHandler?.({ url: 'https://docs.adminium.dev/x' })).toEqual({ action: 'deny' });
+    expect(guest.openHandler?.({ url: `${ORIGIN}/help` })).toEqual({ action: 'deny' });
+    expect(external).toEqual(['https://docs.adminium.dev/', 'https://docs.adminium.dev/x']);
+    // Its own address asked for in a new window opens in the window it has.
+    expect(guest.loaded).toEqual([`${ORIGIN}/`, `${ORIGIN}/help`]);
+    expect(made).toHaveLength(1);
+  });
+
+  it('"Forget" closes its window and deletes its cookies', async () => {
+    const windows = createWindowManager({ userDataDir: dir });
+    await windows.openGuest?.({ origin: ORIGIN, encrypted: false });
+    await windows.clearGuest?.(ORIGIN);
+    expect(made[0]?.destroyed).toBe(true);
+    expect(cleared).toEqual([guestPartition(ORIGIN)]);
+    // An address with no window open is cleared all the same.
+    await windows.clearGuest?.('https://admin.example.com');
+    expect(cleared).toHaveLength(2);
   });
 });

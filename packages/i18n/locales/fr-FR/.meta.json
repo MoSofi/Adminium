@@ -11251,6 +11251,58 @@
     "status": "mt",
     "srcHash": "baa5b3ad9a28"
   },
+  "desktop.connect.address": {
+    "status": "mt",
+    "srcHash": "d70f93df5e8f"
+  },
+  "desktop.connect.anyway": {
+    "status": "mt",
+    "srcHash": "f9a4440fa3c1"
+  },
+  "desktop.connect.checking": {
+    "status": "mt",
+    "srcHash": "820d6004b037"
+  },
+  "desktop.connect.forget": {
+    "status": "mt",
+    "srcHash": "03d5d8019927"
+  },
+  "desktop.connect.forgetOf": {
+    "status": "mt",
+    "srcHash": "6d20a169672b"
+  },
+  "desktop.connect.go": {
+    "status": "mt",
+    "srcHash": "b65463cb6a42"
+  },
+  "desktop.connect.noAnswer": {
+    "status": "mt",
+    "srcHash": "cfb50467f918"
+  },
+  "desktop.connect.notAdminium": {
+    "status": "mt",
+    "srcHash": "f11645d563ce"
+  },
+  "desktop.connect.notAnAddress": {
+    "status": "mt",
+    "srcHash": "438b3dac31bb"
+  },
+  "desktop.connect.notEncrypted": {
+    "status": "mt",
+    "srcHash": "ad01751ab6fa"
+  },
+  "desktop.connect.notPrivate": {
+    "status": "mt",
+    "srcHash": "be85ad4a4fa5"
+  },
+  "desktop.connect.recent": {
+    "status": "mt",
+    "srcHash": "76eec760c9b6"
+  },
+  "desktop.connect.version": {
+    "status": "src",
+    "srcHash": "f987203947fc"
+  },
   "desktop.found.data": {
     "status": "mt",
     "srcHash": "cd0b9a72894c"

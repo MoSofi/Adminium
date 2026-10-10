@@ -24,7 +24,9 @@ import { join, sep } from 'node:path';
 
 import type {
   DesktopCreateProjectInput,
+  DesktopConnectResult,
   DesktopCreateProjectResult,
+  DesktopGuest,
   DesktopFoundRow,
   DesktopGetPackagesResult,
   DesktopLocateProjectResult,
@@ -40,6 +42,7 @@ import type {
   DesktopStartState,
 } from '../preload/api.js';
 import type { DesktopConfig } from './config.js';
+import { judgeGuestAddress, rememberGuest, type GuestCheck } from './guest.js';
 import {
   cameWithAccounts,
   cleanVersionStore,
@@ -171,6 +174,12 @@ export interface StartDeps {
   updateApp?: (() => boolean) | undefined;
   /** The system's file picker, for the `.env` a person still has. `null` on cancel. */
   chooseFile?: ((opts: { title: string; defaultPath?: string | undefined }) => Promise<string | null>) | undefined;
+  /** Ask an address whether an Adminium is there (`guest.ts`); absent: a build that cannot connect. */
+  checkGuest?: ((origin: string) => Promise<GuestCheck>) | undefined;
+  /** Open another Adminium in a window of its own, with none of the app's bridge. */
+  openGuest?: ((guest: { origin: string; encrypted: boolean }) => Promise<void>) | undefined;
+  /** Delete a guest's cookies. */
+  clearGuest?: ((origin: string) => Promise<void>) | undefined;
   /** The three writes below, for tests. */
   prepareNewData?: typeof prepareNewData | undefined;
   resolveMissingKey?: typeof resolveMissingKey | undefined;
@@ -193,6 +202,9 @@ export interface StartService {
   resolveKey(input: { path: string; answer: 'env' | 'fresh' | 'new'; title?: string | undefined }): Promise<DesktopResolveKeyResult>;
   updateProject(input: { path: string }): Promise<DesktopUpdateProjectResult>;
   updateApp(): boolean;
+  connect(input: { address: string; anyway?: boolean | undefined }): Promise<DesktopConnectResult>;
+  guests(): DesktopGuest[];
+  forgetGuest(address: string): Promise<DesktopGuest[]>;
   forgetProject(path: string): Promise<DesktopRecentProject[]>;
   locateProject(input: { path: string; title: string }): Promise<DesktopLocateProjectResult>;
   useClassic(): void;
@@ -226,6 +238,8 @@ export function createStartService(deps: StartDeps): StartService {
       ? { ok: true, path: judged.path, displayPath: shown(judged.path), warning: judged.warning }
       : { ok: false, path: judged.path, displayPath: judged.path === null ? null : shown(judged.path), refused: judged.refused };
   };
+
+  const guestList = (): DesktopGuest[] => deps.readConfig().guests.map((guest) => ({ address: guest.address, version: guest.version }));
 
   /** The real path of a project folder the person agreed to open, as its code is now; `null` otherwise. */
   const agreedRoot = (path: string): string | null => {
@@ -457,6 +471,32 @@ export function createStartService(deps: StartDeps): StartService {
     },
 
     updateApp: () => deps.updateApp?.() ?? false,
+
+    async connect(input) {
+      const judged = judgeGuestAddress(input.address);
+      if (!judged.ok) return { status: judged.reason };
+      // Said before anything is sent there: a password typed on that page would cross the network readable.
+      if (!judged.encrypted && input.anyway !== true) return { status: 'not-encrypted', address: judged.origin };
+      if (deps.checkGuest === undefined || deps.openGuest === undefined) return { status: 'no-answer' };
+      const found = await deps.checkGuest(judged.origin);
+      if (!found.ok) return { status: found.reason };
+      await deps.openGuest({ origin: judged.origin, encrypted: judged.encrypted });
+      const config = deps.readConfig();
+      await deps.saveConfig({ ...config, guests: rememberGuest(config.guests, judged.origin, found.version, now()) });
+      return { status: 'opened', guests: guestList() };
+    },
+
+    guests: () => guestList(),
+
+    async forgetGuest(address) {
+      const config = deps.readConfig();
+      // Only an address that is on the list: this is not a way to clear any cookie jar by name.
+      if (config.guests.some((guest) => guest.address === address)) {
+        await deps.clearGuest?.(address).catch(() => undefined);
+        await deps.saveConfig({ ...config, guests: config.guests.filter((guest) => guest.address !== address) });
+      }
+      return guestList();
+    },
 
     async forgetProject(path) {
       await deps.saveConfig(forgetProject(deps.readConfig(), path));

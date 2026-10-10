@@ -45,7 +45,9 @@ import type {
   DesktopBundledTextKind,
   DesktopConfigPatch,
   DesktopCreateProjectInput,
+  DesktopConnectResult,
   DesktopCreateProjectResult,
+  DesktopGuest,
   DesktopExportKind,
   DesktopExportResult,
   DesktopGetPackagesResult,
@@ -304,6 +306,9 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
         unwrap(ipc.invoke(IPC_CHANNELS.startResolveKey, input)),
       updateProject: (input: { readonly path: string }): Promise<DesktopUpdateProjectResult> => unwrap(ipc.invoke(IPC_CHANNELS.startUpdateProject, input)),
       updateApp: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.startUpdateApp)),
+      connect: (input: { readonly address: string; readonly anyway?: boolean | undefined }): Promise<DesktopConnectResult> => unwrap(ipc.invoke(IPC_CHANNELS.startConnect, input)),
+      guests: (): Promise<readonly DesktopGuest[]> => unwrap(ipc.invoke(IPC_CHANNELS.startGuests)),
+      forgetGuest: (address: string): Promise<readonly DesktopGuest[]> => unwrap(ipc.invoke(IPC_CHANNELS.startForgetGuest, address)),
       forgetProject: (path: string): Promise<readonly DesktopRecentProject[]> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startForgetProject, path)),
       locateProject: (input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult> =>

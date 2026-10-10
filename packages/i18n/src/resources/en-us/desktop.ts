@@ -215,5 +215,20 @@ export default {
     "keep": "Keep sharing",
     "buildAsk": "Go back to building?",
     "buildAskBody": "People using it on other devices will be disconnected."
+  },
+  "connect": {
+    "notAnAddress": "That is not an address. Type one like office-pc.local:4600.",
+    "notPrivate": "Adminium connects without encryption only on your own network. Use an https address.",
+    "noAnswer": "Nothing answered at that address. Check that the other computer is on and sharing.",
+    "notAdminium": "Nothing that looks like Adminium answered at that address.",
+    "address": "Address",
+    "checking": "Checking…",
+    "go": "Connect",
+    "notEncrypted": "This address is not encrypted. Use it only on a network you trust.",
+    "anyway": "Connect anyway",
+    "recent": "Recent",
+    "version": "Adminium {version}",
+    "forgetOf": "Forget {address}",
+    "forget": "Forget"
   }
 } as const;

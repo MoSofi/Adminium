@@ -52,6 +52,9 @@ function fakeStart(over: Partial<DesktopStartApi> = {}): DesktopStartApi {
     resolveKey: vi.fn(() => Promise.resolve({ status: 'done' as const })),
     updateProject: vi.fn(() => Promise.resolve({ status: 'updated' as const })),
     updateApp: vi.fn(() => Promise.resolve(true)),
+    connect: vi.fn(() => Promise.resolve({ status: 'opened' as const, guests: [] })),
+    guests: vi.fn(() => Promise.resolve([])),
+    forgetGuest: vi.fn(() => Promise.resolve([])),
     chooseFolder: vi.fn(() => Promise.resolve<{ path: string; displayPath: string } | null>({ path: '/Users/sam/Downloads/shop', displayPath: '~/Downloads/shop' })),
     openProject: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
     forgetProject: vi.fn(() => Promise.resolve([recentProject()])),
@@ -136,8 +139,8 @@ describe('Start', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('What would you like to do?');
     expect(screen.getAllByRole('button').filter((button) => button.hasAttribute('data-choice')).map((button) => button.getAttribute('data-choice'))).toEqual(['build', 'open', 'connect', 'db']);
     expect(screen.queryByText('Welcome to Adminium.')).toBeNull();
-    // Nothing to connect to yet.
-    expect((screen.getByText('Connect to another Adminium').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    // Its screen is built: the card can be chosen.
+    expect((screen.getByText('Connect to another Adminium').closest('button') as HTMLButtonElement).disabled).toBe(false);
     cleanup();
     show(fakeStart(), { ...STATE, firstLaunch: true, recent: [] });
     expect(screen.getByText('Welcome to Adminium.')).toBeTruthy();
@@ -793,5 +796,81 @@ describe('a shared project’s addresses', () => {
       expect(screen.getByRole('region', { name: 'Notices' }).textContent).toContain('could not start');
     });
     expect(screen.getByRole('heading', { name: 'Juniper Kitchen is shared' })).toBeTruthy();
+  });
+});
+
+describe('Connect to another Adminium', () => {
+  const connecting = (over: Partial<DesktopStartApi> = {}) => {
+    const start = fakeStart(over);
+    show(start);
+    fireEvent.click(screen.getByRole('button', { name: /Connect to another Adminium/ }));
+    return start;
+  };
+
+  it('opens from its card, with the address field, and goes back', async () => {
+    connecting();
+    expect(await screen.findByRole('heading', { name: 'Connect to another Adminium' })).toBeTruthy();
+    const field = screen.getByLabelText('Address');
+    expect(field.getAttribute('dir')).toBe('ltr');
+    expect((screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByRole('heading', { name: 'What would you like to do?' })).toBeTruthy();
+  });
+
+  it('says an address is not encrypted and waits for "Connect anyway"', async () => {
+    const connect = vi.fn<DesktopStartApi['connect']>().mockResolvedValueOnce({ status: 'not-encrypted', address: 'http://office-pc.local:4600' }).mockResolvedValueOnce({ status: 'opened', guests: [{ address: 'http://office-pc.local:4600', version: '0.3.24' }] });
+    connecting({ connect });
+    fireEvent.change(await screen.findByLabelText('Address'), { target: { value: 'office-pc.local:4600' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('This address is not encrypted.');
+    expect(connect).toHaveBeenLastCalledWith({ address: 'office-pc.local:4600' });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect anyway' }));
+    await waitFor(() => {
+      expect(connect).toHaveBeenLastCalledWith({ address: 'http://office-pc.local:4600', anyway: true });
+    });
+    // Opened in a window of its own: this screen stays, with the address now under Recent.
+    expect(await screen.findByRole('heading', { name: 'Recent' })).toBeTruthy();
+    expect(screen.getByText('Adminium 0.3.24')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it.each([
+    ['not-an-address', 'That is not an address. Type one like office-pc.local:4600.'],
+    ['not-private', 'Adminium connects without encryption only on your own network. Use an https address.'],
+    ['no-answer', 'Nothing answered at that address. Check that the other computer is on and sharing.'],
+    ['not-adminium', 'Nothing that looks like Adminium answered at that address.'],
+  ] as const)('says why an address was not opened (%s), on the field, and clears it when the address changes', async (status, words) => {
+    connecting({ connect: vi.fn(() => Promise.resolve({ status })) });
+    const field = await screen.findByLabelText('Address');
+    fireEvent.change(field, { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(words);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    fireEvent.change(field, { target: { value: 'xy' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('lists the addresses used before; one opens again, and "Forget" takes it away', async () => {
+    const guests = [{ address: 'http://office-pc.local:4600', version: '0.3.24' }];
+    const start = connecting({ guests: vi.fn(() => Promise.resolve(guests)), forgetGuest: vi.fn(() => Promise.resolve([])), connect: vi.fn(() => Promise.resolve({ status: 'opened' as const, guests })) });
+    fireEvent.click(await screen.findByRole('button', { name: 'http://office-pc.local:4600' }));
+    await waitFor(() => {
+      // Known and chosen before: not asked about its encryption again.
+      expect(start.connect).toHaveBeenCalledWith({ address: 'http://office-pc.local:4600', anyway: true });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Forget http://office-pc.local:4600' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Recent' })).toBeNull();
+    });
+    expect(start.forgetGuest).toHaveBeenCalledWith('http://office-pc.local:4600');
+  });
+
+  it('says so in a notice when the bridge itself fails', async () => {
+    connecting({ connect: vi.fn(() => Promise.reject(new Error('INTERNAL: no window'))) });
+    fireEvent.change(await screen.findByLabelText('Address'), { target: { value: 'x.local' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Notices' }).textContent).toContain('no window');
+    });
   });
 });

@@ -746,3 +746,64 @@ describe('opening a folder, with the engine’s facts', () => {
     expect(service().start.updateApp()).toBe(false);
   });
 });
+
+// ─── another Adminium ────────────────────────────────────────────────────────
+
+describe('connecting to another Adminium', () => {
+  const guestDeps = (found: { ok: true; version: string } | { ok: false; reason: 'no-answer' | 'not-adminium' } = { ok: true, version: '0.3.24' }) => {
+    const checkGuest = vi.fn(() => Promise.resolve(found));
+    const openGuest = vi.fn(() => Promise.resolve());
+    const clearGuest = vi.fn(() => Promise.resolve());
+    return { checkGuest, openGuest, clearGuest };
+  };
+
+  it('judges what was typed before anything is asked of it', async () => {
+    const deps = guestDeps();
+    const { start } = service(deps);
+    expect(await start.connect({ address: 'two words' })).toEqual({ status: 'not-an-address' });
+    expect(await start.connect({ address: 'http://admin.example.com' })).toEqual({ status: 'not-private' });
+    expect(deps.checkGuest).not.toHaveBeenCalled();
+  });
+
+  it('says an address is not encrypted before it asks it anything; "anyway" goes on', async () => {
+    const deps = guestDeps();
+    const { start } = service(deps);
+    expect(await start.connect({ address: 'office-pc.local:4600' })).toEqual({ status: 'not-encrypted', address: 'http://office-pc.local:4600' });
+    expect(deps.checkGuest).not.toHaveBeenCalled();
+    expect(await start.connect({ address: 'office-pc.local:4600', anyway: true })).toEqual({ status: 'opened', guests: [{ address: 'http://office-pc.local:4600', version: '0.3.24' }] });
+    expect(deps.checkGuest).toHaveBeenCalledWith('http://office-pc.local:4600');
+    expect(deps.openGuest).toHaveBeenCalledWith({ origin: 'http://office-pc.local:4600', encrypted: false });
+    expect(config.guests).toEqual([{ address: 'http://office-pc.local:4600', version: '0.3.24', lastOpened: '2026-10-10T08:00:00.000Z' }]);
+  });
+
+  it('an https address needs no "anyway"', async () => {
+    const deps = guestDeps();
+    const { start } = service(deps);
+    expect((await start.connect({ address: 'admin.example.com' })).status).toBe('opened');
+    expect(deps.openGuest).toHaveBeenCalledWith({ origin: 'https://admin.example.com', encrypted: true });
+  });
+
+  it('opens nothing and remembers nothing when no Adminium answers there', async () => {
+    for (const reason of ['no-answer', 'not-adminium'] as const) {
+      const deps = guestDeps({ ok: false, reason });
+      const { start } = service(deps);
+      expect(await start.connect({ address: 'https://admin.example.com' })).toEqual({ status: reason });
+      expect(deps.openGuest).not.toHaveBeenCalled();
+      expect(config.guests).toEqual([]);
+    }
+    // A build that cannot connect says the same as an address that does not answer.
+    expect(await service().start.connect({ address: 'https://admin.example.com' })).toEqual({ status: 'no-answer' });
+  });
+
+  it('"Forget" takes the address off the list and deletes its cookies, and only for an address that is on it', async () => {
+    const deps = guestDeps();
+    const { start } = service(deps);
+    await start.connect({ address: 'https://admin.example.com' });
+    expect(start.guests()).toEqual([{ address: 'https://admin.example.com', version: '0.3.24' }]);
+    expect(await start.forgetGuest('https://other.example.com')).toHaveLength(1);
+    expect(deps.clearGuest).not.toHaveBeenCalled();
+    expect(await start.forgetGuest('https://admin.example.com')).toEqual([]);
+    expect(deps.clearGuest).toHaveBeenCalledWith('https://admin.example.com');
+    expect(config.guests).toEqual([]);
+  });
+});

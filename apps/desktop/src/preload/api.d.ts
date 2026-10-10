@@ -522,6 +522,24 @@ export type DesktopResolveKeyResult =
   | { readonly status: 'trust-needed' }
   | { readonly status: 'failed'; readonly detail: string };
 
+/** Another Adminium this app was connected to. */
+export interface DesktopGuest {
+  /** `http://office-pc.local:4600` */
+  readonly address: string;
+  readonly version: string;
+}
+
+export type DesktopConnectResult =
+  /** A window of its own is open on it. */
+  | { readonly status: 'opened'; readonly guests: readonly DesktopGuest[] }
+  | { readonly status: 'not-an-address' }
+  /** Plain `http` to an address that is not on the person's own network. */
+  | { readonly status: 'not-private' }
+  /** On their own network and not encrypted: say so, then call again with `anyway`. */
+  | { readonly status: 'not-encrypted'; readonly address: string }
+  | { readonly status: 'no-answer' }
+  | { readonly status: 'not-adminium' };
+
 export type DesktopUpdateProjectResult = { readonly status: 'updated' } | { readonly status: 'trust-needed' } | { readonly status: 'failed'; readonly detail: string };
 
 /** `getPackages`: the packages were fetched and the project is opening, or why not. */
@@ -576,6 +594,11 @@ export interface DesktopStartApi {
   updateProject(input: { readonly path: string }): Promise<DesktopUpdateProjectResult>;
   /** After `needs-newer`: look for a newer Adminium now. `false` in a build that does not update itself. */
   updateApp(): Promise<boolean>;
+  /** "Connect to another Adminium": judge the address, ask whether an Adminium is there, open it as a guest. */
+  connect(input: { readonly address: string; readonly anyway?: boolean | undefined }): Promise<DesktopConnectResult>;
+  guests(): Promise<readonly DesktopGuest[]>;
+  /** "Forget": the address leaves the list and its cookies are deleted. */
+  forgetGuest(address: string): Promise<readonly DesktopGuest[]>;
   forgetProject(path: string): Promise<readonly DesktopRecentProject[]>;
   /** "Locate…": the system's folder picker, then the entry moves there. */
   locateProject(input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult>;
