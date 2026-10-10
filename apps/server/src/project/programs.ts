@@ -98,7 +98,7 @@ export function nodeProgram(args: readonly string[], env: Readonly<Record<string
 }
 
 /** The lockfile of a package manager the desktop app does not carry, when the folder has one. */
-function otherManagersLockfile(root: string): { manager: Exclude<PackageManager, 'npm'>; file: string } | null {
+export function otherManagersLockfile(root: string): { manager: Exclude<PackageManager, 'npm'>; file: string } | null {
   for (const [manager, file] of [
     ['pnpm', 'pnpm-lock.yaml'],
     ['yarn', 'yarn.lock'],

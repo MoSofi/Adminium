@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { folderFactsCommand } from '../src/cli/commands/folder-facts.js';
 import { readFolderFacts } from '../src/project/folder-facts.js';
+import { APP_VERSION } from '../src/version.js';
 
 let root: string;
 beforeEach(() => {
@@ -39,7 +40,41 @@ function store(dir = join(root, 'data'), ledger: [string, string][] = [['0001_co
 
 describe('readFolderFacts', () => {
   it('a folder with nothing yet: no key, no data, and where the data would go', () => {
-    expect(readFolderFacts(root, KNOWN)).toEqual({ secret: false, database: 'none', dataDir: join(root, 'data'), lastEngine: null, newer: [], people: { count: 0, names: [] }, apiKeys: { count: 0, names: [] }, publicKeys: { count: 0, names: [] }, ownerHasPassword: null });
+    expect(readFolderFacts(root, KNOWN)).toEqual({
+      secret: false,
+      database: 'none',
+      dataDir: join(root, 'data'),
+      lastEngine: null,
+      newer: [],
+      people: { count: 0, names: [] },
+      apiKeys: { count: 0, names: [] },
+      publicKeys: { count: 0, names: [] },
+      ownerHasPassword: null,
+      running: null,
+      otherManager: null,
+      engine: { installed: null, declared: null, here: APP_VERSION },
+      install: 'no-packages',
+    });
+  });
+
+  it('says which Adminium the project’s own code imports, another manager’s lockfile, and a server that has the folder', () => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ dependencies: { '@adminiumjs/adminium': '0.3.16' } }));
+    mkdirSync(join(root, 'node_modules', '@adminiumjs', 'adminium'), { recursive: true });
+    writeFileSync(join(root, 'node_modules', '@adminiumjs', 'adminium', 'package.json'), JSON.stringify({ version: '0.3.16' }));
+    writeFileSync(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
+    mkdirSync(join(root, '.adminium'));
+    // This test's parent is a process that is certainly alive and is not this one.
+    writeFileSync(join(root, '.adminium', 'running.json'), JSON.stringify({ pid: process.ppid, port: 4712, mode: 'dev', by: 'cli' }));
+    expect(readFolderFacts(root, KNOWN)).toMatchObject({
+      engine: { installed: '0.3.16', declared: '0.3.16', here: APP_VERSION },
+      otherManager: { manager: 'pnpm' },
+      running: { port: 4712, by: 'cli' },
+      // Packages are there, and nothing says the install finished.
+      install: 'not-finished',
+    });
+    // A package file that does not read is no pin, not a failure.
+    writeFileSync(join(root, 'package.json'), '{');
+    expect(readFolderFacts(root, KNOWN).engine.declared).toBeNull();
   });
 
   it('reads the key from .env as text, and an empty one is none', () => {

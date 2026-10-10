@@ -3,7 +3,7 @@
  * Installing a project's packages whole: what is run, on a terminal and in the
  * desktop app, and that the mark is there only after a success.
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli/run.js';
 import type { ChildResult } from '../src/designer/child.js';
 import { INSTALL_STAMP_FILE, installNeed, writeInstallStamp } from '../src/project/install-stamp.js';
-import { installNeedWords, installProject, wholeInstallArgs } from '../src/project/install.js';
+import { installNeedWords, installProject, pinEngine, wholeInstallArgs } from '../src/project/install.js';
 import { DESKTOP_PROGRAMS_ENV } from '../src/project/programs.js';
 import { APP_VERSION } from '../src/version.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
@@ -109,5 +109,32 @@ describe('adminium install --check', () => {
     const refused = fakeIo();
     expect(await runCli(['install', '--check'], { io: refused, deps: fakeDeps({ cwd: root, env: {} }) })).not.toBe(0);
     expect(refused.stderr()).toContain('There is no project in this folder');
+  });
+});
+
+describe('pinEngine ("Update this project")', () => {
+  const manifest = (): { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } => JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as ReturnType<typeof manifest>;
+
+  it('sets the project’s own pins of Adminium to this build’s version, exactly, and touches nothing else', () => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'p', dependencies: { '@adminiumjs/adminium': '^0.3.16', react: '19.0.0' }, devDependencies: { '@adminiumjs/public-client': '0.3.16' } }));
+    expect(pinEngine(root)).toBe(true);
+    expect(manifest()).toEqual({ name: 'p', dependencies: { '@adminiumjs/adminium': APP_VERSION, react: '19.0.0' }, devDependencies: { '@adminiumjs/public-client': APP_VERSION } });
+    // Already there: nothing is written, and the install that follows may use the lockfile.
+    expect(pinEngine(root)).toBe(false);
+  });
+
+  it('adds no pin a project does not have', () => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'p', dependencies: { react: '19.0.0' } }));
+    expect(pinEngine(root)).toBe(false);
+    expect(manifest().dependencies).toEqual({ react: '19.0.0' });
+  });
+
+  it('the install after a new pin is a whole one, lockfile or not: `npm ci` would refuse the old lock', async () => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'p', dependencies: { '@adminiumjs/adminium': '0.3.16' } }));
+    writeFileSync(join(root, 'package-lock.json'), '{"lockfileVersion":3}');
+    const { run, calls } = runner();
+    expect(pinEngine(root)).toBe(true);
+    expect((await installProject(root, { env: {}, run, whole: true })).command).toBe('npm install --ignore-scripts');
+    expect(calls.at(-1)?.args).toEqual(['install', '--ignore-scripts']);
   });
 });

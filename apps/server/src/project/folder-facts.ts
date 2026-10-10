@@ -11,13 +11,17 @@
  * whose store is elsewhere (Postgres, MySQL) answers `elsewhere`: it is asked
  * nothing here and starts as it would on a terminal.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import { ALL_MIGRATIONS } from '@adminium/meta';
 import Database from 'better-sqlite3';
 
+import { APP_VERSION } from '../version.js';
 import { readDotEnv } from './dotenv.js';
+import { installNeed, type InstallNeed } from './install-stamp.js';
+import { otherManagersLockfile } from './programs.js';
+import { readRunning } from './running.js';
 
 /** The account design mode signs the preview in as: not a person. */
 const PREVIEW_EMAIL = 'preview@adminium.localhost';
@@ -41,6 +45,39 @@ export interface FolderFacts {
   publicKeys: { count: number; names: string[] };
   /** The owner design mode made has a password of their own; `null` when there is no such owner. */
   ownerHasPassword: boolean | null;
+  /** A server that has this folder now, or `null`. */
+  running: { port: number; by: 'cli' | 'desktop' } | null;
+  /** Another package manager's lockfile in the folder, or `null`. */
+  otherManager: { manager: string; file: string } | null;
+  /** The Adminium the project's own code imports: what is installed, what `package.json` asks for, and this build's. */
+  engine: { installed: string | null; declared: string | null; here: string };
+  /** Whether the project's packages are in place for THIS computer, and if not, why. */
+  install: InstallNeed;
+}
+
+const ENGINE_PACKAGE = '@adminiumjs/adminium';
+
+function json(file: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What is known of a folder without opening its store. */
+function outside(root: string): Pick<FolderFacts, 'running' | 'otherManager' | 'engine' | 'install'> {
+  const running = readRunning(root);
+  const installed = json(join(root, 'node_modules', ...ENGINE_PACKAGE.split('/'), 'package.json'))?.['version'];
+  const manifest = json(join(root, 'package.json'));
+  const declared = ((manifest?.['dependencies'] ?? {}) as Record<string, unknown>)[ENGINE_PACKAGE] ?? ((manifest?.['devDependencies'] ?? {}) as Record<string, unknown>)[ENGINE_PACKAGE];
+  return {
+    running: running === null ? null : { port: running.port, by: running.by },
+    otherManager: otherManagersLockfile(root),
+    engine: { installed: typeof installed === 'string' ? installed : null, declared: typeof declared === 'string' ? declared : null, here: APP_VERSION },
+    install: installNeed(root),
+  };
 }
 
 const EMPTY = { count: 0, names: [] as string[] };
@@ -49,7 +86,7 @@ export function readFolderFacts(root: string, known: readonly string[] = ALL_MIG
   const dotenv = readDotEnv(root) ?? {};
   const secret = (dotenv['ADMINIUM_SECRET'] ?? '').trim() !== '';
   const metaUrl = (dotenv['ADMINIUM_META_URL'] ?? '').trim();
-  const base: FolderFacts = { secret, database: 'none', dataDir: null, lastEngine: null, newer: [], people: EMPTY, apiKeys: EMPTY, publicKeys: EMPTY, ownerHasPassword: null };
+  const base: FolderFacts = { secret, database: 'none', dataDir: null, lastEngine: null, newer: [], people: EMPTY, apiKeys: EMPTY, publicKeys: EMPTY, ownerHasPassword: null, ...outside(root) };
   if (metaUrl !== '' && !/^(sqlite:|file:)/i.test(metaUrl)) return { ...base, database: 'elsewhere' };
 
   const named = (dotenv['ADMINIUM_DATA_DIR'] ?? '').trim();
